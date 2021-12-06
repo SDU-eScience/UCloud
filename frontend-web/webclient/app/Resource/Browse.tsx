@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Icon, List} from "@/ui-components";
+import {Box, Checkbox, Flex, Icon, Label, List, Truncate, Text} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -43,6 +43,7 @@ import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {EnumFilterWidget} from "@/Resource/Filter";
 import {BrowseType} from "./BrowseType";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -70,6 +71,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
+    showGroups?: boolean;
 
     onResourcesLoaded?: (newItems: Res[]) => void;
 }
@@ -79,11 +81,12 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     isSearch?: boolean;
 
     onSelect?: (resource: Res) => void;
+    onSelectRestriction?: (resource: Res) => boolean;
 }
 
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
-}: PropsWithChildren<ResourceBrowseProps<Res, CB>>): ReactElement | null {
+}: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
 
     const [productsWithSupport, fetchProductsWithSupport] = useCloudAPI<SupportByProvider>(
         {noop: true},
@@ -125,12 +128,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         [props.onRename]
     );
 
-    const sortDirections: EnumOption[] = sortDirection === "descending" ? [{
+    const sortDirections: EnumOption[] = [{
         icon: "sortAscending",
         title: "Ascending",
         value: "ascending",
         helpText: "Increasing in value, e.g. 1, 2, 3..."
-    }] : [{
+    }, {
         icon: "sortDescending",
         title: "Descending",
         value: "descending",
@@ -169,12 +172,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const generateFetch = useCallback((next?: string): APICallParameters => {
         if (props.isSearch) {
             return api.search({
-                itemsPerPage: 50, flags: {includeOthers, ...filters}, query,
+                itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
                 next, sortDirection, sortBy: sortColumn, ...props.additionalFilters
             });
         } else {
             return api.browse({
-                next, itemsPerPage: 50, includeOthers,
+                next, itemsPerPage: 100, includeOthers,
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }
@@ -203,13 +206,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         },
         embedded: isEmbedded,
         onSelect,
+        onSelectRestriction: props.onSelectRestriction,
         dispatch,
         history,
-        startRenaming: (res, value) => {
+        startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
             setRenamingValue(value);
         },
-        startCreation: () => {
+        startCreation() {
             if (props.onInlineCreation != null) {
                 setSelectedProduct(props.inlineProduct ?? null);
                 setIsCreating(true);
@@ -242,8 +246,15 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         if (inlineInputRef.current && props.onInlineCreation) {
             const prefix = props?.inlinePrefix?.(selectedProductWithSupport!) ?? "";
             const suffix = props?.inlineSuffix?.(selectedProductWithSupport!) ?? "";
+
+            const trimmedValue = inlineInputRef.current.value.trim();
+            if (!trimmedValue) {
+                snackbarStore.addFailure("Title can't be blank or empty", false);
+                return;
+            }
+
             const spec = props.onInlineCreation(
-                prefix + inlineInputRef.current.value + suffix,
+                prefix + trimmedValue + suffix,
                 selectedProduct!,
                 callbacks
             );
@@ -260,7 +271,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const operations = useMemo(() => api.retrieveOperations(), [callbacks, api]);
 
-    const onSortUpdated = useCallback((dir, column) => {
+    const onSortUpdated = useCallback((dir: "ascending" | "descending", column?: string) => {
         setSortColumn(column);
         setSortDirection(dir)
     }, []);
@@ -300,7 +311,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             </> : <>
                 {props.showCreatedAt === false ? null :
                     <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt)}</ListRowStat>}
-                {props.showCreatedBy === false ? null :
+                {props.showCreatedBy === false || resource.owner.createdBy === "_ucloud" ? null :
                     <div className="tooltip">
                         <ListRowStat icon={"user"}>{" "}{resource.owner.createdBy}</ListRowStat>
                         <div className="tooltip-content centered">
@@ -318,28 +329,79 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         </div>
                     </div>
                 }
+                {
+                    !resource.permissions.myself.includes("ADMIN") ? null :
+                        (props.showGroups === false ||
+                            resource.permissions.others == null ||
+                            resource.permissions.others.length == 1 ) ? <ListRowStat>Only available to admins</ListRowStat> :
+                    <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
+                }
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
         onInlineCreate, inlineInputRef, selectedProductWithSupport, props.showCreatedAt, props.showCreatedBy,
-        props.showProduct]);
+        props.showProduct, props.showGroups]);
+
+    const sortOptions = useMemo(() =>
+        api.sortEntries.map(it => ({
+            icon: it.icon,
+            title: it.title,
+            value: it.column,
+            helpText: it.helpText
+        })),
+        [api.sortEntries]
+    );
 
     const pageSize = useRef(0);
 
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
+        /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
+        toggleSet.allItems.current = items;
+        const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
         return <>
-            <Spacer left={null} right={pageSize.current > 0 ?
-                <Box width="160px">
-                    <EnumFilterWidget
-                        expanded={false} propertyName="direction" title="Sort direction" facedownChevron
-                        id={0} onExpand={doNothing} properties={filters} options={sortDirections}
-                        onPropertiesUpdated={updated => onSortUpdated(updated.direction, sortColumn)}
-                        icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
-                    />
-                </Box> : <Box height="27px" />
-            } />
+            {pageSize.current > 0 ? (
+                <Spacer left={
+                    <Label style={{cursor: "pointer"}} width={"102px"}>
+                        <Checkbox
+                            style={{marginTop: "-2px"}}
+                            onChange={() => allChecked ? toggleSet.uncheckAll() : toggleSet.checkAll()}
+                            checked={allChecked}
+                        />
+                        Select all
+                    </Label>
+                } right={
+                    <Flex width="325px">
+                        {api.sortEntries.length === 0 ? null : <EnumFilterWidget
+                            expanded={false}
+                            browseType={BrowseType.Card}
+                            propertyName="column"
+                            title="Sort by"
+                            facedownChevron
+                            id={0}
+                            onExpand={doNothing}
+                            properties={filters}
+                            options={sortOptions}
+                            onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
+                            icon="properties"
+                        />}
+                        <Box mx="auto" />
+                        <EnumFilterWidget
+                            expanded={false}
+                            browseType={BrowseType.Card}
+                            propertyName="direction"
+                            title="Sort direction"
+                            facedownChevron
+                            id={0}
+                            onExpand={doNothing}
+                            properties={filters}
+                            options={sortDirections}
+                            onPropertiesUpdated={updated => onSortUpdated(updated.direction as "ascending" | "descending", sortColumn)}
+                            icon={sortDirection === "ascending" ? "sortAscending" : "sortDescending"}
+                        />
+                    </Flex>
+                } />) : <Box height="27px" />}
             <List onContextMenu={preventDefault}>
                 {!isCreating ? null :
                     <ItemRow
@@ -351,13 +413,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 }
                 {items.length > 0 || isCreating ? null : props.emptyPage ? props.emptyPage :
                     <>
-                        No {api.titlePlural.toLowerCase()} available. Click &quot;Create {api.title.toLowerCase()}&quot;
-                        to create a new one.
+                        No {api.titlePlural.toLowerCase()} matches your search/filter criteria.
+                        Click &quot;Create {api.title.toLowerCase()}&quot; to create a new one.
                     </>
                 }
                 {items.map(it =>
                     <ItemRow
                         key={it.id}
+                        browseType={props.browseType}
                         navigate={() => {
                             if (props.navigateToChildren) {
                                 const result = props.navigateToChildren?.(history, it)
@@ -368,7 +431,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                                 viewProperties(it);
                             }
                         }}
-                        renderer={modifiedRenderer as ItemRenderer<Res, any>} callbacks={callbacks} operations={operations}
+                        renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
                     />
@@ -382,19 +445,20 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         useTitle(api.titlePlural);
         useLoading(commandLoading);
         useSidebarPage(api.page);
-        useResourceSearch(api);
+        if (!props.disableSearch) useResourceSearch(api);
     }
 
     const main = !inlineInspecting ? <>
-        <StandardBrowse pageSizeRef={pageSize} generateCall={generateFetch} pageRenderer={pageRenderer}
-            reloadRef={reloadRef} setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
+        <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
+            generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />
     </>;
 
     if (isEmbedded) {
-        return <Box ref={scrollingContainerRef}>
+        return <Box minWidth="700px" ref={scrollingContainerRef}>
             <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
                 {inlineInspecting ?
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
@@ -407,7 +471,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             pills={api.filterPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} readOnlyProperties={props.additionalFilters} />
+                            readOnlyProperties={props.additionalFilters} />
                     </>
                 }
             </StickyBox>
@@ -428,7 +492,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         <ResourceFilter pills={api.filterPills} filterWidgets={api.filterWidgets}
                             sortEntries={api.sortEntries} sortDirection={sortDirection}
                             onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            onApplyFilters={reloadRef.current} browseType={props.browseType}
+                            browseType={props.browseType}
                             readOnlyProperties={props.additionalFilters} />
                     </>
             }
@@ -440,9 +504,9 @@ function UserBox(props: {username: string}) {
     const avatars = useAvatars();
     const avatar = avatars.cache[props.username] ?? defaultAvatar;
     return <div className="user-box" style={{display: "relative"}}>
-        <Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} />
+        <div className="centered"><Avatar style={{marginTop: "-70px", width: "150px", marginBottom: "-70px"}} avatarStyle="circle" {...avatar} /></div>
         <div className="centered" style={{display: "flex", justifyContent: "center"}}>
-            <h1>{props.username}</h1>
+            <Truncate mt="18px" fontSize="2em" mx="24px" width="100%">{props.username}</Truncate>
         </div>
         {/* Re-add when we know what to render below  */}
         {/* <div style={{justifyContent: "left", textAlign: "left"}}>

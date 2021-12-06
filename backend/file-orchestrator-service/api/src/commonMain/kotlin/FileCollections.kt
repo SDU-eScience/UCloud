@@ -28,7 +28,11 @@ typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameReques
 data class FileCollectionsRenameRequestItem(
     val id: String,
     val newTitle: String,
-)
+) {
+    init {
+        checkSingleLine(::newTitle, newTitle)
+    }
+}
 typealias FileCollectionsRenameResponse = Unit
 
 typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProviderRenameRequestItem>
@@ -37,7 +41,11 @@ typealias FileCollectionsProviderRenameRequest = BulkRequest<FileCollectionsProv
 data class FileCollectionsProviderRenameRequestItem(
     val id: String,
     val newTitle: String,
-)
+) {
+    init {
+        checkSingleLine(::newTitle, newTitle)
+    }
+}
 typealias FileCollectionsProviderRenameResponse = Unit
 
 // ---

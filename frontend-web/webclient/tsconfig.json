@@ -15,6 +15,7 @@
             "es2018",
             "dom"
         ],
+        "skipLibCheck": true,
         "target": "es2015",
         "jsx": "react",
         "pretty": true,

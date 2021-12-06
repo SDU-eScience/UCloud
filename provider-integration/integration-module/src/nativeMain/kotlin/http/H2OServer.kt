@@ -1,33 +1,31 @@
 package dk.sdu.cloud.http
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Log
-import dk.sdu.cloud.utils.DynamicWorkerPool
 import h2o.*
 import io.ktor.http.*
 import io.ktor.utils.io.charsets.*
 import kotlinx.atomicfu.atomicArrayOfNulls
 import kotlinx.cinterop.*
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
-import platform.posix.*
-import platform.posix.free as posixFree
+import platform.posix.SIZE_MAX
+import platform.posix.strdup
 import uv.*
 import uv.uv_handle_s
 import uv.uv_loop_t
 import uv.uv_stream_t
-import kotlin.native.concurrent.TransferMode
-import kotlin.native.concurrent.Worker
-import kotlin.native.concurrent.freeze
-import kotlin.native.concurrent.isFrozen
 import kotlin.native.internal.NativePtr
+import platform.posix.free as posixFree
 
 @Suppress("FunctionName")
 fun h2o_send_inline(req: CValuesRef<h2o_req_t>?, body: String) {
@@ -52,30 +50,26 @@ object HeaderValues {
 
 object WSFrames {
     const val TEXT_FRAME: UByte = 0x1u
+
     @Suppress("UNUSED")
     const val BINARY_FRAME: UByte = 0x2u
 }
 
 data class OutgoingFrame(val wsId: Int, val connPtr: CPointer<h2o_websocket_conn_t>?, val message: String)
 
-@SharedImmutable
 private val outgoingFrames = Channel<OutgoingFrame>(Channel.UNLIMITED)
 
 private const val WS_ID_OFFSET = 1000
 private const val MAX_WS_SOCKETS = 1024 * 64
 
-@SharedImmutable
-private val webSocketIsOpen = atomicArrayOfNulls<Unit>(MAX_WS_SOCKETS).freeze()
-
-@SharedImmutable
-private val workers = DynamicWorkerPool("WS Workers")
+private val webSocketIsOpen = atomicArrayOfNulls<Unit>(MAX_WS_SOCKETS)
 
 @ThreadLocal
 private val log = Log("H2OServer")
 
 private fun closeWebSocketConnection(connPtr: CPointer<h2o_websocket_conn_t>) {
     val conn = connPtr.pointed
-    val wsId = conn.data?.rawValue?.toLong()?.toInt()?. let { it - WS_ID_OFFSET }
+    val wsId = conn.data?.rawValue?.toLong()?.toInt()?.let { it - WS_ID_OFFSET }
     if (wsId != null) {
         webSocketIsOpen[wsId % MAX_WS_SOCKETS].getAndSet(null)
     }
@@ -84,6 +78,7 @@ private fun closeWebSocketConnection(connPtr: CPointer<h2o_websocket_conn_t>) {
 }
 
 data class WebSocketContext<R : Any, S : Any, E : Any>(
+    val internalId: Int,
     val rawRequest: WSRequest<JsonObject>,
     val call: CallDescription<R, S, E>,
     val sendMessage: (S) -> Unit,
@@ -131,7 +126,7 @@ private fun onWebSocketMessage(
 
     val isControlFrame = ((arg.opcode.toInt() shr 3) and 1) != 0
     if (isControlFrame) return
-    val wsId = conn.data?.rawValue?.toLong()?.toInt()?. let { it - WS_ID_OFFSET } ?: run {
+    val wsId = conn.data?.rawValue?.toLong()?.toInt()?.let { it - WS_ID_OFFSET } ?: run {
         log.debug("Found no ws id")
         return
     }
@@ -150,141 +145,144 @@ private fun onWebSocketMessage(
         return
     }
 
-    workers
-        .execute(
-            { InternalWsContext(wsId, connPtr, msgString).freeze() },
-            { (wsId, connPtr, msgString) ->
-                runBlocking {
-                    val server = h2oServer.value ?: error("not ready yet")
+    ProcessingScope.launch {
+        val server = h2oServer.value ?: error("not ready yet")
 
-                    val request = runCatching {
-                        defaultMapper.decodeFromString<WSRequest<JsonObject>>(msgString)
-                    }.getOrNull() ?: run {
-                        log.debug("Invalid request $msgString")
-                        return@runBlocking
-                    }
+        val request = runCatching {
+            defaultMapper.decodeFromString<WSRequest<JsonObject>>(msgString)
+        }.getOrNull() ?: run {
+            log.debug("Invalid request $msgString")
+            return@launch
+        }
 
-                    val allCalls = server.handlers
-                    @Suppress("UNCHECKED_CAST")
-                    val foundCall = allCalls
-                        .find { it.call.websocketOrNull != null && it.call.fullName == request.call }
-                        as CallWithHandler<Any, Any, Any>?
+        val allCalls = server.handlers
 
-                    if (foundCall == null) {
-                        outgoingFrames.send(
-                            OutgoingFrame(
-                                wsId,
-                                connPtr,
-                                defaultMapper.encodeToString(WSMessage.Response(request.streamId, Unit, 404))
-                            )
+        @Suppress("UNCHECKED_CAST")
+        val foundCall = allCalls
+            .find { it.call.websocketOrNull != null && it.call.fullName == request.call }
+            as CallWithHandler<Any, Any, Any>?
+
+        if (foundCall == null) {
+            outgoingFrames.send(
+                OutgoingFrame(
+                    wsId,
+                    connPtr,
+                    defaultMapper.encodeToString(WSMessage.Response(request.streamId, Unit, 404))
+                )
+            )
+            log.debug("Call not found")
+            return@launch
+        }
+
+        @Suppress("UNCHECKED_CAST")
+        val call = foundCall.call
+
+        val parsedRequest = runCatching {
+            defaultMapper.decodeFromJsonElement(call.requestType, request.payload)
+        }.getOrNull() ?: run {
+            outgoingFrames.send(
+                OutgoingFrame(
+                    wsId,
+                    connPtr,
+                    defaultMapper.encodeToString(WSMessage.Response(request.streamId, Unit, 400))
+                )
+            )
+            log.debug("Invalid request message")
+            return@launch
+        }
+
+        val isOpen: () -> Boolean = {
+            webSocketIsOpen[wsId].compareAndSet(Unit, Unit)
+        }
+
+        val sendMessage: (Any) -> Unit = {
+            if (!isOpen()) {
+                throw RPCException(
+                    "Connection already closed",
+                    HttpStatusCode(499, "Connection already closed")
+                )
+            }
+
+            runBlocking {
+                outgoingFrames.send(
+                    OutgoingFrame(
+                        wsId,
+                        connPtr,
+                        defaultMapper.encodeToString(
+                            WSMessage.Message.serializer(call.successType),
+                            WSMessage.Message(request.streamId, it)
                         )
-                        log.debug("Call not found")
-                        return@runBlocking
-                    }
+                    )
+                )
+            }
+        }
 
-                    @Suppress("UNCHECKED_CAST")
-                    val call = foundCall.call
+        val sendResponse: (Any?, Int) -> Unit = { message, statusCode ->
+            if (!isOpen()) {
+                log.debug("Connection is no longer open")
+                throw RPCException(
+                    "Connection already closed",
+                    HttpStatusCode(499, "Connection already closed")
+                )
+            }
 
-                    val parsedRequest = runCatching {
-                        defaultMapper.decodeFromJsonElement(call.requestType, request.payload)
-                    }.getOrNull() ?: run {
-                        outgoingFrames.send(
-                            OutgoingFrame(
-                                wsId,
-                                connPtr,
-                                defaultMapper.encodeToString(WSMessage.Response(request.streamId, Unit, 400))
-                            )
+            runBlocking {
+                outgoingFrames.send(
+                    OutgoingFrame(
+                        wsId,
+                        connPtr,
+                        defaultMapper.encodeToString(
+                            WSMessage.Response.serializer(
+                                if (statusCode in 200..299) {
+                                    call.successType
+                                } else {
+                                    call.errorType
+                                }
+                            ),
+                            WSMessage.Response(request.streamId, message ?: Unit, statusCode)
                         )
-                        log.debug("Invalid request message")
-                        return@runBlocking
-                    }
+                    )
+                )
+            }
+        }
 
-                    val isOpen: () -> Boolean = {
-                        webSocketIsOpen[wsId].compareAndSet(Unit, Unit)
-                    }
+        val wsContext = WebSocketContext(wsId, request, foundCall.call, sendMessage, sendResponse, isOpen)
 
-                    val sendMessage: (Any) -> Unit = {
-                        if (!isOpen()) {
-                            throw RPCException(
-                                "Connection already closed",
-                                HttpStatusCode(499, "Connection already closed")
-                            )
-                        }
+        log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
+        val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)
+        middlewares.value.forEach { it.beforeRequest(context) }
 
-                        runBlocking {
-                            outgoingFrames.send(
-                                OutgoingFrame(
-                                    wsId,
-                                    connPtr,
-                                    defaultMapper.encodeToString(
-                                        WSMessage.Message.serializer(call.successType),
-                                        WSMessage.Message(request.streamId, it)
-                                    )
-                                )
-                            )
-                        }
-                    }
+        try {
+            when (val outgoingResult = foundCall.handler.invoke(context)) {
+                is OutgoingCallResponse.Ok -> {
+                    sendResponse(outgoingResult.result, outgoingResult.statusCode.value)
+                }
 
-                    val sendResponse: (Any?, Int) -> Unit = { message, statusCode ->
-                        if (!isOpen()) {
-                            log.debug("Connection is no longer open")
-                            throw RPCException(
-                                "Connection already closed",
-                                HttpStatusCode(499, "Connection already closed")
-                            )
-                        }
+                is OutgoingCallResponse.Error -> {
+                    sendResponse(outgoingResult.error, outgoingResult.statusCode.value)
+                }
 
-                        runBlocking {
-                            outgoingFrames.send(
-                                OutgoingFrame(
-                                    wsId,
-                                    connPtr,
-                                    defaultMapper.encodeToString(
-                                        WSMessage.Response.serializer(call.successType),
-                                        WSMessage.Response(request.streamId, message ?: Unit, statusCode)
-                                    )
-                                )
-                            )
-                        }
-                    }
-
-                    val wsContext = WebSocketContext(request, foundCall.call, sendMessage, sendResponse, isOpen)
-
-                    log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
-                    val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)
-                    middlewares.value.forEach { it.beforeRequest(context) }
-
-                    try {
-                        when (val outgoingResult = foundCall.handler.invoke(context)) {
-                            is OutgoingCallResponse.Ok -> {
-                                sendResponse(outgoingResult.result, outgoingResult.statusCode.value)
-                            }
-
-                            is OutgoingCallResponse.Error -> {
-                                sendResponse(outgoingResult.error, outgoingResult.statusCode.value)
-                            }
-
-                            is OutgoingCallResponse.AlreadyDelivered -> {
-                                // Do nothing
-                            }
-                        }
-                    } catch (ex: Throwable) {
-                        if (ex is RPCException) {
-                            runCatching {
-                                sendResponse(CommonErrorMessage(ex.why, ex.errorCode), ex.httpStatusCode.value)
-                            }
-                        } else {
-                            log.warn("Uncaught exception in ws handler for ${foundCall.call}\n" +
-                                ex.stackTraceToString())
-
-                            runCatching {
-                                sendResponse(CommonErrorMessage("Internal Server Error", null), 500)
-                            }
-                        }
-                    }
+                is OutgoingCallResponse.AlreadyDelivered -> {
+                    // Do nothing
                 }
             }
-        )
+        } catch (ex: Throwable) {
+            if (ex is RPCException) {
+                runCatching {
+                    sendResponse(CommonErrorMessage(ex.why, ex.errorCode), ex.httpStatusCode.value)
+                }
+            } else {
+                log.warn(
+                    "Uncaught exception in ws handler for ${foundCall.call}\n" +
+                        ex.stackTraceToString()
+                )
+
+                runCatching {
+                    sendResponse(CommonErrorMessage("Internal Server Error", null), 500)
+                }
+            }
+        }
+    }
 }
 
 private fun handleHttpRequest(
@@ -368,26 +366,28 @@ private fun handleHttpRequest(
 
         middlewares.value.forEach { it.beforeRequest(context) }
 
-        when (val outgoingResult = handler.invoke(context)) {
-            is OutgoingCallResponse.Ok -> {
-                req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
-                req.res.status = outgoingResult.statusCode.value
-                h2o_send_inline(reqPtr, defaultMapper.encodeToString(call.successType, outgoingResult.result))
-            }
+        runBlocking {
+            when (val outgoingResult = handler.invoke(context)) {
+                is OutgoingCallResponse.Ok -> {
+                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
+                    req.res.status = outgoingResult.statusCode.value
+                    h2o_send_inline(reqPtr, defaultMapper.encodeToString(call.successType, outgoingResult.result))
+                }
 
-            is OutgoingCallResponse.Error -> {
-                val error = outgoingResult.error
-                req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
-                req.res.status = outgoingResult.statusCode.value
-                h2o_send_inline(
-                    reqPtr,
-                    if (error != null) defaultMapper.encodeToString(call.errorType, outgoingResult.error)
-                    else ""
-                )
-            }
+                is OutgoingCallResponse.Error -> {
+                    val error = outgoingResult.error
+                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeApplicationJson)
+                    req.res.status = outgoingResult.statusCode.value
+                    h2o_send_inline(
+                        reqPtr,
+                        if (error != null) defaultMapper.encodeToString(call.errorType, outgoingResult.error)
+                        else ""
+                    )
+                }
 
-            is OutgoingCallResponse.AlreadyDelivered -> {
-                // Do nothing
+                is OutgoingCallResponse.AlreadyDelivered -> {
+                    // Do nothing
+                }
             }
         }
     } catch (ex: Throwable) {
@@ -428,14 +428,12 @@ class H2OServer(
 
     fun <R : Any, S : Any, E : Any> implement(
         call: CallDescription<R, S, E>,
-        handler: CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>,
+        handler: suspend CallHandler<R, S, E>.() -> OutgoingCallResponse<S, E>,
     ) {
-        if (isFrozen) error("implement was called after start()")
         handlerBuilder.add(CallWithHandler(call, handler))
     }
 
     fun start() {
-        freeze()
         h2oServer.value = this
 
         val scope = Arena()
@@ -536,8 +534,6 @@ class H2OServer(
             }
         )
         check(uvListenResult == 0) { "Could not initialize socket listener" }
-
-        workers.start()
 
         if (showWelcomeMessage) {
             println(buildString {

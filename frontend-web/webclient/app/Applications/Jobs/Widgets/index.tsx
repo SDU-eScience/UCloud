@@ -155,7 +155,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 <strong>{parameter.title}</strong>
                 {!open ? (
                     <EllipsedText width="200px">
-                        <Markdown allowedTypes={["text", "paragraph"]}>
+                        <Markdown allowedElements={["text", "paragraph"]}>
                             {parameter.description}
                         </Markdown>
                     </EllipsedText>

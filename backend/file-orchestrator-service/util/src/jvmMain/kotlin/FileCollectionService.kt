@@ -25,9 +25,9 @@ class FileCollectionService(
     serviceClient: AuthenticatedClient,
 ) : Super(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.file_collections")
-    override val defaultSortColumn = SqlObject.Column(table, "resource")
+    override val defaultSortColumn = SqlObject.Column(table, "title")
     override val sortColumns = mapOf(
-        "resource" to SqlObject.Column(table, "resource")
+        "title" to SqlObject.Column(table, "title")
     )
 
     override val serializer = serializer<FileCollection>()
@@ -60,10 +60,19 @@ class FileCollectionService(
         )
     }
 
-    override suspend fun browseQuery(flags: FileCollectionIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: FileCollectionIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
+                setParameter("username", actorAndProject.actor.safeUsername())
                 setParameter("query", query)
+                setParameter(
+                    "filter_member_files",
+                    flags?.filterMemberFiles?.name ?: MemberFilesFilter.DONT_FILTER_COLLECTIONS.name
+                )
             },
             """
                 select c.*
@@ -71,7 +80,21 @@ class FileCollectionService(
                     accessible_resources resc join
                     file_orchestrator.file_collections c on (resc.r).id = resource
                 where
-                    (:query::text is null or title ilike '%' || :query || '%')
+                    (:query::text is null or title ilike '%' || :query || '%') and
+                    (
+                        :filter_member_files = '${MemberFilesFilter.DONT_FILTER_COLLECTIONS.name}' or
+                        (
+                            :filter_member_files = '${MemberFilesFilter.SHOW_ONLY_MINE.name}' and
+                            (
+                                c.title = 'Member Files: ' || :username or
+                                c.title not like 'Member Files: %'
+                            )
+                        ) or
+                        (
+                            :filter_member_files = '${MemberFilesFilter.SHOW_ONLY_MEMBER_FILES.name}' and
+                            c.title like 'Member Files: %'
+                        )
+                    )
             """
         )
     }

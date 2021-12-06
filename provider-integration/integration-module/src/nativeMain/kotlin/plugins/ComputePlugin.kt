@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import io.ktor.http.*
+import kotlinx.coroutines.channels.ReceiveChannel
 
 interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ProductBasedConfiguration> {
     suspend fun PluginContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse {
@@ -52,5 +53,20 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, P
 
     override suspend fun PluginContext.delete(resource: Job) {
         // Not supported by compute plugins
+    }
+
+    suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
+        return false
+    }
+
+    class ShellContext(
+        delegate: PluginContext,
+        val isActive: () -> Boolean,
+        val receiveChannel: ReceiveChannel<ShellRequest>,
+        val emitData: (data: String) -> Unit,
+    ) : PluginContext by delegate
+
+    suspend fun ShellContext.handleShellSession(cols: Int, rows: Int) {
+        // Do nothing
     }
 }

@@ -82,11 +82,11 @@ export function apiRetrieve<R>(request: R, baseContext: string, subResource?: st
         parameters: request
     };
 }
-export function apiSearch<R>(request: R, baseContext: string): APICallParameters<R> {
+export function apiSearch<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
     return {
         context: "",
         method: "POST",
-        path: removeTrailingSlash(baseContext) + "/search",
+        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalize(subResource) : ""),
         parameters: request,
         payload: request
     };

@@ -325,6 +325,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
 fun <R : Any> CallDescription<R, *, *>.httpSearch(
     serializer: KSerializer<R>,
     baseContext: String,
+    subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
     auth {
@@ -337,7 +338,7 @@ fun <R : Any> CallDescription<R, *, *>.httpSearch(
 
         path {
             using(baseContext)
-            +UCloudApi.SEARCH
+            +(UCloudApi.SEARCH + (subResource ?: "").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
         }
 
         body { bindEntireRequestFromBody(serializer) }
@@ -346,9 +347,10 @@ fun <R : Any> CallDescription<R, *, *>.httpSearch(
 
 inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
     baseContext: String,
+    subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
-    httpSearch(serializer<R>(), baseContext, roles)
+    httpSearch(serializer<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpSearchExample() {
@@ -603,7 +605,7 @@ verification API to cleanup these resources later.
 @UCloudApiOwnedBy(CoreTypes::class)
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
-        if (items.size > 1_000 || items.isEmpty()) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+        if (items.size > 1_000 || items.isEmpty()) throw RPCException("BulkRequest must not be empty", HttpStatusCode.BadRequest)
     }
 }
 

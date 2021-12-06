@@ -129,7 +129,14 @@ class Server(
                 configuration.useSmallReservation && micro.developmentModeEnabled
             ))
             register(ParameterPlugin(licenseService))
-            register(FileMountPlugin(fs, memberFiles, pathConverter, LimitChecker(db), cephConfig))
+            val fileMountPlugin = FileMountPlugin(
+                fs,
+                memberFiles,
+                pathConverter,
+                LimitChecker(db, pathConverter),
+                cephConfig
+            )
+            register(fileMountPlugin)
             register(MultiNodePlugin)
             register(SharedMemoryPlugin)
             register(ExpiryPlugin)
@@ -142,7 +149,7 @@ class Server(
             register(ingressService)
             register(networkIpService)
             register(ProxyPlugin(broadcastingStream, ingressService))
-            register(OutputLogPlugin(pathConverter, fs, cephConfig, logService))
+            register(FileOutputPlugin(pathConverter, fs, logService, fileMountPlugin))
 
             // NOTE(Dan): Kata Containers are not currently enabled due to various limitations in Kata containers
             // related to our infrastructure setup

@@ -30,9 +30,7 @@ data class IngressSpecification(
     override val product: ProductReference
 ) : ResourceSpecification {
     init {
-        if (domain.length > 2000) {
-            throw RPCException("domain size cannot exceed 2000 characters", HttpStatusCode.BadRequest)
-        }
+        checkSingleLine(::domain, domain, maximumSize = 2000)
     }
 }
 
@@ -57,10 +55,7 @@ data class Ingress(
     override val updates: List<IngressUpdate> = emptyList(),
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.Ingress, IngressSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-}
+) : Resource<Product.Ingress, IngressSupport>
 
 @UCloudApiDoc("The status of an `Ingress`")
 @Serializable
@@ -121,6 +116,9 @@ data class IngressIncludeFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
     val filterState: IngressState? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @TSNamespace("compute.ingresses")

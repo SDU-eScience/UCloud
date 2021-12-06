@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2021.3.0-alpha10"
+    version = "2021.3.0-alpha33"
     val domain: String = config("domain", "The provider domain")
     val port: Int = config("port", "The provider port", 443)
     val https: Boolean = config("https", "Provider https", true)

@@ -4,14 +4,13 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
 import {Box, Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import * as Heading from "@/ui-components/Heading";
-import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId} from ".";
+import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, emptyProject, Project, viewProject} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
 import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
@@ -19,6 +18,7 @@ import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useDispatch} from "react-redux";
 import {dispatchSetProjectAction} from "./Redux";
 import {Toggle} from "@/ui-components/Toggle";
+import {ProjectBreadcrumbs} from "./Breadcrumbs";
 
 interface MemberInProjectCallbacks {
     startCreation: () => void;
@@ -212,11 +212,17 @@ export default function SubprojectList(): JSX.Element | null {
         setActiveProject: setProject
     };
 
+    const [subproject, fetchSubproject] = useCloudAPI<Project>({noop: true}, emptyProject(subprojectFromQuery));
+
+    React.useEffect(() => {
+        fetchSubproject(viewProject({id: subprojectFromQuery}));
+    }, [subprojectFromQuery])
+
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <>
-                    <Heading.h3 mb={16}>Subprojects</Heading.h3>
+                    <ProjectBreadcrumbs crumbs={[{title: "Subprojects"}]} />
                     <StandardBrowse
                         reloadRef={reloadRef}
                         generateCall={generateCall}

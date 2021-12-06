@@ -4,6 +4,7 @@ import dk.sdu.cloud.PaginationRequestV2Consistency
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.sql.ResultCursor
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
@@ -25,12 +26,12 @@ data class SlurmJob(
 data class Criteria(val field: String, val condition: String)
 
 @Serializable
-data class AcctEntry(
-    val jobId: String?,
-    val state: String?,
-    val exitCode: String?,
-    val start: String?,
-    val end: String?
+data class SlurmAllocation(
+    val jobId: String,
+    val state: String,
+    val exitCode: String,
+    val start: String,
+    val end: String
 )
 
 @Serializable

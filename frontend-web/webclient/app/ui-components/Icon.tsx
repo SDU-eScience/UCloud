@@ -63,6 +63,8 @@ const Icon = styled(IconBase) <IconBaseProps>`
   ${space} ${color};
   ${spin};
 
+  transition: transform .2s ease-in-out; 
+
   &:hover {
     ${hoverColor};
   }

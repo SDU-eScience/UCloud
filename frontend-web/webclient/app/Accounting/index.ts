@@ -79,7 +79,8 @@ export interface DepositToWalletRequestItem {
     amount: number;
     description: string;
     startDate: number;
-    endDate: number;
+    endDate?: number;
+    dry?: boolean;
 }
 
 export interface TransferToWalletRequestItem {
@@ -97,6 +98,7 @@ export interface UpdateAllocationRequestItem {
     startDate: number;
     endDate?: number | null;
     reason: string;
+    dry?: boolean;
 }
 
 export function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
@@ -109,6 +111,20 @@ export function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICa
 
 export function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
     return apiUpdate(request, "/api/accounting", "transfer");
+}
+
+interface RootDepositRequestItem {
+    categoryId: ProductCategoryId;
+    recipient: WalletOwner;
+    amount: number;
+    description: string;
+    startDate?: number | null;
+    endDate?: number | null;
+    transactionId?: string;
+}
+
+export function rootDeposit(request: BulkRequest<RootDepositRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "rootDeposit");
 }
 
 export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
@@ -212,6 +228,17 @@ export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWO
 export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
 export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
 
+export function productTypeToJsonType(type: ProductType): Type {
+    switch (type) {
+        case "COMPUTE": return "compute";
+        case "INGRESS": return "ingress";
+        case "LICENSE": return "license";
+        case "NETWORK_IP": return "network_ip";
+        case "STORAGE": return "storage";
+        default: return (type as any).toString().tolowerCase();
+    }
+}
+
 export interface ProductMetadata {
     category: ProductCategoryId;
     freeToUse: boolean;
@@ -227,7 +254,7 @@ export interface ProductBase extends ProductMetadata {
     name: string;
     description: string;
     priority: number;
-    version: number;
+    version?: number;
     balance?: number | null;
 }
 
@@ -459,7 +486,8 @@ export function normalizeBalanceForFrontend(
     chargeType: ChargeType,
     unit: ProductPriceUnit,
     isPrice: boolean,
-    precisionOverride?: number
+    precisionOverride?: number,
+    multiplier?: number
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -478,23 +506,23 @@ export function normalizeBalanceForFrontend(
 
             switch (type) {
                 case "INGRESS": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "NETWORK_IP": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "LICENSE": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "STORAGE": {
-                    const factor = DAY / inputIs;
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 2);
                 }
                 case "COMPUTE": {
-                    const factor = HOUR / inputIs;
+                    const factor = (HOUR / inputIs) * (multiplier ?? 1);
                     return currencyFormatter(balance * factor, precisionOverride ?? 4);
                 }
             }
@@ -603,13 +631,14 @@ function addThousandSeparators(numberOrString: string | number): string {
 
 export function priceExplainer(product: Product): string {
     const amount = normalizeBalanceForFrontend(product.pricePerUnit, product.productType, product.chargeType,
-        product.unitOfPrice, true);
+        product.unitOfPrice, true, undefined, product.productType === "COMPUTE" ? (product["cpu"] ?? 1) : undefined);
     const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
     return `${amount} ${suffix}`
 }
 
 export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
     let unitsToBuy: number;
+    const cpuFactor = product.productType === "COMPUTE" ? product["cpu"] as number : 1;
     switch (product.unitOfPrice) {
         case "PER_UNIT":
             unitsToBuy = 1;
@@ -628,7 +657,7 @@ export function costOfDuration(minutes: number, numberOfProducts: number, produc
             break;
     }
 
-    return unitsToBuy * product.pricePerUnit * numberOfProducts;
+    return unitsToBuy * product.pricePerUnit * numberOfProducts * cpuFactor;
 }
 
 export function usageExplainer(

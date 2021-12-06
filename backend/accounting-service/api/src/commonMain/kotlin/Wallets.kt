@@ -1,10 +1,6 @@
 package dk.sdu.cloud.accounting.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.SerialName
@@ -214,6 +210,7 @@ typealias PushWalletChangeResponse = Unit
 @UCloudApiDoc("A parent allocator's view of a `WalletAllocation`")
 data class SubAllocation(
     val id: String,
+    val path: String,
     val startDate: Long,
     val endDate: Long?,
 
@@ -229,15 +226,30 @@ data class SubAllocation(
     val remaining: Long,
 )
 
+interface SubAllocationQuery : WithPaginationRequestV2 {
+    val filterType: ProductType?
+}
+
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-data class WalletsBrowseSubAllocationsRequest(
-    val filterType: ProductType? = null,
+data class WalletsSearchSubAllocationsRequest(
+    val query: String,
+    override val filterType: ProductType? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
+) : SubAllocationQuery
+
+@Serializable
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+data class WalletsBrowseSubAllocationsRequest(
+    override val filterType: ProductType? = null,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : SubAllocationQuery
 
 typealias WalletsBrowseSubAllocationsResponse = PageV2<SubAllocation>
 
@@ -319,6 +331,18 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
+    val searchSubAllocations = call<WalletsSearchSubAllocationsRequest, PageV2<SubAllocation>,
+        CommonErrorMessage>("searchSubAllocations") {
+        httpSearch(baseContext, "subAllocation")
+        documentation {
+            summary = "Searches the catalog of sub-allocations"
+            description = """
+                This endpoint will find all $TYPE_REF WalletAllocation s which are direct children of one of your
+                accessible $TYPE_REF WalletAllocation s.
+            """.trimIndent()
+        }
+    }
+
     val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
         CommonErrorMessage>("browseSubAllocations") {
         httpBrowse(baseContext, "subAllocation")
@@ -378,7 +402,7 @@ data class ChargeWalletRequestItem(
     )
     val units: Long,
     @UCloudApiDoc("The number of products involved in this charge, for example the number of nodes")
-    val numberOfProducts: Long,
+    val periods: Long,
     @UCloudApiDoc("A reference to the product which the service is charging for")
     val product: ProductReference,
     @UCloudApiDoc("The username of the user who generated this request")
@@ -389,7 +413,7 @@ data class ChargeWalletRequestItem(
     var transactionId: String = Random.nextLong().toString() + Time.now()
 ) {
     init {
-        checkMinimumValue(this::numberOfProducts, numberOfProducts, 1)
+        checkMinimumValue(this::periods, periods, 1)
         checkMinimumValue(this::units, units, 0)
     }
 }
@@ -426,7 +450,8 @@ data class DepositToWalletRequestItem(
     )
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
-    var transactionId: String = Random.nextLong().toString() + Time.now()
+    var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val dry: Boolean = false,
 )
 
 typealias DepositToWalletResponse = Unit
@@ -461,7 +486,8 @@ data class TransferToWalletRequestItem(
     )
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
-    var transactionId: String = Random.nextLong().toString() + Time.now()
+    var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val dry: Boolean = false,
 )
 
 typealias TransferToWalletResponse = Unit
@@ -471,7 +497,7 @@ data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
     val startDate: Long,
-    val endDate: Long?,
+    val endDate: Long? = null,
     val reason: String,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now()

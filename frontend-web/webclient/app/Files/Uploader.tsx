@@ -12,8 +12,8 @@ import {
     preventDefault
 } from "@/UtilityFunctions";
 import {fetcherFromDropOrSelectEvent} from "@/Files/HTML5FileSelector";
-import {supportedProtocols, Upload, UploadState} from "@/Files/Upload";
-import {ListRow, ListRowStat, ListStatContainer} from "@/ui-components/List";
+import {supportedProtocols, Upload, uploadCalculateSpeed, UploadState, uploadTrackProgress} from "@/Files/Upload";
+import {ListRowStat} from "@/ui-components/List";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {api as FilesApi, FilesCreateUploadResponseItem} from "@/UCloud/FilesApi";
@@ -23,11 +23,15 @@ import {BulkResponse} from "@/UCloud";
 import {ChunkedFileReader, createLocalStorageUploadKey, UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 import {fileName, sizeToString} from "@/Utilities/FileUtilities";
 import {FilesCreateUploadRequestItem} from "@/UCloud/FilesApi";
+import {useSelector} from "react-redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
 
-const maxConcurrentUploads = 5;
+const MAX_CONCURRENT_UPLOADS = 5;
 const entityName = "Upload";
 const maxChunkSize = 32 * 1000 * 1000;
-const FOURTY_EIGHT_HOURS_IN_MILLIS = 2 * 24 * 3600 * 1000;
+const UPLOAD_EXPIRATION_MILLIS = 2 * 24 * 3600 * 1000;
 
 interface LocalStorageFileUploadInfo {
     offset: number;
@@ -93,10 +97,15 @@ function createResumeable(
         while (!reader.isEof() && !upload.terminationRequested) {
             await sendChunk(await reader.readChunk(maxChunkSize));
 
-            const expiration = new Date().getTime() + FOURTY_EIGHT_HOURS_IN_MILLIS;
+            const expiration = new Date().getTime() + UPLOAD_EXPIRATION_MILLIS;
             localStorage.setItem(
                 createLocalStorageUploadKey(fullFilePath),
-                JSON.stringify({offset: reader.offset, size: upload.fileSizeInBytes, strategy: strategy!, expiration} as LocalStorageFileUploadInfo)
+                JSON.stringify({
+                    offset: reader.offset,
+                    size: upload.fileSizeInBytes,
+                    strategy: strategy!,
+                    expiration
+                } as LocalStorageFileUploadInfo)
             );
         }
 
@@ -119,6 +128,7 @@ function createResumeable(
 
             request.upload.onprogress = ev => {
                 upload.progressInBytes = progressStart + ev.loaded;
+                uploadTrackProgress(upload);
                 if (upload.terminationRequested) {
                     upload.state = UploadState.DONE;
                     if (!upload.paused) request.abort();
@@ -133,7 +143,7 @@ function createResumeable(
             };
 
             request.send(chunk);
-        }))
+        }));
     }
 }
 
@@ -142,6 +152,8 @@ const Uploader: React.FunctionComponent = () => {
     const [uploaderVisible, setUploaderVisible] = useGlobal("uploaderVisible", false);
     const [uploads, setUploads] = useGlobal("uploads", []);
     const [lookForNewUploads, setLookForNewUploads] = useState(false);
+
+    const refresh = useSelector<ReduxObject, (() => void) | undefined>(state => state.header.refresh);
 
     const closeModal = useCallback(() => {
         setUploaderVisible(false);
@@ -154,7 +166,7 @@ const Uploader: React.FunctionComponent = () => {
             if (u.state === UploadState.UPLOADING) activeUploads++;
         }
 
-        const maxUploadsToUse = maxConcurrentUploads - activeUploads;
+        const maxUploadsToUse = MAX_CONCURRENT_UPLOADS - activeUploads;
         if (maxUploadsToUse > 0) {
             const creationRequests: FilesCreateUploadRequestItem[] = [];
             const actualUploads: Upload[] = [];
@@ -254,9 +266,15 @@ const Uploader: React.FunctionComponent = () => {
         });
     }, [uploads]);
 
-    const callbacks: UploadCallback = useMemo(() => {
-        return {startUploads, stopUploads, pauseUploads, resumeUploads};
-    }, [startUploads, stopUploads]);
+    const clearUploads = useCallback((batch: Upload[]) => {
+        /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
+        setUploads(uploads.filter(u => !batch.some(b => b === u)));
+        toggleSet.uncheckAll();
+    }, [uploads])
+
+    const callbacks: UploadCallback = useMemo(() => (
+        {startUploads, stopUploads, pauseUploads, resumeUploads, clearUploads}
+    ), [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
         e.preventDefault();
@@ -266,10 +284,11 @@ const Uploader: React.FunctionComponent = () => {
             row: it,
             progressInBytes: 0,
             state: UploadState.PENDING,
-            conflictPolicy: "RENAME",
+            conflictPolicy: "RENAME" as const,
             targetPath: uploadPath,
-            initialProgress: 0
-        }));
+            initialProgress: 0,
+            uploadEvents: []
+        })).filter(it => !it.row.rootEntry.isDirectory);
 
         setUploads(uploads.concat(newUploads));
         startUploads(newUploads);
@@ -310,8 +329,15 @@ const Uploader: React.FunctionComponent = () => {
         if (lookForNewUploads) {
             setLookForNewUploads(false);
             startUploads(uploads);
+            const shouldReload = uploads.every(it => it.state === UploadState.DONE) &&
+                uploads.some(it => it.targetPath === uploadPath && !it.terminationRequested);
+            if (shouldReload && uploaderVisible && window.location.pathname === "/app/files") {
+                refresh?.();
+            } else if (shouldReload) {
+                snackbarStore.addSuccess("File upload(s) finished.", true);
+            }
         }
-    }, [lookForNewUploads, startUploads]);
+    }, [lookForNewUploads, startUploads, refresh, uploadPath, uploaderVisible]);
 
 
     const [pausedFilesInFolder, setPausedFilesInFolder] = useState<string[]>([]);
@@ -321,7 +347,7 @@ const Uploader: React.FunctionComponent = () => {
             key.replace(`${UPLOAD_LOCALSTORAGE_PREFIX}:`, "")
         ).filter(key => key.replace(`/${fileName(key)}`, "") === uploadPath);
         setPausedFilesInFolder(matches);
-    }, [uploadPath]);
+    }, [uploadPath, lookForNewUploads]);
 
     return <>
         <ReactModal
@@ -361,54 +387,21 @@ const Uploader: React.FunctionComponent = () => {
                     </DropZoneBox>
                 </label>
 
-                <List>
+                <List childPadding={"8px"} bordered={false}>
                     {uploads.map((upload, idx) => (
-                        <ListRow
+                        <ItemRow
                             key={`${upload.row.rootEntry.name}-${idx}`}
-                            isSelected={toggleSet.checked.has(upload)}
-                            select={() => toggleSet.toggle(upload)}
-                            icon={
-                                <FtIcon
-                                    fileIcon={{
-                                        type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
-                                        ext: extensionFromPath(upload.row.rootEntry.name)
-                                    }}
-                                    size={"42px"}
-                                />
-                            }
-                            left={
-                                <Truncate
-                                    title={upload.row.rootEntry.name}
-                                    width={["320px", "320px", "320px", "320px", "440px", "560px"]}
-                                    fontSize={20}
-                                >
-                                    {upload.row.rootEntry.name}
-                                </Truncate>
-                            }
-                            leftSub={
-                                <ListStatContainer>
-                                    {!upload.fileSizeInBytes ? null :
-                                        <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
-                                            {sizeToString(upload.progressInBytes + upload.initialProgress)}
-                                            {" / "}
-                                            {sizeToString(upload.fileSizeInBytes)}
-                                        </ListRowStat>
-                                    }
-                                </ListStatContainer>
-                            }
-                            right={
-                                <Operations
-                                    row={upload}
-                                    location={"IN_ROW"}
-                                    operations={operations}
-                                    selected={toggleSet.checked.items}
-                                    extra={callbacks}
-                                    entityNameSingular={entityName}
-                                />
-                            }
+                            browseType={BrowseType.Embedded}
+                            renderer={renderer}
+                            toggleSet={toggleSet}
+                            operations={operations}
+                            callbacks={callbacks}
+                            itemTitle={entityName}
+                            item={upload}
                         />
                     ))}
                 </List>
+
                 {pausedFilesInFolder.length === 0 ? null :
                     <div>
                         <Text>Uploads that can be resumed:</Text>
@@ -425,9 +418,70 @@ interface UploadCallback {
     stopUploads: (batch: Upload[]) => void;
     pauseUploads: (batch: Upload[]) => void;
     resumeUploads: (batch: Upload[]) => void;
+    clearUploads: (batch: Upload[]) => void;
 }
 
+const renderer: ItemRenderer<Upload> = {
+    Icon: (props) => {
+        const upload = props.resource;
+        if (!upload) return null;
+        return <FtIcon
+            fileIcon={{
+                type: upload.row.rootEntry.isDirectory ? "DIRECTORY" : "FILE",
+                ext: extensionFromPath(upload.row.rootEntry.name)
+            }}
+            size={props.size}
+        />
+    },
+
+    MainTitle: ({resource}) => {
+        if (!resource) return null;
+        return <Truncate
+            title={resource.row.rootEntry.name}
+            width={["320px", "320px", "320px", "320px", "440px", "560px"]}
+            fontSize={20}
+        >
+            {resource.row.rootEntry.name}
+        </Truncate>
+    },
+
+    Stats: ({resource}) => {
+        if (!resource) return null;
+        return <>
+            {!resource.fileSizeInBytes ? null :
+                <ListRowStat icon={"upload"} color={"iconColor"} color2={"iconColor2"}>
+                    {sizeToString(resource.progressInBytes + resource.initialProgress)}
+                    {" / "}
+                    {sizeToString(resource.fileSizeInBytes)}
+                    {" "}
+                    ({sizeToString(uploadCalculateSpeed(resource))}/s)
+                </ListRowStat>
+            }
+        </>
+    },
+
+    ImportantStats: ({resource}) => {
+        const upload = resource;
+        if (!upload) return null;
+        return <>
+            {upload.state !== UploadState.DONE ? null : (
+                upload.paused ? null :
+                    (upload.terminationRequested ?
+                        <Icon name="close" color="red" /> :
+                        <Icon name="check" color="green" />
+                    )
+            )}
+        </>;
+    }
+};
+
 const operations: Operation<Upload, UploadCallback>[] = [
+    {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
+        onClick: (selected, cb) => cb.pauseUploads(selected),
+        text: "Pause",
+        icon: "pauseSolid"
+    },
     {
         enabled: selected => selected.length > 0 &&
             selected.every(it => it.state === UploadState.PENDING || it.state === UploadState.UPLOADING),
@@ -436,20 +490,20 @@ const operations: Operation<Upload, UploadCallback>[] = [
         color: "red",
         icon: "trash",
         confirm: true,
-        primary: true,
-    }, {
-        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.UPLOADING),
-        onClick: (selected, cb) => cb.pauseUploads(selected),
-        text: "Pause",
-        color: "blue",
-        icon: undefined, // TODO: Pause icon
-    }, {
+    },
+    {
         enabled: selected => selected.length > 0 && selected.every(it => it.paused),
         onClick: (selected, cb) => cb.resumeUploads(selected),
         text: "Resume",
-        color: "blue",
         icon: "play",
         primary: true
+    },
+    {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.DONE),
+        onClick: (selected, cb) => cb.clearUploads(selected),
+        text: "Clear",
+        icon: "close",
+        color: "red"
     }
 ];
 
@@ -486,20 +540,20 @@ const modalStyle = {
 };
 
 const DropZoneBox = styled.div<{slim?: boolean}>`
-  width: 100%;
-  ${p => p.slim ? {height: "80px"} : {height: "280px"}}
-  border-width: 2px;
-  border-color: rgb(102, 102, 102);
-  border-style: dashed;
-  border-radius: 5px;
-  margin: 16px 0 16px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+    width: 100%;
+    ${p => p.slim ? {height: "80px"} : {height: "280px"}}
+    border-width: 2px;
+    border-color: rgb(102, 102, 102);
+    border-style: dashed;
+    border-radius: 5px;
+    margin: 16px 0 16px 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 
-  & > p {
-    margin: 25px;
-  }
+    & > p {
+        margin: 25px;
+    }
 `;
 
 const UploadArtWrapper = styled.div`

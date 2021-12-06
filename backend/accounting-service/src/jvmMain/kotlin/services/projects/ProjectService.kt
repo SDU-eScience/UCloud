@@ -357,7 +357,7 @@ class ProjectService(
                     )
                 }),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 
@@ -773,25 +773,15 @@ class ProjectService(
         projectId: String,
         newTitle: String
     ) {
-        ctx.withSession { session ->
+        ctx.withSession(remapExceptions = true) { session ->
             requireAdmin(session, projectId, actor)
-            try {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("project", projectId)
-                        setParameter("newTitle", newTitle)
-                    },
-                    """update project.projects set title = :newTitle where id = :project """
-                )
-            } catch (ex: GenericDatabaseException) {
-                when (ex.errorCode) {
-                    "23505" -> throw RPCException.fromStatusCode(
-                        HttpStatusCode.Conflict,
-                        "Project with title $newTitle already exists"
-                    )
-                    else -> throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                }
-            }
+            session.sendPreparedStatement(
+                {
+                    setParameter("project", projectId)
+                    setParameter("newTitle", newTitle)
+                },
+                """update project.projects set title = :newTitle where id = :project """
+            )
         }
     }
 

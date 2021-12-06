@@ -9,4 +9,8 @@ class DirectIdentityMapperPlugin : IdentityMapperPlugin {
         val id = localIdentity.toIntOrNull(10) ?: error("Invalid local identity: $localIdentity")
         return UidAndGid(id, id)
     }
+
+    override fun PluginContext.mapUidToLocalIdentity(uid: Int): String {
+        return uid.toString()
+    }
 }

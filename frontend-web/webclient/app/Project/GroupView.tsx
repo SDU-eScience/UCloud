@@ -134,7 +134,6 @@ const GroupView: React.FunctionComponent = () => {
                         allowRoleManagement={false}
                         showRole={false}
                     />
-                    <GroupPermissions projectId={projectId} groupId={groupId} />
                 </>
             }
         />
@@ -146,82 +145,6 @@ const GroupView: React.FunctionComponent = () => {
         await runCommand(removeGroupMemberRequest({group: groupId!, memberUsername: member}));
         fetchGroupMembers(groupMembersParams);
     }
-};
-
-const GroupPermissions: React.FunctionComponent<{projectId: string, groupId: string}> = props => {
-    const {allowManagement} = useProjectManagementStatus({isRootComponent: false});
-    /*
-    TODO
-    const [repoFiles, fetchRepoFiles, repoParams] = useCloudAPI<Page<File>>(
-        {noop: true},
-        emptyPage
-    );
-
-    useEffect(() => {
-        fetchRepoFiles(listRepositoryFiles({itemsPerPage: -1, page: 0}));
-    }, [props.projectId, props.groupId]);
-
-    const reposWithPermissions = [] as File[];
-    outer: for (const repo of repoFiles.data.items) {
-        const safeAcl = repo.acl ?? [];
-        for (const aclEntry of safeAcl) {
-            const hasAccess = aclEntry.rights.length > 0 &&
-                typeof aclEntry.entity === "object" &&
-                "projectId" in aclEntry.entity &&
-                aclEntry.entity.group === props.groupId &&
-                aclEntry.entity.projectId === props.projectId;
-
-            if (hasAccess) reposWithPermissions.push(repo);
-            continue outer;
-        }
-    }
-     */
-
-    return <Box mt={32}>
-        {!allowManagement ? null : <Heading.h4>File Permissions</Heading.h4>}
-        {/*
-        TODO
-        {repoFiles.loading && allowManagement ? <Spinner /> : null}
-        {reposWithPermissions.length > 0 || repoFiles.loading || repoParams.noop || !allowManagement ? null : (
-            <>
-                <ShakingBox className={"shaking"}>
-                    <Heading.h5>This group cannot use any files!</Heading.h5>
-                </ShakingBox>
-                <ul>
-                    <li>A group needs permission to use any files</li>
-                    <li>
-                        You, as a project administrator, must assign permissions to top-level directories of
-                        a project
-                    </li>
-                    <li>
-                        You can assign permissions by clicking on a file and selecting
-                        &quot;<Icon name={"properties"} size={16} /> Permissions&quot;
-                    </li>
-                </ul>
-
-                <Link to={"/files/"}>
-                    <Button fullWidth>Start assigning permissions</Button>
-                </Link>
-            </>
-        )}
-        {reposWithPermissions.length === 0 || repoFiles.loading ? null : (
-            <>
-                <Heading.h5>This group has access to the following:</Heading.h5>
-
-                <EmbeddedFileTable
-                    includeVirtualFolders={false}
-                    disableNavigationButtons={true}
-                    page={{
-                        items: reposWithPermissions,
-                        itemsInTotal: reposWithPermissions.length,
-                        pageNumber: 0,
-                        itemsPerPage: reposWithPermissions.length,
-                    }}
-                />
-            </>
-        )}
-        */}
-    </Box>;
 };
 
 export default GroupView;

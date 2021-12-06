@@ -125,6 +125,10 @@ NetworkIPs.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -137,8 +141,6 @@ NetworkIPs.retrieve.call(
 
 /*
 NetworkIP(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "5123", 
     owner = ResourceOwner(
@@ -299,6 +301,7 @@ await callAPI(NetworkipsApi.updateFirewall(
 await callAPI(NetworkipsApi.retrieve(
     {
         "flags": {
+            "filterState": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -310,7 +313,10 @@ await callAPI(NetworkipsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "5123"
     }
@@ -351,10 +357,7 @@ await callAPI(NetworkipsApi.retrieve(
     "updates": [
     ],
     "resolvedProduct": null,
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -509,10 +512,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #     "updates": [
 #     ],
 #     "resolvedProduct": null,
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```

@@ -47,6 +47,17 @@ abstract class ResourceService<
     protected abstract val defaultSortColumn: SqlObject.Column
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
+
+    private val resourceTable = SqlObject.Table("provider.resource")
+    private val defaultSortColumns = mapOf(
+        "createdAt" to SqlObject.Column(resourceTable, "created_at"),
+        "createdBy" to SqlObject.Column(resourceTable, "created_by"),
+    )
+    private val computedSortColumns: Map<String, SqlObject.Column> by lazy {
+        defaultSortColumns + sortColumns
+    }
+
+
     protected open val resourceType: String by lazy {
         runBlocking {
             db.withSession { session ->
@@ -86,7 +97,7 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        val browseQuery = browseQuery(request.flags)
+        val browseQuery = browseQuery(actorAndProject, request.flags)
         return paginatedQuery(
             browseQuery,
             actorAndProject,
@@ -99,7 +110,11 @@ abstract class ResourceService<
         )
     }
 
-    protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
+    protected open suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: Flags?,
+        query: String? = null
+    ): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery(
             {},
@@ -120,7 +135,7 @@ abstract class ResourceService<
         asProvider: Boolean,
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -179,7 +194,7 @@ abstract class ResourceService<
     ): List<Res> {
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -211,12 +226,13 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
+                    debug = true,
                 )
                 .rows
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER) {
+                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
                         // Admin isn't enough if we are looking for Provider
                         if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
@@ -800,7 +816,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession { session ->
+        return BulkResponse(db.withSession(remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {
@@ -926,7 +942,7 @@ abstract class ResourceService<
 
             Payment(
                 reqItem.chargeId,
-                reqItem.numberOfProducts,
+                reqItem.periods,
                 reqItem.units,
                 resource.status.resolvedSupport!!.product.pricePerUnit,
                 reqItem.id,
@@ -961,7 +977,7 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(request.flags, request.query)
+        val search = browseQuery(actorAndProject, request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx
@@ -995,6 +1011,12 @@ abstract class ResourceService<
                 setParameter(
                     "filter_product_category",
                     flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
+                )
+                setParameter("hide_provider", flags?.hideProvider ?: simpleFlags?.hideProvider)
+                setParameter("hide_product_id", flags?.hideProductId ?: simpleFlags?.hideProductId)
+                setParameter(
+                    "hide_product_category",
+                    flags?.hideProductCategory ?: simpleFlags?.hideProductCategory
                 )
                 setParameter(
                     "filter_provider_ids",
@@ -1088,12 +1110,15 @@ abstract class ResourceService<
                                 (gm.username is not null) or
                                 (r.public_read = true)
                           ) and
-                          (:filter_created_by::text is null or :filter_created_by = r.created_by) and
+                          (:filter_created_by::text is null or r.created_by like '%' || :filter_created_by || '%') and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
                           (:filter_product_id::text is null or the_product.name = :filter_product_id) and
                           (:filter_product_category::text is null or p_cat.category = :filter_product_category) and
+                          (:hide_provider::text is null or p_cat.provider != :hide_provider) and
+                          (:hide_product_id::text is null or the_product.name != :hide_product_id) and
+                          (:hide_product_category::text is null or p_cat.category != :hide_product_category) and
                           (
                               :filter_provider_ids::text[] is null or
                               r.provider_generated_id = some(:filter_provider_ids::text[])
@@ -1138,8 +1163,14 @@ abstract class ResourceService<
     ): PageV2<Res> {
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-        val columnToSortBy = sortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
-        val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        if (sortBy == "created_by") {
+            sortBy = "(resc.r).created_by"
+        } else if (sortBy == "created_at") {
+            sortBy = "(resc.r).created_at"
+        }
+
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
@@ -1172,8 +1203,9 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            resc.category, resc.name, spec.$sortBy $sortDirection
+                            $sortBy $sortDirection, resc.category, resc.name 
                     """,
+                    debug = true,
                 )
             },
             mapper = { _, rows ->

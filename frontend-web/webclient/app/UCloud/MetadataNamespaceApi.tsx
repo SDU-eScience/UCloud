@@ -138,69 +138,68 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     private TemplateBrowse: React.FunctionComponent<{
         resource: FileMetadataTemplateNamespace;
         reload: () => void;
-        onSelect?: (FileMetadataTemplate) => void;
-    }> =
-        (props) => {
-            const [previewing, setPreviewing] = useState<FileMetadataTemplate | null>(null);
-            const extraCallbacks: TemplateCallbacks = useMemo((() => ({
-                previewing, setPreviewing,
-                namespace: props.resource
-            })), [previewing, setPreviewing, props.resource]);
-            const generateCall = useCallback((next?: string): APICallParameters => {
-                return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
-            }, []);
-            return <HighlightedCard color={"purple"}>
-                <StandardList
-                    generateCall={generateCall}
-                    renderer={this.templateRenderer}
-                    operations={this.templateOps}
-                    title={"Version"}
-                    embedded={"inline"}
-                    onSelect={props.onSelect}
-                    extraCallbacks={extraCallbacks}
-                    navigate={setPreviewing}
-                    hide={!!previewing}
-                />
-                {previewing ? <>
-                    <Grid gridGap={"32px"} width={"800px"} margin={"10px auto"}>
-                        <Section>
-                            <Heading.h3>Information</Heading.h3>
-                            <ul>
-                                <li><b>ID: </b>{props.resource.specification.name}</li>
-                                <li><b>Title: </b>{previewing.title}</li>
-                                <li><b>Description: </b>{previewing.description}</li>
-                            </ul>
-                        </Section>
-                        <Section>
-                            <Heading.h3>Versioning</Heading.h3>
-                            <ul>
-                                <li><b>Version: </b>{previewing.version}</li>
-                                <li><b>Changes since last version: </b>{previewing.changeLog}</li>
-                            </ul>
-                        </Section>
-                        <Section>
-                            <Heading.h3>Behavior</Heading.h3>
-                            <ul>
-                                <li><b>Namespace type: </b>{prettierString(previewing.namespaceType)}</li>
-                                <li><b>Changes require approval: </b>{previewing.requireApproval ? "Yes" : "No"}
-                                </li>
-                                <li>
-                                    <b>Metadata should be inherited from ancestor directories: </b>
-                                    {previewing.inheritable ? "Yes" : "No"}
-                                </li>
-                            </ul>
-                        </Section>
-                        <Section>
-                            <Heading.h3>Form preview</Heading.h3>
-                            <JsonSchemaForm
-                                schema={previewing.schema}
-                                uiSchema={previewing.uiSchema}
-                            />
-                        </Section>
-                    </Grid>
-                </> : null}
-            </HighlightedCard>
-        };
+        onSelect?: (template: FileMetadataTemplate) => void;
+    }> = (props) => {
+        const [previewing, setPreviewing] = useState<FileMetadataTemplate | null>(null);
+        const extraCallbacks: TemplateCallbacks = useMemo((() => ({
+            previewing, setPreviewing,
+            namespace: props.resource
+        })), [previewing, setPreviewing, props.resource]);
+        const generateCall = useCallback((next?: string): APICallParameters => {
+            return this.browseTemplates({id: props.resource.id, next, itemsPerPage: 50})
+        }, []);
+        return <HighlightedCard color={"purple"}>
+            <StandardList
+                generateCall={generateCall}
+                renderer={this.templateRenderer}
+                operations={this.templateOps}
+                title={"Version"}
+                embedded={"inline"}
+                onSelect={props.onSelect}
+                extraCallbacks={extraCallbacks}
+                navigate={setPreviewing}
+                hide={!!previewing}
+            />
+            {previewing ? <>
+                <Grid gridGap={"32px"} width={"800px"} margin={"10px auto"}>
+                    <Section>
+                        <Heading.h3>Information</Heading.h3>
+                        <ul>
+                            <li><b>ID: </b>{props.resource.specification.name}</li>
+                            <li><b>Title: </b>{previewing.title}</li>
+                            <li><b>Description: </b>{previewing.description}</li>
+                        </ul>
+                    </Section>
+                    <Section>
+                        <Heading.h3>Versioning</Heading.h3>
+                        <ul>
+                            <li><b>Version: </b>{previewing.version}</li>
+                            <li><b>Changes since last version: </b>{previewing.changeLog}</li>
+                        </ul>
+                    </Section>
+                    <Section>
+                        <Heading.h3>Behavior</Heading.h3>
+                        <ul>
+                            <li><b>Namespace type: </b>{prettierString(previewing.namespaceType)}</li>
+                            <li><b>Changes require approval: </b>{previewing.requireApproval ? "Yes" : "No"}
+                            </li>
+                            <li>
+                                <b>Metadata should be inherited from ancestor directories: </b>
+                                {previewing.inheritable ? "Yes" : "No"}
+                            </li>
+                        </ul>
+                    </Section>
+                    <Section>
+                        <Heading.h3>Form preview</Heading.h3>
+                        <JsonSchemaForm
+                            schema={previewing.schema}
+                            uiSchema={previewing.uiSchema}
+                        />
+                    </Section>
+                </Grid>
+            </> : null}
+        </HighlightedCard>
+    };
 
     Properties = (props) => {
         const contentChildren = useMemo(() => ({resource, reload}) => {

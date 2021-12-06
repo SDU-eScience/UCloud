@@ -1,5 +1,5 @@
 import {
-    CREATE_TAG, DELETE_TAG, PERMISSIONS_TAG,
+    CREATE_TAG, DELETE_TAG, FindById, PERMISSIONS_TAG,
     Resource,
     ResourceApi, ResourceBrowseCallbacks,
     ResourceIncludeFlags,
@@ -8,10 +8,10 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
-import {BulkRequest, BulkResponse} from "@/UCloud/index";
+import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, FtIcon, Link} from "@/ui-components";
+import {Box, Button, FtIcon, Link, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -19,10 +19,10 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import {doNothing, extensionFromPath, removeTrailingSlash} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extensionFromPath, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
 import {ResourceProperties} from "@/Resource/Properties";
@@ -43,6 +43,12 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {InvokeCommand} from "@/Authentication/DataHook";
+import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
+import {Spacer} from "@/ui-components/Spacer";
+import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -122,19 +128,20 @@ const FileSensitivityVersion = "1.0.0";
 const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
-function findSensitivity(file: UFile): SensitivityLevel {
+function findSensitivityWithFallback(file: UFile): SensitivityLevel {
+    return findSensitivity(file) ?? "PRIVATE";
+}
+
+function findSensitivity(file: UFile): SensitivityLevel | undefined {
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
             return "PRIVATE";
         }
     }
-
-    // TODO(Jonas): This assumes an inherit case would be 'Private', work needs to be done for backend.
-    // TODO(Jonas): The type is not correct if this needs to be cast for this to work
-    return (
-        Object.values(file.status.metadata?.metadata[sensitivityTemplateId] ?? {})[0] as any
-    )?.specification.document.sensitivity ?? "PRIVATE";
+    const entry = file.status.metadata?.metadata[sensitivityTemplateId]?.[0];
+    if (entry?.type === "deleted") return undefined;
+    return entry?.specification.document.sensitivity;
 }
 
 function findTemplateId(file: UFile, namespace: string, version: string): string {
@@ -194,10 +201,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 />;
             return <>{favoriteComponent}{icon}</>
         },
-        ImportantStats({resource}) {
+        ImportantStats({resource, callbacks}) {
             if (!resource) return null;
-            const sensitivity = findSensitivity(resource);
-            return <div><Sensitivity sensitivity={sensitivity} /></div>;
+            const sensitivity = findSensitivityWithFallback(resource);
+            return <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
+                <Sensitivity sensitivity={sensitivity} />
+            </div>;
         },
         Stats({resource}) {
             if (resource == null) return null;
@@ -288,7 +297,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Use this folder",
                 primary: true,
                 canAppearInLocation: (loc) => loc === "TOPBAR",
-                enabled: (selected, cb) => selected.length === 0 && cb.onSelect !== undefined,
+                enabled: (selected, cb) => {
+                    return selected.length === 0 && cb.onSelect !== undefined && cb.directory != null &&
+                        (cb.onSelectRestriction == null || cb.onSelectRestriction(cb.directory));
+                },
                 onClick: (selected, cb) => {
                     cb.onSelect?.({
                         id: "",
@@ -373,11 +385,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return selected.length === 1;
+                    return selected.length === 1 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
                     cb.startRenaming?.(selected[0], fileName(selected[0].id));
-                    cb.reload();
                 }
             },
             {
@@ -406,7 +418,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async res => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -422,13 +434,14 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 })
                             );
 
+                            cb.reload();
+
                             dialogStore.success();
                         }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
                     );
-                    cb.reload();
                 }
             },
             {
@@ -445,7 +458,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
                 onClick: (selected, cb) => {
-                    const pathRef = {current: ""};
+                    const pathRef = {current: getParentPath(selected[0].id)};
                     dialogStore.addDialog(
                         <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} onSelect={async (res) => {
                             const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
@@ -461,22 +474,35 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 })
                             );
 
+                            cb.reload();
+
                             dialogStore.success();
                         }} />,
                         doNothing,
                         true,
                         this.fileSelectorModalStyle
                     );
-                    cb.reload();
                 }
             },
             {
                 icon: "share",
                 text: "Share",
                 enabled: (selected, cb) => {
-                    return selected.length > 0 && selected.every(it => {
-                        return it.permissions.myself.some(p => p === "ADMIN") && it.status.type === "DIRECTORY";
-                    });
+                    if (Client.hasActiveProject) {return false;}
+                    if (selected.length === 0) return false;
+                    const isMissingPermissions = selected.some(it => !it.permissions.myself.some(p => p === "ADMIN"));
+                    const hasNonDirectories = selected.some(it => it.status.type != "DIRECTORY");
+
+                    if (isMissingPermissions) {
+                        return "You lack permissions to share this file. Only the owner of the file can share it!";
+                    }
+
+                    if (hasNonDirectories) {
+                        return "You can only share a directory. To share a file put it in a directory and share the " +
+                            "directory.";
+                    }
+
+                    return true;
                 },
                 onClick: async (selected, cb) => {
                     const username = await addStandardInputDialog({
@@ -484,9 +510,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         help: <>The username of the user you wish to share this file with</>,
                         addToFront: true,
                         confirmText: "Share",
+                        width: "100%"
                     });
 
-                    await cb.invokeCommand(
+                    await cb.invokeCommand<BulkResponse<FindById>>(
                         SharesApi.create(
                             bulkRequestOf(
                                 ...selected.map(file => ({
@@ -497,7 +524,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                                 }))
                             )
                         )
-                    );
+                    ).then(it => {
+                        if (it?.responses) {
+                            cb.history.push(`/shares/outgoing`);
+                        }
+                    });
                 }
             },
             {
@@ -527,31 +558,24 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "trash",
-                text: "Empty Trash",
-                confirm: true,
-                color: "red",
-                enabled: (selected, cb) => {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
-                        return true;
+                text: "Change sensitivity",
+                icon: "sensitivity",
+                enabled(selected, cb) {
+                    if (cb.collection?.permissions?.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+                        return false;
                     }
-                    return false
+                    return selected.length === 1;
                 },
-                onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload()
+                onClick(selected, extra) {
+                    addFileSensitivityDialog(selected[0], extra.invokeCommand, extra.reload);
                 }
             },
             {
                 text: "Empty Trash",
                 icon: "trash",
                 color: "red",
+                confirm: true,
                 primary: true,
-                canAppearInLocation: location => location === "SIDEBAR",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
@@ -572,7 +596,27 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     );
                     cb.reload()
                 },
-            }
+            },
+            {
+                icon: "trash",
+                text: "Empty Trash",
+                confirm: true,
+                color: "red",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (selected.length == 1 && selected[0].status.icon == "DIRECTORY_TRASH") {
+                        return true;
+                    }
+                    return false
+                },
+                onClick: async (selected, cb) => {
+                    await cb.invokeCommand(
+                        this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                    );
+                    cb.reload()
+                }
+            },
         ];
 
         return ourOps.concat(base);
@@ -659,6 +703,109 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+}
+
+async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
+    const result = await invokeCommand<PageV2<FileMetadataTemplateNamespace>>(metadataNamespaceApi.browse({
+        itemsPerPage: 100,
+        next
+    }));
+
+    const id = result?.items.find(it => it.specification.name === name)?.id;
+    if (!id) {
+        if (!result?.next) return "";
+        return queryTemplateName(name, invokeCommand, result?.next ?? null);
+    }
+
+    return id;
+}
+
+function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
+    // Note(Jonas): It should be initialized at this point, but let's make sure.
+    if (!sensitivityTemplateId) {
+        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+    }
+
+    const originalSensitivity = findSensitivity(file);
+    const selection = React.useRef<HTMLSelectElement>(null);
+    const reason = React.useRef<HTMLTextAreaElement>(null);
+
+    const onUpdate = React.useCallback(async (e: React.SyntheticEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            const value = selection.current?.value;
+            const reasonText = reason.current?.value ?? "No reason provided."
+            if (!value) return;
+            if (value === SensitivityLevelMap.INHERIT) {
+                // Find latest that is active and remove that one. At most one will be active.
+                const entryToDelete = file.status.metadata?.metadata[sensitivityTemplateId].find(
+                    it => ["approved", "not_required"].includes(it.status.approval.type)
+                );
+                if (!entryToDelete) return;
+                await invokeCommand(
+                    metadataDocumentApi.delete(
+                        bulkRequestOf({
+                            changeLog: reasonText,
+                            id: entryToDelete.id
+                        })
+                    ),
+                    {defaultErrorHandler: false}
+                );
+            } else {
+                if (!sensitivityTemplateId) {
+                    sensitivityTemplateId = await queryTemplateName(sensitivityTemplateId, invokeCommand);
+                    if (!sensitivityTemplateId) {
+                        snackbarStore.addFailure("Failed to change sensitivity.", false);
+                        return;
+                    }
+                }
+
+                await invokeCommand(
+                    metadataDocumentApi.create(bulkRequestOf({
+                        fileId: file.id,
+                        metadata: {
+                            changeLog: reasonText,
+                            document: {
+                                sensitivity: value,
+                            },
+                            templateId: sensitivityTemplateId,
+                            version: FileSensitivityVersion
+                        }
+                    })),
+                    {defaultErrorHandler: false}
+                );
+            }
+
+            reload();
+            dialogStore.success();
+        } catch (e) {
+            displayErrorMessageOrDefault(e, "Failed to update sensitivity.")
+        }
+    }, []);
+
+    return (<form onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
+        <Text fontSize={24} mb="12px">Change sensitivity</Text>
+        <Select my="8px" selectRef={selection} defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
+            {Object.keys(SensitivityLevelMap).map(it =>
+                <option key={it} value={it}>{prettierString(it)}</option>
+            )}
+        </Select>
+        <TextArea style={{marginTop: "6px", marginBottom: "6px"}} required ref={reason} width="100%" rows={4} placeholder="Reason for sensitivity change..." />
+        <Spacer
+            mt="12px"
+            left={<Button color="red" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
+            right={<Button color="green">Update</Button>}
+        />
+    </form>);
+}
+
+function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {
+    if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
+        return;
+    }
+
+    dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
 }
 
 const api = new FilesApi();

@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.5.10"
-    kotlin("plugin.serialization") version "1.5.10"
+    kotlin("multiplatform") version "1.6.0"
+    kotlin("plugin.serialization") version "1.6.0"
 }
 
 group = "dk.sdu.cloud"
@@ -10,6 +10,8 @@ repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
     maven {
         name = "UCloudMaven"
         url = uri("https://mvn.cloud.sdu.dk/releases")
@@ -35,9 +37,13 @@ kotlin {
         }
 
         compilations["main"].dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.2.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha10")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha13")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
+            api("io.ktor:ktor-client-curl:1.6.2-test")
+            api("io.ktor:ktor-client-websockets:1.6.2-test")
+            api("io.ktor:ktor-client-cio:1.6.2-test")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
         }
 
         compilations["main"].cinterops {

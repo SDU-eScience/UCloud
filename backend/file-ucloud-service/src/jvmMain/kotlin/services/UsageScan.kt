@@ -40,18 +40,17 @@ class UsageScan(
     }
 
     suspend fun startScan() {
-        val scanId = LocalDateTime.ofInstant(
-            Instant.ofEpochMilli(Time.now()),
-            Time.javaTimeZone
-        ).format(DateTimeFormatter.ofPattern("YYYY.MM.dd.HH.mm"))
+        val scanId = Time.now().toString()
 
+        val chunkSize = 50
         db.withSession { session ->
             run {
+                println("Collections")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
                 val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
-                collections.chunked(100).forEach { chunk ->
+                collections.chunked(chunkSize).forEach { chunk ->
                     val resolvedCollections =
-                        retrieveCollections(providerGenerated = false, collections.map { it.toString() })
+                        retrieveCollections(providerGenerated = false, chunk.map { it.toString() })
                             ?: return@forEach
 
                     val paths = chunk.map {
@@ -64,17 +63,18 @@ class UsageScan(
                         fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
                     }
 
-                    processChunk(chunk, sizes, resolvedCollections)
+                    processChunk(chunk, sizes, resolvedCollections, chunk.map { it.toString() })
                 }
             }
 
             run {
+                println("Home")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
                 val collections = fs.listFiles(collectionRoot)
-                collections.chunked(100).forEach { chunk ->
+                collections.chunked(chunkSize).forEach { chunk ->
                     val resolvedCollections = retrieveCollections(
                         providerGenerated = true,
-                        collections.map { PathConverter.COLLECTION_HOME_PREFIX + it }
+                        chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it }
                     ) ?: return@forEach
 
                     val paths = chunk.map { filename ->
@@ -92,34 +92,47 @@ class UsageScan(
                             ?.toLongOrNull()
                     }
 
-                    processChunk(mappedChunk, sizes, resolvedCollections)
+                    processChunk(mappedChunk, sizes, resolvedCollections, chunk)
                 }
             }
 
             run {
+                // TODO(Dan): If files are only stored in member files then we won't find them with this code
+                println("Projects")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
                 val collections = fs.listFiles(collectionRoot)
-                collections.chunked(100).forEach { chunk ->
-                    val resolvedCollections = retrieveCollections(
-                        providerGenerated = true,
-                        collections.map { PathConverter.COLLECTION_PROJECT_PREFIX + it }
-                    ) ?: return@forEach
-
+                collections.chunked(chunkSize).forEach { chunk ->
                     val paths = chunk.map { filename ->
                         pathConverter.relativeToInternal(RelativeInternalFile("/projects/${filename}"))
                     }
+
+                    val reposForAccounting = paths.map { projectRoot ->
+                        runCatching { fs.listFiles(projectRoot) }.getOrNull()?.firstOrNull() ?: "0"
+                    }
+
+                    val chunkAndRepos = chunk.zip(reposForAccounting)
+                    val resolvedCollections = retrieveCollections(
+                        providerGenerated = true,
+                        chunkAndRepos.map { (projectName, firstRepo) ->
+                            PathConverter.COLLECTION_PROJECT_PREFIX + projectName + "/" + firstRepo
+                        }
+                    ) ?: return@forEach
+
                     val sizes = paths.map { thisCollection ->
                         fastDirectoryStats.getRecursiveSize(thisCollection) ?: 0L
                     }
 
-                    val mappedChunk = chunk.map { filename ->
+                    val mappedChunk = chunkAndRepos.map { (projectName, firstRepo) ->
                         resolvedCollections
-                            .find { it.providerGeneratedId == PathConverter.COLLECTION_PROJECT_PREFIX + it }
+                            .find {
+                                it.providerGeneratedId == (PathConverter.COLLECTION_PROJECT_PREFIX + projectName +
+                                    "/" + firstRepo)
+                            }
                             ?.id
                             ?.toLongOrNull()
                     }
 
-                    processChunk(mappedChunk, sizes, resolvedCollections)
+                    processChunk(mappedChunk, sizes, resolvedCollections, chunk)
                 }
             }
 
@@ -130,8 +143,10 @@ class UsageScan(
                         is WalletOwner.User -> owner.username
                     }
 
-                    val units = kotlin.math.ceil(dataPoint.usageInBytes / 1.GiB.toDouble()).toLong()
-                    if (units <= 0) return@mapNotNull null
+                    // NOTE(Dan): we need to floor this, because otherwise we won't actually give people the full quota
+                    // they deserve (this becomes very apparent when granting small quotas).
+                    val units = kotlin.math.floor(dataPoint.usageInBytes / 1.GB.toDouble()).toLong()
+                    if (units < 0) return@mapNotNull null
 
                     ResourceChargeCredits(
                         dataPoint.initialResourceId,
@@ -151,8 +166,9 @@ class UsageScan(
                 """
                     delete from file_ucloud.quota_locked
                     where scan_id != :scan_id
-                """
-            )
+                """,
+                debug = true
+            ).also { println("Rows affected from deletion: ${it.rowsAffected}") }
         }
     }
 
@@ -160,7 +176,14 @@ class UsageScan(
         chunk: List<Long?>,
         sizes: List<Long>,
         resolvedCollections: List<FileCollection>,
+        debug: List<String>,
     ) {
+        println("---")
+        println(chunk)
+        println(sizes)
+        println(resolvedCollections.map { it.owner })
+        println(debug)
+        println("---")
         for (idx in chunk.indices) {
             val size = sizes[idx]
             val collectionId = chunk[idx] ?: continue
@@ -203,7 +226,7 @@ class UsageScan(
                 ).orThrow().items
             }
         } catch (ex: Throwable) {
-            log.warn("Failed to retrieve information about collections: $collections")
+            log.warn("Failed to retrieve information about collections: $collections\n${ex.stackTraceToString()}")
             globalRequestCounter.getAndAdd(collections.size)
             globalErrorCounter.getAndAdd(collections.size)
             checkIfWeShouldTerminate()
@@ -231,6 +254,8 @@ class UsageScan(
         chunk: List<UsageDataPoint>,
         requests: List<ResourceChargeCredits>
     ) {
+        println("$scanId $chunk $requests")
+        println("?")
         if (requests.isEmpty()) return
 
         try {
@@ -283,15 +308,19 @@ class UsageScan(
             session.sendPreparedStatement(
                 {
                     setParameter("scan_id", scanId)
-                    setParameter("paths", lockedIdxs.flatMap { idx ->
-                        chunk[idx].internalCollections.map { it.id.toLongOrNull() ?: -1L }
-                    })
+                    lockedIdxs.split {
+                        into<String>("categories") { i -> chunk[i].key.category.name }
+                        into<String?>("usernames") { i -> (chunk[i].key.owner as? WalletOwner.User)?.username }
+                        into<String?>("project_ids") { i -> (chunk[i].key.owner as? WalletOwner.Project)?.projectId }
+                    }
                 },
                 """
-                    insert into file_ucloud.quota_locked (collection, scan_id) 
-                    select unnest(:paths::bigint[]), :scan_id
+                    insert into file_ucloud.quota_locked (scan_id, category, username, project_id) 
+                    select :scan_id, unnest(:categories::text[]), unnest(:usernames::text[]), 
+                           unnest(:project_ids::text[]) 
                     on conflict do nothing
-                """
+                """,
+                debug = true
             )
         }
     }

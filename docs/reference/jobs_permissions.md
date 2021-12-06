@@ -75,6 +75,9 @@ Jobs.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeApplication = null, 
             includeOthers = false, 
             includeParameters = null, 
@@ -89,8 +92,6 @@ Jobs.retrieve.call(
 
 /*
 Job(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1633588976235, 
     id = "62348", 
     output = null, 
@@ -131,6 +132,7 @@ Job(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
@@ -138,6 +140,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
@@ -145,6 +148,7 @@ Job(
     ), JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "Your job has been terminated (Lost permissions)", 
@@ -236,7 +240,10 @@ await callAPI(JobsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "62348"
     }
@@ -256,6 +263,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now waiting in the queue!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633588976235
         },
         {
@@ -264,6 +272,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job is now running!",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633588981235
         },
         {
@@ -272,6 +281,7 @@ await callAPI(JobsApi.retrieve(
             "status": "Your job has been terminated (Lost permissions)",
             "expectedState": null,
             "expectedDifferentState": null,
+            "newTimeAllocation": null,
             "timestamp": 1633589101235
         }
     ],
@@ -309,10 +319,7 @@ await callAPI(JobsApi.retrieve(
     },
     "createdAt": 1633588976235,
     "output": null,
-    "permissions": null,
-    "acl": null,
-    "billing": {
-    }
+    "permissions": null
 }
 */
 ```
@@ -394,6 +401,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now waiting in the queue!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633588976235
 #         },
 #         {
@@ -402,6 +410,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job is now running!",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633588981235
 #         },
 #         {
@@ -410,6 +419,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "status": "Your job has been terminated (Lost permissions)",
 #             "expectedState": null,
 #             "expectedDifferentState": null,
+#             "newTimeAllocation": null,
 #             "timestamp": 1633589101235
 #         }
 #     ],
@@ -447,10 +457,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #     },
 #     "createdAt": 1633588976235,
 #     "output": null,
-#     "permissions": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "permissions": null
 # }
 
 ```

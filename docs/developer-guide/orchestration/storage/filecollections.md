@@ -161,6 +161,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#memberfilesfilter'><code>MemberFilesFilter</code></a></td>
+<td>Filter for member files. </td>
+</tr>
+<tr>
 <td><a href='#filecollectionsrenamerequestitem'><code>FileCollectionsRenameRequestItem</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -198,10 +202,14 @@ FileCollections.retrieve.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -214,8 +222,6 @@ FileCollections.retrieve.call(
 
 /*
 FileCollection(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635151675465, 
     id = "54123", 
     owner = ResourceOwner(
@@ -263,6 +269,7 @@ FileCollection(
 await callAPI(FilesCollectionsApi.retrieve(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -274,7 +281,10 @@ await callAPI(FilesCollectionsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "54123"
     }
@@ -309,10 +319,7 @@ await callAPI(FilesCollectionsApi.retrieve(
         "others": [
         ]
     },
-    "providerGeneratedId": null,
-    "acl": null,
-    "billing": {
-    }
+    "providerGeneratedId": null
 }
 */
 ```
@@ -366,10 +373,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #         "others": [
 #         ]
 #     },
-#     "providerGeneratedId": null,
-#     "acl": null,
-#     "billing": {
-#     }
+#     "providerGeneratedId": null
 # }
 
 ```
@@ -478,10 +482,14 @@ FileCollections.browse.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -499,8 +507,6 @@ FileCollections.browse.call(
 /*
 PageV2(
     items = listOf(FileCollection(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "54123", 
         owner = ResourceOwner(
@@ -555,10 +561,14 @@ FileCollections.browse.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -576,8 +586,6 @@ FileCollections.browse.call(
 /*
 PageV2(
     items = listOf(FileCollection(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "54123", 
         owner = ResourceOwner(
@@ -691,6 +699,7 @@ await callAPI(FilesCollectionsApi.retrieveProducts(
 await callAPI(FilesCollectionsApi.browse(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -702,7 +711,10 @@ await callAPI(FilesCollectionsApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -745,10 +757,7 @@ await callAPI(FilesCollectionsApi.browse(
                 "others": [
                 ]
             },
-            "providerGeneratedId": null,
-            "acl": null,
-            "billing": {
-            }
+            "providerGeneratedId": null
         }
     ],
     "next": null
@@ -778,6 +787,7 @@ await callAPI(FilesCollectionsApi.rename(
 await callAPI(FilesCollectionsApi.browse(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -789,7 +799,10 @@ await callAPI(FilesCollectionsApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -832,10 +845,7 @@ await callAPI(FilesCollectionsApi.browse(
                 "others": [
                 ]
             },
-            "providerGeneratedId": null,
-            "acl": null,
-            "billing": {
-            }
+            "providerGeneratedId": null
         }
     ],
     "next": null
@@ -953,10 +963,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                 "others": [
 #                 ]
 #             },
-#             "providerGeneratedId": null,
-#             "acl": null,
-#             "billing": {
-#             }
+#             "providerGeneratedId": null
 #         }
 #     ],
 #     "next": null
@@ -1012,10 +1019,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                 "others": [
 #                 ]
 #             },
-#             "providerGeneratedId": null,
-#             "acl": null,
-#             "billing": {
-#             }
+#             "providerGeneratedId": null
 #         }
 #     ],
 #     "next": null
@@ -1505,8 +1509,6 @@ data class FileCollection(
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
     val providerGeneratedId: String?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
 )
 ```
 
@@ -1601,30 +1603,6 @@ A null value indicates that permissions are not supported by this resource type.
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -1810,6 +1788,7 @@ An update will typically contain information similar to the `status` field, for 
 
 ```kotlin
 data class FileCollectionIncludeFlags(
+    val filterMemberFiles: MemberFilesFilter?,
     val includeOthers: Boolean?,
     val includeUpdates: Boolean?,
     val includeSupport: Boolean?,
@@ -1822,6 +1801,9 @@ data class FileCollectionIncludeFlags(
     val filterProductCategory: String?,
     val filterProviderIds: String?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -1829,6 +1811,17 @@ data class FileCollectionIncludeFlags(
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>filterMemberFiles</code>: <code><code><a href='#memberfilesfilter'>MemberFilesFilter</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>
@@ -1954,6 +1947,101 @@ data class FileCollectionIncludeFlags(
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `MemberFilesFilter`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Filter for member files. _
+
+```kotlin
+enum class MemberFilesFilter {
+    SHOW_ONLY_MINE,
+    SHOW_ONLY_MEMBER_FILES,
+    DONT_FILTER_COLLECTIONS,
+}
+```
+A member files collection must use the following format to be recognized: "Member Files: $username"
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>SHOW_ONLY_MINE</code> Shows only the requesting user's personal member file along with all other collections
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>SHOW_ONLY_MEMBER_FILES</code> Shows only the member file collections and hides all others
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>DONT_FILTER_COLLECTIONS</code> Applies no filter and shows both normal collections and member files
 </summary>
 
 

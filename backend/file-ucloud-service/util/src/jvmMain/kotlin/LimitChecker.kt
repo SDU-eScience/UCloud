@@ -8,26 +8,44 @@ import io.ktor.http.*
 
 class LimitChecker(
     private val db: DBContext,
+    private val pathConverter: PathConverter,
 ) {
-    private val isCollectionLocked = SimpleCache<String, Boolean>(
+    private data class LimitKey(val username: String?, val projectId: String?, val category: String)
+
+    private val isCollectionLocked = SimpleCache<LimitKey, Boolean>(
         maxAge = 60_00 * 5L,
-        lookup = { collectionId ->
+        lookup = { key ->
             db.withSession { session ->
                 session.sendPreparedStatement(
                     {
-                        setParameter("id", collectionId.toLongOrNull() ?: -1L)
+                        setParameter("username", key.username.takeIf { key.projectId == null })
+                        setParameter("project_id", key.projectId)
+                        setParameter("category", key.category)
                     },
                     """
-                        select collection
+                        select true
                         from file_ucloud.quota_locked
-                        where collection = :id
-                    """
+                        where
+                            username is not distinct from :username and
+                            project_id is not distinct from :project_id and
+                            category is not distinct from :category
+                    """,
+                    debug = true
                 ).rows.isNotEmpty()
             }
         }
     )
     suspend fun checkLimit(collection: String) {
-        if (isCollectionLocked.get(collection) == true) {
+        val cachedCollection = pathConverter.collectionCache.get(collection)
+            ?: throw RPCException("Unknown drive, are you sure it exists?", HttpStatusCode.NotFound)
+
+        val key = LimitKey(
+            cachedCollection.owner.createdBy,
+            cachedCollection.owner.project,
+            cachedCollection.specification.product.category
+        )
+
+        if (isCollectionLocked.get(key) == true) {
             throw RPCException(
                 "Quota has been exceeded. Delete some files and try again later.",
                 HttpStatusCode.PaymentRequired

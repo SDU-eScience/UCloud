@@ -191,13 +191,12 @@ const MembersPanel: React.FunctionComponent = () => {
 };
 
 const Circle = styled(Box)`
-    border-radius: 500px;
-    width: 20px;
-    height: 20px;
-    border: 1px solid ${getCssVar("black")};
-    margin: 4px;
-    marginLeft: 2px;
-    cursor: pointer;
+  border-radius: 500px;
+  width: 20px;
+  height: 20px;
+  border: 1px solid ${getCssVar("black")};
+  margin: 4px 4px 4px 2px;
+  cursor: pointer;
 `;
 
 export default MembersPanel;

@@ -282,8 +282,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                 </SidebarTextLabel>
             </> : null}
             {!projectId ? null : <>
-                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}
-                    title={projectPath}>
+                <SidebarTextLabel icon={"projects"} height={"25px"} iconSize={"1em"} textSize={1} space={".5em"}>
                     <Tooltip
                         left="-50%"
                         top="1"
@@ -310,7 +309,6 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     iconSize="1em"
                     textSize={1}
                     space=".5em"
-                    title={Client.username ?? ""}
                 >
                     <Tooltip
                         left="-50%"

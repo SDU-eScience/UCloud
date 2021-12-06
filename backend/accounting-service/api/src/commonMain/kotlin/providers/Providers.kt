@@ -39,12 +39,9 @@ data class Provider(
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions? = null
 ) : Resource<Product, ProviderSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-
     override fun toString(): String {
         return "Provider(id='$id', specification=$specification, createdAt=$createdAt, status=$status, " +
-                "billing=$billing, owner=$owner)"
+                "owner=$owner)"
     }
 
     override fun visualize(): DocVisualization {
@@ -150,6 +147,9 @@ data class ProviderIncludeFlags(
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
     val filterName: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

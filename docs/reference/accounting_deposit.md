@@ -110,13 +110,14 @@ Accounting.deposit.call(
     bulkRequestOf(DepositToWalletRequestItem(
         amount = 100, 
         description = "Create sub-allocation", 
+        dry = false, 
         endDate = null, 
         recipient = WalletOwner.Project(
             projectId = "leaf-project", 
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "-52830561993866994411635257471698", 
+        transactionId = "-36645552794302851731638363217707", 
     )),
     piRoot
 ).orThrow()
@@ -333,7 +334,8 @@ await callAPI(AccountingApi.deposit(
                 "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-52830561993866994411635257471698"
+                "transactionId": "-36645552794302851731638363217707",
+                "dry": false
             }
         ]
     }
@@ -547,7 +549,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "-52830561993866994411635257471698"
+            "transactionId": "-36645552794302851731638363217707",
+            "dry": false
         }
     ]
 }'

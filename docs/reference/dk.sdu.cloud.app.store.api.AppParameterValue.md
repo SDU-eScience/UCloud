@@ -12,6 +12,7 @@ _An `AppParameterValue` is value which is supplied to a parameter of an `Applica
 sealed class AppParameterValue {
     class File : AppParameterValue()
     class Bool : AppParameterValue()
+    class TextArea : AppParameterValue()
     class Text : AppParameterValue()
     class Integer : AppParameterValue()
     class FloatingPoint : AppParameterValue()

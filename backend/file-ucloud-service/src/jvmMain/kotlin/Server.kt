@@ -4,7 +4,6 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.file.ucloud.services.useTestingSizes
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
@@ -64,8 +63,23 @@ class Server(
         val nativeFs = NativeFS(pathConverter, micro)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
 
-        val limitChecker = LimitChecker(db)
+        val limitChecker = LimitChecker(db, pathConverter)
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
+
+        val scriptManager = micro.feature(ScriptManager)
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-scan",
+                    "Accounting Scan (Storage)",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                ),
+                script = {
+                    usageScan.startScan()
+                }
+            )
+        )
+
         if (micro.commandLineArguments.contains("--scan-accounting")) {
             try {
                 runBlocking {

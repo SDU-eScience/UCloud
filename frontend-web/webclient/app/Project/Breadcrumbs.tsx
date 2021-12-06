@@ -8,6 +8,7 @@ import {useProjectManagementStatus} from "@/Project/index";
 export interface ProjectBreadcrumbsProps {
     crumbs: {title: string, link?: string}[];
     allowPersonalProject?: true;
+    omitActiveProject?: true;
 }
 
 const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
@@ -34,14 +35,13 @@ export const ProjectBreadcrumbs: React.FunctionComponent<ProjectBreadcrumbsProps
 
     return <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
         <span><Link to="/projects">My Projects</Link></span>
-        {projectId ? (
+        {projectId && !props.omitActiveProject ? (
             <span><Link to="/project/dashboard">{projectNameComponent}</Link></span>
         ) : props.allowPersonalProject ? <span><Link to="/project/dashboard">My Workspace</Link></span> : null}
         {props.crumbs.map((crumb, idx) => {
             if (crumb.link) {
                 return <span key={idx}><Link to={crumb.link}>{crumb.title}</Link></span>;
             } else {
-
                 return <span key={idx}>{crumb.title}</span>;
             }
         })}

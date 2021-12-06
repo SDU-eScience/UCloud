@@ -1,26 +1,31 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.freeze
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ProductBasedPlugins
+import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.atomicfu.atomicArrayOfNulls
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ComputeController(
     controllerContext: ControllerContext,
@@ -30,6 +35,7 @@ class ComputeController(
 
     override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
         val serverMode = controllerContext.configuration.serverMode
+        val shells = Shells(controllerContext.configuration.core.providerId)
 
         implement(api.extend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -51,7 +57,7 @@ class ComputeController(
                 is JobsProviderFollowRequest.Init -> {
                     val plugin = plugins.lookup(request.job.specification.product)
 
-                    val token = secureToken(64).freeze()
+                    val token = secureToken(64)
                     var streamId: Int? = null
                     for (i in 0 until maxStreams) {
                         if (streams[i].compareAndSet(null, token)) {
@@ -117,11 +123,20 @@ class ComputeController(
         implement(api.openInteractiveSession) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            OutgoingCallResponse.Ok(
-                dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
-                    with(plugin) { openInteractiveSessionBulk(request) }
+            val results = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                with(plugin) { openInteractiveSessionBulk(request) }
+            }
+
+            for (result in results.responses) {
+                if (result != null && result is OpenSession.Shell) {
+                    controllerContext.pluginContext.ipcClient.sendRequest(
+                        ConnectionIpc.registerSessionProxy,
+                        result
+                    )
                 }
-            )
+            }
+
+            OutgoingCallResponse.Ok(results)
         }
 
         implement(api.retrieveUtilization) {
@@ -149,9 +164,69 @@ class ComputeController(
                 }
             )
         }
+
+        implement(shells.open) {
+            runBlocking {
+                if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+                when (request) {
+                    is ShellRequest.Initialize -> {
+                        val pluginHandler = with(controllerContext.pluginContext) {
+                            plugins.plugins.values.find { plugin ->
+                                with(plugin) { canHandleShellSession(request) }
+                            }
+                        } ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
+
+                        val channel = Channel<ShellRequest>(Channel.BUFFERED)
+                        val ctx = ComputePlugin.ShellContext(
+                            controllerContext.pluginContext,
+                            wsContext.isOpen,
+                            channel,
+                            emitData = { data ->
+                                println("Sending data $data")
+                                wsContext.sendMessage(ShellResponse.Data(data))
+                            }
+                        )
+
+                        ProcessingScope.launch {
+                            with(ctx) {
+                                with(pluginHandler) {
+                                    handleShellSession(request.cols, request.rows)
+                                }
+                            }
+                        }
+
+                        sessionMapMutex.withLock {
+                            sessionMap[wsContext.internalId] = channel
+                        }
+
+                        while (isActive && wsContext.isOpen()) {
+                            delay(50)
+                        }
+                    }
+
+                    is ShellRequest.Input, is ShellRequest.Resize -> {
+                        val sendChannel = sessionMapMutex.withLock {
+                            sessionMap[wsContext.internalId]
+                        } ?: throw RPCException(
+                            "This session is not ready to accept such a request",
+                            HttpStatusCode.BadRequest
+                        )
+
+                        sendChannel.send(request)
+                    }
+                }
+
+                OutgoingCallResponse.Ok(ShellResponse.Acknowledged())
+            }
+        }
     }
 
     companion object : Loggable {
         override val log: Logger = logger()
     }
 }
+
+// TODO(Dan): Not a great idea, probably leaks memory.
+val sessionMap = HashMap<Int, SendChannel<ShellRequest>>()
+val sessionMapMutex = Mutex()

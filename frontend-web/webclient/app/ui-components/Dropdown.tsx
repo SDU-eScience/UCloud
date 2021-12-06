@@ -52,11 +52,11 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     border-top-right-radius: ${props => props.squareTop ? "0" : "5px"};
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
-    position: ${p => p.fixed ? "fixed": "absolute"};
+    position: ${p => p.fixed ? "fixed" : "absolute"};
     background-color: var(${p => p.backgroundColor}, #f00);
     color: var(--${p => p.color}, #f00);
     width: ${props => props.width};
-    ${props => props.minWidth ? `min-width: ${props.minWidth};` : "min-width: 138px;"}
+    min-width: ${props => props.minWidth ? `${props.minWidth}` : "138px"};
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
     z-index: 1000;
     text-align: left;
@@ -70,14 +70,14 @@ export const DropdownContent = styled.div<DropdownContentProps>`
             background-color: var(--lightBlue);
         }` : null};
 
-  ${p => p.paddingControlledByContent ? null : `
-      padding: 12px 16px;
-      & > div {
-            margin-left: -17px;
-            margin-right: -17px;
-            padding-left: 17px;
-      }
-  `}
+    ${p => p.paddingControlledByContent ? null : `
+        padding: 12px 16px;
+        & > div {
+                margin-left: -17px;
+                margin-right: -17px;
+                padding-left: 17px;
+        }
+    `}
 
     ${top} ${left} ${right} ${bottom} ${height};
 `;

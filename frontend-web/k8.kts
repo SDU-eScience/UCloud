@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "2021.3.0-alpha1"
+    version = "2021.3.0-alpha38"
 
     withAmbassador(null) {
         addSimpleMapping("/api/auth-callback")
@@ -13,6 +13,7 @@ bundle {
         addSimpleMapping("/assets")
         addSimpleMapping("/favicon.ico")
         addSimpleMapping("/favicon.svg")
+        addSimpleMapping("/AppVersion.txt")
     }
 
     val deployment = withDeployment(injectAllDefaults = false) {

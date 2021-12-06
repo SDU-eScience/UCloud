@@ -67,4 +67,11 @@ data class K8Dependencies(
         }
         return false
     }
+
+    suspend fun updateTimeAllocation(jobId: String, newAllocation: Long) {
+        JobsControl.update.call(
+            bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(newTimeAllocation = newAllocation))),
+            serviceClient
+        )
+    }
 }

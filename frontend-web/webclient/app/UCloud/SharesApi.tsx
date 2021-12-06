@@ -136,16 +136,16 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
 
             return <Flex alignItems={"center"}>
                 {resource.status.state !== "APPROVED" ? null :
-                    <><Icon color={"green"} name={"check"} mr={8} /> Approved</>
+                    <><Icon color={"green"} name={"check"} mr={8} /> {sharedByMe ? "Approved" : null}</>
                 }
                 {resource.status.state !== "PENDING" ? null :
-                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> Pending</>
+                    <><Icon color={"blue"} name={"questionSolid"} mr={8} /> {sharedByMe ? "Pending" : null}</>
                 }
                 {resource.status.state !== "REJECTED" ? null :
-                    <><Icon color={"red"} name={"close"} mr={8} /> Rejected</>
+                    <><Icon color={"red"} name={"close"} mr={8} /> {sharedByMe ? "Rejected" : null}</>
                 }
                 <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
-                    <RadioTilesContainer height={48} onClick={stopPropagation}>
+                    <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
                         {sharedByMe || !isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
                             label={"Read"}
@@ -225,16 +225,14 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 }
             },
             {
-                text: "Decline",
+                text: "Remove",
                 icon: "close",
                 color: "red",
                 confirm: true,
-                primary: true,
-                enabled: (selected, cb) => {
-                    return selected.length > 0 && selected.every(share =>
-                        share.owner.createdBy !== Client.username && share.status.state !== "REJECTED"
-                    )
-                },
+                enabled: selected =>
+                    selected.length > 0 && selected.every(share =>
+                        share.owner.createdBy !== Client.username && share.status.state !== "PENDING"
+                    ),
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.reject(bulkRequestOf(...selected.map(share => ({id: share.id}))))

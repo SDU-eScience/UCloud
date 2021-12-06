@@ -4,14 +4,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
-import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonNames
@@ -49,52 +43,7 @@ enum class FileType {
     DANGLING_METADATA
 }
 
-//@Serializable
-// @UCloudApiDoc("Represents a permission that a user might have over a `UFile` or `FileCollection`")
-typealias FilePermission = Permission/* {
-    @UCloudApiDoc(
-        """The user is allowed to read the contents of the file
-
-- For regular files (`FILE`) this allows a user to read the data and metadata of the file.
-- For directories (`DIRECTORY`) this allows the user to read metadata about the folder along with _listing_ the files
-  of that directory
-- For soft symbolic links (`SOFT_LINK`) this allows the user to read metadata about the link along with reading the
-  pointer of this link. That is, the user is not necessarily allowed to read the file which the pointer points to.
-- For dangling metadata (`DANGLING_METADATA`) this allows the user to read the metadata which is dangling
-
-In addition, this will allow users to read the metadata of a file.
-"""
-    )
-    READ,
-
-    @UCloudApiDoc(
-        """The user is allowed to write to this file
-
-- For regular files (`FILE`) this allows a user to change the contents of a file, including deleting the file entirely
-- For directories (`DIRECTORY`) this allows a user to change the contents of a folder. This includes creating and
-  deleting files from a directory.
-- For soft symbolic links (`SOFT_LINK`) this allows a user to change where the link points to
-- For dangling metadata (`DANGLING_METADATA`) this allows the user to move the metadata to another file
-
-In addition, this will allow users to change the metadata of a file. However, it will not allow the user to add new
-metadata templates to the file.
-"""
-    )
-    WRITE,
-
-    @UCloudApiDoc(
-        """The user is allowed to perform administrative actions to this file
-
-For all files, this will allow the entity to change the permissions and ACL of a file.
-
-This permission also allows the user to attach new metadata templates to a file. If a metadata template is inheritable,
-see `FileMetadataTemplate.specification.inheritable`, then users will be able to change the value on descendants of this
-file.
-"""
-    )
-    ADMINISTRATOR,
-}
-*/
+typealias FilePermission = Permission
 
 @Serializable
 data class UFileIncludeFlags(
@@ -125,6 +74,9 @@ This value is `true` by default """)
     @UCloudApiDoc("Determines if dot files should be hidden from the result-set")
     val filterHiddenFiles: Boolean = false,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable
@@ -265,8 +217,6 @@ __Additionally UCloud recommends to users the following regarding `path`s:__
     override val owner: ResourceOwner,
     override val permissions: ResourcePermissions? = null
 ) : Resource<Product.Storage, FSSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
     override val updates: List<UFileUpdate> = emptyList()
 }
 
@@ -418,8 +368,24 @@ Note: This mode is not supported for all operations.
     MERGE_RENAME
 }
 
+@UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiDoc("""
+    Filter for member files. 
+    
+    A member files collection must use the following format to be recognized: "Member Files: ${"$"}username"
+""")
+enum class MemberFilesFilter {
+    @UCloudApiDoc("Shows only the requesting user's personal member file along with all other collections")
+    SHOW_ONLY_MINE,
+    @UCloudApiDoc("Shows only the member file collections and hides all others")
+    SHOW_ONLY_MEMBER_FILES,
+    @UCloudApiDoc("Applies no filter and shows both normal collections and member files")
+    DONT_FILTER_COLLECTIONS,
+}
+
 @Serializable
 data class FileCollectionIncludeFlags(
+    val filterMemberFiles: MemberFilesFilter? = null,
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
@@ -432,6 +398,9 @@ data class FileCollectionIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 // This would also be able to replace the repository, since the ACL could replicate this
@@ -451,16 +420,13 @@ data class FileCollection(
     override val permissions: ResourcePermissions? = null,
     override val providerGeneratedId: String? = null
 ) : Resource<Product.Storage, FSSupport> {
-    override val acl: List<ResourceAclEntry>? = null
-    override val billing = ResourceBilling.Free
-
     @Serializable
     data class Spec(
         val title: String,
         override val product: ProductReference,
     ) : ResourceSpecification {
         init {
-            require(title.isNotEmpty())
+            checkSingleLine(::title, title)
         }
     }
 

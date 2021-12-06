@@ -22,6 +22,9 @@ data class IngressIncludeFlags(
     val filterProviderIds: String?,
     val filterIds: String?,
     val filterState: IngressState?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -165,6 +168,39 @@ data class IngressIncludeFlags(
 <details>
 <summary>
 <code>filterState</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

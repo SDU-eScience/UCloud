@@ -281,6 +281,10 @@ NetworkIPs.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -293,8 +297,6 @@ NetworkIPs.retrieve.call(
 
 /*
 NetworkIP(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "5123", 
     owner = ResourceOwner(
@@ -455,6 +457,7 @@ await callAPI(NetworkipsApi.updateFirewall(
 await callAPI(NetworkipsApi.retrieve(
     {
         "flags": {
+            "filterState": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -466,7 +469,10 @@ await callAPI(NetworkipsApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "5123"
     }
@@ -507,10 +513,7 @@ await callAPI(NetworkipsApi.retrieve(
     "updates": [
     ],
     "resolvedProduct": null,
-    "permissions": null,
-    "billing": {
-    },
-    "acl": null
+    "permissions": null
 }
 */
 ```
@@ -665,10 +668,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/networkips/retriev
 #     "updates": [
 #     ],
 #     "resolvedProduct": null,
-#     "permissions": null,
-#     "billing": {
-#     },
-#     "acl": null
+#     "permissions": null
 # }
 
 ```
@@ -924,8 +924,6 @@ data class NetworkIP(
     val updates: List<NetworkIPUpdate>?,
     val resolvedProduct: Product.NetworkIP?,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -1027,30 +1025,6 @@ A null value indicates that permissions are not supported by this resource type.
 
 <details>
 <summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceAclEntry.md'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-<details>
-<summary>
 <code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
@@ -1077,6 +1051,7 @@ A null value indicates that permissions are not supported by this resource type.
 
 ```kotlin
 data class NetworkIPFlags(
+    val filterState: NetworkIPState?,
     val includeOthers: Boolean?,
     val includeUpdates: Boolean?,
     val includeSupport: Boolean?,
@@ -1089,6 +1064,9 @@ data class NetworkIPFlags(
     val filterProductCategory: String?,
     val filterProviderIds: String?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -1096,6 +1074,17 @@ data class NetworkIPFlags(
 <summary>
 <b>Properties</b>
 </summary>
+
+<details>
+<summary>
+<code>filterState</code>: <code><code><a href='#networkipstate'>NetworkIPState</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
 
 <details>
 <summary>
@@ -1221,6 +1210,39 @@ data class NetworkIPFlags(
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

@@ -29,6 +29,7 @@ import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {Product} from "@/Accounting";
+import {BrowseType} from "./BrowseType";
 
 const enterAnimation = keyframes`
   from {
@@ -166,12 +167,13 @@ interface PropertiesProps<Res extends Resource> {
     reload?: () => void;
     closeProperties?: () => void;
 
-    InfoChildren?: React.FunctionComponent<{ resource: Res, reload: () => void }>;
-    ContentChildren?: React.FunctionComponent<{ resource: Res, reload: () => void }>;
+    InfoChildren?: React.FunctionComponent<{resource: Res, reload: () => void}>;
+    ContentChildren?: React.FunctionComponent<{resource: Res, reload: () => void}>;
 
     showMessages?: boolean;
     showPermissions?: boolean;
     showProperties?: boolean;
+    noPermissionsWarning?: string;
 
     flagsForRetrieve?: Record<string, any>;
 }
@@ -184,7 +186,7 @@ export function ResourceProperties<Res extends Resource>(
     const projectId = useProjectId();
     const [ownResource, fetchOwnResource] = useCloudAPI<Res | null>({noop: true}, null);
     const [commandLoading, invokeCommand] = useCloudCommand();
-    const {id} = useParams<{ id?: string }>();
+    const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
     const history = useHistory();
     const requestedId = props.resource === undefined ?
@@ -195,7 +197,7 @@ export function ResourceProperties<Res extends Resource>(
         if (props.embedded) {
             return <Heading.h1>Not found</Heading.h1>;
         } else {
-            return <MainContainer main={<Heading.h1>Not found</Heading.h1>}/>;
+            return <MainContainer main={<Heading.h1>Not found</Heading.h1>} />;
         }
     }
 
@@ -213,7 +215,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const infoChildrenResolved = useMemo(() => {
         if (props.InfoChildren && ownResource.data) {
-            return <props.InfoChildren resource={ownResource.data} reload={reload}/>;
+            return <props.InfoChildren resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -221,7 +223,7 @@ export function ResourceProperties<Res extends Resource>(
 
     const childrenResolved = useMemo(() => {
         if (props.ContentChildren && ownResource.data) {
-            return <props.ContentChildren resource={ownResource.data} reload={reload}/>;
+            return <props.ContentChildren resource={ownResource.data} reload={reload} />;
         } else {
             return null;
         }
@@ -232,12 +234,7 @@ export function ResourceProperties<Res extends Resource>(
     const supportByProvider: SupportByProvider = useMemo(() => {
         const result: SupportByProvider = {productsByProvider: {}};
         if (resource != null && resource.status.resolvedSupport != null) {
-            result.productsByProvider[resource.specification.product.provider] = [
-                {
-                    product: resource.status.resolvedProduct as any as Product,
-                    support: resource.status.resolvedSupport
-                }
-            ];
+            result.productsByProvider[resource.specification.product.provider] = [resource.status.resolvedSupport];
         }
         return result;
     }, [resource]);
@@ -272,7 +269,7 @@ export function ResourceProperties<Res extends Resource>(
             <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
-                        {!renderer.Icon ? null : <renderer.Icon resource={resource} size={"200px"}/>}
+                        {!renderer.Icon ? null : <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} />}
                     </div>
                 </div>
             </div>
@@ -280,12 +277,12 @@ export function ResourceProperties<Res extends Resource>(
 
             <div className={"data"}>
                 <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                    <div className={"fake-logo"}/>
+                    <div className={"fake-logo"} />
                     <div className={"header-text"}>
                         <div>
                             <Heading.h2>
                                 {!renderer.MainTitle ? null : <>
-                                    <renderer.MainTitle resource={resource}/>
+                                    <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} />
                                 </>}
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>
@@ -323,16 +320,18 @@ export function ResourceProperties<Res extends Resource>(
                     }
                     {props.showMessages === false ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
-                            <Messages resource={resource}/>
+                            <Messages resource={resource} />
                         </HighlightedCard>
                     }
                     {infoChildrenResolved}
                 </InfoWrapper>
 
                 <ContentWrapper>
-                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined ? null :
+                    {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
-                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}/>
+                            <ResourcePermissionEditor reload={reload} entity={resource} api={api}
+                                                      noPermissionsWarning={props.noPermissionsWarning}/>
+                            <Box mb={16} />
                         </HighlightedCard>
                     }
                     {childrenResolved}
@@ -344,11 +343,11 @@ export function ResourceProperties<Res extends Resource>(
     if (props.embedded == true) {
         return main;
     } else {
-        return <MainContainer main={main}/>;
+        return <MainContainer main={main} />;
     }
 }
 
-const Messages: React.FunctionComponent<{ resource: Resource }> = ({resource}) => {
+const Messages: React.FunctionComponent<{resource: Resource}> = ({resource}) => {
     const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: ResourceUpdate) => {
@@ -371,5 +370,5 @@ const Messages: React.FunctionComponent<{ resource: Resource }> = ({resource}) =
         }
     }, [resource]);
 
-    return <Box height={"200px"} ref={termRef}/>
+    return <Box height={"200px"} ref={termRef} />
 };

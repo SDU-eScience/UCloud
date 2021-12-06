@@ -14,8 +14,9 @@ import {SvgFt} from "@/ui-components/FtIcon";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {noopCall} from "@/Authentication/DataHook";
 import {UFile} from "@/UCloud/FilesApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
-export const entityName = "Metadata";
+export const entityName = "Metadata (BETA)";
 
 export const MetadataBrowse: React.FunctionComponent<{
     file: UFile;
@@ -31,7 +32,8 @@ export const MetadataBrowse: React.FunctionComponent<{
         metadata,
         inspecting,
         setInspecting,
-        setLookingForTemplate
+        setLookingForTemplate,
+        file
     }), [inspecting, setInspecting, setLookingForTemplate, metadata]);
 
     const selectTemplate = useCallback((template: FileMetadataTemplate) => {
@@ -76,11 +78,11 @@ export const MetadataBrowse: React.FunctionComponent<{
         <ReactModal
             isOpen={lookingForTemplate}
             ariaHideApp={false}
-            shouldCloseOnEsc={true}
+            shouldCloseOnEsc
             onRequestClose={() => setLookingForTemplate(false)}
             style={largeModalStyle}
         >
-            <MetadataNamespacesBrowse embedded={true} onTemplateSelect={selectTemplate} />
+            <MetadataNamespacesBrowse browseType={BrowseType.Embedded} onTemplateSelect={selectTemplate} />
         </ReactModal>
     </div>;
 };
@@ -95,7 +97,7 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
     Icon({size}) {
         return <SvgFt width={size} height={size} type={"text"} ext={"meta"}
             color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
-            hasExt={true} />
+            hasExt />
     },
     MainTitle({resource}) {return !resource ? null : <>{resource.template.title}</>},
     Stats({resource}) {
@@ -126,6 +128,7 @@ const fileMetadataRenderer: ItemRenderer<MetadataRow> = {
 };
 
 interface Callbacks {
+    file: UFile;
     metadata: FileMetadataHistory;
     inspecting: string | null;
     setInspecting: (inspecting: string | null) => void;
@@ -137,7 +140,10 @@ const operations: Operation<MetadataRow, StandardCallbacks<MetadataRow> & Callba
         text: `Add ${entityName.toLowerCase()}`,
         primary: true,
         icon: "docs",
-        enabled: (selected, cb) => selected.length === 0 && cb.inspecting == null,
+        enabled: (selected, cb) => {
+            return selected.length === 0 && cb.inspecting == null &&
+                cb.file.permissions.myself.some(it => it === "EDIT" || it === "ADMIN");
+        },
         onClick: (_, cb) => {
             cb.setLookingForTemplate(true);
         }

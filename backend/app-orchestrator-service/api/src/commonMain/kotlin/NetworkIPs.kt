@@ -70,6 +70,10 @@ data class PortRangeAndProto(
     val end: Int,
     val protocol: IPProtocol,
 ) : DocVisualizable {
+    init {
+        if (start < 1 || end < 1) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+    }
+
     override fun visualize(): DocVisualization =
         if (start != end) DocVisualization.Inline("$start-$end $protocol")
         else DocVisualization.Inline("$start $protocol")
@@ -105,10 +109,7 @@ data class NetworkIP(
     val resolvedProduct: Product.NetworkIP? = null,
 
     override val permissions: ResourcePermissions? = null,
-) : Resource<Product.NetworkIP, NetworkIPSupport> {
-    override val billing = ResourceBilling.Free
-    override val acl: List<ResourceAclEntry>? = null
-}
+) : Resource<Product.NetworkIP, NetworkIPSupport>
 
 @UCloudApiDoc("The status of an `NetworkIP`")
 @Serializable
@@ -163,6 +164,7 @@ data class NetworkIPUpdate(
 
 @Serializable
 data class NetworkIPFlags(
+    val filterState: NetworkIPState? = null,
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
     override val includeSupport: Boolean = false,
@@ -175,6 +177,9 @@ data class NetworkIPFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
 ) : ResourceIncludeFlags
 
 @Serializable

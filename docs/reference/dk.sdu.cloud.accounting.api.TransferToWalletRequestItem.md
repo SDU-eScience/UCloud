@@ -16,6 +16,7 @@ data class TransferToWalletRequestItem(
     val startDate: Long?,
     val endDate: Long?,
     val transactionId: String?,
+    val dry: Boolean?,
 )
 ```
 
@@ -97,6 +98,17 @@ expire.
 <details>
 <summary>
 <code>transactionId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>dry</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

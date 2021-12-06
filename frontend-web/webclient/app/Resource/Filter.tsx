@@ -3,7 +3,6 @@ import {useCallback, useMemo, useState} from "react";
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Divider, Flex, Grid, Icon, Input, Stamp} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import * as Text from "@/ui-components/Text";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {Cursor} from "@/ui-components/Types";
 import styled from "styled-components";
@@ -13,7 +12,7 @@ import {enGB} from "date-fns/locale";
 import ReactDatePicker from "react-datepicker";
 import {Toggle} from "@/ui-components/Toggle";
 import {doNothing, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
-import {getStartOfDay, getStartOfMonth, getStartOfWeek} from "@/Utilities/DateUtilities";
+import {getStartOfDay} from "@/Utilities/DateUtilities";
 import {dateToStringNoTime} from "@/Utilities/DateUtilities";
 import {SortEntry} from "@/UCloud/ResourceApi";
 import {BrowseType} from "./BrowseType";
@@ -22,6 +21,7 @@ export interface FilterWidgetProps {
     properties: Record<string, string>;
     onPropertiesUpdated: (updatedProperties: Record<string, string | undefined>) => void;
     expanded: boolean;
+    browseType: BrowseType;
     id: number;
     onExpand: (id: number) => void;
 }
@@ -60,20 +60,14 @@ export const ResourceFilter: React.FunctionComponent<{
     sortDirection: "ascending" | "descending";
     sortColumn?: string;
     onSortUpdated: (direction: "ascending" | "descending", column: string) => void;
-    onApplyFilters: () => void;
 }> = props => {
     const {properties, setProperties} = props;
     const [expanded, setExpanded] = useState<number | null>(null);
     const [sortProperties, setSortProperties] = useState<Record<string, string>>({});
-    const [isDirty, setIsDirty] = useState(false);
     const combinedProperties = useMemo(
         () => ({...(props.readOnlyProperties ?? {}), ...properties}),
         [props.readOnlyProperties, properties]
     );
-
-    useEffectSkipMount(() => {
-        setIsDirty(true)
-    }, [properties, setIsDirty]);
 
     const onSortDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(sortProperties)};
@@ -82,8 +76,7 @@ export const ResourceFilter: React.FunctionComponent<{
         }
 
         setSortProperties(result);
-        setIsDirty(true);
-    }, [setSortProperties, sortProperties, setIsDirty]);
+    }, [setSortProperties, sortProperties]);
 
     const onPillDeleted = useCallback((keys: string[]) => {
         const result: Record<string, string> = {...(properties)};
@@ -93,19 +86,11 @@ export const ResourceFilter: React.FunctionComponent<{
 
         setProperties(result);
         setExpanded(null);
-        setIsDirty(true);
-    }, [setProperties, setExpanded, properties, setIsDirty]);
+    }, [setProperties, setExpanded, properties]);
 
     const onPropertiesUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
         mergeProperties(properties, updatedProperties, setProperties);
-        setIsDirty(true);
-    }, [setProperties, properties, setIsDirty]);
-
-    const onSortUpdated = useCallback((updatedProperties: Record<string, string | undefined>) => {
-        const newProps = mergeProperties(sortProperties, updatedProperties, setSortProperties);
-        props.onSortUpdated(newProps["direction"] as "ascending" | "descending", newProps["column"]);
-        setIsDirty(true);
-    }, [setSortProperties, sortProperties, setIsDirty, props.onSortUpdated]);
+    }, [setProperties, properties]);
 
     const sortOptions = useMemo(() =>
         props.sortEntries.map(it => ({
@@ -125,67 +110,54 @@ export const ResourceFilter: React.FunctionComponent<{
         }
     }, [expanded, setExpanded]);
 
-    const applyFilters = useCallback(() => {
-        props.onApplyFilters();
-        setIsDirty(false);
-    }, [props.onApplyFilters, setIsDirty, sortProperties]);
-
-    const onlyFilter = props.sortEntries.length === 0;
-
     const isEmbedded = props.browseType === BrowseType.Embedded;
 
     return <>
-        {isEmbedded ? null : <Heading.h4 mt={"32px"} mb={"16px"}>
-            <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
-            {onlyFilter ? "Filter" : "Sort and filter"}
-        </Heading.h4>}
-        <Grid gridGap={"8px"}>
-            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
-                <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
-                    icon={"properties"} title={"Sort by"} options={sortOptions} />
-                {props.pills.map((Pill, idx) =>
-                    <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} />
-                )}
-            </WidgetWrapper>
-            {!isDirty ? null :
-                <Button color="green" size="small" onClick={applyFilters} mb={"10px"}>
-                    <Icon name="check" mr="8px" size="14px" />
-                    <Text.TextSpan fontSize="14px">Apply</Text.TextSpan>
-                </Button>
-            }
-        </Grid>
-        <Grid gridGap={isEmbedded ? "8px" : "20px"}
-            mt={Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "20px"}>
-
-            {onlyFilter ? null : <>
-                <WidgetWrapper embedded={isEmbedded} gridGap="12px">
-                    <EnumFilterWidget
-                        propertyName="column" icon="properties" title="Sort by" expanded={false}
-                        id={0} onExpand={doNothing} properties={sortProperties} onPropertiesUpdated={onSortUpdated}
-                        options={sortOptions}
-                    />
-                </WidgetWrapper>
-
-                {isEmbedded ? null : <Divider />}
-            </>}
-
-            <WidgetWrapper embedded={isEmbedded} gridGap="12px">
+        {isEmbedded ? null :
+            <Heading.h4 mt={"32px"} mb={"16px"}>
+                <Icon name={"filterSolid"} size={"16px"} mr={"8px"} />
+                Filter
+            </Heading.h4>
+        }
+        <MainContentGrid browseType={props.browseType}>
+            <EnumPill propertyName={"column"} properties={sortProperties} onDelete={onSortDeleted}
+                icon={"properties"} title={"Sort by"} options={sortOptions} canRemove={onSortDeleted != null} />
+            {props.pills.map((Pill, idx) =>
+                <Pill key={Pill.displayName + "_" + idx} properties={combinedProperties} onDelete={onPillDeleted} canRemove={onPillDeleted != null} />
+            )}
+        </MainContentGrid>
+        <Grid gridGap={"20px"}
+            mt={Object.keys(props.filterWidgets).length === 0 && Object.keys(sortProperties).length === 0 && Object.keys(properties).length === 0 ? null : "10px"}>
+            <EmbeddedFilterDropdown embedded={isEmbedded}>
                 {props.filterWidgets.map((Widget, idx) =>
-                    <Widget id={idx} key={Widget.displayName + "_" + idx} properties={properties}
+                    <Widget id={idx} browseType={props.browseType} key={Widget.displayName + "_" + idx} properties={properties}
                         onPropertiesUpdated={onPropertiesUpdated} onExpand={expand} expanded={expanded == idx} />
                 )}
-            </WidgetWrapper>
+            </EmbeddedFilterDropdown>
         </Grid>
     </>;
 };
 
-function WidgetWrapper({children, embedded, gridGap}: React.PropsWithChildren<{embedded?: boolean, gridGap: string}>): JSX.Element {
-    return !embedded ?
-        <>{children}</> : (
-            <Grid style={{gridAutoFlow: "column", gridGap, gridAutoColumns: "1fr"}}>
-                {children}
+function MainContentGrid(props: React.PropsWithChildren<{browseType: BrowseType}>): JSX.Element {
+    return props.browseType !== BrowseType.MainContent ? (
+        <>{props.children}</>
+    ) : (
+        <Grid gridGap={"8px"}>
+            {props.children}
+        </Grid>
+    );
+}
+
+function EmbeddedFilterDropdown(props: React.PropsWithChildren<{embedded: boolean}>): JSX.Element {
+    return props.embedded ? (
+        <ClickableDropdown chevron width="250px" trigger="Filters" keepOpenOnClick colorOnHover={false}>
+            <Grid mr="5px" gridAutoFlow="row" gridGap={"12px"}>
+                {props.children}
             </Grid>
-        )
+        </ClickableDropdown>
+    ) : (<>
+        {props.children}
+    </>);
 }
 
 export const FilterPill: React.FunctionComponent<{
@@ -193,7 +165,7 @@ export const FilterPill: React.FunctionComponent<{
     onRemove: () => void;
     canRemove?: boolean;
 }> = ({icon, onRemove, canRemove, children}) => {
-    return <Stamp fullWidth onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
+    return <Stamp onClick={canRemove ? onRemove : undefined} icon={icon} color={"lightBlue"}>
         {children}
     </Stamp>;
 };
@@ -212,8 +184,9 @@ const FilterWidgetWrapper = styled(Box)`
 export const FilterWidget: React.FunctionComponent<{
     cursor?: Cursor;
     onClick?: () => void;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
-    return <FilterWidgetWrapper cursor={props.cursor} onClick={props.onClick}>
+    return <FilterWidgetWrapper mr={props.browseType === BrowseType.Embedded ? "16px" : undefined} cursor={props.cursor} onClick={props.onClick}>
         <Icon name={props.icon} size={"16px"} color={"iconColor"} color2={"iconColor2"} mr={"8px"} />
         <b>{props.title}</b>
         {props.children}
@@ -223,11 +196,12 @@ export const FilterWidget: React.FunctionComponent<{
 export const ExpandableFilterWidget: React.FunctionComponent<{
     expanded: boolean;
     onExpand: () => void;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
     return <div>
-        <FilterWidget icon={props.icon} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
+        <FilterWidget icon={props.icon} browseType={props.browseType} title={props.title} onClick={props.onExpand} cursor={"pointer"}>
             <Box flexGrow={1} />
-            <Icon name={"chevronDownLight"} rotation={props.expanded ? 0 : 270} size={"16px"} color={"iconColor"} />
+            <Icon name={"chevronDownLight"} rotation={props.expanded ? 0 : -90} size={"16px"} color={"iconColor"} />
         </FilterWidget>
         {!props.expanded ? null : props.children}
     </div>;
@@ -239,13 +213,26 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
     onExpand: () => void;
     contentWidth?: string;
     facedownChevron?: boolean;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps> = props => {
-    const trigger = <FilterWidget icon={props.icon} title={props.title} cursor={"pointer"}
-        onClick={props.expanded ? props.onExpand : undefined}>
-        <Box flexGrow={1} />
-        <Icon name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron ? 0 : 270} size={"16px"}
-            color={"iconColor"} />
-    </FilterWidget>;
+    const [open, setOpen] = useState(false);
+
+    const trigger = (
+        <FilterWidget browseType={props.browseType} icon={props.icon} title={props.title} cursor={"pointer"}
+            onClick={props.expanded ? props.onExpand : undefined}>
+            <Box flexGrow={1} />
+            <Icon ml="6px" name={"chevronDownLight"} rotation={props.expanded || props.facedownChevron || open ? 0 : -90} size={"16px"}
+                color={"iconColor"} />
+        </FilterWidget>
+    );
+
+    if (props.browseType === BrowseType.MainContent || props.browseType === BrowseType.Embedded) {
+        return <>
+            <div onClick={() => setOpen(o => !o)}>{trigger}</div>
+            {open ? props.dropdownContent : null}
+            {!props.expanded ? null : props.children}
+        </>;
+    }
 
     return <div>
         {!props.expanded ?
@@ -254,6 +241,7 @@ export const ExpandableDropdownFilterWidget: React.FunctionComponent<{
                 trigger={trigger}
                 width={props.contentWidth}
                 useMousePositioning
+                colorOnHover={false}
                 paddingControlledByContent
             >
                 {props.dropdownContent}
@@ -291,8 +279,8 @@ export const TextFilterWidget: React.FunctionComponent<{
         properties[props.propertyName] = newValue === "" ? undefined : newValue;
         props.onPropertiesUpdated(properties);
     }, [props.onPropertiesUpdated, props.propertyName]);
-    return <ExpandableFilterWidget expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
-        <Input autoFocus value={currentValue} onChange={onChange} />
+    return <ExpandableFilterWidget browseType={props.browseType} expanded={props.expanded} icon={props.icon} title={props.title} onExpand={onExpand}>
+        <Input autoFocus value={currentValue} onChange={onChange} width={props.browseType === BrowseType.Embedded ? "calc(100% - 16px)" : undefined} />
     </ExpandableFilterWidget>;
 };
 
@@ -334,7 +322,7 @@ export const DateRangePill: React.FunctionComponent<{
     </>;
 };
 
-const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onClick?: () => void}> = props => {
+const DateRangeEntry: React.FunctionComponent<{title: string; range: string; onClick?: () => void;}> = props => {
     return <ListRow
         select={props.onClick}
         fontSize={"16px"}
@@ -377,14 +365,15 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
     const todayMs = getStartOfDay(new Date(timestampUnixMs())).getTime();
     const yesterdayEnd = todayMs - 1;
     const yesterdayStart = getStartOfDay(new Date(todayMs - 1)).getTime();
-    const lastWeekEnd = getStartOfWeek(new Date(todayMs)).getTime() - 1;
-    const lastWeekStart = getStartOfWeek(new Date(lastWeekEnd)).getTime();
-    const lastMonthEnd = getStartOfMonth(new Date()).getTime() - 1;
-    const lastMonthStart = getStartOfMonth(new Date(lastMonthEnd)).getTime();
+    const pastWeekEnd = new Date(timestampUnixMs()).getTime();
+    const pastWeekStart = getStartOfDay(new Date(pastWeekEnd - (7*1000*60*60*24))).getTime();
+    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
+    const pastMonthStart = getStartOfDay(new Date(pastMonthEnd - (30*1000*60*60*24))).getTime();
 
     return <ExpandableDropdownFilterWidget
         expanded={props.expanded}
         contentWidth={"300px"}
+        browseType={props.browseType}
         dropdownContent={
             <>
                 <DateRangeEntry
@@ -402,17 +391,17 @@ export const DateRangeFilterWidget: React.FunctionComponent<{
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last week"}
-                    range={`${dateToStringNoTime(lastWeekStart)} - ${dateToStringNoTime(lastWeekEnd)}`}
+                    title={"Past week"}
+                    range={`${dateToStringNoTime(pastWeekStart)} - ${dateToStringNoTime(pastWeekEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastWeekStart), new Date(lastWeekEnd)]);
+                        updateDates([new Date(pastWeekStart), new Date(pastWeekEnd)]);
                     }}
                 />
                 <DateRangeEntry
-                    title={"Last month"}
-                    range={`${dateToStringNoTime(lastMonthStart)} - ${dateToStringNoTime(lastMonthEnd)}`}
+                    title={"Past month"}
+                    range={`${dateToStringNoTime(pastMonthStart)} - ${dateToStringNoTime(pastMonthEnd)}`}
                     onClick={() => {
-                        updateDates([new Date(lastMonthStart), new Date(lastMonthEnd)]);
+                        updateDates([new Date(pastMonthStart), new Date(pastMonthEnd)]);
                     }}
                 />
                 <DateRangeEntry
@@ -508,9 +497,14 @@ export const EnumPill: React.FunctionComponent<{
     </FilterPill>;
 };
 
+const EmbeddedOffset = styled.div<{embedded: boolean}>`
+    ${p => p.embedded ? "margin-left: -15px;" : null}
+`;
+
 export const EnumFilterWidget: React.FunctionComponent<{
     propertyName: string;
     facedownChevron?: boolean;
+    browseType?: BrowseType;
 } & BaseFilterWidgetProps & FilterWidgetProps & EnumOptions> = props => {
     const onChange = useCallback((newValue: string) => {
         const properties: Record<string, string | undefined> = {};
@@ -523,15 +517,16 @@ export const EnumFilterWidget: React.FunctionComponent<{
         icon={props.icon}
         title={props.title}
         onExpand={doNothing}
+        browseType={props.browseType}
         facedownChevron={props.facedownChevron}
         contentWidth={"300px"}
         dropdownContent={
-            <>
+            <EmbeddedOffset embedded={props.browseType === BrowseType.Embedded}>
                 {props.options.map(opt =>
                     <ListRow
                         key={opt.value}
                         icon={!opt.icon ? null :
-                            <Icon name={opt.icon} color={"iconColor"} color2={"iconColor2"} size={"16px"} ml={"16px"} />
+                            <Icon name={opt.icon} color={"iconColor"} color2={"iconColor2"} size={"16px"} />
                         }
                         left={opt.title}
                         leftSub={opt.helpText ? <ListRowStat>{opt.helpText}</ListRowStat> : null}
@@ -541,7 +536,7 @@ export const EnumFilterWidget: React.FunctionComponent<{
                         stopPropagation={false}
                     />
                 )}
-            </>
+            </EmbeddedOffset>
         }
     />
 };
@@ -582,6 +577,7 @@ export const CheckboxPill: React.FunctionComponent<{
 export const CheckboxFilterWidget: React.FunctionComponent<{
     propertyName: string;
     invert?: boolean;
+    browseType?: BrowseType
 } & BaseFilterWidgetProps & FilterWidgetProps> = props => {
     const isTrue = props.properties[props.propertyName] === "true";
     const isChecked = props.invert === true ? !isTrue : isTrue;
@@ -599,11 +595,14 @@ export const CheckboxFilterWidget: React.FunctionComponent<{
                     icon={props.icon}
                     title={props.title}
                     cursor="pointer"
+                    browseType={props.browseType}
                     onClick={onChange}
                 />
             </Box>
             <Box flexGrow={1} />
-            <Toggle onChange={onChange} checked={isChecked} />
+            <span style={{marginRight: props.browseType === BrowseType.Embedded ? "16px" : undefined}}>
+                <Toggle onChange={onChange} checked={isChecked} />
+            </span>
         </Flex>
     );
 }
@@ -615,7 +614,30 @@ export function CheckboxFilter(
     invert?: boolean
 ): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
     return [
-        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />,
+        (props) => <CheckboxFilterWidget propertyName={propertyName} icon={icon} title={title}
+            invert={invert} {...props} />,
         (props) => <CheckboxPill propertyName={propertyName} icon={icon} title={title} invert={invert} {...props} />
+    ];
+}
+
+export function ConditionalFilter(
+    condition: () => boolean,
+    baseFilter: [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>]
+): [React.FunctionComponent<FilterWidgetProps>, React.FunctionComponent<PillProps>] {
+    return [
+        (props) => {
+            if (condition()) {
+                return <>{baseFilter[0](props)}</>;
+            } else {
+                return null;
+            }
+        },
+        (props) => {
+            if (condition()) {
+                return <>{baseFilter[1](props)}</>;
+            } else {
+                return null;
+            }
+        }
     ];
 }

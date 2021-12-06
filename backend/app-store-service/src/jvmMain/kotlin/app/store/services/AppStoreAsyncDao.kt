@@ -268,7 +268,7 @@ class AppStoreAsyncDao(
                                         select
                                             a.*,
                                             row_number() over (
-                                                partition by created_at
+                                                partition by name
                                                 order by created_at desc
                                             ) as rno
                                         from

@@ -5,7 +5,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate, SortFlags
 } from "./ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Icon} from "@/ui-components";
@@ -14,9 +14,11 @@ import * as H from "history";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductStorage, UCLOUD_PROVIDER} from "@/Accounting";
-import {BulkRequest} from "@/UCloud/index";
+import {BulkRequest, PageV2, PaginationRequestV2} from "@/UCloud/index";
 import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
+import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -87,6 +89,26 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
             column: "title",
             helpText: "Name of the drive, for example: Research data"
         });
+
+        this.registerFilter(
+            ConditionalFilter(
+                () => Client.hasActiveProject,
+                CheckboxFilter("search", "filterMemberFiles", "Show member files", false)
+            )
+        );
+    }
+
+    browse(
+        req: PaginationRequestV2 & FileCollectionFlags & SortFlags
+    ): APICallParameters<PaginationRequestV2 & FileCollectionFlags, PageV2<FileCollection>> {
+        if (req["filterMemberFiles"] == "all") {
+            req["filterMemberFiles"] = "DONT_FILTER_COLLECTIONS";
+        } else if (req["filterMemberFiles"] === "true") {
+            req["filterMemberFiles"] = "SHOW_ONLY_MEMBER_FILES";
+        } else {
+            req["filterMemberFiles"] = "SHOW_ONLY_MINE";
+        }
+        return super.browse(req);
     }
 
     retrieveOperations(): Operation<FileCollection, ResourceBrowseCallbacks<FileCollection>>[] {
@@ -109,7 +131,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;
             deleteOperation.enabled = (selected, cb, all) => {
-                console.log(selected.every(it => it.specification.product.id === "share"))
                 if (selected.find(it => it.specification.product.id === "share")) return false
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;

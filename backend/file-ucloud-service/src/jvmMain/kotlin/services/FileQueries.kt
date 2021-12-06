@@ -3,7 +3,13 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.file.orchestrator.api.FileIconHint
+import dk.sdu.cloud.file.orchestrator.api.FileType
+import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
+import dk.sdu.cloud.file.orchestrator.api.PartialUFile
+import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
+import dk.sdu.cloud.file.orchestrator.api.UFileStatus
+import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -23,9 +29,20 @@ class FileQueries(
     private val cephStats: CephFsFastDirectoryStats,
 ) {
     suspend fun retrieve(file: UCloudFile, flags: UFileIncludeFlags): PartialUFile {
-        val internalFile = pathConverter.ucloudToInternal(file)
-        val nativeStat = nativeFs.stat(internalFile)
-        return convertNativeStatToUFile(internalFile, nativeStat)
+        try {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            val nativeStat = nativeFs.stat(internalFile)
+            val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
+            val sensitivity = runCatching { nativeFs.getExtendedAttribute(internalFile, SENSITIVITY_XATTR) }
+                .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
+            val forcedPrefix = file.parent()
+            return convertNativeStatToUFile(internalFile, nativeStat, forcedPrefix.path, sensitivity)
+        } catch (ex: RPCException) {
+            if (ex.errorCode == PathConverter.INVALID_FILE_ERROR_CODE) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            throw ex
+        }
     }
 
     private fun findIcon(file: InternalFile): FileIconHint? {
@@ -35,7 +52,7 @@ class FileQueries(
         } else if (
             (components.size == 3 && components[0] == PathConverter.HOME_DIRECTORY && components[2] == "Jobs") ||
             (components.size == 5 && components[0] == PathConverter.PROJECT_DIRECTORY &&
-                components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
+                    components[2] == PERSONAL_REPOSITORY && components[4] == "Jobs")
         ) {
             FileIconHint.DIRECTORY_JOBS
         } else {
@@ -47,6 +64,7 @@ class FileQueries(
         file: InternalFile,
         nativeStat: NativeStat,
         forcedPrefix: String? = null,
+        sensitivity: String? = null,
     ): PartialUFile {
         val realPath = pathConverter.internalToUCloud(file).path
         val pathToReturn = if (forcedPrefix != null) {
@@ -68,6 +86,7 @@ class FileQueries(
                 unixGroup = nativeStat.ownerGid,
             ),
             nativeStat.modifiedAt,
+            legacySensitivity = sensitivity
         )
     }
 
@@ -95,8 +114,15 @@ class FileQueries(
             foundFiles = initialState.get()?.map { InternalFile(it) }
         }
 
+        val internalFile = try {
+            pathConverter.ucloudToInternal(file)
+        } catch (ex: RPCException) {
+            if (ex.errorCode == PathConverter.INVALID_FILE_ERROR_CODE) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            throw ex
+        }
         if (foundFiles == null) {
-            val internalFile = pathConverter.ucloudToInternal(file)
             foundFiles = nativeFs.listFiles(internalFile)
                 .mapNotNull {
                     val result = InternalFile(internalFile.path + "/" + it)
@@ -107,6 +133,8 @@ class FileQueries(
                     }
                 }
         }
+
+        val inheritedSensitivity: String? = inheritedSensitivity(internalFile)
 
         // NOTE(jonas): Only allow user-selected FilesSortBy if user requests files from folder containing less than 25k files.
         val allowedSortBy = if (foundFiles.size <= MAX_FILE_COUNT_FOR_SORTING) {
@@ -123,17 +151,20 @@ class FileQueries(
         val items = ArrayList<PartialUFile>()
         var i = offset
         var didSkipFiles = false
-        when (allowedSortBy) {
-            FilesSortBy.PATH -> {
-                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-                    try {
-                        val nextInternalFile = foundFiles[i++]
 
+        while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
+            val nextInternalFile = foundFiles[i++]
+            val sensitivity = runCatching { nativeFs.getExtendedAttribute(nextInternalFile, SENSITIVITY_XATTR) }
+                .getOrNull()?.takeIf { it != "inherit" } ?: inheritedSensitivity
+            when (allowedSortBy) {
+                FilesSortBy.PATH -> {
+                    try {
                         items.add(
                             convertNativeStatToUFile(
                                 nextInternalFile,
                                 nativeFs.stat(nextInternalFile),
-                                file.path
+                                file.path,
+                                sensitivity,
                             )
                         )
                     } catch (ex: FSException.NotFound) {
@@ -143,16 +174,13 @@ class FileQueries(
                         ex.printStackTrace()
                     }
                 }
-            }
-            else -> {
-                while (i < foundFiles.size && items.size < pagination.itemsPerPage) {
-                    val nextInternalFile = foundFiles[i++]
-
+                else -> {
                     items.add(
                         convertNativeStatToUFile(
                             nextInternalFile,
-                            foundFilesToStat[nextInternalFile.path]!!,
-                            file.path
+                            foundFilesToStat.getValue(nextInternalFile.path),
+                            file.path,
+                            sensitivity,
                         )
                     )
 
@@ -184,6 +212,19 @@ class FileQueries(
         return PageV2(pagination.itemsPerPage, items, newNext)
     }
 
+    private fun inheritedSensitivity(internalFile: InternalFile): String? {
+        val ancestors = (pathConverter.internalToRelative(internalFile).parents().drop(1)
+            .map { pathConverter.relativeToInternal(it) }) + internalFile
+        var inheritedSensitivity: String? = null
+        for (ancestor in ancestors) {
+            val value = runCatching { nativeFs.getExtendedAttribute(ancestor, SENSITIVITY_XATTR) }.getOrNull()
+            if (value != null && !value.equals("inherit", ignoreCase = true)) {
+                inheritedSensitivity = value
+            }
+        }
+        return inheritedSensitivity
+    }
+
 
     companion object : Loggable {
         override val log = logger()
@@ -195,6 +236,8 @@ class FileQueries(
         private val cachedFilesPrefix = "file-ucloud-dir-cache-$sessionIdForCaching-"
         private val sessionIdCounter = AtomicInteger(0)
         private const val DIR_CACHE_EXPIRATION = 1000L * 60 * 5
+
+        private const val SENSITIVITY_XATTR = "user.sensitivity"
     }
 }
 

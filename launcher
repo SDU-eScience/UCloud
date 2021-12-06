@@ -161,7 +161,7 @@ if slurm:
 	print()
 	print()
 	print("register and restart cluster with below command")
-	code("sudo docker exec ucloud_slurmctld_1 bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld ")
+	code("sudo docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld ")
 	print()
 	print(header("Instructions:"))
 	print("Interact with " + code("docker-compose exec slurmctld bash") )
@@ -174,7 +174,7 @@ if backend:
 	print("  - Make sure you start the backend (see notes above).")
 print("  - Stuck? View the logs: " + code("docker-compose logs"))
 print("  - Shutdown UCloud with: " + code("docker-compose down"))
-print("  - Permanently delete local state: " + code("docker-compose down -v"))
+print("  - Permanently delete local state: " + code("docker-compose down -v ; sudo rm -rf .compose/"))
 print("  - Default credentials: user, mypassword")
 
 print()

@@ -32,8 +32,6 @@ Job(s). */
 
 KubernetesCompute.verify.call(
     bulkRequestOf(Job(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1633329776235, 
         id = "54112", 
         output = null, 
@@ -94,6 +92,7 @@ JobsControl.update.call(
         update = JobUpdate(
             expectedDifferentState = null, 
             expectedState = null, 
+            newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.FAILURE, 
             status = "Your job is no longer available", 
@@ -179,10 +178,7 @@ await callAPI(JobsProviderUcloudApi.verify(
                 },
                 "createdAt": 1633329776235,
                 "output": null,
-                "permissions": null,
-                "acl": null,
-                "billing": {
-                }
+                "permissions": null
             }
         ]
     }
@@ -207,6 +203,7 @@ await callAPI(JobsControlApi.update(
                     "status": "Your job is no longer available",
                     "expectedState": null,
                     "expectedDifferentState": null,
+                    "newTimeAllocation": null,
                     "timestamp": 0
                 }
             }
@@ -293,10 +290,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "createdAt": 1633329776235,
             "output": null,
-            "permissions": null,
-            "acl": null,
-            "billing": {
-            }
+            "permissions": null
         }
     ]
 }'
@@ -318,6 +312,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "status": "Your job is no longer available",
                 "expectedState": null,
                 "expectedDifferentState": null,
+                "newTimeAllocation": null,
                 "timestamp": 0
             }
         }

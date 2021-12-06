@@ -59,6 +59,7 @@ JobsFollowResponse(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "The job is now running", 
@@ -107,6 +108,7 @@ JobsFollowResponse(
     updates = listOf(JobUpdate(
         expectedDifferentState = null, 
         expectedState = null, 
+        newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
         status = "The job is no longer running", 

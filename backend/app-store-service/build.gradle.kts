@@ -1,4 +1,4 @@
-version = "2021.3.0-alpha0"
+version = "2021.3.0-alpha2"
 
 application {
     mainClassName = "dk.sdu.cloud.app.store.MainKt"

@@ -14,8 +14,9 @@ import {BrowseType} from "@/Resource/BrowseType";
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     const location = useLocation();
     const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
     const filterRejected = getQueryParam(location.search, "filterRejected") !== "false";
@@ -40,7 +41,7 @@ export const ShareBrowse: React.FunctionComponent<{
     }, []);
 
     const navigateToEntry = React.useCallback((history: History, share: Share) => {
-        if (props.browseType === BrowseType.MainContent) {
+        if (browseType === BrowseType.MainContent) {
             history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
         } else {
             // Should we handle this differently for other browseTypes?
@@ -50,8 +51,9 @@ export const ShareBrowse: React.FunctionComponent<{
 
     return <ResourceBrowse
         api={SharesApi}
+        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES 
         onSelect={props.onSelect}
-        browseType={props.browseType}
+        browseType={browseType}
         isSearch={props.isSearch}
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}
@@ -60,9 +62,9 @@ export const ShareBrowse: React.FunctionComponent<{
         headerSize={55}
         emptyPage={
             <Heading.h3 textAlign={"center"}>
-                No shares
+                No shares match your search/filter criteria.
                 <br />
-                <small>You can create a new share by clicking 'Share' on one of your files.</small>
+                <small>You can create a new share by clicking 'Share' on one of your directories.</small>
             </Heading.h3>
         }
     />;

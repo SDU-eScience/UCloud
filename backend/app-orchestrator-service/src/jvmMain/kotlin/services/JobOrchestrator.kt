@@ -98,9 +98,6 @@ class JobOrchestrator(
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
-        "application" to SqlObject.Column(table, "application_name"),
-        "name" to SqlObject.Column(table, "name"),
-        "state" to SqlObject.Column(table, "current_state")
     )
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
@@ -240,8 +237,9 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
 
-                if ((newState != null || update.outputFolder != null) && !currentState.isFinal()) {
+                if (didChange && !currentState.isFinal()) {
                     if (newState != null && newState.isFinal()) {
                         listeners.forEach { it.onTermination(session, job) }
                     }
@@ -250,6 +248,7 @@ class JobOrchestrator(
                         {
                             setParameter("new_state", newState?.name)
                             setParameter("output_folder", update.outputFolder)
+                            setParameter("new_time_allocation", update.newTimeAllocation)
                             setParameter("job_id", jobId)
                         },
                         """
@@ -260,7 +259,8 @@ class JobOrchestrator(
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
                                 end,
-                                output_folder = coalesce(:output_folder::text, output_folder)
+                                output_folder = coalesce(:output_folder::text, output_folder),
+                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id
                         """
                     )
@@ -275,12 +275,13 @@ class JobOrchestrator(
         }
     }
 
-    override suspend fun browseQuery(flags: JobIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: JobIncludeFlags?, query: String?): PartialQuery {
         @Suppress("SqlResolve")
         return PartialQuery(
             {
                 setParameter("query", query)
                 setParameter("filter_state", flags?.filterState?.name)
+                setParameter("filter_application", flags?.filterApplication)
             },
             """
                 select
@@ -300,6 +301,7 @@ class JobOrchestrator(
 
                 where
                     (:filter_state::text is null or current_state = :filter_state::text) and
+                    (:filter_application::text is null or application_name = :filter_application) and
                     (
                         :query::text is null or
                         job.name ilike '%' || :query || '%' or
@@ -390,44 +392,50 @@ class JobOrchestrator(
             coroutineScope {
                 val logJob = if (!logsSupported) null else launch {
                     while (isActive) {
-                        if (currentState.get() == JobState.RUNNING.ordinal) {
-                            proxy.proxySubscription(
-                                actorAndProject,
-                                Unit,
-                                object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
-                                    Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
-                                    override val isUserRequest: Boolean = true
-                                    override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
+                        try {
+                            if (currentState.get() == JobState.RUNNING.ordinal) {
+                                proxy.proxySubscription(
+                                    actorAndProject,
+                                    Unit,
+                                    object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                                        Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                        override val isUserRequest: Boolean = true
+                                        override fun retrieveCall(comms: ComputeCommunication) =
+                                            providerApi(comms).follow
 
-                                    override suspend fun verifyAndFetchResources(
-                                        actorAndProject: ActorAndProject,
-                                        request: Unit
-                                    ): RequestWithRefOrResource<Unit, Job> {
-                                        return Unit to ProductRefOrResource.SomeResource(initialJob)
-                                    }
+                                        override suspend fun verifyAndFetchResources(
+                                            actorAndProject: ActorAndProject,
+                                            request: Unit
+                                        ): RequestWithRefOrResource<Unit, Job> {
+                                            return Unit to ProductRefOrResource.SomeResource(initialJob)
+                                        }
 
-                                    override suspend fun beforeCall(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>
-                                    ): JobsProviderFollowRequest {
-                                        return JobsProviderFollowRequest.Init(initialJob)
-                                    }
+                                        override suspend fun beforeCall(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>
+                                        ): JobsProviderFollowRequest {
+                                            return JobsProviderFollowRequest.Init(initialJob)
+                                        }
 
-                                    override suspend fun onMessage(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>,
-                                        message: JobsProviderFollowResponse
-                                    ) {
-                                        if (streamId == null) streamId = message.streamId
-                                        sendWSMessage(
-                                            JobsFollowResponse(
-                                                emptyList(),
-                                                listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                        override suspend fun onMessage(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>,
+                                            message: JobsProviderFollowResponse
+                                        ) {
+                                            if (streamId == null) streamId = message.streamId
+                                            sendWSMessage(
+                                                JobsFollowResponse(
+                                                    emptyList(),
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                )
                                             )
-                                        )
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
+                        } catch (ex: Throwable) {
+                            log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
+                            break
                         }
 
                         delay(100)

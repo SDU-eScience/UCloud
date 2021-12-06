@@ -32,18 +32,11 @@ import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.commandLineArguments
-import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.developmentModeEnabled
-import dk.sdu.cloud.micro.eventStreamService
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.startServices
 import kotlinx.coroutines.runBlocking
 import kotlin.system.exitProcess
 
@@ -85,18 +78,20 @@ class Server(
             micro.developmentModeEnabled
         )
 
-        if (micro.commandLineArguments.contains("--low-funds-check")) {
-            val jobs = LowFundsJob(db, client, config)
-            try {
-                runBlocking {
+        val scriptManager = micro.feature(ScriptManager)
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "accounting-low-funds",
+                    "Accounting: Low Funds",
+                    WhenToStart.Daily(0, 0)
+                ),
+                script = {
+                    val jobs = LowFundsJob(db, client, config)
                     jobs.checkWallets()
                 }
-                exitProcess(0)
-            } catch (ex: Throwable) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
+            )
+        )
 
         with(micro.server) {
             configureControllers(

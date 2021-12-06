@@ -18,6 +18,8 @@ import io.ktor.http.*
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 object AccountingPlugin : JobManagementPlugin, Loggable {
     override val log = logger()
@@ -32,12 +34,12 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             now - 1000L
         }
 
-        account(jobId, lastTs, now)
+        account(jobId, jobFromServer, lastTs, now)
     }
 
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
         val now = System.currentTimeMillis()
-        account(jobId, now, now)
+        account(jobId, jobFromServer, now, now)
     }
 
     override suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {
@@ -52,11 +54,11 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
 
             if (now - lastTs < 60_000) continue
 
-            account(k8.nameAllocator.jobNameToJobId(name), lastTs, now)
+            account(k8.nameAllocator.jobNameToJobId(name), jobFromServer, lastTs, now)
         }
     }
 
-    private suspend fun JobManagement.account(jobId: String, lastTs: Long, now: Long) {
+    private suspend fun JobManagement.account(jobId: String, jobFromServer: VolcanoJob, lastTs: Long, now: Long) {
         val timespent = now - lastTs
         if (timespent < 0L) {
             log.info("No time spent on $jobId ($timespent)")
@@ -68,11 +70,20 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
         if (timespent > 0L) {
+            val replicas = jobFromServer.spec?.tasks?.getOrNull(0)?.replicas?.toLong() ?: 1L
+            val virtualCpus = run {
+                val cpuString = jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)
+                    ?.resources?.limits?.get("cpu")?.jsonPrimitive?.contentOrNull ?: "1000m"
+
+                kotlin.math.max(1, (cpuString.removeSuffix("m").toIntOrNull() ?: 1000) / 1000)
+            }
+
             val insufficientFunds = JobsControl.chargeCredits.call(
                 bulkRequestOf(
                     ResourceChargeCredits(
                         jobId,
                         lastTs.toString(),
+                        replicas * virtualCpus,
                         kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                     )
                 ),

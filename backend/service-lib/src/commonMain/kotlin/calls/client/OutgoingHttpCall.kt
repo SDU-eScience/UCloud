@@ -110,31 +110,48 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
         }
 
-        log.trace("Sending request")
-        val resp = createHttpClient().use { httpClient ->
-            try {
-                httpClient.request<HttpResponse>(ctx.builder)
-            } catch (ex: Throwable) {
-                if (ex.stackTraceToString().contains("ConnectException")) {
-                    log.debug("[$callId] ConnectException: ${ex.message}")
-                    throw RPCException("[$callId] ${call.fullName} Could not connect to backend server", HttpStatusCode.BadGateway)
+        try {
+            log.trace("Sending request")
+            val resp = createHttpClient().use { httpClient ->
+                try {
+                    httpClient.request<HttpResponse>(ctx.builder)
+                } catch (ex: Throwable) {
+                    if (ex.stackTraceToString().contains("ConnectException")) {
+                        log.debug("[$callId] ConnectException: ${ex.message}")
+                        throw RPCException(
+                            "[$callId] ${call.fullName} Could not connect to backend server",
+                            HttpStatusCode.BadGateway
+                        )
+                    }
+
+                    throw ex
                 }
-
-                throw ex
             }
+            log.trace("Received response")
+
+            ctx.response = resp
+            val result = parseResponse(ctx, resp, call, callId)
+            log.trace("Parsing complete")
+            val end = Time.now()
+
+            val responseDebug =
+                "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
+            log.debug(responseDebug)
+            return result
+        } catch (ex: Throwable) {
+            if (ex::class.qualifiedName?.contains("StreamResetException") == true) {
+                log.info(buildString {
+                    appendLine("We are about to crash. We know the following:")
+                    appendLine("  - URL: ${ctx.builder.url.buildString()}")
+                    appendLine("  - method: ${ctx.builder.method}")
+                    appendLine("  - call: ${call.fullName}")
+                    appendLine("  - callId: $callId")
+                })
+            }
+
+            throw ex
         }
-        log.trace("Received response")
-
-        ctx.response = resp
-        val result = parseResponse(ctx, resp, call, callId)
-        log.trace("Parsing complete")
-        val end = Time.now()
-
-        val responseDebug =
-            "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
-
-        log.debug(responseDebug)
-        return result
     }
 
     private suspend fun <S : Any> parseResponseToType(

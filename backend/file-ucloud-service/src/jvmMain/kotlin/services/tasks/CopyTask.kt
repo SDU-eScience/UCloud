@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -45,13 +47,15 @@ class CopyTask : TaskHandler {
 
         var fileCount = 0
         val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
-        // TODO We need to check if the initial files even exist
         val pathStack = ArrayDeque(realRequest.items.map {
-            FileToCopy(
-                pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path,
-                pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path,
-                it.conflictPolicy
-            )
+            val oldId = pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path
+            val newId = pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path
+
+            if (newId.startsWith("$oldId/")) {
+                throw RPCException("Refusing to copy a file to a sub-directory of itself.", HttpStatusCode.BadRequest)
+            }
+
+            FileToCopy(oldId, newId, it.conflictPolicy)
         })
 
         while (coroutineContext.isActive && (Time.now() <= deadline)) {

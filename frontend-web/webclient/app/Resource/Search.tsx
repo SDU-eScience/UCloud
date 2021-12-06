@@ -1,11 +1,14 @@
-import * as React from "react";
-import {Resource, ResourceApi} from "@/UCloud/ResourceApi";
 import {useHistory} from "react-router";
 import {useSearch, useSearchPlaceholder} from "@/DefaultObjects";
 import {useCallback} from "react";
-import {buildQueryString} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 
-export function useResourceSearch<Res extends Resource>(api: ResourceApi<Res, never>) {
+export interface ReducedApiInterface {
+    routingNamespace: string;
+    titlePlural: string;
+}
+
+export function useResourceSearch(api: ReducedApiInterface) {
     const history = useHistory();
     const onSearch = useCallback((q) => {
         if (q === "") {

@@ -11,6 +11,7 @@ import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {LicenseBrowse} from "@/Applications/Licenses";
 import {License} from "@/UCloud/LicenseApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface LicenseProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.LicenseServer;
@@ -31,6 +32,8 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
         setOpen(false);
     }, [props.parameter, setOpen]);
 
+    const filters = React.useMemo(() => ({filterState: "READY"}), []);
+
     return <Flex>
         <ReactModal
             isOpen={open}
@@ -41,8 +44,10 @@ export const LicenseParameter: React.FunctionComponent<LicenseProps> = props => 
         >
             <LicenseBrowse
                 tagged={props.parameter.tagged}
-                // TODO Provider
-                embedded={true}
+                // TODO(Dan) Provider
+                additionalFilters={filters}
+                onSelectRestriction={res => res.status.boundTo.length === 0}
+                browseType={BrowseType.Embedded}
                 onSelect={onUse}
             />
         </ReactModal>

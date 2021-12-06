@@ -91,7 +91,6 @@ class ShareService(
     }
 
     private suspend fun onFilesDeleted(request: List<FindByPath>) {
-        println("onFilesDeleted")
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
@@ -105,7 +104,6 @@ class ShareService(
                                 unnest(:paths::text[]) path,
                                 unnest(:available_at::text[]) available_at
                         ),
-                        --Locating sub folders that are shares.
                         original_paths as (
                             select resource as share_id, original_file_path, s.available_at, path share_path
                             from file_orchestrator.shares s join entries on s.available_at=entries.available_at
@@ -116,16 +114,14 @@ class ShareService(
                             join file_orchestrator.shares s on (
                                 s.original_file_path like (
                                     select (
-                                        --Removes mount point, leaving only subpath
                                         op.original_file_path || (select regexp_replace(op.share_path, '([\/]\d*)', '') || '/%')
                                     )
                                 )
                             )
                         ),
-                        --Deleting shares and sub shares along with their resources.
                         affected_shares as (
                             delete from file_orchestrator.shares s
-                            using entries e, sub_shares sub
+                            using entries e left join sub_shares sub on original_file_path = e.path or original_file_path = sub.original_file_path
                             where
                                 e.path = s.original_file_path or
                                 sub.original_file_path = s.original_file_path or
@@ -155,7 +151,6 @@ class ShareService(
                             using affected_shares share, affected_file_collections fc
                             where
                             r.id = share.resource or r.id = fc.resource
-
                 """, debug = true
             )
         }
@@ -177,6 +172,10 @@ class ShareService(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
+        if (actorAndProject.project != null) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Shares not possible from projects")
+        }
+
         val shareWithSelf = idWithSpec.find { it.second.sharedWith == actorAndProject.actor.safeUsername() }
         if (shareWithSelf != null) {
             throw RPCException(
@@ -188,7 +187,7 @@ class ShareService(
         val returnedUsers = session.sendPreparedStatement(
             {
                 idWithSpec.split {
-                    into("username") {it.second.sharedWith}
+                    into("username") { it.second.sharedWith }
                 }
             },
             """
@@ -197,8 +196,9 @@ class ShareService(
                 where id in (select unnest(:username::text[]))
             """
         ).rows
+
         if (idWithSpec.size != returnedUsers.size) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            throw RPCException("Unknown user. Did you write the correct user ID?", HttpStatusCode.BadRequest)
         }
 
         val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()
@@ -251,7 +251,7 @@ class ShareService(
                     it.second.sharedWith,
                     Notification(
                         NotificationType.SHARE_REQUEST.name,
-                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
                         meta = JsonObject(emptyMap())
                     )
                 ),
@@ -584,7 +584,7 @@ class ShareService(
         )
     }
 
-    override suspend fun browseQuery(flags: ShareFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ShareFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())

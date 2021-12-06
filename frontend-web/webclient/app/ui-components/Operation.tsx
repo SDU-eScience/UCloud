@@ -1,6 +1,6 @@
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef} from "react";
+import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
 import {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
@@ -8,7 +8,7 @@ import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/Clickab
 import {doNothing, preventDefault} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as Heading from "@/ui-components/Heading";
 
 type OperationComponentType = typeof OutlineButton | typeof Box | typeof Button | typeof Flex |
@@ -82,10 +82,10 @@ const OperationComponent: React.FunctionComponent<{
 
     if (As === ConfirmationButton) {
         extraProps["onAction"] = onClick;
-        extraProps["asSquare"] = !op.primary;
+        extraProps["asSquare"] = !op.primary || location === "SIDEBAR";
         extraProps["actionText"] = op.text;
         extraProps["hoverColor"] = op.hoverColor;
-        if (op.primary) {
+        if (op.primary && location === "IN_ROW") {
             extraProps["align"] = "center";
             extraProps["fontSize"] = "14px";
             extraProps["mx"] = "12px";
@@ -120,6 +120,7 @@ const OperationComponent: React.FunctionComponent<{
 };
 
 interface OperationProps<EntityType, Extras = undefined> {
+    topbarIcon?: IconName;
     location: OperationLocation;
     operations: Operation<EntityType, Extras>[];
     selected: EntityType[];
@@ -132,6 +133,8 @@ interface OperationProps<EntityType, Extras = undefined> {
     displayTitle?: boolean;
     all?: EntityType[];
     openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    hidden?: boolean;
+    forceEvaluationOnOpen?: boolean;
 }
 
 type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<OperationProps<EntityType, Extras>>, context?: any) =>
@@ -140,6 +143,17 @@ type OperationsType = <EntityType, Extras = undefined>(props: PropsWithChildren<
 export const Operations: OperationsType = props => {
     const closeDropdownRef = useRef<() => void>(doNothing);
     const closeDropdown = () => closeDropdownRef.current();
+
+    const [, forceRender] = useState(0);
+    const dropdownOpenFn = useRef<(left: number, top: number) => void>(doNothing);
+    const open = useCallback((left: number, top: number) => {
+        if (props.forceEvaluationOnOpen) {
+            forceRender(p => p + 1);
+        }
+
+        dropdownOpenFn.current(left, top);
+    }, []);
+    if (props.openFnRef) props.openFnRef.current = open;
 
     // Don't render anything if we are in row and we have selected something
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
@@ -201,9 +215,10 @@ export const Operations: OperationsType = props => {
         keepOpenOnClick: true,
         useMousePositioning: true,
         closeFnRef: closeDropdownRef,
-        openFnRef: props.openFnRef,
+        openFnRef: dropdownOpenFn,
         trigger: (
-            props.selected.length === 0 ?
+            props.hidden ? null :
+            props.selected.length === 0 || props.location === "TOPBAR" ?
                 <Icon
                     onClick={preventDefault}
                     ml={"5px"}
@@ -216,53 +231,70 @@ export const Operations: OperationsType = props => {
         )
     };
 
-    switch (props.location) {
-        case "IN_ROW":
-            return <>
-                {primaryContent}
-                <Box mr={"10px"} />
-                {content.length === 0 ? <Box ml={"30px"} /> :
-                    <Flex alignItems={"center"} justifyContent={"center"}>
-                        <ClickableDropdown {...dropdownProps}>
-                            {content}
-                        </ClickableDropdown>
-                    </Flex>
-                }
-            </>;
-
-        case "SIDEBAR":
-            if (content.length === 0 && primaryContent.length === 0) return null;
-            return (
-                <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
-                    {primaryContent}
-                    {content}
-                </Grid>
-            );
-
-        case "TOPBAR":
-            return <>
-                <Flex alignItems={"center"}>
-                    {props.displayTitle === false ? null :
-                        <Heading.h3 flexGrow={1}>
-                            {entityNamePlural}
-                            {" "}
-                            {props.selected.length === 0 ? null :
-                                <TextSpan color={"gray"} fontSize={"80%"}>{props.selected.length} selected</TextSpan>
-                            }
-                        </Heading.h3>
-                    }
-                    {primaryContent}
-                    <Box mr={"10px"} />
-                    {content.length === 0 ? <Box ml={"30px"} /> :
+    if (props.hidden === true) {
+        return <ClickableDropdown {...dropdownProps}>
+            {content}
+        </ClickableDropdown>
+    } else {
+        switch (props.location) {
+            case "IN_ROW":
+                return <>
+                    <Box mt="6px">{primaryContent}</Box>
+                    <Box mr={"10px"}/>
+                    {content.length === 0 ? <Box ml={"30px"}/> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}
                             </ClickableDropdown>
                         </Flex>
                     }
-                    <Box mr={"8px"} />
-                </Flex>
-            </>;
+                </>;
+
+            case "SIDEBAR":
+                if (content.length === 0 && primaryContent.length === 0) return null;
+                return (
+                    <Grid gridTemplateColumns={"1 fr"} gridGap={"8px"} my={"8px"}>
+                        {primaryContent}
+                        {content}
+                    </Grid>
+                );
+
+            case "TOPBAR":
+                return <>
+                    <Flex alignItems={"center"}>
+                        {props.displayTitle === false ? null :
+                            <Heading.h3 flexGrow={1}>
+                                {props.topbarIcon ?
+                                    <Icon
+                                        name={props.topbarIcon}
+                                        m={8}
+                                        ml={0}
+                                        size="20"
+                                        color={theme.colors.darkGray}
+                                    /> :
+                                    null
+                                }
+                                {entityNamePlural}
+                                {" "}
+                                {props.selected.length === 0 ? null :
+                                    <TextSpan color={"gray"}
+                                              fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                                }
+                            </Heading.h3>
+                        }
+                        {primaryContent}
+                        <Box mr={"10px"}/>
+                        {content.length === 0 ? <Box ml={"30px"}/> :
+                            <Flex alignItems={"center"} justifyContent={"center"}>
+                                <ClickableDropdown {...dropdownProps}>
+                                    {content}
+                                </ClickableDropdown>
+                            </Flex>
+                        }
+                        <Box mr={"8px"}/>
+                    </Flex>
+                </>;
+        }
     }
 };
 

@@ -7,13 +7,14 @@ import {Button, Link, theme} from "@/ui-components";
 import styled from "styled-components";
 import Box from "../ui-components/Box";
 import {useEffect, useState} from "react";
-import {priceExplainer, Product} from "@/Accounting";
+import {priceExplainer, Product, ProductPriceUnit} from "@/Accounting";
 
 export const ProductSelector: React.FunctionComponent<{
     initialSelection?: Product;
     products: Product[];
     onProductSelected: (product: Product) => void;
-}> = ({initialSelection, products, onProductSelected}) => {
+    slim?: boolean;
+}> = ({initialSelection, products, onProductSelected, slim}) => {
     const [selected, setSelected] = useState<Product | null>(initialSelection ?? null);
     useEffect(() => {
         if (initialSelection) setSelected(initialSelection);
@@ -26,12 +27,20 @@ export const ProductSelector: React.FunctionComponent<{
         throw "Bad input passed to ProductSelector";
     }
 
+    const unitOfPrice: ProductPriceUnit = products.length === 0 ? "PER_UNIT" : products[0].unitOfPrice;
+    const hasPrice = unitOfPrice === "CREDITS_PER_DAY" || unitOfPrice === "CREDITS_PER_HOUR" ||
+        unitOfPrice === "CREDITS_PER_MINUTE";
+
+    // TODO(Dan) This is not ideal. It should use fixed positioning (to not overflow the row) but still be anchored to
+    //  the 'parent'. If you remove `useMousePositioning` then the dropdown contents will immediately be hidden because
+    //  it overflows the row.
     return (
         <ClickableDropdown
             fullWidth
             colorOnHover={false}
+            useMousePositioning
             trigger={(
-                <ProductDropdown>
+                <ProductDropdown height={slim === true ? "36px" : undefined}>
                     <ProductBox product={selected} />
 
                     <Icon name="chevronDown" />
@@ -44,15 +53,15 @@ export const ProductSelector: React.FunctionComponent<{
                         <TableHeader>
                             <TableRow>
                                 <TableHeaderCell pl="6px">Name</TableHeaderCell>
-                                <TableHeaderCell>Price</TableHeaderCell>
+                                {!hasPrice ? null : <TableHeaderCell>Price</TableHeaderCell>}
                             </TableRow>
                         </TableHeader>
                         <tbody>
                             {products.map(machine => {
                                 if (machine === null) return null;
                                 return <TableRow key={machine.name} onClick={() => setSelected(machine)}>
-                                    <TableCell pl="6px">{machine.name}</TableCell>
-                                    <TableCell>{priceExplainer(machine)}</TableCell>
+                                    <TableCell>{machine.name}</TableCell>
+                                    {!hasPrice ? null : <TableCell>{priceExplainer(machine)}</TableCell>}
                                 </TableRow>;
                             })}
                         </tbody>
@@ -83,6 +92,7 @@ const SmallText = styled.span`
 `;
 
 const Wrapper = styled.div`
+  width: 500px;
   & > table {
     margin-left: -9px;
   }
@@ -97,6 +107,7 @@ const Wrapper = styled.div`
 const ProductBoxWrapper = styled.div`
   cursor: pointer;
   padding: 8px;
+  padding-top: 1px;
 
   ul {
     list-style: none;

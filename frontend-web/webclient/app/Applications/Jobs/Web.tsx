@@ -6,23 +6,42 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {isAbsoluteUrl, useNoFrame} from "@/UtilityFunctions";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useParams} from "react-router";
-import { useEffect } from "react";
-import {compute} from "@/UCloud";
+import {useEffect} from "react";
 import {bulkRequestOf} from "@/DefaultObjects";
+
+interface SessionType {
+    jobId: string;
+    rank: number;
+}
+
+interface ShellSession extends SessionType {
+    type: "shell";
+    sessionIdentifier: String,
+}
+
+interface WebSession extends SessionType {
+    type: "web";
+    redirectClientTo: string;
+}
+
+interface VncSession extends SessionType {
+    type: "vnc";
+    url: string;
+    password: string | null;
+}
+
+type OpenSession = ShellSession | WebSession | VncSession;
 
 interface JobsOpenInteractiveSessionResponse {
     responses: {
         providerDomain: string;
         providerId: string;
-        session: {
-            jobId: string;
-            rank: number
-        }
-    };
+        session: OpenSession;
+    }[];
 }
 
 export const Web: React.FunctionComponent = () => {
-    const {jobId, rank} = useParams<{ jobId: string, rank: string }>();
+    const {jobId, rank} = useParams<{jobId: string, rank: string}>();
     const [sessionResp] = useCloudAPI<JobsOpenInteractiveSessionResponse | null>(
         jobs.openInteractiveSession(bulkRequestOf({sessionType: "WEB", id: jobId, rank: parseInt(rank, 10)})),
         null

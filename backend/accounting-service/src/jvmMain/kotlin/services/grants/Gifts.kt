@@ -7,6 +7,7 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
+import java.util.*
 
 class GiftService(
     private val db: DBContext,
@@ -20,6 +21,7 @@ class GiftService(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("gift_id", giftId)
+                    setParameter("transaction_id", UUID.randomUUID().toString())
                 },
                 """
                     with
@@ -97,12 +99,15 @@ class GiftService(
                         coalesce(credits, quota),
                         start_date,
                         end_date,
-                        'Gift from ' || project_title
+                        'Gift from ' || project_title,
+                        :transaction_id || (allocation_id::text),
+                        null
                     )::accounting.deposit_request)), count(distinct gifts_claimed.gift_id)
                     from resources_to_be_gifted join gifts_claimed on
                         resources_to_be_gifted.gift_id = gifts_claimed.gift_id
                     where alloc_idx = 1
-                """
+                """,
+                debug = true
             ).rows.singleOrNull()?.getLong(1)
 
             if (giftsClaimed != 1L) {

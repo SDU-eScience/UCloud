@@ -57,36 +57,58 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
                     </HoverBox>
                 }
+                colorOnHover={false}
+                paddingControlledByContent
                 onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
                 left="0px"
                 width="250px"
             >
-                {props.activeProject ?
-                    (
-                        <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
-                            My Workspace
+                <BoxForPadding>
+                    {props.activeProject ?
+                        (
+                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                                My Workspace
+                            </Text>
+                        ) : null
+                    }
+                    {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
+                        <Text
+                            key={project.projectId}
+                            onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
+                        >
+                            <Truncate width="215px">{project.title}</Truncate>
                         </Text>
-                    ) : null
-                }
-                {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
-                    <Text
-                        key={project.projectId}
-                        onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
-                    >
-                        <Truncate width="215px">{project.title}</Truncate>
-                    </Text>
-                )}
-                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                <Text onClick={() => history.push("/projects")}>Manage projects</Text>
-                {!props.activeProject ? null :
-                    <Text onClick={() => history.push("/project/dashboard")}>
-                        Manage active project
-                    </Text>
-                }
+                    )}
+                    {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
+                    <Text onClick={() => history.push("/projects")}>Manage projects</Text>
+                    {!props.activeProject ? null :
+                        <Text onClick={() => history.push("/project/dashboard")}>
+                            Manage active project
+                        </Text>
+                    }
+                </BoxForPadding>
             </ClickableDropdown>
         </Flex>
     );
 }
+
+const BoxForPadding = styled.div`
+    & > div:hover {
+        background-color: var(--lightBlue);
+    }
+
+    & > ${Divider} {
+        width: 80%;
+        margin-left: 26px;
+    }
+
+    & > ${Text} {
+        padding-left: 10px;
+    }
+
+    margin-top: 12px;
+    margin-bottom: 12px;
+`;
 
 const HoverIcon = styled(Icon)`
     &:hover {
@@ -97,6 +119,9 @@ const HoverIcon = styled(Icon)`
 function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
     const {pathname, search} = window.location;
     runThisFunction();
+    if (pathname === "/app/files") {
+        history.push("/drives")
+    }
     refresh?.();
 }
 

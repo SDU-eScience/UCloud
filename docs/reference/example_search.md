@@ -39,6 +39,9 @@ Resources.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = State.RUNNING, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -56,8 +59,6 @@ Resources.browse.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "1", 
         owner = ResourceOwner(
@@ -86,8 +87,6 @@ PageV2(
         updates = emptyList(), 
         providerGeneratedId = "1", 
     ), ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "2", 
         owner = ResourceOwner(
@@ -116,8 +115,6 @@ PageV2(
         updates = emptyList(), 
         providerGeneratedId = "2", 
     ), ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "3", 
         owner = ResourceOwner(
@@ -167,6 +164,9 @@ Resources.search.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -185,8 +185,6 @@ Resources.search.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "3", 
         owner = ResourceOwner(
@@ -255,7 +253,10 @@ await callAPI(ExampleApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -300,10 +301,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         },
         {
             "id": "2",
@@ -335,10 +333,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         },
         {
             "id": "3",
@@ -370,10 +365,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -398,7 +390,10 @@ await callAPI(ExampleApi.search(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "query": "300",
         "itemsPerPage": null,
@@ -444,10 +439,7 @@ await callAPI(ExampleApi.search(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -512,10 +504,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         },
 #         {
 #             "id": "2",
@@ -547,10 +536,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         },
 #         {
 #             "id": "3",
@@ -582,10 +568,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -608,7 +591,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
         "filterProductId": null,
         "filterProductCategory": null,
         "filterProviderIds": null,
-        "filterIds": null
+        "filterIds": null,
+        "hideProductId": null,
+        "hideProductCategory": null,
+        "hideProvider": null
     },
     "query": "300",
     "itemsPerPage": null,
@@ -653,10 +639,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null

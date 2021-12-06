@@ -52,8 +52,8 @@ const NotifyBox = styled.div`
 `;
 
 function appVersionResource(): string {
-    if (inDevEnvironment()) return "/app/Assets/AppVersion.txt";
-    else return "/assets/Assets/AppVersion.txt";
+    if (inDevEnvironment()) return "/public/AppVersion.txt";
+    else return "/AppVersion.txt";
 }
 
 function fetchNewVersion(currentVersion: string, setNewVersion: (v: string) => void): void {

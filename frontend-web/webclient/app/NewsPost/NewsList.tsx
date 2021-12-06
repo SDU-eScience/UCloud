@@ -6,7 +6,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {NewsPost} from "@/Dashboard/Dashboard";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {emptyPage} from "@/DefaultObjects";
-import {useParams} from "react-router";
+import {useHistory, useParams} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as Pagination from "@/Pagination";
 import {format} from "date-fns/esm";
@@ -49,18 +49,17 @@ export const NewsList: React.FC = () => {
 
     useTitle("News");
 
+    const history = useHistory();
+
     return (
         <MainContainer
             header={(
                 <Flex>
-                    <Heading.h2>{filter ? capitalized(filter) : ""} News</Heading.h2>
+                    <Heading.h2>News</Heading.h2>
                     {!filter ? null :
-                        <Link to="/news/list/">
-                            <Text mt="14px" ml="10px" fontSize={1}>
-                                Clear category
-                                <Icon color="black" name="close" size={12} />
-                            </Text>
-                        </Link>
+                        <Text mt="14px" ml="10px" fontSize={1}>
+                            {capitalized(filter)} <Icon cursor="pointer" color="black" onClick={() => history.push("/news/list")} name="close" ml="4px" size={12} />
+                        </Text>
                     }
                 </Flex>
             )}

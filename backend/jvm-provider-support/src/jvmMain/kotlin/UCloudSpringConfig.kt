@@ -20,7 +20,7 @@ class UCloudSpringConfig(
     private val interceptor: UCloudAuthInterceptor,
 ) : WebMvcConfigurer {
     override fun addInterceptors(registry: InterceptorRegistry) {
-        registry.addInterceptor(interceptor).addPathPatterns("/ucloud/*")
+        registry.addInterceptor(interceptor).addPathPatterns("/ucloud/**")
     }
 
     /*
