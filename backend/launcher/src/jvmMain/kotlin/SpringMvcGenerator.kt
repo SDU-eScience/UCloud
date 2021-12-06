@@ -17,13 +17,16 @@ fun main() {
 }
 
 fun generateSpringMvcCode() {
-    val hasServices = File(".").listFiles()?.any { it.isDirectory && it.name.endsWith("-service") } == true
-    if (!hasServices) {
+    val potentialBaseDirs = listOf(File("."), File(".."))
+    val baseDir = potentialBaseDirs.find {
+        it.listFiles()?.any { it.isDirectory && it.name.endsWith("-service") } == true
+    }
+    if (baseDir == null) {
         println("WARN: Could not find UCloud services at current working directory (${File(".").absolutePath}")
-        println("WARN: No markdown documentation will be injected!")
+        println("WARN: No Spring code will be generated!")
         return
     }
-    val outputFile = File("./jvm-provider-support/src/jvmMain/kotlin/Controllers.kt")
+    val outputFile = File(baseDir, "./jvm-provider-support/src/jvmMain/kotlin/Controllers.kt")
     if (!outputFile.exists()) {
         println("WARN: Could not find controllers file at ${outputFile.absolutePath}")
         return
@@ -243,7 +246,7 @@ private fun generateOp(
             appendLine("    wsContext: UCloudWsContext<$req, $resp, $err>,")
         }
         if (call.httpOrNull != null) {
-            appendLine("): $req")
+            appendLine("): $resp")
         } else {
             appendLine(")")
         }

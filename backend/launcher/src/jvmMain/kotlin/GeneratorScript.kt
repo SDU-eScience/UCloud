@@ -478,16 +478,16 @@ fun generateCode() {
                 } else {
                     val nextSection = stack.peek()
                     val calls = callsByFeature.getValue(chapter)
-//                    generateMarkdown(
-//                        actualPreviousSection,
-//                        nextSection,
-//                        chapter.path,
-//                        types,
-//                        calls,
-//                        chapter
-//                    )
-//
-//                    generateTypeScriptCode(types, calls, chapter.title, chapter.container)
+                    generateMarkdown(
+                        actualPreviousSection,
+                        nextSection,
+                        chapter.path,
+                        types,
+                        calls,
+                        chapter
+                    )
+
+                    generateTypeScriptCode(types, calls, chapter.title, chapter.container)
                     generateSerializerCode(types, calls, chapter.container)
                 }
             }
@@ -502,7 +502,7 @@ fun generateCode() {
                     val next = nextSection.children.firstOrNull() ?: break
                     nextSection = next
                 }
-//                generateMarkdownChapterTableOfContents(actualPreviousSection, nextSection, chapter.path, chapter)
+                generateMarkdownChapterTableOfContents(actualPreviousSection, nextSection, chapter.path, chapter)
             }
         }
     }
