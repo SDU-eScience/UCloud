@@ -49,7 +49,7 @@ class IngressService(
                         .removePrefix(support.domainPrefix).removeSuffix(support.domainSuffix)
                     if (id.length < 5) {
                         throw RPCException(
-                            "Ingress domain must be at least 5 characters long",
+                            "Public links must be at least 5 characters long!",
                             HttpStatusCode.BadRequest
                         )
                     }
@@ -66,6 +66,13 @@ class IngressService(
                     if (!id.lowercase().matches(regex) || id.lowercase().matches(uuidRegex)) {
                         throw RPCException(
                             "Invalid public link requested. Must only contain letters a-z, numbers (0-9), dashes and underscores.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (id.endsWith("-") || id.endsWith("_")) {
+                        throw RPCException(
+                            "Public links must not end with a dash or an underscore!",
                             HttpStatusCode.BadRequest
                         )
                     }
