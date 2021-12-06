@@ -2,14 +2,12 @@ package dk.sdu.cloud.file.ucloud.services
 
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
-import org.elasticsearch.action.get.GetRequest
-import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.xcontent.XContentType
-import services.FileScanner.Companion.FILES_INDEX
+import dk.sdu.cloud.file.ucloud.services.FileScanner.Companion.FILES_INDEX
 
 object FilesIndex {
     fun delete(elastic: RestHighLevelClient) {
@@ -106,10 +104,10 @@ object FilesIndex {
                             "type": "text"
                         },
                         "owner" : {
-                            "type": "text"
+                            "type": "keyword"
                         },
                         "projectId" : {
-                            "type": "text"
+                            "type": "keyword"
                         }
                     }
                 }

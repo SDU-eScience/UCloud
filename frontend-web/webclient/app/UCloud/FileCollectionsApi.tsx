@@ -1,4 +1,5 @@
 import {
+    CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
     ProductSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
@@ -127,6 +128,20 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 return true;
             };
         }
+
+        const createOperation = baseOperations.find(it => it.tag === CREATE_TAG);
+        if (createOperation) {
+            const enabled = createOperation.enabled;
+            createOperation.enabled = (selected, cb, all) => {
+                const isEnabled = enabled(selected, cb, all);
+                if (isEnabled !== true) return isEnabled;
+                if (!cb.isWorkspaceAdmin) {
+                    return "Only workspace administrators can create a new drive!";
+                }
+                return true;
+            };
+        }
+
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG);
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;

@@ -44,6 +44,9 @@ import {Product, ProductType, productTypeToIcon} from "@/Accounting";
 import {EnumFilterWidget} from "@/Resource/Filter";
 import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {project} from "@/UCloud";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -111,6 +114,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
     const dispatch = useDispatch();
+    const projectId = useProjectId();
+    const projectManagement = useProjectManagementStatus({
+        isRootComponent: props.browseType == BrowseType.MainContent,
+        allowPersonalProject: true
+    });
+    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
 
@@ -209,6 +218,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         onSelectRestriction: props.onSelectRestriction,
         dispatch,
         history,
+        isWorkspaceAdmin,
         startRenaming(res: Res, value: string) {
             renaming.setRenaming(res);
             setRenamingValue(value);

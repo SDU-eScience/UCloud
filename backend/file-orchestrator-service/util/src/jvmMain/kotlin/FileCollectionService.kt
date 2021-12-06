@@ -33,6 +33,7 @@ class FileCollectionService(
     override val serializer = serializer<FileCollection>()
     override val updateSerializer = serializer<FileCollection.Update>()
     override val productArea = ProductArea.STORAGE
+    override val requireAdminForCreate: Boolean = true
 
     override fun userApi() = FileCollections
     override fun controlApi() = FileCollectionsControl

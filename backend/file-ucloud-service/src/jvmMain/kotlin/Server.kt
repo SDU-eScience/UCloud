@@ -19,11 +19,10 @@ import dk.sdu.cloud.Roles
 import java.io.File
 import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import org.elasticsearch.client.RestHighLevelClient
-import services.FileScanner
+import dk.sdu.cloud.file.ucloud.services.FileScanner
 
 // NOTE(Dan): This is only used in development mode
 object Scans : CallDescriptionContainer("file.ucloud.scans") {
@@ -72,30 +71,6 @@ class Server(
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
 
         val scriptManager = micro.feature(ScriptManager)
-        scriptManager.register(
-            Script(
-                ScriptMetadata(
-                    "ucloud-scan",
-                    "Accounting Scan (Storage)",
-                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
-                ),
-                script = {
-                    usageScan.startScan()
-                }
-            )
-        )
-
-        if (micro.commandLineArguments.contains("--scan-accounting")) {
-            try {
-                runBlocking {
-                    usageScan.startScan()
-                    exitProcess(0)
-                }
-            } catch (ex: Throwable) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
 
         val distributedStateFactory = RedisDistributedStateFactory(micro)
         val trashService = TrashService(pathConverter)
@@ -130,9 +105,27 @@ class Server(
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
-        if (micro.commandLineArguments.contains("--scan-file-system")) {
-            runBlocking {
-                try {
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-scan",
+                    "UCloud/Storage: Accounting",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                ),
+                script = {
+                    usageScan.startScan()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-storage-index",
+                    "UCloud/Storage: Indexing",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                ),
+                script = {
                     FileScanner(
                         micro.elasticHighLevelClient,
                         authenticatedClient,
@@ -142,39 +135,9 @@ class Server(
                         cephStats,
                         elasticQueryService
                     ).runScan()
-                    exitProcess(0)
-                } catch (ex: Exception) {
-                    println(ex.stackTraceToString())
-                    exitProcess(1)
                 }
-            }
-        }
-
-        /*
-        //Dev testing
-        GlobalScope.launch {
-                while (true) {
-                    if (File("/tmp/test.txt").exists()) {
-                        try {
-                            FileScanner(
-                                micro.elasticHighLevelClient,
-                                authenticatedClient,
-                                db,
-                                nativeFs,
-                                pathConverter,
-                                cephStats,
-                                elasticQueryService
-                            ).runScan()
-                        } catch (ex: Exception) {
-                            println(ex.stackTraceToString())
-                        }
-                        File("/tmp/test.txt").delete()
-                    }
-                    delay(5000)
-                }
-            }*/
-
-//        useTestingSizes = micro.developmentModeEnabled
+            )
+        )
 
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService),

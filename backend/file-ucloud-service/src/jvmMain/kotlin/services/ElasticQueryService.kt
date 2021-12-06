@@ -3,7 +3,18 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
-import dk.sdu.cloud.file.ucloud.api.*
+import dk.sdu.cloud.file.ucloud.api.AnyOf
+import dk.sdu.cloud.file.ucloud.api.Comparison
+import dk.sdu.cloud.file.ucloud.api.ComparisonOperator
+import dk.sdu.cloud.file.ucloud.api.ElasticIndexedFile
+import dk.sdu.cloud.file.ucloud.api.ElasticIndexedFileConstants
+import dk.sdu.cloud.file.ucloud.api.FileQuery
+import dk.sdu.cloud.file.ucloud.api.NumericStatistics
+import dk.sdu.cloud.file.ucloud.api.NumericStatisticsRequest
+import dk.sdu.cloud.file.ucloud.api.PredicateCollection
+import dk.sdu.cloud.file.ucloud.api.StatisticsRequest
+import dk.sdu.cloud.file.ucloud.api.StatisticsResponse
+import dk.sdu.cloud.file.ucloud.api.toPartialUFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import kotlinx.serialization.decodeFromString
@@ -21,7 +32,12 @@ import org.elasticsearch.index.query.RangeQueryBuilder
 import org.elasticsearch.index.query.TermsQueryBuilder
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.Aggregations
-import org.elasticsearch.search.aggregations.metrics.*
+import org.elasticsearch.search.aggregations.metrics.Avg
+import org.elasticsearch.search.aggregations.metrics.Max
+import org.elasticsearch.search.aggregations.metrics.Min
+import org.elasticsearch.search.aggregations.metrics.Percentiles
+import org.elasticsearch.search.aggregations.metrics.Sum
+import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
 
@@ -108,8 +124,7 @@ class ElasticQueryService(
                     log.warn("Path not found")
                     illegalIndices.add(partialUFile)
                     null
-                }
-                else {
+                } else {
                     throw ex
                 }
             }
@@ -129,9 +144,9 @@ class ElasticQueryService(
         searchRequest: FilesProviderSearchRequest
     ): PageV2<PartialUFile> {
         if (searchRequest.query.isBlank()) {
-            return PageV2(searchRequest.itemsPerPage ?: 50 , emptyList(), null)
+            return PageV2(searchRequest.itemsPerPage ?: 50, emptyList(), null)
         }
-        if (searchRequest.next != null ) {
+        if (searchRequest.next != null) {
             val searchScrollRequest = SearchScrollRequest(searchRequest.next)
             searchScrollRequest.scroll(TimeValue.timeValueMinutes(1))
             val response = elasticClient.scroll(searchScrollRequest, RequestOptions.DEFAULT)
@@ -152,7 +167,7 @@ class ElasticQueryService(
         val request = SearchRequest(FILES_INDEX)
         val source = SearchSourceBuilder()
 
-        source.query(searchBasedOnQuery(searchRequest) )
+        source.query(searchBasedOnQuery(searchRequest))
 
         source.sort(ElasticIndexedFileConstants.FILE_NAME_KEYWORD, SortOrder.ASC)
 
@@ -172,7 +187,7 @@ class ElasticQueryService(
 
         val existingHits = verifyAndUpdateIndex(hits)
 
-        return PageV2(searchRequest.itemsPerPage ?: 50, existingHits , scrollId)
+        return PageV2(searchRequest.itemsPerPage ?: 50, existingHits, scrollId)
     }
 
     private fun searchBasedOnQuery(searchRequest: FilesProviderSearchRequest): QueryBuilder {
@@ -215,8 +230,7 @@ class ElasticQueryService(
                                 searchRequest.owner.createdBy
                             )
                         )
-                    }
-                    else {
+                    } else {
                         add(TermsQueryBuilder(ElasticIndexedFileConstants.PROJECT_ID, searchRequest.owner.project))
                     }
                     if (flags.filterByFileExtension != null) {
@@ -235,7 +249,7 @@ class ElasticQueryService(
         }
     }
 
-    private fun  searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
+    private fun searchBasedOnQuery(fileQuery: FileQuery): QueryBuilder {
         return with(fileQuery) {
             QueryBuilders.boolQuery().apply {
                 should().apply {
@@ -268,7 +282,6 @@ class ElasticQueryService(
             }
         }
     }
-
 
     fun statisticsQuery(statisticsRequest: StatisticsRequest): StatisticsResponse {
         val searchRequest = SearchRequest(FILES_INDEX)

@@ -13,7 +13,7 @@ import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage} from "@/ui-components/Sidebar";
-import {useProjectId} from "@/Project";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -30,6 +30,7 @@ import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
 import {Product} from "@/Accounting";
 import {BrowseType} from "./BrowseType";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
 const enterAnimation = keyframes`
   from {
@@ -189,6 +190,12 @@ export function ResourceProperties<Res extends Resource>(
     const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
     const history = useHistory();
+    const projectManagement = useProjectManagementStatus({
+        isRootComponent: false,
+        allowPersonalProject: true
+    });
+    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+
     const requestedId = props.resource === undefined ?
         (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :
         typeof props.resource === "string" ? props.resource : props.resource.id;
@@ -245,6 +252,7 @@ export function ResourceProperties<Res extends Resource>(
         invokeCommand,
         commandLoading,
         reload,
+        isWorkspaceAdmin,
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
         dispatch,
