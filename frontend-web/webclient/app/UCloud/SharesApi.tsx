@@ -225,16 +225,14 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 }
             },
             {
-                text: "Decline",
+                text: "Remove",
                 icon: "close",
                 color: "red",
                 confirm: true,
-                primary: true,
-                enabled: (selected, cb) => {
-                    return selected.length > 0 && selected.every(share =>
-                        share.owner.createdBy !== Client.username && share.status.state !== "REJECTED"
-                    )
-                },
+                enabled: selected =>
+                    selected.length > 0 && selected.every(share =>
+                        share.owner.createdBy !== Client.username && share.status.state !== "PENDING"
+                    ),
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(
                         this.reject(bulkRequestOf(...selected.map(share => ({id: share.id}))))
