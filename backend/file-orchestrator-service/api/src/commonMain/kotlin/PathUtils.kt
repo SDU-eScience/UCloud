@@ -31,7 +31,10 @@ fun String.components(): List<String> = removePrefix("/").removeSuffix("/").spli
 
 fun String.fileName(): String = substringAfterLast('/')
 
-fun String.depth(): Int = split("/").size - 1
+fun String.depth(): Int {
+    return if (equals("/")) 0 else split("/").size - 1
+}
+
 
 fun String.normalize(): String {
     val inputComponents = components()

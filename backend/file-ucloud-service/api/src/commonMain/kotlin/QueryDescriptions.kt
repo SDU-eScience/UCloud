@@ -245,30 +245,3 @@ enum class SortDirection {
     ASCENDING,
     DESCENDING
 }
-
-/**
- * REST interface for queries of indexing data.
- *
- * In general, this can only be accessed by [Roles.PRIVILEGED] users
- */
-@TSTopLevel
-object QueryDescriptions : CallDescriptionContainer("indexing") {
-    const val baseContext = "/api/indexing/query"
-
-    val query = call<QueryRequest, QueryResponse, CommonErrorMessage>("query") {
-        auth {
-            roles = Roles.PRIVILEGED
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-    }
-}

@@ -1,20 +1,11 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
 import dk.sdu.cloud.file.ucloud.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
@@ -33,7 +24,6 @@ import org.elasticsearch.search.aggregations.Aggregations
 import org.elasticsearch.search.aggregations.metrics.*
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
-import services.FileScanner
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,

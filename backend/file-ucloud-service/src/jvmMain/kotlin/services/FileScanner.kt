@@ -1,4 +1,4 @@
-package services
+package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.RPCException
@@ -270,7 +270,7 @@ class FileScanner(
         }
 
         var newUpperLimitOfEntries = 1L
-        if (File(file.path).isDirectory) {
+        if (fs.stat(file).fileType == FileType.DIRECTORY) {
             val rctime = runCatching { fastDirectoryStats.getRecursiveTime(file) }.getOrNull()
             val (shouldContinue, limit) = shouldContinue(file, upperLimitOfEntries)
             newUpperLimitOfEntries = limit
@@ -368,8 +368,8 @@ class FileScanner(
     data class ShouldContinue(val shouldContinue: Boolean, val newUpperLimitOfEntries: Long)
 
     private fun shouldContinue(internalFile: InternalFile, upperLimitOfEntries: Long): ShouldContinue {
-        val file = File(internalFile.path)
-        if (file.isFile) return ShouldContinue(true, 1)
+        val file = fs.stat(internalFile)
+        if (file.fileType == FileType.FILE) return ShouldContinue(true, 1)
         if (upperLimitOfEntries < 100) return ShouldContinue(true, upperLimitOfEntries)
         val recursiveEntryCount = fastDirectoryStats.getRecursiveEntryCount(internalFile)
         if (recursiveEntryCount > upperLimitOfEntries) return ShouldContinue(true, recursiveEntryCount)
