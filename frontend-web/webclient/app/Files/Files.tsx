@@ -206,7 +206,7 @@ export const FilesBrowse: React.FunctionComponent<{
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={headerComponent}
-        headerSize={48}
+        headerSize={75}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
         viewPropertiesInline={viewPropertiesInline}

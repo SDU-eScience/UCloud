@@ -6,23 +6,32 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.*
-import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.api.*
-import dk.sdu.cloud.file.ucloud.services.*
+import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
+import dk.sdu.cloud.file.orchestrator.api.FileType
+import dk.sdu.cloud.file.orchestrator.api.depth
+import dk.sdu.cloud.file.ucloud.api.AnyOf
+import dk.sdu.cloud.file.ucloud.api.Comparison
+import dk.sdu.cloud.file.ucloud.api.ComparisonOperator
+import dk.sdu.cloud.file.ucloud.api.ElasticIndexedFile
+import dk.sdu.cloud.file.ucloud.api.ElasticIndexedFileConstants
+import dk.sdu.cloud.file.ucloud.api.FileQuery
+import dk.sdu.cloud.file.ucloud.api.NumericStatisticsRequest
+import dk.sdu.cloud.file.ucloud.api.StatisticsRequest
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
-import io.ktor.util.*
-import kotlinx.coroutines.*
+import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.joinAll
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.elasticsearch.ElasticsearchException
 import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.bulk.BulkRequestBuilder
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.get.GetRequest
 import org.elasticsearch.action.update.UpdateRequest
@@ -31,11 +40,7 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
-import org.joda.time.DateTime
 import org.joda.time.LocalDateTime
-import java.io.File
-import java.nio.file.Files
-import java.nio.file.Path
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -48,7 +53,7 @@ class FileScanner(
     private val pathConverter: PathConverter,
     private val fastDirectoryStats: CephFsFastDirectoryStats,
     private val query: ElasticQueryService,
-    ) {
+) {
     private val pool = Executors.newFixedThreadPool(16).asCoroutineDispatcher()
     private lateinit var lastScan: LocalDateTime
 
@@ -56,7 +61,6 @@ class FileScanner(
         providerGenerated: Boolean,
         includeOthers: Boolean,
         collections: List<String>,
-        next: String?
     ): PageV2<FileCollection> {
         val includeFlags = if (providerGenerated) {
             FileCollectionIncludeFlags(filterProviderIds = collections.joinToString(","), includeOthers = includeOthers)
@@ -65,203 +69,37 @@ class FileScanner(
         }
 
         return FileCollectionsControl.browse.call(
-            ResourceBrowseRequest(includeFlags, next = next),
+            ResourceBrowseRequest(includeFlags, itemsPerPage = 250),
             authenticatedService
         ).orThrow()
-
-    }
-
-    suspend fun runScan() {
-        val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
-        val homeRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
-        val projectsRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
-        val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
-        val home = fs.listFiles(homeRoot)
-        val project = fs.listFiles(projectsRoot)
-
-        db.withSession { session ->
-            lastScan = session.sendPreparedStatement(
-                """
-                    SELECT last_system_scan
-                    from file_ucloud.storage_scan
-                """
-            ).rows
-                .firstOrNull()
-                ?.getDate(0)
-                ?: LocalDateTime().withDate(1970,1,1)
-
-            println("Scanning Collections")
-            collections.chunked(50).forEach { chunk ->
-                var resolvedCollections =
-                    retrieveCollections(providerGenerated = false, includeOthers = true, chunk.map { it.toString() }, next = null)
-                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                //Filtering might only be necessary on Dev (inconsistent DB vs file system (multiple users of dev))
-                val filteredChunk = if (collectionsList.size != chunk.size) {
-                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-                    val ids = collectionsList.map { it.id.toLong() }
-                    chunk.mapNotNull { collectionID ->
-                        if (ids.contains(collectionID)) {
-                            collectionID
-                        } else {
-                            log.warn("Skipping $collectionID")
-                            null
-                        }
-                    }
-                } else chunk
-
-                while (true) {
-                    collectionsList.zip(filteredChunk).forEach { (coll, path) ->
-                        withContext(pool) {
-                            launch {
-                                val file =
-                                    pathConverter.relativeToInternal(RelativeInternalFile("/collections/${path}"))
-                                submitScan(file, coll)
-                            }.join()
-                        }
-                    }
-
-                    if (resolvedCollections.next == null) {
-                        return@forEach
-                    }
-                    resolvedCollections = retrieveCollections(
-                        providerGenerated = false,
-                        includeOthers = true,
-                        chunk.map { it.toString() },
-                        next = resolvedCollections.next
-                    )
-                }
-            }
-
-            println("Scanning home folders")
-            home.chunked(50).forEach { chunk ->
-                var resolvedCollections = retrieveCollections(
-                    providerGenerated = true,
-                    includeOthers = true,
-                    chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it },
-                    next = null
-                )
-                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                val filteredChunk = if (collectionsList.size != chunk.size) {
-                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-                    val usersFolders = collectionsList.map { it.owner.createdBy }
-                    chunk.mapNotNull { username ->
-                        if (usersFolders.contains(username)) {
-                            username
-                        }
-                        else {
-                            log.warn("Skipping $username")
-                            null
-                        }
-                    }
-                } else chunk
-
-                while (true) {
-                    collectionsList.zip(filteredChunk.sortedBy { it }).forEach { (coll, path) ->
-                        withContext(pool) {
-                            launch {
-                                val file =
-                                    pathConverter.relativeToInternal(RelativeInternalFile("/home/$path"))
-                                submitScan(file, coll)
-                            }.join()
-                        }
-                    }
-
-                    if (resolvedCollections.next == null) {
-                        return@forEach
-                    }
-                    resolvedCollections = retrieveCollections(
-                        providerGenerated = true,
-                        includeOthers = true,
-                        chunk.map { PathConverter.COLLECTION_HOME_PREFIX + it },
-                        resolvedCollections.next
-                    )
-                }
-            }
-
-            println("Scanning Project folders")
-            project.chunked(50).forEach { chunk ->
-                var resolvedCollections = retrieveCollections(
-                    providerGenerated = true,
-                    includeOthers = true,
-                    chunk.map { PathConverter.COLLECTION_PROJECT_PREFIX + it },
-                    next = null
-                )
-                val collectionsList = resolvedCollections.items.sortedBy { it.owner.createdBy }
-                val filteredChunk = if (collectionsList.size != chunk.size) {
-                    log.warn("Might be missing collection. Number of collections: ${collectionsList.size}. Chunk size: ${chunk.size}")
-
-                    val projectIds = collectionsList.map{ it.owner.project }
-                    chunk.mapNotNull { projectFolder ->
-                        if (projectIds.contains(projectFolder)) {
-                            projectFolder
-                        } else {
-                            log.warn("Skipping $projectFolder")
-                            null
-                        }
-                    }
-
-                } else chunk
-
-                while (true) {
-                    collectionsList.zip(filteredChunk).forEach { (coll, path) ->
-                        withContext(pool) {
-                            launch {
-                                val file =
-                                    pathConverter.relativeToInternal(RelativeInternalFile("/projects/$path}"))
-                                submitScan(file, coll)
-                            }.join()
-                        }
-                    }
-
-                    if (resolvedCollections.next == null) {
-                        return@forEach
-                    }
-                    resolvedCollections = retrieveCollections(
-                        providerGenerated = true,
-                        includeOthers = true,
-                        chunk.map { PathConverter.COLLECTION_PROJECT_PREFIX + it },
-                        resolvedCollections.next
-                    )
-                }
-            }
-
-            if (session.sendPreparedStatement(
-                """
-                    UPDATE file_ucloud.storage_scan set
-                    last_system_scan = now()
-                    where true
-                """
-            ).rowsAffected == 0L ) {
-                session.sendPreparedStatement(
-                    """
-                        INSERT into file_ucloud.storage_scan
-                        values (now())
-                    """.trimIndent()
-                )
-            }
-            println("Scan done")
-        }
     }
 
     //Loses microseconds from timestamp
     private fun rctimeToApproxLocalDateTime(rctime: String): LocalDateTime {
-        return LocalDateTime(Date(rctime.split(".").first().toLong()*1000))
+        return LocalDateTime(Date(rctime.split(".").first().toLong() * 1000))
     }
 
-    private suspend fun submitScan(file: InternalFile, collection: FileCollection, upperLimitOfEntries: Long = Long.MAX_VALUE) {
+    private suspend fun submitScan(
+        file: InternalFile,
+        collection: FileCollection,
+        upperLimitOfEntries: Long = Long.MAX_VALUE
+    ) {
         val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
         if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
             log.debug("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
             return
         }
-        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan ) {
+        if (rctimeToApproxLocalDateTime(fastDirectoryStats.getRecursiveTime(file)) < lastScan) {
             log.debug("rcTime is older than lastscan = no change")
             return
         }
 
         val thisFileInIndex = run {
             val source =
-                elastic.get(GetRequest(FILES_INDEX, pathConverter.internalToUCloud(file).path), RequestOptions.DEFAULT)?.sourceAsString
+                elastic.get(
+                    GetRequest(FILES_INDEX, pathConverter.internalToUCloud(file).path),
+                    RequestOptions.DEFAULT
+                )?.sourceAsString
             if (source != null) {
                 defaultMapper.decodeFromString<ElasticIndexedFile>(source)
             } else {
@@ -280,7 +118,7 @@ class FileScanner(
             }
         }
         val filesInDir = fileList.map {
-            fs.stat(it).toElasticIndexedFile(it,collection)
+            fs.stat(it).toElasticIndexedFile(it, collection)
         }.associateBy { it.path }
 
         val relativeFilePath = pathConverter.internalToUCloud(InternalFile(file.path)).path
@@ -409,7 +247,7 @@ class FileScanner(
         }
 
         val actualRecursiveSize = fastDirectoryStats.getRecursiveSize(internalFile)
-        if (actualRecursiveSize == null ) {
+        if (actualRecursiveSize == null) {
             log.debug("Did not get size - not testing and cannot find ceph commands")
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
@@ -444,7 +282,10 @@ class FileScanner(
         return ShouldContinue(false, recursiveEntryCount)
     }
 
-    private fun NativeStat.toElasticIndexedFile(file: InternalFile, collection: FileCollection): ElasticIndexedFile {
+    private fun NativeStat.toElasticIndexedFile(
+        file: InternalFile,
+        collection: FileCollection
+    ): ElasticIndexedFile {
         return ElasticIndexedFile(
             path = pathConverter.internalToUCloud(file).path,
             size = size,
@@ -496,6 +337,151 @@ class FileScanner(
             flushIfNeeded()
         }
 
+    }
+
+    suspend fun runScan() {
+        val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
+        val homeRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
+        val projectsRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
+        val collections = fs.listFiles(collectionRoot)
+        val home = fs.listFiles(homeRoot)
+        val project = fs.listFiles(projectsRoot)
+
+        db.withSession { session ->
+            lastScan = session.sendPreparedStatement(
+                """
+                    SELECT last_system_scan
+                    from file_ucloud.storage_scan
+                """
+            ).rows
+                .firstOrNull()
+                ?.getDate(0)
+                ?: LocalDateTime().withDate(1970, 1, 1)
+        }
+
+        println("Scanning Collections")
+        collections.chunked(50).forEach { chunk ->
+            submitChunk(
+                chunk,
+                providerGenerated = false,
+                collectionIdMapper = { it },
+                pathMapper = { RelativeInternalFile("/collections/$it") }
+            )
+        }
+
+        println("Scanning home folders")
+        home.chunked(50).forEach { chunk ->
+            submitChunk(
+                chunk,
+                providerGenerated = true,
+                collectionIdMapper = { PathConverter.COLLECTION_HOME_PREFIX + it },
+                pathMapper = { RelativeInternalFile("/home/$it") }
+            )
+        }
+
+        println("Scanning Project folders")
+        project.forEach { projectId ->
+            fs.listFiles(pathConverter.relativeToInternal(RelativeInternalFile("/projects/$projectId")))
+                .chunked(50)
+                .forEach { rawChunk ->
+                    val chunk = rawChunk.filter { it != PathConverter.PERSONAL_REPOSITORY }
+                    submitChunk(
+                        chunk,
+                        providerGenerated = true,
+                        collectionIdMapper = { PathConverter.COLLECTION_PROJECT_PREFIX + projectId + "/" + it },
+                        pathMapper = { RelativeInternalFile("/projects/$projectId/$it") }
+                    )
+                }
+
+            val memberFiles = try {
+                fs.listFiles(
+                    pathConverter.relativeToInternal(
+                        RelativeInternalFile("/projects/$projectId/${PathConverter.PERSONAL_REPOSITORY}")
+                    )
+                )
+            } catch (ex: FSException.NotFound) {
+                // Ignore
+                null
+            }
+
+            memberFiles?.chunked(50)?.forEach { chunk ->
+                submitChunk(
+                    chunk,
+                    providerGenerated = true,
+                    collectionIdMapper = { PathConverter.COLLECTION_PROJECT_MEMBER_PREFIX + projectId + "/" + it },
+                    pathMapper = {
+                        RelativeInternalFile("/projects/$projectId/${PathConverter.PERSONAL_REPOSITORY}/$it")
+                    }
+                )
+            }
+        }
+
+        db.withSession { session ->
+            val hasExisting = session.sendPreparedStatement(
+                """
+                    update file_ucloud.storage_scan set
+                    last_system_scan = now()
+                    where true
+                """
+            ).rowsAffected == 0L
+
+            if (!hasExisting) {
+                session.sendPreparedStatement(
+                    """
+                        insert into file_ucloud.storage_scan
+                        values (now())
+                    """.trimIndent()
+                )
+            }
+
+            println("Scan done")
+        }
+    }
+
+    private suspend fun submitChunk(
+        chunk: List<String>,
+        providerGenerated: Boolean,
+        collectionIdMapper: (id: String) -> String,
+        pathMapper: (fileName: String) -> RelativeInternalFile,
+    ) {
+        val chunkIdToColl = chunk.asSequence().map { it to collectionIdMapper(it) }.toMap()
+        val resolvedCollections = retrieveCollections(
+            providerGenerated,
+            includeOthers = true,
+            chunkIdToColl.values.toList()
+        )
+
+        val mappedChunk = chunk.mapNotNull { collId ->
+            val resolvedCollId = chunkIdToColl[collId] ?: return@mapNotNull run {
+                log.warn("Skipping $collId")
+                null
+            }
+
+            val mappedCollection = resolvedCollections.items.find {
+                if (providerGenerated) {
+                    resolvedCollId == it.providerGeneratedId
+                } else {
+                    resolvedCollId == it.id
+                }
+            }
+
+            if (mappedCollection == null) {
+                log.warn("Skipping $collId")
+                return@mapNotNull null
+            }
+
+            collId to mappedCollection
+        }
+
+        mappedChunk.forEach { (path, coll) ->
+            withContext(pool) {
+                launch {
+                    val file =
+                        pathConverter.relativeToInternal(pathMapper(path))
+                    submitScan(file, coll)
+                }.join()
+            }
+        }
     }
 
     companion object : Loggable {

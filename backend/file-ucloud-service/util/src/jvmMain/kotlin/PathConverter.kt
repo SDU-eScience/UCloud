@@ -233,7 +233,7 @@ class PathConverter(
                     }
 
                     PROJECT_DIRECTORY -> {
-                        if (components.size <= 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError, INVALID_FILE_ERROR_CODE)
+                        if (components.size < 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError, INVALID_FILE_ERROR_CODE)
                         if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
                             val collectionId = lookupCollectionFromInternalId("$COLLECTION_PROJECT_MEMBER_PREFIX" +
                                     "${components[1]}/${components[3]}").id
