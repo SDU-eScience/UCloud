@@ -352,7 +352,7 @@ export function SmallScreenSearchField(): JSX.Element {
     const ref = React.useRef<HTMLInputElement>(null);
     const history = useHistory();
 
-    return <ui.Hide lg xl xxl>
+    return <ui.Hide xl xxl>
         <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", history))}>
             <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
             <ui.Input
