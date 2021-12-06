@@ -10,9 +10,9 @@ type Mode = "development" | "local-dev" | "production" | "compose";
 function targetFromConfig(mode: Mode): string {
     switch (mode) {
         case "development":
-            return `https://${DEV_SITE}`;
         case "compose":
-            return "http://backend:8080";
+            return `https://${DEV_SITE}`;
+            // return "http://backend:8080";
         case "local-dev":
         case "production":
         default:

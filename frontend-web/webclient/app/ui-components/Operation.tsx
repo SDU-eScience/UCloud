@@ -2,7 +2,7 @@ import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
 import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
-import {StyledComponent} from "styled-components";
+import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
 import {doNothing, preventDefault} from "@/UtilityFunctions";
@@ -239,7 +239,7 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    <Box mt="6px">{primaryContent}</Box>
+                    <InRowPrimaryButtons>{primaryContent}</InRowPrimaryButtons>
                     <Box mr={"10px"}/>
                     {content.length === 0 ? <Box ml={"30px"}/> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
@@ -297,6 +297,14 @@ export const Operations: OperationsType = props => {
         }
     }
 };
+
+const InRowPrimaryButtons = styled.div`
+    & > button {
+        max-width: 150px;
+    }
+
+    margin-top: 4px;
+`;
 
 export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
