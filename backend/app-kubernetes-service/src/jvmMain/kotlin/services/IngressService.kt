@@ -77,6 +77,13 @@ class IngressService(
                         )
                     }
 
+                    if (!id.any { it.isLetter() }) {
+                        throw RPCException(
+                            "Public links must contain at least one letter!",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
                     session.insert(IngressTable) {
                         set(IngressTable.id, ingress.id)
                         set(IngressTable.domain, ingress.specification.domain)

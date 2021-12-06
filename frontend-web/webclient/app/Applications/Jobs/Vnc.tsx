@@ -33,8 +33,8 @@ export const Vnc: React.FunctionComponent = () => {
     useNoFrame();
 
     useEffect(() => {
-        if (sessionResp.data !== null && sessionResp.data.sessions.length > 0) {
-            const {providerDomain, session} = sessionResp.data.sessions[0];
+        if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
+            const {providerDomain, session} = sessionResp.data.responses[0];
             if (session.type !== "vnc") {
                 snackbarStore.addFailure(
                     "Unexpected response from UCloud. Unable to open remote desktop!",
