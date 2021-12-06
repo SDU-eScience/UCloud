@@ -111,6 +111,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     startRenaming?: (resource: Res, defaultValue: string) => void;
     history: H.History;
     supportByProvider: SupportByProvider;
+    isWorkspaceAdmin: boolean;
 }
 
 export interface SortFlags {

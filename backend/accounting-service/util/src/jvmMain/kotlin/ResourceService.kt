@@ -47,6 +47,7 @@ abstract class ResourceService<
     protected abstract val defaultSortColumn: SqlObject.Column
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
+    protected open val requireAdminForCreate: Boolean = false
 
     private val resourceTable = SqlObject.Table("provider.resource")
     private val defaultSortColumns = mapOf(
@@ -422,7 +423,7 @@ abstract class ResourceService<
                             retrieveBulk(
                                 actorAndProject,
                                 generatedIds.map { it.toString() },
-                                listOf(Permission.EDIT),
+                                if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
                                 includeUnconfirmed = true,
                                 simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
