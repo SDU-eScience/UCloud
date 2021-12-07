@@ -1,5 +1,5 @@
 import {IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
+import {Box, Button, Divider, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
 import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
 import styled, {StyledComponent} from "styled-components";
@@ -115,7 +115,12 @@ const OperationComponent: React.FunctionComponent<{
         </>}
     </As>;
 
-    if (reasonDisabled === undefined) return component;
+    if (reasonDisabled === undefined) {
+        if (As === ConfirmationButton && location === "SIDEBAR") {
+            return <><Divider />{component}</>
+        }
+        return component;
+    }
     return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
 };
 
@@ -218,16 +223,16 @@ export const Operations: OperationsType = props => {
         openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
-            props.selected.length === 0 || props.location === "TOPBAR" ?
-                <Icon
-                    onClick={preventDefault}
-                    ml={"5px"}
-                    mr={"10px"}
-                    name={"ellipsis"}
-                    size={"1em"}
-                    rotation={90}
-                    data-tag={props.dropdownTag}
-                /> : <Box ml={"33px"} />
+                props.selected.length === 0 || props.location === "TOPBAR" ?
+                    <Icon
+                        onClick={preventDefault}
+                        ml={"5px"}
+                        mr={"10px"}
+                        name={"ellipsis"}
+                        size={"1em"}
+                        rotation={90}
+                        data-tag={props.dropdownTag}
+                    /> : <Box ml={"33px"} />
         )
     };
 
@@ -240,8 +245,8 @@ export const Operations: OperationsType = props => {
             case "IN_ROW":
                 return <>
                     <InRowPrimaryButtons>{primaryContent}</InRowPrimaryButtons>
-                    <Box mr={"10px"}/>
-                    {content.length === 0 ? <Box ml={"30px"}/> :
+                    <Box mr={"10px"} />
+                    {content.length === 0 ? <Box ml={"30px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}
@@ -278,20 +283,20 @@ export const Operations: OperationsType = props => {
                                 {" "}
                                 {props.selected.length === 0 ? null :
                                     <TextSpan color={"gray"}
-                                              fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                                        fontSize={"80%"}>{props.selected.length} selected</TextSpan>
                                 }
                             </Heading.h3>
                         }
                         {primaryContent}
-                        <Box mr={"10px"}/>
-                        {content.length === 0 ? <Box ml={"30px"}/> :
+                        <Box mr={"10px"} />
+                        {content.length === 0 ? <Box ml={"30px"} /> :
                             <Flex alignItems={"center"} justifyContent={"center"}>
                                 <ClickableDropdown {...dropdownProps}>
                                     {content}
                                 </ClickableDropdown>
                             </Flex>
                         }
-                        <Box mr={"8px"}/>
+                        <Box mr={"8px"} />
                     </Flex>
                 </>;
         }
