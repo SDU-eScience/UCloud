@@ -758,11 +758,18 @@ abstract class ResourceService<
 
     override suspend fun addUpdate(
         actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<Update>>
+        updates: BulkRequest<ResourceUpdateAndId<Update>>,
+        requireAll: Boolean,
     ) {
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
-            val resources = retrieveBulk(actorAndProject, ids, listOf(Permission.PROVIDER), includeUnconfirmed = true)
+            val resources = retrieveBulk(
+                actorAndProject,
+                ids,
+                listOf(Permission.PROVIDER),
+                includeUnconfirmed = true,
+                requireAll = requireAll,
+            )
 
             session
                 .sendPreparedStatement(
@@ -771,6 +778,8 @@ abstract class ResourceService<
                         val statusMessages = ArrayList<String?>()
                         val extraMessages = ArrayList<String>()
                         for (update in updates.items) {
+                            resources.find { it.id == update.id } ?: continue
+
                             val rawEncoded = defaultMapper.encodeToJsonElement(updateSerializer, update.update)
                             val encoded = if (rawEncoded is JsonObject) {
                                 val entries = HashMap<String, JsonElement>()

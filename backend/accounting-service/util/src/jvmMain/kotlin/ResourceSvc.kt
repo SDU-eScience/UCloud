@@ -56,7 +56,8 @@ interface ResourceSvc<
 
     suspend fun addUpdate(
         actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<Update>>
+        updates: BulkRequest<ResourceUpdateAndId<Update>>,
+        requireAll: Boolean = true,
     ) {
         throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }

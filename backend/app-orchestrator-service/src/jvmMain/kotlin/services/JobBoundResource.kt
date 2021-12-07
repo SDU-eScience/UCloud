@@ -115,7 +115,8 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                                 boundUpdate(JobBinding(JobBindKind.UNBIND, job.id))
                             )
                         }
-                    )
+                    ),
+                    requireAll = false,
                 )
             }
         })

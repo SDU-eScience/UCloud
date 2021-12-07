@@ -26,6 +26,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
@@ -244,7 +245,13 @@ class JobOrchestrator(
 
                 if (didChange && !currentState.isFinal()) {
                     if (newState != null && newState.isFinal()) {
-                        listeners.forEach { it.onTermination(session, job) }
+                        listeners.forEach {
+                            try {
+                                it.onTermination(session, job)
+                            } catch (ex: Throwable) {
+                                log.warn("Failure while terminating job: $job\n${ex.stackTraceToString()}")
+                            }
+                        }
                     }
 
                     session.sendPreparedStatement(
