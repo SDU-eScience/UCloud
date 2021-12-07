@@ -28,7 +28,8 @@ data class CopyTaskRequirements(
     val fileCount: Int?,
 )
 
-const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
+const val COPY_REQUIREMENTS_HARD_LIMIT = 100
+const val COPY_REQUIREMENTS_SIZE_HARD_LIMIT = 1000 * 1000 * 100
 const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
 class CopyTask : TaskHandler {
@@ -45,7 +46,6 @@ class CopyTask : TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
 
-        var fileCount = 0
         val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
         val pathStack = ArrayDeque(realRequest.items.map {
             val oldId = pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path
@@ -57,23 +57,31 @@ class CopyTask : TaskHandler {
 
             FileToCopy(oldId, newId, it.conflictPolicy)
         })
+        var fileCount = pathStack.size
+        var fileSize = 0L
 
         while (coroutineContext.isActive && (Time.now() <= deadline)) {
             if (fileCount >= COPY_REQUIREMENTS_HARD_LIMIT) break
+            if (fileSize >= COPY_REQUIREMENTS_SIZE_HARD_LIMIT) break
             val nextItem = pathStack.removeFirstOrNull() ?: break
-            fileCount++
 
+            val stat = runCatching { nativeFs.stat(InternalFile((nextItem.oldId))) }.getOrNull() ?: continue
+            fileSize += stat.size
 
-            val nestedFiles = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }.getOrNull() ?: continue
-            nestedFiles.forEach { fileName ->
-                val oldPath = nextItem.oldId + "/" + fileName
-                val newPath = nextItem.newId + "/" + fileName
+            if (stat.fileType == FileType.DIRECTORY) {
+                val nestedFiles =
+                    runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }.getOrNull() ?: continue
+                fileCount += nestedFiles.size
+                nestedFiles.forEach { fileName ->
+                    val oldPath = nextItem.oldId + "/" + fileName
+                    val newPath = nextItem.newId + "/" + fileName
 
-                pathStack.add(FileToCopy(oldPath, newPath, WriteConflictPolicy.REPLACE))
+                    pathStack.add(FileToCopy(oldPath, newPath, WriteConflictPolicy.REPLACE))
+                }
             }
         }
 
-        val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT
+        val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT || fileSize >= COPY_REQUIREMENTS_SIZE_HARD_LIMIT
         return TaskRequirements(
             hardLimitReached,
             defaultMapper.encodeToJsonElement(
