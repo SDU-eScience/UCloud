@@ -2,7 +2,7 @@ import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {Progress, Speed, Task, TaskUpdate} from "@/BackgroundTasks/api";
 import DetailedTask from "@/BackgroundTasks/DetailedTask";
 import * as React from "react";
-import {useCallback, useEffect, useState} from "react";
+import {useCallback, useEffect, useMemo, useState} from "react";
 import {default as ReactModal} from "react-modal";
 import styled from "styled-components";
 import {Icon} from "@/ui-components";
@@ -18,6 +18,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {associateBy, takeLast} from "@/Utilities/CollectionUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {UploadState} from "@/Files/Upload";
 
 function insertTimestamps(speeds: Speed[]): Speed[] {
     return speeds.map(it => {
@@ -122,8 +123,18 @@ const BackgroundTasks: React.FunctionComponent = () => {
         setTaskInFocus(null);
     }, []);
 
+    const activeUploadCount = useMemo(() => {
+        let activeCount = 0;
+        for (let i = 0; i < uploads.length; i++) {
+            if (uploads[i].state === UploadState.UPLOADING) {
+                activeCount++;
+            }
+        }
+        return activeCount;
+    }, [uploads]);
+
     useEffect(() => {
-        if (uploads.length > 0) {
+        if (activeUploadCount > 0) {
             window.onbeforeunload = () => {
                 snackbarStore.addInformation(
                     "You currently have uploads in progress. Are you sure you want to leave UCloud?",
@@ -139,7 +150,7 @@ const BackgroundTasks: React.FunctionComponent = () => {
     }, [uploads]);
 
     const hasTaskInFocus = taskInFocus && (tasks && tasks[taskInFocus]);
-    const numberOfTasks = Object.keys(tasks).length + uploads.length;
+    const numberOfTasks = Object.keys(tasks).length + activeUploadCount;
     if (numberOfTasks === 0) return null;
     return (
         <>
