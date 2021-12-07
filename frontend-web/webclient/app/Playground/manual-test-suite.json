@@ -1,0 +1,330 @@
+{
+    "General new features (applies to more than one place)": [
+        "Right-clicking on files, etc.",
+        "(REMOVED) Activity page"
+    ],
+    "/login": [
+        "Login with username and password",
+        "Login with WAYF",
+        "Mail to support",
+        "Go to documentation"
+    ],
+    "/dashboard": [
+        "See newest news post",
+        "See a list of file favorites",
+        "See a list of recent runs",
+        "See a list of recent notifications",
+        "See a list of resources",
+        "See usage",
+        "See outgoing grant applications",
+        "(REMOVED) Search of files and applications"
+    ],
+    "(NEW) /drives": [
+        "Create a drive",
+        "Sort by name ",
+        "(issue #2912) Sort by creator or creation date",
+        "Filter by creators name",
+        "Filter by creation date",
+        "Sort ascending/descending",
+        {
+            "For each drive:": [
+                "Rename",
+                "Delete",
+                "(issue #2911) Properties"
+            ]
+        }
+    ],
+    "/files": [
+        "Uploading of files",
+        "Creation of folders",
+        "Sort by name, file size, modified time",
+        "(REMOVED) Sort by file sensitivity, file type",
+        "Sort ascending/descending",
+        "(NEW) Show/hide hidden files",
+        "(NOT WORKING) File search",
+        {
+            "For each file:": [
+                "(issue #2913) Move/copy file to",
+                "Rename file",
+                "Move file to trash",
+                "Download file",
+                "Share file (with other user)",
+                "(issue #2914) Change sensitivity",
+                "View properties"
+            ]
+        }
+    ],
+    "/files/properties": [
+        "View file in folder",
+        {
+            "Add metadata": [
+                "Add metadata about a file, such as File sensitivity or favorite status"
+            ]
+        }
+    ],
+    "/metadata": [
+        "Is this accessible from anywhere, or just used in /files/properties?"
+    ],
+    "/shares": [
+        {
+            "View files which are shared with me": [
+                "Sort by creation date or creator of share",
+                "Filter by creator or date created"
+            ]
+        },
+        {
+            "View files which have been shared by me": {
+                "For each share": [
+                    "View status of the share",
+                    "Change share permissions (read/edit)",
+                    "Share with more users",
+                    "Delete share"
+                ]
+            }
+        },
+        "(NEW) Search shares (issue #2921)"
+    ],
+    "(NEW) Resources": [
+        {
+            "/public-ips": [
+                "Create new public ip",
+                "Sort by creation date or creator",
+                "Sort ascending/descending",
+                "Filter by creator, date creation or status (Preparing, Ready, Unavailable)"
+            ]
+        },
+        {
+            "For each public ip:": [
+                "- ?"
+            ]
+        },
+        "Search public ips"
+    ],
+    "/public-links": [
+        "Create new public link",
+        "Sort by creation date, creator or domain",
+        "Sort ascending/descending",
+        "Filter by creator, date creation or status (Preparing, Ready, Unavailable)",
+        {
+            "For each public link:": [
+                "Properties",
+                "Delete"
+            ]
+        },
+        "Search public links"
+    ],
+    "/licenses": [
+        "Create new software license",
+        "Sort by creation date or creator",
+        "Sort ascending/descending",
+        "Filter by creator, date creation or status (Preparing, Ready, Unavailable)",
+        {
+            "For each software license:": [
+                "?",
+                "Search licenses"
+            ]
+        }
+    ],
+    "/*resource*/properties": [
+        "(issue #2916) Create group"
+    ],
+    "/applications": [
+        {
+            "Browse applications": [
+                "(REMOVED) Digital Humanities section",
+                "(REMOVED) Health Science section",
+                "(MISSING) Application search"
+            ]
+        }
+    ],
+    "/applications/details": [
+        {
+            "Change version": [
+                "Add/remove from favorites",
+                "See documentation",
+                "Run application"
+            ]
+        }
+    ],
+    "/jobs/create": [
+        {
+            "See application details": [
+                "Import parameters",
+                "Upload file",
+                "(issue #2920) From UCloud",
+                "Add/remove from favorites",
+                "Submit job",
+                "Add parameters",
+                "Name",
+                "Hours, minutes",
+                "Machine type",
+                "Public links",
+                "Folders",
+                "Public IPs",
+                "App-specific parameters",
+                "(NEW) In Add folder it is now possible to add files (bug? seems to work)"
+            ]
+        }
+    ],
+    "/jobs/properties": [
+        {
+            "Open terminal": [
+                "Open interface",
+                "Stop application",
+                "Extend time allocation",
+                "See messages",
+                "See output for each node"
+            ]
+        }
+    ],
+    "/jobs (Runs)": [
+        {
+            "(NEW) Create run (redirects to Apps)": [
+                "Sort by creation date",
+                "(NEW) Sort by creator",
+                "Sort by application name",
+                "Sort by status (renamed from \"State\")",
+                "Filter by creation date",
+                "Filter by status",
+                "(NEW) Filter by creator",
+                "For each job:",
+                "View job properties",
+                "(NEW) Search for jobs"
+            ]
+        }
+    ],
+    "/projects ": [
+        {
+            "Browse projects": [
+                "Create Project Application",
+                "Show/hide archived projects",
+                "For each project:",
+                "Archive",
+                "Leave",
+                "Manage (project dashboard)"
+            ]
+        }
+    ],
+    "/project/dashboard": [
+        {
+            "Navigation to": [
+                "Members",
+                "Resources and Usage (renamed from Resource Allocation)",
+                "(REMOVED) Usage",
+                "Grant applications",
+                "Settings",
+                "(NEW) Subprojects"
+            ]
+        }
+    ],
+    "/project/members": [
+        {
+            "Invite members to project": [
+                "Bulk invite members to project",
+                "Search existing members",
+                "Change role of member (user/admin) (admin/PI-only)",
+                "Remove members from project",
+                "Create group ",
+                "Rename group",
+                "Delete group",
+                "Assign members to groups"
+            ]
+        }
+    ],
+    "(REDESIGNED) /project/resources": [
+        "Filter by usage period",
+        "Filter by product type",
+        "Change sub-allocations"
+    ],
+    "/project/grants/ingoing": [
+        "(issue #2923) Filter grant applications by all/active/inactive"
+    ],
+    "/project/grants/view": [
+        {
+            "Approve/reject application": [
+                "(NEW?) Reference ID",
+                "Edit grant request",
+                "Comment on grant application",
+                "Delete comment on grant application"
+            ]
+        }
+    ],
+    "/project/settings": [
+        {
+            "Archive project": [
+                "Leave project",
+                "Change project title",
+                "Change project logo",
+                "Change project description",
+                "(REMOVED?) Data plan management",
+                "Toggle if subprojects should be allowed to rename",
+                "Allow grant applications from",
+                "Exclude grant applications from",
+                "Automatic approval of grant applications",
+                "Change default templates for grant applications"
+            ]
+        }
+    ],
+    "/subprojects": [
+        {
+            "Create subproject": [
+                "(REMOVED? issue #2924) Rename subproject"
+            ]
+        }
+    ],
+    "/users/settings": [
+        {
+            "(NEW) Change password": [
+                "(NEW) Update user information",
+                "Email/notification settings",
+                "Invalidate sessions"
+            ]
+        }
+    ],
+    "/users/avatar": [
+        "Update user avatar"
+    ],
+    "/admin/userCreation": [
+        "Create user"
+    ],
+    "/applications/studio": [
+        "Upload application/tool"
+    ],
+    "/admin/licenseServers": [
+        "(BLANK issue #2928)"
+    ],
+    "/admin/news": [
+        {
+            "Create news post": [
+                "Browse new posts",
+                "Hide/un-hide news posts"
+            ]
+        }
+    ],
+    "/news/detailed": [
+        {
+            "Read news post": [
+                "Edit delete news post (if-admin)"
+            ]
+        }
+    ],
+    "/admin/appk8 (Maintenance UCloud)": [
+        {
+            "Pause cluster": [
+                "Kill job",
+                "Drain node",
+                "Drain cluster"
+            ]
+        }
+    ],
+    "/admin/appaau (Maintenance AAU)": [
+        {
+            "Retrieve job status": [
+                "Update job status"
+            ]
+        }
+    ],
+    "/admin/providers": [
+        "Add provider"
+    ]
+}

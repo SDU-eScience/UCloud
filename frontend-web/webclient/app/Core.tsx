@@ -51,6 +51,7 @@ const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router")
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
+const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -101,7 +102,7 @@ const Core = (): JSX.Element => (
                     <Route path={"/files"} component={requireAuth(FilesRouter)} />
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
                     <Route path={"/shares"}>
-                        <ShareRouter/>
+                        <ShareRouter />
                         <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
                     </Route>
 
@@ -113,6 +114,10 @@ const Core = (): JSX.Element => (
                         path="/applications/details/:appName/:appVersion"
                         component={requireAuth(ApplicationView)}
                     />
+
+                    {!inDevEnvironment() ? null :
+                        <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview} />
+                    }
 
                     <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)} />
                     <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)} />
