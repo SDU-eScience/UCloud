@@ -271,7 +271,7 @@ const Uploader: React.FunctionComponent = () => {
         /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
         setUploads(uploads.filter(u => !batch.some(b => b === u)));
         toggleSet.uncheckAll();
-    }, [uploads])
+    }, [uploads]);
 
     const callbacks: UploadCallback = useMemo(() => (
         {startUploads, stopUploads, pauseUploads, resumeUploads, clearUploads}
@@ -458,19 +458,26 @@ const renderer: ItemRenderer<Upload> = {
                     ({sizeToString(uploadCalculateSpeed(resource))}/s)
                 </ListRowStat>
             }
+            {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
+                <ErrorSpan>Quota has been exceeded. Delete some files and try again later.</ErrorSpan>
+            </ListRowStat>}
         </>
     },
 
     ImportantStats: ({resource}) => {
         const upload = resource;
         if (!upload) return null;
+        const {terminationRequested, paused, state, error} = upload;
+        const iconName = terminationRequested || error ? "close" : "check";
+        const iconColor = terminationRequested || error ? "red" : "green";
         return <>
-            {upload.state !== UploadState.DONE ? null : (
-                upload.paused ? null :
-                    (upload.terminationRequested ?
-                        <Icon name="close" color="red" /> :
-                        <Icon name="check" color="green" />
-                    )
+            {state !== UploadState.DONE ? null : (
+                paused ? null : <Box>
+                    <Icon
+                        name={iconName}
+                        color={iconColor}
+                    />
+                </Box>
             )}
         </>;
     }
@@ -507,6 +514,15 @@ const operations: Operation<Upload, UploadCallback>[] = [
         color: "red"
     }
 ];
+
+const ErrorSpan = styled.span`
+    color: var(--white);
+    border: 1px solid red;
+    background-color: red;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 2px;
+`
 
 const UploaderArt: React.FunctionComponent = () => {
     return <UploadArtWrapper>

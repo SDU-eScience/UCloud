@@ -9,7 +9,7 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
-import {joinToString, removeTrailingSlash} from "@/UtilityFunctions";
+import {isLightThemeStored, joinToString, removeTrailingSlash} from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
@@ -32,6 +32,9 @@ export const FilesBrowse: React.FunctionComponent<{
     pathRef?: React.MutableRefObject<string>;
     forceNavigationToPage?: boolean;
 }> = props => {
+
+    const lightTheme = isLightThemeStored();
+
     const browseType = props.browseType ?? BrowseType.MainContent;
     const [, setUploadPath] = useGlobal("uploadPath", "/");
     const location = useLocation();
@@ -63,8 +66,8 @@ export const FilesBrowse: React.FunctionComponent<{
     );
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-            browseType === BrowseType.Embedded &&
-            props.forceNavigationToPage !== true,
+        browseType === BrowseType.Embedded &&
+        props.forceNavigationToPage !== true,
         []
     );
 
@@ -154,23 +157,23 @@ export const FilesBrowse: React.FunctionComponent<{
                     />
                 </DriveDropdown>
                 <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
-                                 className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                    className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
                     {breadcrumbs.map((it, idx) => (
                         <span key={it} test-tag={it} title={it}
-                              onClick={() => {
-                                  navigateToPath(
-                                      history,
-                                      "/" + joinToString(components.slice(0, idx + 1), "/")
-                                  );
-                              }}
+                            onClick={() => {
+                                navigateToPath(
+                                    history,
+                                    "/" + joinToString(components.slice(0, idx + 1), "/")
+                                );
+                            }}
                         >
-                        {it}
-                    </span>
+                            {it}
+                        </span>
                     ))}
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.data]);
+    }, [path, browseType, collection.data, drives.data, lightTheme]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
@@ -229,7 +232,7 @@ const DriveDropdown: React.FunctionComponent = props => {
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
-                <Icon mt="8px" mr="6px" name="hdd" size="24px"/>
+                <Icon mt="8px" mr="6px" name="hdd" size="24px" />
                 <Icon
                     size="12px"
                     mr="8px"
