@@ -175,6 +175,7 @@ export const ItemRow = <T, CB>(
                         operations={props.operations}
                         row={props.item}
                         openFnRef={openOperationsRef}
+                        forceEvaluationOnOpen
                     /> : null}
             </>
         }

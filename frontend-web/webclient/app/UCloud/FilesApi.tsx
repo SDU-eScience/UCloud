@@ -37,7 +37,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
-import {addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
+import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
 import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
@@ -571,10 +571,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
+                // Empty trash of current directory
                 text: "Empty Trash",
                 icon: "trash",
                 color: "red",
-                confirm: true,
                 primary: true,
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
@@ -591,10 +591,21 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return false;
                 },
                 onClick: async (_, cb) => {
-                    await cb.invokeCommand(
-                        this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
-                    );
-                    cb.reload()
+                    addStandardDialog({
+                        title: "Are you sure you wish to empty the trash?",
+                        message: "You cannot recover deleted files!",
+                        confirmText: "Empty trash",
+                        addToFront: true,
+                        cancelButtonColor: "blue",
+                        confirmButtonColor: "red",
+                        onConfirm: async () => {
+                            await cb.invokeCommand(
+                                this.emptyTrash(bulkRequestOf({id: cb.directory?.id ?? ""}))
+                            );
+                            cb.reload()
+                        },
+                        onCancel: doNothing,
+                    });
                 },
             },
             {

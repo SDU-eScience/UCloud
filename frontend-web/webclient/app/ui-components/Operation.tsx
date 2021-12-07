@@ -116,11 +116,9 @@ const OperationComponent: React.FunctionComponent<{
     </As>;
 
     if (reasonDisabled === undefined) {
-        if (As === ConfirmationButton && location === "SIDEBAR") {
-            return <><Divider />{component}</>
-        }
         return component;
     }
+
     return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
 };
 
@@ -164,7 +162,7 @@ export const Operations: OperationsType = props => {
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
     if (props.location === "IN_ROW" && !props.row) return null;
 
-    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
