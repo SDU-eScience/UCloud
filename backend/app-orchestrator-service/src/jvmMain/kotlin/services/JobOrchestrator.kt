@@ -159,6 +159,7 @@ class JobOrchestrator(
                 val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
                 val names = ArrayList<String?>().also { setParameter("names", it) }
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
+                val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
                 setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
@@ -167,18 +168,20 @@ class JobOrchestrator(
                     timeAllocationMillis.add(spec.timeAllocation?.toMillis())
                     names.add(spec.name)
                     resources.add(id)
+                    openedFiles.add(spec.openedFile)
                 }
             },
             """
                 with bulk_data as (
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
-                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export
+                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
+                           unnest(:opened_file::text[]) opened_file
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
-                     output_folder, current_state, started_at, resource, job_parameters) 
-                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export
+                     output_folder, current_state, started_at, resource, job_parameters, opened_file) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file
                 from bulk_data
             """
         )

@@ -42,6 +42,7 @@ export interface JobSpecification extends ResourceSpecification {
     parameters: Record<string, AppParameterValue>;
     resources: AppParameterValue[];
     timeAllocation?: SimpleDuration;
+    openedFile?: string;
 }
 
 export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED";

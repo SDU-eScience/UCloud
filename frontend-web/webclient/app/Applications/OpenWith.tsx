@@ -116,7 +116,8 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                         type: "file",
                         path: file.status.type === "DIRECTORY" ? file.id : getParentPath(file.id),
                         readOnly: false
-                    }]
+                    }],
+                    openedFile: file.id
                 })),
                 {defaultErrorHandler: false}
             );
