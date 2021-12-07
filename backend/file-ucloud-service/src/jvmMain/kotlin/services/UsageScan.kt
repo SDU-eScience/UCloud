@@ -40,12 +40,15 @@ class UsageScan(
     }
 
     suspend fun startScan() {
+        dataPoints.clear()
+        globalErrorCounter.set(0)
+        globalRequestCounter.set(0)
+
         val scanId = Time.now().toString()
 
         val chunkSize = 50
         db.withSession { session ->
             run {
-                println("Collections")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/collections"))
                 val collections = fs.listFiles(collectionRoot).mapNotNull { it.toLongOrNull() }
                 collections.chunked(chunkSize).forEach { chunk ->
@@ -68,7 +71,6 @@ class UsageScan(
             }
 
             run {
-                println("Home")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/home"))
                 val collections = fs.listFiles(collectionRoot)
                 collections.chunked(chunkSize).forEach { chunk ->
@@ -98,7 +100,6 @@ class UsageScan(
 
             run {
                 // TODO(Dan): If files are only stored in member files then we won't find them with this code
-                println("Projects")
                 val collectionRoot = pathConverter.relativeToInternal(RelativeInternalFile("/projects"))
                 val collections = fs.listFiles(collectionRoot)
                 collections.chunked(chunkSize).forEach { chunk ->
@@ -167,8 +168,7 @@ class UsageScan(
                     delete from file_ucloud.quota_locked
                     where scan_id != :scan_id
                 """,
-                debug = true
-            ).also { println("Rows affected from deletion: ${it.rowsAffected}") }
+            )
         }
     }
 
@@ -178,12 +178,6 @@ class UsageScan(
         resolvedCollections: List<FileCollection>,
         debug: List<String>,
     ) {
-        println("---")
-        println(chunk)
-        println(sizes)
-        println(resolvedCollections.map { it.owner })
-        println(debug)
-        println("---")
         for (idx in chunk.indices) {
             val size = sizes[idx]
             val collectionId = chunk[idx] ?: continue
@@ -254,8 +248,6 @@ class UsageScan(
         chunk: List<UsageDataPoint>,
         requests: List<ResourceChargeCredits>
     ) {
-        println("$scanId $chunk $requests")
-        println("?")
         if (requests.isEmpty()) return
 
         try {
