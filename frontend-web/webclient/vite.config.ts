@@ -42,7 +42,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
             "process.env": {},
             DEVELOPMENT_ENV: mode !== "production",
         },
-        mode: mode === "production" ? "production" : "developement",
+        mode: mode === "production" ? "production" : "development",
         plugins: [reactRefresh()],
         resolve: {
             alias: {
