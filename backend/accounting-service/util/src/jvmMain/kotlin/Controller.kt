@@ -70,6 +70,10 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
                     ok(chargeCredits(actorAndProject, request))
                 }
 
+                implement(controlApi.checkCredits) {
+                    ok(chargeCredits(actorAndProject, request, checkOnly = true))
+                }
+
                 implement(controlApi.register) {
                     ok(register(actorAndProject, request))
                 }

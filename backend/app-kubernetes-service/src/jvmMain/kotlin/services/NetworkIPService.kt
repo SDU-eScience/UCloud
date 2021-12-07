@@ -113,10 +113,14 @@ class NetworkIPService(
 
             try {
                 // Immediately charge the user before we do any IP allocation
-                NetworkIPControl.chargeCredits.call(
-                    bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage)),
-                    k8.serviceClient
-                ).orThrow()
+                val request =
+                    bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage))
+                val results = NetworkIPControl.checkCredits.call(request, k8.serviceClient).orThrow()
+                if (results.insufficientFunds.isNotEmpty()) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired, "Missing resources")
+                } else {
+                    NetworkIPControl.chargeCredits.call(request, k8.serviceClient)
+                }
             } catch (ex: Throwable) {
                 if (!allowFailures) throw ex
             }

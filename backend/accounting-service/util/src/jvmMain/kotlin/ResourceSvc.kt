@@ -75,7 +75,8 @@ interface ResourceSvc<
 
     suspend fun chargeCredits(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<ResourceChargeCredits>
+        request: BulkRequest<ResourceChargeCredits>,
+        checkOnly: Boolean = false,
     ): ResourceChargeCreditsResponse {
         throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }

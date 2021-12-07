@@ -934,7 +934,8 @@ abstract class ResourceService<
 
     override suspend fun chargeCredits(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<ResourceChargeCredits>
+        request: BulkRequest<ResourceChargeCredits>,
+        checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
         val ids = request.items.asSequence().map { it.id }.toSet()
 
@@ -968,7 +969,9 @@ abstract class ResourceService<
             )
         }
 
-        val chargeResult = payment.charge(paymentRequests)
+        val chargeResult =
+            if (checkOnly) payment.creditCheckForPayments(paymentRequests)
+            else payment.charge(paymentRequests)
 
         val insufficient = chargeResult.mapIndexedNotNull { index, result ->
             val request = request.items[index]
