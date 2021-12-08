@@ -143,8 +143,9 @@ class ElasticQueryService(
     suspend fun query(
         searchRequest: FilesProviderSearchRequest
     ): PageV2<PartialUFile> {
+        val normalizedRequest = searchRequest.normalize()
         if (searchRequest.query.isBlank()) {
-            return PageV2(searchRequest.itemsPerPage ?: 50, emptyList(), null)
+            return PageV2(normalizedRequest.itemsPerPage, emptyList(), null)
         }
         if (searchRequest.next != null) {
             val searchScrollRequest = SearchScrollRequest(searchRequest.next)
@@ -161,7 +162,7 @@ class ElasticQueryService(
 
             val existingHits = verifyAndUpdateIndex(hits)
 
-            return PageV2(searchRequest.itemsPerPage ?: 50, existingHits, scrollId)
+            return PageV2(normalizedRequest.itemsPerPage, existingHits, scrollId)
         }
 
         val request = SearchRequest(FILES_INDEX)
@@ -171,7 +172,7 @@ class ElasticQueryService(
 
         source.sort(ElasticIndexedFileConstants.FILE_NAME_KEYWORD, SortOrder.ASC)
 
-        source.size(searchRequest.itemsPerPage ?: 50)
+        source.size(normalizedRequest.itemsPerPage)
         request.source(source)
         request.scroll(TimeValue.timeValueMinutes(1))
 
@@ -187,7 +188,11 @@ class ElasticQueryService(
 
         val existingHits = verifyAndUpdateIndex(hits)
 
-        return PageV2(searchRequest.itemsPerPage ?: 50, existingHits, scrollId)
+        return PageV2(
+            normalizedRequest.itemsPerPage,
+            existingHits,
+            if ((response.hits?.totalHits?.value ?: 0) > normalizedRequest.itemsPerPage) scrollId else null
+        )
     }
 
     private fun searchBasedOnQuery(searchRequest: FilesProviderSearchRequest): QueryBuilder {
