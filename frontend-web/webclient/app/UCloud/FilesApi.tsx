@@ -502,6 +502,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                             "directory.";
                     }
 
+                    const hasTrashFolder = selected.some(it => it.status.icon === "DIRECTORY_TRASH");
+                    if (hasTrashFolder) {
+                        return "You cannot share your trash";
+                    }
+
                     return true;
                 },
                 onClick: async (selected, cb) => {
