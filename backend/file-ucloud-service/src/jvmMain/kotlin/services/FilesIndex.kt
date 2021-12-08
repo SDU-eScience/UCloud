@@ -8,19 +8,25 @@ import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.xcontent.XContentType
 import dk.sdu.cloud.file.ucloud.services.FileScanner.Companion.FILES_INDEX
+import dk.sdu.cloud.service.Loggable
+import java.net.ConnectException
+import java.util.concurrent.ExecutionException
 
-object FilesIndex {
+object FilesIndex : Loggable {
+    override val log = logger()
+
     fun delete(elastic: RestHighLevelClient) {
         elastic.indices().delete(DeleteIndexRequest(FILES_INDEX), RequestOptions.DEFAULT)
     }
 
     fun create(elastic: RestHighLevelClient, numberOfShards: Int, numberOfReplicas: Int) {
-        if (elastic.indices().exists(GetIndexRequest(FILES_INDEX), RequestOptions.DEFAULT)) {
-            return
-        }
-        val request = CreateIndexRequest(FILES_INDEX)
-        request.settings(
-            """
+        try {
+            if (elastic.indices().exists(GetIndexRequest(FILES_INDEX), RequestOptions.DEFAULT)) {
+                return
+            }
+            val request = CreateIndexRequest(FILES_INDEX)
+            request.settings(
+                """
                 {
                     "number_of_shards": $numberOfShards,
                     "number_of_replicas": $numberOfReplicas,
@@ -52,11 +58,11 @@ object FilesIndex {
                     }
                 }
             """.trimIndent(),
-            XContentType.JSON
-        )
+                XContentType.JSON
+            )
 
-        request.mapping(
-            """
+            request.mapping(
+                """
                 {
                     "properties": {
                         "path": {
@@ -112,9 +118,20 @@ object FilesIndex {
                     }
                 }
             """.trimIndent(),
-            XContentType.JSON
-        )
-        elastic.indices().create(request, RequestOptions.DEFAULT)
-        elastic.indices().flush(FlushRequest("files").waitIfOngoing(true), RequestOptions.DEFAULT)
+                XContentType.JSON
+            )
+            elastic.indices().create(request, RequestOptions.DEFAULT)
+            elastic.indices().flush(FlushRequest("files").waitIfOngoing(true), RequestOptions.DEFAULT)
+        } catch (ex: ExecutionException) {
+            log.info("It looks like ElasticSearch isn't running. We cannot index any files in that case.")
+        } catch (ex: ConnectException) {
+            log.info("It looks like ElasticSearch isn't running. We cannot index any files in that case.")
+        } catch (ex: Throwable) {
+            if (ex.cause is ExecutionException) {
+                log.info("It looks like ElasticSearch isn't running. We cannot index any files in that case.")
+            } else {
+                log.warn(ex.stackTraceToString())
+            }
+        }
     }
 }
