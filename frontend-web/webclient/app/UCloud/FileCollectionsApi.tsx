@@ -163,7 +163,6 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 }
                 return true;
             };
-            deleteOperation.confirm = false;
             const defaultOnClick = deleteOperation.onClick;
             deleteOperation.onClick = (selected, cb, all) => {
                 dialogStore.addDialog((
