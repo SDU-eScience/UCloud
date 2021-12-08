@@ -3,6 +3,7 @@ import * as UCloud from "@/UCloud";
 import {Box, Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
+    findRelevantMachinesForApplication,
     Machines,
     setMachineReservationFromRef,
     validateMachineReservation
@@ -58,30 +59,7 @@ export const ReservationParameter: React.FunctionComponent<{
         }
     }, [wallet]);
 
-    const allMachines = ([] as ProductCompute[]).concat.apply(
-        [],
-        Object.values(machineSupport.data.productsByProvider).map(products => {
-            return products
-                .filter(it => {
-                    const tool = application.invocation.tool.tool!;
-                    const backend = tool.description.backend;
-                    switch (backend) {
-                        case "DOCKER":
-                            return it.support.docker.enabled;
-                        case "SINGULARITY":
-                            return false;
-                        case "VIRTUAL_MACHINE":
-                            return it.support.virtualMachine.enabled &&
-                                (tool.description.supportedProviders ?? [])
-                                    .some(p => p === it.product.category.provider);
-                    }
-                })
-                .filter(product =>
-                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
-                )
-                .map(it => it.product);
-        })
-    );
+    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, wallet.data);
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
