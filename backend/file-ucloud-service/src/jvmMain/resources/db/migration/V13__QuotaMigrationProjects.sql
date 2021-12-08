@@ -24,8 +24,8 @@ where wa.id = w.alloc_id;
 
 update accounting.wallet_allocations wa
 set initial_balance = balance
-where initial_balance > balance;
+where initial_balance != balance;
 
 update accounting.wallet_allocations wa
 set local_balance = balance
-where local_balance > balance;
+where local_balance != balance;
