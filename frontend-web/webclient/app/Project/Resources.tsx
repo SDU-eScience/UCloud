@@ -211,10 +211,10 @@ const AllocationViewer: React.FunctionComponent<{
 
 const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | null;}> = ({startDate, endDate}) => {
     const now = timestampUnixMs();
-    if (endDate == null) {
-        return <>No expiration</>;
-    } else if (now < startDate) {
+    if (now < startDate) {
         return <>Starts in {formatDistance(new Date(startDate), new Date(now))}</>;
+    } else if (endDate == null) {
+        return <>No expiration</>;
     } else if (now < endDate) {
         return <>Expires in {formatDistance(new Date(endDate), new Date(now))}</>;
     } else {
