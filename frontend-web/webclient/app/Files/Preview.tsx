@@ -69,7 +69,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     }, [file]);
 
     if (file.status.type !== "FILE") return null;
-    if (loading) return <PredicatedLoadingSpinner loading />
+    if (loading || data === "") return <PredicatedLoadingSpinner loading />
 
     let node: JSX.Element | null;
 

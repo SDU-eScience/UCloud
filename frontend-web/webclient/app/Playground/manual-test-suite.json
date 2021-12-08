@@ -1,7 +1,6 @@
 {
     "General new features (applies to more than one place)": [
-        "Right-clicking on files, etc.",
-        "(REMOVED) Activity page"
+        "Right-clicking on files, etc."
     ],
     "/login": [
         "Login with username and password",
@@ -17,12 +16,12 @@
         "See a list of resources",
         "See usage",
         "See outgoing grant applications",
-        "(REMOVED) Search of files and applications"
+        "Search of files and applications"
     ],
     "(NEW) /drives": [
         "Create a drive",
         "Sort by name ",
-        "(issue #2912) Sort by creator or creation date",
+        "Sort by creator or creation date",
         "Filter by creators name",
         "Filter by creation date",
         "Sort ascending/descending",
@@ -30,7 +29,7 @@
             "For each drive:": [
                 "Rename",
                 "Delete",
-                "(issue #2911) Properties"
+                "View properties"
             ]
         }
     ],
@@ -41,16 +40,17 @@
         "Sort by name, file size, modified time",
         "(REMOVED) Sort by file sensitivity, file type",
         "Sort ascending/descending",
-        "(NEW) Show/hide hidden files",
-        "(NOT WORKING) File search",
+        "Show/hide hidden files",
+        "File search",
         {
             "For each file:": [
-                "(issue #2913) Move/copy file to",
+                "Move file to",
+                "Copy file to",
                 "Rename file",
                 "Move file to trash",
                 "Download file",
                 "Share file (with other user)",
-                "(issue #2914) Change sensitivity",
+                "Change sensitivity",
                 "View properties"
             ]
         }
@@ -83,7 +83,7 @@
                 ]
             }
         },
-        "(NEW) Search shares (issue #2921)"
+        "Search shares"
     ],
     "(NEW) Resources": [
         {
@@ -127,14 +127,13 @@
         }
     ],
     "/*resource*/properties": [
-        "(issue #2916) Create group"
+        "Create group"
     ],
     "/applications": [
         {
             "Browse applications": [
-                "(REMOVED) Digital Humanities section",
-                "(REMOVED) Health Science section",
-                "(MISSING) Application search"
+                "Application search",
+                "Favorite application"
             ]
         }
     ],
@@ -150,9 +149,9 @@
     "/jobs/create": [
         {
             "See application details": [
-                "Import parameters",
-                "Upload file",
-                "(issue #2920) From UCloud",
+                "Import parameters from UCloud",
+                "Import parameters from file",
+                "Import parameters from job",
                 "Add/remove from favorites",
                 "Submit job",
                 "Add parameters",
@@ -257,7 +256,6 @@
                 "Change project title",
                 "Change project logo",
                 "Change project description",
-                "(REMOVED?) Data plan management",
                 "Toggle if subprojects should be allowed to rename",
                 "Allow grant applications from",
                 "Exclude grant applications from",
@@ -269,7 +267,7 @@
     "/subprojects": [
         {
             "Create subproject": [
-                "(REMOVED? issue #2924) Rename subproject"
+                "(Need permission) Rename subproject"
             ]
         }
     ],
@@ -292,7 +290,7 @@
         "Upload application/tool"
     ],
     "/admin/licenseServers": [
-        "(BLANK issue #2928)"
+        "Temporarily out of service"
     ],
     "/admin/news": [
         {

@@ -322,7 +322,9 @@ export function ResourceProperties<Res extends Resource>(
                                     </Box>
                                     <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
                                 </>}
-                                <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                                {resource.owner.createdBy.indexOf("_") === 0 ? null :
+                                    <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                                }
                             </Flex>
                         </HighlightedCard>
                     }
