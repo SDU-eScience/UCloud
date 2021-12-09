@@ -1,6 +1,4 @@
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as UF from "@/UtilityFunctions";
-import {ProjectName} from "@/Project";
 
 /**
  * Used for resolving paths, which contain either "." or "..", and returning the resolved path.
@@ -32,34 +30,6 @@ export function pathComponents(path: string): string[] {
     return resolvePath(path).split("/").filter(it => it !== "");
 }
 
-interface IsInvalidPathname {
-    path: string;
-    filePaths: string[];
-}
-
-/**
- * Checks if a pathname is legal/already in use
- * @param {string} path The path being tested
- * @param {string[]} filePaths the other file paths path is being compared against
- * @returns whether or not the path is invalid
- */
-export const isInvalidPathName = ({path, filePaths}: IsInvalidPathname): boolean => {
-    if (["..", "/"].some((it) => path.includes(it))) {
-        snackbarStore.addFailure("Folder name cannot contain '..' or '/'", false);
-        return true;
-    }
-    if (path === "" || path === ".") {
-        snackbarStore.addFailure("Folder name cannot be empty or be \".\"", false);
-        return true;
-    }
-    const existingName = filePaths.some(it => it === path);
-    if (existingName) {
-        snackbarStore.addFailure("File with that name already exists", false);
-        return true;
-    }
-    return false;
-};
-
 export const getParentPath = (path: string): string => {
     if (path.length === 0) return path;
     let splitPath = path.split("/");
@@ -90,14 +60,6 @@ export const fileName = (path: string): string => {
         return path;
     }
 };
-
-export function getFilenameFromPath(path: string, projects: ProjectName[]): string {
-    const baseName: string = fileName(path);
-
-    if (baseName === "..") return `.. (${getFilenameFromPath(goUpDirectory(2, path), projects)})`;
-    if (baseName === ".") return `. (Current folder)`;
-    return baseName;
-}
 
 function isInt(value: number): boolean {
     if (isNaN(value)) {
