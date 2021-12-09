@@ -454,7 +454,7 @@ class ProjectService(
             MailDescriptions.sendToUser.call(
                 bulkRequestOf(adminMessages + userMessage),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 
