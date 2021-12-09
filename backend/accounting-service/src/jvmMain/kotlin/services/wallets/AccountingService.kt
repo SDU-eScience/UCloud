@@ -112,16 +112,17 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
     ): BulkResponse<Boolean> {
-        val actor = actorAndProject.actor
-        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
+        try {
+            val actor = actorAndProject.actor
+            if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            }
 
-        return BulkResponse(
-            db.withSession(remapExceptions = true, transactionMode) { session ->
-                session.sendPreparedStatement(
-                    packChargeRequests(request),
-                    """
+            return BulkResponse(
+                db.withSession(remapExceptions = true, transactionMode) { session ->
+                    session.sendPreparedStatement(
+                        packChargeRequests(request),
+                        """
                         with requests as (
                             select (
                                 unnest(:payer_ids::text[]),
@@ -139,11 +140,20 @@ class AccountingService(
                         select accounting.credit_check(array_agg(req))
                         from requests;
                     """
-                ).rows.map {
-                    it.getBoolean(0)!!
+                    ).rows.map {
+                        it.getBoolean(0)!!
+                    }
                 }
+            )
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.BadRequest && ex.why.contains("Permission denied")) {
+                throw RPCException(
+                    "Unable to pay for this product. Make sure that you have enough resources to perform this action!",
+                    HttpStatusCode.PaymentRequired
+                )
             }
-        )
+            throw ex
+        }
     }
 
     private fun packChargeRequests(request: BulkRequest<ChargeWalletRequestItem>): EnhancedPreparedStatement.() -> Unit =

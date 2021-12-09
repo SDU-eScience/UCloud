@@ -35,6 +35,7 @@
     ],
     "/files": [
         "Uploading of files",
+        "Clear upload",
         "Creation of folders",
         "Sort by name, file size, modified time",
         "Sort ascending/descending",

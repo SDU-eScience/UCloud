@@ -123,7 +123,7 @@ function NewsManagement(): JSX.Element | null {
                                     onClick={() => setPreview(true)}
                                 >Preview</SelectableText>
                             </Flex>
-                            <TextAreaWithMargin
+                            <TextAreaWithResize
                                 width={1}
                                 placeholder="Post body... (supports markdown)"
                                 ref={bodyRef}
@@ -255,9 +255,8 @@ function NewsManagement(): JSX.Element | null {
     }
 }
 
-const TextAreaWithMargin = styled(TextArea)`
-    marginTop: 5px;
-    marginLeft: 4px;
+const TextAreaWithResize = styled(TextArea)`
+    resize: vertical;
 `;
 
 interface NewsListProps {

@@ -491,10 +491,7 @@ class JobOrchestrator(
                 }
 
                 try {
-                    select<Unit> {
-                        (logJob ?: Job()).onJoin {}
-                        updateJob.onJoin {}
-                    }
+                    updateJob.join()
                 } finally {
                     val capturedId = streamId
                     if (capturedId != null) {

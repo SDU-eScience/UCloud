@@ -9,9 +9,41 @@ import {accounting} from "@/UCloud";
 import ComputeProductReference = accounting.ProductReference;
 import styled from "styled-components";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
-import {priceExplainer, ProductCompute} from "@/Accounting";
+import {priceExplainer, productCategoryEquals, ProductCompute} from "@/Accounting";
+import * as UCloud from "@/UCloud";
 
 export const reservationMachine = "reservation-machine";
+
+export function findRelevantMachinesForApplication(
+    application: UCloud.compute.Application,
+    machineSupport: UCloud.compute.JobsRetrieveProductsResponse,
+    wallets: UCloud.PageV2<ProductCompute>
+): ProductCompute[] {
+    return ([] as ProductCompute[]).concat.apply(
+        [],
+        Object.values(machineSupport.productsByProvider).map(products => {
+            return products
+                .filter(it => {
+                    const tool = application.invocation.tool.tool!;
+                    const backend = tool.description.backend;
+                    switch (backend) {
+                        case "DOCKER":
+                            return it.support.docker.enabled;
+                        case "SINGULARITY":
+                            return false;
+                        case "VIRTUAL_MACHINE":
+                            return it.support.virtualMachine.enabled &&
+                                (tool.description.supportedProviders ?? [])
+                                    .some(p => p === it.product.category.provider);
+                    }
+                })
+                .filter(product =>
+                    wallets.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
+                )
+                .map(it => it.product);
+        })
+    );
+}
 
 export const Machines: React.FunctionComponent<{
     machines: ProductCompute[];
