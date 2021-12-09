@@ -13,6 +13,7 @@ import {addStandardDialog} from "@/UtilityComponents";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export function MembersList(props: Readonly<{
     members: ProjectMember[];
@@ -132,11 +133,11 @@ export function MembersList(props: Readonly<{
                     <Flex alignItems={"center"}>
                         {!props.onAddToGroup ? !allowManagement || member.role === ProjectRole.PI ? null :
                             <ConfirmationButtonStyling>
-                                <ConfirmationButton
+                                {member.username == Client.username ? null : <ConfirmationButton
                                     icon={"close"}
                                     actionText="Remove"
                                     onAction={() => props.onRemoveMember(member.username)}
-                                />
+                                />}
                             </ConfirmationButtonStyling> :
                             <Button ml="8px" color="green" height="35px" width="35px" onClick={() => props.onAddToGroup!(member.username)}>
                                 <Icon

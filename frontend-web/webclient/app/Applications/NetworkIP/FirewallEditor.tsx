@@ -1,6 +1,6 @@
 import * as React from "react";
 import NetworkIPApi, {NetworkIP} from "@/UCloud/NetworkIPApi";
-import {Box, Button, Input, Select} from "@/ui-components";
+import {Box, Button, Input, Select, Text} from "@/ui-components";
 import {ShakingBox} from "@/UtilityComponents";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {useCallback, useRef, useState} from "react";
@@ -8,6 +8,7 @@ import {useCloudCommand} from "@/Authentication/DataHook";
 import {blankOrUndefined} from "@/UtilityFunctions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import HighlightedCard from "@/ui-components/HighlightedCard";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const FirewallEditor: React.FunctionComponent<{
     inspecting: NetworkIP;
@@ -106,8 +107,14 @@ export const FirewallEditor: React.FunctionComponent<{
                             <TableCell>{row.end}</TableCell>
                             <TableCell>{row.protocol}</TableCell>
                             <TableCell>
-                                <Button type={"button"} color={"red"} fullWidth
-                                        onClick={() => onRemoveRow(idx)}>Remove</Button>
+                                <ConfirmationButton
+                                    type={"button"}
+                                    color={"red"}
+                                    fullWidth
+                                    icon={"close"}
+                                    actionText={"Remove"}
+                                    onAction={() => onRemoveRow(idx)}
+                                />
                             </TableCell>
                         </TableRow>
                     })}
@@ -120,7 +127,7 @@ export const FirewallEditor: React.FunctionComponent<{
                                 <option>UDP</option>
                             </Select>
                         </TableCell>
-                        <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}>Add</Button></TableCell>
+                        <TableCell><Button type={"submit"} fullWidth onClick={onAddRow}><Text fontSize={"18px"}>Add </Text></Button></TableCell>
                     </TableRow>
                     </tbody>
                 </Table>
