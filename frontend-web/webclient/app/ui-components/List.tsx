@@ -53,6 +53,7 @@ interface ListRowProps {
     highlight?: boolean;
     stopPropagation?: boolean;
     onContextMenu?: EventHandler<MouseEvent<never>>;
+    disableSelection?: boolean;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -63,7 +64,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     }, [props.navigate, props.select, stopPropagation]);
 
     const doSelect = useCallback((e: React.SyntheticEvent) => {
-        props.select?.();
+        if (!props.disableSelection) props.select?.();
         if (stopPropagation) e.stopPropagation();
     }, [props.select, stopPropagation]);
 
