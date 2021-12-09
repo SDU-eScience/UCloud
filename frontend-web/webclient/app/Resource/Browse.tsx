@@ -92,7 +92,7 @@ function getStoredSortDirection(title: string): "ascending" | "descending" | nul
 }
 
 function getStoredSortColumn(title: string): string | null {
-    return localStorage.getItem(`${title}:sortColumn`)
+    return localStorage.getItem(`${title}:sortColumn`);
 }
 
 function setStoredSortColumn(title: string, column?: string): void {
@@ -398,12 +398,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         Select all
                     </Label>
                 } right={
-                    <Flex width="280px">
+                    <Flex width="auto">
                         {api.sortEntries.length === 0 ? null : <EnumFilterWidget
                             expanded={false}
                             browseType={BrowseType.Card}
                             propertyName="column"
-                            title="Sort by"
+                            title={sortOptions.find(it => it.value === sortColumn)?.title ?? "Sort By"}
                             facedownChevron
                             id={0}
                             onExpand={doNothing}
@@ -412,7 +412,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             onPropertiesUpdated={updated => onSortUpdated(sortDirection, updated.column)}
                             icon="properties"
                         />}
-                        <Box mx="auto" />
+                        <Box mx="8px" />
                         <EnumFilterWidget
                             expanded={false}
                             browseType={BrowseType.Card}
