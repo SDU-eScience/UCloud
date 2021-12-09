@@ -6,7 +6,7 @@ import {useHistory} from "react-router";
 import {useEffect} from "react";
 import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {ApplicationCard} from "@/Applications/Card";
@@ -57,6 +57,7 @@ function readQuery(queryParams: string): SearchQuery {
 
 export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = ({entriesPerPage}) => {
     const history = useHistory();
+    const [, invokeCommand] = useCloudCommand();
     const [results, fetchResults] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite>>(
         {noop: true},
         emptyPage
@@ -73,7 +74,18 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                 page: 0
             })
         );
-    }, [queryParams, entriesPerPage]);
+    }, [queryParams, /* This isn't needed for this one, is it? */entriesPerPage]);
+
+    const toggleFavorite = React.useCallback(async (appName: string, appVersion: string) => {
+        await invokeCommand(UCloud.compute.apps.toggleFavorite({appName, appVersion}));
+        fetchResults(
+            UCloud.compute.apps.searchApps({
+                query: new URLSearchParams(queryParams).get("q") ?? "",
+                itemsPerPage: 100,
+                page: 0
+            })
+        );
+    }, [fetch]);
 
     return <>
         <FilesSearchTabs active={"APPLICATIONS"} />
@@ -87,6 +99,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                         <ApplicationCard
                             key={`${app.metadata.name}${app.metadata.version}`}
                             app={app}
+                            onFavorite={toggleFavorite}
                             isFavorite={app.favorite}
                             tags={app.tags}
                         />))
