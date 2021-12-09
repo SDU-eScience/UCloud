@@ -151,7 +151,6 @@ interface LegacyReduxObject {
     status: StatusReduxObject;
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
-    sidebar: SidebarReduxObject;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
@@ -191,7 +190,6 @@ export function initObject(): ReduxObject {
         status: initStatus(),
         header: initHeader(),
         notifications: initNotifications(),
-        sidebar: initSidebar(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
@@ -200,12 +198,6 @@ export function initObject(): ReduxObject {
 
 export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
-
-export const initSidebar = (): SidebarReduxObject => ({
-    pp: false,
-    kcCount: 0,
-    options: []
-});
 
 export const defaultSearchPlaceholder = "Search files and applications..."
 
