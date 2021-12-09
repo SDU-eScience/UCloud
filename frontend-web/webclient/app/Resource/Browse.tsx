@@ -87,6 +87,21 @@ export interface BaseResourceBrowseProps<Res extends Resource> {
     onSelectRestriction?: (resource: Res) => boolean;
 }
 
+function getStoredSortDirection(title: string): "ascending" | "descending" | null {
+    return localStorage.getItem(`${title}:sortDirection`) as "ascending" | "descending" | null;
+}
+
+function getStoredSortColumn(title: string): string | null {
+    return localStorage.getItem(`${title}:sortColumn`)
+}
+
+function setStoredSortColumn(title: string, column?: string): void {
+    if (column) localStorage.setItem(`${title}:sortColumn`, column);
+}
+function setStoredSortDirection(title: string, order: "ascending" | "descending"): void {
+    localStorage.setItem(`${title}:sortDirection`, order);
+}
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -101,8 +116,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const [renamingValue, setRenamingValue] = useState("");
     const [commandLoading, invokeCommand] = useCloudCommand();
     const [filters, setFilters] = useState<Record<string, string>>({});
-    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(api.defaultSortDirection);
-    const [sortColumn, setSortColumn] = useState<string | undefined>(undefined);
+    const [sortDirection, setSortDirection] = useState<"ascending" | "descending">(getStoredSortDirection(api.title) ?? api.defaultSortDirection);
+    const [sortColumn, setSortColumn] = useState<string | undefined>(getStoredSortColumn(api.title) ?? undefined);
     const history = useHistory();
     const location = useLocation();
     const query = getQueryParamOrElse(location.search, "q", "");
@@ -282,7 +297,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const onSortUpdated = useCallback((dir: "ascending" | "descending", column?: string) => {
         setSortColumn(column);
-        setSortDirection(dir)
+        setSortDirection(dir);
+        setStoredSortColumn(api.title, column);
+        setStoredSortDirection(api.title, dir);
     }, []);
 
     const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
@@ -343,7 +360,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
                             resource.permissions.others.length <= 1) ? <ListRowStat>Only available to admins</ListRowStat> :
-                    <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
+                            <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}
             {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
@@ -381,7 +398,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         Select all
                     </Label>
                 } right={
-                    <Flex width="325px">
+                    <Flex width="280px">
                         {api.sortEntries.length === 0 ? null : <EnumFilterWidget
                             expanded={false}
                             browseType={BrowseType.Card}

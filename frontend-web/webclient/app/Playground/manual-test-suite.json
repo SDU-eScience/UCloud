@@ -18,7 +18,7 @@
         "See outgoing grant applications",
         "Search of files and applications"
     ],
-    "(NEW) /drives": [
+    "/drives": [
         "Create a drive",
         "Sort by name ",
         "Sort by creator or creation date",
@@ -38,7 +38,6 @@
         "Clear upload",
         "Creation of folders",
         "Sort by name, file size, modified time",
-        "(REMOVED) Sort by file sensitivity, file type",
         "Sort ascending/descending",
         "Show/hide hidden files",
         "File search",
@@ -85,7 +84,7 @@
         },
         "Search shares"
     ],
-    "(NEW) Resources": [
+    "Resources": [
         {
             "/public-ips": [
                 "Create new public ip",
@@ -96,7 +95,14 @@
         },
         {
             "For each public ip:": [
-                "- ?"
+                {
+                    "Public IP Properties": [
+                        "Delete",
+                        "Add firewall entries",
+                        "Remove firewall entries"
+                    ]
+                },
+                "Delete"
             ]
         },
         "Search public ips"
@@ -125,9 +131,6 @@
                 "Search licenses"
             ]
         }
-    ],
-    "/*resource*/properties": [
-        "Create group"
     ],
     "/applications": [
         {
@@ -161,8 +164,7 @@
                 "Public links",
                 "Folders",
                 "Public IPs",
-                "App-specific parameters",
-                "(NEW) In Add folder it is now possible to add files (bug? seems to work)"
+                "App-specific parameters"
             ]
         }
     ],
@@ -179,17 +181,17 @@
     ],
     "/jobs (Runs)": [
         {
-            "(NEW) Create run (redirects to Apps)": [
+            "Create run (redirects to Apps)": [
                 "Sort by creation date",
-                "(NEW) Sort by creator",
+                "Sort by creator",
                 "Sort by application name",
                 "Sort by status (renamed from \"State\")",
                 "Filter by creation date",
                 "Filter by status",
-                "(NEW) Filter by creator",
+                "Filter by creator",
                 "For each job:",
                 "View job properties",
-                "(NEW) Search for jobs"
+                "Search for jobs"
             ]
         }
     ],
@@ -210,10 +212,9 @@
             "Navigation to": [
                 "Members",
                 "Resources and Usage (renamed from Resource Allocation)",
-                "(REMOVED) Usage",
                 "Grant applications",
                 "Settings",
-                "(NEW) Subprojects"
+                "Subprojects"
             ]
         }
     ],
@@ -231,7 +232,7 @@
             ]
         }
     ],
-    "(REDESIGNED) /project/resources": [
+    "/project/resources": [
         "Filter by usage period",
         "Filter by product type",
         "Change sub-allocations"
@@ -242,7 +243,7 @@
     "/project/grants/view": [
         {
             "Approve/reject application": [
-                "(NEW?) Reference ID",
+                "Reference ID",
                 "Edit grant request",
                 "Comment on grant application",
                 "Delete comment on grant application"
@@ -273,8 +274,8 @@
     ],
     "/users/settings": [
         {
-            "(NEW) Change password": [
-                "(NEW) Update user information",
+            "Change password": [
+                "Update user information",
                 "Email/notification settings",
                 "Invalidate sessions"
             ]
