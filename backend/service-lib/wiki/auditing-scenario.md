@@ -194,12 +194,6 @@ Should contain __(TWICE)__:
 ```
 ---
 
-## Activity Feed: #1 File Activity
-
-Follow the steps from "Internal Auditing: #1". It should produce the following entries when viewing the 'Activity'
-feed visible on UCloud.
-![](activity-feed.png)
-
 ## Internal Auditing: #2 Project Activity
 
 This Audit requires 3 different users. 
