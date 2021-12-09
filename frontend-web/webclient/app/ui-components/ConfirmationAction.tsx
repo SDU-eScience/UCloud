@@ -213,6 +213,11 @@ const Wrapper = styled(Button) <{align?: "left" | "center", hoverColor?: string}
 */
 const startedMap = {};
 
+const actionDelay = 1000;
+const holdToConfirmTime = 1000;
+const shakeDelta = 100;
+const tickRate = 50;
+
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText: string,
     doneText?: string,
@@ -223,8 +228,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 }> = props => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);
-    const timer = useRef(1600);
-    const tickRate = 50;
+    const timer = useRef(holdToConfirmTime);
     const [showHelp, setShowHelp] = useState(false);
     const [tempStartedKey] = React.useState(new Date().getTime());
     const wasReset = useRef(false);
@@ -245,7 +249,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             timeout.current = window.setTimeout(countUp, tickRate);
             setTimeout(() => {
                 if (props.onAction) props.onAction();
-            }, 1000);
+            }, actionDelay);
         } else {
             timeout.current = window.setTimeout(success, tickRate);
         }
@@ -255,8 +259,8 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         const button = buttonRef.current;
         if (!button) return;
         timer.current += tickRate;
-        if (timer.current >= 1600) {
-            timer.current = 1600;
+        if (timer.current >= holdToConfirmTime) {
+            timer.current = holdToConfirmTime;
         } else {
             timeout.current = window.setTimeout(countUp, tickRate);
         }
@@ -290,7 +294,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
             timeout.current = window.setTimeout(countUp, tickRate);
         }
 
-        if (timer.current > 1500 && !wasReset.current) {
+        if (timer.current > holdToConfirmTime - shakeDelta && !wasReset.current) {
             // button.classList.add("shaking");
             for (let i = 0; i < button.children.length; i++) {
                 button.children.item(i)?.classList.add("shaking");
@@ -302,7 +306,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
                 for (let i = 0; i < button.children.length; i++) {
                     button.children.item(i)?.classList.remove("shaking");
                 } 
-            }, 1500);
+            }, holdToConfirmTime - shakeDelta);
         }
         startedMap[tempStartedKey] = false;
         wasReset.current = false;
@@ -312,7 +316,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
         const button = buttonRef.current;
         if (!button) return;
 
-        button.style.setProperty("--duration", "1600ms");
+        button.style.setProperty("--duration", `${holdToConfirmTime}ms`);
     }, [buttonRef.current]);
 
     const passedProps = {...props};
