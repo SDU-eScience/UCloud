@@ -550,6 +550,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             state.reload();
         }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
 
+        const cancelEditOfRefId = useCallback(async () => {
+            setIsEditingProjectReference(false);
+            state.reload();
+        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+
         const approveRequest = useCallback(async () => {
             if (state.editingApplication !== undefined) {
                 addStandardDialog({
@@ -780,7 +785,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                         <>
                                                                             <td>
                                                                                 <Input
-                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                    placeholder={state.editingApplication?.referenceId != null ? state.editingApplication?.referenceId : "e.g. DeiC-SDU-L1-000001"}
                                                                                     ref={projectReferenceIdRef}
                                                                                 />
                                                                             </td>
@@ -790,6 +795,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                     onClick={updateReferenceID}
                                                                                 >
                                                                                     Update Reference ID
+                                                                                </Button>
+                                                                                <Button
+                                                                                    color="red"
+                                                                                    onClick={cancelEditOfRefId}
+                                                                                >
+                                                                                    Cancel
                                                                                 </Button>
                                                                             </td>
                                                                         </>) : (
