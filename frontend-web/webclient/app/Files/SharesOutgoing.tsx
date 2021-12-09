@@ -125,12 +125,10 @@ export const SharesOutgoing: React.FunctionComponent = () => {
         header={<SharedByTabs sharedByMe />}
         headerSize={55}
         main={
-            <>
-                <StandardBrowse
-                    generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-                    onLoad={onGroupsLoaded}
-                />
-            </>
+            <StandardBrowse
+                generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
+                onLoad={onGroupsLoaded}
+            />
         }
     />;
 };
@@ -204,6 +202,7 @@ const ShareGroup: React.FunctionComponent<{
                     operations={SharesApi.retrieveOperations()}
                     callbacks={cb}
                     itemTitle={SharesApi.title}
+                    disableSelection
                 />
             ))}
             {isCreatingShare ? <form onSubmit={onShare}>
