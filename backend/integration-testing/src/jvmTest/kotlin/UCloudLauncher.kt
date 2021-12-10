@@ -37,10 +37,9 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
+import dk.sdu.cloud.services
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import dk.sdu.cloud.test.UCloudTest
@@ -446,27 +445,10 @@ object UCloudLauncher : Loggable {
                 ElasticManagementService,
             )
 
-            val services = setOf(
-                AccountingService,
-                AppKubernetesService,
-                AppOrchestratorService,
-                AppStoreService,
-                AuditIngestionService,
-                AuthService,
-                AvatarService,
-                ContactBookService,
-                ElasticManagementService,
-                FileOrchestratorService,
-                MailService,
-                NewsService,
-                NotificationService,
-                PasswordResetService,
-                SupportService,
-                TaskService,
-            )
+            val servicesToRun = services
 
             // Reflection is _way_ too slow
-            services.forEach { objectInstance ->
+            servicesToRun.forEach { objectInstance ->
                 if (objectInstance !in blacklist) {
                     try {
                         log.trace("Registering ${objectInstance.javaClass.canonicalName}")

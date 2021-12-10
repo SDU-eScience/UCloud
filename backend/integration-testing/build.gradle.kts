@@ -37,6 +37,7 @@ kotlin {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-test"))
+                implementation(project(":launcher"))
 
                 implementation("org.testcontainers:testcontainers-bom:1.15.1")
                 implementation("org.testcontainers:elasticsearch:1.15.1") {
