@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "redis-cleaner"
-    version = "0.4.6"
+    version = "0.4.7"
 
     val deployment = withDeployment {
         deployment.spec.replicas = 2

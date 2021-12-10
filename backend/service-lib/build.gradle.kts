@@ -55,8 +55,8 @@ kotlin {
                 api("io.ktor:ktor-client-websockets:$ktorVersion")
                 api("io.ktor:ktor-client-cio:$ktorVersion")
 
-                api("org.apache.logging.log4j:log4j-api:2.12.0")
-                api("org.apache.logging.log4j:log4j-core:2.12.0")
+                api("org.apache.logging.log4j:log4j-api:2.15.0")
+                api("org.apache.logging.log4j:log4j-core:2.15.0")
                 implementation(kotlin("reflect"))
                 implementation("com.google.guava:guava:27.0.1-jre")
                 api("com.auth0:java-jwt:3.8.3")

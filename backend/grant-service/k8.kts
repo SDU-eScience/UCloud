@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "grant"
-    version = "0.4.5"
+    version = "0.4.6"
     
     withAmbassador() {
         addSimpleMapping("/api/gifts")

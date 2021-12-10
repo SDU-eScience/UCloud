@@ -1,4 +1,4 @@
-version = "3.5.6-inviteFix"
+version = "3.5.7"
 
 application {
     mainClassName = "dk.sdu.cloud.project.MainKt"

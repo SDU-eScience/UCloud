@@ -1,4 +1,4 @@
-version = "1.7.5"
+version = "1.7.6"
 
 application {
     mainClassName = "dk.sdu.cloud.file.trash.MainKt"

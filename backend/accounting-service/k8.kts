@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "accounting"
-    version = "1.7.7"
+    version = "1.7.8"
 
     withAmbassador(null) {
         services.add(

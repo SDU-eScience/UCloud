@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "password-reset"
-    version = "0.4.6"
+    version = "0.4.7"
 
     withAmbassador {}
 

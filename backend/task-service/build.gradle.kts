@@ -1,4 +1,4 @@
-version = "0.5.5"
+version = "0.5.6"
 
 application {
     mainClassName = "dk.sdu.cloud.task.MainKt"

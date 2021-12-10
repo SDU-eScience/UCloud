@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "project"
-    version = "3.5.6-inviteFix"
+    version = "3.5.7"
 
     withAmbassador("/api/projects") {}
 

@@ -7,6 +7,46 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 10-12-21
+
+Upgrade log4j to version 2.15.0.
+
+```
+✅  Deployment(accounting, 1.7.8) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.7) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.6) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.9) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.7) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.8) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.7) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.6) (UP-TO-DATE)
+✅  Deployment(share, 1.10.7) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.6) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.6) (UP-TO-DATE)
+✅  Deployment(support, 1.6.6) (UP-TO-DATE)
+✅  Deployment(task, 0.5.6) (UP-TO-DATE)
+✅  Deployment(notification, 1.5.7) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.7) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.6) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.6) (UP-TO-DATE)
+✅  Deployment(storage, 4.5.3) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.6) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.22.1) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.6) (UP-TO-DATE)
+✅  Deployment(news, 0.3.6) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.10) (UP-TO-DATE)
+✅  Deployment(project, 3.5.7) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.6) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.6) (UP-TO-DATE)
+✅  Deployment(app-store, 0.17.1) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.7.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.6) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.16) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.6) (UP-TO-DATE)
+```
+
 ## 24-09-21
 
 Fix a frontend issue related to copying of files.
