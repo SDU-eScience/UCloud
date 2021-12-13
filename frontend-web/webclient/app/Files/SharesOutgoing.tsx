@@ -17,10 +17,11 @@ import {
     RadioTile,
     RadioTilesContainer,
     SelectableText,
-    SelectableTextWrapper
+    SelectableTextWrapper,
+    Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -35,6 +36,8 @@ import {Spacer} from "@/ui-components/Spacer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {api as FilesApi} from "@/UCloud/FilesApi";
+import {Operation} from "@/ui-components/Operation";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
@@ -133,6 +136,12 @@ export const SharesOutgoing: React.FunctionComponent = () => {
     />;
 };
 
+enum ShareValidateState {
+    NOT_VALIDATED,
+    VALIDATED,
+    DELETED
+}
+
 const ShareGroup: React.FunctionComponent<{
     group: OutgoingShareGroup;
     cb: ResourceBrowseCallbacks<Share>;
@@ -167,6 +176,21 @@ const ShareGroup: React.FunctionComponent<{
         usernameInput.value = "";
     }, [cb, isEdit, group.sourceFilePath]);
 
+    const [, invokeCommand] = useCloudCommand();
+
+    const [shareValidated, setValidated] = React.useState(ShareValidateState.NOT_VALIDATED);
+
+    React.useEffect(() => {
+        validateShare(group.sourceFilePath);
+    }, [shares]);
+
+    const operations: Operation<Share, ResourceBrowseCallbacks<Share>>[] = React.useMemo(() =>
+        shareValidated === ShareValidateState.DELETED ? [] : SharesApi.retrieveOperations(),
+        [shareValidated]
+    );
+
+    const isDeleted = shareValidated === ShareValidateState.DELETED;
+
     return <HighlightedCard
         color={"blue"}
         title={
@@ -181,30 +205,43 @@ const ShareGroup: React.FunctionComponent<{
                         color2="FtFolderColor2"
                     />
 
-                    <Link to={buildQueryString("/files", {path: group.sourceFilePath})}>
-                        <Heading.h3><PrettyFilePath path={group.sourceFilePath} /></Heading.h3>
-                    </Link>
+                    {shareValidated === ShareValidateState.VALIDATED ? (
+                        <Link to={buildQueryString("/files", {path: group.sourceFilePath})}>
+                            <Heading.h3><PrettyFilePath path={group.sourceFilePath} /></Heading.h3>
+                        </Link>) : (<>
+                            <Heading.h3><PrettyFilePath path={group.sourceFilePath} /></Heading.h3>
+                            {shareValidated !== ShareValidateState.DELETED ? null : (
+                                <Tooltip
+                                    left="-50%"
+                                    top="1"
+                                    mb="35px"
+                                    trigger={<Icon cursor="pointer" mt="6px" ml="18px" color="red" name="close" />}
+                                >
+                                    The folder associated with the share no longer exists.
+                                </Tooltip>
+                            )}
+                        </>
+                    )}
                 </>}
-                right={isCreatingShare ? (
-                    null
-                ) : null}
+                right={null}
             />
         }
     >
         <List childPadding={"8px"} bordered={false}>
-            {shares.map((share, idx) => (idx == 10 ? null :
-                <ItemRow
-                    key={share.specification.sharedWith}
-                    browseType={BrowseType.MainContent}
-                    item={share}
-                    renderer={SharesApi.renderer}
-                    toggleSet={toggleSet}
-                    operations={SharesApi.retrieveOperations()}
-                    callbacks={cb}
-                    itemTitle={SharesApi.title}
-                    disableSelection
-                />
-            ))}
+            {isDeleted ? <Spacer left={null} right={<Button mr="9px" onClick={() => removeInvalidShare(group)} width="136px" color="red">Remove</Button>} /> :
+                shares.map((share, idx) => idx == 10 ? null :
+                    <ItemRow
+                        key={share.specification.sharedWith}
+                        browseType={BrowseType.MainContent}
+                        item={share}
+                        renderer={SharesApi.renderer}
+                        toggleSet={toggleSet}
+                        operations={operations}
+                        callbacks={cb}
+                        itemTitle={SharesApi.title}
+                        extra={{deleted: isDeleted}}
+                        disableSelection
+                    />)}
             {isCreatingShare ? <form onSubmit={onShare}>
                 <Flex mb={"16px"} mt={"8px"}>
                     <Input placeholder={"Username"} ref={usernameInputRef} />
@@ -233,7 +270,7 @@ const ShareGroup: React.FunctionComponent<{
                 </Flex>
             </form> : <Spacer
                 left={null}
-                right={<Button onClick={() => setCreatingShare(true)} mr="10px" width="136px" ml="8px"><Icon name="share" color="white" size="14px" mr=".7em" /> Share</Button>}
+                right={isDeleted ? null : <Button onClick={() => setCreatingShare(true)} mr="10px" width="136px" ml="8px"><Icon name="share" color="white" size="14px" mr=".7em" /> Share</Button>}
             />}
         </List>
         {shares.length > 10 ?
@@ -242,6 +279,22 @@ const ShareGroup: React.FunctionComponent<{
             </Link> : null
         }
     </HighlightedCard>;
+
+    async function validateShare(path: string): Promise<void> {
+        try {
+            await invokeCommand(FilesApi.retrieve({id: path}), {defaultErrorHandler: false});
+            setValidated(ShareValidateState.VALIDATED);
+        } catch (e) {
+            if ([400, 404].includes(e.request.status)) {
+                setValidated(ShareValidateState.DELETED);
+            }
+        }
+    }
+
+    async function removeInvalidShare(group: OutgoingShareGroup): Promise<void> {
+        await invokeCommand(SharesApi.remove(bulkRequestOf(...group.sharePreview.map(it => ({id: it.shareId})))));
+        cb.reload();
+    }
 };
 
 const Tab: React.FunctionComponent<{selected: boolean, onClick: () => void;}> = props => {
