@@ -399,7 +399,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
         return <>
             {pageSize.current > 0 ? (
-                <Spacer left={
+                <Spacer mr="8px" left={
                     <Label style={{cursor: "pointer"}} width={"102px"}>
                         <Checkbox
                             style={{marginTop: "-2px"}}
