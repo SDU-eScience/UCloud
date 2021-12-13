@@ -395,7 +395,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: (selected, cb) => selected.length === 1 && selected[0].status.type === "FILE",
+                enabled: (selected, cb) => selected.length >= 1 && selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
@@ -404,9 +404,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         ))
                     );
 
-                    const endpoint = result?.responses[0];
-                    if (endpoint) {
-                        window.location.href = endpoint.endpoint;
+                    const responses = result?.responses ?? [];
+                    for (const {endpoint} of responses) {
+                        downloadFile(endpoint);
                     }
                 }
             },
@@ -814,6 +814,16 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
             right={<Button color="green">Update</Button>}
         />
     </form>);
+}
+
+function downloadFile(url: string) {
+    const element = document.createElement("a");
+    element.setAttribute("href", url);
+    element.style.display = "none";
+    element.download = url;
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
 }
 
 function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {

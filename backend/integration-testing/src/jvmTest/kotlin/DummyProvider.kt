@@ -2,6 +2,7 @@ package dk.sdu.cloud.integration
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
@@ -62,7 +63,14 @@ object DummyJobs : JobsProvider(DUMMY_PROVIDER), DummyApi {
 
 object DummyIngress : IngressProvider(DUMMY_PROVIDER), DummyApi {
     override val tracker = RequestTracker()
-    override val products: List<Product> = listOf()
+    val perUnitIngress = Product.Ingress(
+        "ingress",
+        1L,
+        ProductCategoryId("ingress", DUMMY_PROVIDER),
+        "Ingress"
+    )
+
+    override val products: List<Product> = listOf(perUnitIngress)
 }
 
 object DummyLicense : LicenseProvider(DUMMY_PROVIDER), DummyApi {
