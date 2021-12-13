@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 13-12-21
+
+Bug fix for upcoming downtime icon.
+
+```
+✅  Deployment(frontend, 0.46.2) (UP-TO-DATE)
+```
+
 ## 10-12-21
 
 Upgrade log4j to version 2.15.0.
@@ -45,6 +53,7 @@ Upgrade log4j to version 2.15.0.
 ✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
 ✅  Deployment(indexing, 1.19.16) (UP-TO-DATE)
 ✅  Deployment(file-trash, 1.7.6) (UP-TO-DATE)
+✅  Deployment(frontend, 0.46.1) (UP-TO-DATE)
 ```
 
 ## 24-09-21

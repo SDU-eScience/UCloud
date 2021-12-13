@@ -104,7 +104,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
                 <ui.Flex justifyContent="center" width="48px">
-                    <Link to={`/news/detailed/upcomingDowntime`}>
+                    <Link to={`/news/detailed/${upcomingDowntime}`}>
                         <ui.Tooltip
                             right="0"
                             bottom="1"
