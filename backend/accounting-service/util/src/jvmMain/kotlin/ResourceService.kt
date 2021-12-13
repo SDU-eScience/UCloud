@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.Language
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -890,7 +891,24 @@ abstract class ResourceService<
         })
     }
 
+    override suspend fun init(actorAndProject: ActorAndProject) {
+        val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+        val relevantProviders = findRelevantProviders(actorAndProject)
+        relevantProviders.forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            val api = providerApi(comms)
+
+            // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
+            api.init.call(ResourceInitializationRequest(owner), comms.client)
+        }
+    }
+
     override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Prod, Support> {
+        val relevantProviders = findRelevantProviders(actorAndProject)
+        return SupportByProvider(support.retrieveProducts(relevantProviders))
+    }
+
+    private suspend fun findRelevantProviders(actorAndProject: ActorAndProject): List<String> {
         val relevantProviders = db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -900,36 +918,35 @@ abstract class ResourceService<
                         setParameter("username", actorAndProject.actor.safeUsername())
                     },
                     """
-                        select distinct pc.provider
-                        from
-                            accounting.product_categories pc join
-                            accounting.products product on product.category = pc.id left join
-                            accounting.wallets w on pc.id = w.category left join
-                            accounting.wallet_owner wo on wo.id = w.owned_by left join
-                            project.project_members pm on
-                                wo.project_id = pm.project_id and
-                                pm.project_id = :project::text and
-                                pm.username = :username
-                        where
-                            pc.product_type = :area::accounting.product_type and
-                            (
-                                product.free_to_use or
+                            select distinct pc.provider
+                            from
+                                accounting.product_categories pc join
+                                accounting.products product on product.category = pc.id left join
+                                accounting.wallets w on pc.id = w.category left join
+                                accounting.wallet_owner wo on wo.id = w.owned_by left join
+                                project.project_members pm on
+                                    wo.project_id = pm.project_id and
+                                    pm.project_id = :project::text and
+                                    pm.username = :username
+                            where
+                                pc.product_type = :area::accounting.product_type and
                                 (
-                                    wo.username = :username and
-                                    w.id is not null
-                                ) or
-                                (
-                                    wo.project_id = :project::text and
-                                    w.id is not null
+                                    product.free_to_use or
+                                    (
+                                        wo.username = :username and
+                                        w.id is not null
+                                    ) or
+                                    (
+                                        wo.project_id = :project::text and
+                                        w.id is not null
+                                    )
                                 )
-                            )
-                    """
+                        """
                 )
                 .rows
                 .map { it.getString(0)!! }
         }
-
-        return SupportByProvider(support.retrieveProducts(relevantProviders))
+        return relevantProviders
     }
 
     override suspend fun chargeCredits(

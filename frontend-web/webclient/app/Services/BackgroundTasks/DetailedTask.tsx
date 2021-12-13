@@ -1,4 +1,4 @@
-import {TaskUpdate} from "@/BackgroundTasks/api";
+import {TaskUpdate} from "@/Services/BackgroundTasks/api";
 import * as React from "react";
 import {useCallback, useEffect, useRef, useState} from "react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis} from "recharts";

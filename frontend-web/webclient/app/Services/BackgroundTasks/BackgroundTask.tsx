@@ -1,6 +1,6 @@
 import {WSFactory} from "@/Authentication/HttpClientInstance";
-import {Progress, Speed, Task, TaskUpdate} from "@/BackgroundTasks/api";
-import DetailedTask from "@/BackgroundTasks/DetailedTask";
+import {Progress, Speed, Task, TaskUpdate} from "@/Services/BackgroundTasks/api";
+import DetailedTask from "@/Services/BackgroundTasks/DetailedTask";
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {default as ReactModal} from "react-modal";

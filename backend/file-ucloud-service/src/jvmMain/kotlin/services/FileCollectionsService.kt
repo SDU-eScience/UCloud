@@ -8,6 +8,7 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_PM_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_SHARE_REFERENCE
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +19,12 @@ class FileCollectionsService(
     private val db: DBContext,
     private val taskSystem: TaskSystem,
     private val nativeFs: NativeFS,
+    private val memberFiles: MemberFiles,
 ) {
+    suspend fun init(owner: ResourceOwner) {
+        memberFiles.initializeMemberFiles(owner.createdBy, owner.project)
+    }
+
     suspend fun create(request: BulkRequest<FileCollection>): BulkResponse<FindByStringId?> {
         for (item in request.items) {
             nativeFs.createDirectories(pathConverter.collectionLocation(item.id))

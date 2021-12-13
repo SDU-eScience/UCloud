@@ -42,11 +42,17 @@ class FilesController(
     private val chunkedUploadService: ChunkedUploadService,
     private val downloadService: DownloadService,
     private val limitChecker: LimitChecker,
-    private val elasticQueryService: ElasticQueryService
+    private val elasticQueryService: ElasticQueryService,
+    private val memberFiles: MemberFiles,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(UCloudFiles.init) {
+            memberFiles.initializeMemberFiles(request.principal.createdBy, request.principal.project)
+            ok(Unit)
+        }
+
         implement(UCloudFiles.retrieve) {
             ok(
                 fileQueries.retrieve(

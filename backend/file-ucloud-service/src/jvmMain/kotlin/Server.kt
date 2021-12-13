@@ -92,7 +92,8 @@ class Server(
             pathConverter,
             db,
             taskSystem,
-            nativeFs
+            nativeFs,
+            memberFiles
         )
 
         FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
@@ -140,7 +141,7 @@ class Server(
         )
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService, memberFiles),
             FileCollectionsController(fileCollectionService),
             ShareController(shareService),
             object : Controller {

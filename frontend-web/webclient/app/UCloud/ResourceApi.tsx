@@ -4,7 +4,7 @@ import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from
 import ProductReference = accounting.ProductReference;
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {InvokeCommand} from "@/Authentication/DataHook";
+import {apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -275,6 +275,10 @@ export abstract class ResourceApi<Res extends Resource,
     public get titlePlural(): string {
         if (this.title.endsWith("s")) return this.title + "es";
         return this.title + "s";
+    }
+
+    init(): APICallParameters {
+        return apiUpdate({}, this.baseContext, "init");
     }
 
     browse(req: PaginationRequestV2 & Flags & SortFlags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {

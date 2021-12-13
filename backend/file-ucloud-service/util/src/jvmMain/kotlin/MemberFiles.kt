@@ -75,6 +75,18 @@ class MemberFiles(
             if (exists) return
 
             try {
+                fs.createDirectories(
+                    paths.relativeToInternal(
+                        RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Jobs")
+                    )
+                )
+
+                fs.createDirectories(
+                    paths.relativeToInternal(
+                        RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Trash")
+                    )
+                )
+
                 FileCollectionsControl.register.call(
                     bulkRequestOf(
                         ProviderRegisteredResource(

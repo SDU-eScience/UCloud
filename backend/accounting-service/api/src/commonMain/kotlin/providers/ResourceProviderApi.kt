@@ -18,6 +18,11 @@ data class ProviderProducts<Support : ProductSupport>(
     val products: List<Support>,
 )
 
+@Serializable
+data class ResourceInitializationRequest(
+    val principal: ResourceOwner,
+)
+
 @OptIn(ExperimentalStdlibApi::class)
 @TSSkipCodegen
 abstract class ResourceProviderApi<
@@ -34,6 +39,36 @@ abstract class ResourceProviderApi<
     val baseContext = "/ucloud/$provider/${namespace.replace(".", "/")}"
 
     abstract val typeInfo: ResourceTypeInfo<Res, Spec, Update, Flags, Status, Prod, Support>
+
+    val init: CallDescription<ResourceInitializationRequest, Unit, CommonErrorMessage>
+        get() = call(
+            name = "init",
+            handler = {
+                httpUpdate(
+                    ResourceInitializationRequest.serializer(),
+                    baseContext,
+                    "init",
+                    roles = Roles.PRIVILEGED
+                )
+
+                documentation {
+                    summary = "Request from the user to (potentially) initialize any resources"
+                    description = """
+                        This request is sent by the client, if the client believes that initialization of resources 
+                        might be needed. NOTE: This request might be sent even if initialization has already taken 
+                        place. UCloud/Core does not check if initialization has already taken place, it simply validates
+                        the request.
+                    """.trimIndent()
+                }
+            },
+            requestType = ResourceInitializationRequest.serializer(),
+            successType = Unit.serializer(),
+            errorType =  CommonErrorMessage.serializer(),
+            requestClass = typeOf<ResourceInitializationRequest>(),
+            successClass = typeOf<Unit>(),
+            errorClass = typeOf<CommonErrorMessage>()
+        )
+
 
     val create: CallDescription<BulkRequest<Res>, BulkResponse<FindByStringId?>, CommonErrorMessage>
         get() = call(

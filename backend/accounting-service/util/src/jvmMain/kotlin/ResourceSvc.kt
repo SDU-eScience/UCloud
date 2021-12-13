@@ -19,6 +19,12 @@ interface ResourceSvc<
     Update : ResourceUpdate,
     Prod : Product,
     Support : ProductSupport> {
+    suspend fun init(
+        actorAndProject: ActorAndProject,
+    ) {
+        // Default: Do nothing
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<F>,

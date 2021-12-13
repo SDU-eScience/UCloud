@@ -11,7 +11,7 @@ import {
     ResourceSpecification,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -102,6 +102,8 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
+let didInitialize = false;
+
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -136,6 +138,12 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
     useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffect(() => {
+        if (!didInitialize) {
+            callAPI(api.init()).then(doNothing).catch(doNothing);
+            didInitialize = true;
+        }
+    }, [projectId]);
 
     const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);

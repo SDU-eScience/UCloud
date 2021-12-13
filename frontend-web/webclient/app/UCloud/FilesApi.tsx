@@ -865,3 +865,4 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
 const api = new FilesApi();
 
 export {api};
+export default api;

@@ -29,11 +29,12 @@ import {
 import CONF from "../../site.config.json";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {NewsPost} from "@/Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
+import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
+import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import {useEffect, useRef} from "react";
+import {ResourceInit} from "@/Services/ResourceInit";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -109,6 +110,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Support />
             <Notification />
             <AutomaticGiftClaim />
+            <ResourceInit/>
             <ClickableDropdown
                 width="200px"
                 left="-180%"
