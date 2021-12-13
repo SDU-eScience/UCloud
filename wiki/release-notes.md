@@ -53,7 +53,6 @@ Upgrade log4j to version 2.15.0.
 ✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
 ✅  Deployment(indexing, 1.19.16) (UP-TO-DATE)
 ✅  Deployment(file-trash, 1.7.6) (UP-TO-DATE)
-✅  Deployment(frontend, 0.46.1) (UP-TO-DATE)
 ```
 
 ## 24-09-21
