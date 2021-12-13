@@ -44,11 +44,13 @@ import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {InvokeCommand} from "@/Authentication/DataHook";
+import {callAPI, InvokeCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
-import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import metadataNamespaceApi, {FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
+import {useEffect, useState} from "react";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -128,13 +130,13 @@ const FileSensitivityVersion = "1.0.0";
 const FileSensitivityNamespace = "sensitivity";
 type SensitivityLevel = | "PRIVATE" | "SENSITIVE" | "CONFIDENTIAL";
 let sensitivityTemplateId = "";
-function findSensitivityWithFallback(file: UFile): SensitivityLevel {
-    return findSensitivity(file) ?? "PRIVATE";
+async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLevel> {
+    return (await findSensitivity(file)) ?? "PRIVATE";
 }
 
-function findSensitivity(file: UFile): SensitivityLevel | undefined {
+async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
     if (!sensitivityTemplateId) {
-        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
+        sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
             return "PRIVATE";
         }
@@ -144,12 +146,37 @@ function findSensitivity(file: UFile): SensitivityLevel | undefined {
     return entry?.specification.document.sensitivity;
 }
 
-function findTemplateId(file: UFile, namespace: string, version: string): string {
+async function findTemplateId(file: UFile, namespace: string, version: string): Promise<string> {
     const template = Object.values(file.status.metadata?.templates ?? {}).find(it =>
         it.namespaceName === namespace && it.version == version
     );
-    if (!template) return "";
+
+    if (!template) {
+        const page = await callAPI<PageV2<FileMetadataTemplateNamespace>>(
+            MetadataNamespaceApi.browse({filterName: FileSensitivityNamespace, itemsPerPage: 250})
+        );
+        if (page.items.length === 0) return "";
+        return page.items[0].id;
+    }
+
     return template.namespaceId;
+}
+
+function useSensitivity(resource: UFile): SensitivityLevel | null {
+    const [sensitivity, setSensitivity] = useState<SensitivityLevel | null>(null);
+    useEffect(() => {
+        let alive = true;
+
+        (async () => {
+            const value = await findSensitivityWithFallback(resource);
+            if (alive) setSensitivity(value)
+        })();
+
+        return () => {
+            alive = false;
+        };
+    }, []);
+    return sensitivity;
 }
 
 class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
@@ -203,9 +230,10 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         },
         ImportantStats({resource, callbacks}) {
             if (!resource) return null;
-            const sensitivity = findSensitivityWithFallback(resource);
+            const sensitivity = useSensitivity(resource);
+
             return <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
-                <Sensitivity sensitivity={sensitivity} />
+                <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
             </div>;
         },
         Stats({resource}) {
@@ -737,12 +765,7 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
 }
 
 function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
-    // Note(Jonas): It should be initialized at this point, but let's make sure.
-    if (!sensitivityTemplateId) {
-        sensitivityTemplateId = findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
-    }
-
-    const originalSensitivity = findSensitivity(file);
+    const originalSensitivity = useSensitivity(file) ?? "INHERIT";
     const selection = React.useRef<HTMLSelectElement>(null);
     const reason = React.useRef<HTMLTextAreaElement>(null);
 
@@ -826,9 +849,14 @@ function downloadFile(url: string) {
     document.body.removeChild(element);
 }
 
-function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): void {
+async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeCommand, reload: () => void): Promise<void> {
     if (file.permissions.myself?.some(perm => perm === "ADMIN" || perm === "EDIT") != true) {
         return;
+    }
+
+    // Note(Jonas): It should be initialized at this point, but let's make sure.
+    if (!sensitivityTemplateId) {
+        sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
