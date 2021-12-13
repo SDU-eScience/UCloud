@@ -102,6 +102,7 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     api: ResourceApi<Res, never>;
     isCreating: boolean;
     startCreation?: () => void;
+    cancelCreation?: () => void;
     viewProperties?: (res: Res) => void;
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
@@ -218,12 +219,21 @@ export abstract class ResourceApi<Res extends Resource,
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
-                    if (selected.length !== 0 || cb.startCreation == null) return false;
-                    if (cb.isCreating) return "You are already creating a " + this.title.toLowerCase();
+                    if (selected.length !== 0 || cb.startCreation == null || cb.isCreating) return false;
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
                 tag: CREATE_TAG
+            },
+            {
+                text: "Cancel",
+                icon: "close",
+                color: "red",
+                primary: true,
+                enabled: (selected, cb) => {
+                    return cb.isCreating
+                },
+                onClick: (selected, cb) => cb.cancelCreation!(),
             },
             {
                 text: "Permissions",

@@ -243,6 +243,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 setIsCreating(true);
             }
         },
+        cancelCreation() {
+            setIsCreating(false);
+        },
         viewProperties,
         ...props.extraCallbacks,
         supportByProvider: productsWithSupport.data
