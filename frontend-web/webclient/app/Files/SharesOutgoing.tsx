@@ -239,7 +239,6 @@ const ShareGroup: React.FunctionComponent<{
                         operations={operations}
                         callbacks={cb}
                         itemTitle={SharesApi.title}
-                        extra={{deleted: isDeleted}}
                         disableSelection
                     />)}
             {isCreatingShare ? <form onSubmit={onShare}>
