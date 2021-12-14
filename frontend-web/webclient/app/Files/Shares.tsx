@@ -42,7 +42,7 @@ export const ShareBrowse: React.FunctionComponent<{
         avatars.updateCache(items.map(it => it.specification.sharedWith));
     }, []);
 
-    const navigateToEntry = React.useCallback((history: History, share: Share) => {
+    const navigateToEntry = React.useCallback((history: History, share: Share): void => {
         if (browseType === BrowseType.MainContent) {
             if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
                 history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));

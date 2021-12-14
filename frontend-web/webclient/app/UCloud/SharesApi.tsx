@@ -10,7 +10,7 @@ import {
     ResourceUpdate
 } from "@/UCloud/ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Flex, Icon, RadioTile, RadioTilesContainer} from "@/ui-components";
+import {Flex, Icon, RadioTile, RadioTilesContainer, Tooltip} from "@/ui-components";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product} from "@/Accounting";
 import {PrettyFilePath} from "@/Files/FilePath";
@@ -27,6 +27,7 @@ import {useCallback, useState} from "react";
 import ProductReference = accounting.ProductReference;
 import {ValuePill} from "@/Resource/Filter";
 import {useAvatars} from "@/AvataaarLib/hook";
+import {api as FilesApi} from "@/UCloud/FilesApi";
 
 export interface ShareSpecification extends ResourceSpecification {
     sharedWith: string;
@@ -108,6 +109,25 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 setIsEdit(resource?.specification?.permissions?.some(it => it === "EDIT") === true)
             }, [resource?.specification.permissions]);
 
+            const [isValid, setIsValid] = useState(true);
+
+            const validate = useCallback(async (resource: Share) => {
+                if (!resource || !resource.status.shareAvailableAt) return;
+                try {
+                    const result = await callbacks.invokeCommand(
+                        FilesApi.retrieve({id: resource.status.shareAvailableAt}), {defaultErrorHandler: false}
+                    );
+                    // Do nothing. It's valid.
+                } catch (e) {
+                    setIsValid(false);
+                }
+            }, [resource, callbacks]);
+
+            React.useEffect(() => {
+                if (!resource) return;
+                validate(resource);
+            }, []);
+
             const updatePermissions = useCallback(async (isEditing: boolean) => {
                 if (!resource) return;
 
@@ -135,16 +155,26 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             const sharedByMe = resource!.specification.sharedWith !== Client.username;
 
             return <Flex alignItems={"center"}>
-                {resource.status.state !== "APPROVED" ? null :
+                {isValid ? null : (
+                    <Tooltip
+                        left="-50%"
+                        top="1"
+                        mb="35px"
+                        trigger={<Icon cursor="pointer" mt="6px" mr={8} color="red" name="close" />}
+                    >
+                        The folder associated with the share no longer exists.
+                    </Tooltip>
+                )}
+                {!isValid || resource.status.state !== "APPROVED" ? null :
                     <><Icon color={"green"} name={"check"} mr={8} /> {sharedByMe ? "Approved" : null}</>
                 }
-                {resource.status.state !== "PENDING" ? null :
+                {!isValid || resource.status.state !== "PENDING" ? null :
                     <><Icon color={"blue"} name={"questionSolid"} mr={8} /> {sharedByMe ? "Pending" : null}</>
                 }
-                {resource.status.state !== "REJECTED" ? null :
+                {!isValid || resource.status.state !== "REJECTED" ? null :
                     <><Icon color={"red"} name={"close"} mr={8} /> {sharedByMe ? "Rejected" : null}</>
                 }
-                <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
+                {!isValid ? null : <form onSubmit={preventDefault} style={{marginLeft: "16px"}}>
                     <RadioTilesContainer height={48} onClick={stopPropagation} title="Share Permission">
                         {sharedByMe || !isEdit ? <RadioTile
                             disabled={resource.owner.createdBy !== Client.username}
@@ -167,7 +197,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                             fontSize={"0.5em"}
                         /> : null}
                     </RadioTilesContainer>
-                </form>
+                </form>}
             </Flex>;
         }
     };
