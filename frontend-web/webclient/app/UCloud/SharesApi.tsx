@@ -124,7 +124,7 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
             }, [resource, callbacks]);
 
             React.useEffect(() => {
-                if (!resource) return;
+                if (!resource || ["PENDING", "REJECTED"].includes(resource.status.state)) return;
                 validate(resource);
             }, []);
 
