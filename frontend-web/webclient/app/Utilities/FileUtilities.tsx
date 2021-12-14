@@ -38,12 +38,6 @@ export const getParentPath = (path: string): string => {
     for (let i = 0; i < splitPath.length - 1; i++) {
         parentPath += splitPath[i] + "/";
     }
-    // TODO(Jonas): Should be equivalent, let's test it for a while and replace if it works. */
-    // TODO: They are not equivalent for the empty string. // and /, respectively.
-    const parentP = UF.addTrailingSlash(`/${path.split("/").filter(it => it).slice(0, -1).join("/")}`);
-    if (window.location.hostname === "localhost" && parentP !== parentPath) {
-        throw Error("ParentP and path not equal");
-    }
     return parentPath;
 };
 

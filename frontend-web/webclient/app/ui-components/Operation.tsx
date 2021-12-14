@@ -5,7 +5,7 @@ import * as React from "react";
 import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
-import {doNothing, preventDefault} from "@/UtilityFunctions";
+import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import theme, {ThemeColor} from "@/ui-components/theme";
@@ -242,7 +242,7 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    <InRowPrimaryButtons>{primaryContent}</InRowPrimaryButtons>
+                    <InRowPrimaryButtons onClick={stopPropagation}>{primaryContent}</InRowPrimaryButtons>
                     <Box mr={"10px"} />
                     {content.length === 0 ? <Box ml={"30px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
