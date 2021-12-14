@@ -110,7 +110,7 @@ data class ResourceUpdateAndId<U : ResourceUpdate>(
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
-open class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
+data class ResourceAclEntry(val entity: AclEntity, val permissions: List<Permission>)
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)

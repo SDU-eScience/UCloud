@@ -30,7 +30,6 @@ class LimitChecker(
                             project_id is not distinct from :project_id and
                             category is not distinct from :category
                     """,
-                    debug = true
                 ).rows.isNotEmpty()
             }
         }

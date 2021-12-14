@@ -1,20 +1,33 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.orchestrator.api.IngressIncludeFlags
+import dk.sdu.cloud.app.orchestrator.api.IngressSpecification
+import dk.sdu.cloud.app.orchestrator.api.IngressState
+import dk.sdu.cloud.app.orchestrator.api.Ingresses
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import dk.sdu.cloud.integration.*
+import dk.sdu.cloud.integration.DummyIngress
+import dk.sdu.cloud.integration.DummyProvider
+import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.provider.api.Permission
 import kotlin.test.assertEquals
 
-class NetworkIPTest : IntegrationTest() {
+class IngressTest : IntegrationTest() {
     data class TestCase(
         val title: String,
         val initialization: suspend () -> Unit,
-        val products: List<Product.NetworkIP>,
+        val products: List<Product.Ingress>,
+        val prefix: String,
+        val suffix: String,
         val deadlineForReady: Int = 60 * 5,
         val ignoreReadyTest: Boolean = false,
     )
@@ -24,18 +37,36 @@ class NetworkIPTest : IntegrationTest() {
             TestCase(
                 "Dummy",
                 { DummyProvider.initialize() },
-                listOf(DummyIps.ip),
+                listOf(DummyIngress.perUnitIngress),
+                "app-",
+                "dummy.com",
                 ignoreReadyTest = true
             ),
+            run {
+                val product = Product.Ingress(
+                    "u1-publiclink",
+                    1L,
+                    ProductCategoryId("u1-publiclink", UCLOUD_PROVIDER),
+                    "Description"
+                )
+
+                TestCase(
+                    "UCloud/Compute",
+                    { Products.create.call(bulkRequestOf(product), serviceClient).orThrow() },
+                    listOf(product),
+                    "app-",
+                    ".cloud.sdu.dk"
+                )
+            }
         )
 
         for (case in cases) {
             resourceUsageTest(
-                "Public IPs @ ${case.title}",
-                NetworkIPs,
+                "Ingress @ ${case.title}",
+                Ingresses,
                 case.products,
                 flagFactory = { flags ->
-                    NetworkIPFlags(
+                    IngressIncludeFlags(
                         includeOthers = flags.includeOthers,
                         includeUpdates = flags.includeUpdates,
                         includeSupport = flags.includeSupport,
@@ -58,16 +89,16 @@ class NetworkIPTest : IntegrationTest() {
                     if (!case.ignoreReadyTest) {
                         val filterId = resources.joinToString(",") { it.id }
                         retrySection(case.deadlineForReady, delay = 1000L) {
-                            val items = NetworkIPs.browse.call(
-                                ResourceBrowseRequest(NetworkIPFlags(filterIds = filterId)),
+                            val items = Ingresses.browse.call(
+                                ResourceBrowseRequest(IngressIncludeFlags(filterIds = filterId)),
                                 adminClient.withProject(project)
                             ).orThrow().items
 
                             val expectedSize = resources.size - input.delete.count { it }
                             assertEquals(expectedSize, items.size)
 
-                            val allReady = items.all { it.status.state == NetworkIPState.READY }
-                            if (!allReady) throw IllegalStateException("Public IPs are not ready yet: $items")
+                            val allReady = items.all { it.status.state == IngressState.READY }
+                            if (!allReady) throw IllegalStateException("Ingresses are not ready yet: $items")
                         }
                     }
                 },
@@ -79,7 +110,10 @@ class NetworkIPTest : IntegrationTest() {
                                     input(
                                         ResourceUsageTestInput(
                                             (0 until count).map { idx ->
-                                                NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())
+                                                IngressSpecification(
+                                                    "${case.prefix}testing-${idx}${case.suffix}",
+                                                    product.toReference()
+                                                )
                                             },
                                             creator = userType
                                         )
@@ -95,7 +129,12 @@ class NetworkIPTest : IntegrationTest() {
                         case("Permission updates") {
                             input(
                                 ResourceUsageTestInput(
-                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    listOf(
+                                        IngressSpecification(
+                                            "${case.prefix}testing${case.suffix}",
+                                            product.toReference()
+                                        )
+                                    ),
                                     listOf("G1"),
                                     listOf(
                                         PartialAclUpdate(
@@ -112,7 +151,12 @@ class NetworkIPTest : IntegrationTest() {
                         case("Deletion") {
                             input(
                                 ResourceUsageTestInput(
-                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    listOf(
+                                        IngressSpecification(
+                                            "${case.prefix}testing${case.suffix}",
+                                            product.toReference()
+                                        )
+                                    ),
                                     delete = listOf(true)
                                 )
                             )

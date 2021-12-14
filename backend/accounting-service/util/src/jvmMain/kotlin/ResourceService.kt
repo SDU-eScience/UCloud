@@ -228,7 +228,6 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
-                    debug = true,
                 )
                 .rows
                 .asSequence()
@@ -1235,7 +1234,6 @@ abstract class ResourceService<
                         order by
                             $sortBy $sortDirection, resc.category, resc.name 
                     """,
-                    debug = true,
                 )
             },
             mapper = { _, rows ->

@@ -10,11 +10,11 @@ import dk.sdu.cloud.integration.*
 import dk.sdu.cloud.provider.api.Permission
 import kotlin.test.assertEquals
 
-class NetworkIPTest : IntegrationTest() {
+class LicenseTest : IntegrationTest() {
     data class TestCase(
         val title: String,
         val initialization: suspend () -> Unit,
-        val products: List<Product.NetworkIP>,
+        val products: List<Product.License>,
         val deadlineForReady: Int = 60 * 5,
         val ignoreReadyTest: Boolean = false,
     )
@@ -24,18 +24,18 @@ class NetworkIPTest : IntegrationTest() {
             TestCase(
                 "Dummy",
                 { DummyProvider.initialize() },
-                listOf(DummyIps.ip),
+                listOf(DummyLicense.license),
                 ignoreReadyTest = true
             ),
         )
 
         for (case in cases) {
             resourceUsageTest(
-                "Public IPs @ ${case.title}",
-                NetworkIPs,
+                "Licenses @ ${case.title}",
+                Licenses,
                 case.products,
                 flagFactory = { flags ->
-                    NetworkIPFlags(
+                    LicenseIncludeFlags(
                         includeOthers = flags.includeOthers,
                         includeUpdates = flags.includeUpdates,
                         includeSupport = flags.includeSupport,
@@ -58,16 +58,16 @@ class NetworkIPTest : IntegrationTest() {
                     if (!case.ignoreReadyTest) {
                         val filterId = resources.joinToString(",") { it.id }
                         retrySection(case.deadlineForReady, delay = 1000L) {
-                            val items = NetworkIPs.browse.call(
-                                ResourceBrowseRequest(NetworkIPFlags(filterIds = filterId)),
+                            val items = Licenses.browse.call(
+                                ResourceBrowseRequest(LicenseIncludeFlags(filterIds = filterId)),
                                 adminClient.withProject(project)
                             ).orThrow().items
 
                             val expectedSize = resources.size - input.delete.count { it }
                             assertEquals(expectedSize, items.size)
 
-                            val allReady = items.all { it.status.state == NetworkIPState.READY }
-                            if (!allReady) throw IllegalStateException("Public IPs are not ready yet: $items")
+                            val allReady = items.all { it.status.state == LicenseState.READY }
+                            if (!allReady) throw IllegalStateException("Licenses are not ready yet: $items")
                         }
                     }
                 },
@@ -79,7 +79,7 @@ class NetworkIPTest : IntegrationTest() {
                                     input(
                                         ResourceUsageTestInput(
                                             (0 until count).map { idx ->
-                                                NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())
+                                                LicenseSpecification(product.toReference())
                                             },
                                             creator = userType
                                         )
@@ -95,7 +95,7 @@ class NetworkIPTest : IntegrationTest() {
                         case("Permission updates") {
                             input(
                                 ResourceUsageTestInput(
-                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    listOf(LicenseSpecification(product.toReference())),
                                     listOf("G1"),
                                     listOf(
                                         PartialAclUpdate(
@@ -112,7 +112,7 @@ class NetworkIPTest : IntegrationTest() {
                         case("Deletion") {
                             input(
                                 ResourceUsageTestInput(
-                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    listOf(LicenseSpecification(product.toReference())),
                                     delete = listOf(true)
                                 )
                             )

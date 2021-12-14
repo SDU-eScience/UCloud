@@ -12,6 +12,7 @@ import java.time.ZoneId
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.collections.ArrayList
+import kotlin.time.ExperimentalTime
 import kotlin.time.measureTime
 
 data class Script(
@@ -42,13 +43,15 @@ class ScriptManager : MicroFeature {
     private val errorStream = JsonEventStream("script-error-stream", ScriptErrorReport.serializer())
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
-        redisConnectionManager = runCatching { ctx.redisConnectionManager }.getOrNull()
-        redisBroadcastingStream = redisConnectionManager?.let { RedisBroadcastingStream(it) }
-        myLock = redisConnectionManager?.let {
-            DistributedLockBestEffort(ctx.serviceDescription.name, connectionManager = it)
-        }
+        if (!cliArgs.contains("--no-scripts")) {
+            redisConnectionManager = runCatching { ctx.redisConnectionManager }.getOrNull()
+            redisBroadcastingStream = redisConnectionManager?.let { RedisBroadcastingStream(it) }
+            myLock = redisConnectionManager?.let {
+                DistributedLockBestEffort(ctx.serviceDescription.name, connectionManager = it)
+            }
 
-        startScriptRunner(ctx)
+            startScriptRunner(ctx)
+        }
     }
 
     fun register(script: Script) {
@@ -94,6 +97,7 @@ class ScriptManager : MicroFeature {
         redisBroadcastingStream?.broadcast(ScriptErrorReport(metadata, error), errorStream)
     }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun runScript(script: Script) {
         val lock = myLock
         if (lock == null) {

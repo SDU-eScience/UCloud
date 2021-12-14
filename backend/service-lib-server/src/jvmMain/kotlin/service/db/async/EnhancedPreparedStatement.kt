@@ -77,8 +77,6 @@ class EnhancedPreparedStatement(
 
     fun retain(vararg names: String) {
         val newMap = rawParameters.filterKeys { it in names }
-        println(rawParameters)
-        println(newMap)
         rawParameters.clear()
         rawParameters.putAll(newMap)
     }
