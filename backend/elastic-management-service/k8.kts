@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "elastic-management"
-    version = "2021.3.0-alpha0"
+    version = "2021.3.0-alpha1"
 
     val deployment = withDeployment {
         injectSecret("elasticsearch-logging-cluster-credentials")

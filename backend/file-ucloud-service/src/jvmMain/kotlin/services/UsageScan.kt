@@ -312,7 +312,6 @@ class UsageScan(
                            unnest(:project_ids::text[]) 
                     on conflict do nothing
                 """,
-                debug = true
             )
         }
     }

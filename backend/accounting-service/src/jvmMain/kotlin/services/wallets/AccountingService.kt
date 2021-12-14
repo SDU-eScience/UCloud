@@ -336,7 +336,7 @@ class AccountingService(
                         values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
                         on conflict do nothing
                     """
-                ).rowsAffected.also { println("owners $it") }
+                )
             } catch (ex: GenericDatabaseException) {
                 if (ex.errorCode == PostgresErrorCodes.FOREIGN_KEY_VIOLATION) {
                     throw RPCException("No such payer exists", HttpStatusCode.BadRequest)

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "avatar"
-    version = "2021.3.0-alpha0"
+    version = "2021.3.0-alpha1"
 
     // /api/avatar is added by default
     withAmbassador {}

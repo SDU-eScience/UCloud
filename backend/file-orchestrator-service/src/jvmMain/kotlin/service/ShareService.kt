@@ -151,7 +151,7 @@ class ShareService(
                             using affected_shares share, affected_file_collections fc
                             where
                             r.id = share.resource or r.id = fc.resource
-                """, debug = true
+                """
             )
         }
     }

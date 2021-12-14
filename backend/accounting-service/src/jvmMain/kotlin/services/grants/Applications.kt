@@ -265,7 +265,7 @@ class GrantApplicationService(
                                 prin.email like '%@' || aau.applicant_id
                             )
                         ) and prin.id = :username
-            """, debug = true
+            """
         ).rows
             .firstOrNull()
             ?.getLong(0)
@@ -342,7 +342,7 @@ class GrantApplicationService(
                     set reference_id = :newReference
                     from permission_check pc
                     where app.id = pc.id and pc.is_approver
-                """, debug = true
+                """
             )
         }
     }

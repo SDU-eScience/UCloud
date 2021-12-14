@@ -7,30 +7,26 @@ import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
-import dk.sdu.cloud.app.orchestrator.api.IngressProvider
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
-import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.Service
-import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.integration.backend.toReference
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.InternalTokenValidationJWT
-import dk.sdu.cloud.service.configureControllers
+import dk.sdu.cloud.service.*
 import io.ktor.http.*
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -41,7 +37,10 @@ object DummyProviderService : Service {
         override val version = "1"
     }
 
-    override fun initializeServer(micro: Micro): CommonServer = DummyProvider(micro)
+    override fun initializeServer(micro: Micro): CommonServer {
+        DummyProvider.micro = micro
+        return DummyProvider
+    }
 }
 
 @Serializable
@@ -51,6 +50,7 @@ data class DummyConfiguration(
 )
 
 const val DUMMY_PROVIDER = "dummy"
+
 interface DummyApi {
     val tracker: RequestTracker
     val products: List<Product>
@@ -93,8 +93,10 @@ object DummyFiles : FilesProvider(DUMMY_PROVIDER), DummyApi {
     override val products: List<Product> = listOf()
 }
 
-class DummyProvider(override val micro: Micro) : CommonServer {
+object DummyProvider : CommonServer {
+    override lateinit var micro: Micro
     override val log = logger()
+    lateinit var controllers: Array<DummyController<*, *, *, *, *, *, *>>
 
     override fun start() {
         val configuration = micro.configuration.requestChunkAt<DummyConfiguration>("dummy")
@@ -105,13 +107,16 @@ class DummyProvider(override val micro: Micro) : CommonServer {
         )
         val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken))
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
+        micro.providerTokenValidation = validation as TokenValidation<Any>
 
-        configureControllers(
+        controllers = arrayOf(
             dummyController(
                 serviceClient,
                 DummyIngress,
                 DummyIngress.tracker,
-                listOf(),
+                DummyIngress.products.filterIsInstance<Product.Ingress>().map {
+                    ResolvedSupport(it, IngressSupport("app-", ".dummy.com", it.toReference()))
+                },
                 configure = {}
             ),
             dummyController(
@@ -143,6 +148,12 @@ class DummyProvider(override val micro: Micro) : CommonServer {
                 configure = {}
             ),
         )
+
+        configureControllers(*controllers)
+    }
+
+    suspend fun initialize() {
+        controllers.forEach { it.initialize() }
     }
 }
 
@@ -201,14 +212,16 @@ abstract class DummyController<
     suspend fun initialize() {
         val products = retrieveProducts()
         cachedSupport = BulkResponse(products.map { it.support })
-        Products.create.call(
-            BulkRequest(products.map { it.product }),
-            client
-        ).orRethrowAs {
-            throw RPCException(
-                "Failed to initialize products: ${it.error} ${it.statusCode}",
-                HttpStatusCode.InternalServerError
-            )
+        if (products.isNotEmpty()) {
+            Products.create.call(
+                BulkRequest(products.map { it.product }),
+                client
+            ).orRethrowAs {
+                throw RPCException(
+                    "Failed to initialize products: ${it.error} ${it.statusCode}",
+                    HttpStatusCode.InternalServerError
+                )
+            }
         }
     }
 
