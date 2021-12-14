@@ -74,13 +74,27 @@ object DummyIngress : IngressProvider(DUMMY_PROVIDER), DummyApi {
 }
 
 object DummyLicense : LicenseProvider(DUMMY_PROVIDER), DummyApi {
+    val license = Product.License(
+        "license",
+        1L,
+        ProductCategoryId("license", DUMMY_PROVIDER),
+        "License"
+    )
+
     override val tracker = RequestTracker()
-    override val products: List<Product> = listOf()
+    override val products: List<Product> = listOf(license)
 }
 
 object DummyIps : NetworkIPProvider(DUMMY_PROVIDER), DummyApi {
+    val ip = Product.NetworkIP(
+        "ip",
+        1L,
+        ProductCategoryId("ip", DUMMY_PROVIDER),
+        "ip"
+    )
+
     override val tracker = RequestTracker()
-    override val products: List<Product> = listOf()
+    override val products: List<Product> = listOf(ip)
 }
 
 object DummyFileCollections : FileCollectionsProvider(DUMMY_PROVIDER), DummyApi {
@@ -123,14 +137,18 @@ object DummyProvider : CommonServer {
                 serviceClient,
                 DummyLicense,
                 DummyLicense.tracker,
-                listOf(),
+                DummyLicense.products.filterIsInstance<Product.License>().map {
+                    ResolvedSupport(it, LicenseSupport(it.toReference()))
+                },
                 configure = {}
             ),
             dummyController(
                 serviceClient,
                 DummyIps,
                 DummyIps.tracker,
-                listOf(),
+                DummyIps.products.filterIsInstance<Product.NetworkIP>().map {
+                    ResolvedSupport(it, NetworkIPSupport(it.toReference()))
+                },
                 configure = {}
             ),
             dummyController(
