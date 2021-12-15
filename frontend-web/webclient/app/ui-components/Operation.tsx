@@ -160,7 +160,10 @@ export const Operations: OperationsType = props => {
 
     // Don't render anything if we are in row and we have selected something
     // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
-    if (props.location === "IN_ROW" && !props.row) return null;
+    if (props.location === "IN_ROW") {
+        if (!props.row) return null;
+        if (props.selected.length > 0 && !props.selected.includes(props.row)) return null;
+    }
 
     const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
 

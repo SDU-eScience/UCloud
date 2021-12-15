@@ -184,11 +184,6 @@ const ShareGroup: React.FunctionComponent<{
         validateShare(group.sourceFilePath);
     }, [shares]);
 
-    const operations: Operation<Share, ResourceBrowseCallbacks<Share>>[] = React.useMemo(() =>
-        shareValidated === ShareValidateState.DELETED ? [] : SharesApi.retrieveOperations(),
-        [shareValidated]
-    );
-
     const isDeleted = shareValidated === ShareValidateState.DELETED;
 
     return <HighlightedCard
@@ -236,7 +231,7 @@ const ShareGroup: React.FunctionComponent<{
                         item={share}
                         renderer={SharesApi.renderer}
                         toggleSet={toggleSet}
-                        operations={operations}
+                        operations={SharesApi.retrieveOperations()}
                         callbacks={cb}
                         itemTitle={SharesApi.title}
                         disableSelection
