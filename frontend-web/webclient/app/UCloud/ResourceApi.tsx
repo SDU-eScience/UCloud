@@ -17,7 +17,6 @@ import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, ProductType} from "@/Accounting";
-import {getParentPath} from "@/Utilities/FileUtilities";
 
 export interface ProductSupport {
     product: ProductReference;
