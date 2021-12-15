@@ -101,11 +101,8 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
                     <Route path={"/files"} component={requireAuth(FilesRouter)} />
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
-                    <Route path={"/shares"}>
-                        {/* Missing auth requirement */}
-                        <ShareRouter />
-                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
-                    </Route>
+                    <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
+                    <Route path={"/shares"} component={requireAuth(ShareRouter)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
