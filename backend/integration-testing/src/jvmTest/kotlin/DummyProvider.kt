@@ -19,8 +19,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
-import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.integration.backend.toReference
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.api.*
@@ -103,8 +102,14 @@ object DummyFileCollections : FileCollectionsProvider(DUMMY_PROVIDER), DummyApi 
 }
 
 object DummyFiles : FilesProvider(DUMMY_PROVIDER), DummyApi {
+    val storage = Product.Storage(
+        "storage",
+        1L,
+        ProductCategoryId("storage", DUMMY_PROVIDER),
+        "storage"
+    )
     override val tracker = RequestTracker()
-    override val products: List<Product> = listOf()
+    override val products: List<Product> = listOf(storage)
 }
 
 object DummyProvider : CommonServer {
@@ -155,14 +160,28 @@ object DummyProvider : CommonServer {
                 serviceClient,
                 DummyFileCollections,
                 DummyFileCollections.tracker,
-                listOf(),
+                DummyFiles.products.filterIsInstance<Product.Storage>().map {
+                    ResolvedSupport(it, FSSupport(
+                        it.toReference(),
+                        FSProductStatsSupport(),
+                        FSCollectionSupport(usersCanCreate = true, usersCanDelete = true, usersCanRename = true),
+                        FSFileSupport()
+                    ))
+                },
                 configure = {}
             ),
             dummyController(
                 serviceClient,
                 DummyFiles,
                 DummyFiles.tracker,
-                listOf(),
+                DummyFiles.products.filterIsInstance<Product.Storage>().map {
+                    ResolvedSupport(it, FSSupport(
+                        it.toReference(),
+                        FSProductStatsSupport(),
+                        FSCollectionSupport(usersCanCreate = true, usersCanDelete = true, usersCanRename = true),
+                        FSFileSupport()
+                    ))
+                },
                 configure = {}
             ),
         )
