@@ -17,6 +17,7 @@ import {Dispatch} from "redux";
 import {ResourceProperties} from "@/Resource/Properties";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {Product, ProductType} from "@/Accounting";
+import {getParentPath} from "@/Utilities/FileUtilities";
 
 export interface ProductSupport {
     product: ProductReference;
@@ -267,6 +268,10 @@ export abstract class ResourceApi<Res extends Resource,
                     await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
                     cb.reload();
                     cb.closeProperties?.();
+                    
+                    if (!cb.viewProperties && !cb.embedded) {
+                        cb.history.push(`/${cb.api.routingNamespace}`)
+                    }
                 },
                 tag: DELETE_TAG
             },
