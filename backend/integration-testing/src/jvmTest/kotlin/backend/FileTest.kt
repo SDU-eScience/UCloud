@@ -16,35 +16,36 @@ import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
 
+
+suspend fun initializeCollection(
+    project: String,
+    rpcClient: AuthenticatedClient,
+    product: Product.Storage
+): Pair<FileCollection, FSSupport> {
+    // NOTE(Dan): Don't throw since we didn't even check if we should do this.
+    // At least one of these should initialize the system for us. If we still end up with no
+    // collection, then something is wrong in the system.
+    FileCollections.init.call(Unit, rpcClient)
+    Files.init.call(Unit, rpcClient)
+    FileCollections.create.call(
+        bulkRequestOf(FileCollection.Spec("Test", product.toReference())),
+        rpcClient
+    )
+
+    val collection = FileCollections.browse.call(
+        ResourceBrowseRequest(FileCollectionIncludeFlags()),
+        rpcClient
+    ).orThrow().items.find { it.specification.product == product.toReference() }
+        ?: throw IllegalStateException("No collection found for: $project of $product")
+
+    val support = FileCollections.retrieveProducts.call(Unit, rpcClient).orThrow()
+        .productsByProvider.values.flatten().find { it.product == product }
+        ?: throw IllegalStateException("$product has no support")
+
+    return Pair(collection, support.support)
+}
+
 class FileTest : IntegrationTest() {
-    private suspend fun initializeCollection(
-        project: String,
-        rpcClient: AuthenticatedClient,
-        product: Product.Storage
-    ): Pair<FileCollection, FSSupport> {
-        // NOTE(Dan): Don't throw since we didn't even check if we should do this.
-        // At least one of these should initialize the system for us. If we still end up with no
-        // collection, then something is wrong in the system.
-        FileCollections.init.call(Unit, rpcClient)
-        Files.init.call(Unit, rpcClient)
-        FileCollections.create.call(
-            bulkRequestOf(FileCollection.Spec("Test", product.toReference())),
-            rpcClient
-        )
-
-        val collection = FileCollections.browse.call(
-            ResourceBrowseRequest(FileCollectionIncludeFlags()),
-            rpcClient
-        ).orThrow().items.find { it.specification.product == product.toReference() }
-            ?: throw IllegalStateException("No collection found for: $project of $product")
-
-        val support = FileCollections.retrieveProducts.call(Unit, rpcClient).orThrow()
-            .productsByProvider.values.flatten().find { it.product == product }
-            ?: throw IllegalStateException("$product has no support")
-
-        return Pair(collection, support.support)
-    }
-
     data class TestCase(
         val title: String,
         val initialization: suspend () -> Unit,

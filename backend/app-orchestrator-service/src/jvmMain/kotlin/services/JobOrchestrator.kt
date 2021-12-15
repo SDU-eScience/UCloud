@@ -224,6 +224,11 @@ class JobOrchestrator(
                 select unnest(:names::text[]), unnest(:values::jsonb[]), unnest(:job_ids::bigint[])
             """
         )
+
+        idWithSpec.forEach { (id, spec) ->
+            val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
+            listeners.forEach { it.onCreate(db, preliminaryJob) }
+        }
     }
 
     override suspend fun onUpdate(

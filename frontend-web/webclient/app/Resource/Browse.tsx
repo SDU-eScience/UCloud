@@ -102,8 +102,6 @@ function setStoredSortDirection(title: string, order: "ascending" | "descending"
     localStorage.setItem(`${title}:sortDirection`, order);
 }
 
-let didInitialize = false;
-
 export function ResourceBrowse<Res extends Resource, CB = undefined>({
     onSelect, api, ...props
 }: PropsWithChildren<ResourceBrowseProps<Res, CB>> & {/* HACK(Jonas) */disableSearch?: boolean/* HACK(Jonas): End */}): ReactElement | null {
@@ -137,15 +135,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     });
     const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
-    useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
-    useEffect(() => {
-        if (!didInitialize) {
-            callAPI(api.init()).then(doNothing).catch(doNothing);
-            didInitialize = true;
-        }
-    }, [projectId]);
+   useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
 
-    const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
+   const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
     useEffect(() => fetchProductsWithSupport(api.retrieveProducts()), []);
     const renaming = useRenamingState<Res>(
@@ -370,7 +362,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     !resource.permissions.myself.includes("ADMIN") || resource.owner.project == null ? null :
                         (props.showGroups === false ||
                             resource.permissions.others == null ||
-                            resource.permissions.others.length <= 1) ? <ListRowStat>Only available to admins</ListRowStat> :
+                            resource.permissions.others.length <= 1) ? <ListRowStat>Not shared with any group</ListRowStat> :
                             <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}

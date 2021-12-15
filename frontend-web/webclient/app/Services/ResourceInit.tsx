@@ -7,6 +7,7 @@ import {default as NetworkIPApi} from "@/UCloud/NetworkIPApi";
 import {default as FilesApi} from "@/UCloud/FilesApi";
 import {default as JobsApi} from "@/UCloud/JobsApi";
 import {doNothing} from "@/UtilityFunctions";
+import {useEffect} from "react";
 
 export function initializeResources() {
     callAPI(FileCollectionsApi.init()).then(doNothing).catch(doNothing);
@@ -18,6 +19,8 @@ export function initializeResources() {
 }
 
 export const ResourceInit: React.FunctionComponent = () => {
-    initializeResources();
+    useEffect(() => {
+        initializeResources();
+    }, []);
     return null;
 };
