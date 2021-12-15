@@ -158,9 +158,9 @@ export const Operations: OperationsType = props => {
     }, []);
     if (props.openFnRef) props.openFnRef.current = open;
 
-    // Don't render anything if we are in row and we have selected something
-    // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
     if (props.location === "IN_ROW") {
+        // Don't render anything if we are in row and we have selected something
+        // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
         if (!props.row) return null;
         if (props.selected.length > 0 && !props.selected.includes(props.row)) return null;
     }

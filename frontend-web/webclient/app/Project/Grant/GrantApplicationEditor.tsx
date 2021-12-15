@@ -793,6 +793,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 <Button
                                                                                     color="blue"
                                                                                     onClick={updateReferenceID}
+                                                                                    mx="6px"
                                                                                 >
                                                                                     Update Reference ID
                                                                                 </Button>
@@ -809,8 +810,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 {state.editingApplication?.referenceId ?? "No ID given"}
                                                                             </td>
                                                                             <td>
-                                                                                <Button
-                                                                                    onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                                <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
                                                                             </td>
                                                                         </>)
                                                                     }
