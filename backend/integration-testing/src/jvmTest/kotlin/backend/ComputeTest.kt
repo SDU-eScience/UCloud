@@ -1,12 +1,14 @@
 package dk.sdu.cloud.integration.backend
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.app.store.api.AppParameterValue
-import dk.sdu.cloud.app.store.api.AppStore
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.ToolStore
+import dk.sdu.cloud.app.store.api.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.integration.IntegrationTest
@@ -16,7 +18,11 @@ import io.ktor.http.*
 import kotlinx.coroutines.delay
 
 class ComputeTest : IntegrationTest() {
-    suspend fun create() {
+    private lateinit var figletTool: Tool
+    private lateinit var figletBatch: ApplicationWithFavoriteAndTags
+    private lateinit var figletLongRunning: ApplicationWithFavoriteAndTags
+
+    private suspend fun create() {
         ToolStore.create.call(
             Unit,
             serviceClient.withHttpBody(
@@ -46,6 +52,7 @@ class ComputeTest : IntegrationTest() {
                 ContentType("text", "yaml")
             )
         ).orThrow()
+
         AppStore.create.call(
             Unit,
             serviceClient.withHttpBody(
@@ -109,6 +116,21 @@ class ComputeTest : IntegrationTest() {
                 ContentType("text", "yaml")
             )
         ).orThrow()
+
+        figletTool = ToolStore.findByNameAndVersion.call(
+            FindByNameAndVersion("figlet", "1.0.0"),
+            serviceClient
+        ).orThrow()
+
+        figletBatch = AppStore.findByNameAndVersion.call(
+            FindApplicationAndOptionalDependencies("figlet", "1.0.0"),
+            serviceClient
+        ).orThrow()
+
+        figletLongRunning = AppStore.findByNameAndVersion.call(
+            FindApplicationAndOptionalDependencies("long-running", "1.0.0"),
+            serviceClient
+        ).orThrow()
     }
 
     private suspend fun startJob(
@@ -118,14 +140,36 @@ class ComputeTest : IntegrationTest() {
         rpcClient: AuthenticatedClient,
         waitForState: JobState? = null,
     ): Pair<String, JobState> {
+        val (meta, params) = when {
+            !longRunning && interactivity == null -> {
+                Pair(figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
+            }
+
+            longRunning && interactivity == null -> {
+                Pair(figletLongRunning.metadata, emptyMap())
+            }
+
+            interactivity == InteractiveSessionType.SHELL -> {
+                TODO()
+            }
+
+            interactivity == InteractiveSessionType.VNC -> {
+                TODO()
+            }
+
+            interactivity == InteractiveSessionType.WEB -> {
+                TODO()
+            }
+
+            else -> error("Should not happen: $longRunning $interactivity")
+        }
+
         val id = Jobs.create.call(
             bulkRequestOf(
                 JobSpecification(
-                    NameAndVersion(name = "figlet", version = "1.0.0"),
+                    NameAndVersion(meta.name, meta.version),
                     product.toReference(),
-                    parameters = mapOf(
-                        "text" to AppParameterValue.Text("Hello World!")
-                    )
+                    parameters = params
                 )
             ),
             rpcClient
@@ -149,15 +193,49 @@ class ComputeTest : IntegrationTest() {
     data class TestCase(
         val title: String,
         val initialization: suspend () -> Unit,
-        val products: List<Product.Compute>,
+        val products: List<Product>,
         val storage: Product.Storage,
     )
 
     override fun defineTests() {
-        val cases: List<TestCase> = emptyList()
+        val cases: List<TestCase> = listOf(
+            run {
+                val storageProduct = Product.Storage(
+                    "u1-cephfs",
+                    1L,
+                    ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
+                    "Storage"
+                )
+
+                val projectHome = Product.Storage(
+                    "project-home",
+                    1L,
+                    ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
+                    "storage"
+                )
+
+                val computeProduct = Product.Compute(
+                    "u1-standard-1",
+                    1L,
+                    ProductCategoryId("u1-standard", UCLOUD_PROVIDER),
+                    "Compute"
+                )
+
+                val products = listOf(storageProduct, projectHome, computeProduct)
+
+                TestCase(
+                    "UCloud/Compute",
+                    {
+                        Products.create.call(BulkRequest(products), serviceClient).orThrow()
+                    },
+                    products,
+                    storageProduct
+                )
+            }
+        )
 
         for (case in cases) {
-            for (product in case.products) {
+            for (product in case.products.filterIsInstance<Product.Compute>()) {
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {
                     execute {
