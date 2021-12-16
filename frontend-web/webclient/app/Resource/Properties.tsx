@@ -28,7 +28,6 @@ import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
-import {Product} from "@/Accounting";
 import {BrowseType} from "./BrowseType";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
@@ -340,7 +339,7 @@ export function ResourceProperties<Res extends Resource>(
                     {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
-                                                      noPermissionsWarning={props.noPermissionsWarning}/>
+                                noPermissionsWarning={props.noPermissionsWarning} />
                             <Box mb={16} />
                         </HighlightedCard>
                     }
