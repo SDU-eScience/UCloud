@@ -43,7 +43,7 @@ kotlin {
                 api("org.jetbrains:annotations:16.0.2")
                 api("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
-                api("org.apache.logging.log4j:log4j-slf4j-impl:2.15.0")
+                api("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
                 api("com.auth0:java-jwt:3.8.3")
 
                 api("org.postgresql:postgresql:42.2.5")
