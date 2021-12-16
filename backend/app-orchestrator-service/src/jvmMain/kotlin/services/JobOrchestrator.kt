@@ -125,7 +125,7 @@ class JobOrchestrator(
             }
 
             ToolBackend.VIRTUAL_MACHINE -> {
-                if (support.virtualMachine.enabled != null) {
+                if (support.virtualMachine.enabled != true) {
                     throw JobException.VerificationError("Application is not supported by provider")
                 }
             }
