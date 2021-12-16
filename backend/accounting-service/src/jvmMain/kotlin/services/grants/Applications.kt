@@ -47,6 +47,7 @@ class GrantApplicationService(
                             alloc.associated_wallet = w.id and
                             now() >= alloc.start_date and
                             (alloc.end_date is null or now() <= alloc.end_date)
+                    order by pc.provider, pc.category
                 """
             )
         }.rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
