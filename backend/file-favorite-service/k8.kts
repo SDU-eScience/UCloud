@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-favorite"
-    version = "1.8.6"
+    version = "1.8.7"
 
     // /api/avatar is added by default
     withAmbassador(null) {

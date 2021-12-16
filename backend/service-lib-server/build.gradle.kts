@@ -40,7 +40,7 @@ kotlin {
                 api("io.ktor:ktor-websockets:$ktorVersion")
                 api("org.jetbrains:annotations:16.0.2")
 
-                api("org.apache.logging.log4j:log4j-slf4j-impl:2.15.0")
+                api("org.apache.logging.log4j:log4j-slf4j-impl:2.16.0")
                 api("com.auth0:java-jwt:3.15.0")
 
                 api("org.postgresql:postgresql:42.2.19")

@@ -1,4 +1,4 @@
-version = "0.4.9"
+version = "0.4.10"
 
 application {
     mainClassName = "dk.sdu.cloud.mail.MainKt"
@@ -13,4 +13,3 @@ kotlin.sourceSets {
         }
     }
 }
-

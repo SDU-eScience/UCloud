@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "ucloud-data-extraction"
-    version = "0.1.17-3"
+    version = "0.1.18"
     
     withAmbassador() {}
 

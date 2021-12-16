@@ -1,4 +1,4 @@
-version = "0.1.7"
+version = "0.1.8"
 
 application {
     mainClassName = "dk.sdu.cloud.sync.mounter.MainKt"
