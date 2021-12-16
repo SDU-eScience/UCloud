@@ -2,7 +2,6 @@ package dk.sdu.cloud.integration
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -319,15 +318,6 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
-        File(dir, "k8s.yml").writeText(
-            """
-                ---
-                app:
-                  kubernetes:
-                    reloadableK8Config: ${File(tempDir, "k3s.yml").absolutePath}
-            """.trimIndent()
-        )
-
         providers.forEach {
             File(dir, it.providerId + ".yaml").writeText(it.generateConfig())
         }
@@ -435,7 +425,6 @@ object UCloudLauncher : Loggable {
                 return@runBlocking
             }
 
-            integrationTestingIsKubernetesReady = false
             isRunning = true
             Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
 

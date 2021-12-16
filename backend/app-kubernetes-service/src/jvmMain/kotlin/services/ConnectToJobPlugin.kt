@@ -52,6 +52,10 @@ object ConnectToJobPlugin : JobManagementPlugin, Loggable {
             }
         }
 
+        runCatching {
+            k8.client.deleteResource(KubernetesResources.networkPolicies.withNameAndNamespace(POLICY_PREFIX + job.id, namespace))
+        }
+
         val newPolicy = NetworkPolicy().apply {
             metadata = ObjectMeta(POLICY_PREFIX + job.id)
 

@@ -12,6 +12,8 @@ services:
       - discovery.type=single-node
     volumes:
       - elasticData:/usr/share/elasticsearch/data
+    ports:
+    - ${ELASTIC_PORT:-9200}:9200
     hostname: elasticsearch
 
   postgres:
@@ -39,8 +41,10 @@ services:
     - k3sConfig:/output
     - k3sData:/var/lib/rancher/k3s
     - k3sCni:/var/lib/cni
-    - k3sKubelet:/var/lib/kubeley
+    - k3sKubelet:/var/lib/kubelet
     - k3sEtc:/etc/rancher
+    ports:
+    - ${K3S_PORT:-6443}:6443
     command:
       - server
     hostname: k3s

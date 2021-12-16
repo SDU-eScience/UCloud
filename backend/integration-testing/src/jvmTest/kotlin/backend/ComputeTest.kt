@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -169,7 +168,9 @@ class ComputeTest : IntegrationTest() {
                 JobSpecification(
                     NameAndVersion(meta.name, meta.version),
                     product.toReference(),
-                    parameters = params
+                    timeAllocation = SimpleDuration(0, 15, 0),
+                    parameters = params,
+                    resources = emptyList()
                 )
             ),
             rpcClient
@@ -184,7 +185,7 @@ class ComputeTest : IntegrationTest() {
                 rpcClient
             ).orThrow().status.state
 
-            delay(50)
+            delay(1000)
         }
 
         return Pair(id, lastKnownState)
