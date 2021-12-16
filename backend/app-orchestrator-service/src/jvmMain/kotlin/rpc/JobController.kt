@@ -4,6 +4,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.Jobs
+import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
@@ -24,6 +25,7 @@ class JobController(
 
         implement(Jobs.follow) {
             orchestrator.follow(this)
+            ok(JobsFollowResponse(emptyList(), emptyList()))
         }
 
         implement(Jobs.extend) {

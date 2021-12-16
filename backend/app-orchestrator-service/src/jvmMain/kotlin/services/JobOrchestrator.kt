@@ -448,6 +448,8 @@ class JobOrchestrator(
                                     }
                                 )
                             }
+                        } catch (ignore: java.util.concurrent.CancellationException) {
+                            break
                         } catch (ex: Throwable) {
                             log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
                             break
@@ -519,7 +521,8 @@ class JobOrchestrator(
                                     resource: RequestWithRefOrResource<Unit, Job>
                                 ): JobsProviderFollowRequest = JobsProviderFollowRequest.CancelStream(capturedId)
 
-                            }
+                            },
+                            useHttpClient = false
                         )
                     }
 

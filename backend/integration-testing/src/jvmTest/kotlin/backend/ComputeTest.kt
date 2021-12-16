@@ -1,5 +1,6 @@
 package dk.sdu.cloud.integration.backend
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
@@ -15,12 +16,14 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.log
 import dk.sdu.cloud.integration.UCloudLauncher.micro
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.k8.*
+import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.*
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -185,10 +188,14 @@ class ComputeTest : IntegrationTest() {
             rpcClient
         ).orThrow().responses.first()!!.id
 
+        return Pair(id, waitForState(id, waitForState, rpcClient))
+    }
+
+    private suspend fun waitForState(id: String, targetState: JobState?, rpcClient: AuthenticatedClient): JobState {
         val deadline = Time.now() + 1000 * 60 * 5L
         var lastKnownState: JobState = JobState.IN_QUEUE
         while (Time.now() < deadline && !lastKnownState.isFinal()) {
-            if (waitForState == lastKnownState) break
+            if (targetState == lastKnownState) break
             lastKnownState = Jobs.retrieve.call(
                 ResourceRetrieveRequest(JobIncludeFlags(), id),
                 rpcClient
@@ -197,7 +204,7 @@ class ComputeTest : IntegrationTest() {
             delay(1000)
         }
 
-        return Pair(id, lastKnownState)
+        return lastKnownState
     }
 
     data class TestCase(
@@ -384,7 +391,36 @@ class ComputeTest : IntegrationTest() {
                 }
 
                 test<Unit, Unit>("$titlePrefix Long running with cancel") {
-                    execute { }
+                    execute {
+                        case.initialization()
+                        create()
+                        with(initializeResourceTestContext(case.products, emptyList())) {
+                            val rpcClient = adminClient.withProject(project)
+                            val (collection) = initializeCollection(project, rpcClient, case.storage)
+
+                            val (id, lastKnownState) = startJob(
+                                longRunning = true,
+                                interactivity = null,
+                                product,
+                                rpcClient,
+                                waitForState = JobState.RUNNING
+                            )
+
+                            if (lastKnownState != JobState.RUNNING) {
+                                throw IllegalStateException("Application did not start within deadline: $lastKnownState")
+                            }
+
+                            Jobs.terminate.call(
+                                bulkRequestOf(FindByStringId(id)),
+                                rpcClient
+                            ).orThrow()
+
+                            val finalState = waitForState(id, JobState.SUCCESS, rpcClient)
+                            if (finalState != JobState.SUCCESS) {
+                                throw IllegalStateException("Application did not stop within deadline: $finalState")
+                            }
+                        }
+                    }
                     case("No input") {
                         input(Unit)
                         check {}
@@ -392,7 +428,75 @@ class ComputeTest : IntegrationTest() {
                 }
 
                 test<Unit, Unit>("$titlePrefix Long running with cancel and follow") {
-                    execute { }
+                    execute {
+                        case.initialization()
+                        create()
+                        with(initializeResourceTestContext(case.products, emptyList())) {
+                            val rpcClient = adminClient.withProject(project)
+                            val (collection) = initializeCollection(project, rpcClient, case.storage)
+
+                            val (id, lastKnownState) = startJob(
+                                longRunning = true,
+                                interactivity = null,
+                                product,
+                                rpcClient,
+                                waitForState = JobState.RUNNING
+                            )
+
+                            if (lastKnownState != JobState.RUNNING) {
+                                throw IllegalStateException("Application did not start within deadline: $lastKnownState")
+                            }
+
+                            val wsClient = AuthenticatedClient(
+                                micro.client,
+                                OutgoingWSCall,
+                                rpcClient.afterHook,
+                                rpcClient.authenticator
+                            )
+
+                            var didSeeAnyMessages = false
+                            coroutineScope {
+                                val followJob = launch(Dispatchers.IO) {
+                                    Jobs.follow.subscribe(
+                                        JobsFollowRequest(id),
+                                        wsClient,
+                                        handler = { event ->
+                                            if (!didSeeAnyMessages && event.log.isNotEmpty()) {
+                                                val anyMessage = event.log.any { it.stdout != null || it.stderr != null }
+                                                if (anyMessage) {
+                                                    didSeeAnyMessages = true
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
+
+                                val deadlineJob = launch(Dispatchers.IO) {
+                                    delay(10_000)
+                                }
+
+                                select<Unit> {
+                                    followJob.onJoin {}
+                                    deadlineJob.onJoin {}
+                                }
+
+                                runCatching { followJob.cancel() }
+                                runCatching { deadlineJob.cancel() }
+                            }
+
+                            assertThatInstance(didSeeAnyMessages, "we should have seen messages from the follow") { it }
+
+                            Jobs.terminate.call(
+                                bulkRequestOf(FindByStringId(id)),
+                                rpcClient
+                            ).orThrow()
+
+                            val finalState = waitForState(id, JobState.SUCCESS, rpcClient)
+                            if (finalState != JobState.SUCCESS) {
+                                throw IllegalStateException("Application did not stop within deadline: $finalState")
+                            }
+                        }
+                    }
                     case("No input") {
                         input(Unit)
                         check {}
