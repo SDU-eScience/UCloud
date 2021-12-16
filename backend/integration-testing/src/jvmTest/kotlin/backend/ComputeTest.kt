@@ -210,6 +210,23 @@ class ComputeTest : IntegrationTest() {
     override fun defineTests() {
         val cases: List<TestCase> = listOfNotNull(
             runBlocking {
+                // NOTE(Dan): Short guide on how to run Kubernetes tests.
+                //
+                // For the Kubernetes tests to run you must already have a running Kubernetes cluster with the
+                // following requirements fulfilled:
+                //
+                //  - The system must already have Volcano installed
+                //  - The Kubernetes cluster must share the temporary directory of this machine, since the
+                //    "distributed" file system is created in "/tmp"
+                //  - You must set a path to the kubeconfig file in the _INTEGRATION_ configuration (pass this via
+                //    UCLOUD_INTEGRATION_CFG). If this is not set, then the test will refuse to run.
+                //
+                // Other things to be aware of:
+                //
+                //  - The Kubernetes cluster is cleaned at the beginning of each run
+                //  - In practice this means that the app-kubernetes namespace is deleted...
+                //  - ...and the persistent volume (+ claim) is recreated to match the integration test's storage
+
                 val files = micro.configuration.requestChunkAtOrNull<String>("ceph", "cephfsBaseMount")
                 val kubeConfig =
                     micro.configuration.requestChunkAtOrNull<String>("app", "kubernetes", "kubernetesConfig")
