@@ -12,6 +12,10 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.FileCollection
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.FilesCreateFolderRequestItem
+import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.log
 import dk.sdu.cloud.integration.UCloudLauncher.micro
@@ -94,6 +98,8 @@ class ComputeTest : IntegrationTest() {
                      text:
                        title: "Some text to render with figlet"
                        type: text
+                   
+                   allowAdditionalMounts: true
      
                 """.trimIndent(),
                 ContentType("text", "yaml")
@@ -144,51 +150,58 @@ class ComputeTest : IntegrationTest() {
         ).orThrow()
     }
 
+    private data class StartJobParameters(
+        val longRunning: Boolean,
+        val interactivity: InteractiveSessionType?,
+        val waitForState: JobState? = null,
+        val resources: List<AppParameterValue> = emptyList(),
+    )
+
     private suspend fun startJob(
-        longRunning: Boolean,
-        interactivity: InteractiveSessionType?,
+        parameters: StartJobParameters,
         product: Product.Compute,
         rpcClient: AuthenticatedClient,
-        waitForState: JobState? = null,
     ): Pair<String, JobState> {
-        val (meta, params) = when {
-            !longRunning && interactivity == null -> {
-                Pair(figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
+        with(parameters) {
+            val (meta, params) = when {
+                !longRunning && interactivity == null -> {
+                    Pair(figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
+                }
+
+                longRunning && interactivity == null -> {
+                    Pair(figletLongRunning.metadata, emptyMap())
+                }
+
+                interactivity == InteractiveSessionType.SHELL -> {
+                    TODO()
+                }
+
+                interactivity == InteractiveSessionType.VNC -> {
+                    TODO()
+                }
+
+                interactivity == InteractiveSessionType.WEB -> {
+                    TODO()
+                }
+
+                else -> error("Should not happen: $longRunning $interactivity")
             }
 
-            longRunning && interactivity == null -> {
-                Pair(figletLongRunning.metadata, emptyMap())
-            }
+            val id = Jobs.create.call(
+                bulkRequestOf(
+                    JobSpecification(
+                        NameAndVersion(meta.name, meta.version),
+                        product.toReference(),
+                        timeAllocation = SimpleDuration(0, 15, 0),
+                        parameters = params,
+                        resources = resources
+                    )
+                ),
+                rpcClient
+            ).orThrow().responses.first()!!.id
 
-            interactivity == InteractiveSessionType.SHELL -> {
-                TODO()
-            }
-
-            interactivity == InteractiveSessionType.VNC -> {
-                TODO()
-            }
-
-            interactivity == InteractiveSessionType.WEB -> {
-                TODO()
-            }
-
-            else -> error("Should not happen: $longRunning $interactivity")
+            return Pair(id, waitForState(id, waitForState, rpcClient))
         }
-
-        val id = Jobs.create.call(
-            bulkRequestOf(
-                JobSpecification(
-                    NameAndVersion(meta.name, meta.version),
-                    product.toReference(),
-                    timeAllocation = SimpleDuration(0, 15, 0),
-                    parameters = params,
-                    resources = emptyList()
-                )
-            ),
-            rpcClient
-        ).orThrow().responses.first()!!.id
-
-        return Pair(id, waitForState(id, waitForState, rpcClient))
     }
 
     private suspend fun waitForState(id: String, targetState: JobState?, rpcClient: AuthenticatedClient): JobState {
@@ -207,11 +220,42 @@ class ComputeTest : IntegrationTest() {
         return lastKnownState
     }
 
+    private data class TestContext(
+        val parent: ResourceUsageTestContext,
+        val collection: FileCollection,
+        val jobId: String,
+        val rpcClient: AuthenticatedClient,
+        val currentState: JobState,
+    )
+
+    private suspend fun initializeTest(
+        case: TestCase,
+        product: Product.Compute,
+        parameters: StartJobParameters,
+        resourceInitialization: suspend ResourceUsageTestContext.(coll: FileCollection) -> List<AppParameterValue> = {
+            emptyList()
+        }
+    ): TestContext {
+        case.initialization()
+        create()
+        with(initializeResourceTestContext(case.products, emptyList())) {
+            val rpcClient = adminClient.withProject(project)
+            val (collection) = initializeCollection(project, rpcClient, case.storage)
+
+            val resources = resourceInitialization(collection)
+
+            val (id, lastKnownState) = startJob(parameters.copy(resources = resources), product, rpcClient)
+
+            return TestContext(this, collection, id, rpcClient, lastKnownState)
+        }
+    }
+
     data class TestCase(
         val title: String,
         val initialization: suspend () -> Unit,
         val products: List<Product>,
         val storage: Product.Storage,
+        val ingress: Product.Ingress?,
     )
 
     override fun defineTests() {
@@ -289,35 +333,43 @@ class ComputeTest : IntegrationTest() {
 
                         k8.createResource(
                             KubernetesResources.persistentVolumes,
-                            defaultMapper.encodeToString(PersistentVolume(
-                                metadata = ObjectMeta("storage"),
-                                spec = PersistentVolume.Spec(
-                                    capacity = JsonObject(mapOf(
-                                        "storage" to JsonPrimitive("1000Gi")
-                                    )),
-                                    accessModes = listOf("ReadWriteMany"),
-                                    persistentVolumeReclaimPolicy = "Retain",
-                                    storageClassName = "",
-                                    hostPath = HostPathVolumeSource(path = files)
+                            defaultMapper.encodeToString(
+                                PersistentVolume(
+                                    metadata = ObjectMeta("storage"),
+                                    spec = PersistentVolume.Spec(
+                                        capacity = JsonObject(
+                                            mapOf(
+                                                "storage" to JsonPrimitive("1000Gi")
+                                            )
+                                        ),
+                                        accessModes = listOf("ReadWriteMany"),
+                                        persistentVolumeReclaimPolicy = "Retain",
+                                        storageClassName = "",
+                                        hostPath = HostPathVolumeSource(path = files)
+                                    )
                                 )
-                            ))
+                            )
                         )
 
                         k8.createResource(
                             KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
-                            defaultMapper.encodeToString(PersistentVolumeClaim(
-                                metadata = ObjectMeta("cephfs", "app-kubernetes"),
-                                spec = PersistentVolumeClaim.Spec(
-                                    accessModes = listOf("ReadWriteMany"),
-                                    storageClassName = "",
-                                    volumeName = "storage",
-                                    resources = Pod.Container.ResourceRequirements(
-                                        requests = JsonObject(mapOf(
-                                            "storage" to JsonPrimitive("1000Gi")
-                                        ))
+                            defaultMapper.encodeToString(
+                                PersistentVolumeClaim(
+                                    metadata = ObjectMeta("cephfs", "app-kubernetes"),
+                                    spec = PersistentVolumeClaim.Spec(
+                                        accessModes = listOf("ReadWriteMany"),
+                                        storageClassName = "",
+                                        volumeName = "storage",
+                                        resources = Pod.Container.ResourceRequirements(
+                                            requests = JsonObject(
+                                                mapOf(
+                                                    "storage" to JsonPrimitive("1000Gi")
+                                                )
+                                            )
+                                        )
                                     )
                                 )
-                            ))
+                            )
                         )
                     }
 
@@ -345,7 +397,14 @@ class ComputeTest : IntegrationTest() {
                         gpu = 0
                     )
 
-                    val products = listOf(storageProduct, projectHome, computeProduct)
+                    val ingress = Product.Ingress(
+                        "u1-publiclink",
+                        1L,
+                        ProductCategoryId("u1-publiclink", UCLOUD_PROVIDER),
+                        "Description"
+                    )
+
+                    val products = listOf(storageProduct, projectHome, computeProduct, ingress)
 
                     TestCase(
                         "UCloud/Compute",
@@ -353,7 +412,8 @@ class ComputeTest : IntegrationTest() {
                             Products.create.call(BulkRequest(products), serviceClient).orThrow()
                         },
                         products,
-                        storageProduct
+                        storageProduct,
+                        ingress
                     )
                 }
             }
@@ -364,23 +424,18 @@ class ComputeTest : IntegrationTest() {
                 val titlePrefix = "Compute @ ${case.title} ($product):"
                 test<Unit, Unit>("$titlePrefix Batch application") {
                     execute {
-                        case.initialization()
-                        create()
-                        with(initializeResourceTestContext(case.products, emptyList())) {
-                            val rpcClient = adminClient.withProject(project)
-                            val (collection) = initializeCollection(project, rpcClient, case.storage)
-
-                            val (id, lastKnownState) = startJob(
+                        val ctx = initializeTest(
+                            case,
+                            product,
+                            StartJobParameters(
                                 longRunning = false,
                                 interactivity = null,
-                                product,
-                                rpcClient,
                                 waitForState = JobState.SUCCESS
-                            )
+                            ),
+                        )
 
-                            if (lastKnownState != JobState.SUCCESS) {
-                                throw IllegalStateException("Application did not succeed within deadline: $lastKnownState")
-                            }
+                        if (ctx.currentState != JobState.SUCCESS) {
+                            throw IllegalStateException("Application did not succeed within deadline: ${ctx.currentState}")
                         }
                     }
 
@@ -392,33 +447,28 @@ class ComputeTest : IntegrationTest() {
 
                 test<Unit, Unit>("$titlePrefix Long running with cancel") {
                     execute {
-                        case.initialization()
-                        create()
-                        with(initializeResourceTestContext(case.products, emptyList())) {
-                            val rpcClient = adminClient.withProject(project)
-                            val (collection) = initializeCollection(project, rpcClient, case.storage)
-
-                            val (id, lastKnownState) = startJob(
+                        val ctx = initializeTest(
+                            case,
+                            product,
+                            StartJobParameters(
                                 longRunning = true,
                                 interactivity = null,
-                                product,
-                                rpcClient,
                                 waitForState = JobState.RUNNING
                             )
+                        )
 
-                            if (lastKnownState != JobState.RUNNING) {
-                                throw IllegalStateException("Application did not start within deadline: $lastKnownState")
-                            }
+                        if (ctx.currentState != JobState.RUNNING) {
+                            throw IllegalStateException("Application did not start within deadline: ${ctx.currentState}")
+                        }
 
-                            Jobs.terminate.call(
-                                bulkRequestOf(FindByStringId(id)),
-                                rpcClient
-                            ).orThrow()
+                        Jobs.terminate.call(
+                            bulkRequestOf(FindByStringId(ctx.jobId)),
+                            ctx.rpcClient
+                        ).orThrow()
 
-                            val finalState = waitForState(id, JobState.SUCCESS, rpcClient)
-                            if (finalState != JobState.SUCCESS) {
-                                throw IllegalStateException("Application did not stop within deadline: $finalState")
-                            }
+                        val finalState = waitForState(ctx.jobId, JobState.SUCCESS, ctx.rpcClient)
+                        if (finalState != JobState.SUCCESS) {
+                            throw IllegalStateException("Application did not stop within deadline: $finalState")
                         }
                     }
                     case("No input") {
@@ -429,72 +479,67 @@ class ComputeTest : IntegrationTest() {
 
                 test<Unit, Unit>("$titlePrefix Long running with cancel and follow") {
                     execute {
-                        case.initialization()
-                        create()
-                        with(initializeResourceTestContext(case.products, emptyList())) {
-                            val rpcClient = adminClient.withProject(project)
-                            val (collection) = initializeCollection(project, rpcClient, case.storage)
-
-                            val (id, lastKnownState) = startJob(
+                        val ctx = initializeTest(
+                            case,
+                            product,
+                            StartJobParameters(
                                 longRunning = true,
                                 interactivity = null,
-                                product,
-                                rpcClient,
                                 waitForState = JobState.RUNNING
                             )
+                        )
 
-                            if (lastKnownState != JobState.RUNNING) {
-                                throw IllegalStateException("Application did not start within deadline: $lastKnownState")
-                            }
+                        if (ctx.currentState != JobState.RUNNING) {
+                            throw IllegalStateException("Application did not start within deadline: ${ctx.currentState}")
+                        }
 
-                            val wsClient = AuthenticatedClient(
-                                micro.client,
-                                OutgoingWSCall,
-                                rpcClient.afterHook,
-                                rpcClient.authenticator
-                            )
+                        val wsClient = AuthenticatedClient(
+                            micro.client,
+                            OutgoingWSCall,
+                            ctx.rpcClient.afterHook,
+                            ctx.rpcClient.authenticator
+                        )
 
-                            var didSeeAnyMessages = false
-                            coroutineScope {
-                                val followJob = launch(Dispatchers.IO) {
-                                    Jobs.follow.subscribe(
-                                        JobsFollowRequest(id),
-                                        wsClient,
-                                        handler = { event ->
-                                            if (!didSeeAnyMessages && event.log.isNotEmpty()) {
-                                                val anyMessage = event.log.any { it.stdout != null || it.stderr != null }
-                                                if (anyMessage) {
-                                                    didSeeAnyMessages = true
-                                                }
+                        var didSeeAnyMessages = false
+                        coroutineScope {
+                            val followJob = launch(Dispatchers.IO) {
+                                Jobs.follow.subscribe(
+                                    JobsFollowRequest(ctx.jobId),
+                                    wsClient,
+                                    handler = { event ->
+                                        if (!didSeeAnyMessages && event.log.isNotEmpty()) {
+                                            val anyMessage = event.log.any { it.stdout != null || it.stderr != null }
+                                            if (anyMessage) {
+                                                didSeeAnyMessages = true
                                             }
                                         }
-                                    )
-                                }
-
-                                val deadlineJob = launch(Dispatchers.IO) {
-                                    delay(10_000)
-                                }
-
-                                select<Unit> {
-                                    followJob.onJoin {}
-                                    deadlineJob.onJoin {}
-                                }
-
-                                runCatching { followJob.cancel() }
-                                runCatching { deadlineJob.cancel() }
+                                    }
+                                )
                             }
 
-                            assertThatInstance(didSeeAnyMessages, "we should have seen messages from the follow") { it }
-
-                            Jobs.terminate.call(
-                                bulkRequestOf(FindByStringId(id)),
-                                rpcClient
-                            ).orThrow()
-
-                            val finalState = waitForState(id, JobState.SUCCESS, rpcClient)
-                            if (finalState != JobState.SUCCESS) {
-                                throw IllegalStateException("Application did not stop within deadline: $finalState")
+                            val deadlineJob = launch(Dispatchers.IO) {
+                                delay(10_000)
                             }
+
+                            select<Unit> {
+                                followJob.onJoin {}
+                                deadlineJob.onJoin {}
+                            }
+
+                            runCatching { followJob.cancel() }
+                            runCatching { deadlineJob.cancel() }
+                        }
+
+                        assertThatInstance(didSeeAnyMessages, "we should have seen messages from the follow") { it }
+
+                        Jobs.terminate.call(
+                            bulkRequestOf(FindByStringId(ctx.jobId)),
+                            ctx.rpcClient
+                        ).orThrow()
+
+                        val finalState = waitForState(ctx.jobId, JobState.SUCCESS, ctx.rpcClient)
+                        if (finalState != JobState.SUCCESS) {
+                            throw IllegalStateException("Application did not stop within deadline: $finalState")
                         }
                     }
                     case("No input") {
@@ -504,7 +549,29 @@ class ComputeTest : IntegrationTest() {
                 }
 
                 test<Unit, Unit>("$titlePrefix Batch application with files") {
-                    execute { }
+                    execute {
+                        initializeTest(
+                            case,
+                            product,
+                            StartJobParameters(
+                                longRunning = false,
+                                null,
+                                waitForState = JobState.SUCCESS
+                            ),
+                            resourceInitialization = { coll ->
+                                val inputFolder = "/${coll.id}/InputFolder"
+                                Files.createFolder.call(
+                                    bulkRequestOf(
+                                        FilesCreateFolderRequestItem(inputFolder, WriteConflictPolicy.REJECT)
+                                    ),
+                                    adminClient.withProject(project)
+                                )
+
+                                listOf(AppParameterValue.File(inputFolder))
+                            }
+                        )
+                    }
+
                     case("No input") {
                         input(Unit)
                         check {}
@@ -519,11 +586,13 @@ class ComputeTest : IntegrationTest() {
                     }
                 }
 
-                test<Unit, Unit>("$titlePrefix Batch application with ingress") {
-                    execute { }
-                    case("No input") {
-                        input(Unit)
-                        check {}
+                if (case.ingress != null) {
+                    test<Unit, Unit>("$titlePrefix Batch application with ingress") {
+                        execute { }
+                        case("No input") {
+                            input(Unit)
+                            check {}
+                        }
                     }
                 }
 

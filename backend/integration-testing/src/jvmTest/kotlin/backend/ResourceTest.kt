@@ -40,7 +40,7 @@ class ResourceUsageTestOutput<Prod : Product, Supp : ProductSupport, Resc : Reso
     val page: PageV2<Resc>?
 )
 
-data class ResourceUsageTestContext(
+open class ResourceUsageTestContext(
     val project: String,
 
     val piClient: AuthenticatedClient,
