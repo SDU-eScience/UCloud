@@ -17,7 +17,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
-import {Box, Checkbox, Flex, Icon, Label, List, Truncate, Text} from "@/ui-components";
+import {Box, Checkbox, Flex, Icon, Label, List, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
 import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
@@ -31,7 +31,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {EnumOption, ResourceFilter, StaticPill, ValuePill} from "@/Resource/Filter";
+import {EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
@@ -46,7 +46,6 @@ import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
-import {project} from "@/UCloud";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -135,9 +134,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     });
     const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
 
-   useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
+    useEffect(() => toggleSet.uncheckAll(), [props.additionalFilters]);
 
-   const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
+    const [inlineInspecting, setInlineInspecting] = useState<Res | null>(null);
     const closeProperties = useCallback(() => setInlineInspecting(null), [setInlineInspecting]);
     useEffect(() => fetchProductsWithSupport(api.retrieveProducts()), []);
     const renaming = useRenamingState<Res>(
@@ -268,6 +267,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [setSelectedProduct, props.inlineCreationMode, props.onInlineCreation, callbacks]);
 
+    const [inlineCreationLoading, setInlineCreationLoading] = useState(false);
     const inlineInputRef = useRef<HTMLInputElement>(null);
     const onInlineCreate = useCallback(async () => {
         if (inlineInputRef.current && props.onInlineCreation) {
@@ -286,11 +286,15 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 callbacks
             );
 
+            setInlineCreationLoading(true);
             if ("path" in spec && "method" in spec) {
                 await callbacks.invokeCommand(spec);
             } else {
+                const timeout = setTimeout(() => snackbarStore.addInformation(`${api.title} will be created shortly.`, false), 3_500);
                 await callbacks.invokeCommand(api.create(bulkRequestOf(spec as Res["specification"])));
+                clearTimeout(timeout);
             }
+            setInlineCreationLoading(false);
             callbacks.reload();
         }
         setIsCreating(false);
@@ -319,6 +323,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         onCancel={() => setIsCreating(false)}
                         onSubmit={onInlineCreate}
                         inputRef={inlineInputRef}
+                        disabled={inlineCreationLoading}
                         prefix={props.inlinePrefix && selectedProductWithSupport ?
                             props.inlinePrefix(selectedProductWithSupport) : null}
                         suffix={props.inlineSuffix && selectedProductWithSupport ?
@@ -451,6 +456,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         key={it.id}
                         browseType={props.browseType}
                         navigate={() => {
+                            /* 
+                                Can we use callback here? I think it should improve performance so it doesn't create
+                                a new lambda on each iteration                            
+                            */
                             if (props.navigateToChildren) {
                                 const result = props.navigateToChildren?.(history, it)
                                 if (result === "properties") {
