@@ -229,6 +229,7 @@ export abstract class ResourceApi<Res extends Resource,
                 text: "Cancel",
                 icon: "close",
                 color: "red",
+                canAppearInLocation: loc => loc === "SIDEBAR",
                 primary: true,
                 enabled: (selected, cb) => {
                     return cb.isCreating
