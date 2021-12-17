@@ -314,18 +314,45 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(cols: Int, rows: Int) {
-        // TODO Start SSH session
+        // DONE Start SSH session
+        val process = startProcess(
+            args = listOf(
+                "/usr/bin/ssh",
+                "-oStrictHostKeyChecking=accept-new",
+                "-tt",
+                "c1",
+                "([ -x /bin/bash ] && exec /bin/bash) || " +
+                "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+                "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+                "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+                "([ -x /bin/fish ] && exec /bin/fish) || " +
+                "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+                "exec /bin/sh "
+            ),
+            envs = listOf("TERM=xterm-256color"),
+            attachStdin = true,
+            attachStdout = true,
+            attachStderr = true,
+            nonBlockingStdout = true,
+            nonBlockingStderr = true
+        )
+
+        process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
+        var buffer = ByteArray(2048 * 2048)
 
         while (isActive()) {
             val userInput = receiveChannel.tryReceive().getOrNull()
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
-                    emitData(userInput.data)
+                    println("USERINPUT: ${ userInput }")
+                    process!!.stdin!!.write( userInput.data.encodeToByteArray() )
+                    //emitData(userInput.data)
                 }
 
                 is ShellRequest.Resize -> {
                     // Send resize event to SSH session
+                    println("RESIZE EVENT: ${ userInput } ")
                 }
 
                 else -> {
@@ -341,6 +368,11 @@ class SlurmPlugin : ComputePlugin {
             }
              */
 
+            
+            process!!.stdout!!.read(buffer)
+            if ( !buffer.decodeToString().isNullOrEmpty() ) emitData(buffer.decodeToString() ) //println("THIS IS: ${ buffer.decodeToString() }")
+            
+            
             delay(15)
         }
     }

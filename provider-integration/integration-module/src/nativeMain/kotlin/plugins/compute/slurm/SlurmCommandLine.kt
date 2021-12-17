@@ -12,6 +12,7 @@ object SlurmCommandLine {
     const val SACCT_EXE = "/usr/bin/sacct"
     const val SLURM_CONF_KEY = "SLURM_CONF"
     const val SLURM_CONF_VALUE = "/etc/slurm/slurm.conf"
+    const val SSH_EXE = "/usr/bin/ssh"
 
     fun submitBatchJob(pathToFile: String): String {
         val (code, stdout, stderr) = executeCommandToText(SBATCH_EXE) {

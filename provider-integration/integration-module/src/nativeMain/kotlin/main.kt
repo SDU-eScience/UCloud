@@ -17,7 +17,6 @@ import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
-import dk.sdu.cloud.utils.Process
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -25,6 +24,8 @@ import kotlinx.coroutines.*
 import platform.posix.*
 import kotlin.coroutines.CoroutineContext
 import kotlin.system.exitProcess
+
+import dk.sdu.cloud.utils.*
 
 sealed class ServerMode {
     object User : ServerMode()
@@ -76,9 +77,46 @@ object ProcessingScope : CoroutineScope {
     override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(10, "Processing")
 }
 
+
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
+        
+        // val process = startProcess(
+        //     args = listOf(
+        //         "/usr/bin/ssh",
+        //         "-tt",
+        //         "c1",
+        //         "([ -x /bin/bash ] && exec /bin/bash) || " +
+        //         "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+        //         "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+        //         "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+        //         "([ -x /bin/fish ] && exec /bin/fish) || " +
+        //         "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+        //         "exec /bin/sh "
+        //     ),
+        //     envs = listOf("TERM=xterm-256color"),
+        //     attachStdin = true,
+        //     attachStdout = true,
+        //     attachStderr = true,
+        //     nonBlockingStdout = true,
+        //     nonBlockingStderr = true
+        // )
+
+        // val cmd = "hostname \n env \n ".encodeToByteArray()
+        // val cmdend = "stty cols 1200 rows 1200 \r stty size \r ".encodeToByteArray()
+        // process!!.stdin!!.write(cmd)
+        // process!!.stdin!!.write(cmdend)
+
+        // var buffer = ByteArray(2048 * 2048)
+        // while(true) {
+        //     val stdOut = process!!.stdout!!.read(buffer)
+        //     if ( !buffer.decodeToString().isNullOrEmpty() ) println("THIS IS: ${ buffer.decodeToString() }")
+        // }
+
+        // exitProcess(0)
+
     try {
+
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User
             args.getOrNull(0) == "server" || args.isEmpty() -> ServerMode.Server
