@@ -91,6 +91,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("ktor.application", Level.WARN)
             configureLogLevelForPackage("org.flywaydb.core.internal", Level.ERROR)
             configureLogLevelForPackage("org.flywaydb.core.Flyway", Level.INFO)
+            configureLogLevelForPackage("org.asynchttpclient", Level.INFO)
 
             val ctx = ctx
             if (ctx != null && ctx.developmentModeEnabled) {

@@ -184,7 +184,8 @@ export const Refresh = ({
     headerLoading
 }: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
     <RefreshIcon
-        data-tag="refreshButton"
+        data-component="refresh"
+        data-loading={spin}
         name="refresh"
         spin={spin || headerLoading}
         onClick={onClick}
@@ -212,6 +213,7 @@ const LogoText = styled(ui.Text)`
 
 const Logo = (): JSX.Element => (
     <Link
+        data-component={"logo"}
         to="/"
         width={[null, null, null, null, null, "190px"]}
     >

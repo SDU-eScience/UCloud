@@ -13,6 +13,7 @@ import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {useHistory} from "react-router";
 import {History} from "history";
 import {useProjectStatus} from "@/Project/cache";
+import {initializeResources} from "@/Services/ResourceInit";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
@@ -40,7 +41,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
     const history = useHistory();
 
     return (
-        <Flex pr="12px" alignItems={"center"}>
+        <Flex pr="12px" alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
                     <HoverBox>
@@ -122,6 +123,7 @@ function onProjectUpdated(history: History, runThisFunction: () => void, refresh
     if (pathname === "/app/files") {
         history.push("/drives")
     }
+    initializeResources();
     refresh?.();
 }
 

@@ -47,9 +47,10 @@ kotlin {
                 implementation("org.testcontainers:selenium:1.15.1") {
 //                    exclude(group = "junit", module = "junit")
                 }
-                implementation("org.seleniumhq.selenium:selenium-remote-driver:3.141.59")
-                implementation("org.seleniumhq.selenium:selenium-chrome-driver:3.141.59")
-                implementation("org.seleniumhq.selenium:selenium-firefox-driver:3.141.59")
+                val seleniumVersion = "4.1.0"
+                implementation("org.seleniumhq.selenium:selenium-remote-driver:$seleniumVersion")
+                implementation("org.seleniumhq.selenium:selenium-chrome-driver:$seleniumVersion")
+                implementation("org.seleniumhq.selenium:selenium-firefox-driver:$seleniumVersion")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
@@ -75,7 +76,7 @@ kotlin {
     }
 }
 
-task<Test>("integrationTest") {
+fun Test.configureTests(filter: String) {
     useJUnitPlatform()
     description = "Runs integration test"
     group = "verification"
@@ -85,7 +86,7 @@ task<Test>("integrationTest") {
 
     filter {
         isFailOnNoMatchingTests = false
-        includeTestsMatching("dk.sdu.cloud.integration.backend.*")
+        includeTestsMatching(filter)
     }
 
     testLogging {
@@ -141,15 +142,10 @@ task<Test>("integrationTest") {
     }
 }
 
+task<Test>("integrationTest") {
+    configureTests("dk.sdu.cloud.integration.backend.*")
+}
+
 task<Test>("e2eTest") {
-    description = "Runs E2E tests"
-    group = "verification"
-
-    systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
-    systemProperty("java.io.tmpdir", System.getProperty("java.io.tmpdir"))
-
-    filter {
-        isFailOnNoMatchingTests = false
-        includeTestsMatching("dk.sdu.cloud.integration.backend.e2e.*")
-    }
+    configureTests("dk.sdu.cloud.integration.e2e.*")
 }

@@ -20,6 +20,7 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.log
 import dk.sdu.cloud.integration.UCloudLauncher.micro
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.service.Time
@@ -31,6 +32,163 @@ import kotlinx.coroutines.selects.select
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+
+object UCloudProvider {
+    val storageProduct = Product.Storage(
+        "u1-cephfs",
+        1L,
+        ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
+        "Storage"
+    )
+
+    val projectHome = Product.Storage(
+        "project-home",
+        1L,
+        ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
+        "storage"
+    )
+
+    val computeProduct = Product.Compute(
+        "u1-standard-1",
+        1L,
+        ProductCategoryId("u1-standard", UCLOUD_PROVIDER),
+        "Compute",
+        cpu = 1,
+        memoryInGigs = 1,
+        gpu = 0
+    )
+
+    val ingress = Product.Ingress(
+        "u1-publiclink",
+        1L,
+        ProductCategoryId("u1-publiclink", UCLOUD_PROVIDER),
+        "Description"
+    )
+
+    val products = listOf(storageProduct, projectHome, computeProduct, ingress)
+
+    fun globalInitialize(micro: Micro) {
+        runBlocking {
+            // NOTE(Dan): Short guide on how to run Kubernetes tests.
+            //
+            // For the Kubernetes tests to run you must already have a running Kubernetes cluster with the
+            // following requirements fulfilled:
+            //
+            //  - The system must already have Volcano installed
+            //  - The Kubernetes cluster must share the temporary directory of this machine, since the
+            //    "distributed" file system is created in "/tmp"
+            //  - You must set a path to the kubeconfig file in the _INTEGRATION_ configuration (pass this via
+            //    UCLOUD_INTEGRATION_CFG). If this is not set, then the test will refuse to run.
+            //
+            // Other things to be aware of:
+            //
+            //  - The Kubernetes cluster is cleaned at the beginning of each run
+            //  - In practice this means that the app-kubernetes namespace is deleted...
+            //  - ...and the persistent volume (+ claim) is recreated to match the integration test's storage
+
+            val files = micro.configuration.requestChunkAtOrNull<String>("ceph", "cephfsBaseMount")
+            val kubeConfig =
+                micro.configuration.requestChunkAtOrNull<String>("app", "kubernetes", "kubernetesConfig")
+
+            if (files == null) {
+                log.warn("Don't know where files are located? This seems like a bug in the test suite.")
+                null
+            } else if (kubeConfig == null) {
+                log.warn("Kubernetes configuration not supplied. UCloud/Compute tests will not run!")
+                null
+            } else {
+                val k8 = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(kubeConfig, null))
+
+                // Check if volcano is present
+                run {
+                    val hasVolcano = runCatching {
+                        k8.getResource<Namespace>(KubernetesResources.namespaces.withName("volcano-system"))
+                    }.isSuccess
+
+                    if (!hasVolcano) {
+                        log.warn("Volcano is not configured in the Kubernetes system. It must be installed first!")
+                        return@runBlocking null
+                    }
+                }
+
+                // Clean up from previous runs
+                run {
+                    runCatching {
+                        k8.deleteResource(KubernetesResources.namespaces.withName("app-kubernetes"))
+                    }
+
+                    runCatching {
+                        k8.deleteResource(KubernetesResources.persistentVolumes.withName("storage"))
+                    }
+
+                    val deadline = Time.now() + 30_000
+                    while (Time.now() < deadline) {
+                        val hasNamespace = runCatching {
+                            k8.getResource<Namespace>(KubernetesResources.namespaces.withName("app-kubernetes"))
+                        }.isSuccess
+
+                        if (!hasNamespace) break
+                        delay(1000)
+                    }
+                }
+
+                // Initialize basic resources required by the system
+                run {
+                    k8.createResource(
+                        KubernetesResources.namespaces,
+                        defaultMapper.encodeToString(Namespace(metadata = ObjectMeta("app-kubernetes")))
+                    )
+
+                    k8.createResource(
+                        KubernetesResources.persistentVolumes,
+                        defaultMapper.encodeToString(
+                            PersistentVolume(
+                                metadata = ObjectMeta("storage"),
+                                spec = PersistentVolume.Spec(
+                                    capacity = JsonObject(
+                                        mapOf(
+                                            "storage" to JsonPrimitive("1000Gi")
+                                        )
+                                    ),
+                                    accessModes = listOf("ReadWriteMany"),
+                                    persistentVolumeReclaimPolicy = "Retain",
+                                    storageClassName = "",
+                                    hostPath = HostPathVolumeSource(path = files)
+                                )
+                            )
+                        )
+                    )
+
+                    k8.createResource(
+                        KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
+                        defaultMapper.encodeToString(
+                            PersistentVolumeClaim(
+                                metadata = ObjectMeta("cephfs", "app-kubernetes"),
+                                spec = PersistentVolumeClaim.Spec(
+                                    accessModes = listOf("ReadWriteMany"),
+                                    storageClassName = "",
+                                    volumeName = "storage",
+                                    resources = Pod.Container.ResourceRequirements(
+                                        requests = JsonObject(
+                                            mapOf(
+                                                "storage" to JsonPrimitive("1000Gi")
+                                            )
+                                        )
+                                    )
+                                )
+                            )
+                        )
+                    )
+                }
+
+            }
+        }
+    }
+
+    suspend fun testInitialize(serviceClient: AuthenticatedClient) {
+        Products.create.call(BulkRequest(products), serviceClient).orThrow()
+    }
+}
 
 class ComputeTest : IntegrationTest() {
     private lateinit var figletTool: Tool
@@ -261,161 +419,14 @@ class ComputeTest : IntegrationTest() {
     override fun defineTests() {
         val cases: List<TestCase> = listOfNotNull(
             runBlocking {
-                // NOTE(Dan): Short guide on how to run Kubernetes tests.
-                //
-                // For the Kubernetes tests to run you must already have a running Kubernetes cluster with the
-                // following requirements fulfilled:
-                //
-                //  - The system must already have Volcano installed
-                //  - The Kubernetes cluster must share the temporary directory of this machine, since the
-                //    "distributed" file system is created in "/tmp"
-                //  - You must set a path to the kubeconfig file in the _INTEGRATION_ configuration (pass this via
-                //    UCLOUD_INTEGRATION_CFG). If this is not set, then the test will refuse to run.
-                //
-                // Other things to be aware of:
-                //
-                //  - The Kubernetes cluster is cleaned at the beginning of each run
-                //  - In practice this means that the app-kubernetes namespace is deleted...
-                //  - ...and the persistent volume (+ claim) is recreated to match the integration test's storage
-
-                val files = micro.configuration.requestChunkAtOrNull<String>("ceph", "cephfsBaseMount")
-                val kubeConfig =
-                    micro.configuration.requestChunkAtOrNull<String>("app", "kubernetes", "kubernetesConfig")
-
-                if (files == null) {
-                    log.warn("Don't know where files are located? This seems like a bug in the test suite.")
-                    null
-                } else if (kubeConfig == null) {
-                    log.warn("Kubernetes configuration not supplied. UCloud/Compute tests will not run!")
-                    null
-                } else {
-                    val k8 = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(kubeConfig, null))
-
-                    // Check if volcano is present
-                    run {
-                        val hasVolcano = runCatching {
-                            k8.getResource<Namespace>(KubernetesResources.namespaces.withName("volcano-system"))
-                        }.isSuccess
-
-                        if (!hasVolcano) {
-                            log.warn("Volcano is not configured in the Kubernetes system. It must be installed first!")
-                            return@runBlocking null
-                        }
-                    }
-
-                    // Clean up from previous runs
-                    run {
-                        runCatching {
-                            k8.deleteResource(KubernetesResources.namespaces.withName("app-kubernetes"))
-                        }
-
-                        runCatching {
-                            k8.deleteResource(KubernetesResources.persistentVolumes.withName("storage"))
-                        }
-
-                        val deadline = Time.now() + 30_000
-                        while (Time.now() < deadline) {
-                            val hasNamespace = runCatching {
-                                k8.getResource<Namespace>(KubernetesResources.namespaces.withName("app-kubernetes"))
-                            }.isSuccess
-
-                            if (!hasNamespace) break
-                            delay(1000)
-                        }
-                    }
-
-                    // Initialize basic resources required by the system
-                    run {
-                        k8.createResource(
-                            KubernetesResources.namespaces,
-                            defaultMapper.encodeToString(Namespace(metadata = ObjectMeta("app-kubernetes")))
-                        )
-
-                        k8.createResource(
-                            KubernetesResources.persistentVolumes,
-                            defaultMapper.encodeToString(
-                                PersistentVolume(
-                                    metadata = ObjectMeta("storage"),
-                                    spec = PersistentVolume.Spec(
-                                        capacity = JsonObject(
-                                            mapOf(
-                                                "storage" to JsonPrimitive("1000Gi")
-                                            )
-                                        ),
-                                        accessModes = listOf("ReadWriteMany"),
-                                        persistentVolumeReclaimPolicy = "Retain",
-                                        storageClassName = "",
-                                        hostPath = HostPathVolumeSource(path = files)
-                                    )
-                                )
-                            )
-                        )
-
-                        k8.createResource(
-                            KubernetesResources.persistentVolumeClaims.withNamespace("app-kubernetes"),
-                            defaultMapper.encodeToString(
-                                PersistentVolumeClaim(
-                                    metadata = ObjectMeta("cephfs", "app-kubernetes"),
-                                    spec = PersistentVolumeClaim.Spec(
-                                        accessModes = listOf("ReadWriteMany"),
-                                        storageClassName = "",
-                                        volumeName = "storage",
-                                        resources = Pod.Container.ResourceRequirements(
-                                            requests = JsonObject(
-                                                mapOf(
-                                                    "storage" to JsonPrimitive("1000Gi")
-                                                )
-                                            )
-                                        )
-                                    )
-                                )
-                            )
-                        )
-                    }
-
-                    val storageProduct = Product.Storage(
-                        "u1-cephfs",
-                        1L,
-                        ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
-                        "Storage"
-                    )
-
-                    val projectHome = Product.Storage(
-                        "project-home",
-                        1L,
-                        ProductCategoryId("u1-cephfs", UCLOUD_PROVIDER),
-                        "storage"
-                    )
-
-                    val computeProduct = Product.Compute(
-                        "u1-standard-1",
-                        1L,
-                        ProductCategoryId("u1-standard", UCLOUD_PROVIDER),
-                        "Compute",
-                        cpu = 1,
-                        memoryInGigs = 1,
-                        gpu = 0
-                    )
-
-                    val ingress = Product.Ingress(
-                        "u1-publiclink",
-                        1L,
-                        ProductCategoryId("u1-publiclink", UCLOUD_PROVIDER),
-                        "Description"
-                    )
-
-                    val products = listOf(storageProduct, projectHome, computeProduct, ingress)
-
-                    TestCase(
-                        "UCloud/Compute",
-                        {
-                            Products.create.call(BulkRequest(products), serviceClient).orThrow()
-                        },
-                        products,
-                        storageProduct,
-                        ingress
-                    )
-                }
+                UCloudProvider.globalInitialize(micro)
+                TestCase(
+                    "UCloud/Compute",
+                    { UCloudProvider.testInitialize(serviceClient) },
+                    UCloudProvider.products,
+                    UCloudProvider.storageProduct,
+                    UCloudProvider.ingress
+                )
             }
         )
 

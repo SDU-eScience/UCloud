@@ -5,6 +5,7 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.findPreferredOutgoingIp
 import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.test.UCloudTestSuiteBuilder
 import kotlinx.coroutines.runBlocking
 import org.junit.Rule
 import org.junit.rules.ExternalResource
@@ -30,12 +31,11 @@ enum class E2EDrivers {
     CHROME;
 }
 
-data class E2EConfig(val useLocalDriver: Boolean = false)
-abstract class EndToEndTest : IntegrationTest() {
-    override fun defineTests() {
-        TODO("Not yet implemented")
-    }
+data class E2EConfig(
+    val useLocalDriver: Boolean = true
+)
 
+abstract class EndToEndTest : IntegrationTest() {
     val config = UCloudLauncher.micro.configuration.requestChunkAtOrNull("e2e") ?: E2EConfig()
 
     private val localDocker: String by lazy {
@@ -76,8 +76,8 @@ abstract class EndToEndTest : IntegrationTest() {
         if (Platform.isLinux()) withNetworkMode("host")
     }
 
-    val localFirefox = if (!config.useLocalDriver) null else FirefoxDriver()
-    val localChrome = if (!config.useLocalDriver) null else ChromeDriver()
+    val localFirefox by lazy { if (!config.useLocalDriver) null else FirefoxDriver() }
+    val localChrome by lazy { if (!config.useLocalDriver) null else ChromeDriver() }
 
     @JvmField
     @Rule
@@ -88,21 +88,38 @@ abstract class EndToEndTest : IntegrationTest() {
         }
     }
 
-    fun e2e(
-        drivers: Array<E2EDrivers> = E2EDrivers.values(),
-        block: suspend EndToEndContext.() -> Unit
-    ) {
-        for (driver in drivers) {
-            runBlocking {
-                val d = when (driver) {
-                    E2EDrivers.FIREFOX -> if (config.useLocalDriver) localFirefox!! else firefox!!.webDriver
-                    E2EDrivers.CHROME -> if (config.useLocalDriver) localChrome!! else chrome!!.webDriver
-                }
+    fun <R> e2e(
+        driver: E2EDrivers,
+        block: suspend EndToEndContext.() -> R
+    ): R {
+        return runBlocking {
+            val d = when (driver) {
+                E2EDrivers.FIREFOX -> if (config.useLocalDriver) localFirefox!! else firefox!!.webDriver
+                E2EDrivers.CHROME -> if (config.useLocalDriver) localChrome!! else chrome!!.webDriver
+            }
 
-                d.manage().window().size = Dimension(1300, 800)
-                val localAddress = if (config.useLocalDriver) "localhost" else localDocker
-                EndToEndContext("http://${localAddress}:9000", d).block()
+            d.manage().window().size = Dimension(1600, 900)
+            val localAddress = if (config.useLocalDriver) "localhost" else localDocker
+            EndToEndContext("http://${localAddress}:9000", d).block()
+        }
+    }
+
+
+    fun <In, Out> UCloudTestSuiteBuilder<In, Out>.executeE2E(
+        driver: E2EDrivers,
+        block: suspend E2EIntegrationContext<In>.() -> Out
+    ) {
+        execute {
+            e2e(driver) {
+                E2EIntegrationContext(address, this.driver, input, testId).block()
             }
         }
     }
 }
+
+data class E2EIntegrationContext<In>(
+    val address: String,
+    val driver: WebDriver,
+    val input: In,
+    val testId: Int
+)

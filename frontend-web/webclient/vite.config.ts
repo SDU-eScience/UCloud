@@ -16,7 +16,7 @@ function targetFromConfig(mode: Mode): string {
         case "local-dev":
         case "production":
         default:
-            return "localhost:8080";
+            return "http://localhost:8080";
     }
 }
 

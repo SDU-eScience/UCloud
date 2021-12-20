@@ -45,15 +45,19 @@ open class ResourceUsageTestContext(
 
     val piClient: AuthenticatedClient,
     val piUsername: String,
+    val piPassword: String,
 
     val adminClient: AuthenticatedClient,
     val adminUsername: String,
+    val adminPassword: String,
 
     val memberClient: AuthenticatedClient,
     val memberUsername: String,
+    val memberPassword: String,
 
     val otherUserClient: AuthenticatedClient,
     val otherUserUsername: String,
+    val otherUserPassword: String,
 
     val groupNamesToId: Map<String, String>
 )
@@ -62,10 +66,10 @@ suspend fun initializeResourceTestContext(
     products: List<Product>,
     groups: List<String>,
 ): ResourceUsageTestContext {
-    val (piClient, piUsername) = createUser()
-    val (adminClient, adminUsername) = createUser()
-    val (memberClient, memberUsername) = createUser()
-    val (otherUserClient, otherUserUsername) = createUser()
+    val (piClient, piUsername, piPassword) = createUser()
+    val (adminClient, adminUsername, adminPassword) = createUser()
+    val (memberClient, memberUsername, memberPassword) = createUser()
+    val (otherUserClient, otherUserUsername, otherUserPassword) = createUser()
 
     val project = initializeRootProject(piUsername)
     initializeWallets(
@@ -86,8 +90,14 @@ suspend fun initializeResourceTestContext(
         ).orThrow().id
     }
 
-    return ResourceUsageTestContext(project, piClient, piUsername, adminClient, adminUsername,
-        memberClient, memberUsername, otherUserClient, otherUserUsername, groupNamesToId)
+    return ResourceUsageTestContext(
+        project,
+        piClient, piUsername, piPassword,
+        adminClient, adminUsername, adminPassword,
+        memberClient, memberUsername, memberPassword,
+        otherUserClient, otherUserUsername, otherUserPassword,
+        groupNamesToId
+    )
 }
 
 fun <Prod : Product, Supp : ProductSupport, Resc : Resource<Prod, Supp>, Spec : ResourceSpecification, Flags : ResourceIncludeFlags> IntegrationTest.resourceUsageTest(
