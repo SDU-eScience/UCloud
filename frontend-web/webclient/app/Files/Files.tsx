@@ -169,6 +169,12 @@ export const FilesBrowse: React.FunctionComponent<{
                         pageRenderer={page => (
                             <>
                                 <List childPadding={"8px"} bordered={false}>
+                                    <DriveInDropdown
+                                        className="expandable-row-child"
+                                        onClick={() => selectLocalProject("")}
+                                    >
+                                        My Workspace
+                                    </DriveInDropdown>
                                     {page.items.filter(it => it.projectId !== localActiveProject).map(project => (
                                         <DriveInDropdown
                                             key={project.projectId}
