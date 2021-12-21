@@ -9,9 +9,9 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
-import {isLightThemeStored, joinToString, removeTrailingSlash} from "@/UtilityFunctions";
+import {isLightThemeStored, joinToString, removeTrailingSlash, useEffectSkipMount} from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
 import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
@@ -63,10 +63,14 @@ export const FilesBrowse: React.FunctionComponent<{
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
 
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId);
-    const [drives, fetchDrives] = useCloudAPI<PageV2<FileCollection>>(
-        {...FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any), projectOverride: localActiveProject},
-        emptyPageV2
-    );
+
+    // We need to be able to await the call.
+    const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
+    const [loading, invokeCommand] = useCloudCommand();
+
+    useEffect(() => {
+        invokeCommand(FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any));
+    }, []);
 
     const [projects, fetchProjects] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         listProjects({page: 0, itemsPerPage: 25, archived: false}),
@@ -103,20 +107,25 @@ export const FilesBrowse: React.FunctionComponent<{
 
     useEffect(() => {
         if (browseType !== BrowseType.MainContent) {
-            if (path === "" && drives.data.items.length > 0) {
-                setPathFromState("/" + drives.data.items[0].id);
+            if (path === "" && drives.items.length > 0) {
+                setPathFromState("/" + drives.items[0].id);
             }
         }
-    }, [browseType, path, drives.data]);
+    }, [browseType, path, drives.items]);
 
-    useEffect(() => {
-        fetchDrives({
+    const selectLocalProject = useCallback(async (projectOverride: string) => {
+        const result = await invokeCommand<PageV2<FileCollection>>({
             ...FileCollectionsApi.browse({
-                itemsPerPage: drives.data.itemsPerPage,
+                itemsPerPage: drives.itemsPerPage,
                 filterMemberFiles: "all"
-            } as any), projectOverride: localActiveProject
+            } as any), projectOverride
         });
-    }, [localActiveProject])
+        if (result != null) {
+            setDrives(result);
+            setLocalActiveProject(projectOverride);
+            setPathFromState("");
+        }
+    }, [drives]);
 
     useEffect(() => {
         const components = pathComponents(path);
@@ -162,7 +171,7 @@ export const FilesBrowse: React.FunctionComponent<{
                                         <DriveInDropdown
                                             key={project.projectId}
                                             className="expandable-row-child"
-                                            onClick={() => setLocalActiveProject(project.projectId)}
+                                            onClick={() => selectLocalProject(project.projectId)}
                                         >
                                             {project.title}
                                         </DriveInDropdown>
@@ -180,13 +189,13 @@ export const FilesBrowse: React.FunctionComponent<{
             <Flex>
                 <DriveDropdown iconName="hdd">
                     <ListV2
-                        loading={drives.loading}
-                        onLoadMore={() => fetchDrives(FileCollectionsApi.browse({
-                            itemsPerPage: drives.data.itemsPerPage,
-                            next: drives.data.next,
+                        loading={loading}
+                        onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
+                            itemsPerPage: 25,
+                            next: drives.next,
                             filterMemberFiles: "all"
-                        } as any))}
-                        page={drives.data}
+                        } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                        page={drives}
                         pageRenderer={items => (
                             <List childPadding={"8px"} bordered={false}>
                                 {items.map(drive => (
@@ -219,7 +228,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.data, lightTheme, localActiveProject]);
+    }, [path, browseType, collection.data, drives.items, lightTheme, localActiveProject]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
