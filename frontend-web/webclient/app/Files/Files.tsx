@@ -69,7 +69,9 @@ export const FilesBrowse: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
 
     useEffect(() => {
-        invokeCommand(FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any));
+        invokeCommand(FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any)).then(
+            it => setDrives(it)
+        );
     }, []);
 
     const [projects, fetchProjects] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
