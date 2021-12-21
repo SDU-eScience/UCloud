@@ -69,6 +69,7 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     }, [props.select, stopPropagation]);
 
     return <ListStyle
+        data-component={"list-row"}
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}

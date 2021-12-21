@@ -823,18 +823,27 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
         }
     }, []);
 
-    return (<form onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
+    return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
-        <Select my="8px" selectRef={selection} defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
+        <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}
+                defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
             {Object.keys(SensitivityLevelMap).map(it =>
                 <option key={it} value={it}>{prettierString(it)}</option>
             )}
         </Select>
-        <TextArea style={{marginTop: "6px", marginBottom: "6px"}} required ref={reason} width="100%" rows={4} placeholder="Reason for sensitivity change..." />
+        <TextArea
+            id={"sensitivityDialogReason"}
+            style={{marginTop: "6px", marginBottom: "6px"}}
+            required
+            ref={reason}
+            width="100%"
+            rows={4}
+            placeholder="Reason for sensitivity change..."
+        />
         <Spacer
             mt="12px"
             left={<Button color="red" width="180px" onClick={() => dialogStore.failure()}>Cancel</Button>}
-            right={<Button color="green">Update</Button>}
+            right={<Button color="green" type={"submit"}>Update</Button>}
         />
     </form>);
 }

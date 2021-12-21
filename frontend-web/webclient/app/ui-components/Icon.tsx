@@ -19,6 +19,7 @@ const IconBase = ({name, size, squared, theme, color2, spin, hoverColor, ...prop
 
     return (
         <Component
+            data-component={`icon-${name}`}
             width={size}
             height={squared ? size : undefined }
             color2={color2 ? theme.colors[color2] : undefined}

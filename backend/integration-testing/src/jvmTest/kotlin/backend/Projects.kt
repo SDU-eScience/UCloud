@@ -39,6 +39,14 @@ suspend fun initializeRootProject(
     initializeWallet: Boolean = true,
     amount: Long = 10_000_000.DKK,
 ): String {
+    return initializeRootProjectWithTitle(principalInvestigator, initializeWallet, amount).first
+}
+
+suspend fun initializeRootProjectWithTitle(
+    principalInvestigator: String? = null,
+    initializeWallet: Boolean = true,
+    amount: Long = 10_000_000.DKK,
+): Pair<String, String> {
     if (initializeWallet) {
         try {
             createSampleProducts()
@@ -51,9 +59,10 @@ suspend fun initializeRootProject(
         }
     }
 
+    val title = "UCloud${rootProjectCounter.getAndIncrement().takeIf { it != 1 } ?: ""}"
     val id = Projects.create.call(
         CreateProjectRequest(
-            "UCloud${rootProjectCounter.getAndIncrement().takeIf { it != 1 } ?: ""}",
+            title,
             principalInvestigator = principalInvestigator
         ),
         serviceClient
@@ -71,7 +80,7 @@ suspend fun initializeRootProject(
         // setProjectQuota(id, 1.PiB)
     }
 
-    return id
+    return Pair(id, title)
 }
 
 suspend fun initializeWallets(projectId: String, amount: Long = 1_000_000 * 10_000_000L) {

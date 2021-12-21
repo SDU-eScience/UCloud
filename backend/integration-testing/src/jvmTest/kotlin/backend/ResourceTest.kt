@@ -42,6 +42,7 @@ class ResourceUsageTestOutput<Prod : Product, Supp : ProductSupport, Resc : Reso
 
 open class ResourceUsageTestContext(
     val project: String,
+    val projectTitle: String,
 
     val piClient: AuthenticatedClient,
     val piUsername: String,
@@ -71,7 +72,7 @@ suspend fun initializeResourceTestContext(
     val (memberClient, memberUsername, memberPassword) = createUser()
     val (otherUserClient, otherUserUsername, otherUserPassword) = createUser()
 
-    val project = initializeRootProject(piUsername)
+    val (project, title) = initializeRootProjectWithTitle(piUsername, initializeWallet = false)
     initializeWallets(
         WalletOwner.Project(project),
         products = products
@@ -91,7 +92,7 @@ suspend fun initializeResourceTestContext(
     }
 
     return ResourceUsageTestContext(
-        project,
+        project, title,
         piClient, piUsername, piPassword,
         adminClient, adminUsername, adminPassword,
         memberClient, memberUsername, memberPassword,
