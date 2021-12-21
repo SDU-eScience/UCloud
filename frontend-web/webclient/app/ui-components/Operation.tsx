@@ -102,7 +102,7 @@ const OperationComponent: React.FunctionComponent<{
         color={reasonDisabled === undefined ? op.color : "gray"}
         alignItems="center"
         onClick={onClick}
-        data-tag={`${op.text}-action`}
+        data-tag={`${op.text.replace(/\./g, "").replace(/ /g, "_")}-action`}
         disabled={reasonDisabled !== undefined}
         fullWidth={!op.primary || location !== "TOPBAR"}
         height={"38px"}

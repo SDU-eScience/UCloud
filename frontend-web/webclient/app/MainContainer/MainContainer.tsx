@@ -33,7 +33,7 @@ export const MainContainer = ({
 
     return (
         <React.StrictMode>
-            <Box backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+            <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
                 {header && (
                     <HeaderContainer
                         top={topMenuSize}
@@ -51,6 +51,7 @@ export const MainContainer = ({
                 {sidebar && (
                     <Hide sm xs md>
                         <SidebarContainer
+                            data-component={"sidebar"}
                             height="100%"
                             data-tag="sidebar"
                             pt={topMenuSize + mainYpad}

@@ -2,6 +2,7 @@ package dk.sdu.cloud.integration.e2e
 
 import dk.sdu.cloud.integration.retrySection
 import org.openqa.selenium.By
+import org.openqa.selenium.SearchContext
 import org.openqa.selenium.WebDriver
 import org.openqa.selenium.WebElement
 
@@ -29,12 +30,19 @@ fun E2EIntegrationContext<*>.findSearchInput(): WebElement {
 suspend fun E2EIntegrationContext<*>.isSearchEnabled(): Boolean = findSearchInput().isEnabled
 suspend fun E2EIntegrationContext<*>.search(query: String) {
     val startAddress = driver.currentUrl
-    findSearchInput().sendKeys(query + "\n")
+    findSearchInput().apply {
+        clear()
+        sendKeys(query + "\n")
+    }
     await { driver.currentUrl != startAddress }
 }
 
-fun WebDriver.findComponentOrNull(component: String): WebElement? {
+fun SearchContext.findComponentOrNull(component: String): WebElement? {
     return findElementOrNull(By.cssSelector("[data-component=$component]"))
+}
+
+fun SearchContext.findComponents(component: String): List<WebElement> {
+    return findElements(By.cssSelector("[data-component=$component]"))
 }
 
 fun E2EIntegrationContext<*>.findReloadButton(): WebElement? = driver.findComponentOrNull("refresh")

@@ -78,9 +78,9 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
         case "code":
             /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
             if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
-                node = <FullWidth><pre className="fullscreen">{data}</pre></FullWidth>
+                node = <FullWidth><pre className="fullscreen text-preview">{data}</pre></FullWidth>
             } else {
-                node = <FullWidth><SyntaxHighlighter className="fullscreen">{data}</SyntaxHighlighter></FullWidth>;
+                node = <FullWidth><SyntaxHighlighter className="fullscreen text-preview">{data}</SyntaxHighlighter></FullWidth>;
             }
             break;
         case "image":

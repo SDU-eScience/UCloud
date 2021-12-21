@@ -159,7 +159,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
                     className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
                     {breadcrumbs.map((it, idx) => (
-                        <span key={it} test-tag={it} title={it}
+                        <span data-component={"crumb"} key={it} test-tag={it} title={it}
                             onClick={() => {
                                 navigateToPath(
                                     history,

@@ -298,4 +298,6 @@ Only administrators of a workspace can approve such changes.
     val deprecate = call<BulkRequest<FindByStringId>, BulkResponse<Unit>, CommonErrorMessage>("deprecate") {
         httpUpdate(baseContext, "deprecate")
     }
+
+    override val create get() = super.create!!
 }

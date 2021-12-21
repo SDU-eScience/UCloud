@@ -12,28 +12,34 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.FilesCreateFolderRequestItem
-import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher
+import dk.sdu.cloud.integration.UCloudLauncher.adminClient
 import dk.sdu.cloud.integration.UCloudLauncher.log
 import dk.sdu.cloud.integration.UCloudLauncher.micro
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
+import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.configuration
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.assertThatInstance
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 object UCloudProvider {
+    var hasInitialized = false
+        private set
+
     val storageProduct = Product.Storage(
         "u1-cephfs",
         1L,
@@ -68,6 +74,8 @@ object UCloudProvider {
     val products = listOf(storageProduct, projectHome, computeProduct, ingress)
 
     fun globalInitialize(micro: Micro) {
+        if (hasInitialized) return
+
         runBlocking {
             // NOTE(Dan): Short guide on how to run Kubernetes tests.
             //
@@ -134,10 +142,13 @@ object UCloudProvider {
 
                 // Initialize basic resources required by the system
                 run {
-                    k8.createResource(
-                        KubernetesResources.namespaces,
-                        defaultMapper.encodeToString(Namespace(metadata = ObjectMeta("app-kubernetes")))
-                    )
+                    retrySection(attempts = 60, delay = 1000) {
+                        // Sometimes we are failing because the namespace is still deleting
+                        k8.createResource(
+                            KubernetesResources.namespaces,
+                            defaultMapper.encodeToString(Namespace(metadata = ObjectMeta("app-kubernetes")))
+                        )
+                    }
 
                     k8.createResource(
                         KubernetesResources.persistentVolumes,
@@ -182,20 +193,93 @@ object UCloudProvider {
                 }
 
             }
+
+            hasInitialized = true
         }
     }
 
     suspend fun testInitialize(serviceClient: AuthenticatedClient) {
         Products.create.call(BulkRequest(products), serviceClient).orThrow()
+        val id = FileMetadataTemplateNamespaces.create.call(
+            bulkRequestOf(
+                FileMetadataTemplateNamespace.Spec(
+                    "sensitivity",
+                    FileMetadataTemplateNamespaceType.COLLABORATORS
+                )
+            ),
+            adminClient
+        ).orThrow().responses.first()?.id ?: error("Unexpected response")
+        FileMetadataTemplateNamespaces.createTemplate.call(
+            bulkRequestOf(
+                FileMetadataTemplate(
+                    id,
+                    "UCloud File Sensitivity",
+                    "1.0.0",
+                    defaultMapper.decodeFromString(
+                        """
+                            {
+                              "type": "object",
+                              "title": "UCloud: File Sensitivity",
+                              "required": [
+                                "sensitivity"
+                              ],
+                              "properties": {
+                                "sensitivity": {
+                                  "enum": [
+                                    "SENSITIVE",
+                                    "CONFIDENTIAL",
+                                    "PRIVATE"
+                                  ],
+                                  "type": "string",
+                                  "title": "File Sensitivity",
+                                  "enumNames": [
+                                    "Sensitive",
+                                    "Confidential",
+                                    "Private"
+                                  ]
+                                }
+                              },
+                              "dependencies": {}
+                            }
+                        """
+                    ),
+                    inheritable = true,
+                    requireApproval = true,
+                    description = "Sensitivity",
+                    changeLog = "Initial version",
+                    namespaceType = FileMetadataTemplateNamespaceType.COLLABORATORS,
+                    uiSchema = defaultMapper.decodeFromString(
+                        """
+                           {"ui:order": ["sensitivity"]} 
+                        """
+                    )
+                )
+            ),
+            adminClient
+        ).orThrow()
+
+        UCloudLauncher.db.withSession { session ->
+            session.sendPreparedStatement(
+                {},
+                """
+                    update provider.resource
+                    set public_read = true
+                    where id in (
+                        select id
+                        from file_orchestrator.metadata_template_namespaces
+                    )
+                """
+            )
+        }
     }
 }
 
-class ComputeTest : IntegrationTest() {
-    private lateinit var figletTool: Tool
-    private lateinit var figletBatch: ApplicationWithFavoriteAndTags
-    private lateinit var figletLongRunning: ApplicationWithFavoriteAndTags
+object ApplicationTestData {
+    lateinit var figletTool: Tool
+    lateinit var figletBatch: ApplicationWithFavoriteAndTags
+    lateinit var figletLongRunning: ApplicationWithFavoriteAndTags
 
-    private suspend fun create() {
+    suspend fun create() {
         ToolStore.create.call(
             Unit,
             serviceClient.withHttpBody(
@@ -258,6 +342,7 @@ class ComputeTest : IntegrationTest() {
                        type: text
                    
                    allowAdditionalMounts: true
+                   applicationType: WEB
      
                 """.trimIndent(),
                 ContentType("text", "yaml")
@@ -306,8 +391,27 @@ class ComputeTest : IntegrationTest() {
             FindApplicationAndOptionalDependencies("long-running", "1.0.0"),
             serviceClient
         ).orThrow()
-    }
 
+        val apps = listOf(figletBatch, figletLongRunning)
+
+        for (app in apps) {
+            AppStore.createTag.call(
+                CreateTagsRequest(
+                    listOf("Featured"),
+                    app.metadata.name
+                ),
+                serviceClient
+            ).orThrow()
+
+            AppStore.setPublic.call(
+                SetPublicRequest(app.metadata.name, app.metadata.version, true),
+                serviceClient
+            ).orThrow()
+        }
+    }
+}
+
+class ComputeTest : IntegrationTest() {
     private data class StartJobParameters(
         val longRunning: Boolean,
         val interactivity: InteractiveSessionType?,
@@ -323,11 +427,11 @@ class ComputeTest : IntegrationTest() {
         with(parameters) {
             val (meta, params) = when {
                 !longRunning && interactivity == null -> {
-                    Pair(figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
+                    Pair(ApplicationTestData.figletBatch.metadata, mapOf("text" to AppParameterValue.Text("Hello, World!")))
                 }
 
                 longRunning && interactivity == null -> {
-                    Pair(figletLongRunning.metadata, emptyMap())
+                    Pair(ApplicationTestData.figletLongRunning.metadata, emptyMap())
                 }
 
                 interactivity == InteractiveSessionType.SHELL -> {
@@ -395,7 +499,7 @@ class ComputeTest : IntegrationTest() {
         }
     ): TestContext {
         case.initialization()
-        create()
+        ApplicationTestData.create()
         with(initializeResourceTestContext(case.products, emptyList())) {
             val rpcClient = adminClient.withProject(project)
             val (collection) = initializeCollection(project, rpcClient, case.storage)

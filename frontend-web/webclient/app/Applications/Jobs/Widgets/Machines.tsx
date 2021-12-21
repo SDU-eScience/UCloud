@@ -87,7 +87,7 @@ export const Machines: React.FunctionComponent<{
             fullWidth
             colorOnHover={false}
             trigger={(
-                <MachineDropdown>
+                <MachineDropdown data-component={"machines"}>
                     <input type="hidden" id={reservationMachine} />
                     <MachineBox machine={selected} />
 
@@ -97,7 +97,7 @@ export const Machines: React.FunctionComponent<{
         >
             <Wrapper>
                 {props.machines.length === 0 ? null :
-                    <Table>
+                    <Table data-component={"machine-table"}>
                         <TableHeader>
                             <TableRow>
                                 <TableHeaderCell pl="6px">Name</TableHeaderCell>

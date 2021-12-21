@@ -294,7 +294,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     const {metadata} = app;
     const appC = appColor(hash);
     return (
-        <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
+        <AppCard data-component={"app-card"} to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <AbsoluteNoPointerEvents right={0} top={0}
                 cursor="inherit"
                 height="100%"
@@ -314,8 +314,8 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
                 <AppToolLogo name={app.metadata.name} type="APPLICATION" size="60px" />
                 <Flex flexDirection="column" ml="10px">
-                    <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
-                    <Text>v{metadata.version}</Text>
+                    <EllipsedText fontSize="20px" maxWidth="220px" data-component={"app-title"}>{metadata.title}</EllipsedText>
+                    <Text data-component={"app-version"}>v{metadata.version}</Text>
 
                 </Flex>
             </Flex>
