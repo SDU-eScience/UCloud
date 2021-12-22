@@ -20,7 +20,6 @@ import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {addStandardDialog} from "@/UtilityComponents";
 import {dialogStore} from "@/Dialog/DialogStore";
 import * as Heading from "@/ui-components/Heading";
 import Warning from "@/ui-components/Warning";

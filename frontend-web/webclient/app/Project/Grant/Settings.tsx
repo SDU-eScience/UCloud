@@ -468,7 +468,8 @@ const UserCriteriaEditor: React.FunctionComponent<{
                     </TableRow>
                 </> : null}
 
-                {props.criteria.map((it, idx) => <>
+                {props.criteria.map((it, idx) =>
+                    /* TODO(Jonas): Missing key  */
                     <TableRow>
                         <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
                         <TableCell textAlign={"left"}>
