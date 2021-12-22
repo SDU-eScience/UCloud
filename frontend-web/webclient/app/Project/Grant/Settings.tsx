@@ -481,7 +481,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                             <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
                         </TableCell>
                     </TableRow>
-                </>)}
+                )}
                 {showRequestFromEditor ?
                     <UserCriteriaRowEditor
                         onSubmit={(c) => {
