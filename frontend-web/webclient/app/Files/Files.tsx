@@ -62,7 +62,7 @@ export const FilesBrowse: React.FunctionComponent<{
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
 
-    const [localActiveProject, setLocalActiveProject] = useState(Client.projectId);
+    const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
 
     // We need to be able to await the call.
     const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
@@ -191,7 +191,7 @@ export const FilesBrowse: React.FunctionComponent<{
                     />
                 </DriveDropdown>
                 <Text fontSize="25px">
-                    {projects.data.items.find(it => it.projectId === localActiveProject)?.title ?? ""}
+                    {localActiveProject === "" ? "My Workspace" : (projects.data.items.find(it => it.projectId === localActiveProject)?.title ?? "")}
                 </Text>
             </Flex>}
             <Flex>
@@ -295,7 +295,7 @@ const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = p
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
-                <Icon mt="8px" mr="6px" name={props.iconName} size="24px" />
+                <Icon mt="8px" mr="6px" name={props.iconName} color2="white" size="24px" />
                 <Icon
                     size="12px"
                     mr="8px"
