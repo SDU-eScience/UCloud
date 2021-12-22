@@ -233,6 +233,7 @@ enum class Eyebrows(val string: String) {
     DEFAULT("Default"),
     DEFAULT_NATURAL("DefaultNatural"),
     FLAT_NATURAL("FlatNatural"),
+    FROWN_NATURAL("FrownNatural"),
     RAISED_EXCITED("RaisedExcited"),
     RAISED_EXCITED_NATURAL("RaisedExcitedNatural"),
     SAD_CONCERNED("SadConcerned"),
