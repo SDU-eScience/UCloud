@@ -4,5 +4,5 @@ RUN curl https://storage.googleapis.com/kubernetes-release/release/v1.18.0/bin/l
 RUN mv /tmp/kubectl /usr/bin/kubectl
 RUN chmod +x /usr/bin/kubectl
 COPY build/service /opt/service/
-USER 11042
+# Run as user 0, to make sure chown is available (files are consumed from many different applications)
 CMD ["/opt/service/bin/service"]
