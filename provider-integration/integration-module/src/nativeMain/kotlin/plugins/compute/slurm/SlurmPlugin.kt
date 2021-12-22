@@ -337,17 +337,17 @@ class SlurmPlugin : ComputePlugin {
             nonBlockingStderr = true
         )
 
-        process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
-        var buffer = ByteArray(2048 * 2048)
+        //process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
+        
 
         while (isActive()) {
             val userInput = receiveChannel.tryReceive().getOrNull()
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
-                    println("USERINPUT: ${ userInput }")
+                    println("USERINPUT: ${ userInput.data }")
                     process!!.stdin!!.write( userInput.data.encodeToByteArray() )
-                    //emitData(userInput.data)
+                    emitData(userInput.data)
                 }
 
                 is ShellRequest.Resize -> {
@@ -368,13 +368,18 @@ class SlurmPlugin : ComputePlugin {
             }
              */
 
-            
+            val buffer = ByteArray(56 * 56)
+
             process!!.stdout!!.read(buffer)
-            if ( !buffer.decodeToString().isNullOrEmpty() ) emitData(buffer.decodeToString() ) //println("THIS IS: ${ buffer.decodeToString() }")
-            
+            if ( !buffer.decodeToString().replace("\u0000","").isNullOrEmpty() ) {
+                emitData( buffer.decodeToString().replace("\u0000","")  ) 
+            }
+
             
             delay(15)
         }
+
+    
     }
 
     companion object {
