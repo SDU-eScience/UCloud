@@ -63,3 +63,7 @@ suspend fun E2EIntegrationContext<*>.notificationCount(): Int {
 suspend fun E2EIntegrationContext<*>.openNotifications() {
     (driver.findComponentOrNull("notifications") ?: error("Could not locate notification button")).click()
 }
+
+suspend fun E2EIntegrationContext<*>.openAvatarMenu() {
+    driver.findComponentOrNull("avatar")?.click() ?: error("Could not find avatar menu")
+}

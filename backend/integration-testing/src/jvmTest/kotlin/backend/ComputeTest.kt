@@ -37,7 +37,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 object UCloudProvider {
-    var hasInitialized = false
+    var hasInitializedGlobally = false
         private set
 
     val storageProduct = Product.Storage(
@@ -74,7 +74,7 @@ object UCloudProvider {
     val products = listOf(storageProduct, projectHome, computeProduct, ingress)
 
     fun globalInitialize(micro: Micro) {
-        if (hasInitialized) return
+        if (hasInitializedGlobally) return
 
         runBlocking {
             // NOTE(Dan): Short guide on how to run Kubernetes tests.
@@ -194,7 +194,7 @@ object UCloudProvider {
 
             }
 
-            hasInitialized = true
+            hasInitializedGlobally = true
         }
     }
 

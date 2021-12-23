@@ -1,18 +1,27 @@
 package dk.sdu.cloud.integration.e2e
 
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.backend.UCloudProvider
 import dk.sdu.cloud.integration.backend.initializeResourceTestContext
 import dk.sdu.cloud.integration.retrySection
+import dk.sdu.cloud.project.api.AddGroupMemberRequest
+import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.provider.api.AclEntity
+import dk.sdu.cloud.service.test.assertThatInstance
 import kotlinx.coroutines.delay
 import org.openqa.selenium.By
 import java.io.File
 import java.nio.file.Files
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class StorageTest : EndToEndTest() {
     override fun defineTests() {
         UCloudProvider.globalInitialize(UCloudLauncher.micro)
+        testFilter = { title, subtitle -> title.contains("Permissions") }
 
         test<Unit, Unit>("Basic File Management") {
             executeE2E(E2EDrivers.CHROME) {
@@ -143,8 +152,8 @@ class StorageTest : EndToEndTest() {
 
                     retrySection {
                         val startUrl = driver.currentUrl
-                        val crumb = driver.findComponents("crumb").find { it.text == "My folder" } ?:
-                            error("Could not find breadcrumb")
+                        val crumb = driver.findComponents("crumb").find { it.text == "My folder" }
+                            ?: error("Could not find breadcrumb")
 
                         crumb.click()
                         await { driver.currentUrl != startUrl }
@@ -259,6 +268,114 @@ class StorageTest : EndToEndTest() {
             }
 
             case("No input") {
+                input(Unit)
+                check {}
+            }
+        }
+
+        test<Unit, Unit>("Permissions") {
+            executeE2E(E2EDrivers.CHROME) {
+                UCloudProvider.testInitialize(UCloudLauncher.serviceClient)
+
+                val driveName = "Drive"
+                val group1 = "G1"
+                val group2 = "G2"
+                with(initializeResourceTestContext(UCloudProvider.products, listOf(group1, group2))) {
+                    ProjectGroups.addGroupMember.call(
+                        AddGroupMemberRequest(
+                            groupNamesToId.getValue(group2),
+                            memberUsername
+                        ),
+                        piClient.withProject(project)
+                    ).orThrow()
+
+                    run {
+                        // Create a drive
+                        login(piUsername, piPassword)
+                        switchToProjectByTitle(projectTitle)
+                        clickSidebarOption(SidebarOption.Files)
+
+                        driver.clickUniqueButton("Create drive")
+
+                        retrySection {
+                            ListComponent.inMainContainer(driver).findProductSelector()?.click()
+                                ?: error("Could not open product selector")
+                        }
+
+                        retrySection {
+                            ListComponent.inMainContainer(driver).products().first().select()
+                        }
+
+                        retrySection {
+                            ListComponent.inMainContainer(driver).sendInput("${driveName}\n")
+                        }
+                    }
+
+                    run {
+                        // Confirm that the drive is not visible as a normal member
+                        logout()
+                        login(memberUsername, memberPassword)
+                        switchToProjectByTitle(projectTitle)
+                        clickSidebarOption(SidebarOption.Files)
+                        retrySection {
+                            assertNull(
+                                ListComponent.inMainContainer(driver).rows().find { it.title() == driveName }
+                            )
+                        }
+                    }
+
+                    run {
+                        // Update the permissions of the drive
+                        logout()
+                        login(piUsername, piPassword)
+                        switchToProjectByTitle(projectTitle)
+                        clickSidebarOption(SidebarOption.Files)
+                        retrySection {
+                            val row = ListComponent.inMainContainer(driver).rows().find { it.title() == driveName }
+                                ?: error("Could not find drive")
+                            row.openOperations(true)
+                            row.selectOperation("Permissions")
+                        }
+
+                        retrySection {
+                            val component = PermissionComponent(driver)
+                            component.findRows().find { it.groupTitle() == group2 }
+                                ?.select("Read")
+                                ?: error("Found no entry")
+
+                            component.close()
+                        }
+                    }
+
+                    run {
+                        // Verify that we have the appropriate permissions as the member user
+                        logout()
+                        login(memberUsername, memberPassword)
+                        switchToProjectByTitle(projectTitle)
+                        clickSidebarOption(SidebarOption.Files)
+                        retrySection {
+                            ListComponent.inMainContainer(driver).rows().find { it.title() == driveName }
+                                ?.navigate() ?: error("Could not find shared drive!")
+                        }
+
+                        retrySection {
+                            val button = driver.findElements(By.tagName("button")).find { it.text == "Upload files" }
+                                ?: error("Could not find upload files button")
+
+                            assertThatInstance(button, "is disabled") { it.getAttribute("disabled") != null }
+                        }
+
+                        retrySection {
+                            val button = driver.findElements(By.tagName("button")).find { it.text == "Create folder" }
+                                ?: error("Could not find create folder button")
+
+                            assertThatInstance(button, "is disabled") { it.getAttribute("disabled") != null }
+                        }
+                    }
+                }
+            }
+
+            case("-") {
                 input(Unit)
                 check {}
             }

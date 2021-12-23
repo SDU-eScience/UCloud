@@ -1,7 +1,9 @@
 package dk.sdu.cloud.integration.e2e
 
+import dk.sdu.cloud.integration.retrySection
 import org.openqa.selenium.By
 import org.openqa.selenium.WebDriver
+import org.openqa.selenium.html5.WebStorage
 
 suspend fun E2EIntegrationContext<*>.openLoginPage() {
     driver.get("$address/app/login")
@@ -24,4 +26,13 @@ suspend fun E2EIntegrationContext<*>.login(username: String, password: String) {
     form.findElement(By.id("password")).sendKeys(password)
     form.findElement(By.tagName("button")).click()
     await { !driver.currentUrl.contains("login") }
+}
+
+suspend fun E2EIntegrationContext<*>.logout() {
+    openAvatarMenu()
+    retrySection {
+        val startUrl = driver.currentUrl
+        driver.findComponentOrNull("logout-button")?.click() ?: error("Could not find logout button")
+        await { driver.currentUrl != startUrl }
+    }
 }

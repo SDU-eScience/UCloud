@@ -114,7 +114,11 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ClickableDropdown
                 width="200px"
                 left="-180%"
-                trigger={<ui.Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</ui.Flex>}
+                trigger={
+                    <ui.Flex data-component={"avatar"}>
+                        {Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}
+                    </ui.Flex>
+                }
             >
                 {!CONF.STATUS_PAGE ? null : (
                     <>
@@ -145,7 +149,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                         </ui.Flex>
                     </Link>
                 </ui.Flex>
-                <ui.Flex onClick={() => Client.logout()}>
+                <ui.Flex onClick={() => Client.logout()} data-component={"logout-button"}>
                     <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </ui.Flex>
