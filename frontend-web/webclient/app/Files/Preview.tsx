@@ -24,8 +24,9 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
 
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
+        console.log(size);
         if (file.status.type !== "FILE") return;
-        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES) {
+        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
             try {
                 const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                     FilesApi.createDownload(bulkRequestOf({id: file.id})),
@@ -59,6 +60,8 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
             }
         } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
             setError("File is too large to preview");
+        } else if (!size || size <= 0) {
+            setError("File is empty");
         } else {
             setError("Preview is not supported for this file.");
         }
@@ -69,7 +72,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     }, [file]);
 
     if (file.status.type !== "FILE") return null;
-    if (loading || data === "") return <PredicatedLoadingSpinner loading />
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
 
     let node: JSX.Element | null;
 
