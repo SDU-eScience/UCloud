@@ -65,6 +65,7 @@ data class HttpParams<Request : Any>(val parameters: List<HttpQueryParameter<Req
 sealed class HttpQueryParameter<Request : Any> {
     data class Property<Request : Any>(
         val property: String,
+        val nestedInside: String? = null
     ) : HttpQueryParameter<Request>()
 }
 
@@ -78,6 +79,7 @@ sealed class HttpHeaderParameter<Request : Any> {
     data class Property<Request : Any, Property>(
         val header: String,
         val property: KProperty1<Request, Property>,
+        val base64Encoded: Boolean
     ) : HttpHeaderParameter<Request>()
 }
 

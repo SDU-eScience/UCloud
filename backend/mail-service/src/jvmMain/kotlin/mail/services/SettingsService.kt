@@ -9,11 +9,6 @@ import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.encodeToJsonElement
 
-object EmailSettingsTable: SQLTable("email_settings") {
-    val username = text("username", notNull = true)
-    val settings = jsonb("settings", notNull = true)
-}
-
 class SettingsService(
     private val db: DBContext
 ) {
@@ -45,13 +40,13 @@ class SettingsService(
                     setParameter("username", username)
                 },
                 """
-                    SELECT * 
+                    SELECT  settings
                     FROM email_settings
                     WHERE username = :username
                 """
             ).rows
                 .singleOrNull()
-                ?.getField(EmailSettingsTable.settings)
+                ?.getString(0)
             if (settings == null) {
                 EmailSettings()
             }
@@ -62,52 +57,32 @@ class SettingsService(
     }
 
     suspend fun wantEmail(username: String, mail: Mail):Boolean {
-        val settings = db.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", username)
-                    },
-                    """
-                        SELECT * 
-                        FROM email_settings
-                        WHERE username = :username
-                    """
-                ).rows
-                .singleOrNull()
-                ?.getField(EmailSettingsTable.settings)
-        }
-        if (settings == null) {
-            return true
-        }
-        else {
-            val mapped = defaultMapper.decodeFromString<EmailSettings>(settings)
-            return when (mail) {
-                is Mail.TransferApplicationMail -> mapped.applicationTransfer
-                is Mail.GrantApplicationWithdrawnMail -> mapped.grantApplicationWithdrawn
-                is Mail.GrantApplicationRejectedMail -> mapped.grantApplicationRejected
-                is Mail.GrantApplicationApproveMail -> mapped.grantApplicationApproved
-                is Mail.GrantApplicationStatusChangedToAdmin -> mapped.applicationStatusChange
-                is Mail.GrantApplicationUpdatedMailToAdmins -> mapped.grantApplicationUpdated
-                is Mail.GrantApplicationUpdatedMail -> mapped.grantApplicationUpdated
-                is Mail.GrantAppAutoApproveToAdminsMail -> mapped.grantAutoApprove
-                is Mail.GrantApplicationApproveMailToAdmins -> mapped.grantApplicationApproved
-                is Mail.NewGrantApplicationMail -> mapped.newGrantApplication
-                is Mail.LowFundsMail -> mapped.lowFunds
-                is Mail.StillLowFundsMail -> mapped.lowFunds
-                is Mail.NewCommentOnApplicationMail -> mapped.newCommentOnApplication
-                is Mail.ProjectInviteMail -> mapped.projectUserInvite
-                is Mail.ResetPasswordMail -> true
-                is Mail.UserLeftMail -> mapped.userLeft
-                is Mail.UserRemovedMail -> mapped.projectUserRemoved
-                is Mail.UserRemovedMailToUser -> mapped.projectUserRemoved
-                is Mail.UserRoleChangeMail -> mapped.userRoleChange
-                is Mail.VerificationReminderMail -> mapped.verificationReminder
-                else -> {
-                    throw RPCException.fromStatusCode(
-                        HttpStatusCode.InternalServerError, "Mapping from mail to setting not found"
-                    )
-                }
+        val settings = getEmailSettings(username)
+        return when (mail) {
+            is Mail.TransferApplicationMail -> settings.applicationTransfer
+            is Mail.GrantApplicationWithdrawnMail -> settings.grantApplicationWithdrawn
+            is Mail.GrantApplicationRejectedMail -> settings.grantApplicationRejected
+            is Mail.GrantApplicationApproveMail -> settings.grantApplicationApproved
+            is Mail.GrantApplicationStatusChangedToAdmin -> settings.applicationStatusChange
+            is Mail.GrantApplicationUpdatedMailToAdmins -> settings.grantApplicationUpdated
+            is Mail.GrantApplicationUpdatedMail -> settings.grantApplicationUpdated
+            is Mail.GrantAppAutoApproveToAdminsMail -> settings.grantAutoApprove
+            is Mail.GrantApplicationApproveMailToAdmins -> settings.grantApplicationApproved
+            is Mail.NewGrantApplicationMail -> settings.newGrantApplication
+            is Mail.LowFundsMail -> settings.lowFunds
+            is Mail.StillLowFundsMail -> settings.lowFunds
+            is Mail.NewCommentOnApplicationMail -> settings.newCommentOnApplication
+            is Mail.ProjectInviteMail -> settings.projectUserInvite
+            is Mail.ResetPasswordMail -> true
+            is Mail.UserLeftMail -> settings.userLeft
+            is Mail.UserRemovedMail -> settings.projectUserRemoved
+            is Mail.UserRemovedMailToUser -> settings.projectUserRemoved
+            is Mail.UserRoleChangeMail -> settings.userRoleChange
+            is Mail.VerificationReminderMail -> settings.verificationReminder
+            else -> {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError, "Mapping from mail to setting not found"
+                )
             }
         }
     }

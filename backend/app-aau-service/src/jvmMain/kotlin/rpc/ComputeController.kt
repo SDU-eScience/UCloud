@@ -3,16 +3,15 @@ package dk.sdu.cloud.app.aau.rpc
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.RetrieveAllFromProviderRequest
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.aau.ClientHolder
 import dk.sdu.cloud.app.aau.services.ResourceCache
 import dk.sdu.cloud.app.kubernetes.api.AauCompute
 import dk.sdu.cloud.app.kubernetes.api.AauComputeMaintenance
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -20,6 +19,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.TokenValidation
@@ -64,19 +64,21 @@ class ComputeController(
                     buildString {
                         appendLine("AAU VM creation request: ")
                         appendLine(
-                            defaultMapper.encodeToString(JsonObject(
-                                mapOf(
-                                    "request" to JsonPrimitive("creation"),
-                                    "job_id" to JsonPrimitive(req.id),
-                                    "owner_username" to JsonPrimitive(req.owner.createdBy),
-                                    "owner_project" to JsonPrimitive(req.owner.project),
-                                    "base_image" to JsonPrimitive(tool.description.image),
-                                    "machine_template" to JsonPrimitive(resources.product.id),
-                                    "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
-                                    "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
+                            defaultMapper.encodeToString(
+                                JsonObject(
+                                    mapOf(
+                                        "request" to JsonPrimitive("creation"),
+                                        "job_id" to JsonPrimitive(req.id),
+                                        "owner_username" to JsonPrimitive(req.owner.createdBy),
+                                        "owner_project" to JsonPrimitive(req.owner.project),
+                                        "base_image" to JsonPrimitive(tool.description.image),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
+                                        "total_grant_allocation" to JsonPrimitive("Ask SDU if needed, no longer available in the temporary solution"),
+                                        "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
+                                    )
                                 )
                             )
-                            ))
+                        )
                     }
                 )
             }
@@ -84,21 +86,23 @@ class ComputeController(
             JobsControl.update.call(
                 bulkRequestOf(
                     request.items.map { req ->
-                        JobsControlUpdateRequestItem(
+                        ResourceUpdateAndId(
                             req.id,
-                            JobState.IN_QUEUE,
-                            "A request has been submitted and is now awaiting approval by a system administrator. " +
-                                "This might take a few business days."
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "A request has been submitted and is now awaiting approval by a system administrator. " +
+                                    "This might take a few business days."
+                            )
                         )
                     }
                 ),
                 client.client
             ).orThrow()
 
-            ok(Unit)
+            ok(BulkResponse(request.items.map { null }))
         }
 
-        implement(AauCompute.delete) {
+        implement(AauCompute.terminate) {
             request.items.forEach { req ->
                 val resources = resourceCache.findResources(req)
                 val application = resources.application
@@ -109,19 +113,21 @@ class ComputeController(
                     buildString {
                         appendLine("AAU VM deletion request: ")
                         appendLine(
-                            defaultMapper.encodeToString(JsonObject(
-                                mapOf(
-                                    "request" to JsonPrimitive("deletion"),
-                                    "job_id" to JsonPrimitive(req.id),
-                                    "owner_username" to JsonPrimitive(req.owner.createdBy),
-                                    "owner_project" to JsonPrimitive(req.owner.project),
-                                    "base_image" to JsonPrimitive(tool.description.image),
-                                    "machine_template" to JsonPrimitive(resources.product.id),
-                                    "total_grant_allocation" to JsonPrimitive("${(req.billing.__creditsAllocatedToWalletDoNotDependOn__ / 1_000_000)} DKK"),
-                                    "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
+                            defaultMapper.encodeToString(
+                                JsonObject(
+                                    mapOf(
+                                        "request" to JsonPrimitive("creation"),
+                                        "job_id" to JsonPrimitive(req.id),
+                                        "owner_username" to JsonPrimitive(req.owner.createdBy),
+                                        "owner_project" to JsonPrimitive(req.owner.project),
+                                        "base_image" to JsonPrimitive(tool.description.image),
+                                        "machine_template" to JsonPrimitive(resources.product.name),
+                                        "total_grant_allocation" to JsonPrimitive("Ask SDU if needed, no longer available in the temporary solution"),
+                                        "request_parameters" to defaultMapper.encodeToJsonElement(req.specification.parameters)
+                                    )
                                 )
                             )
-                            ))
+                        )
                     }
                 )
             }
@@ -129,18 +135,20 @@ class ComputeController(
             JobsControl.update.call(
                 bulkRequestOf(
                     request.items.map { req ->
-                        JobsControlUpdateRequestItem(
+                        ResourceUpdateAndId(
                             req.id,
-                            JobState.IN_QUEUE,
-                            "A request for deletion has been submitted and is now awaiting action by a system administrator. " +
-                                "This might take a few business days."
+                            JobUpdate(
+                                JobState.IN_QUEUE,
+                                status = "A request for deletion has been submitted and is now awaiting action by a system administrator. " +
+                                    "This might take a few business days."
+                            )
                         )
                     }
                 ),
                 client.client
             ).orThrow()
 
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(AauComputeMaintenance.sendUpdate) {
@@ -153,9 +161,10 @@ class ComputeController(
 
                 JobsControl.update.call(
                     bulkRequestOf(request.items.map { req ->
-                        JobsControlUpdateRequestItem(req.id,
-                            req.newState,
-                            req.update)
+                        ResourceUpdateAndId(
+                            req.id,
+                            JobUpdate(req.newState, status = req.update)
+                        )
                     }),
                     client.client
                 ).orThrow()
@@ -172,10 +181,15 @@ class ComputeController(
                     ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                 if (principal.role !in Roles.PRIVILEGED) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
 
-                ok(JobsControl.retrieve.call(
-                    JobsControlRetrieveRequest(request.id, includeProduct = true, includeApplication = true),
-                    client.client
-                ).orThrow())
+                ok(
+                    JobsControl.retrieve.call(
+                        ResourceRetrieveRequest(
+                            JobIncludeFlags(includeProduct = true, includeApplication = true),
+                            request.id
+                        ),
+                        client.client
+                    ).orThrow()
+                )
             }
         }
 
@@ -185,23 +199,29 @@ class ComputeController(
 
         implement(AauCompute.follow) {
             sendWSMessage(JobsProviderFollowResponse("id", -1, null, null))
-            sendWSMessage(JobsProviderFollowResponse(
-                "id",
-                0,
-                "Please see the 'Messages' panel for how to access your machine",
-                null
-            ))
+            sendWSMessage(
+                JobsProviderFollowResponse(
+                    "id",
+                    0,
+                    "Please see the 'Messages' panel for how to access your machine",
+                    null
+                )
+            )
             while (currentCoroutineContext().isActive) {
                 delay(1000)
             }
-            ok(JobsProviderFollowResponse("",
-                0,
-                "Please see the 'Messages' panel for how to access your machine",
-                null))
+            ok(
+                JobsProviderFollowResponse(
+                    "",
+                    0,
+                    "Please see the 'Messages' panel for how to access your machine",
+                    null
+                )
+            )
         }
 
         implement(AauCompute.extend) {
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(AauCompute.openInteractiveSession) {
@@ -247,23 +267,21 @@ class ComputeController(
     }
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
-        Products.retrieveAllFromProvider.call(
-            RetrieveAllFromProviderRequest("aau"),
-            client.client
-        ).orThrow().filterIsInstance<Product.Compute>()
+        Products.browse.call(
+            ProductsBrowseRequest(filterProvider = "aau", filterArea = ProductType.COMPUTE),
+            serviceClient
+        ).orThrow().items.filterIsInstance<Product.Compute>()
     })
 
-    suspend fun retrieveProductsTemporary(): JobsProviderRetrieveProductsResponse {
-        return JobsProviderRetrieveProductsResponse(productCache.get(Unit)?.map {
-            ComputeProductSupport(
-                ProductReference(it.id, it.category.id, it.category.provider),
-                ComputeSupport(
-                    ComputeSupport.Docker(
-                        enabled = false,
-                    ),
-                    ComputeSupport.VirtualMachine(
-                        enabled = true,
-                    )
+    suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
+        return BulkResponse(productCache.get(Unit)?.map {
+            ComputeSupport(
+                ProductReference(it.name, it.category.name, it.category.provider),
+                ComputeSupport.Docker(
+                    enabled = false,
+                ),
+                ComputeSupport.VirtualMachine(
+                    enabled = true,
                 )
             )
         } ?: emptyList())

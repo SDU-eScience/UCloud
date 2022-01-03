@@ -1,10 +1,10 @@
-import {MainContainer} from "MainContainer/MainContainer";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
-import {EveryIcon} from "ui-components/Icon";
-import {Grid, Box} from "ui-components";
-import {ThemeColor} from "ui-components/theme";
-import {getCssVar} from "Utilities/StyledComponentsUtilities";
-import {ConfirmationButton} from "ui-components/ConfirmationAction";
+import {EveryIcon} from "@/ui-components/Icon";
+import {Grid, Box} from "@/ui-components";
+import {ThemeColor} from "@/ui-components/theme";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -31,7 +31,7 @@ export const Playground: React.FunctionComponent = () => {
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
         </>
     );
-    return <MainContainer main={main} />;
+    return <MainContainer main={main}/>;
 };
 
 const colors = [

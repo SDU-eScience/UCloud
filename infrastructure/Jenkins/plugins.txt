@@ -1,0 +1,130 @@
+Resource Disposer Plugin (resource-disposer): 0.16
+Config API for Blue Ocean (blueocean-config): 1.24.7
+Display URL for Blue Ocean (blueocean-display-url): 2.4.1
+Bitbucket Pipeline for Blue Ocean (blueocean-bitbucket-pipeline): 1.24.7
+GitHub plugin (github): 1.33.1
+Kubernetes plugin (kubernetes): 1.29.7
+Common API for Blue Ocean (blueocean-commons): 1.24.7
+Pipeline: API (workflow-api): 2.44
+Popper.js 2 API Plugin (popper2-api): 2.5.4-2
+ECharts API Plugin (echarts-api): 5.1.2-2
+Credentials Binding Plugin (credentials-binding): 1.25
+GIT server Plugin (git-server): 1.9
+Snakeyaml API Plugin (snakeyaml-api): 1.29.1
+Java JSON Web Token (JJWT) Plugin (jjwt-api): 0.11.2-9.c8b45b8bb173
+OkHttp Plugin (okhttp-api): 3.14.9
+Pipeline implementation for Blue Ocean (blueocean-pipeline-api-impl): 1.24.7
+Credentials Plugin (credentials): 2.5
+Pipeline: Groovy (workflow-cps): 2.92
+Pipeline: Stage Tags Metadata (pipeline-stage-tags-metadata): 1.8.5
+Oracle Java SE Development Kit Installer Plugin (jdk-tool): 1.5
+Authentication Tokens API Plugin (authentication-tokens): 1.4
+Events API for Blue Ocean (blueocean-events): 1.24.7
+Variant Plugin (variant): 1.4
+bouncycastle API Plugin (bouncycastle-api): 2.20
+Blue Ocean Core JS (blueocean-core-js): 1.24.7
+JQuery3 API Plugin (jquery3-api): 3.6.0-1
+Jackson 2 API Plugin (jackson2-api): 2.12.3
+Subversion Plug-in (subversion): 2.14.4
+Pipeline: Job (workflow-job): 2.41
+LDAP Plugin (ldap): 2.7
+WMI Windows Agents Plugin (windows-slaves): 1.8
+Folders Plugin (cloudbees-folder): 6.15
+Pipeline: Shared Groovy Libraries (workflow-cps-global-lib): 2.19
+Token Macro Plugin (token-macro): 2.15
+Bootstrap 5 API Plugin (bootstrap5-api): 5.0.1-2
+OWASP Markup Formatter Plugin (antisamy-markup-formatter): 2.1
+JavaScript GUI Lib: ACE Editor bundle plugin (ace-editor): 1.1
+Pipeline: Multibranch (workflow-multibranch): 2.24
+Command Agent Launcher Plugin (command-launcher): 1.6
+HTML Publisher plugin (htmlpublisher): 1.25
+Pipeline SCM API for Blue Ocean (blueocean-pipeline-scm-api): 1.24.7
+REST Implementation for Blue Ocean (blueocean-rest-impl): 1.24.7
+GitHub API Plugin (github-api): 1.123
+Workspace Cleanup Plugin (ws-cleanup): 0.39
+Lockable Resources plugin (lockable-resources): 2.11
+SSH Credentials Plugin (ssh-credentials): 1.19
+GitHub Pipeline for Blue Ocean (blueocean-github-pipeline): 1.24.7
+SSH server (sshd): 3.0.3
+Pipeline: Input Step (pipeline-input-step): 2.12
+Bitbucket Branch Source Plugin (cloudbees-bitbucket-branch-source): 2.9.9
+Pipeline: SCM Step (workflow-scm-step): 2.12
+Web for Blue Ocean (blueocean-web): 1.24.7
+Autofavorite for Blue Ocean (blueocean-autofavorite): 1.2.4
+Mercurial plugin (mercurial): 2.15
+Branch API Plugin (branch-api): 2.6.4
+Checks API plugin (checks-api): 1.7.0
+Pipeline: Build Step (pipeline-build-step): 2.13
+Pipeline: Declarative Extension Points API (pipeline-model-extensions): 1.8.5
+Server Sent Events (SSE) Gateway Plugin (sse-gateway): 1.24
+Email Extension Plugin (email-ext): 2.83
+JUnit Plugin (junit): 1.50
+Ant Plugin (ant): 1.11
+JIRA Integration for Blue Ocean (blueocean-jira): 1.24.7
+Matrix Project Plugin (matrix-project): 1.19
+Gradle Plugin (gradle): 1.36
+Slack Notification Plugin (slack): 2.48
+Apache HttpComponents Client 4.x API Plugin (apache-httpcomponents-client-4-api): 4.5.13-1.0
+Blue Ocean Pipeline Editor (blueocean-pipeline-editor): 1.24.7
+Bootstrap 4 API Plugin (bootstrap4-api): 4.6.0-3
+Pipeline: GitHub Groovy Libraries (pipeline-github-lib): 1.0
+Git Pipeline for Blue Ocean (blueocean-git-pipeline): 1.24.7
+JavaScript GUI Lib: Moment.js bundle plugin (momentjs): 1.1.1
+Structs Plugin (structs): 1.23
+JSch dependency plugin (jsch): 0.1.55.2
+PAM Authentication plugin (pam-auth): 1.6
+Kubernetes Client API Plugin (kubernetes-client-api): 4.13.3-1
+Jira plugin (jira): 3.3
+SCM API Plugin (scm-api): 2.6.4
+Blue Ocean (blueocean): 1.24.7
+Pipeline: Supporting APIs (workflow-support): 3.8
+Pipeline (workflow-aggregator): 2.6
+MapDB API Plugin (mapdb-api): 1.0.9.0
+i18n for Blue Ocean (blueocean-i18n): 1.24.7
+GitHub Authentication plugin (github-oauth): 0.33
+Display URL API (display-url-api): 2.3.5
+Timestamper (timestamper): 1.13
+Pipeline: Model API (pipeline-model-api): 1.8.5
+JavaScript GUI Lib: jQuery bundles (jQuery and jQuery UI) plugin (jquery-detached): 1.2.1
+Handy Uri Templates 2.x API Plugin (handy-uri-templates-2-api): 2.1.8-1.0
+Pipeline: Basic Steps (workflow-basic-steps): 2.23
+Caffeine API Plugin (caffeine-api): 2.9.1-23.v51c4e2c879c8
+Popper.js API Plugin (popper-api): 1.16.1-2
+SSH Build Agents plugin (ssh-slaves): 1.32.0
+Git plugin (git): 4.7.2
+JWT for Blue Ocean (blueocean-jwt): 1.24.7
+Dashboard for Blue Ocean (blueocean-dashboard): 1.24.7
+Cobertura Plugin (cobertura): 1.16
+Matrix Authorization Strategy Plugin (matrix-auth): 2.6.7
+Favorite (favorite): 2.3.3
+Plugin Utilities API Plugin (plugin-util-api): 2.3.0
+Pipeline: Stage View Plugin (pipeline-stage-view): 2.19
+Font Awesome API Plugin (font-awesome-api): 5.15.3-3
+Pipeline: Step API (workflow-step-api): 2.23
+Durable Task Plugin (durable-task): 1.37
+Docker Pipeline (docker-workflow): 1.26
+Pipeline: Milestone Step (pipeline-milestone-step): 1.3.2
+Trilead API Plugin (trilead-api): 1.0.13
+JDK Parameter Plugin (JDK_Parameter_Plugin): 1.0
+Pipeline: Stage Step (pipeline-stage-step): 2.5
+Kubernetes Credentials Plugin (kubernetes-credentials): 0.9.0
+Pipeline: REST API Plugin (pipeline-rest-api): 2.19
+Code Coverage API Plugin (code-coverage-api): 1.3.2
+Personalization for Blue Ocean (blueocean-personalization): 1.24.7
+Git client plugin (git-client): 3.7.2
+Metrics Plugin (metrics): 4.0.2.8
+Pipeline: Declarative (pipeline-model-definition): 1.8.5
+Pipeline: Nodes and Processes (workflow-durable-task-step): 2.39
+Pipeline Graph Analysis Plugin (pipeline-graph-analysis): 1.11
+Design Language (jenkins-design-language): 1.24.7
+GitHub Branch Source Plugin (github-branch-source): 2.11.1
+JavaScript GUI Lib: Handlebars bundle plugin (handlebars): 3.0.8
+Docker Commons Plugin (docker-commons): 1.17
+Build Timeout (build-timeout): 1.20
+Mailer Plugin (mailer): 1.34
+REST API for Blue Ocean (blueocean-rest): 1.24.7
+Versions Node Monitors plugin (versioncolumn): 2.1
+Plain Credentials Plugin (plain-credentials): 1.7
+Script Security Plugin (script-security): 1.77
+JAXB plugin (jaxb): 2.3.0.1
+Pub-Sub "light" Bus (pubsub-light): 1.15

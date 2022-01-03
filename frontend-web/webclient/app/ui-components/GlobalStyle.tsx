@@ -1,50 +1,113 @@
 import theme from "./theme";
-import {device} from "ui-components/Hide";
+import {device} from "@/ui-components/Hide";
 
-const useInter = localStorage.getItem("inter") !== null;
-
-const fontLight = require("Assets/IBMPlexSans-Light.ttf");
-const fontRegular = require("Assets/IBMPlexSans-Regular.ttf");
-const monoFont = require("Assets/JetBrainsMono-Regular.woff2");
-const inter = require("Assets/Inter.ttf");
+import monoFont from "@/Assets/JetBrainsMono-Regular.woff2";
+import inter from "@/Assets/Inter.woff";
 
 export function injectFonts(): void {
-    const standardFont = document.createElement("style");
-    standardFont.innerHTML = useInter ? `
-            @font-face {
-                font-family: 'Inter';
-                src: url('${inter}');
-                font-display: swap;
-                font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
-            }
-        ` : `
-            @font-face {
-                font-family: 'IBM Plex Sans';
-                src: url('${fontLight}');
-                font-display: swap;
-            }
-            
-            @font-face {
-                font-family: 'IBM Plex Sans';
-                src: url('${fontRegular}');
-                font-weight: 400;
-                font-display: swap;
-            }
-    `;
-    document.head.appendChild(standardFont);
-
-    const mono = document.createElement("style");
-    mono.innerHTML = `
+    const styleTag = document.createElement("style");
+    styleTag.innerHTML = `
+        /* Custom font */
+        
+        @font-face {
+            font-family: 'Inter';
+            src: url('${inter}');
+            font-display: swap;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
         @font-face {
             font-family: "Jetbrains Mono";
             src: url("${monoFont}");
             font-display: swap;
         }
     `;
-    document.head.appendChild(mono);
+    document.head.appendChild(styleTag);
 }
 
 const UIGlobalStyle = `
+
+/*  /files/metadata/templates/create/ START */
+
+div.modal.fade.show { 
+    max-width: 800px;
+    background-color: var(--lightGray, #f00);
+    border-color: 2px solid var(--black, #f00);
+}
+
+div.tooltip.show.bs-tooltip-auto {
+    color: var(--text, #f00);
+    background-color: var(--white);
+    border: 1px solid var(--midGray);
+    border-radius: 5px;
+    padding: 2px 5px 2px 5px;
+}
+
+div#form-builder_add_popover.popover-inner h3.popover-header {
+    margin-top: 0px;
+    border-bottom: none;
+}
+
+div.popover.show.bs-popover-auto {
+    background-color: var(--lightGray);
+    border: 2px solid var(--blue);
+    border-radius: 10px;
+    padding-left: 4px;
+    padding-right: 4px;
+    padding-bottom: 4px;
+    padding-top: 4px;
+
+    .popover-inner {
+        border: none;
+    }
+}
+
+span.toggle-collapse {
+    display: hidden;
+}
+
+div.popover.show.bs-popover-auto > div.popover-inner > h3.popover-header {
+    border-bottom: none;
+    margin-top: 0px;
+}
+
+div > div > div.modal { 
+    margin-left: calc(50% - 400px);
+    padding: 10px 10px 10px 10px;
+    background-color: var(--white, #f00);
+    border: 1px solid var(--gray, #f00);
+    border-radius: 5px;
+}
+
+
+div.modal-footer > button {
+    margin-right: 5px;
+}
+
+div.action-buttons > button.btn, button.btn.btn-primary, button.btn.btn-secondary {
+    font-smoothing: antialiased;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    text-decoration: none;
+    font-family: inherit;
+    font-weight: ${theme.bold};
+    cursor: pointer;
+    border-radius: ${theme.radius};
+    background-color: var(--blue, #f00);
+    color: var(--white, #f00);
+    border-width: 0;
+    border-style: solid;
+    line-height: 1.5;
+    width: 100px;
+    height: 40px;
+}
+
+
+/* /files/metadata/templates/create/ END */
+
 /* Colors */
 html {
     --black: #000;
@@ -54,7 +117,7 @@ html {
     --midGray: #c9d3df;
     --gray: #8393A7;
     --darkGray: #53657d;
-    --lightBlue: #f0f6ff;
+    --lightBlue: #D9E9FF;
     --lightBlue2: #cdf;
     --blue: #006aff;
     --darkBlue: #049;
@@ -91,7 +154,7 @@ html {
     --appStoreFavBg: #e8f1fc
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
-    --settingsBox: #f5f7f9;
+    --activeSpreadsheet: #dcebf6;
     
     /* TODO This is not currently enforced in the header */
     --headerHeight: 48px;
@@ -105,7 +168,7 @@ html.light {
     --black: #000;
     --text: #1e252e;
     --lightGray: #f5f7f9;
-    --lightBlue: #f0f6ff;
+    --lightBlue: #E6F1FF;
     --midGray: #c9d3df;
     --paginationDisabled: var(--lightGray, #f00);
     --paginationHoverColor: var(--lightBlue, #f00);
@@ -114,7 +177,8 @@ html.light {
     --invertedThemeColor: #000;
     --projectHighlight: #dfffee;
     --appStoreFavBg: #e8f1fc;
-    --settingsBox: #f5f7f9;
+    --activeSpreadsheet: #dcebf6;
+    --modalShadow: rgba(255, 255, 255, 0.75);
 }
 
 html.dark {
@@ -132,7 +196,8 @@ html.dark {
     --invertedThemeColor: #fff;
     --projectHighlight: #00c05a;
     --appStoreFavBg: #00204d;
-    --settingsBox: #33455d;
+    --activeSpreadsheet: #000;
+    --modalShadow: rgba(0, 0, 0, 0.75);
 }
 
 ${device("xxl")} {
@@ -743,6 +808,51 @@ textarea,
 .ReactModal__Overlay {
     z-index: 100;
     height: auto;
-}`;
+}
+
+div.tooltip-content {
+    box-shadow: ${theme.shadows.sm};
+    position: absolute;
+    margin-left: 50px;
+    padding: 5px 5px 5px 5px;
+    width: 350px;
+    height: auto;
+    display: none;
+    color: var(--black);
+    background-color: var(--white);
+}
+
+div.tooltip-content.centered {
+    justify-content: center;
+
+    .user-box {
+        width: 350px;
+        height: 190px;
+        .centered {
+            display: flex;
+            justify-content: center;
+        }
+    }
+    
+    .product-box {
+        margin-left: 2px;
+        text-align: left;
+        span {
+            word-break: keep-all;
+        }
+    }   
+}
+
+div.tooltip:hover {
+    div.tooltip-content {
+        display: flex;
+    }
+}
+
+a {
+    color: var(--textHighlight);
+}
+
+`;
 
 export default UIGlobalStyle;

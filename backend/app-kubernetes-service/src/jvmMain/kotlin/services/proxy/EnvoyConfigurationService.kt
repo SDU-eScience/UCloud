@@ -45,9 +45,10 @@ class EnvoyConfigurationService(
 
     suspend fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
         lock.withLock {
-            log.debug("Reconfiguring envoy with ${routes.size} routes and ${clusters.size} clusters")
+            val dedupedRoutes = deduplicateRoutes(routes)
+            log.debug("Reconfiguring envoy with ${dedupedRoutes.size} routes and ${clusters.size} clusters")
             val tempRouteFile = File("./envoy/temp-route-file.yaml").also {
-                it.writeText(yamlMapper.writeValueAsString(EnvoyResources(listOf(EnvoyRouteConfiguration(routes)))))
+                it.writeText(yamlMapper.writeValueAsString(EnvoyResources(listOf(EnvoyRouteConfiguration(dedupedRoutes)))))
             }
 
             val tempClusterFile = File("./envoy/temp-cluster-file.yaml").also {
@@ -57,6 +58,11 @@ class EnvoyConfigurationService(
             Files.move(tempRouteFile.toPath(), routeConfiguration.toPath(), StandardCopyOption.REPLACE_EXISTING)
             Files.move(tempClusterFile.toPath(), clusterConfiguration.toPath(), StandardCopyOption.REPLACE_EXISTING)
         }
+    }
+
+    private fun deduplicateRoutes(routes: List<EnvoyRoute>): List<EnvoyRoute> {
+        // NOTE(Dan): This code ensures that domains are unique. See issue #3129.
+        return routes.associateBy { it.domain }.values.toList()
     }
 
     companion object : Loggable {

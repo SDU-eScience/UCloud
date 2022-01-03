@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
+import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
@@ -8,6 +9,7 @@ import dk.sdu.cloud.app.kubernetes.services.UtilizationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
@@ -36,17 +38,17 @@ class AppKubernetesController(
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(KubernetesCompute.create) {
             jobManagement.create(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { null }))
         }
 
-        implement(KubernetesCompute.delete) {
+        implement(KubernetesCompute.terminate) {
             jobManagement.cancel(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { Unit }))
         }
 
         implement(KubernetesCompute.extend) {
             jobManagement.extend(request)
-            ok(Unit)
+            ok(BulkResponse(request.items.map { }))
         }
 
         implement(KubernetesCompute.suspend) {
@@ -93,6 +95,10 @@ class AppKubernetesController(
             ok(jobManagement.retrieveProductsTemporary())
         }
 
+        implement(KubernetesCompute.updateAcl) {
+            ok(BulkResponse(request.items.map {  }))
+        }
+
         implement(KubernetesCompute.follow) {
             when (val request = request) {
                 is JobsProviderFollowRequest.Init -> {
@@ -114,7 +120,7 @@ class AppKubernetesController(
                         ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     } catch (ex: Throwable) {
                         streamsMutex.withLock { streams.remove(streamId) }
-                        okContentAlreadyDelivered()
+                        ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     }
                 }
 

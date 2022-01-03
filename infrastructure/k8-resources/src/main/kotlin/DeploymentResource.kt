@@ -25,22 +25,24 @@ class DeploymentResource(
     livenessPort: Int = 8080,
     livenessPath: String = "/status"
 ) : KubernetesResource {
+    val fixedName = if (name == "auth") "ucloud-auth" else name
+
     val deployment = Deployment().apply {
         metadata = ObjectMeta().apply {
             this.name = this@DeploymentResource.name
-            labels = mapOf("app" to this@DeploymentResource.name)
+            labels = mapOf("app" to fixedName)
             annotations = mapOf(UCLOUD_VERSION_ANNOTATION to version)
         }
 
         spec = DeploymentSpec().apply {
             replicas = 1
             selector = LabelSelector().apply {
-                matchLabels = mapOf("app" to this@DeploymentResource.name)
+                matchLabels = mapOf("app" to fixedName)
             }
 
             template = PodTemplateSpec().apply {
                 metadata = ObjectMeta().apply {
-                    labels = mapOf("app" to this@DeploymentResource.name)
+                    labels = mapOf("app" to fixedName)
                 }
 
                 spec = PodSpec().apply {

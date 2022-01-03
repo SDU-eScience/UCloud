@@ -1,10 +1,10 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Select} from "ui-components";
-import {compute} from "UCloud";
+import {Select} from "@/ui-components";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
-import Flex from "ui-components/Flex";
+import Flex from "@/ui-components/Flex";
 import AppParameterValueNS = compute.AppParameterValueNS;
 
 interface EnumProps extends WidgetProps {

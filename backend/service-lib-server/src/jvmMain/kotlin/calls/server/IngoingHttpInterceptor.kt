@@ -1,28 +1,19 @@
 package dk.sdu.cloud.calls.server
 
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.HttpBody
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.httpOrNull
-import dk.sdu.cloud.calls.toKtorTemplate
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
-import io.ktor.content.TextContent
-import io.ktor.http.ContentType
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.withCharset
+import io.ktor.application.*
+import io.ktor.content.*
+import io.ktor.http.*
 import io.ktor.request.*
-import io.ktor.response.respond
+import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.server.engine.*
-import io.ktor.util.*
-import io.ktor.util.pipeline.PipelineContext
+import io.ktor.util.pipeline.*
 import io.ktor.utils.io.errors.*
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
-import java.util.*
 import java.util.concurrent.TimeUnit
 
 class IngoingHttpInterceptor(
@@ -44,18 +35,22 @@ class IngoingHttpInterceptor(
 
             route(httpDescription.path.toKtorTemplate(fullyQualified = true), httpDescription.method) {
                 handle {
-                    try {
-                        // Calls the handler provided by 'implement'
-                        @Suppress("UNCHECKED_CAST")
-                        rpcServer.handleIncomingCall(
-                            this@IngoingHttpInterceptor,
-                            call,
-                            HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                        )
-                    } catch (ex: IOException) {
-                        log.debug("Caught IOException:")
-                        log.debug(ex.stackTraceToString())
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    call.fullName
+                    val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
+                    withContext(RpcCoroutineContext(ctx)) {
+                        try {
+                            // Calls the handler provided by 'implement'
+                            @Suppress("UNCHECKED_CAST")
+                            rpcServer.handleIncomingCall(
+                                this@IngoingHttpInterceptor,
+                                call,
+                                ctx
+                            )
+                        } catch (ex: IOException) {
+                            log.debug("Caught IOException:")
+                            log.debug(ex.stackTraceToString())
+                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        }
                     }
                 }
             }

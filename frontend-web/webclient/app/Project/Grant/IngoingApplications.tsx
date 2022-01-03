@@ -1,7 +1,7 @@
 import * as React from "react";
-import {useEffect} from "react";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCallback, useEffect, useState} from "react";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {
     GrantApplication,
     GrantApplicationFilter,
@@ -9,32 +9,29 @@ import {
     GrantApplicationStatus,
     ingoingGrantApplications,
     IngoingGrantApplicationsResponse
-} from "Project/Grant/index";
-import {emptyPage} from "DefaultObjects";
-import {useProjectManagementStatus} from "Project";
-import * as Pagination from "Pagination";
-import {ListRow, ListRowStat} from "ui-components/List";
-import {Flex, Icon, Label, List, Text, Tooltip, Truncate, VerticalButtonGroup} from "ui-components";
-import {creditFormatter} from "Project/ProjectUsage";
-import {useAvatars} from "AvataaarLib/hook";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
+} from "@/Project/Grant/index";
+import {emptyPage} from "@/DefaultObjects";
+import {useProjectManagementStatus} from "@/Project";
+import * as Pagination from "@/Pagination";
+import {ListRow, ListRowStat} from "@/ui-components/List";
+import {Flex, Label, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useHistory} from "react-router";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {dateToString} from "Utilities/DateUtilities";
-import {IconName} from "ui-components/Icon";
-import {ThemeColor} from "ui-components/theme";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {FilterTrigger} from "./OutgoingApplications";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {useDispatch} from "react-redux";
-import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 
 export const IngoingApplications: React.FunctionComponent = () => {
-    const dispatch = useDispatch()
-
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
+    const [scrollGeneration, setScrollGeneration] = useState(0);
     const [filter, setFilter] = React.useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
@@ -44,23 +41,26 @@ export const IngoingApplications: React.FunctionComponent = () => {
     useRefreshFunction(() => {
         fetchIngoingApplications(
             ingoingGrantApplications({
-                itemsPerPage: 25,
-                page: ingoingApplications.data.pageNumber,
+                itemsPerPage: 50,
                 filter
             })
         );
+        setScrollGeneration(prev => prev + 1);
     });
 
     useTitle("Ingoing Applications");
 
     useEffect(() => {
-        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: 0, filter}));
+        setScrollGeneration(prev => prev + 1);
+        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, filter}));
     }, [projectId, filter]);
 
-    useEffect(() => {
-        dispatch(setLoading(ingoingApplications.loading))
-    }, [ingoingApplications.loading])
+    const loadMore = useCallback(() => {
+        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, next: ingoingApplications.data.next,
+            filter}));
+    }, [ingoingApplications.data, filter]);
 
+    useLoading(ingoingApplications.loading);
     useSidebarPage(SidebarPages.Projects);
 
     return <MainContainer
@@ -83,13 +83,12 @@ export const IngoingApplications: React.FunctionComponent = () => {
         </VerticalButtonGroup>
         }
         main={
-            <Pagination.List
+            <Pagination.ListV2
+                infiniteScrollGeneration={scrollGeneration}
                 page={ingoingApplications.data}
                 loading={ingoingApplications.loading}
-                onPageChanged={(newPage) => {
-                    fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 25, page: newPage, filter}));
-                }}
-                pageRenderer={page => <GrantApplicationList applications={page.items} />}
+                onLoadMore={loadMore}
+                pageRenderer={items => <GrantApplicationList applications={items} />}
             />
         }
     />;
@@ -154,23 +153,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             )}
                         </Flex>
                     }
-                    right={(
-                        <Tooltip
-                            trigger={
-                                <Flex width="auto" alignItems="center">
-                                    <Flex flexGrow={1} justifyContent="flex-end">
-                                        {creditFormatter(
-                                            app.requestedResources.reduce(
-                                                (prev, curr) => prev + (curr.creditsRequested ?? 0), 0
-                                            ), 0)}
-                                    </Flex>
-                                    <Icon name={icon} color={iconColor} ml={8} />
-                                </Flex>
-                            }
-                        >
-                            Resource request in DKK
-                        </Tooltip>
-                    )}
+                    right={null}
                     leftSub={
                         <>
                             {slim ? null : (

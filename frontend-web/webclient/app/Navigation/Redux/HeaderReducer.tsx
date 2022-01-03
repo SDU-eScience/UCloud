@@ -1,4 +1,4 @@
-import {HeaderSearchReduxObject, initHeader} from "DefaultObjects";
+import {HeaderSearchReduxObject, initHeader} from "@/DefaultObjects";
 import {HeaderActions} from "./HeaderActions";
 
 export const SET_PRIORITIZED_SEARCH = "SET_PRIORITIZED_SEARCH";

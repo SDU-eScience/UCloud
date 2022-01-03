@@ -68,56 +68,54 @@ class SettingsServiceTest {
         val user = TestUsers.user
         //Should be default (ALL TRUE)
         runBlocking {
-            db.withSession { ctx ->
-                val settings = settingsService.getEmailSettings(user.username)
-                for (prop in EmailSettings::class.memberProperties) {
-                    assertEquals(true, prop.get(settings))
-                }
-                val newSettings = EmailSettings(
-                    grantApplicationApproved = false
-                )
-                settingsService.updateEmailSettings(ctx, newSettings, user.username)
-
-                val updatedSettings = settingsService.getEmailSettings(user.username)
-                assertEquals(true, updatedSettings.applicationStatusChange)
-                assertEquals(true, updatedSettings.applicationTransfer)
-                assertEquals(false, updatedSettings.grantApplicationApproved)
-                assertEquals(true, updatedSettings.grantApplicationRejected)
-                assertEquals(true, updatedSettings.grantApplicationWithdrawn)
-                assertEquals(true, updatedSettings.grantApplicationUpdated)
-                assertEquals(true, updatedSettings.lowFunds)
-                assertEquals(true, updatedSettings.newCommentOnApplication)
-                assertEquals(true, updatedSettings.newGrantApplication)
-                assertEquals(true, updatedSettings.projectUserInvite)
-                assertEquals(true, updatedSettings.projectUserRemoved)
-                assertEquals(true, updatedSettings.userLeft)
-                assertEquals(true, updatedSettings.userRoleChange)
-                assertEquals(true, updatedSettings.verificationReminder)
-
-                val newSettingsAgain = EmailSettings(
-                    grantApplicationApproved = false,
-                    grantApplicationWithdrawn = false
-                )
-                settingsService.updateEmailSettings(ctx, newSettings, TestUsers.user2.username)
-                settingsService.updateEmailSettings(ctx, newSettingsAgain, user.username)
-
-                val updatedSettingsAfterConflict = settingsService.getEmailSettings(user.username)
-                assertEquals(true, updatedSettingsAfterConflict.applicationStatusChange)
-                assertEquals(true, updatedSettingsAfterConflict.applicationTransfer)
-                assertEquals(false, updatedSettingsAfterConflict.grantApplicationApproved)
-                assertEquals(true, updatedSettingsAfterConflict.grantApplicationRejected)
-                assertEquals(false, updatedSettingsAfterConflict.grantApplicationWithdrawn)
-                assertEquals(true, updatedSettingsAfterConflict.grantApplicationUpdated)
-                assertEquals(true, updatedSettingsAfterConflict.lowFunds)
-                assertEquals(true, updatedSettingsAfterConflict.newCommentOnApplication)
-                assertEquals(true, updatedSettingsAfterConflict.newGrantApplication)
-                assertEquals(true, updatedSettingsAfterConflict.projectUserInvite)
-                assertEquals(true, updatedSettingsAfterConflict.projectUserRemoved)
-                assertEquals(true, updatedSettingsAfterConflict.userLeft)
-                assertEquals(true, updatedSettingsAfterConflict.userRoleChange)
-                assertEquals(true, updatedSettingsAfterConflict.verificationReminder)
-
+            val settings = settingsService.getEmailSettings(user.username)
+            for (prop in EmailSettings::class.memberProperties) {
+                assertEquals(true, prop.get(settings))
             }
+            val newSettings = EmailSettings(
+                grantApplicationApproved = false
+            )
+            settingsService.updateEmailSettings(db, newSettings, user.username)
+
+            val updatedSettings = settingsService.getEmailSettings(user.username)
+            assertEquals(true, updatedSettings.applicationStatusChange)
+            assertEquals(true, updatedSettings.applicationTransfer)
+            assertEquals(false, updatedSettings.grantApplicationApproved)
+            assertEquals(true, updatedSettings.grantApplicationRejected)
+            assertEquals(true, updatedSettings.grantApplicationWithdrawn)
+            assertEquals(true, updatedSettings.grantApplicationUpdated)
+            assertEquals(true, updatedSettings.lowFunds)
+            assertEquals(true, updatedSettings.newCommentOnApplication)
+            assertEquals(true, updatedSettings.newGrantApplication)
+            assertEquals(true, updatedSettings.projectUserInvite)
+            assertEquals(true, updatedSettings.projectUserRemoved)
+            assertEquals(true, updatedSettings.userLeft)
+            assertEquals(true, updatedSettings.userRoleChange)
+            assertEquals(true, updatedSettings.verificationReminder)
+
+            val newSettingsAgain = EmailSettings(
+                grantApplicationApproved = false,
+                grantApplicationWithdrawn = false
+            )
+            settingsService.updateEmailSettings(db, newSettings, TestUsers.user2.username)
+            settingsService.updateEmailSettings(db, newSettingsAgain, user.username)
+
+            val updatedSettingsAfterConflict = settingsService.getEmailSettings(user.username)
+            assertEquals(true, updatedSettingsAfterConflict.applicationStatusChange)
+            assertEquals(true, updatedSettingsAfterConflict.applicationTransfer)
+            assertEquals(false, updatedSettingsAfterConflict.grantApplicationApproved)
+            assertEquals(true, updatedSettingsAfterConflict.grantApplicationRejected)
+            assertEquals(false, updatedSettingsAfterConflict.grantApplicationWithdrawn)
+            assertEquals(true, updatedSettingsAfterConflict.grantApplicationUpdated)
+            assertEquals(true, updatedSettingsAfterConflict.lowFunds)
+            assertEquals(true, updatedSettingsAfterConflict.newCommentOnApplication)
+            assertEquals(true, updatedSettingsAfterConflict.newGrantApplication)
+            assertEquals(true, updatedSettingsAfterConflict.projectUserInvite)
+            assertEquals(true, updatedSettingsAfterConflict.projectUserRemoved)
+            assertEquals(true, updatedSettingsAfterConflict.userLeft)
+            assertEquals(true, updatedSettingsAfterConflict.userRoleChange)
+            assertEquals(true, updatedSettingsAfterConflict.verificationReminder)
+
         }
     }
 
@@ -136,16 +134,13 @@ class SettingsServiceTest {
         val grantApproved = Mail.GrantApplicationApproveMail(
             "ProjectTitle"
         )
-
         runBlocking {
-            db.withSession { ctx ->
-                settingsService.updateEmailSettings(ctx, newSettings, user.username)
+            settingsService.updateEmailSettings(db, newSettings, user.username)
 
-                val wantVerification = settingsService.wantEmail(user.username, verificationReminderMail)
-                assertTrue(wantVerification)
-                val wantAppApproved = settingsService.wantEmail(user.username, grantApproved)
-                assertFalse(wantAppApproved)
-            }
+            val wantVerification = settingsService.wantEmail(user.username, verificationReminderMail)
+            assertTrue(wantVerification)
+            val wantAppApproved = settingsService.wantEmail(user.username, grantApproved)
+            assertFalse(wantAppApproved)
         }
     }
 

@@ -1,17 +1,17 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {Avatar} from "AvataaarLib";
-import Spinner from "LoadingIcon/LoadingIcon";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setActivePage, useTitle} from "Navigation/Redux/StatusActions";
-import PromiseKeeper from "PromiseKeeper";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Avatar} from "@/AvataaarLib";
+import Spinner from "@/LoadingIcon/LoadingIcon";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setActivePage, useTitle} from "@/Navigation/Redux/StatusActions";
+import PromiseKeeper from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Box, Flex, Label, OutlineButton, Select} from "ui-components";
-import {SidebarPages} from "ui-components/Sidebar";
-import {findAvatarQuery} from "Utilities/AvatarUtilities";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Box, Flex, Label, OutlineButton, Select} from "@/ui-components";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {findAvatarQuery} from "@/Utilities/AvatarUtilities";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import * as Options from "./AvatarOptions";
 import {saveAvatar} from "./Redux/AvataaarActions";
 

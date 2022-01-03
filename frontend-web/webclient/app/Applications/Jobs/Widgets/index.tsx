@@ -1,22 +1,22 @@
 import * as React from "react";
-import {BoolParameter, BoolSetter, BoolValidator} from "Applications/Jobs/Widgets/Bool";
-import * as UCloud from "UCloud";
-import * as Heading from "ui-components/Heading";
-import {compute} from "UCloud";
+import {BoolParameter, BoolSetter, BoolValidator} from "@/Applications/Jobs/Widgets/Bool";
+import * as UCloud from "@/UCloud";
+import * as Heading from "@/ui-components/Heading";
+import {compute} from "@/UCloud";
 import AppParameterValue = compute.AppParameterValue;
 import ApplicationParameter = compute.ApplicationParameter;
-import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "ui-components";
+import {Box, Button, Flex, Icon, Input, Label, Markdown, Text} from "@/ui-components";
 import {FilesParameter, FilesSetter, FilesValidator} from "./GenericFiles";
 import styled from "styled-components";
-import {EllipsedText, TextP, TextSpan} from "ui-components/Text";
+import {EllipsedText, TextP, TextSpan} from "@/ui-components/Text";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
 import Fuse from "fuse.js";
-import {GenericTextParameter, GenericTextSetter, GenericTextValidator} from "Applications/Jobs/Widgets/GenericText";
-import {EnumParameter, EnumSetter, EnumValidator} from "Applications/Jobs/Widgets/Enum";
-import {PeerParameter, PeerSetter, PeerValidator} from "Applications/Jobs/Widgets/Peer";
-import {LicenseParameter, LicenseSetter, LicenseValidator} from "Applications/Jobs/Widgets/License";
-import {IngressParameter, IngressSetter, IngressValidator} from "Applications/Jobs/Widgets/Ingress";
-import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "Applications/Jobs/Widgets/NetworkIP";
+import {GenericTextParameter, GenericTextAreaAppParameter, GenericTextSetter, GenericTextValidator} from "@/Applications/Jobs/Widgets/GenericText";
+import {EnumParameter, EnumSetter, EnumValidator} from "@/Applications/Jobs/Widgets/Enum";
+import {PeerParameter, PeerSetter, PeerValidator} from "@/Applications/Jobs/Widgets/Peer";
+import {LicenseParameter, LicenseSetter, LicenseValidator} from "@/Applications/Jobs/Widgets/License";
+import {IngressParameter, IngressSetter, IngressValidator} from "@/Applications/Jobs/Widgets/Ingress";
+import {NetworkIPParameter, NetworkIPSetter, NetworkIPValidator} from "@/Applications/Jobs/Widgets/NetworkIP";
 
 // Creating a new widget? Look here. Add it to the WidgetBody, validators and setters.
 export type WidgetValidator = (param: ApplicationParameter) => WidgetValidationAnswer;
@@ -33,6 +33,8 @@ const WidgetBody: React.FunctionComponent<WidgetProps> = props => {
         case "floating_point":
         case "integer":
             return <GenericTextParameter {...props} parameter={props.parameter} />;
+        case "textarea":
+            return <GenericTextAreaAppParameter {...props} parameter={props.parameter} />;
         case "enumeration":
             return <EnumParameter {...props} parameter={props.parameter} />;
         case "peer":
@@ -122,17 +124,18 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
 
     if (props.active !== false) {
         return <>
-            <Box mt={"1em"}>
+            <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
                 <Label fontSize={1} htmlFor={parameter.name}>
                     <Flex>
-                        <Flex>
+                        <Flex data-component={"param-title"}>
                             {parameter.title}
                             {parameter.optional ? null : <MandatoryField />}
                         </Flex>
                         {!parameter.optional || !props.onRemove ? null : (
                             <>
                                 <Box ml="auto" />
-                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}>
+                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                                      data-component={"param-remove"}>
                                     Remove
                                     <Icon ml="6px" size={16} name="close" />
                                 </Text>
@@ -142,16 +145,20 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                 </Label>
                 <WidgetBody {...props} />
                 {error ? <TextP color={"red"}>{error}</TextP> : null}
-                <Markdown source={parameter.description} />
+                <Markdown>
+                    {parameter.description}
+                </Markdown>
             </Box>
         </>;
     } else {
-        return <Box>
+        return <Box data-param-type={props.parameter.type} data-component={"app-parameter"}>
             <InactiveWidget onClick={toggleOpen}>
-                <strong>{parameter.title}</strong>
+                <strong data-component={"param-title"}>{parameter.title}</strong>
                 {!open ? (
                     <EllipsedText width="200px">
-                        <Markdown source={parameter.description} allowedTypes={["text", "paragraph"]} />
+                        <Markdown allowedElements={["text", "paragraph"]}>
+                            {parameter.description}
+                        </Markdown>
                     </EllipsedText>
                 ) : <Box flexGrow={1} />}
 
@@ -166,7 +173,7 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
                     Use
                 </Button>
             </InactiveWidget>
-            {open ? <Markdown source={parameter.description} /> : null}
+            {open ? <Markdown>{parameter.description}</Markdown> : null}
         </Box>;
     }
 };
@@ -210,7 +217,7 @@ export const OptionalWidgetSearch: React.FunctionComponent<{
         if (term === "") {
             setResults(pool);
         } else {
-            currentTimeout.current = setTimeout(() => {
+            currentTimeout.current = window.setTimeout(() => {
                 const newResults = fuse.search(term);
                 setResults(newResults.map(it => it.item));
             }, delay);

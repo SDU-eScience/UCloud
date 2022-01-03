@@ -1,20 +1,17 @@
 import * as React from "react";
-import Divider from "ui-components/Divider";
+import Divider from "@/ui-components/Divider";
 import {
-    fetchDataManagementPlan,
-    FetchDataManagementPlanResponse,
     leaveProject,
     ProjectRole,
     renameProject,
     setProjectArchiveStatus,
-    setProjectArchiveStatusBulk, updateDataManagementPlan,
+    setProjectArchiveStatusBulk,
     useProjectManagementStatus,
     UserInProject
-} from "Project/index";
+} from "@/Project/index";
 import {
     Box,
     Button,
-    ButtonGroup,
     Flex,
     Input,
     Label,
@@ -22,35 +19,29 @@ import {
     SelectableText,
     SelectableTextWrapper,
     Text,
-    TextArea,
     Checkbox
-} from "ui-components";
-import * as Heading from "ui-components/Heading";
+} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import styled from "styled-components";
-import {addStandardDialog} from "UtilityComponents";
-import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
+import {addStandardDialog} from "@/UtilityComponents";
+import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
 import {useHistory, useParams} from "react-router";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {dialogStore} from "Dialog/DialogStore";
-import {MainContainer} from "MainContainer/MainContainer";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {GrantProjectSettings, LogoAndDescriptionSettings} from "Project/Grant/Settings";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Toggle} from "ui-components/Toggle";
-import {useCallback, useEffect, useRef, useState} from "react";
-import {TextSpan} from "ui-components/Text";
-import {doNothing} from "UtilityFunctions";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {GrantProjectSettings, LogoAndDescriptionSettings} from "@/Project/Grant/Settings";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useEffect} from "react";
 import {
     AllowSubProjectsRenamingRequest,
     AllowSubProjectsRenamingResponse,
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
     ToggleSubProjectsRenamingRequest
-} from "Project/Grant";
-import {buildQueryString} from "Utilities/URIUtilities";
+} from "@/Project/Grant";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 const ActionContainer = styled.div`
     & > * {
@@ -80,7 +71,6 @@ const ActionBox = styled.div`
 enum SettingsPage {
     AVAILABILITY = "availability",
     INFO = "info",
-    DMP = "dmp",
     GRANT_SETTINGS = "grant",
     SUBPROJECTS = "subprojects"
 }
@@ -123,7 +113,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                     <SelectableTextWrapper>
                         <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"}/>
                         <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"}/>
-                        <PageTab activePage={page} page={SettingsPage.DMP} title={"Data Management Plan"}/>
                         <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"}/>
                         {!enabled.data.enabled ? null :
                             <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"}/>
@@ -141,7 +130,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             />
                             <Divider/>
                             <LeaveProject
-                                onSuccess={() => history.push(fileTablePage(Client.homeFolder))}
+                                onSuccess={() => history.push("/")}
                                 projectDetails={projectDetails.data}
                                 projectId={projectId}
                                 projectRole={projectRole}
@@ -161,9 +150,6 @@ export const ProjectSettings: React.FunctionComponent = () => {
                             {enabled.data.enabled ? <Divider/> : null}
                             <LogoAndDescriptionSettings/>
                         </>
-                    )}
-                    {page !== SettingsPage.DMP ? null : (
-                        <DataManagementPlan/>
                     )}
                     {page !== SettingsPage.GRANT_SETTINGS ? null : (
                         <GrantProjectSettings/>
@@ -189,97 +175,6 @@ interface ChangeProjectTitleProps {
     projectDetails: UserInProject;
     onSuccess: () => void;
 }
-
-const DataManagementPlan: React.FunctionComponent = () => {
-    const [dmpResponse, fetchDmp] = useCloudAPI<FetchDataManagementPlanResponse>({noop: true}, {});
-    const [, runWork] = useAsyncCommand();
-    const projectManagement = useProjectManagementStatus({isRootComponent: false});
-    const [hasDmp, setHasDmp] = useState<boolean>(false);
-    const dmpRef = useRef<HTMLTextAreaElement>(null);
-
-    const reload = (): void => {
-        if (projectManagement.allowManagement && Client.hasActiveProject) {
-            fetchDmp(fetchDataManagementPlan({}));
-        }
-    };
-
-    useEffect(() => {
-        reload();
-    }, [projectManagement.projectId, projectManagement.allowManagement]);
-
-    useEffect(() => {
-        if (dmpResponse.data.dmp) {
-            setHasDmp(true);
-            if (dmpRef.current) {
-                dmpRef.current.value = dmpResponse.data.dmp;
-            }
-        } else {
-            setHasDmp(false);
-            if (dmpRef.current) {
-                dmpRef.current.value = "";
-            }
-        }
-    }, [dmpResponse.data.dmp]);
-
-    const updateDmp = useCallback(async () => {
-        const res = await runWork(updateDataManagementPlan({
-            id: projectManagement.projectId,
-            dmp: dmpRef.current!.value
-        }));
-        if (res) {
-            snackbarStore.addSuccess("Your data management plan has been updated", false);
-        }
-        reload();
-    }, [projectManagement.projectId, runWork, dmpRef.current]);
-
-    const deleteDmp = useCallback(async () => {
-        addStandardDialog({
-            title: "Confirm deleting data management plan",
-            message: "",
-            confirmText: "Delete",
-            onCancel: doNothing,
-            onConfirm: async () => {
-                const res = await runWork(updateDataManagementPlan({id: projectManagement.projectId}));
-                if (res) {
-                    snackbarStore.addSuccess("Your data management plan has been updated", false);
-                }
-                reload();
-            }
-        });
-    }, [projectManagement.projectId, runWork, dmpRef.current]);
-
-    if (!Client.hasActiveProject || !projectManagement.allowManagement) return null;
-
-    return <Box>
-        If you have a data management plan then you can attach it to the project here.
-        <TextSpan bold>
-            You still need to follow your organization&apos;s policies regarding data management plans.
-        </TextSpan>
-        <br/>
-
-        <Label>
-            Store a copy of this project&apos;s data management plan in UCloud?{" "}
-            <Toggle onChange={() => {
-                setHasDmp(!hasDmp);
-            }} checked={hasDmp} scale={1.5}/>
-        </Label>
-
-        {!hasDmp ? null : (
-            <Box>
-                <TextArea
-                    placeholder={"Data management plan."}
-                    rows={5}
-                    width={"100%"}
-                    ref={dmpRef}
-                />
-                <ButtonGroup mt={8}>
-                    <Button type={"button"} onClick={updateDmp}>Save Data Management Plan</Button>
-                    <Button type={"button"} onClick={deleteDmp} color={"red"}>Delete Data Management Plan</Button>
-                </ButtonGroup>
-            </Box>
-        )}
-    </Box>;
-};
 
 export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);

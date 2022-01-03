@@ -3,6 +3,7 @@ package dk.sdu.cloud.news.rpc
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
+import dk.sdu.cloud.calls.server.securityPrincipalOrNull
 import dk.sdu.cloud.news.api.News
 import dk.sdu.cloud.news.services.NewsService
 import dk.sdu.cloud.service.Controller
@@ -59,7 +60,7 @@ class NewsController(
                     request.normalize(),
                     request.filter,
                     request.withHidden,
-                    ctx.securityPrincipal.role in Roles.PRIVILEGED
+                    ctx.securityPrincipalOrNull?.role in Roles.PRIVILEGED
                 )
             )
         }

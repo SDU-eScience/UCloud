@@ -17,7 +17,7 @@ fun <T> assertThatInstance(
     description: String = "Custom matcher",
     matcher: (T) -> Boolean
 ) {
-    assertTrue("Expected instance to match $description. Actual value: $instance") { matcher(instance) }
+    assertTrue("$description (Actual value: $instance)") { matcher(instance) }
 }
 
 fun <T, P> assertThatProperty(
@@ -42,5 +42,12 @@ fun <T, P> assertThatPropertyEquals(
     value: P,
     description: String = "Custom matcher"
 ) {
-    assertThatProperty(instance, property, description) { it == value }
+    val prop = property(instance)
+    assertTrue(
+        description +
+                "\nActual and expected does not match!" +
+                "\n         Context: $instance." +
+                "\n    Actual value: $prop" +
+                "\n  Expected value: $value"
+    ) { prop == value }
 }

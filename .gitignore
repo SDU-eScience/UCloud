@@ -1,4 +1,4 @@
-.compose/
+.env
 ### Java template
 # Compiled class file
 *.class
@@ -155,3 +155,4 @@ logs/
 fs/
 
 backend/envoy/
+.compose/

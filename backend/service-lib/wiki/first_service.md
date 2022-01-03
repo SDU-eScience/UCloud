@@ -286,7 +286,7 @@ Finally, we have to setup the correct dependencies for each service. Go to
 
 ```kotlin
 override fun start() {
-    val db = AsyncDBSessionFactory(micro.databaseConfig)
+    val db = AsyncDBSessionFactory(micro)
     val postDao = PostDao()
     val postService = PostService(db, postDao)
 

@@ -9,8 +9,8 @@ import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseBrowseRequest
 import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseUpdateRequest
 import dk.sdu.cloud.app.orchestrator.api.License
 import dk.sdu.cloud.app.orchestrator.api.LicenseControl
-import dk.sdu.cloud.app.orchestrator.api.LicenseControlUpdateRequestItem
 import dk.sdu.cloud.app.orchestrator.api.LicenseState
+import dk.sdu.cloud.app.orchestrator.api.LicenseUpdate
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -18,7 +18,9 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
@@ -71,18 +73,12 @@ class LicenseService(
                     set(LicenseServerTable.license, license.license)
                     set(LicenseServerTable.tags, defaultMapper.encodeToString(license.tags))
                     set(LicenseServerTable.priority, license.priority)
-                    set(LicenseServerTable.availability, when (val availability = license.availability) {
-                        is ProductAvailability.Available -> null
-                        is ProductAvailability.Unavailable -> availability.reason
-                        else -> error("unknown availability")
-                    })
                     set(LicenseServerTable.pricePerUnit, license.pricePerUnit)
                     set(LicenseServerTable.description, license.description)
-                    set(LicenseServerTable.paymentModel, license.paymentModel.name)
                 }
 
-                val resp = Products.createProduct.call(
-                    license.toProduct(),
+                val resp = Products.create.call(
+                    bulkRequestOf(license.toProduct()),
                     k8.serviceClient
                 )
 
@@ -91,6 +87,24 @@ class LicenseService(
                 }
             }
         }
+    }
+
+    private val supportedProductCache = SimpleCache<Unit, List<Product.License>>(
+        lookup = { _ ->
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        {},
+                        "select * from app_kubernetes.license_servers"
+                    )
+                    .let { mapRows(it.rows) }
+                    .map { it.toProduct() }
+            }
+        }
+    )
+    suspend fun fetchAllSupportedProducts(): List<Product.License> {
+        return supportedProductCache.get(Unit)
+            ?: throw RPCException("Could not fetch supported products", HttpStatusCode.InternalServerError)
     }
 
     suspend fun browseServers(request: KubernetesLicenseBrowseRequest): PageV2<KubernetesLicense> {
@@ -130,14 +144,8 @@ class LicenseService(
                         setParameter("tags", defaultMapper.encodeToString(newLicense.tags))
 
                         setParameter("priority", newLicense.priority)
-                        setParameter("product_availability", when (val availability = newLicense.availability) {
-                            is ProductAvailability.Available -> null
-                            is ProductAvailability.Unavailable -> availability.reason
-                            else -> error("unknown availability")
-                        })
                         setParameter("price_per_unit", newLicense.pricePerUnit)
                         setParameter("description", newLicense.description)
-                        setParameter("payment_model", newLicense.paymentModel.name)
                     },
                     """
                         update app_kubernetes.license_servers
@@ -158,8 +166,8 @@ class LicenseService(
 
                 if (!success) throw RPCException("License does not exist: ${newLicense.id}", HttpStatusCode.NotFound)
 
-                Products.updateProduct.call(
-                    newLicense.toProduct(),
+                Products.create.call(
+                    bulkRequestOf(newLicense.toProduct()),
                     k8.serviceClient
                 ).orThrow()
             }
@@ -172,11 +180,12 @@ class LicenseService(
             pricePerUnit,
             ProductCategoryId(id, UCLOUD_PROVIDER),
             description = "Software license",
-            hiddenInGrantApplications,
+            hiddenInGrantApplications = hiddenInGrantApplications,
             tags = tags,
-            availability = availability,
-            paymentModel = paymentModel,
             priority = priority,
+            version = 1,
+            freeToUse = false,
+            unitOfPrice = ProductPriceUnit.PER_UNIT
         )
     }
 
@@ -193,20 +202,15 @@ class LicenseService(
                 ProductCategoryId(it.getField(LicenseServerTable.id), UCLOUD_PROVIDER),
                 it.getField(LicenseServerTable.pricePerUnit),
                 it.getField(LicenseServerTable.description),
-                Products.findProduct.call(
-                    FindProductRequest(
-                        UCLOUD_PROVIDER,
-                        it.getField(LicenseServerTable.id),
-                        it.getField(LicenseServerTable.id)
+                Products.retrieve.call(
+                    ProductsRetrieveRequest(
+                        filterProvider = UCLOUD_PROVIDER,
+                        filterCategory = it.getField(LicenseServerTable.id),
+                        filterName = it.getField(LicenseServerTable.id)
                     ),
                     k8.serviceClient
                 ).orThrow().hiddenInGrantApplications,
-                when (val reason = it.getFieldNullable(LicenseServerTable.availability)) {
-                    null -> ProductAvailability.Available()
-                    else -> ProductAvailability.Unavailable(reason)
-                },
                 it.getField(LicenseServerTable.priority),
-                PaymentModel.valueOf(it.getField(LicenseServerTable.paymentModel))
             )
         }
     }
@@ -222,7 +226,10 @@ class LicenseService(
 
             LicenseControl.update.call(
                 bulkRequestOf(request.items.map {
-                    LicenseControlUpdateRequestItem(it.id, LicenseState.READY, "License is ready for use")
+                    ResourceUpdateAndId(it.id, LicenseUpdate(
+                        state = LicenseState.READY,
+                        status = "License is ready for use"
+                    ))
                 }),
                 k8.serviceClient
             ).orThrow()

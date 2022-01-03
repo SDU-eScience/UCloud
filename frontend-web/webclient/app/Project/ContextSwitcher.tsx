@@ -1,20 +1,19 @@
-import {emptyPage} from "DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
-import {addTrailingSlash, shortUUID, stopPropagationAndPreventDefault} from "UtilityFunctions";
+import {shortUUID, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {useEffect} from "react";
 import {Dispatch} from "redux";
-import {dispatchSetProjectAction, getStoredProject} from "Project/Redux";
-import {Flex, Truncate, Text, Icon, Divider} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
+import {dispatchSetProjectAction, getStoredProject} from "@/Project/Redux";
+import {Flex, Truncate, Text, Icon, Divider} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
-import {useCloudAPI} from "Authentication/DataHook";
-import {UserInProject, ListProjectsRequest, listProjects} from "Project";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {useHistory} from "react-router";
 import {History} from "history";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {useProjectStatus} from "Project/cache";
+import {useProjectStatus} from "@/Project/cache";
+import {initializeResources} from "@/Services/ResourceInit";
 
 // eslint-disable-next-line no-underscore-dangle
 function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX.Element | null {
@@ -42,7 +41,7 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
     const history = useHistory();
 
     return (
-        <Flex pr="12px" alignItems={"center"}>
+        <Flex pr="12px" alignItems={"center"} data-component={"project-switcher"}>
             <ClickableDropdown
                 trigger={
                     <HoverBox>
@@ -59,36 +58,58 @@ function _ContextSwitcher(props: ContextSwitcherReduxProps & DispatchProps): JSX
                         <Icon name={"chevronDown"} size={"12px"} ml={"4px"} />
                     </HoverBox>
                 }
+                colorOnHover={false}
+                paddingControlledByContent
                 onTriggerClick={() => (setFetchParams({...params}), projectStatus.reload())}
                 left="0px"
                 width="250px"
             >
-                {props.activeProject ?
-                    (
-                        <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
-                            My Workspace
+                <BoxForPadding>
+                    {props.activeProject ?
+                        (
+                            <Text onClick={() => onProjectUpdated(history, () => props.setProject(), props.refresh)}>
+                                My Workspace
+                            </Text>
+                        ) : null
+                    }
+                    {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
+                        <Text
+                            key={project.projectId}
+                            onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
+                        >
+                            <Truncate width="215px">{project.title}</Truncate>
                         </Text>
-                    ) : null
-                }
-                {response.data.items.filter(it => !(it.projectId === props.activeProject)).map(project =>
-                    <Text
-                        key={project.projectId}
-                        onClick={() => onProjectUpdated(history, () => props.setProject(project.projectId), props.refresh)}
-                    >
-                        <Truncate width="215px">{project.title}</Truncate>
-                    </Text>
-                )}
-                {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
-                <Text onClick={() => history.push("/projects")}>Manage projects</Text>
-                {!props.activeProject ? null :
-                    <Text onClick={() => history.push("/project/dashboard")}>
-                        Manage active project
-                    </Text>
-                }
+                    )}
+                    {props.activeProject || response.data.items.length > 0 ? <Divider /> : null}
+                    <Text onClick={() => history.push("/projects")}>Manage projects</Text>
+                    {!props.activeProject ? null :
+                        <Text onClick={() => history.push("/project/dashboard")}>
+                            Manage active project
+                        </Text>
+                    }
+                </BoxForPadding>
             </ClickableDropdown>
         </Flex>
     );
 }
+
+const BoxForPadding = styled.div`
+    & > div:hover {
+        background-color: var(--lightBlue);
+    }
+
+    & > ${Divider} {
+        width: 80%;
+        margin-left: 26px;
+    }
+
+    & > ${Text} {
+        padding-left: 10px;
+    }
+
+    margin-top: 12px;
+    margin-bottom: 12px;
+`;
 
 const HoverIcon = styled(Icon)`
     &:hover {
@@ -96,17 +117,14 @@ const HoverIcon = styled(Icon)`
     }
 `;
 
-const filesPathname = "/app/files/";
-const filesSearch = "?path=";
-
 function onProjectUpdated(history: History, runThisFunction: () => void, refresh?: () => void): void {
     const {pathname, search} = window.location;
     runThisFunction();
-    if (addTrailingSlash(pathname) === filesPathname && search.startsWith(filesSearch)) {
-        history.push(fileTablePage(Client.hasActiveProject ? Client.currentProjectFolder : Client.homeFolder));
-    } else {
-        refresh?.();
+    if (pathname === "/app/files") {
+        history.push("/drives")
     }
+    initializeResources();
+    refresh?.();
 }
 
 const HoverBox = styled.div`

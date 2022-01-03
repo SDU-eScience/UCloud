@@ -14,11 +14,14 @@ import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.common.xcontent.XContentType
+import java.net.ConnectException
 import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
+import java.util.concurrent.ExecutionException
+import java.util.concurrent.atomic.AtomicBoolean
 
 object HttpLogsStream : EventStream<String> {
     override val desiredPartitions: Int? = null
@@ -31,10 +34,14 @@ object HttpLogsStream : EventStream<String> {
 
 class AuditProcessor(
     private val events: EventStreamService,
-    private val client: RestHighLevelClient
+    private val client: RestHighLevelClient,
+    private val isDevMode: Boolean = false,
 ) {
+    private val didWarnAboutDevMode = AtomicBoolean(false)
+
     fun init() {
         events.subscribe(HttpLogsStream, EventConsumer.Batched() { rawBatch ->
+            if (didWarnAboutDevMode.get()) return@Batched
             if (rawBatch.isNotEmpty()) log.trace("Accepting batch of size ${rawBatch.size}")
 
             rawBatch
@@ -73,7 +80,23 @@ class AuditProcessor(
                 }
                 .chunked(1000)
                 .forEach { chunk ->
-                    client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
+                    try {
+                        client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
+                    } catch (ex: Throwable) {
+                        if (ex is ExecutionException || ex is ConnectException) {
+                            if (isDevMode) {
+                                if (didWarnAboutDevMode.compareAndSet(false, true)) {
+                                    log.info("Could not contact ElasticSearch. We are assuming that this is not needed in" +
+                                        "dev mode - No activity will be produced!")
+                                    return@forEach
+                                }
+                            } else {
+                                log.warn(ex.stackTraceToString())
+                                return@forEach
+                            }
+                        }
+                        log.warn(ex.stackTraceToString())
+                    }
                 }
         })
     }

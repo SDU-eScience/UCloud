@@ -1,19 +1,20 @@
-import {useGlobalCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {DEV_SITE, STAGING_SITE} from "../../site.config.json";
-import {inDevEnvironment} from "UtilityFunctions";
-import {IconName} from "ui-components/Icon";
+import {apiBrowse, apiSearch, useGlobalCloudAPI} from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {IconName} from "@/ui-components/Icon";
 import {useHistory, useParams} from "react-router";
 import {useSelector} from "react-redux";
-import {emptyPage} from "DefaultObjects";
+import {emptyPage} from "@/DefaultObjects";
 import {useProjectStatus} from "./cache";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {GroupWithSummary} from "./GroupList";
 import {useCallback, useEffect} from "react";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
+import {accounting, PaginationRequestV2} from "@/UCloud";
+import {ChargeType, ProductPriceUnit, ProductType} from "@/Accounting";
+import ProductCategoryId = accounting.ProductCategoryId;
 
 const groupContext = "/projects/groups/";
 const projectContext = "/projects/";
@@ -143,7 +144,7 @@ export function groupSummaryRequest(payload: PaginationRequest, projectOverride?
     };
 }
 
-export type UserStatusRequest = {};
+export type UserStatusRequest = Record<string, never>;
 
 export interface ProjectName {
     title: string;
@@ -221,6 +222,11 @@ export interface Project {
     fullPath?: string;
 }
 
+export interface MemberInProject {
+    role?: ProjectRole;
+    project: Project;
+}
+
 export interface ProjectGroup {
     id: string,
     title: string
@@ -256,7 +262,7 @@ export interface UserGroupSummary {
     username: string;
 }
 
-export const createProject = (payload: {title: string; parent: string}): APICallParameters => ({
+export const createProject = (payload: {title: string; parent?: string; principalInvestigator?: string}): APICallParameters => ({
     method: "POST",
     path: "/projects",
     payload,
@@ -302,7 +308,7 @@ export const listProjects = (parameters: ListProjectsRequest): APICallParameters
     reloadId: Math.random()
 });
 
-export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequest> => ({
+export const listSubprojects = (parameters: ListSubprojectsRequest): APICallParameters<PaginationRequestV2> => ({
     method: "GET",
     path: buildQueryString(
         "/projects/sub-projects",
@@ -361,7 +367,7 @@ export interface OutgoingInvite {
 }
 
 export type ListOutgoingInvitesRequest = PaginationRequest;
-export type ListSubprojectsRequest = PaginationRequest;
+export type ListSubprojectsRequest = PaginationRequestV2;
 
 export function listOutgoingInvites(
     request: ListOutgoingInvitesRequest
@@ -440,14 +446,7 @@ export interface ProjectAffiliationSelectorProps {
     onProjectSelect: (project: {project: string} | null) => void;
 }
 
-export const deleteProject = (payload: {projectId: string}): APICallParameters => ({
-    method: "DELETE",
-    path: "/projects/subprojects",
-    payload,
-    reloadId: Math.random()
-});
-
-interface LeaveProjectRequest {}
+type LeaveProjectRequest = Record<string, never>
 export function leaveProject(
     request: LeaveProjectRequest,
     projectOverride?: string
@@ -471,21 +470,6 @@ export function transferPiRole(request: TransferPiRoleRequest): APICallParameter
         path: "/projects/transfer-pi",
         parameters: request,
         payload: request
-    };
-}
-
-export type ListRepositoryRequest = PaginationRequest;
-
-export function listRepositoryFiles(
-    request: ListRepositoryRequest,
-    projectOverride?: string
-): APICallParameters<ListRepositoryRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/projects/repositories/list-files", request),
-        parameters: request,
-        reloadId: Math.random(),
-        projectOverride
     };
 }
 
@@ -704,4 +688,30 @@ export function useProjectManagementStatus(args: {
         projectDetails, projectDetailsParams, fetchProjectDetails, subprojectSearchQuery, setSubprojectSearchQuery,
         reload
     };
+}
+
+export interface SubAllocation {
+    id: string;
+    path: string;
+    startDate: number;
+    endDate?: number | null;
+
+    productCategoryId: ProductCategoryId;
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+
+    workspaceId: string;
+    workspaceTitle: string;
+    workspaceIsProject: boolean;
+
+    remaining: number;
+}
+
+export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
+}
+
+export function searchSubAllocations(request: { query: string } & PaginationRequestV2): APICallParameters {
+    return apiSearch(request, "/api/accounting/wallets", "subAllocation");
 }

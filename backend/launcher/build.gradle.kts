@@ -11,7 +11,7 @@ repositories {
 }
 
 application {
-    mainClassName = "dk.sdu.cloud.MainKt"
+    mainClass.set("dk.sdu.cloud.MainKt")
 }
 
 kotlin {
@@ -35,10 +35,8 @@ kotlin {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-server"))
-                implementation("io.swagger.core.v3:swagger-models:2.1.5")
-                implementation("io.swagger.core.v3:swagger-core:2.1.5")
-                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.4.0")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:1.4.0")
+                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.31")
+                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }
@@ -49,6 +47,11 @@ kotlin {
                             .find { it.name == p.name }!!.subprojects
                             .any { it.name == "api" }
                         if (hasApiProject) implementation(project(":" + p.name + ":api"))
+
+                        val hasUtilProject = rootProject.subprojects
+                            .find { it.name == p.name }!!.subprojects
+                            .any { it.name == "util" }
+                        if (hasUtilProject) implementation(project(":" + p.name + ":util"))
                     }
             }
         }
@@ -56,10 +59,10 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 }
@@ -72,4 +75,9 @@ publishing {
             mavenLocal()
         }
     }
+}
+
+tasks.withType<Jar> {
+    val name = "ucloud-launcher"
+    archiveName = "$name.jar"
 }

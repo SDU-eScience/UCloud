@@ -1,160 +1,127 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.app.kubernetes.api.K8Subnet
-import dk.sdu.cloud.app.kubernetes.api.KubernetesIPMaintenanceBrowseRequest
-import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
-import kotlin.test.*
-import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.integration.t
+import dk.sdu.cloud.integration.*
+import dk.sdu.cloud.provider.api.Permission
+import kotlin.test.assertEquals
 
 class NetworkIPTest : IntegrationTest() {
-    // NOTE(Dan): This test suite does not attempt to test that the Kubernetes implementation actually work since this
-    // would be quite complicated to implement inside of the testing.
+    data class TestCase(
+        val title: String,
+        val initialization: suspend () -> Unit,
+        val products: List<Product.NetworkIP>,
+        val deadlineForReady: Int = 60 * 5,
+        val ignoreReadyTest: Boolean = false,
+    )
 
-    @Test
-    fun `test lack of IP addresses`() = t {
-        val rootProject = initializeRootProject()
-
-        assertFails {
-            NetworkIPs.create.call(
-                bulkRequestOf(NetworkIPSpecification(sampleNetworkIp.toReference())),
-                serviceClient.withProject(rootProject)
-            ).orThrow()
-        }
-    }
-
-    @Test
-    fun `test creation of IP addresses`() = t {
-        val rootProject = initializeRootProject()
-        KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
-            serviceClient
-        ).orThrow()
-
-        NetworkIPs.create.call(
-            bulkRequestOf(NetworkIPSpecification(sampleNetworkIp.toReference())),
-            serviceClient.withProject(rootProject)
-        ).orThrow()
-    }
-
-    @Test
-    fun `test creation of IP with firewall`() = t {
-        val rootProject = initializeRootProject()
-        KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
-            serviceClient
-        ).orThrow()
-
-        NetworkIPs.create.call(
-            bulkRequestOf(
-                NetworkIPSpecification(
-                    sampleNetworkIp.toReference(),
-                    NetworkIPSpecification.Firewall(
-                        listOf(PortRangeAndProto(0, 1024, IPProtocol.TCP))
-                    )
-                )
+    override fun defineTests() {
+        val cases = listOf(
+            TestCase(
+                "Dummy",
+                { DummyProvider.initialize() },
+                listOf(DummyIps.ip),
+                ignoreReadyTest = true
             ),
-            serviceClient.withProject(rootProject)
-        ).orThrow()
-    }
-
-    @Test
-    fun `test creation of IP and update firewall`() = t {
-        val rootProject = initializeRootProject()
-        KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet("10.0.0.0/24", "10.0.0.0/24")),
-            serviceClient
-        ).orThrow()
-
-        val firewall = NetworkIPSpecification.Firewall(
-            listOf(PortRangeAndProto(0, 1024, IPProtocol.TCP))
         )
 
-        val spec = NetworkIPSpecification(sampleNetworkIp.toReference(), firewall = NetworkIPSpecification.Firewall())
+        for (case in cases) {
+            resourceUsageTest(
+                "Public IPs @ ${case.title}",
+                NetworkIPs,
+                case.products,
+                flagFactory = { flags ->
+                    NetworkIPFlags(
+                        includeOthers = flags.includeOthers,
+                        includeUpdates = flags.includeUpdates,
+                        includeSupport = flags.includeSupport,
+                        includeProduct = flags.includeProduct,
+                        filterCreatedBy = flags.filterCreatedBy,
+                        filterCreatedAfter = flags.filterCreatedAfter,
+                        filterCreatedBefore = flags.filterCreatedBefore,
+                        filterProvider = flags.filterProvider,
+                        filterProductId = flags.filterProductId,
+                        filterProductCategory = flags.filterProductCategory,
+                        filterProviderIds = flags.filterProviderIds,
+                        filterIds = flags.filterIds,
+                        hideProductId = flags.hideProductId,
+                        hideProductCategory = flags.hideProductCategory,
+                        hideProvider = flags.hideProvider,
+                    )
+                },
+                initialization = case.initialization,
+                additionalTesting = { input, resources ->
+                    if (!case.ignoreReadyTest) {
+                        val filterId = resources.joinToString(",") { it.id }
+                        retrySection(case.deadlineForReady, delay = 1000L) {
+                            val items = NetworkIPs.browse.call(
+                                ResourceBrowseRequest(NetworkIPFlags(filterIds = filterId)),
+                                adminClient.withProject(project)
+                            ).orThrow().items
 
-        val result = NetworkIPs.create.call(
-            bulkRequestOf(spec),
-            serviceClient.withProject(rootProject)
-        ).orThrow()
+                            val expectedSize = resources.size - input.delete.count { it }
+                            assertEquals(expectedSize, items.size)
 
-        val retrievedBeforeUpdate = NetworkIPs.retrieve.call(
-            NetworkIPsRetrieveRequest(result.ids.single()),
-            serviceClient
-        ).orThrow()
+                            val allReady = items.all { it.status.state == NetworkIPState.READY }
+                            if (!allReady) throw IllegalStateException("Public IPs are not ready yet: $items")
+                        }
+                    }
+                },
+                caseBuilder = {
+                    for (product in case.products) {
+                        for (count in 1..3) {
+                            for (userType in UserType.values()) {
+                                case("Simple test: $userType (count = $count)") {
+                                    input(
+                                        ResourceUsageTestInput(
+                                            (0 until count).map { idx ->
+                                                NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())
+                                            },
+                                            creator = userType
+                                        )
+                                    )
 
-        assertEquals(spec, retrievedBeforeUpdate.specification)
+                                    check {
+                                        // All good
+                                    }
+                                }
+                            }
+                        }
 
-        NetworkIPs.updateFirewall.call(
-            bulkRequestOf(FirewallAndId(result.ids.single(), firewall)),
-            serviceClient
-        ).orThrow()
+                        case("Permission updates") {
+                            input(
+                                ResourceUsageTestInput(
+                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    listOf("G1"),
+                                    listOf(
+                                        PartialAclUpdate(
+                                            listOf(GroupAndPermission("G1", listOf(Permission.READ))),
+                                            emptyList()
+                                        )
+                                    )
+                                )
+                            )
 
-        val retrievedAfterUpdate = NetworkIPs.retrieve.call(
-            NetworkIPsRetrieveRequest(result.ids.single()),
-            serviceClient
-        ).orThrow()
+                            check {}
+                        }
 
-        assertEquals(spec.copy(firewall = firewall), retrievedAfterUpdate.specification)
-    }
+                        case("Deletion") {
+                            input(
+                                ResourceUsageTestInput(
+                                    listOf(NetworkIPSpecification(product.toReference(), NetworkIPSpecification.Firewall())),
+                                    delete = listOf(true)
+                                )
+                            )
 
-    @Test
-    fun `test pool status`() = t {
-        val rootProject = initializeRootProject()
-        val cidr = "10.0.0.0/24"
-        KubernetesNetworkIPMaintenance.create.call(
-            bulkRequestOf(K8Subnet(cidr, cidr)),
-            serviceClient
-        ).orThrow()
-
-        assertEquals(
-            cidr,
-            KubernetesNetworkIPMaintenance.browse.call(
-                KubernetesIPMaintenanceBrowseRequest(),
-                serviceClient
-            ).orThrow().items.single().externalCidr
-        )
-
-        assertEquals(
-            256,
-            KubernetesNetworkIPMaintenance.retrieveStatus.call(
-                Unit,
-                serviceClient
-            ).orThrow().capacity
-        )
-
-        assertEquals(
-            0,
-            KubernetesNetworkIPMaintenance.retrieveStatus.call(
-                Unit,
-                serviceClient
-            ).orThrow().used
-        )
-
-        NetworkIPs.create.call(
-            bulkRequestOf(NetworkIPSpecification(sampleNetworkIp.toReference())),
-            serviceClient.withProject(rootProject)
-        ).orThrow()
-
-        assertEquals(
-            256,
-            KubernetesNetworkIPMaintenance.retrieveStatus.call(
-                Unit,
-                serviceClient
-            ).orThrow().capacity
-        )
-
-        assertEquals(
-            1,
-            KubernetesNetworkIPMaintenance.retrieveStatus.call(
-                Unit,
-                serviceClient
-            ).orThrow().used
-        )
+                            check {}
+                        }
+                    }
+                }
+            )
+        }
     }
 }

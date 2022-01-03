@@ -3,7 +3,7 @@
 ## Authenticating with UCloud
 
 UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
-15th of September 2021 the following backends are supported:
+01/11/21 the following backends are supported:
 
 - Authentication with username/password
 - Authentication via WAYF

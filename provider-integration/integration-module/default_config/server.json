@@ -1,0 +1,9 @@
+{
+    "refreshToken": "TO BE REPLACED",
+    "dbFile": "/etc/ucloud/ucloud.sqlite3",
+    "ucloud": {
+        "host": "backend",
+        "scheme": "http",
+        "port": 8080
+    }
+}

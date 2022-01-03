@@ -325,7 +325,7 @@ unknown_local_recipient_reject_code = 550
 #
 # If you're connected via UUCP, see also the default_transport parameter.
 #
-relayhost = smtp.escience.sdu.dk:25
+relayhost = smtp.sdu.dk
 #relayhost = [gateway.my.domain]
 #relayhost = [mailserver.isp.tld]
 #relayhost = uucphost

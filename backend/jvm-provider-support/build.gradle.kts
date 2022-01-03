@@ -3,7 +3,7 @@ plugins {
     id("io.spring.dependency-management") version "1.0.11.RELEASE"
     kotlin("multiplatform")
     kotlin("plugin.serialization")
-    kotlin("plugin.spring") version "1.4.30"
+    kotlin("plugin.spring") version "1.5.31"
     id("maven-publish")
 }
 
@@ -31,7 +31,7 @@ kotlin {
     sourceSets {
         val jvmMain by getting {
             dependencies {
-                val jacksonVersion = "2.12.2"
+                val jacksonVersion = "2.11.4"
                 api(project(":integration-module-support"))
                 implementation("org.springframework.boot:spring-boot-starter-websocket")
                 implementation("org.springframework:spring-web:5.3.4")
@@ -48,15 +48,15 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 }
 
-version = "2021.1.2"
+version = rootProject.file("./version.txt").readText().trim()
 group = "dk.sdu.cloud"
 
 publishing {
@@ -66,13 +66,13 @@ publishing {
         }
 
         maven {
-            name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+            name = "UCloudMaven"
+            url = uri("https://mvn.cloud.sdu.dk/releases")
             credentials {
-                username = (project.findProperty("gpr.user") as? String?)
-                    ?: System.getenv("GITHUB_USERNAME")
-                password = (project.findProperty("gpr.key") as? String?)
-                    ?: System.getenv("GITHUB_TOKEN")
+                username = (project.findProperty("ucloud.mvn.username") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_USERNAME")
+                password = (project.findProperty("ucloud.mvn.token") as? String?)
+                    ?: System.getenv("UCLOUD_MVN_TOKEN")
             }
         }
     }

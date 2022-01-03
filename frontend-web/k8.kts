@@ -3,69 +3,17 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "0.46.2"
+    version = "2022.1.0"
 
     withAmbassador(null) {
-        services.add(
-            AmbassadorMapping(
-                """
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_auth_callback
-                    prefix: ^/api/auth-callback(/.*)?${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_auth_callback_csrf
-                    prefix: ^/api/auth-callback-csrf(/.*)?${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_sync_callback
-                    prefix: ^/api/sync-callback(/.*)?${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_app
-                    prefix: ^/app(/.*)?${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_assets
-                    prefix: ^/assets(/.*)?${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: webclient_favicon
-                    prefix: ^/favicon.ico${'$'}
-                    prefix_regex: true
-                    service: webclient:8080
-                    rewrite: ""
-
-                """.trimIndent()
-            )
-        )
+        addSimpleMapping("/api/auth-callback")
+        addSimpleMapping("/api/auth-callback-csrf")
+        addSimpleMapping("/api/sync-callback")
+        addSimpleMapping("/app")
+        addSimpleMapping("/assets")
+        addSimpleMapping("/favicon.ico")
+        addSimpleMapping("/favicon.svg")
+        addSimpleMapping("/AppVersion.txt")
     }
 
     val deployment = withDeployment(injectAllDefaults = false) {

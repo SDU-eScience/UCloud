@@ -34,10 +34,12 @@ class HeaderParsing(
                 when (val param = parameters[elementIndex - 1]) {
                     is HttpHeaderParameter.Property<*, *> -> {
                         lastRead = applicationCall.request.header(param.header)?.let {
-                            base64Decode(it).decodeToString()
+                            if (param.base64Encoded) base64Decode(it).decodeToString()
+                            else it
                         }
                         lastReadIdx = elementIndex
                     }
+                    else -> {}
                 }
             }
             return lastRead

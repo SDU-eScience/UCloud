@@ -84,10 +84,19 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("com.github.jasync.sql.db.pool.ActorBasedObjectPool", Level.WARN)
             configureLogLevelForPackage("com.github.jasync.sql.db.pool.ConnectionPool", Level.INFO)
             configureLogLevelForPackage("com.github.jasync.sql.db.postgresql", Level.INFO)
+            configureLogLevelForPackage("com.github.jasync.sql.db.postgresql.PostgreSQLConnection", Level.FATAL)
             configureLogLevelForPackage("org.apache.xml.security.Init", Level.INFO)
             configureLogLevelForPackage("reactor.util.Loggers\$LoggerFactory", Level.INFO)
             configureLogLevelForPackage("reactor.core.publisher.UnsafeSupport", Level.INFO)
             configureLogLevelForPackage("ktor.application", Level.WARN)
+            configureLogLevelForPackage("org.flywaydb.core.internal", Level.ERROR)
+            configureLogLevelForPackage("org.flywaydb.core.Flyway", Level.INFO)
+            configureLogLevelForPackage("org.asynchttpclient", Level.INFO)
+
+            val ctx = ctx
+            if (ctx != null && ctx.developmentModeEnabled) {
+                configureLogLevelForPackage("dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor", Level.INFO)
+            }
         }.build().also {
             initializeFn?.invoke()
             initializeFn = null
@@ -119,9 +128,11 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
         )
     }
 
+    private var ctx: Micro? = null
     private var initializeFn: (() -> Unit)? = null
 
     fun initialize(ctx: Micro) {
+        this.ctx = ctx
         if (!this::loggerContext.isInitialized) {
             ConfigurationFactory.setConfigurationFactory(Log4j2ConfigFactory)
         }

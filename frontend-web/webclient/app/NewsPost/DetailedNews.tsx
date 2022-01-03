@@ -1,22 +1,22 @@
 import * as React from "react";
 import {useHistory, useParams} from "react-router";
-import {Box, Markdown, Flex, Text, Link, theme, Button, Input, TextArea, SelectableTextWrapper, SelectableText, ButtonGroup} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import Loading from "LoadingIcon/LoadingIcon";
-import {useCloudAPI} from "Authentication/DataHook";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {MainContainer} from "MainContainer/MainContainer";
-import {NewsPost} from "Dashboard/Dashboard";
-import {Tag, appColor, hashF} from "Applications/Card";
+import {Box, Markdown, Flex, Text, Link, theme, Button, Input, TextArea, SelectableTextWrapper, SelectableText, ButtonGroup} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import Loading from "@/LoadingIcon/LoadingIcon";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import {Tag, appColor, hashF} from "@/Applications/Card";
 import {format} from "date-fns/esm";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {Client} from "Authentication/HttpClientInstance";
-import {Spacer} from "ui-components/Spacer";
-import {DatePicker} from "ui-components/DatePicker";
-import {Categories, DATE_FORMAT} from "Admin/NewsManagement";
-import {capitalized, errorMessageOrDefault} from "UtilityFunctions";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {addStandardDialog} from "UtilityComponents";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {Spacer} from "@/ui-components/Spacer";
+import {DatePicker} from "@/ui-components/DatePicker";
+import {Categories, DATE_FORMAT} from "@/Admin/NewsManagement";
+import {capitalized, errorMessageOrDefault} from "@/UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {addStandardDialog} from "@/UtilityComponents";
 import Fuse from "fuse.js";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
@@ -71,10 +71,9 @@ export const DetailedNews: React.FC = () => {
                             />
                         </Link>
                     </Box>
-                    <Markdown
-                        source={newsPost.data.body}
-                        unwrapDisallowed
-                    />
+                    <Markdown unwrapDisallowed>
+                        {newsPost.data.body}
+                    </Markdown>
                 </Box>
             }
         />
@@ -202,10 +201,8 @@ function Editing(props: {post: NewsPost; stopEditing: (reload: boolean) => void;
                         <SelectableText onClick={() => setPreview(false)} selected={preview === false}>Edit</SelectableText>
                         <SelectableText ml="1em" onClick={() => setPreview(true)} selected={preview}> Preview</SelectableText>
                     </SelectableTextWrapper>
-                    {preview ? <Markdown
-                        source={body}
-                        unwrapDisallowed
-                    /> : <TextArea style={{marginTop: "6px", marginBottom: "6px"}} width={1} value={body} onChange={e => setBody(e.target.value)} />}
+                    {preview ? <Markdown unwrapDisallowed>{body}</Markdown> :
+                        <TextArea style={{marginTop: "6px", marginBottom: "6px",  resize: "vertical"}} width={1} rows={5} value={body} onChange={e => setBody(e.target.value)} />}
                     <Box mt="auto" />
                     <Button fullWidth>Update post</Button>
                 </Box>

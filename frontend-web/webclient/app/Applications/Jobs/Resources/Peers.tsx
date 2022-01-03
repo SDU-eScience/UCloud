@@ -1,10 +1,10 @@
 import * as React from "react";
-import * as UCloud from "UCloud"
-import {Box, Button, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import BaseLink from "ui-components/BaseLink";
-import {Widget} from "Applications/Jobs/Widgets";
-import {compute} from "UCloud";
+import * as UCloud from "@/UCloud"
+import {Box, Button, Flex} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import BaseLink from "@/ui-components/BaseLink";
+import {Widget} from "@/Applications/Jobs/Widgets";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 
 export const PeerResource: React.FunctionComponent<{
@@ -14,8 +14,10 @@ export const PeerResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return application.invocation.allowAdditionalPeers === false ||
-        application.invocation.tool.tool!.description.backend === "VIRTUAL_MACHINE" ? null : (
+    const invocation = application.invocation;
+    const tool = invocation.tool.tool!.description;
+    const shouldShow = invocation.allowAdditionalPeers !== false && tool.backend !== "VIRTUAL_MACHINE";
+    return !shouldShow ? null : (
         <Box>
             <Flex alignItems={"center"}>
                 <Box flexGrow={1}>

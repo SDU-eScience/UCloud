@@ -20,9 +20,8 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.date.*
-import io.ktor.util.pipeline.*
 
-const val cookieName = "ucloud-compute-session"
+const val cookieName = "ucloud-compute-session-"
 
 class WebService(
     private val k8: K8Dependencies,
@@ -80,7 +79,7 @@ class WebService(
             }
 
             call.response.cookies.append(
-                name = cookieName,
+                name = cookieName + jobAndRank.jobId,
                 value = sessionId,
                 secure = call.request.origin.scheme == "https",
                 httpOnly = true,
@@ -139,27 +138,25 @@ class WebService(
         route: Route,
         webService: WebService,
     ) {
-        val handler: PipelineInterceptor<Unit, ApplicationCall> = handler@{
+        route.handle {
             val host = call.request.host()
             log.info("Authorizing request: $host")
 
             if (ingressCache.get(host) != null) {
                 call.respondText("", status = HttpStatusCode.OK)
-                return@handler
+                return@handle
             }
 
             if (!host.startsWith(prefix) || !host.endsWith(domain)) {
                 call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
-                return@handler
+                return@handle
             }
 
             val jobId = host.removePrefix(prefix).removeSuffix(".$domain").substringBeforeLast('-')
             val rank = host.removePrefix(prefix).removeSuffix(".$domain").substringAfterLast('-').toInt()
             if (webService.authorizeUser(call, JobIdAndRank(jobId, rank))) {
-                val requestCookies = HashMap(call.request.cookies.rawCookies).apply {
-                    // Remove authentication tokens
-                    remove(cookieName)
-                    remove("refreshToken")
+                val requestCookies = HashMap(call.request.cookies.rawCookies).filterKeys {
+                    it != "refreshToken" && !it.startsWith(cookieName)
                 }
                 call.response.header(
                     HttpHeaders.Cookie,
@@ -169,15 +166,10 @@ class WebService(
                 call.respondText("", status = HttpStatusCode.OK)
             }
         }
-
-        route.handle(handler)
-        route.route("/") {
-            handle(handler)
-        }
     }
 
     private suspend fun authorizeUser(call: ApplicationCall, jobIdAndRank: JobIdAndRank): Boolean {
-        val sessionId = call.request.cookies[cookieName] ?: run {
+        val sessionId = call.request.cookies[cookieName + jobIdAndRank.jobId] ?: run {
             call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
             return false
         }

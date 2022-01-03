@@ -8,13 +8,7 @@ actual typealias Logger = Logger
 actual fun Logger(tag: String): Logger = LoggerFactory.getLogger(tag)
 
 actual fun Loggable.defaultLogger(): Logger {
-    return LoggerFactory.getLogger(
-        try {
-            unwrapCompanionClass(javaClass).name.substringBeforeLast('$')
-        } catch (ex: UnsupportedOperationException) {
-            "Anonymous"
-        }
-    )
+    return LoggerFactory.getLogger(unwrapCompanionClass(javaClass).name.substringBeforeLast('$'))
 }
 
 internal fun <T : Any> unwrapCompanionClass(ofClass: Class<T>): Class<*> {

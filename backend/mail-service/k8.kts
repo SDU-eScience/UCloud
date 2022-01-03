@@ -3,31 +3,14 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "mail"
-    version = "0.4.10"
+    version = "2022.1.0"
 
-    withAmbassador(null) {
-        services.add(
-            AmbassadorMapping(
-                """
-                    ---
-                    apiVersion: ambassador/v1
-                    kind: Mapping
-                    name: mail
-                    prefix: ^/api/mail(/.*)?${'$'}
-                    prefix_regex: true
-                    rewrite: ""
-                    service: mail:8080
-                    timeout_ms: 0
-                    
-                """.trimIndent()
-            )
-        )
-    }
+    withAmbassador("/api/mail") {}
 
     withAmbassador {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 1
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectConfiguration("mail-config")
         injectSecret("alerting-tokens")
     }

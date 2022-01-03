@@ -1,37 +1,51 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.app.orchestrator.UserClientFactory
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.accounting.api.providers.SortDirection
+import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.ToolBackend
-import dk.sdu.cloud.auth.api.AuthDescriptions
-import dk.sdu.cloud.auth.api.TokenExtensionRequest
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.file.api.*
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
+import dk.sdu.cloud.file.orchestrator.api.FilesProvider
+import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
+import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
-import io.ktor.utils.io.*
+import io.ktor.http.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.selects.select
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
-import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.serialization.serializer
 
 interface JobListener {
-    suspend fun onVerified(ctx: DBContext, job: Job) {}
-    suspend fun onCreate(ctx: DBContext, job: Job) {}
-    suspend fun onTermination(ctx: DBContext, job: Job) {}
+    suspend fun onVerified(ctx: DBContext, job: Job) {
+        // Empty
+    }
+
+    suspend fun onCreate(ctx: DBContext, job: Job) {
+        // Empty
+    }
+
+    suspend fun onTermination(ctx: DBContext, job: Job) {
+        // Empty
+    }
 }
 
 /**
@@ -43,738 +57,575 @@ interface JobListener {
  * its internal state and potentially send new updates to the relevant computation providers.
  */
 class JobOrchestrator(
-    private val serviceClient: AuthenticatedClient,
-    private val db: AsyncDBSessionFactory,
-    private val jobVerificationService: JobVerificationService,
-    private val jobFileService: JobFileService,
-    private val jobDao: JobDao,
-    private val jobQueryService: JobQueryService,
-    private val paymentService: PaymentService,
-    private val providers: Providers,
-    private val userClientFactory: UserClientFactory,
-    private val parameterExportService: ParameterExportService,
-    private val projectCache: ProjectCache,
-    private val developmentMode: Boolean = false,
-) {
+    db: AsyncDBSessionFactory,
+    providers: Providers<ComputeCommunication>,
+    support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
+    serviceClient: AuthenticatedClient,
+    private val appService: AppStoreCache,
+    private val exporter: ParameterExportService,
+) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
+    Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
+    private val storageProviders = Providers(serviceClient) {
+        StorageCommunication(
+            it.client,
+            it.client,
+            it.provider,
+            FilesProvider(it.provider.id),
+            FileCollectionsProvider(it.provider.id)
+        )
+    }
+
+    private val verificationService = JobVerificationService(
+        appService,
+        this,
+        FileCollectionService(
+            db,
+            storageProviders,
+            ProviderSupport(storageProviders, serviceClient) {
+                it.filesApi.retrieveProducts.call(Unit, it.client).orThrow().responses
+            },
+            serviceClient
+        )
+    )
+
     private val listeners = ArrayList<JobListener>()
 
     fun addListener(listener: JobListener) {
         listeners.add(listener)
     }
 
-    fun removeListener(listener: JobListener) {
-        listeners.remove(listener)
-    }
+    override val productArea: ProductType = ProductType.COMPUTE
+    override val serializer: KSerializer<Job> = serializer()
+    override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
+    override val sortColumns = mapOf(
+        "resource" to SqlObject.Column(table, "resource"),
+    )
 
-    private suspend fun extendToken(accessToken: String, allowRefreshes: Boolean): Pair<String?, AuthenticatedClient> {
-        return AuthDescriptions.tokenExtension.call(
-            TokenExtensionRequest(
-                accessToken,
-                listOf(
-                    MultiPartUploadDescriptions.simpleUpload.requiredAuthScope.toString(),
-                    FileDescriptions.download.requiredAuthScope.toString(),
-                    FileDescriptions.createDirectory.requiredAuthScope.toString(),
-                    FileDescriptions.stat.requiredAuthScope.toString(),
-                    FileDescriptions.deleteFile.requiredAuthScope.toString()
-                ),
-                1000L * 60 * 60 * 5,
-                allowRefreshes = allowRefreshes
-            ),
-            serviceClient
-        ).orThrow().let {
-            if (!allowRefreshes) {
-                null to serviceClient.withoutAuthentication().bearerAuth(it.accessToken)
-            } else {
-                it.refreshToken!! to userClientFactory(it.refreshToken!!)
-            }
-        }
-    }
+    override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
+    override val defaultSortDirection: SortDirection = SortDirection.descending
+    override val updateSerializer: KSerializer<JobUpdate> = serializer()
 
-    suspend fun startJob(
-        req: BulkRequest<JobSpecification>,
-        accessToken: String,
-        principal: Actor,
-        project: String?,
-    ): JobsCreateResponse {
-        data class JobWithProvider(val jobId: String, val provider: String)
+    override fun controlApi() = JobsControl
+    override fun userApi() = Jobs
+    override fun providerApi(comms: ProviderComms) = JobsProvider(comms.provider.id)
 
-        val tokensToInvalidateInCaseOfFailure = ArrayList<String>()
-        val jobsToInvalidateInCaseOfFailure = ArrayList<JobWithProvider>()
-        var verifiedJobsInCaseOfFailure: List<VerifiedJobWithAccessToken> = emptyList()
-
-        val parameters = ArrayList<ByteArray>()
-
-        try {
-            val (_, tmpUserClient) = extendToken(accessToken, allowRefreshes = false)
-            // NOTE(Dan): Cannot convert due to suspension
-            @Suppress("ConvertCallChainIntoSequence")
-            val verifiedJobs = req.items
-                // Immediately export parameters (before verification code changes it)
-                .onEach { request ->
-                    parameters.add(
-                        defaultMapper
-                            .encodeToString(parameterExportService.exportParameters(request))
-                            .encodeToByteArray()
-                    )
-                }
-                // Verify parameters
-                .map { jobRequest ->
-                    jobVerificationService.verifyOrThrow(
-                        UnverifiedJob(jobRequest, principal.username, project),
-                        tmpUserClient,
-                        listeners
-                    )
-                }
-                // Check for duplicates
-                .onEach { job ->
-                    if (!job.job.specification.allowDuplicateJob) {
-                        if (checkForDuplicateJob(principal, project, job)) {
-                            throw JobException.Duplicate()
-                        }
-                    }
-                }
-                // Extend tokens needed for jobs
-                .map { job ->
-                    val (extendedToken) = extendToken(accessToken, allowRefreshes = true)
-                    tokensToInvalidateInCaseOfFailure.add(extendedToken!!)
-                    job.copy(refreshToken = extendedToken)
-                }
-                .toMutableList()
-
-            verifiedJobsInCaseOfFailure = verifiedJobs
-
-            // Reserve resources (and check that resources are available)
-            for (job in verifiedJobs) {
-                paymentService.reserve(
-                    Payment.OfJob(
-                        job.job,
-                        timeUsedInMillis = job.job.specification.timeAllocation?.toMillis() ?: 1000L * 60 * 60,
-                        chargeId = ""
-                    )
-                )
-            }
-
-            // Prepare job folders (needs to happen before database insertion)
-            for ((index, jobWithToken) in verifiedJobs.withIndex()) {
-                try {
-                    val jobFolder = jobFileService.initializeResultFolder(jobWithToken)
-                    val newJobWithToken = jobWithToken.copy(
-                        job = jobWithToken.job.copy(
-                            output = JobOutput(jobFolder.path)
-                        )
-                    )
-                    verifiedJobs[index] = newJobWithToken
-                    jobFileService.exportParameterFile(jobFolder.path, newJobWithToken, parameters[index])
-                } catch (ex: RPCException) {
-                    if (ex.httpStatusCode == HttpStatusCode.PaymentRequired &&
-                        jobWithToken.job.specification.product.provider == "aau"
-                    ) {
-                        log.warn("Silently ignoring lack of credits in storage due to temporary aau integration")
-                    } else {
-                        throw ex
-                    }
-                }
-            }
-
-            // Insert into databases
-            db.withSession { session ->
-                for (job in verifiedJobs) {
-                    jobDao.create(session, job)
-                    listeners.forEach { it.onCreate(session, job.job) }
-                }
-            }
-
-            // Notify compute providers
-            verifiedJobs.groupBy { it.job.specification.product.provider }.forEach { (provider, jobs) ->
-                val (api, client) = providers.prepareCommunication(provider)
-
-                api.create.call(bulkRequestOf(jobs.map { it.job }), client).orThrow()
-                jobsToInvalidateInCaseOfFailure.addAll(jobs.map { JobWithProvider(it.job.id, provider) })
-            }
-
-            return JobsCreateResponse(verifiedJobs.map { it.job.id })
-        } catch (ex: Throwable) {
-            for (tok in tokensToInvalidateInCaseOfFailure) {
-                AuthDescriptions.logout.call(
-                    Unit,
-                    serviceClient.withoutAuthentication().bearerAuth(tok)
-                )
-            }
-
-            jobsToInvalidateInCaseOfFailure.groupBy { it.provider }.forEach { (provider, jobs) ->
-                val (api, client) = providers.prepareCommunication(provider)
-                api.delete.call(
-                    bulkRequestOf(
-                        jobQueryService
-                            .retrievePrivileged(
-                                db,
-                                jobs.map { it.jobId },
-                                JobDataIncludeFlags(includeParameters = true)
-                            )
-                            .map { it.value.job }
-                    ),
-                    client
-                )
-            }
-
-            db.withSession { session ->
-                verifiedJobsInCaseOfFailure.forEach { (job) ->
-                    listeners.forEach { it.onTermination(session, job) }
-                }
-            }
-
-            throw ex
-        }
-    }
-
-    private suspend fun checkForDuplicateJob(
-        securityPrincipal: Actor,
-        project: String?,
-        jobWithToken: VerifiedJobWithAccessToken,
-    ): Boolean {
-        return findLast10JobsForUser(securityPrincipal, project).any { it.job == jobWithToken.job }
-    }
-
-    private suspend fun findLast10JobsForUser(
-        principal: Actor,
-        project: String?,
-    ): List<VerifiedJobWithAccessToken> {
-        return jobQueryService.browse(
-            principal,
-            project,
-            PaginationRequestV2(10).normalize(),
-            JobDataIncludeFlags(includeParameters = true)
-        ).items
-    }
-
-    suspend fun updateState(request: JobsControlUpdateRequest, providerActor: Actor) {
-        val requests = request.items.groupBy { it.jobId }
-        val comm = providers.prepareCommunication(providerActor)
-        db.withSession { session ->
-            val loadedJobs = loadAndVerifyProviderJobs(session, requests.keys, comm)
-
-            for ((jobId, updates) in requests) {
-                val jobWithToken = loadedJobs[jobId] ?: error("Job not found, this should have failed earlier")
-                val (job) = jobWithToken
-                var currentState = job.currentState
-                for (update in updates) {
-                    if (update.expectedState != null && update.expectedState != currentState) continue
-                    if (update.expectedDifferentState == true && update.state == currentState) continue
-
-                    val newState = update.state
-                    val newStatus = update.status
-
-                    if (newState != null && !currentState.isFinal()) {
-                        currentState = newState
-
-                        if (newState.isFinal()) {
-                            handleFinalState(jobWithToken)
-                            listeners.forEach { it.onTermination(session, job) }
-                        }
-                    } else if (newState != null && currentState.isFinal()) {
-                        log.info("Ignoring job update for $jobId by ${comm.provider.id} (bad state transition)")
-                        continue
-                    }
-
-                    jobDao.insertUpdate(session, jobId, Time.now(), newState, newStatus)
-                }
-            }
-        }
-    }
-
-    private suspend fun handleFinalState(jobWithToken: VerifiedJobWithAccessToken) {
-        jobFileService.cleanupAfterMounts(jobWithToken)
-
-        runCatching {
-            AuthDescriptions.logout.call(
-                Unit,
-                serviceClient.withoutAuthentication().bearerAuth(jobWithToken.refreshToken)
-            ).throwIfInternal()
-        }
-
-        MetadataDescriptions.verify.call(
-            VerifyRequest(jobWithToken.job.files.map { it.path }),
-            serviceClient
-        ).orThrow()
-    }
-
-    suspend fun deleteJobInformation(appName: String, appVersion: String) {
-        jobDao.deleteJobInformation(
-            db,
-            appName,
-            appVersion
-        )
-    }
-
-    suspend fun charge(
-        request: JobsControlChargeCreditsRequest,
-        providerActor: Actor,
-    ): JobsControlChargeCreditsResponse {
-        val comm = providers.prepareCommunication(providerActor)
-        val requests = request.items.groupBy { it.id }
-
-        val duplicates = ArrayList<FindByStringId>()
-        val insufficient = ArrayList<FindByStringId>()
-
-        db.withSession { session ->
-            val loadedJobs = loadAndVerifyProviderJobs(session, requests.keys, comm)
-
-            for ((jobId, charges) in requests) {
-                val jobWithToken = loadedJobs[jobId] ?: error("Job should have been loaded by now")
-                for (charge in charges) {
-                    val chargeResult = paymentService.charge(
-                        Payment.OfJob(
-                            jobWithToken.job,
-                            charge.wallDuration.toMillis(),
-                            charge.chargeId
-                        )
-                    )
-
-                    when (chargeResult) {
-                        is PaymentService.ChargeResult.Charged -> {
-                            jobDao.updateCreditsCharged(session, jobId, chargeResult.amountCharged)
-                        }
-
-                        PaymentService.ChargeResult.InsufficientFunds -> {
-                            insufficient.add(FindByStringId(jobId))
-                        }
-
-                        PaymentService.ChargeResult.Duplicate -> {
-                            duplicates.add(FindByStringId(jobId))
-                        }
-                    }
-                }
-            }
-        }
-
-        return JobsControlChargeCreditsResponse(insufficient, duplicates)
-    }
-
-    private suspend fun loadAndVerifyProviderJobs(
-        session: DBContext,
-        jobIds: Set<String>,
-        comm: ProviderCommunication,
-        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true),
-    ): Map<String, VerifiedJobWithAccessToken> {
-        val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
-        if (loadedJobs.keys.size != jobIds.size) {
-            throw RPCException(
-                "Not all jobs are known to UCloud (Provider is ${comm.provider.id})",
-                HttpStatusCode.NotFound
-            )
-        }
-
-        val ownsAllJobs = loadedJobs.values.all { (it.job).specification.product.provider == comm.provider.id }
-        if (!ownsAllJobs && !developmentMode) {
-            throw RPCException("Provider is not authorized to perform these updates", HttpStatusCode.Forbidden)
-        }
-        return loadedJobs
-    }
-
-    private enum class Action {
-        CANCEL,
-        EXTEND,
-        OPEN_INTERACTIVE_SESSION,
-    }
-
-    private suspend fun loadAndVerifyUserJobs(
-        session: AsyncDBConnection,
-        jobIds: Set<String>,
-        user: Actor,
-        @Suppress("UNUSED_PARAMETER") action: Action,
-        flags: JobDataIncludeFlags = JobDataIncludeFlags(includeParameters = true),
-    ): Map<String, VerifiedJobWithAccessToken> {
-        val loadedJobs = jobQueryService.retrievePrivileged(session, jobIds, flags)
-        if (loadedJobs.keys.size != jobIds.size) {
-            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
-        }
-
-        val ownsAllJobs = loadedJobs.values.all { (job, _) ->
-            if (user == Actor.System) return@all true
-            val project = job.owner.project
-            if (project != null) {
-                val projectRole = projectCache.retrieveRole(user.safeUsername(), project)
-                val isUserAndLauncher = job.owner.launchedBy == user.safeUsername() && projectRole != null
-                val isProjectAdmin = projectRole?.isAdmin() == true
-                isUserAndLauncher || isProjectAdmin
-            } else {
-                job.owner.launchedBy == user.safeUsername()
-            }
-        }
-        if (!ownsAllJobs) {
-            throw RPCException("Not all jobs are known to UCloud", HttpStatusCode.NotFound)
-        }
-        return loadedJobs
-    }
-
-    suspend fun submitFile(
-        request: JobsControlSubmitFileRequest,
-        providerActor: Actor,
-        contentLength: Long?,
-        content: ByteReadChannel,
+    override suspend fun verifyProviderSupportsCreate(
+        spec: JobSpecification,
+        res: ProductRefOrResource<Job>,
+        support: ComputeSupport
     ) {
-        val comm = providers.prepareCommunication(providerActor)
-        val jobWithToken = loadAndVerifyProviderJobs(db, setOf(request.jobId), comm).getValue(request.jobId)
+        val application = appService.resolveApplication(spec.application)
+            ?: throw JobException.VerificationError("Application does not exist")
 
-        jobFileService.acceptFile(
-            jobWithToken,
-            request.filePath,
-            contentLength ?: throw RPCException("Unknown length of payload", HttpStatusCode.BadRequest),
-            content
-        )
-    }
-
-    suspend fun retrieveAsProvider(
-        request: JobsControlRetrieveRequest,
-        providerActor: Actor,
-    ): Job {
-        val comm = providers.prepareCommunication(providerActor)
-        return loadAndVerifyProviderJobs(db, setOf(request.id), comm, request).getValue(request.id).job
-    }
-
-    suspend fun extendDuration(request: BulkRequest<JobsExtendRequestItem>, userActor: Actor.User) {
-        val extensions = request.items.groupBy { it.jobId }
-        db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(
-                session,
-                extensions.keys,
-                userActor,
-                Action.EXTEND,
-                flags = JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            )
-
-            for ((job) in jobs.values) {
-                val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-                val support = job.specification.resolvedSupport!!
-
-                val isSupported =
-                    (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
-                        (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
-
-                if (!isSupported) {
-                    throw RPCException(
-                        "Extension of deadline is not supported by the provider",
-                        HttpStatusCode.BadRequest,
-                        FEATURE_NOT_SUPPORTED_BY_PROVIDER
-                    )
+        when (application.invocation.tool.tool!!.description.backend) {
+            ToolBackend.DOCKER -> {
+                if (support.docker.enabled != true) {
+                    throw JobException.VerificationError("Application is not supported by provider")
                 }
             }
 
-            val providers = jobs.values.map { it.job.specification.product.provider }
-                .map { providers.prepareCommunication(it) }
-
-            for (comm in providers) {
-                comm.api.extend.call(
-                    bulkRequestOf(request.items.mapNotNull { extensionRequest ->
-                        val (job) = jobs.getValue(extensionRequest.jobId)
-                        if (job.specification.product.provider != comm.provider.id) null
-                        else JobsProviderExtendRequestItem(job, extensionRequest.requestedTime)
-                    }),
-                    comm.client
-                ).orThrow()
+            ToolBackend.VIRTUAL_MACHINE -> {
+                if (support.virtualMachine.enabled != true) {
+                    throw JobException.VerificationError("Application is not supported by provider")
+                }
             }
 
-            request.items.groupBy { it.jobId }.forEach { (jobId, requests) ->
-                val existingJob = jobs.getValue(jobId)
-                val allocatedTime = existingJob.job.specification.timeAllocation?.toMillis() ?: 0L
-                val requestedTime = requests.sumOf { it.requestedTime.toMillis() }
-
-                jobDao.updateMaxTime(session, jobId, SimpleDuration.fromMillis(allocatedTime + requestedTime))
+            else -> {
+                throw JobException.VerificationError("Unsupported application")
             }
         }
     }
 
-    suspend fun cancel(request: BulkRequest<FindByStringId>, userActor: Actor) {
-        val extensions = request.items.groupBy { it.id }
+    override suspend fun createSpecifications(
+        actorAndProject: ActorAndProject,
+        idWithSpec: List<Pair<Long, JobSpecification>>,
+        session: AsyncDBConnection,
+        allowDuplicates: Boolean
+    ) {
+        val exports = idWithSpec.map { (_, spec) ->
+            exporter.exportParameters(spec)
+        }
 
-        db.withSession { session ->
-            val jobs = loadAndVerifyUserJobs(session, extensions.keys, userActor, Action.CANCEL)
-            val jobsByProvider = jobs.values.groupBy { it.job.specification.product.provider }
-            for ((provider, providerJobs) in jobsByProvider) {
-                val comm = providers.prepareCommunication(provider)
-                comm.api.delete.call(
-                    bulkRequestOf(providerJobs.map { it.job }),
-                    comm.client
-                ).orThrow()
+        idWithSpec.forEach { (id, spec) ->
+            verificationService.verifyOrThrow(actorAndProject, spec)
+
+            val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
+            listeners.forEach { it.onVerified(db, preliminaryJob) }
+        }
+
+        session.sendPreparedStatement(
+            {
+                val applicationNames = ArrayList<String>().also { setParameter("application_names", it) }
+                val applicationVersions = ArrayList<String>().also { setParameter("application_versions", it) }
+                val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
+                val names = ArrayList<String?>().also { setParameter("names", it) }
+                val resources = ArrayList<Long>().also { setParameter("resources", it) }
+                val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
+                setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
+
+                for ((id, spec) in idWithSpec) {
+                    applicationNames.add(spec.application.name)
+                    applicationVersions.add(spec.application.version)
+                    timeAllocationMillis.add(spec.timeAllocation?.toMillis())
+                    names.add(spec.name)
+                    resources.add(id)
+                    openedFiles.add(spec.openedFile)
+                }
+            },
+            """
+                with bulk_data as (
+                    select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
+                           unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
+                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
+                           unnest(:opened_file::text[]) opened_file
+                )
+                insert into app_orchestrator.jobs
+                    (application_name, application_version, time_allocation_millis, name, 
+                     output_folder, current_state, started_at, resource, job_parameters, opened_file) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file
+                from bulk_data
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
+                val resources = ArrayList<String>().also { setParameter("resources", it) }
+
+                for ((id, spec) in idWithSpec) {
+                    for (resource in (spec.resources ?: emptyList())) {
+                        jobIds.add(id)
+                        resources.add(defaultMapper.encodeToString(resource))
+                    }
+                }
+            },
+            """
+                insert into app_orchestrator.job_resources (resource, job_id) 
+                select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
+            """
+        )
+
+        session.sendPreparedStatement(
+            {
+                val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
+                val values = ArrayList<String>().also { setParameter("values", it) }
+                val names = ArrayList<String>().also { setParameter("names", it) }
+
+                for ((id, spec) in idWithSpec) {
+                    for ((name, value) in (spec.parameters ?: emptyMap())) {
+                        jobIds.add(id)
+                        values.add(defaultMapper.encodeToString(value))
+                        names.add(name)
+                    }
+                }
+            },
+            """
+                insert into app_orchestrator.job_input_parameters (name, value, job_id)  
+                select unnest(:names::text[]), unnest(:values::jsonb[]), unnest(:job_ids::bigint[])
+            """
+        )
+
+        idWithSpec.forEach { (id, spec) ->
+            val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
+            listeners.forEach { it.onCreate(db, preliminaryJob) }
+        }
+    }
+
+    override suspend fun onUpdate(
+        resources: List<Job>,
+        updates: List<ResourceUpdateAndId<JobUpdate>>,
+        session: AsyncDBConnection
+    ) {
+        val loadedJobs = resources.associateBy { it.id }
+
+        for ((jobId, updatesForJob) in updates.groupBy { it.id }) {
+            val job = loadedJobs[jobId] ?: error("Job not found, this should have failed earlier")
+            var currentState = job.status.state
+            for ((_, update) in updatesForJob) {
+                if (update.expectedState != null && update.expectedState != currentState) continue
+                if (update.expectedDifferentState == true && update.state == currentState) continue
+
+                val newState = update.state
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
+
+                if (didChange && !currentState.isFinal()) {
+                    if (newState != null && newState.isFinal()) {
+                        listeners.forEach {
+                            try {
+                                it.onTermination(session, job)
+                            } catch (ex: Throwable) {
+                                log.warn("Failure while terminating job: $job\n${ex.stackTraceToString()}")
+                            }
+                        }
+                    }
+
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("new_state", newState?.name)
+                            setParameter("output_folder", update.outputFolder)
+                            setParameter("new_time_allocation", update.newTimeAllocation)
+                            setParameter("job_id", jobId)
+                        },
+                        """
+                            update app_orchestrator.jobs
+                            set
+                                current_state = coalesce(:new_state::text, current_state),
+                                started_at = case
+                                    when :new_state = 'RUNNING' then coalesce(started_at, now())
+                                    else started_at
+                                end,
+                                output_folder = coalesce(:output_folder::text, output_folder),
+                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
+                            where resource = :job_id
+                        """
+                    )
+                } else if (newState != null && currentState.isFinal()) {
+                    log.info(
+                        "Ignoring job update for $jobId by ${job.specification.product.provider} " +
+                            "(bad state transition)"
+                    )
+                    continue
+                }
             }
         }
+    }
+
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: JobIncludeFlags?, query: String?): PartialQuery {
+        @Suppress("SqlResolve")
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("filter_state", flags?.filterState?.name)
+                setParameter("filter_application", flags?.filterApplication)
+            },
+            """
+                select
+                    job.resource, job,
+                    array_remove(array_agg(distinct res), null),
+                    array_remove(array_agg(distinct param), null),
+                    app, t
+
+                from
+                    accessible_resources resc join
+                    app_orchestrator.jobs job on (resc.r).id = resource join
+                    app_store.applications app on
+                        job.application_name = app.name and job.application_version = app.version join
+                    app_store.tools t on app.tool_name = t.name and app.tool_version = t.version left join
+                    app_orchestrator.job_resources res on job.resource = res.job_id left join
+                    app_orchestrator.job_input_parameters param on job.resource = param.job_id
+
+                where
+                    (:filter_state::text is null or current_state = :filter_state::text) and
+                    (:filter_application::text is null or application_name = :filter_application) and
+                    (
+                        :query::text is null or
+                        job.name ilike '%' || :query || '%' or
+                        job.resource::text ilike '%' || :query || '%' or
+                        app.title ilike '%' || :query || '%' or
+                        t.name ilike '%' || :query || '%'
+                    )
+
+                group by job.resource, job.*, app.*, t.*
+            """
+        )
+    }
+
+    suspend fun extendDuration(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<JobsExtendRequestItem>
+    ): BulkResponse<Unit?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).extend },
+                requestToId = { it.jobId },
+                resourceToRequest = { req, res -> JobsProviderExtendRequestItem(res, req.requestedTime) },
+                verifyRequest = { req, res, support ->
+                    val job = (res as ProductRefOrResource.SomeResource).resource
+                    val application = appService.resolveApplication(job.specification.application)
+                        ?: throw RPCException("Unknown application", HttpStatusCode.BadRequest)
+                    val appBackend = application.invocation.tool.tool!!.description.backend
+
+                    val isSupported =
+                        (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
+                            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
+
+                    if (!isSupported) {
+                        throw RPCException(
+                            "Extension of deadline is not supported by the provider",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+                }
+            )
+        )
+    }
+
+    suspend fun terminate(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+    ): BulkResponse<Unit?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).terminate },
+                requestToId = { it.id },
+                resourceToRequest = { _, res -> res })
+        )
     }
 
     suspend fun follow(
         callHandler: CallHandler<JobsFollowRequest, JobsFollowResponse, *>,
-        actor: Actor,
-    ) {
-        with(callHandler) {
-            withContext<WSCall> {
-                val (initialJob) = jobQueryService.retrieve(
-                    actor,
-                    ctx.project,
-                    request.id,
-                    JobDataIncludeFlags(includeUpdates = true, includeApplication = true, includeSupport = true)
-                )
+    ): Unit = with(callHandler) {
+        withContext<WSCall> {
+            val initialJob = retrieveBulk(
+                callHandler.actorAndProject, listOf(request.id), listOf(Permission.READ),
+                flags = JobIncludeFlags(includeUpdates = true, includeSupport = true)
+            ).single()
 
-                val appBackend = initialJob.specification.resolvedApplication!!.invocation.tool.tool!!
-                    .description.backend
-                val support = initialJob.specification.resolvedSupport!!
+            val support = initialJob.status.resolvedSupport!!.support
+            val app = appService.resolveApplication(initialJob.specification.application)!!
+            val backend = app.invocation.tool.tool!!.description.backend
+            val logsSupported =
+                (backend == ToolBackend.DOCKER && support.docker.logs == true) ||
+                    (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
 
-                val logsSupported =
-                    (appBackend == ToolBackend.DOCKER && support.docker.logs == true) ||
-                        (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
+            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+            // retrieve them by themselves.
+            sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
 
-                val stateUpdate = initialJob.updates.lastOrNull { it.state != null }
-                if (stateUpdate != null) {
-                    sendWSMessage(
-                        JobsFollowResponse(
-                            emptyList(),
-                            emptyList(),
-                            initialJob.status
-                        )
-                    )
-                }
-                // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
-                // retrieve them by themselves.
-                var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
-                val comms = providers.prepareCommunication(initialJob.specification.product.provider)
-                val api = comms.api
-                val wsClient = comms.wsClient
-                var streamId: String? = null
-                val states = JobState.values()
-                val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)
+            var lastUpdate = initialJob.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+            var streamId: String? = null
+            val states = JobState.values()
+            val currentState = AtomicInteger(JobState.IN_QUEUE.ordinal)
 
-                coroutineScope {
-                    val logJob = launch {
+            coroutineScope {
+                val logJob = if (!logsSupported) null else launch {
+                    while (isActive) {
                         try {
-                            while (isActive) {
-                                if (currentState.get() == JobState.RUNNING.ordinal) {
-                                    if (logsSupported) {
-                                        api.follow.subscribe(JobsProviderFollowRequest.Init(initialJob),
-                                            wsClient,
-                                            { message ->
-                                                if (streamId == null) {
-                                                    streamId = message.streamId
-                                                }
+                            if (currentState.get() == JobState.RUNNING.ordinal) {
+                                proxy.proxySubscription(
+                                    actorAndProject,
+                                    Unit,
+                                    object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                                        Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                        override val isUserRequest: Boolean = true
+                                        override fun retrieveCall(comms: ComputeCommunication) =
+                                            providerApi(comms).follow
 
-                                                // Providers are allowed to use negative ranks for control messages
-                                                if (message.rank >= 0) {
-                                                    sendWSMessage(
-                                                        JobsFollowResponse(
-                                                            emptyList(),
-                                                            listOf(JobsLog(message.rank,
-                                                                message.stdout,
-                                                                message.stderr)),
-                                                            null
-                                                        )
-                                                    )
-                                                }
-                                            }).orThrow()
+                                        override suspend fun verifyAndFetchResources(
+                                            actorAndProject: ActorAndProject,
+                                            request: Unit
+                                        ): RequestWithRefOrResource<Unit, Job> {
+                                            return Unit to ProductRefOrResource.SomeResource(initialJob)
+                                        }
+
+                                        override suspend fun beforeCall(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>
+                                        ): JobsProviderFollowRequest {
+                                            return JobsProviderFollowRequest.Init(initialJob)
+                                        }
+
+                                        override suspend fun onMessage(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>,
+                                            message: JobsProviderFollowResponse
+                                        ) {
+                                            if (streamId == null) streamId = message.streamId
+                                            sendWSMessage(
+                                                JobsFollowResponse(
+                                                    emptyList(),
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                )
+                                            )
+                                        }
                                     }
-                                    break
-                                } else {
-                                    delay(500)
-                                }
-                            }
-                        } catch (ex: Throwable) {
-                            if (ex !is CancellationException) {
-                                log.warn(ex.stackTraceToString())
-                            }
-                        }
-                    }
-
-                    val updateJob = launch {
-                        try {
-                            var lastStatus: JobStatus? = null
-                            while (isActive && !states[currentState.get()].isFinal()) {
-                                val (job) = jobQueryService.retrieve(
-                                    actor,
-                                    ctx.project,
-                                    request.id,
-                                    JobDataIncludeFlags(includeUpdates = true)
                                 )
-
-                                currentState.set(job.status.state.ordinal)
-
-                                // TODO not ideal for chatty providers
-                                val updates = job.updates.filter { it.timestamp > lastUpdate }
-                                if (updates.isNotEmpty()) {
-                                    sendWSMessage(
-                                        JobsFollowResponse(
-                                            updates,
-                                            emptyList(),
-                                            null
-                                        )
-                                    )
-                                    lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
-                                }
-
-                                if (lastStatus != job.status) {
-                                    sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), job.status))
-                                }
-
-                                lastStatus = job.status
-                                delay(1000)
                             }
+                        } catch (ignore: java.util.concurrent.CancellationException) {
+                            break
                         } catch (ex: Throwable) {
-                            if (ex !is CancellationException) {
-                                log.warn(ex.stackTraceToString())
-                            }
+                            log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
+                            break
                         }
-                    }
 
+                        delay(100)
+                    }
+                }
+
+                val updateJob = launch {
                     try {
-                        select<Unit> {
-                            logJob.onJoin {}
-                            updateJob.onJoin {}
-                        }
-                    } finally {
-                        val capturedId = streamId
-                        if (capturedId != null) {
-                            api.follow.call(
-                                JobsProviderFollowRequest.CancelStream(capturedId),
-                                wsClient
-                            )
-                        }
+                        var lastStatus: JobStatus? = null
+                        while (isActive && !states[currentState.get()].isFinal()) {
+                            val job = retrieveBulk(
+                                actorAndProject, listOf(request.id), listOf(Permission.READ),
+                                JobIncludeFlags(includeUpdates = true)
+                            ).single()
 
-                        runCatching { logJob.cancel("No longer following or EOF") }
-                        runCatching { updateJob.cancel("No longer following or EOF") }
+                            currentState.set(job.status.state.ordinal)
+
+                            // TODO not ideal for chatty providers
+                            val updates = job.updates.filter { it.timestamp > lastUpdate }
+                            if (updates.isNotEmpty()) {
+                                sendWSMessage(
+                                    JobsFollowResponse(
+                                        updates,
+                                        emptyList(),
+                                        null
+                                    )
+                                )
+                                lastUpdate = job.updates.maxByOrNull { it.timestamp }?.timestamp ?: 0L
+                            }
+
+                            if (lastStatus != job.status) {
+                                sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), job.status))
+                            }
+
+                            lastStatus = job.status
+                            delay(1000)
+                        }
+                    } catch (ex: Throwable) {
+                        if (ex !is CancellationException) {
+                            log.warn(ex.stackTraceToString())
+                        }
                     }
+                }
+
+                try {
+                    updateJob.join()
+                } finally {
+                    val capturedId = streamId
+                    if (capturedId != null) {
+                        proxy.proxy(
+                            actorAndProject,
+                            Unit,
+                            object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job, Unit,
+                                JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                override val isUserRequest: Boolean = true
+                                override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
+
+                                override suspend fun verifyAndFetchResources(
+                                    actorAndProject: ActorAndProject,
+                                    request: Unit
+                                ): RequestWithRefOrResource<Unit, Job> =
+                                    Unit to ProductRefOrResource.SomeResource(initialJob)
+
+                                override suspend fun beforeCall(
+                                    provider: String,
+                                    resource: RequestWithRefOrResource<Unit, Job>
+                                ): JobsProviderFollowRequest = JobsProviderFollowRequest.CancelStream(capturedId)
+
+                            },
+                            useHttpClient = false
+                        )
+                    }
+
+                    runCatching { logJob?.cancel("No longer following or EOF") }
+                    runCatching { updateJob.cancel("No longer following or EOF") }
                 }
             }
         }
     }
 
     suspend fun openInteractiveSession(
+        actorAndProject: ActorAndProject,
         request: BulkRequest<JobsOpenInteractiveSessionRequestItem>,
-        actor: Actor,
     ): JobsOpenInteractiveSessionResponse {
-        val errorMessage = "You do not have permissions to open an interactive session for this job"
+        val jobIdToProvider = HashMap<String, String>()
+        val responses = proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).openInteractiveSession },
+                requestToId = { it.id },
+                resourceToRequest = { req, res ->
+                    jobIdToProvider[req.id] = res.specification.product.provider
+                    JobsProviderOpenInteractiveSessionRequestItem(res, req.rank, req.sessionType)
+                }
+            )
+        )
 
-        return db.withSession { session ->
-            val requestsByJobId = request.items.groupBy { it.id }
-            val jobIds = request.items.map { it.id }.toSet()
-            val jobs = loadAndVerifyUserJobs(
-                session,
-                jobIds,
-                actor,
-                Action.OPEN_INTERACTIVE_SESSION,
-                flags = JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            ).values
-            val jobsByProvider = jobs.groupBy { it.job.specification.product.provider }
-
-            if (jobs.size != jobIds.size) {
-                log.debug("Not all jobs were found")
-                throw RPCException(errorMessage, HttpStatusCode.Forbidden)
-            }
-
-            for ((provider, jobs) in jobsByProvider) {
-                for ((job) in jobs) {
-                    val reqs = requestsByJobId.getValue(job.id)
-                    val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-                    val support = job.specification.resolvedSupport!!
-
-                    for (req in reqs) {
-                        val isSessionSupported = when (req.sessionType) {
-                            InteractiveSessionType.WEB ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.web == true)
-                            InteractiveSessionType.VNC ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.vnc == true) ||
-                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.vnc == true)
-                            InteractiveSessionType.SHELL ->
-                                (appBackend == ToolBackend.DOCKER && support.docker.terminal == true) ||
-                                    (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.terminal == true)
+        return BulkResponse(
+            request.items.zip(responses.responses).map { (request, response) ->
+                val providerSpec = providers.prepareCommunication(jobIdToProvider.getValue(request.id)).provider
+                if (response == null) null
+                else OpenSessionWithProvider(
+                    with(providerSpec) {
+                        buildString {
+                            if (https) append("https://") else append("http://")
+                            append(domain)
+                            if (port != null) append(":$port")
                         }
+                    },
+                    providerSpec.id,
+                    response
+                )
+            }
+        )
+    }
 
-                        if (!isSessionSupported) {
+    suspend fun retrieveUtilization(
+        actorAndProject: ActorAndProject,
+        request: JobsRetrieveUtilizationRequest
+    ): JobsRetrieveUtilizationResponse {
+        JobsRetrieveUtilizationResponse
+        return proxy.proxy(
+            actorAndProject,
+            request,
+            object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                JobsRetrieveUtilizationRequest, JobsProviderUtilizationRequest, JobsProviderUtilizationResponse>() {
+                override val isUserRequest: Boolean = false
+                override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).retrieveUtilization
+
+                override suspend fun verifyAndFetchResources(
+                    actorAndProject: ActorAndProject,
+                    request: JobsRetrieveUtilizationRequest
+                ): RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job> {
+                    val job = retrieveBulk(actorAndProject, listOf(request.jobId), listOf(Permission.READ)).single()
+                    return RequestWithRefOrResource(request, ProductRefOrResource.SomeResource(job))
+                }
+
+                override suspend fun verifyRequest(
+                    request: JobsRetrieveUtilizationRequest,
+                    res: ProductRefOrResource<Job>,
+                    support: ComputeSupport
+                ) {
+                    val job = (res as ProductRefOrResource.SomeResource).resource
+                    val app = appService.resolveApplication(job.specification.application)!!
+                    val backend = app.invocation.tool.tool!!.description.backend
+                    if (backend == ToolBackend.DOCKER) {
+                        if (support.docker.utilization != true) {
                             throw RPCException(
-                                "Unsupported by the provider",
+                                "Not supported",
+                                HttpStatusCode.BadRequest,
+                                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                            )
+                        }
+                    } else if (backend == ToolBackend.VIRTUAL_MACHINE) {
+                        if (support.virtualMachine.utilization != true) {
+                            throw RPCException(
+                                "Not supported",
                                 HttpStatusCode.BadRequest,
                                 FEATURE_NOT_SUPPORTED_BY_PROVIDER
                             )
                         }
                     }
                 }
+
+                override suspend fun beforeCall(
+                    provider: String,
+                    resource: RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job>
+                ) {
+                    // Empty
+                }
             }
-
-            val sessions = ArrayList<OpenSessionWithProvider>()
-            for ((provider, jobs) in jobsByProvider) {
-                val comms = providers.prepareCommunication(provider)
-                val (api, client) = comms
-                sessions.addAll(
-                    api.openInteractiveSession
-                        .call(
-                            bulkRequestOf(jobs.flatMap { (job) ->
-                                requestsByJobId.getValue(job.id).map { req ->
-                                    JobsProviderOpenInteractiveSessionRequestItem(job, req.rank, req.sessionType)
-                                }
-                            }),
-                            client
-                        )
-                        .orThrow()
-                        .sessions
-                        .map {
-                            OpenSessionWithProvider(
-                                with(comms.provider) {
-                                    buildString {
-                                        if (https) {
-                                            append("https://")
-                                        } else {
-                                            append("http://")
-                                        }
-
-                                        append(domain)
-
-                                        if (port != null) {
-                                            append(":$port")
-                                        }
-                                    }
-                                },
-                                comms.provider.id,
-                                it
-                            )
-                        }
-                )
-            }
-
-            JobsOpenInteractiveSessionResponse(sessions)
-        }
-    }
-
-    suspend fun retrieveUtilization(
-        actorAndProject: ActorAndProject,
-        jobId: String,
-    ): JobsRetrieveUtilizationResponse {
-        val (actor, project) = actorAndProject
-        val job = jobQueryService
-            .retrieve(
-                actor,
-                project,
-                jobId,
-                JobDataIncludeFlags(includeApplication = true, includeSupport = true, includeParameters = true)
-            )
-            .job
-
-        val providerId = job.specification.product.provider
-        val support = job.specification.resolvedSupport!!
-        val appBackend = job.specification.resolvedApplication!!.invocation.tool.tool!!.description.backend
-
-        val supported =
-            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.utilization == true) ||
-                (appBackend == ToolBackend.DOCKER && support.docker.utilization == true)
-
-        if (!supported) {
-            throw RPCException(
-                "Utilization is not supported by the provider",
-                HttpStatusCode.BadRequest,
-                FEATURE_NOT_SUPPORTED_BY_PROVIDER
-            )
-        }
-
-        val (api, client) = providers.prepareCommunication(providerId)
-        val response = api.retrieveUtilization.call(Unit, client).orThrow()
-
-        return JobsRetrieveUtilizationResponse(
-            response.capacity,
-            response.usedCapacity,
-            response.queueStatus
         )
     }
 

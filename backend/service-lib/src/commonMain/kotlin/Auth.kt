@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.calls.UCloudApiOwnedBy
 import kotlinx.serialization.Serializable
 
 /**
@@ -13,6 +14,7 @@ import kotlinx.serialization.Serializable
  * __DO NOT__ add your own roles here. They go in the services, this is __only__ for a system-wide role.
  */
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 enum class Role {
     /**
      * The security principal is an unauthenticated guest
@@ -79,6 +81,7 @@ object Roles {
  * More information can be gathered from an auth service, using the username as a key.
  */
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class SecurityPrincipal(
     /**
      * The unique username of this security principal.
@@ -139,6 +142,7 @@ data class SecurityPrincipal(
  * SHOULD NOT CONTAIN SENSITIVE DATA (LIKE THE JWT)
  */
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class SecurityPrincipalToken(
     val principal: SecurityPrincipal,
 
@@ -185,12 +189,14 @@ data class SecurityPrincipalToken(
     // IT IS USED IN THE AUDIT SYSTEM
 )
 
+@UCloudApiOwnedBy(CoreTypes::class)
 enum class AccessRight(val scopeName: String) {
     READ("read"),
     READ_WRITE("write")
 }
 
 @Serializable
+@UCloudApiOwnedBy(CoreTypes::class)
 data class SecurityScope internal constructor(
     val segments: List<String>,
     val access: AccessRight,
@@ -256,7 +262,7 @@ data class SecurityScope internal constructor(
                 throw IllegalArgumentException("Invalid segment found '$firstInvalidSegment' from '$rawScope'")
             }
 
-            val normalizedAccess = parts[1].toLowerCase()
+            val normalizedAccess = parts[1].lowercase()
             val access = AccessRight.values().find { it.scopeName == normalizedAccess }
                 ?: throw IllegalArgumentException("Bad access right in audience")
 

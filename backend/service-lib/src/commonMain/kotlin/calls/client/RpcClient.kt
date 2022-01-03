@@ -40,7 +40,14 @@ interface OutgoingContextFilter {
 
 sealed class OutgoingCallFilter : OutgoingContextFilter {
     abstract class BeforeCall : OutgoingCallFilter() {
-        abstract suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>)
+        abstract suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?)
+    }
+    abstract class AfterCall : OutgoingCallFilter() {
+        abstract suspend fun run(
+            context: OutgoingCall,
+            callDescription: CallDescription<*, *, *>,
+            response: IngoingCallResponse<*, *>
+        )
     }
 }
 
@@ -78,13 +85,19 @@ class RpcClient {
 
         callFilters.filterIsInstance<OutgoingCallFilter.BeforeCall>().forEach {
             if (it.canUseContext(ctx)) {
-                it.run(ctx, callDescription)
+                it.run(ctx, callDescription, request)
             }
         }
 
         afterHook?.invoke(ctx)
 
-        return interceptor.finalizeCall(callDescription, request, ctx)
+        val response = interceptor.finalizeCall(callDescription, request, ctx)
+        callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
+            if (it.canUseContext(ctx)) {
+                it.run(ctx, callDescription, response)
+            }
+        }
+        return response
     }
 
     companion object : Loggable {

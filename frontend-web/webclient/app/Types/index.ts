@@ -1,8 +1,8 @@
-import HttpClient from "Authentication/lib";
-import {emptyPage} from "DefaultObjects";
+import {HttpClient} from "../Authentication/lib";
+import {emptyPage} from "@/DefaultObjects";
 import {Action} from "redux";
-import {IconName} from "ui-components/Icon";
-import {ThemeColor} from "ui-components/theme";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
 
 declare global {
     const DEVELOPMENT_ENV: boolean;
@@ -50,16 +50,6 @@ export function arrayToPage<T>(items: T[], itemsPerPage = 50, page = 0): Page<T>
         pageNumber: page,
         items
     };
-}
-
-export enum AccessRight {
-    READ = "READ",
-    WRITE = "WRITE"
-}
-
-export class AccessRights {
-    public static READ_RIGHTS = [AccessRight.READ];
-    public static WRITE_RIGHTS = [AccessRight.READ, AccessRight.WRITE];
 }
 
 export interface ClearRefresh {

@@ -20,10 +20,6 @@ import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import dk.sdu.cloud.mail.services.MailService.MailCountInfo
 import dk.sdu.cloud.slack.api.SlackDescriptions
-import io.mockk.Runs
-import io.mockk.coEvery
-import io.mockk.coVerify
-import io.mockk.just
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import kotlin.test.assertEquals

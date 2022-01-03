@@ -1,12 +1,11 @@
+/*
 package dk.sdu.cloud
 
 import dk.sdu.cloud.service.SimpleCache
-import io.swagger.v3.oas.models.OpenAPI
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.com.intellij.openapi.util.Disposer
 import org.jetbrains.kotlin.com.intellij.psi.PsiManager
 import org.jetbrains.kotlin.com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.kotlin.config.CompilerConfiguration
@@ -16,6 +15,7 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
+/*
 private val kotlinCompilerEnvironment by lazy {
     val configOptions = CompilerConfiguration().apply {
         put(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY, MessageCollector.NONE)
@@ -27,15 +27,16 @@ private val kotlinCompilerEnvironment by lazy {
         EnvironmentConfigFiles.JVM_CONFIG_FILES
     )
 }
+*/
 
 private sealed class MarkdownReference {
     abstract val lineStart: Int
     abstract var lineEnd: Int
     abstract fun generate(
-        api: OpenAPI,
         typeRegistry: Map<String, ComputedType>,
     ): String
 
+    /*
     fun typename(type: ComputedType): String {
         val baseName = when (type) {
             is ComputedType.Integer -> {
@@ -55,6 +56,7 @@ private sealed class MarkdownReference {
                 }
             }
             is ComputedType.Text -> "String"
+            is ComputedType.TextArea -> "String"
             is ComputedType.Bool -> "Boolean"
             is ComputedType.Array -> "Array<${typename(type.itemType)}>"
             is ComputedType.Dictionary -> "Map<String, ${typename(type.itemType)}>"
@@ -63,12 +65,12 @@ private sealed class MarkdownReference {
             is ComputedType.Struct -> typename(type.asRef())
             is ComputedType.StructRef -> type.qualifiedName.substringAfterLast('.')
             is ComputedType.Enum -> "(" + type.options.joinToString(" or ") { "\"$it\"" } + ")"
-            is ComputedType.CustomSchema -> "Any"
         }
 
         return if (type.optional) "$baseName?"
         else baseName
     }
+    */
 
     data class TypeDocRef(
         val typeName: String,
@@ -78,7 +80,7 @@ private sealed class MarkdownReference {
         override val lineStart: Int,
         override var lineEnd: Int,
     ) : MarkdownReference() {
-        override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
+        override fun generate(typeRegistry: Map<String, ComputedType>): String {
             return buildString {
                 val type = typeRegistry[typeName]
                 if (type != null) {
@@ -145,7 +147,7 @@ private sealed class MarkdownReference {
         override val lineStart: Int,
         override var lineEnd: Int,
     ) : MarkdownReference() {
-        override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
+        override fun generate(typeRegistry: Map<String, ComputedType>): String {
             val ktFiles = KotlinFileCache.ktFileCache.getBlocking(path) ?: error("Error parsing file at '$path'")
             for (ktFile in ktFiles) {
                 val components = classPath.split('.')
@@ -190,7 +192,7 @@ private sealed class MarkdownReference {
         override val lineStart: Int,
         override var lineEnd: Int,
     ) : MarkdownReference() {
-        override fun generate(api: OpenAPI, typeRegistry: Map<String, ComputedType>): String {
+        override fun generate(typeRegistry: Map<String, ComputedType>): String {
             val ktFiles = KotlinFileCache.ktFileCache.getBlocking(path) ?: error("Error parsing file at '$path'")
             for (ktFile in ktFiles) {
                 val topLevelFunction = ktFile.children.find {
@@ -372,9 +374,9 @@ private data class MarkdownDocument(
 }
 
 fun injectMarkdownDocs(
-    api: OpenAPI,
     typeRegistry: Map<String, ComputedType>,
 ) {
+    /*
     val hasServices = File(".").listFiles()?.any { it.isDirectory && it.name.endsWith("-service") } == true
     if (!hasServices) {
         println("WARN: Could not find UCloud services at current working directory (${File(".").absolutePath}")
@@ -436,4 +438,6 @@ fun injectMarkdownDocs(
             StandardCopyOption.REPLACE_EXISTING
         )
     }
+    */
 }
+*/

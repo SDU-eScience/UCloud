@@ -3,12 +3,12 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "contact-book"
-    version = "0.4.7"
+    version = "2022.1.0"
 
     withAmbassador("/api/contactbook") {}
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectSecret("elasticsearch-credentials")
     }
 

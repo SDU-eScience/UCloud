@@ -1,21 +1,20 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import {Box, Flex, Input, Label} from "ui-components";
-import {TextP} from "ui-components/Text";
+import * as UCloud from "@/UCloud";
+import {Box, Flex, Input, Label} from "@/ui-components";
+import {TextP} from "@/ui-components/Text";
 import {
+    findRelevantMachinesForApplication,
     Machines,
     setMachineReservationFromRef,
     validateMachineReservation
-} from "Applications/Jobs/Widgets/Machines";
+} from "@/Applications/Jobs/Widgets/Machines";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import {useProjectId} from "Project";
-import {MandatoryField} from "Applications/Jobs/Widgets/index";
-import {accounting} from "UCloud";
-import ProductNS = accounting.ProductNS;
-import {productCategoryEquals} from "Accounting";
-import {emptyPageV2} from "DefaultObjects";
-import {joinToString} from "UtilityFunctions";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {useProjectId} from "@/Project";
+import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
+import {costOfDuration, Product, productCategoryEquals, ProductCompute, usageExplainer} from "@/Accounting";
+import {emptyPageV2} from "@/DefaultObjects";
+import {joinToString} from "@/UtilityFunctions";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
@@ -25,14 +24,15 @@ const reservationReplicas = "reservation-replicas";
 export const ReservationParameter: React.FunctionComponent<{
     application: UCloud.compute.Application;
     errors: ReservationErrors;
-    onEstimatedCostChange?: (cost: number, balance: number) => void;
+    onEstimatedCostChange?: (cost: number, balance: number, product: Product | null) => void;
 }> = ({application, errors, onEstimatedCostChange}) => {
     // Estimated cost
-    const [selectedMachine, setSelectedMachine] = useState<UCloud.accounting.ProductNS.Compute | null>(null);
-    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductNS.Compute>>({noop: true}, emptyPageV2);
+    const [selectedMachine, setSelectedMachine] = useState<ProductCompute | null>(null);
+    const [wallet, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
+    // TODO
     const balance = !selectedMachine ?
         0 :
-        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.balance ?? 0;
+        wallet.data.items.find(it => productCategoryEquals(it.category, selectedMachine.category))?.["balance"] ?? 0;
 
     const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
         {noop: true},
@@ -59,39 +59,17 @@ export const ReservationParameter: React.FunctionComponent<{
         }
     }, [wallet]);
 
-    const allMachines = ([] as ProductNS.Compute[]).concat.apply(
-        [],
-        Object.values(machineSupport.data.productsByProvider).map(products => {
-            return products
-                .filter(it => {
-                    const tool = application.invocation.tool.tool!;
-                    const backend = tool.description.backend;
-                    switch (backend) {
-                        case "DOCKER":
-                            return it.support.docker.enabled;
-                        case "SINGULARITY":
-                            return false;
-                        case "VIRTUAL_MACHINE":
-                            return it.support.virtualMachine.enabled &&
-                                (tool.description.supportedProviders ?? [])
-                                    .some(p => p === it.product.category.provider);
-                    }
-                })
-                .filter(product =>
-                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
-                )
-                .map(it => it.product);
-        })
-    );
+    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, wallet.data);
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
         if (options != null && options.timeAllocation != null) {
-            const pricePerUnit = selectedMachine?.pricePerUnit ?? 0;
-            const estimatedCost =
-                (options.timeAllocation.hours * 60 * pricePerUnit +
-                    (options.timeAllocation.minutes * pricePerUnit)) * options.replicas;
-            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance);
+            let estimatedCost = 0;
+            if (selectedMachine != null) {
+                estimatedCost = costOfDuration(options.timeAllocation.hours * 60 + options.timeAllocation.minutes,
+                    options.replicas, selectedMachine);
+            }
+            if (onEstimatedCostChange) onEstimatedCostChange(estimatedCost, balance, selectedMachine);
         }
     }, [selectedMachine, balance, onEstimatedCostChange]);
 
@@ -195,11 +173,15 @@ export function validateReservation(): ValidationAnswer {
         const parsedHours = parseInt(hours.value, 10);
         const parsedMinutes = parseInt(minutes.value, 10);
 
-        values["timeAllocation"] = {
-            hours: parsedHours,
-            minutes: parsedMinutes,
-            seconds: 0
-        };
+        if (parsedMinutes < 0 || parsedMinutes > 59) {
+            errors["timeAllocation"] = "Minutes must be between 0 and 59"
+        } else {
+            values["timeAllocation"] = {
+                hours: parsedHours,
+                minutes: parsedMinutes,
+                seconds: 0
+            };
+        }
     }
 
     values["name"] = name.value === "" ? undefined : name.value;

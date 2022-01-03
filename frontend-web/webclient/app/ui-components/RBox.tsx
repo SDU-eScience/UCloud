@@ -1,4 +1,4 @@
-import {ResponsiveReduxObject} from "DefaultObjects";
+import {ResponsiveReduxObject} from "@/DefaultObjects";
 import * as React from "react";
 import {connect} from "react-redux";
 import Box from "./Box";

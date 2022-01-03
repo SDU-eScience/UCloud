@@ -1,0 +1,103 @@
+version: "3.9"
+services:
+
+  mysql:
+    image: mysql:5.7
+    hostname: mysql
+    environment:
+      MYSQL_RANDOM_ROOT_PASSWORD: "yes"
+      MYSQL_DATABASE: slurm_acct_db
+      MYSQL_USER: slurm
+      MYSQL_PASSWORD: password
+    volumes:
+      - var_lib_mysql:/var/lib/mysql
+    labels:
+      - "cluster=slurm"
+
+
+  slurmdbd:
+    image: slurm-base-ssh:latest
+    build: 
+      context: ./provider-integration/integration-module
+      target: slurm-base-ssh
+    command: ["slurmdbd", "sshd"]
+    hostname: slurmdbd
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6819"
+    depends_on:
+      - mysql
+    labels:
+      - "cluster=slurm"
+
+      
+  slurmctld:
+    image: slurm-base-ssh:latest
+    build: 
+      context: ./provider-integration/integration-module
+      target: slurm-base-ssh
+    command: ["slurmctld", "sshd"]
+    hostname: slurmctld
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6817"
+    depends_on:
+      - slurmdbd
+    labels:
+      - "cluster=slurm"
+    
+
+  c1:
+    image: slurm-base-ssh:latest
+    build: 
+      context: ./provider-integration/integration-module
+      target: slurm-base-ssh
+    command: ["slurmd", "sshd"]
+    hostname: c1
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6818"
+    depends_on:
+      - slurmctld
+    labels:
+      - "cluster=slurm"
+    
+
+  c2:
+    image: slurm-base-ssh:latest
+    build: 
+      context: ./provider-integration/integration-module
+      target: slurm-base-ssh
+    command: ["slurmd", "sshd"]
+    hostname: c2
+    volumes:
+      - etc_munge:/etc/munge
+      - etc_slurm:/etc/slurm
+      - slurm_jobdir:/data
+      - var_log_slurm:/var/log/slurm
+    expose:
+      - "6818"
+    depends_on:
+      - slurmctld
+      - slurmdbd
+      - c1
+    labels:
+      - "cluster=slurm"
+    #IM deployed only when cluster healthy
+    healthcheck:
+      test: ["CMD", "/usr/bin/sinfo"]
+      interval: 1m
+      timeout: 2s
+      retries: 3
+      start_period: 10s

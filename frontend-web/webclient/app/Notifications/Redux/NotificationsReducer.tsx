@@ -1,4 +1,4 @@
-import {NotificationsReduxObject, initNotifications} from "DefaultObjects";
+import {NotificationsReduxObject, initNotifications} from "@/DefaultObjects";
 import {NotificationActions} from "./NotificationsActions";
 
 export const RECEIVE_SINGLE_NOTIFICATION = "RECEIVE_SINGLE_NOTIFICATION";
@@ -13,10 +13,10 @@ const Notifications = (
 ): NotificationsReduxObject => {
     switch (action.type) {
         case RECEIVE_NOTIFICATIONS: {
-            return {...state, ...action.payload};
+            return {...state, error: undefined, ...action.payload};
         }
         case RECEIVE_SINGLE_NOTIFICATION: {
-            return {...state, items: [action.payload.item].concat(state.items)};
+            return {...state, error: undefined, items: [action.payload.item].concat(state.items)};
         }
         case NOTIFICATION_READ: {
             return {
@@ -36,7 +36,12 @@ const Notifications = (
                 })
             };
         }
-        case NOTIFICATIONS_ERROR:
+        case NOTIFICATIONS_ERROR: {
+            return {
+                ...state,
+                ...action.payload
+            }
+        }
         default: {
             return state;
         }

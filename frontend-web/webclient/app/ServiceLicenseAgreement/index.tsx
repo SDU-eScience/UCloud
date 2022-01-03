@@ -1,13 +1,13 @@
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import {LoadingMainContainer} from "MainContainer/MainContainer";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {LoadingMainContainer} from "@/MainContainer/MainContainer";
 import {useCallback} from "react";
 import * as React from "react";
 import {RouteComponentProps} from "react-router";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Markdown} from "ui-components";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Button, Markdown} from "@/ui-components";
 import styled from "styled-components";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog} from "@/UtilityComponents";
 
 function fetchSla(): APICallParameters {
     return {

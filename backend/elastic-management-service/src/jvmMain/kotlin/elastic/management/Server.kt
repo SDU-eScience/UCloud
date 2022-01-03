@@ -11,10 +11,8 @@ import dk.sdu.cloud.micro.elasticHighLevelClient
 import dk.sdu.cloud.micro.elasticLowLevelClient
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.startServices
-import elastic.management.services.DataManipulationService
 import elastic.management.services.ElasticEntryCleanupService
 import elastic.management.services.Grafana
-import elastic.management.services.INDEX_LIST
 import kotlin.system.exitProcess
 
 
@@ -144,28 +142,6 @@ class Server(
             try {
                 val backupService = BackupService(elasticHighLevelClient, config.mount)
                 backupService.start()
-                exitProcess(0)
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
-
-        if (micro.commandLineArguments.contains("--data-extract-to-file")) {
-            try {
-                val dataExtractionService = DataManipulationService(elasticHighLevelClient)
-                dataExtractionService.extractToFile(INDEX_LIST)
-                exitProcess(0)
-            } catch (ex: Exception) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
-
-        if (micro.commandLineArguments.contains("--insert-data-from-files")) {
-            try {
-                val dataExtractionService = DataManipulationService(elasticHighLevelClient)
-                dataExtractionService.insertIntoES()
                 exitProcess(0)
             } catch (ex: Exception) {
                 log.warn(ex.stackTraceToString())

@@ -1,4 +1,4 @@
-import HttpClient from "./lib";
+import {HttpClient} from "./lib";
 import {WebSocketFactory} from "./ws";
 
 export const Client = new HttpClient();

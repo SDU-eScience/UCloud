@@ -1,10 +1,10 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {KeyCode} from "DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import * as Heading from "ui-components/Heading";
-import {errorMessageOrDefault} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import * as Heading from "@/ui-components/Heading";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import Box from "./Box";
 import Button from "./Button";
@@ -22,55 +22,6 @@ import TextArea from "./TextArea";
 const enum SupportType {
     SUGGESTION = "SUGGESTION",
     BUG = "BUG"
-}
-
-const enum ReducedFeatureSupportType {
-    SELECTION,
-    SDU,
-    OTHER
-}
-
-function ReducedFeatureSupport(): JSX.Element {
-    const [state, setState] = useState(ReducedFeatureSupportType.SELECTION);
-
-    return <ClickableDropdown
-        colorOnHover={false}
-        keepOpenOnClick
-        trigger={(
-            <Flex width="48px" justifyContent="center">
-                <Icon name={"chat"} size="24px" color="headerIconColor" color2="headerBg" />
-            </Flex>
-        )}
-        width={state === ReducedFeatureSupportType.SELECTION ? "400px" : "440px"}
-        right="10px"
-        top="37px"
-    >
-        <Box pr={"16px"} cursor="default" color="text">
-            {state === ReducedFeatureSupportType.SELECTION ? (<>
-                Select affiliation:
-
-                <Spacer
-                    mt="6px"
-                    left={<Button onClick={() => setState(ReducedFeatureSupportType.SDU)}>SDU</Button>}
-                    right={<Button color="green" onClick={() => setState(ReducedFeatureSupportType.OTHER)}>Other</Button>}
-                />
-            </>) :
-                state === ReducedFeatureSupportType.SDU ? (<>
-                    Please describe your issue along with steps to reproduce (if possible). <br /><br />
-
-                    <Heading.h5>By mail</Heading.h5>
-                    Messages can be sent to <ExternalLink color="blue" href={`mailto:${CONF.SUPPORT_EMAIL}`}>{CONF.SUPPORT_EMAIL}</ExternalLink>. Please include images of the issue if possible.
-                    <br />
-                    <Heading.h5>By Jira</Heading.h5>
-                    An issue can be created and progress can be tracked by submitting it to <ExternalLink color="blue" href="https://servicedesk.cloud.sdu.dk">Jira</ExternalLink>.
-                </>) : (<>
-                    {/* OTHER AFFILIATION */}
-                    For support, contact your local front-office. <br />
-                    Your local front-office can be found <ExternalLink color="blue" href="https://www.deic.dk/en/Front-Office">here</ExternalLink>.
-                </>)
-            }
-        </Box>
-    </ClickableDropdown>
 }
 
 export default function Support(): JSX.Element {
@@ -160,16 +111,16 @@ export default function Support(): JSX.Element {
                                 onChange={setSuggestion}
                             />
                             <Icon name="chat" color2="white" size="1.5em" mr=".5em" />
-                            Suggestion
-                        </Label>
+                        Suggestion
+                    </Label>
                         <Label>
                             <Radio
                                 checked={type === SupportType.BUG}
                                 onChange={setBug}
                             />
                             <Icon name="bug" size="1.5em" mr=".5em" />
-                            Bug
-                        </Label>
+                        Bug
+                    </Label>
                     </Flex>
 
                     <form onSubmit={onSubmit}>

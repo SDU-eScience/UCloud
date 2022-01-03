@@ -1,45 +1,20 @@
 plugins {
-    kotlin("multiplatform") version "1.4.30"
-    kotlin("plugin.serialization") version "1.4.30"
+    kotlin("multiplatform") version "1.6.0"
+    kotlin("plugin.serialization") version "1.6.0"
 }
 
 group = "dk.sdu.cloud"
-version = "2021.1.0-SNAPSHOT"
+version = "2021.3.0-SNAPSHOT"
 
 repositories {
     mavenLocal()
     mavenCentral()
     jcenter()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
     maven {
-        name = "UCloud Packages"
-        url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
-        credentials {
-            val helpText = """
-				
-				
-				
-				
-				
-				Missing GitHub credentials. These are required to pull the packages required for this project. Please 
-				create a personal access token here: https://github.com/settings/tokens. This access token require
-				the 'read:packages' scope.
-				
-				With this information you will need to add the following lines to your Gradle properties
-				(~/.gradle/gradle.properties):
-				
-				gpr.user=YOUR_GITHUB_USERNAME
-				gpr.token=YOUR_GITHUB_PERSONAL_ACCESS_TOKEN
-				
-				
-				
-				
-				
-			""".trimIndent()
-            username = (project.findProperty("gpr.user") as? String?)
-                ?: System.getenv("GITHUB_USERNAME") ?: error(helpText)
-            password = (project.findProperty("gpr.key") as? String?)
-                ?: System.getenv("GITHUB_TOKEN") ?: error(helpText)
-        }
+        name = "UCloudMaven"
+        url = uri("https://mvn.cloud.sdu.dk/releases")
     }
 }
 
@@ -53,6 +28,7 @@ kotlin {
         else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
     }
 
+
     nativeTarget.apply {
         binaries {
             executable {
@@ -61,8 +37,13 @@ kotlin {
         }
 
         compilations["main"].dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.1.0")
+            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha13")
+            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
+            api("io.ktor:ktor-client-curl:1.6.2-test")
+            api("io.ktor:ktor-client-websockets:1.6.2-test")
+            api("io.ktor:ktor-client-cio:1.6.2-test")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
         }
 
         compilations["main"].cinterops {
@@ -78,7 +59,9 @@ kotlin {
                         )
 
                         linkerOpts.addAll(
-                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(" ")
+                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(
+                                " "
+                            )
                         )
                     }
 
@@ -99,6 +82,14 @@ kotlin {
                 includeDirs.allHeaders(File("/usr/include"))
                 includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
             }
+
+            val libsqlite3 by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
+            }
+
+            val libucloud by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
+            }
         }
     }
 
@@ -107,7 +98,6 @@ kotlin {
         val nativeTest by getting
 
         all {
-            languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
             languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
             languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
@@ -115,5 +105,14 @@ kotlin {
             languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
             languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
         }
+
+
+    }
+}
+
+kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+    binaries.all {
+        @Suppress("SuspiciousCollectionReassignment")
+        freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
     }
 }

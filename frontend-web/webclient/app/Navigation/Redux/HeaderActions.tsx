@@ -1,4 +1,4 @@
-import {HeaderSearchType} from "DefaultObjects";
+import {HeaderSearchType} from "@/DefaultObjects";
 import {SET_PRIORITIZED_SEARCH, SET_REFRESH_FUNCTION, USER_LOGIN, USER_LOGOUT} from "./HeaderReducer";
 import {useDispatch} from "react-redux";
 import {useEffect} from "react";

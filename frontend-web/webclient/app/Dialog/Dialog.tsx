@@ -1,13 +1,14 @@
-import {dialogStore} from "Dialog/DialogStore";
 import * as React from "react";
 import {useEffect, useState} from "react";
-import * as ReactModal from "react-modal";
+import {default as ReactModal} from "react-modal";
+import {dialogStore, Dialog as IDialog} from "@/Dialog/DialogStore";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 
-const Dialog: React.FunctionComponent = () => {
-    const [dialogs, setDialogs] = useState<JSX.Element[]>([]);
+export const Dialog: React.FunctionComponent = (): JSX.Element | null => {
+    const [dialogs, setDialogs] = useState<IDialog[]>([]);
 
     useEffect(() => {
-        const subscription = (dialogs: JSX.Element[]): void => setDialogs(dialogs);
+        const subscription = (dialogs: IDialog[]): void => setDialogs(dialogs);
 
         dialogStore.subscribe(subscription);
         return () => dialogStore.unsubscribe(subscription);
@@ -16,25 +17,14 @@ const Dialog: React.FunctionComponent = () => {
     const current = dialogs.length > 0 ? dialogs[0] : null;
     return (
         <ReactModal
-            isOpen={!!current}
+            isOpen={current != null}
             shouldCloseOnEsc
             ariaHideApp={false}
             onRequestClose={() => dialogStore.failure()}
             onAfterOpen={() => undefined}
-            style={{
-                content: {
-                    top: "50%",
-                    left: "50%",
-                    right: "auto",
-                    bottom: "auto",
-                    marginRight: "-50%",
-                    transform: "translate(-50%, -50%)",
-                    background: "",
-                    overflow: "visible"
-                }
-            }}
+            style={current?.style ?? defaultModalStyle}
         >
-            {current}
+            {current?.element ?? null}
         </ReactModal>
     );
 };

@@ -1,57 +1,34 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
-
-// Data model
-interface LicenseId {
-    val id: String
-}
-
-fun LicenseId(id: String): LicenseId = LicenseRetrieve(id)
-@Serializable
-data class LicenseRetrieve(override val id: String) : LicenseId
+import kotlin.reflect.typeOf
 
 @Serializable
-data class LicenseRetrieveWithFlags(
-    override val id: String,
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-) : LicenseDataIncludeFlags, LicenseId
-
-interface LicenseDataIncludeFlags {
-    @UCloudApiDoc("Includes `updates`")
-    val includeUpdates: Boolean?
-
-    @UCloudApiDoc("Includes `resolvedProduct`")
-    val includeProduct: Boolean?
-
-    @UCloudApiDoc("Includes `acl`")
-    val includeAcl: Boolean?
-}
-
-@Serializable
-data class LicenseDataIncludeFlagsImpl(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-) : LicenseDataIncludeFlags
-
-fun LicenseDataIncludeFlags(
-    includeUpdates: Boolean? = null,
-    includeProduct: Boolean? = null,
-    includeAcl: Boolean? = null,
-): LicenseDataIncludeFlags = LicenseDataIncludeFlagsImpl(includeUpdates, includeProduct, includeAcl)
+data class LicenseIncludeFlags(
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
+) : ResourceIncludeFlags
 
 @Serializable
 data class LicenseSpecification(
@@ -68,7 +45,7 @@ data class License(
     override val specification: LicenseSpecification,
 
     @UCloudApiDoc("Information about the owner of this resource")
-    override val owner: LicenseOwner,
+    override val owner: ResourceOwner,
 
     @UCloudApiDoc("Information about when this resource was created")
     override val createdAt: Long,
@@ -76,28 +53,20 @@ data class License(
     @UCloudApiDoc("The current status of this resource")
     override val status: LicenseStatus,
 
-    @UCloudApiDoc("Billing information associated with this `License`")
-    override val billing: LicenseBilling,
-
     @UCloudApiDoc("A list of updates for this `License`")
     override val updates: List<LicenseUpdate> = emptyList(),
 
-    val resolvedProduct: Product.License? = null,
-
-    override val acl: List<ResourceAclEntry<LicensePermission>>? = null,
-) : Resource<LicensePermission>, LicenseId
-
-@Serializable
-data class LicenseBilling(
-    override val pricePerUnit: Long,
-    override val creditsCharged: Long,
-) : ResourceBilling
+    override val permissions: ResourcePermissions? = null,
+) : Resource<Product.License, LicenseSupport>
 
 @UCloudApiDoc("The status of an `License`")
 @Serializable
 data class LicenseStatus(
     val state: LicenseState,
-) : ResourceStatus
+    override var resolvedSupport: ResolvedSupport<Product.License, LicenseSupport>? = null,
+    override var resolvedProduct: Product.License? = null,
+    override val boundTo: List<String> = emptyList()
+) : JobBoundStatus<Product.License, LicenseSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -112,7 +81,7 @@ enum class LicenseState {
 
     @UCloudApiDoc(
         "A state indicating that the `License` is currently unavailable.\n\n" +
-            "This state can be used to indicate downtime or service interruptions by the provider."
+                "This state can be used to indicate downtime or service interruptions by the provider."
     )
     UNAVAILABLE
 }
@@ -121,118 +90,169 @@ enum class LicenseState {
 @Serializable
 data class LicenseUpdate(
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
-    override val timestamp: Long,
+    override val timestamp: Long = 0L,
 
     @UCloudApiDoc("The new state that the `License` transitioned to (if any)")
-    val state: LicenseState? = null,
+    override val state: LicenseState? = null,
 
     @UCloudApiDoc("A new status message for the `License` (if any)")
     override val status: String? = null,
-) : ResourceUpdate
+
+    override val binding: JobBinding? = null,
+) : JobBoundUpdate<LicenseState>
 
 @Serializable
-data class LicenseOwner(
-    @UCloudApiDoc(
-        "The username of the user which created this resource.\n\n" +
-            "In cases where this user is removed from the project the ownership will be transferred to the current " +
-            "PI of the project."
-    )
-    override val createdBy: String,
-
-    @UCloudApiDoc("The project which owns the resource")
-    override val project: String? = null,
-) : ResourceOwner {
-    @Transient
-    @Deprecated("Renamed to createdBy", ReplaceWith("createdBy"))
-    val username = createdBy
-}
-
-interface LicenseFilters {
-    val provider: String?
-    val tag: String?
-
-    fun validateFilters() {
-        if (tag != null && provider == null)
-            throw RPCException("'provider' must be supplied if 'tag' is supplied", HttpStatusCode.BadRequest)
-    }
-}
-
-// Request and response types
-@Serializable
-data class LicensesBrowseRequest(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val provider: String? = null,
-    override val tag: String? = null,
-) : LicenseDataIncludeFlags, LicenseFilters, WithPaginationRequestV2 {
-    init {
-        validateFilters()
-    }
-}
-typealias LicensesBrowseResponse = PageV2<License>
-
-typealias LicensesCreateRequest = BulkRequest<LicenseCreateRequestItem>
-
-typealias LicenseCreateRequestItem = LicenseSpecification
-
-@Serializable
-data class LicensesCreateResponse(val ids: List<String>)
-
-typealias LicensesDeleteRequest = BulkRequest<LicenseRetrieve>
-typealias LicensesDeleteResponse = Unit
-
-typealias LicensesRetrieveRequest = LicenseRetrieveWithFlags
-typealias LicensesRetrieveResponse = License
-
-@Serializable
-enum class LicensePermission {
-    USE,
-}
-
-typealias LicensesUpdateAclRequest = BulkRequest<LicensesUpdateAclRequestItem>
-
-@Serializable
-data class LicensesUpdateAclRequestItem(
-    override val id: String,
-    val acl: List<ResourceAclEntry<LicensePermission>>,
-) : LicenseId
-
-typealias LicensesUpdateAclResponse = Unit
+data class LicenseSupport(override val product: ProductReference) : ProductSupport
 
 @TSNamespace("compute.licenses")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-object Licenses : CallDescriptionContainer("licenses") {
-    const val baseContext = "/api/licenses"
+object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus,
+        Product.License, LicenseSupport>("licenses") {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        License.serializer(),
+        typeOf<License>(),
+        LicenseSpecification.serializer(),
+        typeOf<LicenseSpecification>(),
+        LicenseUpdate.serializer(),
+        typeOf<LicenseUpdate>(),
+        LicenseIncludeFlags.serializer(),
+        typeOf<LicenseIncludeFlags>(),
+        LicenseStatus.serializer(),
+        typeOf<LicenseStatus>(),
+        LicenseSupport.serializer(),
+        typeOf<LicenseSupport>(),
+        Product.License.serializer(),
+        typeOf<Product.License>(),
+    )
 
     init {
-        title = "Compute: Licenses"
+        val Application = "$TYPE_REF dk.sdu.cloud.app.store.api.Application"
+        val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
-            TODO
-        """
+Licenses act as a key to certain restricted software.
+
+${Resources.readMeFirst}
+
+Users must attach a license to a $Job for it to work. When attached, the software should be available. 
+In most cases, a license is a parameter of an $Application .
+
+---
+
+📝 NOTE: UCloud does not store any information about license keys, servers or any other credentials. It is 
+the responsibility of the provider to store this information.
+
+---
+        """.trimIndent()
     }
 
-    val browse = call<LicensesBrowseRequest, LicensesBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
+    override fun documentation() {
+        useCase(
+            "simple",
+            "Create and configure a license",
+            flow = {
+                val user = basicUser()
+                comment("In this example we will see how to create and manage a software license")
+
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.License(
+                                        "example-license",
+                                        1L,
+                                        ProductCategoryId("example-license", "example"),
+                                        "An example license",
+                                        unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    ),
+                                    LicenseSupport(
+                                        ProductReference("example-license", "example-license", "example")
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        LicenseSpecification(
+                            ProductReference("example-license", "example-license", "example"),
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("5123"))),
+                    user
+                )
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(LicenseIncludeFlags(), "5123"),
+                    License(
+                        "5123",
+                        LicenseSpecification(
+                            ProductReference("example-license", "example-license", "example"),
+                        ),
+                        ResourceOwner("user", null),
+                        1635170395571L,
+                        LicenseStatus(LicenseState.READY)
+                    ),
+                    user
+                )
+            }
+        )
     }
 
-    val create = call<LicensesCreateRequest, LicensesCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
-    }
+    override val create get() = super.create!!
+    override val delete get() = super.delete!!
+    override val search get() = super.search!!
+}
 
-    val delete = call<LicensesDeleteRequest, LicensesDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-    }
+@TSNamespace("compute.licenses.control")
+object LicenseControl : ResourceControlApi<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags,
+        LicenseStatus, Product.License, LicenseSupport>("licenses") {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        License.serializer(),
+        typeOf<License>(),
+        LicenseSpecification.serializer(),
+        typeOf<LicenseSpecification>(),
+        LicenseUpdate.serializer(),
+        typeOf<LicenseUpdate>(),
+        LicenseIncludeFlags.serializer(),
+        typeOf<LicenseIncludeFlags>(),
+        LicenseStatus.serializer(),
+        typeOf<LicenseStatus>(),
+        LicenseSupport.serializer(),
+        typeOf<LicenseSupport>(),
+        Product.License.serializer(),
+        typeOf<Product.License>(),
+    )
+}
 
-    val retrieve = call<LicensesRetrieveRequest, LicensesRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-    }
+open class LicenseProvider(provider: String) : ResourceProviderApi<License, LicenseSpecification, LicenseUpdate,
+        LicenseIncludeFlags, LicenseStatus, Product.License, LicenseSupport>("licenses", provider) {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        License.serializer(),
+        typeOf<License>(),
+        LicenseSpecification.serializer(),
+        typeOf<LicenseSpecification>(),
+        LicenseUpdate.serializer(),
+        typeOf<LicenseUpdate>(),
+        LicenseIncludeFlags.serializer(),
+        typeOf<LicenseIncludeFlags>(),
+        LicenseStatus.serializer(),
+        typeOf<LicenseStatus>(),
+        LicenseSupport.serializer(),
+        typeOf<LicenseSupport>(),
+        Product.License.serializer(),
+        typeOf<Product.License>(),
+    )
 
-    val updateAcl = call<LicensesUpdateAclRequest, LicensesUpdateAclResponse, CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "acl")
-    }
+    override val delete get() = super.delete!!
 }

@@ -1,29 +1,24 @@
 package dk.sdu.cloud.app.store.rpc
 
 import com.fasterxml.jackson.databind.JsonMappingException
-import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.dataformat.yaml.snakeyaml.error.MarkedYAMLException
-import com.fasterxml.jackson.module.kotlin.jsonMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.app.store.api.AppStore
 import dk.sdu.cloud.app.store.api.ApplicationDescription
 import dk.sdu.cloud.app.store.services.AppStoreService
 import dk.sdu.cloud.app.store.util.yamlMapper
-import dk.sdu.cloud.app.store.util.jsonMapper
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
 import io.ktor.http.*
 import io.ktor.request.*
 import io.ktor.utils.io.*
-import kotlinx.serialization.decodeFromString
 import org.yaml.snakeyaml.reader.ReaderException
 
 class AppStoreController(
@@ -51,6 +46,7 @@ class AppStoreController(
             ok(
                 appStore.findBySupportedFileExtension(
                     ctx.securityPrincipal,
+                    request.normalize(),
                     ctx.project,
                     request.files
                 )
@@ -73,12 +69,9 @@ class AppStoreController(
                 .also { arr -> channel.readFully(arr) }
                 .let { String(it) }
 
-            val asJson = yamlMapper.readTree(content)
-            val jsonAsString = jsonMapper.writeValueAsString(asJson)
-
             @Suppress("DEPRECATION")
             val yamlDocument = try {
-                defaultMapper.decodeFromString<ApplicationDescription.V1>(jsonAsString)
+                yamlMapper.readValue<ApplicationDescription>(content)
             } catch (ex: JsonMappingException) {
                 log.debug(ex.stackTraceToString())
                 error(

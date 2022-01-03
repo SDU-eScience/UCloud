@@ -1,27 +1,26 @@
 package dk.sdu.cloud.password.reset.services
 
 import dk.sdu.cloud.auth.api.ChangePasswordWithResetRequest
-import dk.sdu.cloud.auth.api.LookupUserWithEmailRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.mail.api.MailDescriptions
-import dk.sdu.cloud.mail.api.SendRequest
+import dk.sdu.cloud.mail.api.SendRequestItem
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.HttpStatusCode
-import kotlinx.coroutines.delay
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import org.slf4j.Logger
 import java.security.SecureRandom
 import java.util.*
-import kotlin.random.Random.Default.nextLong
 
 data class ResetRequest(
     val token: String,
@@ -37,34 +36,40 @@ class PasswordResetService(
 ) {
     suspend fun createResetRequest(email: String) {
         // Check if user exists, and get userId
-        val lookupWithEmail = UserDescriptions.lookupUserWithEmail.call(
-            LookupUserWithEmailRequest(email),
-            authenticatedClient
-        )
-        val lookupWithEmailOrNull = lookupWithEmail.orNull()
-
-        val lookup = if (lookupWithEmailOrNull != null) {
-            lookupWithEmailOrNull
-        } else {
-            log.debug("Failed to find user with email $email, returned status ${lookupWithEmail.statusCode}")
-            delay(200 + nextLong(50, 100))
-            return
+        val userBasedOnEmail = db.withSession { session ->
+            session
+                .sendPreparedStatement(
+                    {
+                        setParameter("email", email)
+                    },
+                    """
+                        SELECT id
+                        FROM "auth".principals
+                        WHERE email = :email
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
 
         val token = Base64.getUrlEncoder().encodeToString(ByteArray(64).also { secureRandom.nextBytes(it) })
 
         // Save in request
-        resetRequestsDao.create(db, token, lookup.userId)
+        resetRequestsDao.create(db, token, userBasedOnEmail)
 
 
-        MailDescriptions.send.call(
-            SendRequest(
-                lookup.userId,
-                Mail.ResetPasswordMail(
-                    token
-                ),
-                true
-            ), authenticatedClient
+        MailDescriptions.sendToUser.call(
+            bulkRequestOf(
+                SendRequestItem(
+                    userBasedOnEmail,
+                    Mail.ResetPasswordMail(
+                        token
+                    ),
+                    true
+                )
+            ),
+            authenticatedClient
         ).orThrow()
     }
 

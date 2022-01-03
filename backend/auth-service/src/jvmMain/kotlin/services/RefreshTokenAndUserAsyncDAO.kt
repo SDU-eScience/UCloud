@@ -6,16 +6,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.paginate
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.jsonb
-import dk.sdu.cloud.service.db.async.long
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.text
-import dk.sdu.cloud.service.db.async.timestamp
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.joda.time.DateTimeZone
@@ -287,7 +278,7 @@ fun RowData.toRefreshTokenAndUser(): RefreshTokenAndUser {
         associatedUser = getField(RefreshTokenTable.associatedUser),
         token = getField(RefreshTokenTable.token),
         csrf = getField(RefreshTokenTable.csrf),
-        refreshTokenExpiry = getField(RefreshTokenTable.refreshTokenExpiry),
+        refreshTokenExpiry = getFieldNullable(RefreshTokenTable.refreshTokenExpiry),
         publicSessionReference = getField(RefreshTokenTable.publicSessionReference),
         expiresAfter = getField(RefreshTokenTable.expiresAfter),
         scopes = scopes.map { SecurityScope.parseFromString(it) },

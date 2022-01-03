@@ -20,6 +20,5 @@ actual fun CallDescriptionContainer.docCallRef(
     }
 
     val isQualified = qualified ?: (this.namespace != namespace)
-    return if (isQualified) "[`${namespace}.${call.name}`](#operation/${namespace}.${call.name})"
-        else "[`${call.name}`](#operation/${namespace}.${call.name})"
+    return "$CALL_REF ${namespace}.${call.name}"
 }

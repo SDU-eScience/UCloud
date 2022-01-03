@@ -16,7 +16,7 @@ object KubernetesResources {
     val daemonSet = KubernetesResourceLocator("apps", "v1", "daemonsets")
     val deployment = KubernetesResourceLocator("apps", "v1", "deployments")
     val job = KubernetesResourceLocator("batch", "v1", "jobs")
-    val node = KubernetesResourceLocator(API_GROUP_CORE, "v1", "nodes")
+    val node = KubernetesResourceLocator(API_GROUP_CORE, "v1", "nodes", namespace = NAMESPACE_ANY)
     val replicaSet = KubernetesResourceLocator("apps", "v1", "replicasets")
     val statefulSet = KubernetesResourceLocator("apps", "v1", "statefulsets")
     val events = KubernetesResourceLocator(API_GROUP_CORE, "v1", "events")

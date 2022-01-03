@@ -1,15 +1,15 @@
-import {AppToolLogo} from "Applications/AppToolLogo";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
 import * as React from "react";
 import styled, {css} from "styled-components";
-import {Absolute, Flex, Icon, RatingBadge, Text} from "ui-components";
-import Box from "ui-components/Box";
-import * as Heading from "ui-components/Heading";
-import Link from "ui-components/Link";
-import Markdown from "ui-components/Markdown";
-import {EllipsedText} from "ui-components/Text";
-import theme from "ui-components/theme";
+import {Absolute, Flex, Icon, RatingBadge, Text} from "@/ui-components";
+import Box from "@/ui-components/Box";
+import * as Heading from "@/ui-components/Heading";
+import Link from "@/ui-components/Link";
+import Markdown from "@/ui-components/Markdown";
+import {EllipsedText} from "@/ui-components/Text";
+import theme from "@/ui-components/theme";
 import * as Pages from "./Pages";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import ApplicationWithFavoriteAndTags = compute.ApplicationWithFavoriteAndTags;
 
 interface ApplicationCardProps {
@@ -84,8 +84,7 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
             <strong>{metadata.title} v{metadata.version}</strong>
             <EllipsedText>
                 <Markdown
-                    source={metadata.description}
-                    disallowedTypes={[
+                    disallowedElements={[
                         "break",
                         "paragraph",
                         "emphasis",
@@ -108,7 +107,9 @@ export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> 
                         "code",
                         "html"]}
                     unwrapDisallowed
-                />
+                >
+                    {metadata.description}
+                </Markdown>
             </EllipsedText>
             <Flex><Icon name="chevronDown" size={"18px"} rotation={-90} /></Flex>
         </AppCardBase>
@@ -293,7 +294,7 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     const {metadata} = app;
     const appC = appColor(hash);
     return (
-        <AppCard to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
+        <AppCard data-component={"app-card"} to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
             <AbsoluteNoPointerEvents right={0} top={0}
                 cursor="inherit"
                 height="100%"
@@ -313,8 +314,8 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
             <Flex flexDirection="row" alignItems="flex-start" zIndex={1}>
                 <AppToolLogo name={app.metadata.name} type="APPLICATION" size="60px" />
                 <Flex flexDirection="column" ml="10px">
-                    <EllipsedText fontSize="20px" maxWidth="220px">{metadata.title}</EllipsedText>
-                    <Text>v{metadata.version}</Text>
+                    <EllipsedText fontSize="20px" maxWidth="220px" data-component={"app-title"}>{metadata.title}</EllipsedText>
+                    <Text data-component={"app-version"}>v{metadata.version}</Text>
 
                 </Flex>
             </Flex>
@@ -365,7 +366,7 @@ export const SmallCard = styled(Link) <{color1: string; color2: string; color3: 
     }
 `;
 
-// TODO: Limit is too arbitrary currently. Find better solution.
+// NOTE: Limit is too arbitrary currently. Might need to find a better solution later.
 function buildTags(tags: string[]): string[] {
     let limit = 40;
     if (tags.join().length < limit && tags.length < 4) return tags;

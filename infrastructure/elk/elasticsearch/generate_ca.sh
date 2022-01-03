@@ -1,6 +1,7 @@
+#!/usr/bin/env bash
 set -e
 set -x
-STACK_VERSION=7.3.0
+STACK_VERSION=7.15.0
 CONTAINER_NAME=elastic-certs
 
 docker run --name $CONTAINER_NAME -i -w /app \

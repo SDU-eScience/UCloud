@@ -1,7 +1,11 @@
-type DialogStoreSubscriber = (dialogs: JSX.Element[]) => void;
+export interface Dialog {
+    element: JSX.Element;
+    style?: Record<string, any>;
+}
+type DialogStoreSubscriber = (dialogs: Dialog[]) => void;
 
 class DialogStore {
-    private dialogs: {dialog: JSX.Element; onCancel: () => void}[];
+    private dialogs: {dialog: JSX.Element; onCancel: () => void; style?: Record<string, any>}[];
     private subscribers: DialogStoreSubscriber[] = [];
 
     constructor() {
@@ -16,12 +20,12 @@ class DialogStore {
         this.subscribers = this.subscribers.filter(it => it !== subscriber);
     }
 
-    public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront = false): void => {
+    public addDialog = (dialog: JSX.Element, onCancel: () => void, addToFront = false, style?: Record<string, any>): void => {
         const dialogs = addToFront ?
-            [{dialog, onCancel}, ...this.dialogs] :
+            [{dialog, onCancel, style}, ...this.dialogs] :
             [...this.dialogs, {dialog, onCancel}];
         this.dialogs = dialogs;
-        this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
+        this.subscribers.forEach(it => it(dialogs.map(el => ({element: el.dialog, style: el.style}))));
     };
 
     public success(): void {
@@ -37,7 +41,7 @@ class DialogStore {
     private popDialog(): void {
         const dialogs = this.dialogs.slice(1);
         this.dialogs = dialogs;
-        this.subscribers.forEach(it => it(dialogs.map(el => el.dialog)));
+        this.subscribers.forEach(it => it(dialogs.map(el => ({element: el.dialog, style: el.style}))));
     }
 }
 

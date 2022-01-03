@@ -1,7 +1,7 @@
-import {setPrioritizedSearch} from "Navigation/Redux/HeaderActions";
+import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
 import * as React from "react";
 import {useDispatch} from "react-redux";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export const searchPage = (priority: string, options: string | Record<string, string>): string => {
     let optionRecord: Record<string, string>;

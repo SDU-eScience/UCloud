@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import Icon, {IconName} from "./Icon";
-import {Flex,Box} from "ui-components";
+import {Flex,Box} from "@/ui-components";
 import {FontSizeProps, fontSize} from "styled-system";
 
 const RadioTilesContainer = styled(Box)`

@@ -1,9 +1,9 @@
-import {useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useRef, useState} from "react";
 import * as React from "react";
-import {Box, Button, Icon, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
+import {Box, Button, Icon, Input, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 
 enum ChangePasswordError {
     BAD_CURRENT,
@@ -70,7 +70,6 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         Current Password
                         <Input
                             ref={currentPassword}
-                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder={"Current password"}
                         />
@@ -83,7 +82,6 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         New Password
                         <Input
                             ref={newPassword}
-                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder="New password"
                         />
@@ -97,7 +95,6 @@ export const ChangePassword: React.FunctionComponent<{setLoading: (loading: bool
                         Repeat new password
                         <Input
                             ref={repeatedPassword}
-                            style={{maxWidth: "700px"}}
                             type="password"
                             placeholder="Repeat password"
                         />

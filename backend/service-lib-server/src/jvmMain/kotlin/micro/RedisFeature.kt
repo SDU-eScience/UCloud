@@ -11,7 +11,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 data class RedisConfiguration(
     val hostname: String? = null,
-    val port: Int? = null
+    val port: Int? = null,
+    val password: String? = null,
 )
 
 class RedisFeature : MicroFeature {
@@ -36,7 +37,18 @@ class RedisFeature : MicroFeature {
         if (shouldLog) log.info("Connected to redis at $hostname. Config is loaded from redis/hostname.")
 
         val port = userConfig.port ?: 6379
-        ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create("redis://$hostname:$port"))
+        ctx.redisConnectionManager = RedisConnectionManager(RedisClient.create(
+            buildString {
+                append("redis://")
+                if (userConfig.password != null) {
+                    append(userConfig.password)
+                    append("@")
+                }
+                append(hostname)
+                append(":")
+                append(port)
+            }
+        ))
 
         ctx.eventStreamService = RedisStreamService(
             ctx.redisConnectionManager,

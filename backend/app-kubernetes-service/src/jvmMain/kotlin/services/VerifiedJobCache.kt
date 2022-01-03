@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.Job
+import dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsControlRetrieveRequest
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.service.SimpleCache
@@ -13,7 +13,7 @@ class VerifiedJobCache(private val k8: K8Dependencies) {
         maxAge = 1000 * 60 * 60,
         lookup = { id ->
             JobsControl.retrieve.call(
-                JobsControlRetrieveRequest(id),
+                ResourceRetrieveRequest(JobIncludeFlags(), id),
                 k8.serviceClient
             ).orNull()
         }

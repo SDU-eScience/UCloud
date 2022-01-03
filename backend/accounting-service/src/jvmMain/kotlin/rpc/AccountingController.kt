@@ -1,124 +1,99 @@
 package dk.sdu.cloud.accounting.rpc
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.BalanceService
+import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.DepositNotifications
+import dk.sdu.cloud.accounting.api.Transactions
+import dk.sdu.cloud.accounting.api.Visualization
+import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.services.wallets.AccountingService
+import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.withSession
-import dk.sdu.cloud.toActor
+import dk.sdu.cloud.service.actorAndProject
+import org.elasticsearch.action.bulk.BulkRequest
 
 class AccountingController(
-    private val db: DBContext,
-    private val balance: BalanceService
+    private val accounting: AccountingService,
+    private val notifications: DepositNotificationService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Wallets.addToBalance) {
-            balance.addToBalance(db, ctx.securityPrincipal.toActor(), request.wallet, request.credits)
-            ok(Unit)
+        implement(Accounting.charge) {
+            ok(accounting.charge(actorAndProject, request))
         }
 
-        implement(Wallets.addToBalanceBulk) {
-            db.withSession { session ->
-                request.requests.forEach { req ->
-                    balance.addToBalance(session, ctx.securityPrincipal.toActor(), req.wallet, req.credits)
-                }
+        implement(Accounting.deposit) {
+            val user = ctx.securityPrincipal.username
+            request.items.forEach { req ->
+                req.transactionId = "${user}-${req.transactionId}"
             }
-            ok(Unit)
+            ok(accounting.deposit(actorAndProject, request))
         }
 
-        implement(Wallets.reserveCredits) {
-            balance.reserveCredits(
-                db,
-                request.jobInitiatedBy,
-                request
-            )
-
-            ok(Unit)
+        implement(Accounting.check) {
+            ok(accounting.check(actorAndProject, request))
         }
 
-        implement(Wallets.reserveCreditsBulk) {
-            db.withSession { session ->
-                request.reservations.forEach { reservation ->
-                    balance.reserveCredits(
-                        session,
-                        reservation.jobInitiatedBy,
-                        reservation
-                    )
-                }
+        implement(Accounting.transfer) {
+            val user = ctx.securityPrincipal.username
+            request.items.forEach { req ->
+                req.transactionId = "${user}-${req.transactionId}"
             }
-
-            ok(Unit)
+            ok(accounting.transfer(actorAndProject, request))
         }
 
-        implement(Wallets.chargeReservation) {
-            balance.chargeFromReservation(
-                db,
-                request.name,
-                request.amount,
-                request.productUnits
-            )
-
-            ok(Unit)
-        }
-
-        implement(Wallets.transferToPersonal) {
-            db.withSession { session ->
-                request.transfers.forEach { transfer ->
-                    balance.transferToPersonal(
-                        session,
-                        Actor.SystemOnBehalfOfUser(transfer.initiatedBy),
-                        transfer
-                    )
-                }
+        implement(Accounting.updateAllocation) {
+            val user = ctx.securityPrincipal.username
+            request.items.forEach { req ->
+                req.transactionId = "${user}-${req.transactionId}"
             }
+            ok(accounting.updateAllocation(actorAndProject, request))
+        }
 
+        implement(Accounting.rootDeposit) {
+            val user = ctx.securityPrincipal.username
+            request.items.forEach { req ->
+                req.transactionId = "${user}-${req.transactionId}"
+            }
+            ok(accounting.rootDeposit(actorAndProject, request))
+        }
 
+        implement(Wallets.browse) {
+            ok(accounting.browseWallets(actorAndProject, request))
+        }
+
+        implement(Wallets.searchSubAllocations) {
+            ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
+        }
+
+        implement(Wallets.browseSubAllocations) {
+            ok(accounting.browseSubAllocations(actorAndProject, request))
+        }
+
+        implement(Wallets.retrieveRecipient) {
+            ok(accounting.retrieveRecipient(actorAndProject, request))
+        }
+
+        implement(Visualization.retrieveUsage) {
+            ok(accounting.retrieveUsage(actorAndProject, request))
+        }
+
+        implement(Visualization.retrieveBreakdown) {
+            ok(accounting.retrieveBreakdown(actorAndProject, request))
+        }
+
+        implement(Transactions.browse) {
+            ok(accounting.browseTransactions(actorAndProject, request))
+        }
+
+        implement(DepositNotifications.retrieve) {
+            ok(notifications.retrieveNotifications(actorAndProject))
+        }
+
+        implement(DepositNotifications.markAsRead) {
+            notifications.markAsRead(actorAndProject, request)
             ok(Unit)
         }
-
-        implement(Wallets.retrieveBalance) {
-            val project = ctx.project
-            val accountId = request.id ?: (project ?: ctx.securityPrincipal.username)
-            val accountType = request.type ?: if (project != null) WalletOwnerType.PROJECT else WalletOwnerType.USER
-
-            ok(
-                RetrieveBalanceResponse(
-                    balance.getWalletsForAccount(
-                        db,
-                        ctx.securityPrincipal.toActor(),
-                        accountId,
-                        accountType,
-                        request.includeChildren ?: false,
-                        request.showHidden ?: true
-                    )
-                )
-            )
-        }
-
-        implement(Wallets.setBalance) {
-            balance.setBalance(
-                db,
-                ctx.securityPrincipal.toActor(),
-                request.wallet,
-                request.lastKnownBalance,
-                request.newBalance
-            )
-
-            ok(Unit)
-        }
-
-        implement(Wallets.retrieveWalletsFromProjects) {
-            val results = balance.retrieveWalletsForProjects(db, request.projectIds)
-
-            ok(
-                results
-            )
-        }
-
         return@with
     }
 }

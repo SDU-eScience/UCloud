@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+
+name=launcher
+version=`cat ../version.txt`
+
+set -e
+set -x
+
+rm -rf build/distributions
+rm -rf build/service
+gradle distTar
+(mkdir -p build/service || true)
+cp build/distributions/*.tar build/service.tar
+cd build/service
+tar xvf ../service.tar --strip-components=1 && \
+cd ../../
+mv build/service/bin/${name} build/service/bin/service 
+
+docker build \
+    -t "ucloud:$version" \
+    -f Dockerfile \
+    .
+
+echo $should_publish
+
+if hash docker-publish; then
+    docker-publish "ucloud:${version}"
+fi

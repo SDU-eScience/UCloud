@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.store.api
 
 import com.fasterxml.jackson.annotation.JsonSubTypes
 import com.fasterxml.jackson.annotation.JsonTypeInfo
-import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.service.Loggable
 
 private const val FIELD_MAX_LENGTH = 255
@@ -63,21 +62,40 @@ sealed class ToolDescription(val tool: String) {
                 throw ToolVerificationException.BadValue("author[$badAuthorIndex]", "Cannot contain new lines")
             }
 
-            if (container == null && backend in setOf(ToolBackend.DOCKER, ToolBackend.SINGULARITY)) {
-                throw ToolVerificationException.BadValue("container", "Missing container")
+            val imageOrContainer = image ?: container
+            if (imageOrContainer == null) {
+                when (backend) {
+                    ToolBackend.DOCKER, ToolBackend.SINGULARITY, ToolBackend.VIRTUAL_MACHINE -> {
+                        throw ToolVerificationException.BadValue("image", "Missing image/container")
+                    }
+
+                    else -> {
+                        // OK
+                    }
+                }
+            } else {
+                when (backend) {
+                    ToolBackend.DOCKER, ToolBackend.SINGULARITY, ToolBackend.VIRTUAL_MACHINE -> {
+                        // OK
+                    }
+
+                    else -> {
+                        throw ToolVerificationException.BadValue("image", "image/container is not supported for this tool")
+                    }
+                }
             }
 
-            if (image == null && backend == ToolBackend.VIRTUAL_MACHINE) {
-                throw ToolVerificationException.BadValue(
-                    "image",
-                    "Image must be provided when using backend = VIRTUAL_MACHINE"
-                )
-            }
-
-            if (supportedProviders == null && backend == ToolBackend.VIRTUAL_MACHINE) {
+            if (supportedProviders == null && backend in setOf(ToolBackend.VIRTUAL_MACHINE, ToolBackend.NATIVE)) {
                 throw ToolVerificationException.BadValue(
                     "supportedProviders",
                     "supportedProviders must be supplied when using backend = VIRTUAL_MACHINE"
+                )
+            }
+
+            if (requiredModules.isNotEmpty() && backend != ToolBackend.NATIVE) {
+                throw ToolVerificationException.BadValue(
+                    "requiredModules",
+                    "requiredModules is only supported for the native backend"
                 )
             }
         }
@@ -85,7 +103,7 @@ sealed class ToolDescription(val tool: String) {
         override fun normalize(): NormalizedToolDescription {
             return NormalizedToolDescription(
                 NameAndVersion(name, version),
-                container,
+                image ?: container,
                 defaultNumberOfNodes,
                 defaultTimeAllocation,
                 requiredModules,
@@ -94,7 +112,7 @@ sealed class ToolDescription(val tool: String) {
                 description,
                 backend,
                 license,
-                image,
+                image ?: container,
                 supportedProviders
             )
         }

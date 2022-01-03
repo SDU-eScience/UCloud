@@ -18,7 +18,7 @@ class ExecContext(
     val resizes: SendChannel<ExecResizeMessage>,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class)
+@OptIn(ExperimentalCoroutinesApi::class, io.ktor.util.InternalAPI::class)
 suspend fun KubernetesClient.exec(
     resource: KubernetesResourceLocator,
     command: List<String>,

@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "1.32.7"
+    version = "2022.1.0"
 
     val tos = config<String>("tos", "Terms of Service")
     val tosVersion = config<Int>("tosVersion", "Terms of Service version")
@@ -21,7 +21,7 @@ bundle { ctx ->
     }
 
     val deployment = withDeployment(injectServiceSecrets = false) {
-        deployment.spec.replicas = 2
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectSecret("auth-certs")
         injectSecret("auth-wayf", "/etc/wayf-certs")
         injectSecret("auth-wayf-config")
@@ -48,8 +48,6 @@ bundle { ctx ->
         */
     }
 
-    withCronJob(deployment, "0 2 * * 1", listOf("--tokenScan")) {}
-
     withSecret("auth-wayf", version = "0") {
         println("auth-wayf must be configured! (Enter to continue)")
         Scanner(System.`in`).nextLine()
@@ -65,20 +63,15 @@ bundle { ctx ->
         val proxyPod = client.pods().inNamespace("stolon").list().items.find { it.metadata.name.contains("proxy") }
             ?: throw IllegalStateException("Could not find stolon proxy")
 
-            client.secrets()
-                .inNamespace(ctx.namespace)
-                .withName("auth-psql")
-                .get()
-                ?: throw IllegalStateException("auth-psql must be configured first")
+        client.secrets()
+            .inNamespace(ctx.namespace)
+            .withName("auth-psql")
+            .get()
+            ?: throw IllegalStateException("auth-psql must be configured first")
 
-        val stolonPassword =
-            client.secrets()
-                .inNamespace("stolon")
-                .withName("stolon")
-                .get()
-                ?.data
-                ?.get("pg_su_password")
-                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }
+        val stolonSecret = client.secrets().inNamespace("stolon").withName("stolon").get()?.data
+        val stolonPassword = (stolonSecret?.get("pg_su_password") ?: stolonSecret?.get("password"))
+                ?.let { Base64.getDecoder().decode(it).toString(Charsets.UTF_8) }?.trim()
 
         fun executeStatement(statement: String) {
             val exec =

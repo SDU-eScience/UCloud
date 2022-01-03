@@ -1,4 +1,4 @@
-version = "2.7.2"
+version = "2022.1.0"
 
 application {
     mainClassName = "dk.sdu.cloud.app.orchestrator.MainKt"
@@ -10,10 +10,11 @@ kotlin.sourceSets {
             implementation(project(":auth-service:api"))
             implementation(project(":app-store-service:api"))
             implementation(project(":accounting-service:api"))
-            implementation(project(":storage-service:api"))
-            implementation(project(":project-service:api"))
+            implementation(project(":accounting-service:util"))
             implementation(project(":mail-service:api"))
-            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.12.2")
+            implementation(project(":file-orchestrator-service:api"))
+            implementation(project(":file-orchestrator-service:util"))
+            implementation("com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.4")
         }
     }
 }

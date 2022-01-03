@@ -1,9 +1,11 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {useCallback, useEffect, useReducer, useRef, useState} from "react";
-import {defaultErrorHandler, timestampUnixMs} from "UtilityFunctions";
-import {useGlobal, ValueOrSetter} from "Utilities/ReduxHooks";
-import {HookStore} from "DefaultObjects";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {capitalize, defaultErrorHandler, removeTrailingSlash, timestampUnixMs} from "@/UtilityFunctions";
+import {useGlobal, ValueOrSetter} from "@/Utilities/ReduxHooks";
+import {HookStore} from "@/DefaultObjects";
+import {usePromiseKeeper} from "@/PromiseKeeper";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import * as React from "react";
 
 function dataFetchReducer<T>(state: APICallState<T>, action): APICallState<T> {
     switch (action.type) {
@@ -46,6 +48,66 @@ declare global {
         disableCache?: boolean;
         accessTokenOverride?: string;
     }
+}
+
+export function apiCreate<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "POST",
+        path: removeTrailingSlash(baseContext) + (subResource ? "/" + subResource : ""),
+        parameters: request,
+        payload: request
+    };
+}
+
+export function apiBrowse<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString(
+            removeTrailingSlash(baseContext) + "/browse" + (subResource ? capitalize(subResource) : ""),
+            request
+        ),
+        parameters: request
+    };
+}
+export function apiRetrieve<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString(
+            removeTrailingSlash(baseContext) + "/retrieve" + (subResource ? capitalize(subResource) : ""),
+            request
+        ),
+        parameters: request
+    };
+}
+export function apiSearch<R>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "POST",
+        path: removeTrailingSlash(baseContext) + "/search" + (subResource ? capitalize(subResource) : ""),
+        parameters: request,
+        payload: request
+    };
+}
+export function apiUpdate<R>(request: R, baseContext: string, operation: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "POST",
+        path: removeTrailingSlash(baseContext) + "/" + operation,
+        parameters: request,
+        payload: request
+    };
+}
+export function apiDelete<R>(request: R, baseContext: string): APICallParameters<R> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: removeTrailingSlash(baseContext),
+        parameters: request,
+        payload: request
+    };
 }
 
 export interface APIError {
@@ -131,11 +193,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
                     setState(old => ({...old, call: {...old.call, loading: false, data: result}}));
                 } catch (e) {
                     const statusCode = e.request.status;
-                    let why = "Internal Server Error";
-                    if (!!e.response && e.response.why) {
-                        why = e.response.why;
-                    }
-
+                    const why = e.response?.why ?? "An error occurred. Please reload the page.";
                     if (promises.canceledKeeper) return;
                     setState(old => ({...old, call: {...old.call, loading: false, error: {why, statusCode}}}));
                 }
@@ -149,7 +207,7 @@ export function useGlobalCloudAPI<T, Parameters = any>(
 /**
  * @deprecated
  */
-export function useAsyncCommand(): [boolean, <T = any>(call: APICallParameters<unknown, T>) => Promise<T | null>] {
+export function useAsyncCommand(): [boolean, InvokeCommand, React.RefObject<boolean>] {
     return useCloudCommand();
 }
 
@@ -158,8 +216,9 @@ export type InvokeCommand = <T = any>(
     opts?: {defaultErrorHandler: boolean}
 ) => Promise<T | null>;
 
-export function useCloudCommand(): [boolean, InvokeCommand] {
+export function useCloudCommand(): [boolean, InvokeCommand, React.RefObject<boolean>] {
     const [isLoading, setIsLoading] = useState(false);
+    const loadingRef = useRef(false);
     let didCancel = false;
     const sendCommand: InvokeCommand = useCallback(<T>(call, opts = {defaultErrorHandler: true}): Promise<T | null> => {
         // eslint-disable-next-line no-async-promise-executor
@@ -167,6 +226,7 @@ export function useCloudCommand(): [boolean, InvokeCommand] {
             if (didCancel) return;
 
             setIsLoading(true);
+            loadingRef.current = true;
             if (opts.defaultErrorHandler) {
                 try {
                     const result = await callAPIWithErrorHandler<T>(call);
@@ -192,6 +252,7 @@ export function useCloudCommand(): [boolean, InvokeCommand] {
             }
 
             setIsLoading(false);
+            loadingRef.current = false;
         });
     }, [setIsLoading]);
 
@@ -201,7 +262,7 @@ export function useCloudCommand(): [boolean, InvokeCommand] {
         };
     }, []);
 
-    return [isLoading, sendCommand];
+    return [isLoading, sendCommand, loadingRef];
 }
 
 export type AsyncWorker = [boolean, string | undefined, (fn: () => Promise<void>) => void];
@@ -225,12 +286,7 @@ export function useAsyncWork(): AsyncWorker {
         } catch (e) {
             if (didCancel) return;
             if (e.request) {
-                let why = "Internal Server Error";
-                if (!!e.response && e.response.why) {
-                    why = e.response.why;
-                } else {
-                    why = e.request.statusText;
-                }
+                const why = e.response?.why ?? e.request.statusText;
                 setError(why);
             } else if (typeof e === "string") {
                 setError(e);
@@ -376,11 +432,7 @@ export function useCloudAPI<T, Parameters = any>(
                     } catch (e) {
                         if (!didCancel) {
                             const statusCode = e.request.status;
-                            let why = "Internal Server Error";
-                            if (!!e.response && e.response.why) {
-                                why = e.response.why;
-                            }
-
+                            const why = e.response?.why ?? "An error occurred. Please reload the page.";
                             dispatch({type: "FETCH_FAILURE", data: dataInitial, error: {why, statusCode}});
                         }
                     }
@@ -411,4 +463,8 @@ export function useCloudAPI<T, Parameters = any>(
     }
 
     return [state as APICallState<T>, doFetch, parameters.current];
+}
+
+export function noopCall<T>(): APICallParameters<T> {
+    return {noop: true};
 }

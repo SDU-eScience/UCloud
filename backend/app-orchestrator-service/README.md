@@ -10,24 +10,31 @@ In this section we will cover the specification and rules for which all compute 
 starts with the core abstraction used in UCloud's compute, the `Job`.
 
 ---
+<!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job:includeOwnDoc=false:includeProps=true-->
+<!--<editor-fold desc="Generated documentation">-->
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | `String` | Unique identifier for this job. |
+| `owner` | `JobOwner` | A reference to the owner of this job |
+| `updates` | `Array<JobUpdate>` | A list of status updates from the compute backend. |
+| `billing` | `JobBilling` | Contains information related to billing information for this `Resource` |
+| `specification` | `JobSpecification` | The specification used to launch this job. |
+| `status` | `JobStatus` | A summary of the `Job`'s current status |
+| `createdAt` | `Long` | Timestamp referencing when the request for creation was received by UCloud |
+| `output` | `JobOutput?` | Information regarding the output of this job. |
+| `acl` | `Array<ResourceAclEntry>?` | An ACL for this `Resource` |
+| `permissions` | `ResourcePermissions?` | Permissions assigned to this resource |
 
-| Property        | Type                       | Description                                                                |
-|-----------------|----------------------------|----------------------------------------------------------------------------|
-| `id`            | `String`                   | Unique identifier for this job.                                            |
-| `owner`         | `JobOwner`                 | A reference to the owner of this job                                       |
-| `updates`       | `Array<JobUpdate>`         | A list of status updates from the compute backend.                         |
-| `billing`       | `JobBilling`               | Contains information related to billing information for this `Resource`    |
-| `specification` | `JobSpecification`         | The specification used to launch this job.                                 |
-| `status`        | `JobStatus`                | A summary of the `Job`'s current status                                    |
-| `createdAt`     | `Long`                     | Timestamp referencing when the request for creation was received by UCloud |
-| `output`        | `JobOutput?`               | Information regarding the output of this job.                              |
-| `acl`           | `Array<ResourceAclEntry>?` | An ACL for this `Resource`                                                 |
+
+<!--</editor-fold>-->
+<!-- /typedoc:dk.sdu.cloud.app.orchestrator.api.Job -->
 
 __Table:__ The data model for a `Job`
+
 ---
+
 <!-- typedoc:dk.sdu.cloud.app.orchestrator.api.Job-->
 <!--<editor-fold desc="Generated documentation">-->
-
 A `Job` in UCloud is the core abstraction used to describe a unit of computation.
 
 

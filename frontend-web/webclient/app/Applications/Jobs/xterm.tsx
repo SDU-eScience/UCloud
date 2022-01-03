@@ -1,6 +1,6 @@
 import * as React from "react";
 import {useEffect, useRef, useState} from "react";
-import {isLightThemeStored} from "UtilityFunctions";
+import {isLightThemeStored} from "@/UtilityFunctions";
 import {FitAddon} from "xterm-addon-fit";
 import "xterm/css/xterm.css";
 import {ITheme, Terminal} from "xterm";

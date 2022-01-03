@@ -1,7 +1,7 @@
-import Spinner from "LoadingIcon/LoadingIcon";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
-import * as Heading from "ui-components/Heading";
-import {ifPresent} from "UtilityFunctions";
+import * as Heading from "@/ui-components/Heading";
+import {ifPresent} from "@/UtilityFunctions";
 import * as Self from ".";
 
 interface ListProps<T> {

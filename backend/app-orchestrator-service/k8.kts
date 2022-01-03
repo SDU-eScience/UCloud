@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-orchestrator"
-    version = "2.7.2"
+    version = "2022.1.0"
     val domain: String = config("domain", "The provider domain")
     val port: Int = config("port", "The provider port", 443)
     val https: Boolean = config("https", "Provider https", true)
@@ -19,7 +19,7 @@ bundle { ctx ->
     }
 
     val deployment = withDeployment {
-        deployment.spec.replicas = 4
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectConfiguration("app-config")
     }
 

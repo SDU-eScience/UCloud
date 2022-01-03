@@ -8,8 +8,10 @@ import org.elasticsearch.action.admin.indices.shrink.ResizeRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.ResponseException
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
+import org.elasticsearch.index.query.QueryBuilders
 import org.slf4j.Logger
 import java.io.IOException
 import java.net.SocketTimeoutException

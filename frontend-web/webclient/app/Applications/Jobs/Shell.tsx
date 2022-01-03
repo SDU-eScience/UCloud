@@ -1,26 +1,24 @@
 import * as React from "react";
-import {useXTerm} from "Applications/Jobs/xterm";
-import {WSFactory} from "Authentication/HttpClientInstance";
+import {useXTerm} from "@/Applications/Jobs/xterm";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {useEffect, useState} from "react";
-import {useCloudAPI} from "Authentication/DataHook";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {useParams} from "react-router";
-import {Box, Button} from "ui-components";
-import {isLightThemeStored, shortUUID, useEffectSkipMount, useNoFrame} from "UtilityFunctions";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {compute} from "UCloud";
-import jobs = compute.jobs;
-import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf} from "DefaultObjects";
-
+import {Box, Button} from "@/ui-components";
+import {isLightThemeStored, shortUUID, useEffectSkipMount, useNoFrame} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf, bulkResponseOf} from "@/DefaultObjects";
+import {default as JobsApi} from "@/UCloud/JobsApi";
 
 export const Shell: React.FunctionComponent = () => {
     const {termRef, terminal, fitAddon} = useXTerm();
     const {jobId, rank} = useParams<{jobId: string, rank: string}>();
     const [sessionResp, openSession] = useCloudAPI(
-        jobs.openInteractiveSession(
+        JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"})
         ),
-        {sessions: []},
+        bulkResponseOf()
     );
 
     const [closed, setClosed] = useState<boolean>(false);
@@ -29,12 +27,12 @@ export const Shell: React.FunctionComponent = () => {
     useTitle(`Job ${shortUUID(jobId)} [Node: ${parseInt(rank, 10) + 1}]`);
 
     useEffectSkipMount(() => {
-        openSession(jobs.openInteractiveSession(
+        openSession(JobsApi.openInteractiveSession(
             bulkRequestOf({id: jobId, rank: parseInt(rank, 10), sessionType: "SHELL"}))
         );
     }, [jobId, rank]);
 
-    const sessionWithProvider = sessionResp.data.sessions.length > 0 ? sessionResp.data.sessions[0] : null;
+    const sessionWithProvider = sessionResp.data.responses.length > 0 ? sessionResp.data.responses[0] : null;
     let sessionIdentifier: string | null = null;
     if (sessionWithProvider?.session?.type === "shell") {
         sessionIdentifier = sessionWithProvider.session.sessionIdentifier;
@@ -46,7 +44,7 @@ export const Shell: React.FunctionComponent = () => {
         setClosed(false);
 
         const wsConnection = WSFactory.open(
-            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket`,
+            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}`,
             {
                 reconnect: false,
                 includeAuthentication: false,

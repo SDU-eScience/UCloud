@@ -1,5 +1,5 @@
-import {HeaderSearchType} from "DefaultObjects";
-import {defaultAvatar} from "UserSettings/Avataaar";
+import {HeaderSearchType} from "@/DefaultObjects";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
 
 interface HeaderStateToProps {
     prioritizedSearch: HeaderSearchType;

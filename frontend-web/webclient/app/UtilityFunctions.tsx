@@ -1,19 +1,13 @@
-import {Client as currentClient} from "Authentication/HttpClientInstance";
-import {Acl, File, FileType, SortBy, UserEntity} from "Files";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Notification} from "Notifications";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Notification} from "@/Notifications";
 import {History} from "history";
-import {
-    getFilenameFromPath, isFavoritesFolder, isJobsFolder, isMyPersonalFolder, isPersonalRootFolder,
-    isSharesFolder, isTrashFolder
-} from "Utilities/FileUtilities";
-import {HTTP_STATUS_CODES} from "Utilities/XHRUtils";
-import {ProjectName} from "Project";
-import {getStoredProject} from "Project/Redux";
-import {JWT} from "Authentication/lib";
-import {useGlobal} from "Utilities/ReduxHooks";
+import {ProjectName} from "@/Project";
+import {getStoredProject} from "@/Project/Redux";
+import {JWT} from "@/Authentication/lib";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useEffect, useState} from "react";
 import CONF from "../site.config.json";
+import {UPLOAD_LOCALSTORAGE_PREFIX} from "@/Files/ChunkedFileReader";
 
 /**
  * Toggles CSS classes to use dark theme.
@@ -58,22 +52,6 @@ export function isLightThemeStored(): boolean {
  */
 export const capitalized = (str: string): string => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
 
-/**
- * Returns a string based on the amount of users associated with the ACL
- * @param {Acl[]} acls - the list of access controls
- * @return {string}
- */
-export const getMembersString = (acls: Acl[]): string => {
-    const withoutProjectAcls = acls.filter(it => typeof it.entity === "string" || "username" in it.entity);
-    const filteredAcl = withoutProjectAcls
-        .filter(it => (it.entity as UserEntity).username !== currentClient.activeUsername);
-    if (filteredAcl.length > 0) {
-        return `${acls.length + 1} members`;
-    } else {
-        return "Only You";
-    }
-};
-
 export const extensionTypeFromPath = (path: string): ExtensionType => extensionType(extensionFromPath(path));
 export const extensionFromPath = (path: string): string => {
     const splitString = path.split(".");
@@ -100,6 +78,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "md":
         case "markdown":
             return "markdown";
+        case "zig":
         case "swift":
         case "kt":
         case "kts":
@@ -152,7 +131,6 @@ export const extensionType = (ext: string): ExtensionType => {
         case "doc":
         case "docx":
         case "log":
-        case "out":
         case "csv":
         case "plist":
             return "text";
@@ -248,56 +226,11 @@ export function isExtPreviewSupported(ext: string): boolean {
         case "for":
         case "f90":
         case "f95":
-        case "out":
         case "ini":
+        case "zig":
             return true;
         default:
             return false;
-    }
-}
-
-export interface FtIconProps {
-    type: FileType;
-    ext?: string;
-    name?: string;
-}
-
-export function iconFromFilePath(
-    filePath: string,
-    type: FileType
-): FtIconProps {
-    const icon: FtIconProps = {type: "FILE", name: getFilenameFromPath(filePath, [])};
-
-    switch (type) {
-        case "DIRECTORY":
-            if (isSharesFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else if (isTrashFolder(filePath)) {
-                icon.type = "TRASHFOLDER";
-            } else if (isJobsFolder(filePath)) {
-                icon.type = "RESULTFOLDER";
-            } else if (isFavoritesFolder(filePath)) {
-                icon.type = "FAVFOLDER";
-            } else if (isMyPersonalFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else if (isPersonalRootFolder(filePath)) {
-                icon.type = "SHARESFOLDER";
-            } else {
-                icon.type = "DIRECTORY";
-            }
-
-            return icon;
-
-        case "FILE":
-        default: {
-            const filename = getFilenameFromPath(filePath, []);
-            if (!filename.includes(".")) {
-                return icon;
-            }
-            icon.ext = extensionFromPath(filePath);
-
-            return icon;
-        }
     }
 }
 
@@ -323,8 +256,6 @@ export const blankOrUndefined = (value?: string): boolean => value == null || va
 export function ifPresent<T>(f: T | undefined, handler: (f: T) => void): void {
     if (f) handler(f);
 }
-
-export const downloadAllowed = (files: File[]): boolean => files.every(f => f.sensitivityLevel !== "SENSITIVE");
 
 /**
  * Capitalizes the input string and replaces _ (underscores) with whitespace.
@@ -358,14 +289,13 @@ export function defaultErrorHandler(
     if (request) {
         if (!why) {
             switch (request.status) {
-                case 400:
-                    why = "Bad request";
-                    break;
                 case 403:
                     why = "Permission denied";
                     break;
+                // 400 is 'Bad Request', but this is meaningless for the end user.
+                case 400:
                 default:
-                    why = "Internal Server Error. Try again later.";
+                    why = "An error occurred. Please reload the page.";
                     break;
             }
         }
@@ -374,27 +304,6 @@ export function defaultErrorHandler(
         return request.status;
     }
     return 500;
-}
-
-/**
- * Returns a prettier version of the enum value
- * @param sortBy the enum value to be formatted
- */
-export function sortByToPrettierString(sortBy: SortBy): string {
-    switch (sortBy) {
-        case SortBy.FILE_TYPE:
-            return "File Type";
-        case SortBy.MODIFIED_AT:
-            return "Modified at";
-        case SortBy.PATH:
-            return "Filename";
-        case SortBy.SIZE:
-            return "Size";
-        case SortBy.SENSITIVITY_LEVEL:
-            return "File sensitivity";
-        default:
-            return prettierString(sortBy);
-    }
 }
 
 /**
@@ -449,12 +358,7 @@ interface CopyToClipboard {
  * @param param contains the value to be copied and the message to show the user on success.
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
-    const input = document.createElement("input");
-    input.value = value ?? "";
-    document.body.appendChild(input);
-    input.select();
-    document.execCommand("copy");
-    document.body.removeChild(input);
+    navigator.clipboard.writeText(value ?? "");
     snackbarStore.addSuccess(message, true);
 }
 
@@ -469,7 +373,7 @@ export function errorMessageOrDefault(
             return err.response;
         } else {
             if (err.response.why) return err.response.why;
-            return HTTP_STATUS_CODES[err.request.status] ?? defaultMessage;
+            return defaultMessage;
         }
     } catch {
         return defaultMessage;
@@ -487,7 +391,8 @@ export function delay(ms: number): Promise<void> {
  * even if the code may be deployed on production.
  */
 export const inDevEnvironment = (): boolean => DEVELOPMENT_ENV;
-export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE;
+export const onDevSite = (): boolean => window.location.host === CONF.DEV_SITE || window.location.hostname === "localhost"
+    || window.location.hostname === "127.0.0.1";
 
 export const generateId = ((): (target: string) => string => {
     const store = new Map<string, number>();
@@ -540,9 +445,9 @@ export function displayErrorMessageOrDefault(e: any, fallback: string): void {
 export function useFrameHidden(): boolean {
     const [frameHidden] = useGlobal("frameHidden", false);
     const legacyHide =
-        ["/app/login", "/app/login/wayf", "/app/login/selection"].includes(window.location.pathname) ||
+        ["/app/login", "/app/login/wayf"].includes(window.location.pathname) ||
         window.location.search === "?dav=true" ||
-        window.location.search === "?hide-frame";
+        window.location.search.indexOf("?hide-frame") === 0;
     return legacyHide || frameHidden;
 }
 
@@ -653,6 +558,9 @@ export function parseJWT(encodedJWT: string): JWT | null {
     return parsed;
 }
 
+export type EmptyObject = {
+    [K in any]: never
+}
 export type PropType<TObj, TProp extends keyof TObj> = TObj[TProp];
 export type GetElementType<T extends Array<any>> = T extends (infer U)[] ? U : never;
 export type GetArrayReturnType<T> = T extends () => (infer U)[] ? U : never;
@@ -688,4 +596,23 @@ export function useEffectSkipMount(fn: () => (void | (() => void | undefined)), 
 export function isAbsoluteUrl(url: string): boolean {
     return url.indexOf("http://") === 0 || url.indexOf("https://") === 0 ||
         url.indexOf("ws://") === 0 || url.indexOf("wss://") === 0;
+}
+
+export function capitalize(text: string): string {
+    if (text.length === 0) return text;
+    return text[0].toUpperCase() + text.substr(1);
+}
+
+
+// TODO(jonas): Might have to be done, more than once (Currently happens on page load).
+export function removeExpiredFileUploads(): void {
+    const now = new Date().getTime();
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith(`${UPLOAD_LOCALSTORAGE_PREFIX}:`)) {
+            const expiration = JSON.parse(localStorage.getItem(key) ?? "{}")?.expiration ?? now
+            if (expiration < now) {
+                localStorage.removeItem(key);
+            }
+        }
+    });
 }

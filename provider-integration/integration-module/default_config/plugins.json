@@ -1,0 +1,25 @@
+{
+    "compute": {
+        "products": [
+            { "category": "im1", "id": "im1-1" }
+        ],
+        "plugins": [
+            {
+                "id": "slurm", 
+                "name": "normal-configuration",
+                "configuration": {
+                    "partition": "normal",
+                    "mountpoint": "/data",
+                    "useFakeMemoryAllocations": true
+                } 
+            }   
+        ]
+    },
+    "connection": {
+        "ticket": {}
+    },
+    "identityMapper": {
+        "direct": {}
+    }
+}
+

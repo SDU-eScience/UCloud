@@ -1,26 +1,26 @@
-import {Client} from "Authentication/HttpClientInstance";
+import {Client} from "@/Authentication/HttpClientInstance";
 import {format} from "date-fns/esm";
-import {emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import * as Pagination from "Pagination";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {emptyPage} from "@/DefaultObjects";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import * as Pagination from "@/Pagination";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
 import {
     Box, Button, Flex, Input, InputGroup, List, TextArea, Link, Text, Card, Markdown, SelectableText, Checkbox, Label
-} from "ui-components";
-import {DatePicker} from "ui-components/DatePicker";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {Spacer} from "ui-components/Spacer";
-import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "UtilityFunctions";
-import {NewsPost} from "Dashboard/Dashboard";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {useCloudAPI} from "Authentication/DataHook";
+} from "@/ui-components";
+import {DatePicker} from "@/ui-components/DatePicker";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {Spacer} from "@/ui-components/Spacer";
+import {displayErrorMessageOrDefault, stopPropagationAndPreventDefault, capitalized} from "@/UtilityFunctions";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import Fuse from "fuse.js";
-import {addStandardDialog} from "UtilityComponents";
+import {addStandardDialog} from "@/UtilityComponents";
 
 export const DATE_FORMAT = "dd/MM/yyyy HH:mm:ss";
 
@@ -123,7 +123,7 @@ function NewsManagement(): JSX.Element | null {
                                     onClick={() => setPreview(true)}
                                 >Preview</SelectableText>
                             </Flex>
-                            <TextAreaWithMargin
+                            <TextAreaWithResize
                                 width={1}
                                 placeholder="Post body... (supports markdown)"
                                 ref={bodyRef}
@@ -133,7 +133,9 @@ function NewsManagement(): JSX.Element | null {
                             />
                             {showPreview ?
                                 <Card minHeight="5px" borderRadius="6px" mt="2px" pl="5px" overflow="scroll">
-                                    <Markdown unwrapDisallowed source={bodyRef.current?.value ?? ""} />
+                                    <Markdown unwrapDisallowed>
+                                        {bodyRef.current?.value ?? ""}
+                                    </Markdown>
                                 </Card>
                                 : null}
                             <Input
@@ -246,16 +248,15 @@ function NewsManagement(): JSX.Element | null {
             ).promise;
             setNews(response);
         } catch (err) {
-            displayErrorMessageOrDefault(err, "Could no fetch posts.");
+            displayErrorMessageOrDefault(err, "Could not fetch posts.");
         } finally {
             setLoading(false);
         }
     }
 }
 
-const TextAreaWithMargin = styled(TextArea)`
-    marginTop: 5px;
-    marginLeft: 4px;
+const TextAreaWithResize = styled(TextArea)`
+    resize: vertical;
 `;
 
 interface NewsListProps {

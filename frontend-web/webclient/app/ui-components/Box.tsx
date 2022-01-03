@@ -2,10 +2,10 @@ import styled from "styled-components";
 import {
     AlignItemsProps, color, ColorProps, height, HeightProps, maxHeight, MaxHeightProps, maxWidth, MaxWidthProps,
     minHeight, MinHeightProps, minWidth, MinWidthProps, overflow, OverflowProps, space, SpaceProps, textAlign,
-    TextAlignProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink, 
-    JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps
+    TextAlignProps, width, WidthProps, zIndex, ZIndexProps, background, BackgroundProps, flexGrow, flexShrink,
+    JustifyContentProps, justifyContent, borderRadius, BorderRadiusProps, overflowY, overflowX
 } from "styled-system";
-import {cursor} from "Utilities/StyledComponentsUtilities";
+import {cursor} from "@/Utilities/StyledComponentsUtilities";
 import {Cursor} from "./Types";
 
 export type BoxProps =
@@ -53,6 +53,8 @@ const Box = styled.div<BoxProps>`
   ${color}
   ${textAlign}
   ${overflow}
+  ${overflowY}
+  ${overflowX}
   ${background}
 `;
 

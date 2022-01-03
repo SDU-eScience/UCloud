@@ -1,54 +1,31 @@
-import {MainContainer} from "MainContainer/MainContainer";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import {
     useProjectManagementStatus,
     membersCountRequest,
     groupsCountRequest,
-    subprojectsCountRequest
-} from "Project";
+    Project,
+    listSubprojects
+} from "@/Project";
 import * as React from "react";
-import {Flex, Card, Icon, Text, Box} from "ui-components";
+import {Flex, Card, Icon, Box} from "@/ui-components";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {loadingAction} from "Loading";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {DashboardCard} from "Dashboard/Dashboard";
-import {GridCardGroup} from "ui-components/Grid";
-import {ProjectBreadcrumbs} from "Project/Breadcrumbs";
-import {useCloudAPI} from "Authentication/DataHook";
-import {UsageResponse, transformUsageChartForCharting, usage, NativeChart} from "Accounting";
-import {creditFormatter, durationOptions} from "./ProjectUsage";
-import Table, {TableCell, TableRow} from "ui-components/Table";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {loadingAction} from "@/Loading";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {GridCardGroup} from "@/ui-components/Grid";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import styled from "styled-components";
-import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "Project/Grant";
-import {emptyPage} from "DefaultObjects";
-import {Client} from "Authentication/HttpClientInstance";
+import {IngoingGrantApplicationsResponse, ProjectGrantSettings, readGrantRequestSettings} from "@/Project/Grant";
+import {emptyPage} from "@/DefaultObjects";
 import {useHistory} from "react-router";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
-import * as UCloud from "UCloud";
-const grants = UCloud.grant.grant;
-
-export function computeUsageInPeriod(charts: NativeChart[]): number {
-    let result = 0;
-
-    for (const chart of charts) {
-        const usageByCurrentProvider: Record<string, number> = {};
-
-        for (const point of chart.points) {
-            for (const category of Object.keys(point)) {
-                if (category === "time") continue;
-
-                const currentUsage = usageByCurrentProvider[category] ?? 0;
-                usageByCurrentProvider[category] = currentUsage + point[category];
-                result += point[category];
-            }
-        }
-    }
-
-    return result;
-}
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import * as UCloud from "@/UCloud";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 
 const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = () => {
     const {projectId, projectDetails, projectRole} =
@@ -73,9 +50,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         0
     );
 
-    const [subprojectsCount, setSubprojectsCount] = useCloudAPI<number>(
+    const [subprojects, setSubprojects] = useCloudAPI<Page<Project>>(
         {noop: true},
-        0
+        emptyPage
     );
 
     const [apps, setGrantParams] = useCloudAPI<IngoingGrantApplicationsResponse>(
@@ -88,40 +65,24 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
         {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
-    const durationOption = durationOptions[3];
-    const now = new Date().getTime();
-
-    const [usageResponse, setUsageParams] = useCloudAPI<UsageResponse>(
-        {noop: true},
-        {charts: []}
-    );
-
     React.useEffect(() => {
         setMembersCount(membersCountRequest());
         setGroupsCount(groupsCountRequest());
-        setSubprojectsCount(subprojectsCountRequest());
-        setGrantParams(grants.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage, page: apps.data.pageNumber}));
+        setSubprojects(listSubprojects({itemsPerPage: 10}));
+        setGrantParams(UCloud.grant.grant.ingoingApplications({filter: "ACTIVE", itemsPerPage: apps.data.itemsPerPage}));
         fetchSettings(readGrantRequestSettings({projectId}));
-        setUsageParams(usage({
-            bucketSize: durationOption.bucketSize,
-            periodStart: now - durationOption.timeInPast,
-            periodEnd: now
-        }));
     }, [projectId]);
-
-    const computeCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "COMPUTE"));
-    const computeCreditsUsedInPeriod = computeUsageInPeriod(computeCharts);
-    const storageCharts = usageResponse.data.charts.map(it => transformUsageChartForCharting(it, "STORAGE"));
-    const storageCreditsUsedInPeriod = computeUsageInPeriod(storageCharts);
 
     function isAdmin(): boolean {
         if (membersCount.error?.statusCode === 403) {
             return false;
         } else if (groupsCount.error?.statusCode === 403) {
             return false;
-        } else if (subprojectsCount.error?.statusCode === 403) {
+        } else if (subprojects.error?.statusCode === 403) {
             return false;
-        } else {return true;}
+        } else {
+            return true;
+        }
     }
 
     return (
@@ -132,9 +93,9 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             sidebar={null}
             main={(
                 <>
-                    <ProjectDashboardGrid minmax={300}>
+                    <ProjectDashboardGrid minmax={330}>
                         {projectId !== undefined && projectId !== "" ? (
-                            <DashboardCard
+                            <HighlightedCard
                                 subtitle={<RightArrow />}
                                 onClick={() => history.push("/project/members")}
                                 title="Members"
@@ -159,50 +120,20 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     <Box color="red" mt={16}><Icon name="warning" mr="4px" /> Attention required</Box> :
                                     null
                                 }
-                            </DashboardCard>
+                            </HighlightedCard>
                         ) : null}
-                        <DashboardCard
-                            title={"Resource Allocation"}
+                        <HighlightedCard
+                            title={"Resources and Usage"}
                             icon="grant"
                             color="purple"
                             isLoading={false}
-                            onClick={() => history.push("/project/subprojects")}
+                            onClick={() => history.push("/project/resources")}
                             subtitle={<RightArrow />}
                         >
-                            {Client.hasActiveProject ? <Table>
-                                {isAdmin() ? (
-                                    <tbody>
-                                        <TableRow cursor="pointer">
-                                            <TableCell>Subprojects</TableCell>
-                                            <TableCell textAlign="right">{subprojectsCount.data}</TableCell>
-                                        </TableRow>
-                                    </tbody>) : null}
-                            </Table> : null}
-                        </DashboardCard>
+                        </HighlightedCard>
 
-                        <DashboardCard title="Usage" icon="hourglass" color="green"
-                            isLoading={false}
-                            subtitle={<RightArrow />}
-                            onClick={() => history.push("/project/usage")}
-                        >
-                            <Text color="darkGray" fontSize={1}>Past 30 days</Text>
-                            <Table>
-                                <tbody>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Storage</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(storageCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                    <TableRow cursor="pointer">
-                                        <TableCell>Compute</TableCell>
-                                        <TableCell
-                                            textAlign="right">{creditFormatter(computeCreditsUsedInPeriod)}</TableCell>
-                                    </TableRow>
-                                </tbody>
-                            </Table>
-                        </DashboardCard>
-                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojectsCount.data, settings.data) ? null :
-                            <DashboardCard
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojects.data.itemsInTotal, settings.data) ? null :
+                            <HighlightedCard
                                 subtitle={<RightArrow />}
                                 onClick={() => history.push("/project/grants/ingoing")}
                                 title="Grant Applications"
@@ -214,13 +145,13 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                     <tbody>
                                         <TableRow cursor="pointer">
                                             <TableCell>In Progress</TableCell>
-                                            <TableCell textAlign="right">{apps.data.itemsInTotal}</TableCell>
+                                            <TableCell textAlign="right">{apps.data.items.length}+</TableCell>
                                         </TableRow>
                                     </tbody>
                                 </Table>
-                            </DashboardCard>}
+                            </HighlightedCard>}
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null : (
-                            <DashboardCard
+                            <HighlightedCard
                                 subtitle={<RightArrow />}
                                 onClick={() => history.push("/project/settings")}
                                 title="Settings"
@@ -238,8 +169,17 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                         </TableRow>
                                     </tbody>
                                 </Table>
-                            </DashboardCard>
+                            </HighlightedCard>
                         )}
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
+                            <HighlightedCard
+                                subtitle={<RightArrow/>}
+                                onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
+                                title="Subprojects"
+                                icon="projects"
+                                color="green"
+                            />
+                        }
                     </ProjectDashboardGrid>
                 </>
             )}
@@ -247,9 +187,11 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
     );
 };
 
-export const RightArrow = (): JSX.Element => (
-    <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
-);
+export function RightArrow(): JSX.Element {
+    return (
+        <Icon name="arrowDown" rotation={-90} size={18} color={"darkGray"} />
+    );
+}
 
 function noSubprojectsAndGrantsAreDisallowed(
     subprojects: number,

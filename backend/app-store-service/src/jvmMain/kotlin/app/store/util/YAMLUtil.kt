@@ -12,11 +12,3 @@ fun createYamlMapper(): ObjectMapper = ObjectMapper(YAMLFactory()).apply {
     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
     configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
 }
-
-val jsonMapper by lazy { createJsonMapper() }
-fun createJsonMapper(): ObjectMapper = ObjectMapper().apply {
-    registerKotlinModule()
-    configure(DeserializationFeature.FAIL_ON_IGNORED_PROPERTIES, false)
-    configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
-    configure(DeserializationFeature.ACCEPT_SINGLE_VALUE_AS_ARRAY, true)
-}

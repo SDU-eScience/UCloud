@@ -1,12 +1,12 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {MainContainer} from "MainContainer/MainContainer";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as React from "react";
-import {Box, Button, Flex, Icon, Link} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {IconName} from "ui-components/Icon";
-import {ThemeColor} from "ui-components/theme";
-import {useSidebarPage, SidebarPages} from "ui-components/Sidebar";
+import {Box, Button, Flex, Icon, Link} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {IconName} from "@/ui-components/Icon";
+import {ThemeColor} from "@/ui-components/theme";
+import {useSidebarPage, SidebarPages} from "@/ui-components/Sidebar";
 
 const linkInfo: LinkInfo[] = [
     {to: "/admin/userCreation", text: "User Creation", icon: "user", color: "white", color2: "midGray"},
@@ -15,7 +15,8 @@ const linkInfo: LinkInfo[] = [
     {to: "/admin/news", text: "News", icon: "warning", color: "white", color2: "black"},
     {to: "/admin/appk8", text: "Maintenance (UCloud)", icon: "calendar", color: "white", color2: "black"},
     {to: "/admin/appaau", text: "Maintenance (AAU)", icon: "calendar", color: "white", color2: "black"},
-    {to: "/admin/providers", text: "Providers", icon: "cloudTryingItsBest", color: "white", color2: "white"}
+    {to: "/admin/providers", text: "Providers", icon: "cloudTryingItsBest", color: "white", color2: "white"},
+    {to: "/admin/scripts", text: "Scripts", icon: "play", color: "white", color2: "white"},
 ];
 
 interface LinkInfo {

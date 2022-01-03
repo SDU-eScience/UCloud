@@ -43,6 +43,7 @@ class FlywayFeature : MicroFeature {
                 val flyway = Flyway.configure().apply {
                     dataSource(jdbcUrl, username, password)
                     schemas(safeSchemaName(serviceDescription))
+                    validateOnMigrate(configuration.validateMigrations)
                 }.load()
 
                 flyway.migrate()
@@ -75,6 +76,15 @@ fun DatabaseConfig.migrateAll() {
     }
 
     data class SchemaMigrations(val schema: String, val location: Location, val loadedClasses: List<Class<*>>)
+
+    val schemaPriority = mapOf(
+        "newaccounting" to 100,
+        "file_orchestrator" to 101,
+        "app_orchestrator" to 102,
+        "file_ucloud" to 103,
+        "app_kubernetes" to 104,
+    )
+    var priorityDontCareCounter = 0
 
     javaClass.classLoader.resources("db/migration")
         .toList()
@@ -130,8 +140,10 @@ fun DatabaseConfig.migrateAll() {
             )
         }
         .groupBy { it.schema }
+        .toSortedMap(Comparator.comparingInt { schemaPriority[it] ?: priorityDontCareCounter++ })
         .forEach { (schema, migrations) ->
             val flyway = Flyway.configure().apply {
+                validateOnMigrate(validateMigrations)
                 resolvers(object : MigrationResolver {
                     override fun resolveMigrations(context: Context?): MutableCollection<ResolvedMigration> {
                         return migrations.flatMap { it.loadedClasses }
@@ -140,22 +152,8 @@ fun DatabaseConfig.migrateAll() {
                             .map { migration ->
                                 // Trying really hard to trick flyway into running our code
                                 object : ResolvedMigration {
-                                    override fun checksumMatches(checksum: Int?): Boolean {
-                                        return Objects.equals(checksum, this.checksum) ||
-                                            (Objects.equals(checksum, this.equivalentChecksum) && this.equivalentChecksum != null);
-                                    }
-
-                                    override fun checksumMatchesWithoutBeingIdentical(checksum: Int?): Boolean {
-                                        return Objects.equals(checksum, this.equivalentChecksum) && !Objects.equals(checksum, this.checksum);
-                                    }
-
                                     override fun getExecutor(): MigrationExecutor {
                                         return object : MigrationExecutor {
-                                            override fun shouldExecute(): Boolean {
-                                                // TODO Not quite sure what is needed, but it seems to be the possibility make conditional migrations
-                                                return true
-                                            }
-
                                             override fun canExecuteInTransaction(): Boolean =
                                                 migration.canExecuteInTransaction()
 
@@ -191,8 +189,6 @@ fun DatabaseConfig.migrateAll() {
                                         return 1337
                                     }
 
-                                    val equivalentChecksum = 1337
-
                                     override fun getScript(): String {
                                         return "" // I have no idea
                                     }
@@ -202,7 +198,7 @@ fun DatabaseConfig.migrateAll() {
                     }
 
                 })
-                dataSource(jdbcUrl, username, password)
+                dataSource(jdbcUrl, this@migrateAll.username, this@migrateAll.password)
                 schemas(schema)
                 locations(*migrations.map { it.location }.toTypedArray())
             }.load()

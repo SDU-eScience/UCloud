@@ -1,68 +1,322 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {defaultFileOperations} from "Files/FileOperations";
-import {FileTable} from "Files/FileTable";
-import {defaultVirtualFolders} from "Files/VirtualFileTable";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {setLoading, useTitle} from "Navigation/Redux/StatusActions";
 import * as React from "react";
-import {connect} from "react-redux";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
+import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {Dispatch} from "redux";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {fileTablePage, pathComponents} from "Utilities/FileUtilities";
-import {getQueryParamOrElse} from "Utilities/URIUtilities";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {usePrioritizedSearch} from "Utilities/SearchUtilities";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
+import {isLightThemeStored, joinToString, removeTrailingSlash, useEffectSkipMount} from "@/UtilityFunctions";
+import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import * as H from "history";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {Box, Flex, Icon, List, Text} from "@/ui-components";
+import {PageV2} from "@/UCloud";
+import {ListV2, List as ListV1} from "@/Pagination";
+import styled from "styled-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
+import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
+import {Client} from "@/Authentication/HttpClientInstance";
 
-interface FilesOperations {
-    refreshHook: (register: boolean, fn: () => void) => void;
-    setLoading: (loading: boolean) => void;
-    setActiveProject: (project?: string) => void;
-}
+export const FilesBrowse: React.FunctionComponent<{
+    onSelect?: (selection: UFile) => void;
+    additionalFilters?: UFileIncludeFlags;
+    onSelectRestriction?: (res: UFile) => boolean;
+    isSearch?: boolean;
+    browseType?: BrowseType;
+    pathRef?: React.MutableRefObject<string>;
+    forceNavigationToPage?: boolean;
+}> = props => {
 
-const Files: React.FunctionComponent<FilesOperations> = props => {
-    const history = useHistory();
+    const lightTheme = isLightThemeStored();
+
+    const browseType = props.browseType ?? BrowseType.MainContent;
+    const [, setUploadPath] = useGlobal("uploadPath", "/");
     const location = useLocation();
-    const urlPath = getQueryParamOrElse({history, location}, "path", Client.homeFolder);
-    useTitle("Files");
-    useSidebarPage(SidebarPages.Files);
-    usePrioritizedSearch("files");
-    const components = pathComponents(urlPath);
-    if (components.length >= 2 && components[0] === "projects" && components[1] !== Client.projectId) {
-        props.setActiveProject(components[1]);
-    } else if (components.length >= 2 && components[0] === "home" && Client.hasActiveProject) {
-        props.setActiveProject(undefined);
-    }
-    return (
-        <FileTable
-            {...defaultVirtualFolders()}
-            fileOperations={defaultFileOperations.filter(it => it.text !== "View Parent")}
-            embedded={false}
-            onFileNavigation={navigation}
-            path={urlPath}
-            previewEnabled
-            permissionAlertEnabled
-            onLoadingState={props.setLoading}
-            refreshHook={props.refreshHook}
-        />
+    const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
+    const [pathFromState, setPathFromState] = useState(
+        browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
+    );
+    const path = browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
+    const additionalFilters = useMemo((() => {
+        const base = {
+            path, includeMetadata: "true",
+        };
+
+        if (props.additionalFilters != null) {
+            Object.keys(props.additionalFilters).forEach(it => {
+                base[it] = props.additionalFilters![it].toString();
+            });
+        }
+
+        return base;
+    }), [path, props.additionalFilters]);
+    const history = useHistory();
+    const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
+    const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
+
+    const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
+
+    // We need to be able to await the call.
+    const [drives, setDrives] = useState<PageV2<FileCollection>>(emptyPageV2);
+    const [loading, invokeCommand] = useCloudCommand();
+
+    useEffect(() => {
+        invokeCommand(FileCollectionsApi.browse({itemsPerPage: 250, filterMemberFiles: "all"} as any)).then(
+            it => setDrives(it)
+        );
+    }, []);
+
+    const [projects, fetchProjects] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
+        listProjects({page: 0, itemsPerPage: 25, archived: false}),
+        emptyPage
     );
 
-    function navigation(path: string): void {
-        history.push(fileTablePage(path));
-    }
+
+    const viewPropertiesInline = useCallback((file: UFile): boolean =>
+        browseType === BrowseType.Embedded &&
+        props.forceNavigationToPage !== true,
+        []
+    );
+
+    const navigateToPath = useCallback((history: H.History, path: string) => {
+        if (browseType === BrowseType.Embedded && !props.forceNavigationToPage) {
+            setPathFromState(path);
+        } else {
+            history.push(buildQueryString("/files", {path}));
+        }
+    }, [browseType, props.forceNavigationToPage]);
+
+    const navigateToFile = useCallback((history: H.History, file: UFile): "properties" | void => {
+        if (file.status.type === "DIRECTORY") {
+            navigateToPath(history, file.id);
+        } else {
+            return "properties";
+        }
+    }, [navigateToPath]);
+
+    useEffect(() => {
+        if (browseType !== BrowseType.Embedded) setUploadPath(path);
+        if (props.pathRef) props.pathRef.current = path;
+    }, [path, browseType, props.pathRef]);
+
+    useEffect(() => {
+        if (browseType !== BrowseType.MainContent) {
+            if (path === "" && drives.items.length > 0) {
+                setPathFromState("/" + drives.items[0].id);
+            }
+        }
+    }, [browseType, path, drives.items]);
+
+    const selectLocalProject = useCallback(async (projectOverride: string) => {
+        const result = await invokeCommand<PageV2<FileCollection>>({
+            ...FileCollectionsApi.browse({
+                itemsPerPage: drives.itemsPerPage,
+                filterMemberFiles: "all"
+            } as any), projectOverride
+        });
+        if (result != null) {
+            setDrives(result);
+            setLocalActiveProject(projectOverride);
+            setPathFromState("");
+        }
+    }, [drives]);
+
+    useEffect(() => {
+        const components = pathComponents(path);
+        if (components.length >= 1) {
+            const collectionId = components[0];
+
+            if (collection.data?.id !== collectionId && !collection.loading) {
+                fetchCollection({...FileCollectionsApi.retrieve({id: collectionId, includeSupport: true}), projectOverride: localActiveProject});
+            }
+        }
+        fetchDirectory({...FilesApi.retrieve({id: path}), projectOverride: localActiveProject})
+    }, [path, localActiveProject]);
+
+    const headerComponent = useMemo((): JSX.Element => {
+        const components = pathComponents(path);
+        let breadcrumbs: string[] = [];
+        if (components.length >= 1) {
+            if (collection.data !== null) {
+                breadcrumbs.push(collection.data.specification.title)
+                for (let i = 1; i < components.length; i++) {
+                    breadcrumbs.push(components[i]);
+                }
+            }
+        } else {
+            breadcrumbs = components;
+        }
+
+        return <Box backgroundColor={getCssVar("white")}>
+            {props.isSearch !== true || browseType != BrowseType.MainContent ? null : <FilesSearchTabs active={"FILES"} />}
+            {browseType !== BrowseType.Embedded ? null : <Flex>
+                <DriveDropdown iconName="projects">
+                    <ListV1
+                        loading={projects.loading}
+                        onPageChanged={newPage => fetchProjects(listProjects({
+                            itemsPerPage: projects.data.itemsPerPage,
+                            page: newPage
+                        }))}
+                        page={projects.data}
+                        pageRenderer={page => (
+                            <>
+                                <List childPadding={"8px"} bordered={false}>
+                                    <DriveInDropdown
+                                        className="expandable-row-child"
+                                        onClick={() => selectLocalProject("")}
+                                    >
+                                        My Workspace
+                                    </DriveInDropdown>
+                                    {page.items.filter(it => it.projectId !== localActiveProject).map(project => (
+                                        <DriveInDropdown
+                                            key={project.projectId}
+                                            className="expandable-row-child"
+                                            onClick={() => selectLocalProject(project.projectId)}
+                                        >
+                                            {project.title}
+                                        </DriveInDropdown>
+
+                                    ))}
+                                </List>
+                            </>
+                        )}
+                    />
+                </DriveDropdown>
+                <Text fontSize="25px">
+                    {localActiveProject === "" ? "My Workspace" : (projects.data.items.find(it => it.projectId === localActiveProject)?.title ?? "")}
+                </Text>
+            </Flex>}
+            <Flex>
+                <DriveDropdown iconName="hdd">
+                    <ListV2
+                        loading={loading}
+                        onLoadMore={() => invokeCommand(FileCollectionsApi.browse({
+                            itemsPerPage: 25,
+                            next: drives.next,
+                            filterMemberFiles: "all"
+                        } as any)).then(page => setDrives(page)).catch(e => console.log(e))}
+                        page={drives}
+                        pageRenderer={items => (
+                            <List childPadding={"8px"} bordered={false}>
+                                {items.map(drive => (
+                                    <DriveInDropdown
+                                        key={drive.id}
+                                        className="expandable-row-child"
+                                        onClick={() => navigateToPath(history, `/${drive.id}`)}
+                                    >
+                                        {drive.specification?.title}
+                                    </DriveInDropdown>
+                                ))}
+                            </List>
+                        )}
+                    />
+                </DriveDropdown>
+                <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
+                    className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                    {breadcrumbs.map((it, idx) => (
+                        <span data-component={"crumb"} key={it} test-tag={it} title={it}
+                            onClick={() => {
+                                navigateToPath(
+                                    history,
+                                    "/" + joinToString(components.slice(0, idx + 1), "/")
+                                );
+                            }}
+                        >
+                            {it}
+                        </span>
+                    ))}
+                </BreadCrumbsBase>
+            </Flex>
+        </Box>;
+    }, [path, browseType, collection.data, drives.items, lightTheme, localActiveProject]);
+
+    const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
+        await cb.invokeCommand(FilesApi.move(bulkRequestOf({
+            conflictPolicy: "REJECT",
+            oldId: res.id,
+            newId: getParentPath(res.id) + text
+        })));
+    }, []);
+
+    const onInlineCreation = useCallback((text: string) => {
+        return FilesApi.createFolder(bulkRequestOf({
+            id: removeTrailingSlash(path) + "/" + text,
+            conflictPolicy: "RENAME"
+        }));
+    }, [path]);
+
+    const callbacks = useMemo(() => ({
+        collection: collection?.data ?? undefined,
+        directory: directory?.data ?? undefined
+    }), [collection.data, directory.data]);
+
+    return <ResourceBrowse
+        api={FilesApi}
+        onSelect={props.onSelect}
+        onSelectRestriction={props.onSelectRestriction}
+        browseType={browseType}
+        inlineProduct={collection.data?.status.resolvedSupport?.product}
+        onInlineCreation={onInlineCreation}
+        onRename={onRename}
+        emptyPage={
+            <>No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
+        }
+        isSearch={props.isSearch}
+        additionalFilters={additionalFilters}
+        header={headerComponent}
+        headerSize={75}
+        navigateToChildren={navigateToFile}
+        extraCallbacks={callbacks}
+        viewPropertiesInline={viewPropertiesInline}
+        showCreatedBy={false}
+        showProduct={false}
+    />;
 };
 
-const mapDispatchToProps = (dispatch: Dispatch): FilesOperations => ({
-    refreshHook: (register, fn) => {
-        if (register) {
-            dispatch(setRefreshFunction(fn));
-        } else {
-            dispatch(setRefreshFunction());
-        }
-    },
-    setActiveProject: project => dispatchSetProjectAction(dispatch, project),
-    setLoading: loading => dispatch(setLoading(loading))
-});
+const Router: React.FunctionComponent = () => {
+    return <ResourceRouter
+        api={FilesApi}
+        Browser={FilesBrowse}
+    />;
+};
 
-export default connect(null, mapDispatchToProps)(Files);
+const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = props => {
+    return (
+        <ClickableDropdown
+            colorOnHover={false}
+            paddingControlledByContent={true}
+            width={"450px"}
+            trigger={<div style={{display: "flex"}}>
+                <Icon mt="8px" mr="6px" name={props.iconName} color2="white" size="24px" />
+                <Icon
+                    size="12px"
+                    mr="8px"
+                    mt="15px"
+                    name="chevronDownLight"
+                />
+            </div>}
+        >
+            {props.children}
+        </ClickableDropdown>
+    );
+}
 
+const DriveInDropdown = styled.div`
+  padding: 0 17px;
+  width: 450px;
+  overflow-x: hidden;
+
+  &:hover {
+    background-color: var(--lightBlue);
+  }
+`;
+
+export default Router;

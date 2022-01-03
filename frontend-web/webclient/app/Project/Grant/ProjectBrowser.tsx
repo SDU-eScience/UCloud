@@ -1,40 +1,57 @@
 import * as React from "react";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Heading from "ui-components/Heading";
-import {useCloudAPI} from "Authentication/DataHook";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Heading from "@/ui-components/Heading";
+import {useCloudAPI} from "@/Authentication/DataHook";
 import {
-    browseProjects,
-    BrowseProjectsResponse,
     retrieveDescription,
     RetrieveDescriptionResponse
-} from "Project/Grant/index";
-import {emptyPage} from "DefaultObjects";
-import * as Pagination from "Pagination";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {Box, Card, Icon, Text} from "ui-components";
+} from "@/Project/Grant/index";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import * as Pagination from "@/Pagination";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {Box, Card, Icon, Text} from "@/ui-components";
 import {useHistory, useParams} from "react-router";
-import {DashboardCard} from "Dashboard/Dashboard";
+import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
-import {GridCardGroup} from "ui-components/Grid";
-import {useState} from "react";
-import {Client} from "Authentication/HttpClientInstance";
-import {AppLogo, hashF} from "Applications/Card";
-import {buildQueryString} from "Utilities/URIUtilities";
+import {GridCardGroup} from "@/ui-components/Grid";
+import {useCallback, useEffect, useState} from "react";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {AppLogo, hashF} from "@/Applications/Card";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {grant, PageV2, PaginationRequestV2} from "@/UCloud";
+import ProjectWithTitle = grant.ProjectWithTitle;
+
+function browseProjects(request: PaginationRequestV2): APICallParameters {
+    return {
+        method: "GET",
+        context: "",
+        path: buildQueryString("/api/grant/browse-projects", request),
+        parameters: request
+    };
+}
 
 export const ProjectBrowser: React.FunctionComponent = () => {
     const {action} = useParams<{action: string}>();
     useTitle("Project Browser");
     useSidebarPage(SidebarPages.Projects);
 
-    const [projects, fetchProjects, projectsParams] = useCloudAPI<BrowseProjectsResponse>(
-        browseProjects({itemsPerPage: 50, page: 0}),
-        emptyPage
-    );
+    const [scrollGeneration, setScrollGeneration] = useState(0);
+    const [projects, fetchProjects] = useCloudAPI<PageV2<ProjectWithTitle>>({noop: true}, emptyPageV2);
 
-    useRefreshFunction(() => fetchProjects({...projectsParams, reloadId: Math.random()}));
+    const refresh = useCallback(() => {
+        fetchProjects(browseProjects({itemsPerPage: 50}));
+        setScrollGeneration(prev => prev + 1);
+    }, []);
+
+    const onLoadMore = useCallback(() => {
+        fetchProjects(browseProjects({itemsPerPage: 50, next: projects.data.next}));
+    }, [projects]);
+
+    useRefreshFunction(refresh);
     useLoading(projects.loading);
+    useEffect(refresh, [refresh]);
 
     if (action !== "new" && action !== "personal") return null;
 
@@ -42,12 +59,11 @@ export const ProjectBrowser: React.FunctionComponent = () => {
         header={<Heading.h3>Select an affiliation</Heading.h3>}
         main={
             <>
-                <Pagination.List
+                <Pagination.ListV2
                     loading={projects.loading}
                     page={projects.data}
-                    onPageChanged={page => {
-                        fetchProjects(browseProjects({itemsPerPage: 50, page}));
-                    }}
+                    onLoadMore={onLoadMore}
+                    infiniteScrollGeneration={scrollGeneration}
                     customEmptyPage={
                         <Text>
                             Could not find any projects for which you can apply for more resources.
@@ -115,7 +131,7 @@ const AffiliationLink: React.FunctionComponent<{action: string, projectId: strin
         }), {description: ""}
     );
 
-    return <DashboardCard
+    return <HighlightedCard
         color={"purple"}
         isLoading={description.loading}
         title={<>
@@ -128,7 +144,7 @@ const AffiliationLink: React.FunctionComponent<{action: string, projectId: strin
         <Box pt={8} pb={16}>
             {description.data.description}
         </Box>
-    </DashboardCard>;
+    </HighlightedCard>;
 };
 
 const AffiliationGrid = styled(GridCardGroup)`

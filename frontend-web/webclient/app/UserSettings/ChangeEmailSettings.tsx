@@ -1,15 +1,15 @@
-import {useCloudCommand} from "Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import * as React from "react";
-import {useCallback, useEffect, useRef} from "react";
-import {Box, Button, Checkbox, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {bulkRequestOf} from "DefaultObjects";
-import {file, mail} from "UCloud";
+import {useCallback, useEffect} from "react";
+import {Box, Button, Checkbox, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {bulkRequestOf} from "@/DefaultObjects";
+import {mail} from "@/UCloud";
 import EmailSettings = mail.EmailSettings;
 import retrieveEmailSettings = mail.retrieveEmailSettings;
 import toggleEmailSettings = mail.toggleEmailSettings;
-import HexSpin from "LoadingIcon/LoadingIcon";
+import HexSpin from "@/LoadingIcon/LoadingIcon";
 
 interface UserDetailsState {
     settings: EmailSettings
@@ -72,14 +72,14 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
     const info = useCallback(async () => {
 
         const emailSettings = await invokeCommand(
-            retrieveEmailSettings({})
-        )
+            retrieveEmailSettings({}),
+            { defaultErrorHandler: false }
+        );
 
         dispatch({
             type: "UpdatePlaceholdersEmailSettings",
             payload: {
-                settings: emailSettings.settings ?? defaultEmailSettings
-
+                settings: emailSettings?.settings ?? defaultEmailSettings
             }
         });
     }, []);
@@ -158,7 +158,7 @@ export const ChangeEmailSettings: React.FunctionComponent<{setLoading: (loading:
         });
     }
     if (commandLoading) {
-        return <HexSpin/>
+        return <HexSpin />
     }
     return (
         <Box mb={16}>

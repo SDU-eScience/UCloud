@@ -35,6 +35,12 @@ interface CommonServer : BaseServer, Loggable {
     }
 }
 
+object EmptyServer : CommonServer {
+    override val micro: Micro = Micro()
+    override fun start() {}
+    override val log: Logger = logger()
+}
+
 val CommonServer.isRunning: Boolean
     get() {
         val serverFeature = micro.featureOrNull(ServerFeature)
@@ -65,7 +71,7 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
                         ktorApplicationEngine.application.install(CORS) {
                             // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
                             // with local backend.
-                            anyHost()
+                            host("localhost:9000")
                             method(HttpMethod.Get)
                             method(HttpMethod.Post)
                             method(HttpMethod.Put)
@@ -78,6 +84,9 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
                             header(HttpHeaders.Authorization)
                             header("X-CSRFToken")
                             header("refreshToken")
+                            header("chunked-upload-offset")
+                            header("chunked-upload-token")
+                            header("upload-name")
                         }
                     }
                 }

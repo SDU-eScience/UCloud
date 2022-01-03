@@ -22,7 +22,7 @@ class AppProcessor(
             is AppEvent.Deleted -> {
                 log.info("Deleting job information: $event")
                 // When app is deleted old information would have to be deleted
-                jobService.deleteJobInformation(event.appName, event.appVersion)
+                // jobService.deleteJobInformation(event.appName, event.appVersion)
                 // appStoreService has a cache that removes the need to contact appStore.
                 // Resetting the cache would force us to see if an app is still there.
                 appService.apps.clearAll()

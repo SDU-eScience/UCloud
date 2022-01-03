@@ -15,6 +15,7 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.http.content.*
+import io.ktor.util.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CoroutineScope
@@ -93,8 +94,7 @@ sealed class KubernetesConfigurationSource {
 
                 val authenticationMethod = when {
                     cluster.cluster.certificateAuthorityData != null -> {
-                        log.warn("NOT YET IMPLEMENTED: CUSTOM CERTIFICATE AUTHORITY DATA")
-                        log.info("Falling back to proxy method")
+                        log.debug("Using kubectl proxy method")
                         KubernetesAuthenticationMethod.Proxy(context, kubeConfigFile.absolutePath)
                     }
 
@@ -126,8 +126,10 @@ sealed class KubernetesConfigurationSource {
                     authenticationMethod,
                 )
             } catch (ex: Throwable) {
-                log.warn("Exception caught while parsing kube config at '${kubeConfigFile.absolutePath}'")
-                log.warn(ex.stackTraceToString())
+                if (ex !is FileNotFoundException) {
+                    log.warn("Exception caught while parsing kube config at '${kubeConfigFile.absolutePath}'")
+                    log.warn(ex.stackTraceToString())
+                }
             }
 
             return null
@@ -190,6 +192,15 @@ sealed class KubernetesConfigurationSource {
             val defaultKubeConfig = KubeConfigFile(null, null).retrieveConnection()
             if (defaultKubeConfig != null) return defaultKubeConfig
 
+            val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")
+            if (composeKubeConfigFile.exists()) {
+                val newText = composeKubeConfigFile.readText().replace("127.0.0.1", "k3s")
+                composeKubeConfigFile.writeText(newText)
+            }
+
+            val composeKubeConfig = KubeConfigFile("/mnt/k3s/kubeconfig.yaml", null).retrieveConnection()
+            if (composeKubeConfig != null) return composeKubeConfig
+
             return null
         }
     }
@@ -201,6 +212,7 @@ sealed class KubernetesConfigurationSource {
     }
 }
 
+@OptIn(InternalAPI::class)
 fun URLBuilder.fixedClone(): Url {
     val e = HashMap<String, List<String>>()
     parameters.entries().forEach { (k, v) -> e[k] = v }
@@ -251,7 +263,7 @@ sealed class KubernetesAuthenticationMethod {
 
         override fun configureRequest(httpRequestBuilder: HttpRequestBuilder) {
             if (!proxy.isAlive) {
-                log.warn("Warning kubectl proxy died! Is kubectl configured correctly?")
+                log.warn("Warning kubectl proxy died! Is kubectl configured correctly? ${proxy.pid()}")
                 if (!proxy.waitFor(30, TimeUnit.SECONDS)) {
                     proxy.destroyForcibly()
                 }
@@ -343,8 +355,7 @@ data class KubernetesResourceLocator(
 class KubernetesClient(
     private val configurationSource: KubernetesConfigurationSource = KubernetesConfigurationSource.Auto,
 ) {
-    @PublishedApi
-    internal val conn by lazy {
+    val conn by lazy {
         configurationSource.retrieveConnection() ?: error("Found no valid Kubernetes configuration")
     }
 
@@ -357,7 +368,7 @@ class KubernetesClient(
             conn.authenticationMethod.configureClient(this)
             install(HttpTimeout) {
                 this.socketTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
-                this.connectTimeoutMillis = 1000 * 60
+                this.connectTimeoutMillis = 1000 * 10
                 this.requestTimeoutMillis = HttpTimeout.INFINITE_TIMEOUT_MS
             }
 

@@ -10,7 +10,7 @@ bundle { ctx ->
 
     val deployment =
         withDeployment(image = "dreg.cloud.sdu.dk/ucloud/integration-testing:${this@bundle.version}") {
-            deployment.spec.replicas = 1
+            deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
             userLetters.forEach { injectSecret("integration-user-$it") }
             deployment.spec.template.spec.containers.forEach { it.livenessProbe = null }
             injectSecret("integration-slack-hook")

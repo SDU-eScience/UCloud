@@ -1,0 +1,70 @@
+admin:
+  address:
+    socket_address: { address: 0.0.0.0, port_value: 9901 }
+
+static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address: { address: 0.0.0.0, port_value: 9000 }
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                codec_type: AUTO
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains: [ "*" ]
+                      routes:
+                        - match: { prefix: "/auth" }
+                          route: { cluster: backend }
+                        - match: { prefix: "/api" }
+                          route:
+                            cluster: backend
+                            upgrade_configs:
+                              - upgrade_type: websocket
+                                enabled: true
+                        - match: { prefix: "/i" }
+                          route: { cluster: backend }
+                        - match: { prefix: "/ucloud" }
+                          route: { cluster: backend }
+                        - match: { prefix: "/app" }
+                          route: { cluster: frontend }
+                        - match: { prefix: "/assets" }
+                          route: { cluster: frontend }
+                        - match: { prefix: "/" }
+                          redirect:
+                            path_redirect: /app
+                http_filters:
+                  - name: envoy.filters.http.router
+  clusters:
+    - name: backend
+      connect_timeout: 0.25s
+      lb_policy: ROUND_ROBIN
+      type: LOGICAL_DNS
+      load_assignment:
+        cluster_name: backend
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: backend
+                      port_value: 8080
+    - name: frontend
+      connect_timeout: 0.25s
+      lb_policy: ROUND_ROBIN
+      type: LOGICAL_DNS
+      load_assignment:
+        cluster_name: frontend
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: frontend
+                      port_value: 8080

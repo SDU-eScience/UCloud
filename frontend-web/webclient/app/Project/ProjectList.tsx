@@ -1,7 +1,7 @@
-import {useAsyncCommand, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Pagination from "Pagination";
+import {useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Pagination from "@/Pagination";
 import {
     listProjects,
     ListProjectsRequest,
@@ -13,38 +13,64 @@ import {
     ListFavoriteProjectsRequest,
     listFavoriteProjects,
     projectRoleToString
-} from "Project/index";
+} from "@/Project/index";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {Operation} from "Types";
-import {Button, Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip} from "ui-components";
-import VerticalButtonGroup from "ui-components/VerticalButtonGroup";
-import {updatePageTitle, setActivePage} from "Navigation/Redux/StatusActions";
-import {setRefreshFunction} from "Navigation/Redux/HeaderActions";
-import {ListRow} from "ui-components/List";
+import {Operation} from "@/Types";
+import {Button, Flex, Icon, List, Text, Box, Checkbox, Label, Link, Tooltip, Card} from "@/ui-components";
+import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
+import {updatePageTitle, setActivePage} from "@/Navigation/Redux/StatusActions";
+import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {ListRow} from "@/ui-components/List";
 import {useHistory} from "react-router";
-import {loadingAction} from "Loading";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {projectRoleToStringIcon, toggleFavoriteProject} from "Project";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Client} from "Authentication/HttpClientInstance";
-import {stopPropagation} from "UtilityFunctions";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {ThemeColor} from "ui-components/theme";
+import {loadingAction} from "@/Loading";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {projectRoleToStringIcon, toggleFavoriteProject} from "@/Project";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {stopPropagation} from "@/UtilityFunctions";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {ThemeColor} from "@/ui-components/theme";
 import {useEffect, useState} from "react";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages} from "ui-components/Sidebar";
-import {Toggle} from "ui-components/Toggle";
-import {Spacer} from "ui-components/Spacer";
-import {ShareCardBase} from "Shares/List";
-import {defaultAvatar} from "UserSettings/Avataaar";
-import {UserAvatar} from "AvataaarLib/UserAvatar";
-import {useAvatars} from "AvataaarLib/hook";
-import {dialogStore} from "Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages} from "@/ui-components/Sidebar";
+import {Toggle} from "@/ui-components/Toggle";
+import {Spacer} from "@/ui-components/Spacer";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {dialogStore} from "@/Dialog/DialogStore";
 import {ArchiveProject, LeaveProject} from "./ProjectSettings";
-import {isAdminOrPI} from "Utilities/ProjectUtilities";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
+import styled from "styled-components";
+
+const BorderedFlex = styled(Flex)`
+  border-radius: 6px 6px 0 0;
+`;
+
+const ShareCardBase: React.FunctionComponent<{
+    title?: JSX.Element | string | null;
+    body?: JSX.Element | null;
+    bottom?: JSX.Element | null;
+}> = props => (
+    <Card overflow={"hidden"} height={"auto"} width={1} boxShadow={"sm"} borderWidth={1} borderRadius={6} mb={12}>
+        <BorderedFlex
+            bg="lightGray"
+            color="darkGray"
+            px={3}
+            py={2}
+            alignItems="center"
+        >
+            {props.title}
+        </BorderedFlex>
+        <Box px={3} pt={3}>
+            {props.body}
+        </Box>
+        {props.bottom}
+    </Card>
+);
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
@@ -296,7 +322,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Box height={58} />
-                    <Link to={`/projects/browser/new`}><Button>Create Project Application</Button></Link>
+                    <Link to={`/projects/browser/new`}><Button>New Project Application</Button></Link>
                     <Label fontSize={"100%"}>
                         <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
                         Show archived
@@ -323,7 +349,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                         else selectedProjects.add(e.projectId);
                         setSelectedProjects(new Set(selectedProjects));
                     }}
-                    bg={Client.projectId === e.projectId ? "projectHighlight" : undefined}
+                    highlight={Client.projectId === e.projectId}
                     truncateWidth={e.needsVerification ? "300px" : "250px"}
                     isSelected={selectedProjects.has(e.projectId)}
                     icon={

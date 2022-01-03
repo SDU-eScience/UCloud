@@ -1,0 +1,65 @@
+version: "3.9"
+services:  
+  redis:
+    image: alpine:latest
+  k3s:
+    image: alpine:latest
+  elasticsearch:
+    image: alpine:latest
+  integration-module:
+    image: alpine:latest
+  postgres:
+    image: alpine:latest
+  backend:
+    image: alpine:latest
+    depends_on:
+      - redis
+      - k3s
+      - elasticsearch
+      - postgres
+  gateway:
+    image: alpine:latest
+  frontend:
+    image: alpine:latest
+  helper:
+    image: alpine:latest
+    command:
+      - sh
+      - -c
+      - "echo 'Please use the ./launcher script instead'  ; exit 0"
+# SLURM setup
+  mysql:
+    image: alpine:latest
+  slurmdbd:
+    image: alpine:latest
+  slurmctld:
+    image: alpine:latest
+  c1:
+    image: alpine:latest
+  c2:
+    image: alpine:latest
+
+volumes:
+  postgresData: {}
+  redisData: {}
+  elasticData: {}
+  ucloudData: {}
+  ucloudFiles: {}
+  k3sConfig: {}
+  k3sData: {}
+  k3sCni: {}
+  k3sKubelet: {}
+  k3sEtc: {}
+  imData: {}
+  imGradle: {}
+  imKonan: {}
+  backendKonan: {}
+  backendGradle: {}
+  m2Repo: {}
+
+# SLURM volumes
+  etc_munge: {}
+  etc_slurm: {}
+  slurm_jobdir: {}
+  var_lib_mysql: {}
+  var_log_slurm: {}

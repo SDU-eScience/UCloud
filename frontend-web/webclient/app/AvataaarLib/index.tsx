@@ -39,8 +39,8 @@ import {
     SkinColors,
     Top,
     TopAccessory
-} from "UserSettings/AvatarOptions";
-import {AvatarType} from "UserSettings/Avataaar";
+} from "@/UserSettings/AvatarOptions";
+import {AvatarType} from "@/UserSettings/Avataaar";
 export {default as Avatar, AvatarStyle} from "./avatar";
 
 export interface AvatarComponentProps {

@@ -60,7 +60,7 @@ following checklist is used for affected software:
 4.  Breaking changes in the external interface can only occur in major releases (Semantic versioning)
 
 5.  When introducing breaking changes to a call, the ElasticSearch auditing index for that call should be updated. See
-    [Auditing](../../backend/service-lib/wiki/auditing.md) for more information.
+    [Auditing](../../backend/service-common/wiki/auditing.md) for more information.
 
 This checklist purely advisory, it may be bypassed if the team leader/director determines that the risk is sufficiently
 low or an update is urgently needed, e.g. in case of urgent security updates.

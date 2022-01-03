@@ -1,18 +1,19 @@
 import * as React from "react";
-import {useCloudAPI} from "Authentication/DataHook";
-import * as Heading from "ui-components/Heading";
-import {Link, Text, Flex, Box, Icon, theme, Grid} from "ui-components";
-import {buildQueryString} from "Utilities/URIUtilities";
-import {DashboardCard, NewsPost} from "Dashboard/Dashboard";
-import {emptyPage} from "DefaultObjects";
-import {useParams} from "react-router";
-import {MainContainer} from "MainContainer/MainContainer";
-import * as Pagination from "Pagination";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import * as Heading from "@/ui-components/Heading";
+import {Link, Text, Flex, Box, Icon, theme, Grid} from "@/ui-components";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {NewsPost} from "@/Dashboard/Dashboard";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {emptyPage} from "@/DefaultObjects";
+import {useHistory, useParams} from "react-router";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import * as Pagination from "@/Pagination";
 import {format} from "date-fns/esm";
-import {Tag, hashF, appColor} from "Applications/Card";
-import {capitalized} from "UtilityFunctions";
-import {Client} from "Authentication/HttpClientInstance";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {Tag, hashF, appColor} from "@/Applications/Card";
+import {capitalized} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 interface NewsPostRequestProps extends PaginationRequest {
     withHidden: boolean;
@@ -48,18 +49,17 @@ export const NewsList: React.FC = () => {
 
     useTitle("News");
 
+    const history = useHistory();
+
     return (
         <MainContainer
             header={(
                 <Flex>
-                    <Heading.h2>{filter ? capitalized(filter) : ""} News</Heading.h2>
+                    <Heading.h2>News</Heading.h2>
                     {!filter ? null :
-                        <Link to="/news/list/">
-                            <Text mt="14px" ml="10px" fontSize={1}>
-                                Clear category
-                                <Icon color="black" name="close" size={12} />
-                            </Text>
-                        </Link>
+                        <Text mt="14px" ml="10px" fontSize={1}>
+                            {capitalized(filter)} <Icon cursor="pointer" color="black" onClick={() => history.push("/news/list")} name="close" ml="4px" size={12} />
+                        </Text>
                     }
                 </Flex>
             )}
@@ -84,7 +84,7 @@ export const NewsList: React.FC = () => {
         const now = new Date().getTime();
         return <Grid gridTemplateColumns={"repeat(1, auto)"} gridGap={32}>
             {page.items.map(item => (
-                <DashboardCard color={"blue"} isLoading={false} key={item.id}>
+                <HighlightedCard color={"blue"} isLoading={false} key={item.id}>
                     <Box mb={16}>
                         <Link to={`/news/detailed/${item.id}`}>
                             <Flex><Heading.h3>{item.title}</Heading.h3><IsHidden hidden={item.hidden} /></Flex>
@@ -98,7 +98,7 @@ export const NewsList: React.FC = () => {
                         </Flex>
                         <IsExpired now={now} expiration={item.hideFrom} />
                     </Box>
-                </DashboardCard>
+                </HighlightedCard>
             ))}
         </Grid>;
     }

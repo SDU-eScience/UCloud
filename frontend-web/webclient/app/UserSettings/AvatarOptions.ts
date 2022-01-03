@@ -27,6 +27,8 @@ export enum Top {
     ShortHairDreads01 = "ShortHairDreads01",
     ShortHairDreads02 = "ShortHairDreads02",
     ShortHairFrizzle = "ShortHairFrizzle",
+    /* DOES NOT WORK WITH HAIR COLOR */
+    // ShortHairShaggy = "ShortHairShaggy",
     ShortHairShaggyMullet = "ShortHairShaggyMullet",
     ShortHairShortCurly = "ShortHairShortCurly",
     ShortHairShortFlat = "ShortHairShortFlat",
@@ -166,6 +168,7 @@ export enum Eyebrows {
     Default = "Default",
     DefaultNatural = "DefaultNatural",
     FlatNatural = "FlatNatural",
+    FrownNatural = "FrownNatural",
     RaisedExcited = "RaisedExcited",
     RaisedExcitedNatural = "RaisedExcitedNatural",
     SadConcerned = "SadConcerned",

@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "alerting"
-    version = "1.4.9"
+    version = "2022.1.0"
 
     // Fetch configuration from audit-ingestion
     val elasticCredentials = Configuration.retrieve<String>(
@@ -12,7 +12,9 @@ bundle { ctx ->
         "elasticsearch-credentials"
     )
 
-    withAmbassador {}
+    withAmbassador(null) {
+        addSimpleMapping("/api/scripts")
+    }
 
     val deployment = withDeployment {
         deployment.spec.replicas = 1

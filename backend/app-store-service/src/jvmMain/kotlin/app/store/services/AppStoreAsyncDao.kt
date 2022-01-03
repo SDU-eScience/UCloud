@@ -3,17 +3,15 @@ package dk.sdu.cloud.app.store.services
 import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.NormalizedPaginationRequestV2
+import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.insert
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -46,29 +44,29 @@ class AppStoreAsyncDao(
                         setParameter("groups", memberGroups)
                         setParameter("tags", tags)
                         setParameter("isAdmin", Roles.PRIVILEGED.contains(user.role))
-                        setParameter("exclude", excludeTools?.map { it } ?: emptyList())
+                        setParameter("exclude", excludeTools?.map { it.toLowerCase() } ?: emptyList())
                     },
                     """
-                        SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
-                        WHERE T.application_name = A.name AND T.tag IN (select unnest(:tags::text[])) AND (
-                            (
-                                A.is_public = TRUE
-                            ) OR (
-                                cast(:project as text) is null AND :user IN (
-                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                                )
-                            ) OR (
-                                cast(:project as text) IS not null AND exists (
-                                    SELECT P2.project_group FROM permissions AS P2 WHERE
-                                        P2.application_name = A.name AND
-                                        P2.project = cast(:project as text) AND
-                                        P2.project_group IN (select unnest (:groups::text[]))
-                                )
-                            ) or (
-                                :isAdmin
+                    SELECT T.application_name, T.tag, T.id FROM application_tags AS T, applications AS A
+                    WHERE T.application_name = A.name AND T.tag IN (select unnest(:tags::text[])) AND (
+                        (
+                            A.is_public = TRUE
+                        ) OR (
+                            cast(:project as text) is null AND :user IN (
+                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
                             )
-                        ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
-                        ORDER BY A.name
+                        ) OR (
+                            cast(:project as text) IS not null AND exists (
+                                SELECT P2.project_group FROM permissions AS P2 WHERE
+                                    P2.application_name = A.name AND
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group IN (select unnest (:groups::text[]))
+                            )
+                        ) or (
+                            :isAdmin
+                        )
+                    ) AND (A.tool_name NOT IN (select unnest(:exclude::text[])))
+                    ORDER BY A.name
                     """
                 )
                 .rows
@@ -91,7 +89,7 @@ class AppStoreAsyncDao(
         excludeTools: List<String>?
     ): Pair<List<Application>, Int> {
         val items = ctx.withSession { session ->
-            val excludeNormalized = excludeTools?.map {it} ?: emptyList()
+            val excludeNormalized = excludeTools?.map {it.toLowerCase()} ?: emptyList()
             session
                 .sendPreparedStatement(
                     {
@@ -238,33 +236,64 @@ class AppStoreAsyncDao(
     }
 
     suspend fun findBySupportedFileExtension(
-        ctx: DBContext,
+        db: DBContext,
         user: SecurityPrincipal,
         currentProject: String?,
         projectGroups: List<String>,
+        request: NormalizedPaginationRequestV2,
         fileExtensions: Set<String>
-    ): List<ApplicationWithExtension> {
-        return ctx.withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("user", user.username)
-                        setParameter("ext", fileExtensions.toList())
-                    },
-                    """
-                        SELECT *
-                            FROM favorited_by as F,
-                            applications as A
-                        WHERE F.the_user = :user
-                            AND F.application_name = A.name
-                            AND F.application_version = A.version
-                            AND (A.application -> 'applicationType' = '"WEB"' OR A.application -> 'applicationType' = '"VNC"') 
-                            AND (A.application -> 'fileExtensions' ??| :ext::text[])
-                    """
-                )
-                .rows
-                .toList()
-                .filter { rowData ->
+    ): PageV2<ApplicationWithExtension> {
+        return db.paginateV2(
+            Actor.User(user),
+            request,
+            create = { session ->
+                session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("user", user.username)
+                            setParameter("ext", fileExtensions.toList())
+                            setParameter("current_project", currentProject)
+                            setParameter("project_groups", projectGroups)
+                        },
+                        """
+                            declare c cursor for
+                            with
+                                project_info as (
+                                    select :current_project current_project,
+                                           unnest(:project_groups::text[]) as project_group
+                                ),
+                                most_recent_applications as (
+                                    select apps_with_rno.*
+                                    from (
+                                        select
+                                            a.*,
+                                            row_number() over (
+                                                partition by name
+                                                order by created_at desc
+                                            ) as rno
+                                        from
+                                            app_store.applications a left join
+                                            app_store.permissions p on a.name = p.application_name left join
+                                            project_info pinfo
+                                                on p.project = pinfo.current_project and p.project_group = pinfo.project_group
+                                        where
+                                            a.is_public = true or
+                                            p.permission is distinct from null
+                                    ) apps_with_rno
+                                    where rno <= 1
+                                )
+                            select a.*
+                            from
+                                most_recent_applications a
+                            where
+                                (a.application -> 'fileExtensions' ??| :ext::text[])
+
+                            order by a.title
+                        """,
+                    )
+            },
+            mapper = { _, rows ->
+                rows.filter { rowData ->
                     defaultMapper.decodeFromString<ApplicationInvocationDescription>(
                         rowData.getField(ApplicationTable.application)
                     ).parameters.all { it.optional }
@@ -277,7 +306,8 @@ class AppStoreAsyncDao(
                         ).fileExtensions
                     )
                 }
-        }
+            }
+        )
     }
 
     suspend fun findByNameAndVersionForUser(
@@ -302,9 +332,11 @@ class AppStoreAsyncDao(
                 )
             }
         ) throw ApplicationException.NotFound()
+
         val entity = ctx.withSession { session ->
             internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
         } ?: throw ApplicationException.NotFound()
+
         return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
     }
 
@@ -341,31 +373,31 @@ class AppStoreAsyncDao(
                         setParameter("user", user?.username ?: "")
                     },
                     """
-                        SELECT A.*
-                        FROM applications AS A WHERE (A.created_at) IN (
-                            SELECT MAX(created_at)
-                            FROM applications as B
-                            WHERE A.name = B.name AND (
-                                (
-                                    B.is_public = TRUE
-                                ) or (
-                                    cast(:project as text) is null and :user in (
-                                        SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
-                                    )
-                                ) or (
-                                    cast(:project as text) is not null AND exists (
-                                        SELECT P2.project_group FROM permissions AS P2 WHERE
-                                            P2.application_name = B.name AND
-                                            P2.project = cast(:project as text) AND
-                                            P2.project_group IN ( select unnest(:groups::text[]))
-                                    )
-                                ) or (
-                                    :isAdmin
+                    SELECT A.*
+                    FROM applications AS A WHERE (A.created_at) IN (
+                        SELECT MAX(created_at)
+                        FROM applications as B
+                        WHERE A.name = B.name AND (
+                            (
+                                B.is_public = TRUE
+                            ) or (
+                                cast(:project as text) is null and :user in (
+                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = B.name
                                 )
+                            ) or (
+                                cast(:project as text) is not null AND exists (
+                                    SELECT P2.project_group FROM permissions AS P2 WHERE
+                                        P2.application_name = B.name AND
+                                        P2.project = cast(:project as text) AND
+                                        P2.project_group IN ( select unnest(:groups::text[]))
+                                )
+                            ) or (
+                                :isAdmin
                             )
-                            GROUP BY B.name
                         )
-                        ORDER BY A.name
+                        GROUP BY B.name
+                    )
+                    ORDER BY A.name
                     """
                 )
                 .rows
@@ -422,6 +454,7 @@ class AppStoreAsyncDao(
                 set(ApplicationTable.idName, description.metadata.name)
                 set(ApplicationTable.idVersion, description.metadata.version)
                 set(ApplicationTable.application, defaultMapper.encodeToString(description.invocation))
+
             }
         }
     }
@@ -516,12 +549,12 @@ class AppStoreAsyncDao(
                 .sendPreparedStatement(
                     {
                         setParameter("newdesc", newDescription)
-                        setParameter("name", appName)
-                        setParameter("version", appVersion)
                         setParameter(
                             "newauthors",
                             defaultMapper.encodeToString(newAuthors ?: existingApplication.metadata.authors)
                         )
+                        setParameter("name", appName)
+                        setParameter("version", appVersion)
                     },
                     """
                         UPDATE applications
@@ -692,8 +725,8 @@ class AppStoreAsyncDao(
         if (embeddedNameAndVersionList.isEmpty()) {
             return emptyList()
         }
-        val names = embeddedNameAndVersionList.map { it.name.toLowerCase() }
-        val versions = embeddedNameAndVersionList.map { it.version.toLowerCase() }
+        val names = embeddedNameAndVersionList.map { it.name }
+        val versions = embeddedNameAndVersionList.map { it.version }
 
         return ctx.withSession { session ->
             session
@@ -701,34 +734,11 @@ class AppStoreAsyncDao(
                     {
                         setParameter("names", names)
                         setParameter("versions", versions)
-                        setParameter("username", user.username)
-                        setParameter("project", project)
-                        setParameter("groups", projectGroups)
-                        setParameter("isAdmin", user.role.name == "ADMIN")
                     },
                     """
                         SELECT *
-                        FROM app_store.applications as A LEFT JOIN app_store.permissions as P on A.name = P.application_name
-                        WHERE (lower(name), lower(version)) IN (select unnest(:names::text[]), unnest(:versions::text[]))
-                            AND (
-                                    (
-                                        is_public
-                                    )
-                                OR
-                                    (
-                                        cast(:project as text) is null AND username = :username
-                                    )
-                                OR
-                                    (
-                                        cast(:project as text) is not null
-                                            AND project = cast(:project as text)
-                                            AND project_group in (:groups)
-                                    )
-                                OR  
-                                    (
-                                        :isAdmin
-                                    )
-                            )
+                        FROM app_store.applications
+                        WHERE (name, version) IN (select unnest(:names::text[]), unnest(:versions::text[]))
                     """
                 )
                 .rows

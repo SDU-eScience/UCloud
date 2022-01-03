@@ -2,10 +2,7 @@ package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.*
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -54,11 +51,13 @@ class BackgroundScopeFeature : MicroFeature {
  * blocking process for a user we will run out of threads quickly.
  */
 class BackgroundScope : CoroutineScope {
-    internal lateinit var dispatcher: CoroutineDispatcher
+    lateinit var dispatcher: CoroutineDispatcher
+    private lateinit var realContext: CoroutineContext
+    private lateinit var supervisor: CompletableJob
     private var executor: ExecutorService? = null
 
     override val coroutineContext: CoroutineContext
-        get() = dispatcher
+        get() = realContext
 
     fun init() {
         log.trace("Calling init()")
@@ -69,6 +68,8 @@ class BackgroundScope : CoroutineScope {
                 val newCachedThreadPool = Executors.newCachedThreadPool()
                 executor = newCachedThreadPool
                 dispatcher = newCachedThreadPool.asCoroutineDispatcher()
+                supervisor = SupervisorJob()
+                realContext = dispatcher + supervisor
             }
         }
     }
@@ -85,9 +86,10 @@ class BackgroundScope : CoroutineScope {
         if (executor != null) {
             log.info("Resetting BackgroundScope")
             stop()
-            while (!executor.isShutdown) {
+            while (!executor.isShutdown && !executor.isTerminated) {
                 Thread.sleep(10)
             }
+            log.debug("BackgroundScope is ready")
         }
 
         init()

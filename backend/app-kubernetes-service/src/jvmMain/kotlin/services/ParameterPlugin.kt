@@ -4,9 +4,9 @@ import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.file.api.components
-import dk.sdu.cloud.file.api.joinPath
-import dk.sdu.cloud.file.api.normalize
+import dk.sdu.cloud.file.orchestrator.api.components
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.orchestrator.api.normalize
 import dk.sdu.cloud.service.k8.Pod
 import io.ktor.http.*
 
@@ -45,6 +45,15 @@ class ParameterPlugin(private val licenseService: LicenseService) : JobManagemen
                         if (resolvedValue != null) {
                             envVars.add(Pod.EnvVar(name, resolvedValue, null))
                         }
+                    }
+
+                    val openedFile = job.specification.openedFile
+                    if (openedFile != null) {
+                        val lastComponents = openedFile.normalize().components().takeLast(2)
+                        envVars.add(Pod.EnvVar(
+                            "UCLOUD_OPEN_WITH_FILE",
+                            joinPath("/work", *lastComponents.toTypedArray()).removeSuffix("/")
+                        ))
                     }
 
                     envVars

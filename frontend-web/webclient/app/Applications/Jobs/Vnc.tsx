@@ -1,19 +1,19 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import jobs = UCloud.compute.jobs;
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {useCloudAPI} from "Authentication/DataHook";
-import {errorMessageOrDefault, isAbsoluteUrl, shortUUID, useNoFrame} from "UtilityFunctions";
-import {useTitle} from "Navigation/Redux/StatusActions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {errorMessageOrDefault, isAbsoluteUrl, shortUUID, useNoFrame} from "@/UtilityFunctions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useParams} from "react-router";
 import {useCallback, useEffect, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
+import {compute} from "@/UCloud";
 import JobsOpenInteractiveSessionResponse = compute.JobsOpenInteractiveSessionResponse;
 import RFB from "@novnc/novnc/core/rfb";
 import * as VncLog from '@novnc/novnc/core/util/logging.js';
-import {Box, Button} from "ui-components";
-import {TermAndShellWrapper} from "Applications/Jobs/TermAndShellWrapper";
-import {bulkRequestOf} from "DefaultObjects";
+import {Box, Button} from "@/ui-components";
+import {TermAndShellWrapper} from "@/Applications/Jobs/TermAndShellWrapper";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 interface ConnectionDetails {
     url: string;
@@ -33,8 +33,8 @@ export const Vnc: React.FunctionComponent = () => {
     useNoFrame();
 
     useEffect(() => {
-        if (sessionResp.data !== null && sessionResp.data.sessions.length > 0) {
-            const {providerDomain, session} = sessionResp.data.sessions[0];
+        if (sessionResp.data !== null && sessionResp.data.responses.length > 0) {
+            const {providerDomain, session} = sessionResp.data.responses[0];
             if (session.type !== "vnc") {
                 snackbarStore.addFailure(
                     "Unexpected response from UCloud. Unable to open remote desktop!",

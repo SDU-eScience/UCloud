@@ -28,10 +28,15 @@ import kotlin.reflect.KClass
 
 typealias KtorHttpRequestBuilder = io.ktor.client.request.HttpRequestBuilder
 
-class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
+class OutgoingHttpCall(
+    val debugCall: CallDescription<*, *, *>,
+    val builder: KtorHttpRequestBuilder
+) : OutgoingCall {
     override val attributes: AttributeContainer = AttributeContainer()
     var response: HttpResponse? = null
         internal set
+
+    override fun toString(): String = "OutgoingHttpCall(${debugCall.fullName})"
 
     companion object : OutgoingCallCompanion<OutgoingHttpCall> {
         override val klass: KClass<OutgoingHttpCall> = OutgoingHttpCall::class
@@ -43,7 +48,6 @@ expect internal fun createHttpClient(): HttpClient
 
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
-    private val httpClient: HttpClient = createHttpClient()
     fun install(
         client: RpcClient,
         targetHostResolver: OutgoingHostResolver,
@@ -60,7 +64,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         call: CallDescription<R, S, E>,
         request: R,
     ): OutgoingHttpCall {
-        return OutgoingHttpCall(KtorHttpRequestBuilder())
+        return OutgoingHttpCall(call, KtorHttpRequestBuilder())
     }
 
     @Suppress("NestedBlockDepth", "BlockingMethodInNonBlockingContext")
@@ -89,8 +93,12 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 // If a beforeHook has attached a body, don't change it
                 body = http.serializeBody(request, call)
             }
-            http.serializeHeaders(request).forEach { (name, value) ->
-                header(name, base64Encode(value.encodeToByteArray()))
+            http.serializeHeaders(request).forEach { (name, value, encode) ->
+                if(encode) {
+                    header(name, base64Encode(value.encodeToByteArray()))
+                } else {
+                    header(name, value)
+                }
             }
 
             // OkHttp fix. It requires a body for certain methods, even though it shouldn't.
@@ -107,29 +115,48 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
         }
 
-        log.trace("Sending request")
-        val resp = try {
-            httpClient.request<HttpResponse>(ctx.builder)
+        try {
+            log.trace("Sending request")
+            val resp = createHttpClient().use { httpClient ->
+                try {
+                    httpClient.request<HttpResponse>(ctx.builder)
+                } catch (ex: Throwable) {
+                    if (ex.stackTraceToString().contains("ConnectException")) {
+                        log.debug("[$callId] ConnectException: ${ex.message}")
+                        throw RPCException(
+                            "[$callId] ${call.fullName} Could not connect to backend server",
+                            HttpStatusCode.BadGateway
+                        )
+                    }
+
+                    throw ex
+                }
+            }
+            log.trace("Received response")
+
+            ctx.response = resp
+            val result = parseResponse(ctx, resp, call, callId)
+            log.trace("Parsing complete")
+            val end = Time.now()
+
+            val responseDebug =
+                "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
+
+            log.debug(responseDebug)
+            return result
         } catch (ex: Throwable) {
-            if (ex.stackTraceToString().contains("ConnectException")) {
-                log.debug("[$callId] ConnectException: ${ex.message}")
-                throw RPCException("Could not connect to backend server", HttpStatusCode.BadGateway)
+            if (ex::class.qualifiedName?.contains("StreamResetException") == true) {
+                log.info(buildString {
+                    appendLine("We are about to crash. We know the following:")
+                    appendLine("  - URL: ${ctx.builder.url.buildString()}")
+                    appendLine("  - method: ${ctx.builder.method}")
+                    appendLine("  - call: ${call.fullName}")
+                    appendLine("  - callId: $callId")
+                })
             }
 
             throw ex
         }
-        log.trace("Received response")
-
-        ctx.response = resp
-        val result = parseResponse(ctx, resp, call, callId)
-        log.trace("Parsing complete")
-        val end = Time.now()
-
-        val responseDebug =
-            "[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms"
-
-        log.debug(responseDebug)
-        return result
     }
 
     private suspend fun <S : Any> parseResponseToType(
@@ -190,15 +217,16 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         }
     }
 
+    data class SerializedHeader(val name: String, val value: String, val base64Encode: Boolean)
     private fun <R : Any> HttpRequest<R, *, *>.serializeHeaders(
         request: R,
-    ): List<Pair<String, String>> {
+    ): List<SerializedHeader> {
         if (headers == null) return emptyList()
 
         return headers.parameters.mapNotNull {
             when (it) {
-                is HttpHeaderParameter.Simple -> it.header to it.value
-                is HttpHeaderParameter.Present -> it.header to "true"
+                is HttpHeaderParameter.Simple -> SerializedHeader(it.header, it.value, true)
+                is HttpHeaderParameter.Present -> SerializedHeader(it.header, "true", true)
 
                 is HttpHeaderParameter.Property<R, *> -> {
                     @Suppress("UNCHECKED_CAST")
@@ -206,7 +234,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                     val value = it.property.get(request) ?: return@mapNotNull null
 
-                    it.header to value.toString()
+                    SerializedHeader(it.header, value.toString(), it.base64Encoded)
                 }
             }
         }
@@ -260,4 +288,4 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     }
 }
 
-internal expect fun urlEncode(value: String): String
+expect fun urlEncode(value: String): String

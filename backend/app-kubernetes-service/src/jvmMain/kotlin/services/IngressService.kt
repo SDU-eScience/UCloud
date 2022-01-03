@@ -6,9 +6,10 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
@@ -24,26 +25,31 @@ object IngressTable : SQLTable("ingresses") {
 }
 
 class IngressService(
-    val settings: IngressSettings,
+    val support: IngressSupport,
     private val db: DBContext,
     private val k8: K8Dependencies,
 ) : JobManagementPlugin {
     suspend fun create(ingresses: BulkRequest<Ingress>) {
+        IngressControl.chargeCredits.call(
+            bulkRequestOf(ingresses.items.map { ResourceChargeCredits(it.id, it.id, 1) }),
+            k8.serviceClient
+        ).orThrow()
+
         try {
             db.withSession { session ->
                 for (ingress in ingresses.items) {
-                    val isValid = ingress.specification.domain.startsWith(settings.domainPrefix) &&
-                        ingress.specification.domain.endsWith(settings.domainSuffix)
+                    val isValid = ingress.specification.domain.startsWith(support.domainPrefix) &&
+                        ingress.specification.domain.endsWith(support.domainSuffix)
 
                     if (!isValid) {
                         throw RPCException("Received invalid request from UCloud", HttpStatusCode.BadRequest)
                     }
 
                     val id = ingress.specification.domain
-                        .removePrefix(settings.domainPrefix).removeSuffix(settings.domainSuffix)
+                        .removePrefix(support.domainPrefix).removeSuffix(support.domainSuffix)
                     if (id.length < 5) {
                         throw RPCException(
-                            "Ingress domain must be at least 5 characters long",
+                            "Public links must be at least 5 characters long!",
                             HttpStatusCode.BadRequest
                         )
                     }
@@ -57,9 +63,23 @@ class IngressService(
                         }
                     }
 
-                    if (!id.toLowerCase().matches(regex) || id.toLowerCase().matches(uuidRegex)) {
+                    if (!id.lowercase().matches(regex) || id.lowercase().matches(uuidRegex)) {
                         throw RPCException(
-                            "Invalid ingress requested. Must only contain letters a-z, and numbers 0-9.",
+                            "Invalid public link requested. Must only contain letters a-z, numbers (0-9), dashes and underscores.",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (id.endsWith("-") || id.endsWith("_")) {
+                        throw RPCException(
+                            "Public links must not end with a dash or an underscore!",
+                            HttpStatusCode.BadRequest
+                        )
+                    }
+
+                    if (!id.any { it.isLetter() }) {
+                        throw RPCException(
+                            "Public links must contain at least one letter!",
                             HttpStatusCode.BadRequest
                         )
                     }
@@ -80,7 +100,7 @@ class IngressService(
         IngressControl.update.call(
             bulkRequestOf(
                 ingresses.items.map {
-                    IngressControlUpdateRequestItem(it.id, IngressState.READY, "Ingress is now ready")
+                    ResourceUpdateAndId(it.id, IngressUpdate(IngressState.READY, "Ingress is now ready"))
                 }
             ),
             k8.serviceClient

@@ -1,18 +1,18 @@
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import HttpClient from "Authentication/lib";
-import {emptyPage} from "DefaultObjects";
-import * as Pagination from "Pagination";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {HttpClient} from "../Authentication/lib";
+import {emptyPage} from "@/DefaultObjects";
+import * as Pagination from "@/Pagination";
 import * as React from "react";
 import {useCallback, useEffect} from "react";
 import UAParser from "ua-parser-js";
-import Box from "ui-components/Box";
-import Button from "ui-components/Button";
-import Divider from "ui-components/Divider";
-import * as Heading from "ui-components/Heading";
-import {invalidateAllSessions, listUserSessions, UserSession} from "UserSettings/api";
-import {dateToString} from "Utilities/DateUtilities";
-import {addStandardDialog} from "UtilityComponents";
+import Box from "@/ui-components/Box";
+import Button from "@/ui-components/Button";
+import Divider from "@/ui-components/Divider";
+import * as Heading from "@/ui-components/Heading";
+import {invalidateAllSessions, listUserSessions, UserSession} from "@/UserSettings/api";
+import {dateToString} from "@/Utilities/DateUtilities";
+import {addStandardDialog} from "@/UtilityComponents";
 import CONF from "../../site.config.json";
 
 export interface SessionsProps {
@@ -117,7 +117,7 @@ export const Sessions: React.FunctionComponent<SessionsProps> = props => {
                 pageRenderer={pageRenderer}
             />
 
-            <Button mb="12px" color={"red"} onClick={onInvalidateSessions} disabled={commandLoading}>
+            <Button color={"red"} onClick={onInvalidateSessions} disabled={commandLoading}>
                 Invalidate all sessions
             </Button>
         </Box>

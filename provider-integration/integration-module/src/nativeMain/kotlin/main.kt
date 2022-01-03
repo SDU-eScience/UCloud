@@ -1,348 +1,244 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.http.H2OServer
+import dk.sdu.cloud.http.loadMiddleware
+import dk.sdu.cloud.ipc.*
+import dk.sdu.cloud.plugins.PluginLoader
+import dk.sdu.cloud.plugins.SimplePluginContext
+import dk.sdu.cloud.plugins.compute.slurm.SlurmJobMapper
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.homeDirectory
-import dk.sdu.cloud.utils.readText
-import h2o.H2O_TOKEN_AUTHORIZATION
-import h2o.h2o_find_header
-import io.ktor.http.*
+import dk.sdu.cloud.sql.DBContext
+import dk.sdu.cloud.sql.MigrationHandler
+import dk.sdu.cloud.sql.Sqlite3Driver
+import dk.sdu.cloud.sql.migrations.loadMigrations
+import dk.sdu.cloud.utils.Process
 import kotlinx.atomicfu.atomic
-import kotlinx.atomicfu.atomicArrayOfNulls
-import kotlinx.cinterop.get
-import kotlinx.cinterop.pointed
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.readBytes
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.*
-import platform.posix.SIZE_MAX
-import platform.posix.sleep
-import kotlin.random.Random
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+import kotlinx.coroutines.*
+import platform.posix.*
+import kotlin.coroutines.CoroutineContext
+import kotlin.system.exitProcess
+
+sealed class ServerMode {
+    object User : ServerMode()
+    object Server : ServerMode()
+    data class Plugin(val name: String) : ServerMode()
+}
+
+fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
+    request: R,
+    client: AuthenticatedClient,
+): IngoingCallResponse<S, E> {
+    return runBlocking {
+        call(request, client)
+    }
+}
+
+private val databaseConfig = atomic("")
+
+@ThreadLocal
+val dbConnection: DBContext.Connection by lazy {
+    val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
+    if (dbConfig == null) {
+        error("This plugin does not have access to a database")
+    } else {
+        Sqlite3Driver(dbConfig).openSession()
+    }
+}
+
+private fun readSelfExecutablePath(): String {
+    val resultBuffer = ByteArray(2048)
+    resultBuffer.usePinned { pinned ->
+        val read = readlink("/proc/self/exe", pinned.addressOf(0), resultBuffer.size.toULong())
+        return when {
+            read == resultBuffer.size.toLong() -> {
+                throw IllegalStateException("Path to own executable is too long")
+            }
+            read != -1L -> {
+                resultBuffer.decodeToString(0, read.toInt())
+            }
+            else -> {
+                throw IllegalStateException("Could not read self executable path")
+            }
+        }
+    }
+}
+
+object ProcessingScope : CoroutineScope {
+    private val job = SupervisorJob()
+    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(10, "Processing")
+}
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
-fun main() {
-    runBlocking {
-        /*
-            TODO Binary
-            ================================================================================================================
-
-            All dependencies should be statically linked to make sure that this is easy to deploy.
-
-         */
-
-        val server = H2OServer()
-
-        val log = Logger("Main")
-
-        val homeDir = homeDirectory()
-        val refreshToken = NativeFile.open("$homeDir/sducloud/refreshtoken.txt", readOnly = true).readText().lines()
-            .firstOrNull() ?: throw IllegalStateException("Missing refresh token")
-        val certificate = NativeFile.open("$homeDir/sducloud/certificate.txt", readOnly = true).readText()
-            .replace("\n", "")
-            .replace("\r", "")
-            .removePrefix("-----BEGIN PUBLIC KEY-----")
-            .removeSuffix("-----END PUBLIC KEY-----")
-            .chunked(64)
-            .filter { it.isNotBlank() }
-            .joinToString("\n")
-            .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" }
-
-        val validation = NativeJWTValidation(certificate)
-
-        addMiddleware(object : Middleware {
-            override fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
-                when (val ctx = handler.ctx.serverContext) {
-                    is HttpContext -> {
-                        val req = ctx.reqPtr.pointed
-                        val res = h2o_find_header(req.headers.ptr, H2O_TOKEN_AUTHORIZATION, SIZE_MAX.toLong())
-                        if (res != SIZE_MAX.toLong()) {
-                            val header = req.headers.entries?.get(res)?.value
-                            val authorizationHeader = header?.base?.readBytes(header.len.toInt())?.decodeToString()
-                            if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return
-                            handler.ctx.bearerOrNull = authorizationHeader.removePrefix("Bearer ")
-                        }
-                    }
-
-                    is WebSocketContext<*, *, *> -> {
-                        handler.ctx.bearerOrNull = ctx.rawRequest.bearer
-                    }
-                }
-            }
-        })
-
-        addMiddleware(object : Middleware {
-            override fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
-                val bearer = handler.ctx.bearerOrNull
-                val token = if (bearer != null) {
-                    val token = validation.validateOrNull(bearer)
-                    handler.ctx.securityPrincipalTokenOrNull = token
-                    token
-                } else {
-                    null
-                }
-
-                val principal = token?.principal
-
-                val auth = handler.description.authDescription
-                if (auth.roles != Roles.PUBLIC && principal == null) {
-                    log.debug("Principal was null")
-                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                } else if (principal != null && principal.role !in auth.roles) {
-                    log.debug("Role is not authorized ${principal}")
-                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                }
-            }
-        })
-
-        val client = RpcClient().also { client ->
-            OutgoingHttpRequestInterceptor()
-                .install(
-                    client,
-                    FixedOutgoingHostResolver(HostInfo("localhost", "http", 8080))
-                )
+fun main(args: Array<String>) {
+    try {
+        val serverMode = when {
+            args.getOrNull(0) == "user" -> ServerMode.User
+            args.getOrNull(0) == "server" || args.isEmpty() -> ServerMode.Server
+            else -> ServerMode.Plugin(args[0])
         }
 
-        atomic("fie").value
+        val ownExecutable = readSelfExecutablePath()
+        //signal(SIGCHLD, SIG_IGN) // Automatically reap children - commenting out as currently interferes with execve.kt
+        signal(SIGPIPE, SIG_IGN) // Our code already correctly handles EPIPE. There is no need for using the signal.
 
-        val authenticator = RefreshingJWTAuthenticator(
-            client,
-            JwtRefresher.Provider(refreshToken),
-            becomesInvalidSoon = { accessToken ->
-                val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
-                (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                    (1000 * 120) >= Time.now()
-            }
-        )
-
-        val providerClient = authenticator.authenticateClient(OutgoingHttpCall)
-
-        with(server) {
-            /*
-            implement(CallTest.testQuery) {
-                println("Received the following token: ${ctx.bearerOrNull}")
-                println("Call made by: ${ctx.securityPrincipalTokenOrNull}")
-                println("Request is: $request")
-                OutgoingCallResponse.Ok(Unit)
+        runBlocking {
+            val config = try {
+                IMConfiguration.load(serverMode)
+            } catch (ex: ConfigurationException.IsBeingInstalled) {
+                runInstaller(ex.core, ex.server, ownExecutable)
+                exitProcess(0)
+            } catch (ex: ConfigurationException.BadConfiguration) {
+                println(ex.message)
+                exitProcess(1)
             }
 
-            implement(CallTest.testBody) {
-                OutgoingCallResponse.Ok(request.items.first())
+            val validation = NativeJWTValidation(config.core.certificate!!)
+            loadMiddleware(config, validation)
+
+            if (config.server != null && serverMode == ServerMode.Server) {
+                databaseConfig.getAndSet(config.server.dbFile)
+
+                // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
+                val handler = MigrationHandler(dbConnection)
+                loadMigrations(handler)
+                handler.migrate()
             }
 
-            implement(CallTest.testError) {
-                throw RPCException("Something didn't work", HttpStatusCode.BadGateway)
+            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
+            val ipcServer = if (serverMode != ServerMode.Server) null else IpcServer(ipcSocketDirectory)
+            val ipcClient = if (serverMode == ServerMode.Server) null else IpcClient(ipcSocketDirectory)
+            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+
+            val rpcServerPort = when (serverMode) {
+                is ServerMode.Plugin -> null
+                ServerMode.Server -> UCLOUD_IM_PORT
+                ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
             }
 
-
-             */
-            implement(CallTest.testUnit) {
-                OutgoingCallResponse.Ok(Unit)
-            }
-
-            val PROVIDER_ID = "im-test"
-            val jobs = JobsProvider(PROVIDER_ID)
-            val knownProducts = listOf(
-                ProductReference("im1", "im1", PROVIDER_ID),
-            )
-
-            implement(jobs.create) {
-                sleep(2)
-                runBlocking {
-                    JobsControl.update.call(
-                        bulkRequestOf(request.items.map { job ->
-                            JobsControlUpdateRequestItem(
-                                job.id,
-                                JobState.RUNNING,
-                                "We are now running!"
-                            )
-                        }),
-                        providerClient
-                    ).orThrow()
-                }
-
-                OutgoingCallResponse.Ok(Unit)
-            }
-
-            implement(jobs.retrieveProducts) {
-                OutgoingCallResponse.Ok(
-                    JobsProviderRetrieveProductsResponse(
-                        knownProducts.map { productRef ->
-                            ComputeProductSupport(
-                                productRef,
-                                ComputeSupport(
-                                    ComputeSupport.Docker(
-                                        enabled = true,
-                                        terminal = true,
-                                        logs = true,
-                                        timeExtension = false
-                                    ),
-                                    ComputeSupport.VirtualMachine(
-                                        enabled = false,
+            val providerClient = run {
+                when (serverMode) {
+                    ServerMode.Server -> {
+                        val serverConfig = config.server!!
+                        val client = RpcClient().also { client ->
+                            OutgoingHttpRequestInterceptor()
+                                .install(
+                                    client,
+                                    FixedOutgoingHostResolver(
+                                        HostInfo(
+                                            serverConfig.ucloud.host,
+                                            serverConfig.ucloud.scheme,
+                                            serverConfig.ucloud.port
+                                        )
                                     )
                                 )
-                            )
                         }
-                    )
-                )
-            }
 
-            implement(jobs.delete) {
-                runBlocking {
-                    JobsControl.update.call(
-                        bulkRequestOf(request.items.map { job ->
-                            JobsControlUpdateRequestItem(
-                                job.id,
-                                JobState.SUCCESS,
-                                "We are no longer running!"
-                            )
-                        }),
-                        providerClient
-                    ).orThrow()
+                        val authenticator = RefreshingJWTAuthenticator(
+                            client,
+                            JwtRefresher.Provider(serverConfig.refreshToken),
+                            becomesInvalidSoon = { accessToken ->
+                                val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
+                                (expiresAt ?: return@RefreshingJWTAuthenticator true) +
+                                    (1000 * 120) >= Time.now()
+                            }
+                        )
+
+                        authenticator.authenticateClient(OutgoingHttpCall)
+                    }
+
+                    ServerMode.User -> {
+                        val client = RpcClient()
+                        client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
+                        AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
+                    }
+
+                    is ServerMode.Plugin -> null
                 }
-
-                OutgoingCallResponse.Ok(Unit)
             }
 
-            implement(jobs.extend) {
-                runBlocking {
-                    log.info("Extending some jobs: $request")
-                    JobsControl.update.call(
-                        bulkRequestOf(request.items.map { requestItem ->
-                            JobsControlUpdateRequestItem(
-                                requestItem.job.id,
-                                status = "We have extended your requestItem with ${requestItem.requestedTime}"
-                            )
-                        }),
-                        providerClient
-                    ).orThrow()
-                }
-
-                OutgoingCallResponse.Ok(Unit)
+            if (ipcServer != null && providerClient != null) {
+                IpcProxyServer().init(ipcServer, providerClient)
             }
 
-            val maxStreams = 1024 * 32
-            val streams = atomicArrayOfNulls<Unit>(maxStreams)
+            val pluginContext = SimplePluginContext(
+                providerClient,
+                config,
+                ipcClient,
+                ipcServer,
+                cli
+            )
+            val plugins = PluginLoader(pluginContext).load()
 
-            implement(jobs.follow) {
-                // TODO TODO TODO STREAM IDS NEEDS TO BE UNGUESSABLE THIS ALLOWS ANYONE TO CANCEL OTHER PEOPLES STREAMS
-                when (request) {
-                    is JobsProviderFollowRequest.Init -> {
-                        var streamId: Int? = null
-                        for (i in 0 until maxStreams) {
-                            if (streams[i].compareAndSet(null, Unit)) {
-                                streamId = i
-                                break
+            val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)
+
+            // Start services
+            if (ipcServer != null && providerClient != null) {
+                ProcessingScope.launch { ipcServer.runServer() }
+            }
+
+            ipcClient?.connect()
+
+            val envoyConfig = if (serverMode == ServerMode.Server) {
+                EnvoyConfigurationService(ENVOY_CONFIG_PATH)
+            } else {
+                null
+            }
+
+            envoyConfig?.start(config.server?.port)
+
+            if (config.serverMode == ServerMode.Server || config.serverMode == ServerMode.User) {
+                plugins.compute?.plugins?.values?.forEach { plugin ->
+                    ProcessingScope.launch {
+                        with(pluginContext) {
+                            with(plugin) {
+                                runMonitoringLoop()
                             }
                         }
-
-                        if (streamId == null) {
-                            throw RPCException("Server is too busy", HttpStatusCode.BadGateway)
-                        }
-
-                        wsContext.sendMessage(JobsProviderFollowResponse(streamId.toString(), -1))
-
-                        var counter = 0
-                        while (streams[streamId].compareAndSet(Unit, Unit) && wsContext.isOpen()) {
-                            println("Message: $streamId")
-                            wsContext.sendMessage(JobsProviderFollowResponse(
-                                streamId.toString(),
-                                0,
-                                "Hello, World! $counter\n"
-                            ))
-                            counter++
-                            sleep(1)
-                        }
-
-                        OutgoingCallResponse.Ok(JobsProviderFollowResponse("", -1))
                     }
-                    is JobsProviderFollowRequest.CancelStream -> {
-                        val id = request.streamId.toIntOrNull()
-                            ?: throw RPCException("Bad stream id", HttpStatusCode.BadRequest)
-                        if (id !in 0 until maxStreams) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-                        streams[id].compareAndSet(Unit, null)
-                        OutgoingCallResponse.Ok(JobsProviderFollowResponse("", -1))
-                    }
                 }
             }
 
-            implement(jobs.openInteractiveSession) {
-                log.info("open interactive session $request")
-                TODO()
-            }
+            when (serverMode) {
+                ServerMode.Server, ServerMode.User -> {
+                    val server = H2OServer(rpcServerPort!!)
+                    with(server) {
+                        configureControllers(
+                            controllerContext,
+                            ComputeController(controllerContext),
+                            ConnectionController(controllerContext, envoyConfig)
+                        )
+                    }
 
-            implement(jobs.retrieveUtilization) {
-                OutgoingCallResponse.Ok(
-                    JobsProviderUtilizationResponse(CpuAndMemory(0.0, 0L), CpuAndMemory(0.0, 0L), QueueStatus(0, 0))
-                )
-            }
+                    server.start()
+                }
 
-            implement(jobs.suspend) {
-                log.info("Suspending jobs $request")
-                OutgoingCallResponse.Ok(Unit)
-            }
-
-            implement(jobs.verify) {
-                log.info("Verifying some jobs $request")
-                OutgoingCallResponse.Ok(Unit)
+                is ServerMode.Plugin -> {
+                    cli!!.execute(serverMode.name)
+                }
             }
         }
-
-
-        server.start()
+    } catch (ex: Throwable) {
+        ex.printStackTrace()
+        println("Good bye")
     }
 }
 
-@Suppress("UNCHECKED_CAST")
-val <S : Any> CallHandler<*, S, *>.wsContext: WebSocketContext<*, S, *>
-    get() = ctx.serverContext as WebSocketContext<*, S, *>
+private fun H2OServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
+    controllers.forEach { with(it) { configure() } }
 
-@SharedImmutable
-val bearerKey = AttributeKey<String>("bearer").also { it.freeze() }
-var IngoingCall<*>.bearerOrNull: String?
-    get() = attributes.getOrNull(bearerKey)
-    set(value) {
-        attributes.setOrDelete(bearerKey, value)
-    }
-
-@SharedImmutable
-val securityPrincipalTokenKey = AttributeKey<SecurityPrincipalToken>("principalToken").also { it.freeze() }
-var IngoingCall<*>.securityPrincipalTokenOrNull: SecurityPrincipalToken?
-    get() = attributes.getOrNull(securityPrincipalTokenKey)
-    set(value) {
-        attributes.setOrDelete(securityPrincipalTokenKey, value)
-    }
-
-val IngoingCall<*>.securityPrincipal: SecurityPrincipal
-    get() = securityPrincipalTokenOrNull?.principal ?: error("User is not authenticated")
-
-@Serializable
-data class TestRequest(val a: Int, val b: Boolean, val c: String)
-
-@OptIn(ExperimentalStdlibApi::class)
-object CallTest : CallDescriptionContainer("test") {
-    const val baseContext = "/ucloud/test"
-
-    val testQuery = call<TestRequest, Unit, CommonErrorMessage>("testQuery") {
-        httpRetrieve(baseContext)
-    }
-
-    val testBody = call<BulkRequest<TestRequest>, TestRequest, CommonErrorMessage>("testBody") {
-        httpUpdate(baseContext, "body")
-    }
-
-    val testError = call<TestRequest, Unit, CommonErrorMessage>("testError") {
-        httpRetrieve(baseContext, "error")
-    }
-
-    val testUnit = call<Unit, Unit, CommonErrorMessage>("testUnit") {
-        httpRetrieve(baseContext, "unit")
+    val ipcServer = ctx.pluginContext.ipcServerOptional
+    if (ipcServer != null) {
+        controllers.forEach { it.configureIpc(ipcServer) }
     }
 }
+
+const val ENVOY_CONFIG_PATH = "/var/run/ucloud/envoy"

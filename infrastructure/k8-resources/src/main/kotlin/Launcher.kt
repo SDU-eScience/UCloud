@@ -1,12 +1,10 @@
 package dk.sdu.cloud.k8
 
-import io.fabric8.kubernetes.api.model.EnvVar
-import io.fabric8.kubernetes.api.model.SecurityContext
-import io.fabric8.kubernetes.api.model.ServicePort
 import io.fabric8.kubernetes.client.Config
 import io.fabric8.kubernetes.client.DefaultKubernetesClient
 import java.io.*
 import javax.script.ScriptEngineManager
+import kotlin.system.exitProcess
 
 enum class LauncherCommand(val cmd: String) {
     UP_TO_DATE("status"),
@@ -155,112 +153,4 @@ fun main(args: Array<String>) {
 
     Configuration.runBlocks(ctx)
     runLauncher(launcherCommand, remainingArgs, skipUpToDateCheck, forceYes, ctx)
-}
-
-
-fun fie() {
-    bundle {
-        name = "sync-mounter"
-        version = "0.1.0"
-
-        val deployment = withDeployment() {
-            val cephfsVolume = "cephfs"
-            deployment.spec.replicas = 1
-            deployment.spec.template.spec.hostname = "syncthing1"
-            injectSecret("sync-config", optional = true)
-
-            val syncthingSharedVolume = "syncthing"
-            volumes.add(Volume().apply {
-                name = syncthingSharedVolume
-                emptyDir = EmptyDirVolumeSource()
-            })
-
-            containers.add(Container().apply {
-                name = "syncthing"
-                image = "ghcr.io/linuxserver/syncthing"
-                command = listOf(
-                    "sh", "-c",
-                    """
-                        touch /mnt/cephfs/ready
-                        while [ ! -f /mnt/cephfs/ready ]; do sleep 0.5; done;
-                        /init
-                    """.trimIndent()
-                )
-
-                env = listOf(
-                    EnvVar().apply {
-                        name = "PUID"
-                        value = "11042"
-                    },
-                    EnvVar().apply {
-                        name = "PGID"
-                        value = "11042"
-                    },
-                    EnvVar().apply {
-                        name = "TZ"
-                        value = "Europe/Copenhagen"
-                    }
-                )
-
-                workingDir = "/mnt/cephfs"
-                volumeMounts.add(VolumeMount().apply {
-                    name = syncthingSharedVolume
-                    mountPath = "/mnt/cephfs"
-                })
-
-                volumeMounts.add(VolumeMount().apply {
-                    name = cephfsVolume
-                    mountPath = "/config"
-                    subPath = "syncthing1"
-                })
-            })
-
-            serviceContainer.securityContext = SecurityContext().apply {
-                privileged = true
-            }
-            serviceContainer.volumeMounts.add(VolumeMount().apply {
-                mountPath = "/mnt/sync"
-                mountPropagation = "Bidirectional"
-                name = syncthingSharedVolume
-            })
-
-            serviceContainer.volumeMounts.add(VolumeMount().apply {
-                name = cephfsVolume
-                mountPath = "/mnt/cephfs"
-            })
-
-            volumes.add(Volume().apply {
-                name = cephfsVolume
-                persistentVolumeClaim = PersistentVolumeClaimVolumeSource().apply {
-                    claimName = cephfsVolume
-                }
-            })
-        }
-
-        withService(version = "0.1.0") {
-            service.spec.apply {
-                type = "NodePort"
-                ports = listOf(
-                    ServicePort().apply {
-                        nodePort = 31400
-                        port = 22000
-                        name = "p22000tcp"
-                        protocol = "TCP"
-                    },
-                    ServicePort().apply {
-                        nodePort = 31400
-                        port = 22000
-                        name = "p22000udp"
-                        protocol = "UDP"
-                    },
-                    ServicePort().apply {
-                        nodePort = 31401
-                        port = 21027
-                        name = "p21027"
-                        protocol = "UDP"
-                    }
-                )
-            }
-        }
-    }
 }

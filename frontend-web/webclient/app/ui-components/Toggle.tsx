@@ -67,6 +67,7 @@ interface ToggleProps {
     activeColor?: CSSVarThemeColor;
     disabledColor?: CSSVarThemeColor;
 }
+
 export const Toggle: React.FC<ToggleProps> = ({
     checked,
     onChange,

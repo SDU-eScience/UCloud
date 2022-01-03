@@ -96,6 +96,7 @@ fun RowData.toPrincipal(totpStatus: Boolean): Principal {
                 getField(PrincipalTable.uid),
                 totpStatus,
                 getField(PrincipalTable.serviceLicenseAgreement),
+                getField(PrincipalTable.orgId),
                 getField(PrincipalTable.hashedPassword),
                 getField(PrincipalTable.salt)
             )
@@ -480,6 +481,7 @@ class UserAsyncDAO(
                             set(PrincipalTable.serviceLicenseAgreement, principal.serviceLicenseAgreement)
                             set(PrincipalTable.hashedPassword, principal.password)
                             set(PrincipalTable.salt, principal.salt)
+                            set(PrincipalTable.orgId, principal.organizationId)
                         }
 
                     is ServicePrincipal ->

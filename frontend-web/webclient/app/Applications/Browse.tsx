@@ -1,25 +1,25 @@
-import * as UCloud from "UCloud";
-import {MainContainer} from "MainContainer/MainContainer";
-import {
-    useRefreshFunction
-} from "Navigation/Redux/HeaderActions";
-import {useTitle} from "Navigation/Redux/StatusActions";
-import * as Pagination from "Pagination";
 import * as React from "react";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {Spacer} from "ui-components/Spacer";
-import {getQueryParam, getQueryParamOrElse} from "Utilities/URIUtilities";
-import * as Pages from "./Pages";
-import {usePrioritizedSearch} from "Utilities/SearchUtilities";
 import {useHistory} from "react-router";
 import {useCallback} from "react";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {compute} from "UCloud";
+import * as UCloud from "@/UCloud";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {
+    useRefreshFunction
+} from "@/Navigation/Redux/HeaderActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
+import * as Pagination from "@/Pagination";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {Spacer} from "@/ui-components/Spacer";
+import {getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import * as Pages from "./Pages";
+import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
+import {emptyPage} from "@/DefaultObjects";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {ApplicationCard} from "Applications/Card";
-import {GridCardGroup} from "ui-components/Grid";
+import {ApplicationCard} from "@/Applications/Card";
+import {GridCardGroup} from "@/ui-components/Grid";
 
 export const Applications: React.FunctionComponent = () => {
     useTitle("Applications");
@@ -46,7 +46,7 @@ export const Applications: React.FunctionComponent = () => {
 
     const goToPage = useCallback((page: number, itemsPerPage: number) => {
         if (tag === null) {
-             history.push(Pages.browse(itemsPerPage, page));
+            history.push(Pages.browse(itemsPerPage, page));
         } else {
             history.push(Pages.browseByTag(tag, itemsPerPage, page));
         }

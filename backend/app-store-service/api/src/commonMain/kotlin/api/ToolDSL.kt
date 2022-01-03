@@ -9,6 +9,7 @@ enum class ToolBackend {
     SINGULARITY,
     DOCKER,
     VIRTUAL_MACHINE,
+    NATIVE,
 }
 
 sealed class ToolVerificationException(why: String, httpStatusCode: HttpStatusCode) :

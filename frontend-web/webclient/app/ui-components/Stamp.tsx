@@ -1,7 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
 import {fontSize, space, SpaceProps} from "styled-system";
-import {Icon, Text} from ".";
+import {Box, Icon, Text} from ".";
 import {IconName} from "./Icon";
 import theme, {Theme, ThemeColor} from "./theme";
 
@@ -77,6 +77,7 @@ const StampBase = styled.div<StampProps>`
   border-style: solid;
   ${colorScheme}
   ${space} ${fontSize};
+  ${p => p.onClick ? ({cursor: "pointer"}) : null}
 `;
 
 StampBase.displayName = "Stamp";
@@ -97,12 +98,12 @@ StampBase.defaultProps = {
     fullWidth: false
 };
 
-const Stamp = (props: StampProps & {icon?: IconName; onClick?: () => void; text: string}): JSX.Element => (
+const Stamp: React.FunctionComponent<StampProps & {icon?: IconName; onClick?: () => void; text?: string}> = (props) =>
     <StampBase {...props}>
         {props.icon ? <Icon name={props.icon} size={12} /> : null}
-        <Text ml="4px" mr="6px">{props.text}</Text>
+        <Text ml="4px" mr="6px">{props.text}{props.children}</Text>
+        <Box flexGrow={1} />
         {props.onClick ? <Icon name={"close"} size={12} onClick={props.onClick} /> : null}
     </StampBase>
-);
 
 export default Stamp;

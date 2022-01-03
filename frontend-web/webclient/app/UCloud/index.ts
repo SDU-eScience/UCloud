@@ -1,17 +1,17 @@
 /* eslint-disable */
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue Jul 27 08:52:25 CEST 2021 */
+/* Generated at: Thu Jun 03 13:40:27 GMT 2021 */
 
-import {buildQueryString} from "Utilities/URIUtilities";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 /**
  * A generic error message
- * 
+ *
  * UCloud uses HTTP status code for all error messages In addition and if possible, UCloud will include a message using a
  * common format Note that this is not guaranteed to be included in case of a failure somewhere else in the network stack
  * For example, UCloud's load balancer might not be able to contact the backend at all In such a case UCloud will
  * _not_ include a more detailed error message
- * 
+ *
  */
 export interface CommonErrorMessage {
     /**
@@ -31,7 +31,7 @@ export interface Page<T = unknown> {
 }
 /**
  * Represents a single 'page' of results
-    
+
  * Every page contains the items from the current result set, along with information which allows the client to fetch
  * additional information
  */
@@ -42,7 +42,7 @@ export interface PageV2<T = unknown> {
     itemsPerPage: number /* int32 */,
     /**
      * The items returned in this page
-     * 
+     *
      * NOTE: The amount of items might differ from `itemsPerPage`, even if there are more results The only reliable way to
      * check if the end of results has been reached is by checking i `next == null`
      */
@@ -54,74 +54,61 @@ export interface PageV2<T = unknown> {
 }
 /**
  * A base type for requesting a bulk operation
-    
+
  * ---
- * 
+ *
  * __⚠ WARNING:__ All request items listed in the bulk request must be treated as a _single_ transaction This means
  * that either the entire request succeeds, or the entire request fails
- * 
+ *
  * There are two exceptions to this rule:
- * 
+ *
  * 1 Certain calls may choose to only guarantee this at the provider level That is if a single call contain request
  * for multiple providers, then in rare occasions (ie crash) changes might not be rolled back immediately on all
  * providers A service _MUST_ attempt to rollback already committed changes at other providers
- * 
+ *
  * 2 The underlying system does not provide such guarantees In this case the service/provider _MUST_ support the
  * verification API to cleanup these resources later
- * 
+ *
  * ---
-    
- * 
- * 
+
+ *
+ *
  */
 
 export type BulkRequest<T> = { type: "bulk", items: T[] }
-export interface FindByStringId {
-    id: string,
-}
-export interface PaginationRequest {
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface BulkResponse<T = unknown> {
-    responses: T[],
-}
-export interface FindByLongId {
-    id: number /* int64 */,
-}
 /**
  * The base type for requesting paginated content
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required An inconsistent snapshot might be returned |
  * | `REQUIRE` | Consistency is required A request will fail if consistency is no longer guaranteed |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_ We consider the
  * results to be consistent if it contains a complete view at some point in time In practice this means that the results
  * must contain all the items, in the correct order and without duplicates
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items UCloud will still attempt to serve a snapshot which appears mostly consistent This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results UCloud attempts to keep each `next` token alive for at least one minute before invalidating it
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page If this is not feasible and consistency is not required then `PREFER` should be used
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied This is
  * needed in order to provide a consistent view of the results Clients _should_ provide the same criterion as they
  * paginate through the results
- * 
+ *
  * ---
- * 
+ *
  */
 export interface PaginationRequestV2 {
     /**
@@ -135,11 +122,1342 @@ export interface PaginationRequestV2 {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
+}
+export interface FindByLongId {
+    id: number /* int64 */,
+}
+export interface FindByStringId {
+    id: string,
+}
+export interface BulkResponse<T = unknown> {
+    responses: T[],
+}
+export interface PaginationRequest {
+    itemsPerPage?: number /* int32 */,
+    page?: number /* int32 */,
+}
+export namespace file {
+
+export namespace orchestrator {
+export interface FileMetadataAddRequestItem {
+    path: string,
+    metadata: FileMetadataDocumentNS.Spec,
+}
+export interface FileMetadataDeleteRequestItem {
+    path: string,
+    templateId: string,
+}
+export interface FileMetadataRetrieveAllResponse {
+    metadata: FileMetadataAttached[],
+}
+export interface FileMetadataAttached {
+    path: string,
+    metadata: FileMetadataDocument,
+}
+/**
+ * A metadata document which conforms to a `FileMetadataTemplate`
+ */
+export interface FileMetadataDocument {
+    /**
+     * A unique identifier referencing the `Resource`
+     *
+     * The ID is unique across a provider for a single resource type.
+     */
+    id: string,
+    specification: FileMetadataDocumentNS.Spec,
+    createdAt: number /* int64 */,
+    status: FileMetadataDocumentNS.Status,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     *
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: provider.ResourceUpdate[],
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: provider.ResourceOwner,
+    acl?: any /* unknown */,
+    billing: provider.ResourceBillingNS.Free,
+    permissions?: provider.ResourcePermissions,
+    providerGeneratedId?: string,
+    type: ("metadata"),
+}
+export interface FileMetadataRetrieveAllRequest {
+    parentPath: string,
+}
+export interface FileMetadataMoveRequestItem {
+    oldPath: string,
+    newPath: string,
+}
+/**
+ * A `UFile` is a resource for storing, retrieving and organizing data in UCloud
+
+ * A file in UCloud (`UFile`) closely follows the concept of a computer file you might already be familiar with. The
+ * functionality of a file is mostly determined by its `type`. The two most important types are the `DIRECTORY` and `FILE`
+ * types. A `DIRECTORY` is a container of `UFile`s. A directory can itself contain more directories, which leads to a
+ * natural tree-like structure. `FILE`s, also referred to as a regular files, are data records which each contain a series
+ * of bytes.
+ *
+ * All files in UCloud have a name associated with them. This name uniquely identifies them within their directory. All
+ * files in UCloud belong to exactly one directory.
+ *
+ * File operations must be able to reference the files on which they operate. In UCloud, these references are made through
+ * the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
+ * directories to go through, starting at the top, to reach the file we are referencing. This information is serialized
+ * as a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with
+ * a single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
+ * systems use.
+ *
+ * All files in UCloud additionally have metadata associated with them. For this we differentiate between system-level
+ * metadata and user-defined metadata.
+ *
+ * We have just covered two examples of system-level metadata, the `path` and `type`. UCloud additionally supports
+ * metadata such as general `stats` about the files, such as file sizes. All files have a set of `permissions` associated
+ * with them, providers may optionally expose this information to UCloud and the users.
+ *
+ * User-defined metadata describe the contents of a  All metadata is described by a template (`FileMetadataTemplate`),
+ * this template defines a document structure for the metadata. User-defined metadata can be used for a variety of
+ * purposes, such as: [Datacite metadata](https://schema.datacite.org/), sensitivity levels, and other field specific
+ * metadata formats.
+ *
+ */
+export interface UFile {
+    /**
+     * A unique reference to a file
+     *
+     * All files in UCloud have a `name` associated with them. This name uniquely identifies them within their directory. All
+     * files in UCloud belong to exactly one directory. A `name` can be any textual string, for example: `thesis-42.docx`.
+     * However, certain restrictions apply to file `name`s, see below for a concrete list of rules and recommendations.
+     *
+     * The `extension` of a file is typically used as a hint to clients how to treat a specific  For example, an extension
+     * might indicate that the file contains a video of a specific format. In UCloud, the file's `extension` is derived from
+     * its `name`. In UCloud, it is simply defined as the text immediately following, and not including, the last
+     * period `.` (`U+002E`). The table below shows some examples of how UCloud determines the extension of a file:
+     *
+     * | File `name` | Derived `extension` | Comment |
+     * |-------------|---------------------|---------|
+     * | `thesis-42.docx` | `docx` | - |
+     * | `thesis-43-final.tar` | `tar` | - |
+     * | `thesis-43-FINAL2.tar.gz` | `gz` | Note that UCloud does not recognize `tar` as being part of the extension |
+     * | `thesis` |  | Empty string |
+     * | `.ssh` | `ssh` | 'Hidden' files also have a surprising extension in UCloud |
+     *
+     * File operations must be able to reference the files on which they operate. In UCloud, these references are made through
+     * the `path` property. Paths use the tree-like structure of files to reference a file, it does so by declaring which
+     * directories to go through, starting at the top, to reach the file we are referencing. This information is serialized as
+     * a textual string, where each step of the path is separated by forward-slash `/` (`U+002F`). The path must start with a
+     * single forward-slash, which signifies the root of the file tree. UCloud never users 'relative' file paths, which some
+     * systems use.
+     *
+     * A path in UCloud is structured in such a way that they are unique across all providers and file systems. The figure
+     * below shows how a UCloud path is structured, and how it can be mapped to an internal file-system path.
+     *
+     * ![](/backend/file-orchestrator-service/wiki/path.png)
+     *
+     * __Figure:__ At the top, a UCloud path along with the components of it. At the bottom, an example of an internal,
+     * provider specific, file-system path.
+     *
+     * The figure shows how a UCloud path consists of four components:
+     *
+     * 1. The ['Provider ID'](/backend/provider-service/README.md) references the provider who owns and hosts the file
+     * 2. The product reference, this references the product that is hosting the `FileCollection`
+     * 3. The `FileCollection` ID references the ID of the internal file collection. These are controlled by the provider and
+     *    match the different types of file-systems they have available. A single file collection typically maps to a specific
+     *    folder on the provider's file-system.
+     * 4. The internal path, which tells the provider how to find the file within the collection. Providers can typically pass
+     *    this as a one-to-one mapping.
+     *
+     * __Rules of a file `name`:__
+     *
+     * 1. The `name` cannot be equal to `.` (commonly interpreted to mean the current directory)
+     * 2. The `name` cannot be equal to `..` (commonly interpreted to mean the parent directory)
+     * 3. The `name` cannot contain a forward-slash `/` (`U+002F`)
+     * 4. Names are strictly unicode
+     *
+     * UCloud will normalize a path which contain `.` or `..` in a path's step. It is normalized according to the comments
+     * mentioned in rule 1 and 2.
+     *
+     * Note that all paths in unicode are strictly unicode (rule 4). __This is different from the unix standard.__ Unix file
+     * names can contain _arbitrary_ binary data. (TODO determine how providers should handle this edge-case)
+     *
+     * __Additionally regarding file `name`s, UCloud recommends to users the following:__
+     *
+     * - Avoid the following file names:
+     *     - Containing Windows reserved characters: `<`, `>`, `:`, `"`, `/`, `|`, `?`, `*`, `\`
+     *     - Any of the reserved file names in Windows:
+     *         - `AUX`
+     *         - `COM1`, `COM2`, `COM3`, `COM4`, `COM5`, `COM6`, `COM7`, `COM8`, `COM9`
+     *         - `CON`
+     *         - `LPT1`, `LPT2`, `LPT3`, `LPT4`, `LPT5`, `LPT6`, `LPT7`, `LPT8`, `LPT9`
+     *         - `NUL`
+     *         - `PRN`
+     *         - Any of the above followed by an extension
+     *     - Avoid ASCII control characters (decimal value 0-31 both inclusive)
+     *     - Avoid Unicode control characters (e.g. right-to-left override)
+     *     - Avoid line breaks, paragraph separators and other unicode separators which is typically interpreted as a
+     *       line-break
+     *     - Avoid binary names
+     *
+     * UCloud will attempt to reject these for file operations initiated through the client, but it cannot ensure that these
+     * files do not appear regardless. This is due to the fact that the file systems are typically mounted directly by
+     * user-controlled jobs.
+     *
+     * __Rules of a file `path`:__
+     *
+     * 1. All paths must be absolute, that is they must start with `/`
+     * 2. UCloud will normalize all path 'steps' containing either `.` or `..`
+     *
+     * __Additionally UCloud recommends to users the following regarding `path`s:__
+     *
+     * - Avoid long paths:
+     *     - Older versions of Unixes report `PATH_MAX` as 1024
+     *     - Newer versions of Unixes report `PATH_MAX` as 4096
+     *     - Older versions of Windows start failing above 256 characters
+     *
+     */
+    path: string,
+    /**
+     * Which type of file this is, see `FileType` for more information.
+     */
+    type: ("FILE" | "DIRECTORY" | "SOFT_LINK" | "DANGLING_METADATA"),
+    /**
+     * A hint to clients about which icon to display next to this  See `FileIconHint` for details.
+     */
+    icon?: ("DIRECTORY_STAR" | "DIRECTORY_SHARES" | "DIRECTORY_TRASH" | "DIRECTORY_JOBS"),
+    /**
+     * General system-level stats about the  See `UFile.Stats` for details.
+     */
+    stats?: UFileNS.Stats,
+    /**
+     * System-level permissions for this  See `UFile.Permissions` for details.
+     */
+    permissions?: UFileNS.Permissions,
+    /**
+     * User-defined metadata for this  See `FileMetadataTemplate` for details.
+     */
+    metadata?: FileMetadataHistory,
+}
+export interface FileMetadataHistory {
+    templates: Record<string, FileMetadataTemplate>,
+    metadata: Record<string, FileMetadataOrDeleted[]>,
+}
+/**
+ * A `FileMetadataTemplate` allows users to attach user-defined metadata to any `UFile`
+ */
+export interface FileMetadataTemplate {
+    /**
+     * A unique identifier referencing the `Resource`
+     *
+     * The ID is unique across a provider for a single resource type.
+     */
+    id: string,
+    specification: FileMetadataTemplateNS.Spec,
+    /**
+     * Holds the current status of the `Resource`
+     */
+    status: FileMetadataTemplateNS.Status,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     *
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: FileMetadataTemplateNS.Update[],
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: provider.ResourceOwner,
+    /**
+     * An ACL for this `Resource`
+     * @deprecated
+     */
+    acl: provider.ResourceAclEntry<("READ" | "WRITE")>[],
+    /**
+     * Timestamp referencing when the request for creation was received by UCloud
+     */
+    createdAt: number /* int64 */,
+    public: boolean,
+    /**
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
+    billing: provider.ResourceBillingNS.Free,
+    providerGeneratedId?: string,
+}
+export type FileMetadataOrDeleted = FileMetadataDocument | FileMetadataOrDeletedNS.Deleted
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface FilesBrowseRequest {
+    path: string,
+    includePermissions?: boolean,
+    includeTimestamps?: boolean,
+    includeSizes?: boolean,
+    includeUnixInfo?: boolean,
+    includeMetadata?: boolean,
+    /**
+     * Determines if the request should succeed if the underlying system does not support this data.
+     *
+     * This value is `true` by default
+     */
+    allowUnsupportedInclude?: boolean,
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+    sortBy: FilesSortBy;
+    sortOrder: SortOrder;
+}
+
+export enum SortOrder {
+    ASCENDING = "ASCENDING",
+    DESCENDING = "DESCENDING"
+}
+
+export enum FilesSortBy {
+    PATH = "PATH",
+    SIZE = "SIZE",
+    CREATED_AT = "CREATED_AT",
+    MODIFIED_AT = "MODIFIED_AT"
+}
+
+export type LongRunningTask = LongRunningTaskNS.Complete | LongRunningTaskNS.ContinuesInBackground
+export interface FilesCopyRequestItem {
+    oldPath: string,
+    newPath: string,
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
+}
+export interface FilesCreateDownloadResponseItem {
+    endpoint: string,
+}
+export interface FilesCreateDownloadRequestItem {
+    path: string,
+}
+export interface FilesCreateUploadResponseItem {
+    endpoint: string,
+    protocol: ("CHUNKED"),
+    token: string,
+}
+export interface FilesCreateUploadRequestItem {
+    path: string,
+    supportedProtocols: ("CHUNKED")[],
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
+}
+export interface FilesCreateFolderRequestItem {
+    path: string,
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
+}
+export interface FindByPath {
+    path: string,
+}
+export interface FilesMoveRequestItem {
+    oldPath: string,
+    newPath: string,
+    conflictPolicy: ("RENAME" | "REJECT" | "REPLACE" | "MERGE_RENAME"),
+}
+export interface FilesRetrieveRequest {
+    path: string,
+    includePermissions?: boolean,
+    includeTimestamps?: boolean,
+    includeSizes?: boolean,
+    includeUnixInfo?: boolean,
+    includeMetadata?: boolean,
+    /**
+     * Determines if the request should succeed if the underlying system does not support this data.
+     *
+     * This value is `true` by default
+     */
+    allowUnsupportedInclude?: boolean,
+}
+export interface FilesUpdateAclRequestItem {
+    path: string,
+    newAcl: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
+}
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface FileMetadataTemplatesBrowseRequest {
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export interface FileMetadataTemplatesRetrieveRequest {
+    id: string,
+    version?: string,
+}
+export interface Share {
+    path: string,
+    sharedBy: string,
+    sharedWith: string,
+    approved: boolean,
+}
+export interface SharesRetrieveRequest {
+    path: string,
+}
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface SharesBrowseRequest {
+    sharedByMe: boolean,
+    filterPath?: string,
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export interface SharesCreateRequestItem {
+    path: string,
+    sharedWith: string,
+}
+export interface SharesDeleteRequestItem {
+    path: string,
+    sharedWith?: string,
+}
+export interface SharesApproveRequestItem {
+    path: string,
+}
+export interface ProxiedRequest<T = unknown> {
+    username: string,
+    project?: string,
+    request: T,
+}
+export namespace ucloud {
+/**
+ * Uploads a new chunk to the file at a given offset (uploadChunk)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)
+ *
+ * Uploads a new chunk to a file, specified by an upload session token. An upload session token can be
+ * created using the [`files.createUpload`](#operation/files.createUpload) call.
+ *
+ * A session MUST be live for at least 30 minutes after the last `uploadChunk`
+ * call was active. That is, since the last byte was transferred to this session or processed by the
+ * provider. It is recommended that a provider keep a session for up to 48 hours. A session SHOULD NOT be
+ * kept alive for longer than 48 hours.
+ *
+ * This call MUST add the HTTP request body to the file, backed by the session, at the specified offset.
+ * Clients may use the special offset '-1' to indicate that the payload SHOULD be appended to the
+ * Providers MUST NOT interpret the request body in any way, the payload is binary and SHOULD be written
+ * to the file as is. Providers SHOULD reject offset values that don't fulfill one of the following
+ * criteria:
+ *
+ * - Is equal to -1
+ * - Is a valid offset in the file
+ * - Is equal to the file size + 1
+ *
+ * Clients MUST send a chunk which is at most 32MB large (32,000,000 bytes). Clients MUST declare the size
+ * of chunk by specifying the `Content-Length` header. Providers MUST reject values that are not valid or
+ * are too large. Providers SHOULD assume that the `Content-Length` header is valid.
+ * However, the providers MUST NOT wait indefinitely for all bytes to be delivered. A provider SHOULD
+ * terminate a connection which has been idle for too long to avoid trivial DoS by specifying a large
+ * `Content-Length` without sending any bytes.
+ *
+ * If a chunk upload is terminated before it is finished then a provider SHOULD NOT delete the data
+ * already written to the  Clients SHOULD assume that the entire chunk has failed and SHOULD re-upload
+ * the entire chunk.
+ *
+ * Providers SHOULD NOT cache a chunk before writing the data to the FS. Data SHOULD be streamed
+ * directly into the
+ *
+ * Providers MUST NOT respond to this call before the data has been written to disk.
+ *
+ * Clients SHOULD avoid sending multiple chunks at the same time. Providers are allowed to reject parallel
+ * calls to this endpoint.
+ */
+export function uploadChunk(): APICallParameters<{}, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/chunked",
+        reloadId: Math.random(),
+    };
+}
+}
+export namespace metadata_template {
+export function create(
+    request: BulkRequest<FileMetadataTemplateNS.Spec>
+): APICallParameters<BulkRequest<FileMetadataTemplateNS.Spec>, BulkResponse<FindByStringId>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/metadataTemplate",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function browse(
+    request: FileMetadataTemplatesBrowseRequest
+): APICallParameters<FileMetadataTemplatesBrowseRequest, PageV2<FileMetadataTemplate>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/metadataTemplate" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function retrieve(
+    request: FileMetadataTemplatesRetrieveRequest
+): APICallParameters<FileMetadataTemplatesRetrieveRequest, FileMetadataTemplate> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/metadataTemplate" + "/retrieve", {id: request.id, version: request.version}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function deprecate(
+    request: BulkRequest<FindByStringId>
+): APICallParameters<BulkRequest<FindByStringId>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/metadataTemplate" + "/deprecate",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace FileMetadataDocumentNS {
+export interface Spec {
+    /**
+     * The ID of the `FileMetadataTemplate` that this document conforms to
+     */
+    templateId: string,
+    /**
+     * The document which fills out the template
+     */
+    document: Record<string, any /* unknown */>,
+    /**
+     * Reason for this change
+     */
+    changeLog: string,
+    product: accounting.ProductReference,
+}
+/**
+ * Describes the current state of the `Resource`
+ *
+ * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+ * this will contain information such as:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`
+ * - Key metrics about the resource.
+ * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+ *   should be listed in the `status` section.
+ *
+ */
+export interface Status {
+    approval: ApprovalStatus,
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+}
+export type ApprovalStatus = ApprovalStatusNS.Approved | ApprovalStatusNS.Pending | ApprovalStatusNS.Rejected | ApprovalStatusNS.NotRequired
+export namespace ApprovalStatusNS {
+export interface Approved {
+    approvedBy: string,
+    type: ("approved"),
+}
+export interface Pending {
+    type: ("pending"),
+}
+export interface Rejected {
+    rejectedBy: string,
+    type: ("rejected"),
+}
+export interface NotRequired {
+    type: ("not_required"),
+}
+}
+}
+export namespace LongRunningTaskNS {
+export interface Complete {
+    type: ("complete"),
+}
+export interface ContinuesInBackground {
+    taskId: string,
+    type: ("continues_in_background"),
+}
+}
+export namespace FileMetadataTemplateNS {
+export interface Spec {
+    /**
+     * The unique ID for this template
+     */
+    id: string,
+    /**
+     * The title of this template. It does not have to be unique.
+     */
+    title: string,
+    /**
+     * Version identifier for this version. It must be unique within a single template group.
+     */
+    version: string,
+    /**
+     * JSON-Schema for this document
+     */
+    schema: Record<string, any /* unknown */>,
+    /**
+     * Makes this template inheritable by descendants of the file that the template is attached to
+     */
+    inheritable: boolean,
+    /**
+     * If `true` then a user with `ADMINISTRATOR` rights must approve all changes to metadata
+     */
+    requireApproval: boolean,
+    /**
+     * Description of this template. Markdown is supported.
+     */
+    description: string,
+    /**
+     * A description of the change since last version. Markdown is supported.
+     */
+    changeLog: string,
+    /**
+     * Determines how this metadata template is namespaces
+     *
+     * NOTE: This is required to not change between versions
+     */
+    namespaceType: ("COLLABORATORS" | "PER_USER"),
+    uiSchema?: Record<string, any /* unknown */>,
+    product: accounting.ProductReference,
+}
+/**
+ * Describes the current state of the `Resource`
+ *
+ * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+ * this will contain information such as:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`
+ * - Key metrics about the resource.
+ * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+ *   should be listed in the `status` section.
+ *
+ */
+export interface Status {
+    oldVersions: string[],
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+}
+/**
+ * Describes an update to the `Resource`
+ *
+ * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+ * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+ * use the full update history if you only wish to know the _current_ state of a `Resource`.
+ *
+ * An update will typically contain information similar to the `status` field, for example:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`.
+ * - Change in key metrics.
+ * - Bindings to related `Resource`s.
+ *
+ */
+export interface Update {
+    /**
+     * A timestamp referencing when UCloud received this update
+     */
+    timestamp: number /* int64 */,
+    /**
+     * A generic text message describing the current status of the `Resource`
+     */
+    status?: string,
+}
+}
+export namespace FileMetadataOrDeletedNS {
+/**
+ * Indicates that the metadata document has been deleted is no longer in use
+ */
+export interface Deleted {
+    /**
+     * Reason for this change
+     */
+    changeLog: string,
+    /**
+     * Timestamp indicating when this change was made
+     */
+    createdAt: number /* int64 */,
+    /**
+     * A reference to the user who made this change
+     */
+    createdBy: string,
+    status: FileMetadataDocumentNS.Status,
+    type: ("deleted"),
+}
+}
+export namespace files {
+/**
+ * Browse files of a directory (browse)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Browses the contents of a directory.
+ *
+ * The results will be returned using the standard pagination API of UCloud. Consistency is slightly
+ * relaxed for this endpoint as it is typically hard to enforce for filesystems. Provider's are heavily
+ * encouraged to try and find all files on the first request and return information about them in
+ * subsequent requests. For example, a client might list all file names in the initial request and use
+ * this list for all subsequent requests and retrieve additional information about the  If the files
+ * no longer exist then the provider should simply not include these results.
+ */
+export function browse(
+    request: FilesBrowseRequest
+): APICallParameters<FilesBrowseRequest, PageV2<UFile>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files" + "/browse", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, allowUnsupportedInclude: request.allowUnsupportedInclude, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, sortBy: request.sortBy, sortOrder: request.sortOrder}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+/**
+ * Copies a file from one path to another (copy)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Copies a file from one path to another.
+ *
+ * The file can be of any type. If a directory is chosen then this will recursively copy all of its
+ * children. This request might fail half-way through. This can potentially lead to a situation where
+ * a partial file is left on the file-system. It is left to the user to clean up this
+ *
+ * This operation handles conflicts depending on the supplied `WriteConflictPolicy`.
+ *
+ * This is a long running task. As a result, this operation might respond with a status code which indicate
+ * that it will continue in the background. Progress of this job can be followed using the task API.
+ *
+ * TODO What happens with metadata, acls and extended attributes?
+ */
+export function copy(
+    request: BulkRequest<FilesCopyRequestItem>
+): APICallParameters<BulkRequest<FilesCopyRequestItem>, BulkResponse<LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/copy",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Creates a download session between the user and the provider (createDownload)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Creates a download session between the user and the provider.
+ *
+ * The returned endpoint will respond with a download to the user.
+ */
+export function createDownload(
+    request: BulkRequest<FilesCreateDownloadRequestItem>
+): APICallParameters<BulkRequest<FilesCreateDownloadRequestItem>, BulkResponse<FilesCreateDownloadResponseItem>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/download",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Creates an upload session between the user and the provider (createUpload)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Creates an upload session between the user and the provider.
+ *
+ * The returned endpoint will accept an upload from the user which will create a file at a location
+ * specified in this request.
+ */
+export function createUpload(
+    request: BulkRequest<FilesCreateUploadRequestItem>
+): APICallParameters<BulkRequest<FilesCreateUploadRequestItem>, BulkResponse<FilesCreateUploadResponseItem>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/upload",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Creates a folder (createFolder)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Creates a folder at a specified location.
+ *
+ * This folder will automatically create parent directories if needed. This request may fail half-way
+ * through and leave the file-system in an inconsistent state. It is up to the user to clean this up.
+ */
+export function createFolder(
+    request: BulkRequest<FilesCreateFolderRequestItem>
+): APICallParameters<BulkRequest<FilesCreateFolderRequestItem>, BulkResponse<LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/folder",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Deletes a file permanently from the file-system (delete)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Deletes a file permanently from the file-system.
+ *
+ * This operation is permanent and cannot be undone. User interfaces should prefer using
+ * [`trash`](#operation/trash) if it is supported by the provider.
+ *
+ * If the referenced file is a directory then this will delete all files recursively. This operation may
+ * fail half-way through which will leave the file-system in an inconsistent state. It is the user's
+ * responsibility to clean up this state.
+ *
+ * This is a long running task. As a result, this operation might respond with a status code which indicate
+ * that it will continue in the background. Progress of this job can be followed using the task API.
+ */
+export function remove(
+    request: BulkRequest<FindByPath>
+): APICallParameters<BulkRequest<FindByPath>, BulkResponse<LongRunningTask>> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/api/files",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Move a file from one path to another (move)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Moves a file from one path to another.
+ *
+ * The file can be of any type. This request is also used for 'renames' of a  This is simply
+ * considered a move within a single directory. This operation handles conflicts depending on the supplied
+ * `WriteConflictPolicy`.
+ *
+ * This is a long running task. As a result, this operation might respond with a status code which indicate
+ * that it will continue in the background. Progress of this job can be followed using the task API.
+ */
+export function move(
+    request: BulkRequest<FilesMoveRequestItem>
+): APICallParameters<BulkRequest<FilesMoveRequestItem>, BulkResponse<LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/move",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Retrieves information about a single file (retrieve)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Retrieves information about a single
+ *
+ * This file can be of any type. Clients can request additional information about the file using the
+ * `include*` flags of the request. Note that not all providers support all information. Clients can query
+ * this information using [`collections.browse`](#operation/collections.browse) or
+ * [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
+ */
+export function retrieve(
+    request: FilesRetrieveRequest
+): APICallParameters<FilesRetrieveRequest, UFile> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files" + "/retrieve", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, allowUnsupportedInclude: request.allowUnsupportedInclude}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+/**
+ * Moves a file to the trash (trash)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Moves a file to the trash.
+ *
+ * This operation acts as a non-permanent delete for users. Users will be able to restore the file from
+ * trash later, if needed. It is up to the provider to determine if the trash should be automatically
+ * deleted and where this trash should be stored.
+ *
+ * Note that not all providers supports this endpoint. You can query [`collections.browse`](#operation/collections.browse)
+ * or [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
+ *
+ * This is a long running task. As a result, this operation might respond with a status code which indicate
+ * that it will continue in the background. Progress of this job can be followed using the task API.
+ */
+export function trash(
+    request: BulkRequest<FindByPath>
+): APICallParameters<BulkRequest<FindByPath>, BulkResponse<LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/trash",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+/**
+ * Updates the permissions of a file (updateAcl)
+ *
+ * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
+ * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
+ *
+ * Updates the permissions of a
+ *
+ * Note that not all providers supports this endpoint. You can query [`collections.browse`](#operation/collections.browse)
+ * or [`collections.retrieve`](#operation/collections.retrieve) with the `includeSupport` flag.
+ */
+export function updateAcl(
+    request: BulkRequest<FilesUpdateAclRequestItem>
+): APICallParameters<BulkRequest<FilesUpdateAclRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files" + "/updateAcl",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace metadata {
+export function create(
+    request: BulkRequest<FileMetadataAddRequestItem>
+): APICallParameters<BulkRequest<FileMetadataAddRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/metadata",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function remove(
+    request: BulkRequest<FileMetadataDeleteRequestItem>
+): APICallParameters<BulkRequest<FileMetadataDeleteRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/api/files/metadata",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function retrieveAll(
+    request: FileMetadataRetrieveAllRequest
+): APICallParameters<FileMetadataRetrieveAllRequest, FileMetadataRetrieveAllResponse> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/metadata" + "/retrieveAll", {parentPath: request.parentPath}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function moveMetadata(
+    request: BulkRequest<FileMetadataMoveRequestItem>
+): APICallParameters<BulkRequest<FileMetadataMoveRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/metadata" + "/move",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace shares {
+export function retrieve(
+    request: SharesRetrieveRequest
+): APICallParameters<SharesRetrieveRequest, Share> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/shares" + "/retrieve", {path: request.path}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function browse(
+    request: SharesBrowseRequest
+): APICallParameters<SharesBrowseRequest, PageV2<Share>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/files/shares" + "/browse", {sharedByMe: request.sharedByMe, filterPath: request.filterPath, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function create(
+    request: BulkRequest<SharesCreateRequestItem>
+): APICallParameters<BulkRequest<SharesCreateRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/shares",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function remove(
+    request: BulkRequest<SharesDeleteRequestItem>
+): APICallParameters<BulkRequest<SharesDeleteRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/api/files/shares",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function approve(
+    request: BulkRequest<SharesApproveRequestItem>
+): APICallParameters<BulkRequest<SharesApproveRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/files/shares" + "/approve",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace UFileNS {
+/**
+ * General system-level stats about a file
+ */
+export interface Stats {
+    /**
+     * The size of this file in bytes (Requires `includeSizes`)
+     */
+    sizeInBytes?: number /* int64 */,
+    /**
+     * The size of this file and any child (Requires `includeSizes`)
+     */
+    sizeIncludingChildrenInBytes?: number /* int64 */,
+    /**
+     * The modified at timestamp (Requires `includeTimestamps`)
+     */
+    modifiedAt?: number /* int64 */,
+    /**
+     * The created at timestamp (Requires `includeTimestamps`)
+     */
+    createdAt?: number /* int64 */,
+    /**
+     * The accessed at timestamp (Requires `includeTimestamps`)
+     */
+    accessedAt?: number /* int64 */,
+    /**
+     * The unix mode of a file (Requires `includeUnixInfo`
+     */
+    unixMode?: number /* int32 */,
+    /**
+     * The unix owner of a file as a UID (Requires `includeUnixInfo`)
+     */
+    unixOwner?: number /* int32 */,
+    /**
+     * The unix group of a file as a GID (Requires `includeUnixInfo`)
+     */
+    unixGroup?: number /* int32 */,
+}
+export interface Permissions {
+    /**
+     * What can the user, who requested this data, do with this file?
+     */
+    myself?: ("READ" | "WRITE" | "ADMINISTRATOR")[],
+    /**
+     * Information about what other users and entities can do with this file
+     */
+    others?: provider.ResourceAclEntry<("READ" | "WRITE" | "ADMINISTRATOR")>[],
+}
+}
+}
+export namespace ucloud {
+
+export namespace files {
+export function retrieve(
+    request: orchestrator.ProxiedRequest<orchestrator.FilesRetrieveRequest>
+): APICallParameters<orchestrator.ProxiedRequest<orchestrator.FilesRetrieveRequest>, orchestrator.UFile> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/retrieve",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function browse(
+    request: orchestrator.ProxiedRequest<orchestrator.FilesBrowseRequest>
+): APICallParameters<orchestrator.ProxiedRequest<orchestrator.FilesBrowseRequest>, PageV2<orchestrator.UFile>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/browse",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function copy(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCopyRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCopyRequestItem>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/copy",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function createUpload(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateUploadRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateUploadRequestItem>>, BulkResponse<orchestrator.FilesCreateUploadResponseItem>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/upload",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function move(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesMoveRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesMoveRequestItem>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/move",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function remove(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "DELETE",
+        path: "/ucloud/ucloud/files",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function trash(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FindByPath>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/trash",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function createFolder(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateFolderRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesCreateFolderRequestItem>>, BulkResponse<orchestrator.LongRunningTask>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/folder",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function updateAcl(
+    request: orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesUpdateAclRequestItem>>
+): APICallParameters<orchestrator.ProxiedRequest<BulkRequest<orchestrator.FilesUpdateAclRequestItem>>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/ucloud/ucloud/files" + "/updateAcl",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+}
 }
 export namespace compute {
 export interface JobsCreateResponse {
@@ -156,62 +1474,62 @@ export interface JobSpecification {
     product: accounting.ProductReference,
     /**
      * A name for this job assigned by the user.
-     * 
+     *
      * The name can help a user identify why and with which parameters a job was started. This value is suitable for display in user interfaces.
      */
     name?: string,
     /**
      * The number of replicas to start this job in
-     * 
+     *
      * The `resources` supplied will be mounted in every replica. Some `resources` might only be supported in an 'exclusive use' mode. This will cause the job to fail if `replicas != 1`.
      */
     replicas: number /* int32 */,
     /**
      * Allows the job to be started even when a job is running in an identical configuration
-     * 
+     *
      * By default, UCloud will prevent you from accidentally starting two jobs with identical configuration. This field must be set to `true` to allow you to create two jobs with identical configuration.
      */
     allowDuplicateJob: boolean,
     /**
      * Parameters which are consumed by the job
-     * 
+     *
      * The available parameters are defined by the `application`. This attribute is not included by default unless `includeParameters` is specified.
      */
     parameters?: Record<string, AppParameterValue>,
     /**
      * Additional resources which are made available into the job
-     * 
+     *
      * This attribute is not included by default unless `includeParameters` is specified. Note: Not all resources can be attached to a job. UCloud supports the following parameter types as resources:
-     * 
+     *
      *  - `file`
      *  - `peer`
      *  - `network`
      *  - `block_storage`
      *  - `ingress`
-     * 
+     *
      */
     resources?: AppParameterValue[],
     /**
      * Time allocation for the job
-     * 
+     *
      * This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
      */
     timeAllocation?: SimpleDuration,
     /**
      * The resolved product referenced by `product`.
-     * 
+     *
      * This attribute is not included by default unless `includeProduct` is specified.
      */
     resolvedProduct?: accounting.ProductNS.Compute,
     /**
      * The resolved application referenced by `application`.
-     * 
+     *
      * This attribute is not included by default unless `includeApplication` is specified.
      */
     resolvedApplication?: Application,
     /**
      * The resolved compute suport by the provider.
-     * 
+     *
      * This attribute is not included by default unless `includeSupport` is defined.
      */
     resolvedSupport?: ComputeSupport,
@@ -222,20 +1540,20 @@ export interface NameAndVersion {
 }
 /**
  * An `AppParameterValue` is value which is supplied to a parameter of an `Application`.
-    
+
  * Each value type can is type-compatible with one or more `ApplicationParameter`s. The effect of a specific value depends
  * on its use-site, and the type of its associated parameter.
- * 
- * `ApplicationParameter`s have the following usage sites (see [here](/backend/app-store-service/wiki/apps.md) for a 
+ *
+ * `ApplicationParameter`s have the following usage sites (see [here](/backend/app-store-service/wiki/apps.md) for a
  * comprehensive guide):
- * 
+ *
  * - Invocation: This affects the command line arguments passed to the software.
  * - Environment variables: This affects the environment variables passed to the software.
  * - Resources: This only affects the resources which are imported into the software environment. Not all values can be
  *   used as a resource.
- * 
+ *
  */
-export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
+export type AppParameterValue = AppParameterValueNS.File | AppParameterValueNS.Bool | AppParameterValueNS.Text | AppParameterValueNS.TextArea | AppParameterValueNS.Integer | AppParameterValueNS.FloatingPoint | AppParameterValueNS.Peer | AppParameterValueNS.License | AppParameterValueNS.BlockStorage | AppParameterValueNS.Network | AppParameterValueNS.Ingress
 export interface SimpleDuration {
     hours: number /* int32 */,
     minutes: number /* int32 */,
@@ -259,19 +1577,19 @@ export interface ApplicationInvocationDescription {
     invocation: InvocationParameter[],
     parameters: ApplicationParameter[],
     outputFileGlobs: string[],
-    applicationType: "BATCH" | "VNC" | "WEB",
+    applicationType: ("BATCH" | "VNC" | "WEB"),
     vnc?: VncDescription,
     web?: WebDescription,
     container?: ContainerDescription,
     environment?: Record<string, InvocationParameter>,
     allowAdditionalMounts?: boolean,
     allowAdditionalPeers?: boolean,
-    allowPublicIp: boolean,
     allowMultiNode: boolean,
+    allowPublicIp: boolean,
     fileExtensions: string[],
     licenseServers: string[],
-    shouldAllowAdditionalMounts: boolean,
-    shouldAllowAdditionalPeers: boolean,
+    // shouldAllowAdditionalMounts: boolean,
+    // shouldAllowAdditionalPeers: boolean,
 }
 export interface ToolReference {
     name: string,
@@ -293,7 +1611,7 @@ export interface NormalizedToolDescription {
     authors: string[],
     title: string,
     description: string,
-    backend: "SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE",
+    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE"),
     license: string,
     image?: string,
     supportedProviders?: string[],
@@ -301,11 +1619,11 @@ export interface NormalizedToolDescription {
 export type InvocationParameter = EnvironmentVariableParameter | WordInvocationParameter | VariableInvocationParameter | BooleanFlagParameter
 export interface EnvironmentVariableParameter {
     variable: string,
-    type: "env",
+    type: ("env"),
 }
 export interface WordInvocationParameter {
     word: string,
-    type: "word",
+    type: ("word"),
 }
 export interface VariableInvocationParameter {
     variableNames: string[],
@@ -315,14 +1633,14 @@ export interface VariableInvocationParameter {
     suffixVariable: string,
     isPrefixVariablePartOfArg: boolean,
     isSuffixVariablePartOfArg: boolean,
-    type: "var",
+    type: ("var"),
 }
 export interface BooleanFlagParameter {
     variableName: string,
     flag: string,
-    type: "bool_flag",
+    type: ("bool_flag"),
 }
-export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
+export type ApplicationParameter = ApplicationParameterNS.InputFile | ApplicationParameterNS.InputDirectory | ApplicationParameterNS.Text | ApplicationParameterNS.TextArea | ApplicationParameterNS.Integer | ApplicationParameterNS.FloatingPoint | ApplicationParameterNS.Bool | ApplicationParameterNS.Enumeration | ApplicationParameterNS.Peer | ApplicationParameterNS.Ingress | ApplicationParameterNS.LicenseServer | ApplicationParameterNS.NetworkIP
 export interface VncDescription {
     password?: string,
     port: number /* int32 */,
@@ -347,36 +1665,36 @@ export interface ComputeSupport {
 }
 /**
  * A `Job` in UCloud is the core abstraction used to describe a unit of computation.
- * 
+ *
  * They provide users a way to run their computations through a workflow similar to their own workstations but scaling to
  * much bigger and more machines. In a simplified view, a `Job` describes the following information:
- * 
+ *
  * - The `Application` which the provider should/is/has run (see [app-store](/backend/app-store-service/README.md))
  * - The [input parameters](/backend/app-orchestrator-service/wiki/parameters.md),
  *   [files and other resources](/backend/app-orchestrator-service/wiki/resources.md) required by a `Job`
  * - A reference to the appropriate [compute infrastructure](/backend/app-orchestrator-service/wiki/products.md), this
  *   includes a reference to the _provider_
  * - The user who launched the `Job` and in which [`Project`](/backend/project-service/README.md)
- * 
+ *
  * A `Job` is started by a user request containing the `specification` of a `Job`. This information is verified by the UCloud
  * orchestrator and passed to the provider referenced by the `Job` itself. Assuming that the provider accepts this
  * information, the `Job` is placed in its initial state, `IN_QUEUE`. You can read more about the requirements of the
  * compute environment and how to launch the software
  * correctly [here](/backend/app-orchestrator-service/wiki/job_launch.md).
- * 
+ *
  * At this point, the provider has acted on this information by placing the `Job` in its own equivalent of
  * a [job queue](/backend/app-orchestrator-service/wiki/provider.md#job-scheduler). Once the provider realizes that
  * the `Job`
  * is running, it will contact UCloud and place the `Job` in the `RUNNING` state. This indicates to UCloud that log files
  * can be retrieved and that [interactive interfaces](/backend/app-orchestrator-service/wiki/interactive.md) (`VNC`/`WEB`)
  * are available.
- * 
+ *
  * Once the `Application` terminates at the provider, the provider will update the state to `SUCCESS`. A `Job` has
  * terminated successfully if no internal error occurred in UCloud and in the provider. This means that a `Job` whose
  * software returns with a non-zero exit code is still considered successful. A `Job` might, for example, be placed
  * in `FAILURE` if the `Application` crashed due to a hardware/scheduler failure. Both `SUCCESS` or `FAILURE` are terminal
  * state. Any `Job` which is in a terminal state can no longer receive any updates or change its state.
- * 
+ *
  * At any point after the user submits the `Job`, they may request cancellation of the `Job`. This will stop the `Job`,
  * delete any [ephemeral resources](/backend/app-orchestrator-service/wiki/job_launch.md#ephemeral-resources) and release
  * any [bound resources](/backend/app-orchestrator-service/wiki/parameters.md#resources).
@@ -384,27 +1702,28 @@ export interface ComputeSupport {
 export interface Job {
     /**
      * Unique identifier for this job.
-     * 
+     *
      * UCloud guarantees that no other job, regardless of compute provider, has the same unique identifier.
      */
     id: string,
     /**
      * A reference to the owner of this job
      */
-    owner: JobOwner,
+    owner: provider.ResourceOwner,
     /**
      * A list of status updates from the compute backend.
-     * 
+     *
      * The status updates tell a story of what happened with the job. This list is ordered by the timestamp in ascending order. The current state of the job will always be the last element. `updates` is guaranteed to always contain at least one element.
      */
     updates: JobUpdate[],
     /**
      * Contains information related to billing information for this `Resource`
+     * @deprecated
      */
     billing: JobBilling,
     /**
      * The specification used to launch this job.
-     * 
+     *
      * This property is always available but must be explicitly requested.
      */
     specification: JobSpecification,
@@ -422,44 +1741,37 @@ export interface Job {
     output?: JobOutput,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
     acl?: provider.ResourceAclEntry[],
-}
-/**
- * The owner of a `Resource`
- */
-export interface JobOwner {
     /**
-     * The username of the user which started the job
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
      */
-    createdBy: string,
-    /**
-     * The project ID of the project which owns this job
-     * 
-     * This value can be null and this signifies that the job belongs to the personal workspace of the user.
-     */
-    project?: string,
+    permissions?: provider.ResourcePermissions,
+    providerGeneratedId?: string,
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface JobUpdate {
     /**
      * A timestamp referencing when UCloud received this update
      */
     timestamp: number /* int64 */,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * A generic text message describing the current status of the `Resource`
      */
@@ -467,7 +1779,7 @@ export interface JobUpdate {
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -485,35 +1797,36 @@ export interface JobBilling {
 }
 /**
  * Describes the current state of the `Resource`
- * 
+ *
  * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
  * this will contain information such as:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`
  * - Key metrics about the resource.
  * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
  *   should be listed in the `status` section.
- * 
+ *
  */
 export interface JobStatus {
     /**
      * The current of state of the `Job`.
-     * 
+     *
      * This will match the latest state set in the `updates`
      */
-    state: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
-     * 
+     *
      * For `Job`s which suspend this might occur multiple times. This will always point to the latest pointin time it started running.
      */
     startedAt?: number /* int64 */,
     /**
      * Timestamp matching when the `Job` is set to expire.
-     * 
+     *
      * This is generally equal to `startedAt + timeAllocation`. Note that this field might be `null` if the `Job` has no associated deadline. For `Job`s that suspend however, this is more likely to beequal to the initial `RUNNING` state + `timeAllocation`.
      */
     expiresAt?: number /* int64 */,
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
 }
 export interface JobOutput {
     outputFolder: string,
@@ -559,37 +1872,37 @@ export interface JobsRetrieveUtilizationRequest {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface JobsBrowseRequest {
     /**
@@ -603,7 +1916,7 @@ export interface JobsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -628,10 +1941,10 @@ export interface JobsBrowseRequest {
      * Includes `specification.resolvedSupport`
      */
     includeSupport?: boolean,
-    sortBy?: "CREATED_AT" | "STATE" | "APPLICATION",
+    sortBy?: ("CREATED_AT" | "STATE" | "APPLICATION"),
     filterApplication?: string,
     filterLaunchedBy?: string,
-    filterState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    filterState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     filterTitle?: string,
     filterBefore?: number /* int64 */,
     filterAfter?: number /* int64 */,
@@ -641,7 +1954,7 @@ export interface JobsExtendRequestItem {
     requestedTime: SimpleDuration,
 }
 export interface JobsOpenInteractiveSessionResponse {
-    sessions: OpenSessionWithProvider[],
+    responses: OpenSessionWithProvider[],
 }
 export interface OpenSessionWithProvider {
     providerDomain: string,
@@ -652,7 +1965,7 @@ export type OpenSession = OpenSessionNS.Shell | OpenSessionNS.Web | OpenSessionN
 export interface JobsOpenInteractiveSessionRequestItem {
     id: string,
     rank: number /* int32 */,
-    sessionType: "WEB" | "VNC" | "SHELL",
+    sessionType: ("WEB" | "VNC" | "SHELL"),
 }
 export interface JobsRetrieveProductsResponse {
     productsByProvider: Record<string, ComputeProductSupportResolved[]>,
@@ -666,12 +1979,12 @@ export interface JobsRetrieveProductsRequest {
 }
 export interface JobsControlUpdateRequestItem {
     jobId: string,
-    state?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     status?: string,
     /**
      * Indicates that this request should be ignored if the current state does not match the expected state
      */
-    expectedState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
+    expectedState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
     /**
      * Indicates that this request should be ignored if the current state equals `state`
      */
@@ -694,13 +2007,13 @@ export interface JobsControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the job, UCloud will reject charges which are not unique.
      */
     chargeId: string,
     /**
      * Amount of compute time to charge the user
-     * 
+     *
      * The wall duration should be for a single job replica and should only be for the time used since the lastupdate. UCloud will automatically multiply the amount with the number of job replicas.
      */
     wallDuration: SimpleDuration,
@@ -729,252 +2042,20 @@ export interface JobsControlRetrieveRequest {
     includeSupport?: boolean,
 }
 /**
- * An L7 ingress-point (HTTP)
- */
-export interface Ingress {
-    id: string,
-    specification: IngressSpecification,
-    /**
-     * Information about the owner of this resource
-     */
-    owner: IngressOwner,
-    /**
-     * Information about when this resource was created
-     */
-    createdAt: number /* int64 */,
-    /**
-     * The current status of this resource
-     */
-    status: IngressStatus,
-    /**
-     * Billing information associated with this `Ingress`
-     */
-    billing: IngressBilling,
-    /**
-     * A list of updates for this `Ingress`
-     */
-    updates: IngressUpdate[],
-    resolvedProduct?: accounting.ProductNS.Ingress,
-    /**
-     * An ACL for this `Resource`
-     */
-    acl?: provider.ResourceAclEntry[],
-}
-export interface IngressSpecification {
-    /**
-     * The domain used for L7 load-balancing for use with this `Ingress`
-     */
-    domain: string,
-    /**
-     * The product used for the `Ingress`
-     */
-    product: accounting.ProductReference,
-}
-/**
- * The owner of a `Resource`
- */
-export interface IngressOwner {
-    /**
-     * The username of the user which created this resource.
-     * 
-     * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
-     */
-    createdBy: string,
-    /**
-     * The project which owns the resource
-     */
-    project?: string,
-}
-/**
- * The status of an `Ingress`
- */
-export interface IngressStatus {
-    /**
-     * The ID of the `Job` that this `Ingress` is currently bound to
-     */
-    boundTo?: string,
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
-}
-/**
- * Contains information related to the accounting/billing of a `Resource`
- * 
- * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
- * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
- * to be charged a different price than newly launched products.
- */
-export interface IngressBilling {
-    /**
-     * The price per unit. This can differ from current price of `Product`
-     */
-    pricePerUnit: number /* int64 */,
-    /**
-     * Amount of credits charged in total for this `Resource`
-     */
-    creditsCharged: number /* int64 */,
-}
-/**
- * Describes an update to the `Resource`
- * 
- * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
- * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
- * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
- * An update will typically contain information similar to the `status` field, for example:
- * 
- * - A state value. For example, a compute `Job` might be `RUNNING`.
- * - Change in key metrics.
- * - Bindings to related `Resource`s.
- * 
- */
-export interface IngressUpdate {
-    /**
-     * A timestamp for when this update was registered by UCloud
-     */
-    timestamp: number /* int64 */,
-    /**
-     * The new state that the `Ingress` transitioned to (if any)
-     */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
-    /**
-     * A new status message for the `Ingress` (if any)
-     */
-    status?: string,
-    didBind: boolean,
-    newBinding?: string,
-}
-/**
- * The base type for requesting paginated content.
- * 
- * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
- * semantics of the call:
- * 
- * | Consistency | Description |
- * |-------------|-------------|
- * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
- * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
- * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
- * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
- * must contain all the items, in the correct order and without duplicates.
- * 
- * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
- * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
- * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
- * consistent.
- * 
- * The results might become inconsistent if the client either takes too long, or a service instance goes down while
- * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
- * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
- * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
- * ---
- * 
- * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
- * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
- * paginate through the results.
- * 
- * ---
- * 
- */
-export interface IngressesBrowseRequest {
-    /**
-     * Includes `updates`
-     */
-    includeUpdates?: boolean,
-    /**
-     * Includes `resolvedProduct`
-     */
-    includeProduct?: boolean,
-    /**
-     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-     */
-    itemsPerPage?: number /* int32 */,
-    /**
-     * A token requesting the next page of items
-     */
-    next?: string,
-    /**
-     * Controls the consistency guarantees provided by the backend
-     */
-    consistency?: "PREFER" | "REQUIRE",
-    /**
-     * Items to skip ahead
-     */
-    itemsToSkip?: number /* int64 */,
-    domain?: string,
-    provider?: string,
-}
-export interface IngressesCreateResponse {
-    ids: string[],
-}
-export interface IngressRetrieve {
-    id: string,
-}
-export interface IngressRetrieveWithFlags {
-    id: string,
-    /**
-     * Includes `updates`
-     */
-    includeUpdates?: boolean,
-    /**
-     * Includes `resolvedProduct`
-     */
-    includeProduct?: boolean,
-}
-export interface IngressSettings {
-    domainPrefix: string,
-    domainSuffix: string,
-}
-export interface IngressControlUpdateRequestItem {
-    id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
-    status?: string,
-    clearBindingToJob?: boolean,
-}
-export interface IngressControlChargeCreditsResponse {
-    /**
-     * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
-     */
-    insufficientFunds: IngressId[],
-    /**
-     * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
-     */
-    duplicateCharges: IngressId[],
-}
-export interface IngressId {
-    id: string,
-}
-export interface IngressControlChargeCreditsRequestItem {
-    /**
-     * The ID of the `Ingress`
-     */
-    id: string,
-    /**
-     * The ID of the charge
-     * 
-     * This charge ID must be unique for the `Ingress`, UCloud will reject charges which are not unique.
-     */
-    chargeId: string,
-    /**
-     * Amount of units to charge the user
-     */
-    units: number /* int64 */,
-}
-/**
  * A `License` for use in `Job`s
  */
 export interface License {
     /**
      * A unique identifier referencing the `Resource`
-     * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     *
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: LicenseSpecification,
     /**
      * Information about the owner of this resource
      */
-    owner: LicenseOwner,
+    owner: provider.ResourceOwner,
     /**
      * Information about when this resource was created
      */
@@ -985,6 +2066,7 @@ export interface License {
     status: LicenseStatus,
     /**
      * Billing information associated with this `License`
+     * @deprecated
      */
     billing: LicenseBilling,
     /**
@@ -994,8 +2076,16 @@ export interface License {
     resolvedProduct?: accounting.ProductNS.License,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
-    acl?: provider.ResourceAclEntry<"USE">[],
+    acl?: provider.ResourceAclEntry<("USE")>[],
+    /**
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
+    providerGeneratedId?: string,
 }
 export interface LicenseSpecification {
     /**
@@ -1004,29 +2094,15 @@ export interface LicenseSpecification {
     product: accounting.ProductReference,
 }
 /**
- * The owner of a `Resource`
- */
-export interface LicenseOwner {
-    /**
-     * The username of the user which created this resource.
-     * 
-     * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
-     */
-    createdBy: string,
-    /**
-     * The project which owns the resource
-     */
-    project?: string,
-}
-/**
  * The status of an `License`
  */
 export interface LicenseStatus {
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
+    state: ("PREPARING" | "READY" | "UNAVAILABLE"),
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -1043,17 +2119,17 @@ export interface LicenseBilling {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface LicenseUpdate {
     /**
@@ -1063,7 +2139,7 @@ export interface LicenseUpdate {
     /**
      * The new state that the `License` transitioned to (if any)
      */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * A new status message for the `License` (if any)
      */
@@ -1071,37 +2147,37 @@ export interface LicenseUpdate {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface LicensesBrowseRequest {
     /**
@@ -1127,7 +2203,7 @@ export interface LicensesBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -1158,11 +2234,11 @@ export interface LicenseRetrieveWithFlags {
 }
 export interface LicensesUpdateAclRequestItem {
     id: string,
-    acl: provider.ResourceAclEntry<"USE">[],
+    acl: provider.ResourceAclEntry<("USE")>[],
 }
 export interface LicenseControlUpdateRequestItem {
     id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     status?: string,
 }
 export interface LicenseControlChargeCreditsResponse {
@@ -1185,7 +2261,7 @@ export interface LicenseControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the `License`, UCloud will reject charges which are not unique.
      */
     chargeId: string,
@@ -1200,15 +2276,15 @@ export interface LicenseControlChargeCreditsRequestItem {
 export interface NetworkIP {
     /**
      * A unique identifier referencing the `Resource`
-     * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
+     *
+     * The ID is unique across a provider for a single resource type.
      */
     id: string,
     specification: NetworkIPSpecification,
     /**
      * Information about the owner of this resource
      */
-    owner: NetworkIPOwner,
+    owner: provider.ResourceOwner,
     /**
      * Information about when this resource was created
      */
@@ -1219,6 +2295,7 @@ export interface NetworkIP {
     status: NetworkIPStatus,
     /**
      * Billing information associated with this `NetworkIP`
+     * @deprecated
      */
     billing: NetworkIPBilling,
     /**
@@ -1228,8 +2305,16 @@ export interface NetworkIP {
     resolvedProduct?: accounting.ProductNS.NetworkIP,
     /**
      * An ACL for this `Resource`
+     * @deprecated
      */
-    acl?: provider.ResourceAclEntry<"USE">[],
+    acl?: provider.ResourceAclEntry<("USE")>[],
+    /**
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: provider.ResourcePermissions,
+    providerGeneratedId?: string,
 }
 export interface NetworkIPSpecification {
     /**
@@ -1241,28 +2326,13 @@ export interface NetworkIPSpecification {
 export interface PortRangeAndProto {
     start: number /* int32 */,
     end: number /* int32 */,
-    protocol: "TCP" | "UDP",
-}
-/**
- * The owner of a `Resource`
- */
-export interface NetworkIPOwner {
-    /**
-     * The username of the user which created this resource.
-     * 
-     * In cases where this user is removed from the project the ownership will be transferred to the current PI of the project.
-     */
-    createdBy: string,
-    /**
-     * The project which owns the resource
-     */
-    project?: string,
+    protocol: ("TCP" | "UDP"),
 }
 /**
  * The status of an `NetworkIP`
  */
 export interface NetworkIPStatus {
-    state: "PREPARING" | "READY" | "UNAVAILABLE",
+    state: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * The ID of the `Job` that this `NetworkIP` is currently bound to
      */
@@ -1271,10 +2341,11 @@ export interface NetworkIPStatus {
      * The externally accessible IP address allocated to this `NetworkIP`
      */
     ipAddress?: string,
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
 }
 /**
  * Contains information related to the accounting/billing of a `Resource`
- * 
+ *
  * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
  * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
  * to be charged a different price than newly launched products.
@@ -1291,17 +2362,17 @@ export interface NetworkIPBilling {
 }
 /**
  * Describes an update to the `Resource`
- * 
+ *
  * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
  * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
  * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
+ *
  * An update will typically contain information similar to the `status` field, for example:
- * 
+ *
  * - A state value. For example, a compute `Job` might be `RUNNING`.
  * - Change in key metrics.
  * - Bindings to related `Resource`s.
- * 
+ *
  */
 export interface NetworkIPUpdate {
     /**
@@ -1311,7 +2382,7 @@ export interface NetworkIPUpdate {
     /**
      * The new state that the `NetworkIP` transitioned to (if any)
      */
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     /**
      * A new status message for the `NetworkIP` (if any)
      */
@@ -1323,37 +2394,37 @@ export interface NetworkIPUpdate {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface NetworkIPsBrowseRequest {
     /**
@@ -1379,7 +2450,7 @@ export interface NetworkIPsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -1409,7 +2480,7 @@ export interface NetworkIPRetrieveWithFlags {
 }
 export interface NetworkIPsUpdateAclRequestItem {
     id: string,
-    acl: provider.ResourceAclEntry<"USE">[],
+    acl: provider.ResourceAclEntry<("USE")>[],
 }
 export interface FirewallAndId {
     id: string,
@@ -1417,7 +2488,7 @@ export interface FirewallAndId {
 }
 export interface NetworkIPControlUpdateRequestItem {
     id: string,
-    state?: "PREPARING" | "READY" | "UNAVAILABLE",
+    state?: ("PREPARING" | "READY" | "UNAVAILABLE"),
     status?: string,
     clearBindingToJob?: boolean,
     changeIpAddress?: boolean,
@@ -1427,11 +2498,14 @@ export interface NetworkIPControlChargeCreditsResponse {
     /**
      * A list of jobs which could not be charged due to lack of funds. If all jobs were charged successfully then this will empty.
      */
-    insufficientFunds: NetworkIPRetrieve[],
+    insufficientFunds: NetworkIPId[],
     /**
      * A list of ingresses which could not be charged due to it being a duplicate charge. If all ingresses were charged successfully this will be empty.
      */
-    duplicateCharges: NetworkIPRetrieve[],
+    duplicateCharges: NetworkIPId[],
+}
+export interface NetworkIPId {
+    id: string,
 }
 export interface NetworkIPControlChargeCreditsRequestItem {
     /**
@@ -1440,7 +2514,7 @@ export interface NetworkIPControlChargeCreditsRequestItem {
     id: string,
     /**
      * The ID of the charge
-     * 
+     *
      * This charge ID must be unique for the `NetworkIP`, UCloud will reject charges which are not unique.
      */
     chargeId: string,
@@ -1462,11 +2536,11 @@ export interface FindApplicationAndOptionalDependencies {
 export interface HasPermissionRequest {
     appName: string,
     appVersion: string,
-    permission: "LAUNCH"[],
+    permission: ("LAUNCH")[],
 }
 export interface DetailedEntityWithPermission {
     entity: DetailedAccessEntity,
-    permission: "LAUNCH",
+    permission: ("LAUNCH"),
 }
 export interface DetailedAccessEntity {
     user?: string,
@@ -1486,7 +2560,7 @@ export interface UpdateAclRequest {
 }
 export interface ACLEntryRequest {
     entity: AccessEntity,
-    rights: "LAUNCH",
+    rights: ("LAUNCH"),
     revoke: boolean,
 }
 export interface AccessEntity {
@@ -1567,13 +2641,6 @@ export interface FavoriteRequest {
     appName: string,
     appVersion: string,
 }
-export interface JobsProviderRetrieveProductsResponse {
-    products: ComputeProductSupport[],
-}
-export interface ComputeProductSupport {
-    product: accounting.ProductReference,
-    support: ComputeSupport,
-}
 export interface JobsProviderExtendRequestItem {
     job: Job,
     requestedTime: SimpleDuration,
@@ -1584,7 +2651,14 @@ export interface JobsProviderOpenInteractiveSessionResponse {
 export interface JobsProviderOpenInteractiveSessionRequestItem {
     job: Job,
     rank: number /* int32 */,
-    sessionType: "WEB" | "VNC" | "SHELL",
+    sessionType: ("WEB" | "VNC" | "SHELL"),
+}
+export interface JobsProviderRetrieveProductsResponse {
+    products: ComputeProductSupport[],
+}
+export interface ComputeProductSupport {
+    product: accounting.ProductReference,
+    support: ComputeSupport,
 }
 export interface JobsProviderUtilizationResponse {
     capacity: CpuAndMemory,
@@ -1595,7 +2669,7 @@ export namespace ComputeSupportNS {
 export interface Docker {
     /**
      * Flag to enable/disable this feature
-     * 
+     *
      * All other flags are ignored if this is `false`.
      */
     enabled?: boolean,
@@ -1631,7 +2705,7 @@ export interface Docker {
 export interface VirtualMachine {
     /**
      * Flag to enable/disable this feature
-     * 
+     *
      * All other flags are ignored if this is `false`.
      */
     enabled?: boolean,
@@ -1664,14 +2738,14 @@ export interface VirtualMachine {
 export namespace AppParameterValueNS {
 /**
  * A reference to a UCloud file
-    
+
  * - __Compatible with:__ `ApplicationParameter.InputFile` and `ApplicationParameter.InputDirectory`
  * - __Mountable as a resource:__ ✅ Yes
  * - __Expands to:__ The absolute path to the file or directory in the software's environment
  * - __Side effects:__ Includes the file or directory in the `Job`'s temporary work directory
-    
+
  * The path of the file must be absolute and refers to either a UCloud directory or file.
- * 
+ *
  */
 export interface File {
     /**
@@ -1680,127 +2754,142 @@ export interface File {
     path: string,
     /**
      * Indicates if this file or directory should be mounted as read-only
-     * 
+     *
      * A provider must reject the request if it does not support read-only mounts when `readOnly = true`.
-     * 
+     *
      */
     readOnly: boolean,
-    type: "file",
+    type: ("file"),
 }
 /**
  * A boolean value (true or false)
-    
+
  * - __Compatible with:__ `ApplicationParameter.Bool`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ `trueValue` of `ApplicationParameter.Bool` if value is `true` otherwise `falseValue`
  * - __Side effects:__ None
- * 
+ *
  */
 export interface Bool {
     value: boolean,
-    type: "boolean",
+    type: ("boolean"),
 }
 /**
  * A textual value
-    
+
  * - __Compatible with:__ `ApplicationParameter.Text` and `ApplicationParameter.Enumeration`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
  * - __Side effects:__ None
- * 
+ *
  * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
- * 
+ *
  */
 export interface Text {
     value: string,
-    type: "text",
+    type: ("text"),
+}
+/**
+ * A textarea value
+
+ * - __Compatible with:__ `ApplicationParameter.TextArea` and `ApplicationParameter.Enumeration`
+ * - __Mountable as a resource:__ ❌ No
+ * - __Expands to:__ The text, when used in an invocation this will be passed as a single argument.
+ * - __Side effects:__ None
+ *
+ * When this is used with an `Enumeration` it must match the value of one of the associated `options`.
+ *
+ */
+ export interface TextArea {
+    value: string,
+    type: ("textarea"),
 }
 /**
  * An integral value
- * 
+ *
  * - __Compatible with:__ `ApplicationParameter.Integer`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The number
  * - __Side effects:__ None
- * 
+ *
  * Internally this uses a big integer type and there are no defined limits.
- * 
+ *
  */
 export interface Integer {
     value: number /* int64 */,
-    type: "integer",
+    type: ("integer"),
 }
 /**
  * A floating point value
-    
+
  * - __Compatible with:__ `ApplicationParameter.FloatingPoint`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ The number
  * - __Side effects:__ None
- * 
+ *
  * Internally this uses a big decimal type and there are no defined limits.
- * 
+ *
  */
 export interface FloatingPoint {
     value: number /* float64 */,
-    type: "floating_point",
+    type: ("floating_point"),
 }
 /**
  * A reference to a separate UCloud `Job`
-    
+
  * - __Compatible with:__ `ApplicationParameter.Peer`
  * - __Mountable as a resource:__ ✅ Yes
  * - __Expands to:__ The `hostname`
- * - __Side effects:__ Configures the firewall to allow bidirectional communication between this `Job` and the peering 
+ * - __Side effects:__ Configures the firewall to allow bidirectional communication between this `Job` and the peering
  *   `Job`
- * 
+ *
  */
 export interface Peer {
     hostname: string,
     jobId: string,
-    type: "peer",
+    type: ("peer"),
 }
 /**
  * A reference to a software license, registered locally at the provider
-    
+
  * - __Compatible with:__ `ApplicationParameter.LicenseServer`
  * - __Mountable as a resource:__ ❌ No
- * - __Expands to:__ `${license.address}:${license.port}/${license.key}` or 
+ * - __Expands to:__ `${license.address}:${license.port}/${license.key}` or
  *   `${license.address}:${license.port}` if no key is provided
  * - __Side effects:__ None
- * 
+ *
  */
 export interface License {
     id: string,
-    type: "license_server",
+    type: ("license_server"),
 }
 /**
  * A reference to block storage (Not yet implemented)
  */
 export interface BlockStorage {
     id: string,
-    type: "block_storage",
+    type: ("block_storage"),
 }
 /**
  * A reference to block storage (Not yet implemented)
  */
 export interface Network {
     id: string,
-    type: "network",
+    type: ("network"),
 }
 /**
  * A reference to an HTTP ingress, registered locally at the provider
-    
+
  * - __Compatible with:__ `ApplicationParameter.Ingress`
  * - __Mountable as a resource:__ ❌ No
  * - __Expands to:__ `${id}`
  * - __Side effects:__ Configures an HTTP ingress for the application's interactive web interface. This interface should
  *   not perform any validation, that is, the application should be publicly accessible.
- * 
+ *
  */
 export interface Ingress {
     id: string,
-    type: "ingress",
+    type: ("ingress"),
 }
 }
 export namespace tools {
@@ -2136,7 +3225,7 @@ export namespace control {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Pushes one or more state changes to UCloud. UCloud will always treat all updates as a single
  * transaction. UCloud may reject the status updates if it deems them to be invalid. For example, an
  * update may be rejected if it performs an invalid state transition, such as from a terminal state to
@@ -2159,8 +3248,8 @@ export function update(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function chargeCredits(
     request: BulkRequest<JobsControlChargeCreditsRequestItem>
@@ -2179,7 +3268,7 @@ export function chargeCredits(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Allows the compute backend to query the UCloud database for a job owned by the compute provider.
  */
 export function retrieve(
@@ -2198,10 +3287,10 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)
- * 
+ *
  * Submits an output file to UCloud which is not available to be put directly into the storage resources
  * mounted by the compute provider.
- * 
+ *
  * Note: We do not recommend using this endpoint for transferring large quantities of data/files.
  */
 export function submitFile(): APICallParameters<{}, any /* unknown */> {
@@ -2214,13 +3303,13 @@ export function submitFile(): APICallParameters<{}, any /* unknown */> {
 }
 }
 export namespace ucloud {
+export interface AauComputeRetrieveRequest {
+    id: string,
+}
 export interface AauComputeSendUpdateRequest {
     id: string,
     update: string,
-    newState?: "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED",
-}
-export interface AauComputeRetrieveRequest {
-    id: string,
+    newState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
 }
 export interface DrainNodeRequest {
     node: string,
@@ -2246,41 +3335,41 @@ export interface KubernetesLicense {
     hiddenInGrantApplications: boolean,
     availability: accounting.ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface KubernetesLicenseBrowseRequest {
     tag?: string,
@@ -2295,7 +3384,7 @@ export interface KubernetesLicenseBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -2307,37 +3396,37 @@ export interface K8Subnet {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface KubernetesIPMaintenanceBrowseRequest {
     /**
@@ -2351,7 +3440,7 @@ export interface KubernetesIPMaintenanceBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
@@ -2579,11 +3668,11 @@ export namespace jobs {
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Starts one or more compute  The jobs have already been verified by UCloud and it is assumed to be
  * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
  * 5XX status code. Note that the batch must be handled as a single transaction.
- * 
+ *
  * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
  * then switch to [`control.update`](#operation/control.update) in order to provide updates about the progress.
  */
@@ -2604,7 +3693,7 @@ export function create(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * Deletes one or more compute  The provider should not only stop the compute job but also delete
  * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
  * should also be deleted. None of the resources attached to the job, however, should be deleted.
@@ -2626,8 +3715,8 @@ export function remove(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function extend(
     request: BulkRequest<JobsProviderExtendRequestItem>
@@ -2646,8 +3735,8 @@ export function extend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function suspend(
     request: BulkRequest<Job>
@@ -2666,12 +3755,12 @@ export function suspend(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * This call is periodically executed by UCloud against all active providers. It is the job of the
  * provider to ensure that the jobs listed in the request are in its local database. If some of the
  * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
  * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
- * 
+ *
  * The backend should _not_ attempt to start the job.
  */
 export function verify(
@@ -2703,7 +3792,7 @@ export function openInteractiveSession(
  *
  * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * An API for retrieving the products and the support from a provider.
  */
 export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
@@ -2720,55 +3809,6 @@ export function retrieveUtilization(): APICallParameters<{}, JobsProviderUtiliza
         method: "GET",
         path: "/ucloud/ucloud/jobs" + "/retrieveUtilization",
         reloadId: Math.random(),
-    };
-}
-}
-export namespace ingresses {
-export function create(
-    request: BulkRequest<Ingress>
-): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/ucloud/ingresses",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function remove(
-    request: BulkRequest<Ingress>
-): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/ucloud/ucloud/ingresses",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieveSettings(
-    request: accounting.ProductReference
-): APICallParameters<accounting.ProductReference, IngressSettings> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/ucloud/ucloud/ingresses" + "/retrieveSettings", {id: request.id, category: request.category, provider: request.provider}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function verify(
-    request: BulkRequest<Ingress>
-): APICallParameters<BulkRequest<Ingress>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/ucloud/ingresses" + "/verify",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
     };
 }
 }
@@ -2863,102 +3903,6 @@ export function chargeCredits(
         context: "",
         method: "POST",
         path: "/api/licenses/control" + "/chargeCredits",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-}
-}
-export namespace ingresses {
-export function browse(
-    request: IngressesBrowseRequest
-): APICallParameters<IngressesBrowseRequest, PageV2<Ingress>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/ingresses" + "/browse", {includeUpdates: request.includeUpdates, includeProduct: request.includeProduct, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, domain: request.domain, provider: request.provider}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function create(
-    request: BulkRequest<IngressSpecification>
-): APICallParameters<BulkRequest<IngressSpecification>, IngressesCreateResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/ingresses",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function remove(
-    request: BulkRequest<IngressRetrieve>
-): APICallParameters<BulkRequest<IngressRetrieve>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/ingresses",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieve(
-    request: IngressRetrieveWithFlags
-): APICallParameters<IngressRetrieveWithFlags, Ingress> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/ingresses" + "/retrieve", {id: request.id, includeUpdates: request.includeUpdates, includeProduct: request.includeProduct}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function retrieveSettings(
-    request: accounting.ProductReference
-): APICallParameters<accounting.ProductReference, IngressSettings> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/ingresses" + "/retrieveSettings", {id: request.id, category: request.category, provider: request.provider}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export namespace control {
-export function update(
-    request: BulkRequest<IngressControlUpdateRequestItem>
-): APICallParameters<BulkRequest<IngressControlUpdateRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/ingresses/control" + "/update",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieve(
-    request: IngressRetrieveWithFlags
-): APICallParameters<IngressRetrieveWithFlags, Ingress> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/ingresses/control" + "/retrieve", {id: request.id, includeUpdates: request.includeUpdates, includeProduct: request.includeProduct}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function chargeCredits(
-    request: BulkRequest<IngressControlChargeCreditsRequestItem>
-): APICallParameters<BulkRequest<IngressControlChargeCreditsRequestItem>, IngressControlChargeCreditsResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/ingresses/control" + "/chargeCredits",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
@@ -3081,8 +4025,8 @@ export namespace jobs {
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function create(
     request: BulkRequest<JobSpecification>
@@ -3101,12 +4045,12 @@ export function create(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This call will request the cancellation of the associated  This will make sure that the jobs
  * are eventually stopped and resources are released. If the job is running a virtual machine, then the
  * virtual machine will be stopped and destroyed. Persistent storage attached to the job will not be
  * deleted only temporary data from the job will be deleted.
- * 
+ *
  * This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
  * be followed using the [`retrieve`](#operation/retrieve), [`browse`](#operation/browse), [`follow`](#operation/follow) calls.
  */
@@ -3127,8 +4071,8 @@ export function remove(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieve(
     request: JobsRetrieveRequest
@@ -3146,8 +4090,8 @@ export function retrieve(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function retrieveUtilization(
     request: JobsRetrieveUtilizationRequest
@@ -3165,8 +4109,8 @@ export function retrieveUtilization(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
- * 
+ *
+ *
  */
 export function browse(
     request: JobsBrowseRequest
@@ -3184,17 +4128,17 @@ export function browse(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * This will extend the duration of one or more jobs in a bulk request. Extension of a job will add to
  * the current deadline of a job. Note that not all providers support this features. Providers which
  * do not support it will have it listed in their manifest. If a provider is asked to extend a deadline
  * when not supported it will send back a 400 bad request.
- * 
+ *
  * This call makes no guarantee that all jobs are extended in a single transaction. If the provider
  * supports it, then all requests made against a single provider should be made in a single transaction.
  * Clients can determine if their extension request against a specific target was successful by checking
  * if the time remaining of the job has been updated.
- * 
+ *
  * This call will return 2XX if all jobs have successfully been extended. The job will fail with a
  * status code from the provider one the first extension which fails. UCloud will not attempt to extend
  * more jobs after the first failure.
@@ -3228,7 +4172,7 @@ export function openInteractiveSession(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)
- * 
+ *
  * A temporary API for retrieving the products and the support from a provider.
  */
 export function retrieveProducts(
@@ -3248,175 +4192,36 @@ export interface Shell {
     jobId: string,
     rank: number /* int32 */,
     sessionIdentifier: string,
-    type: "shell",
+    type: ("shell"),
 }
 export interface Web {
     jobId: string,
     rank: number /* int32 */,
     redirectClientTo: string,
-    type: "web",
+    type: ("web"),
 }
 export interface Vnc {
     jobId: string,
     rank: number /* int32 */,
     url: string,
     password?: string,
-    type: "vnc",
+    type: ("vnc"),
 }
 }
 export namespace aau {
 
-export namespace jobs {
-/**
- * Start a compute job (create)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * Starts one or more compute  The jobs have already been verified by UCloud and it is assumed to be
- * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
- * 5XX status code. Note that the batch must be handled as a single transaction.
- * 
- * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
- * then switch to [`control.update`](#operation/control.update) in order to provide updates about the progress.
- */
-export function create(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Request job cancellation and destruction (delete)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * Deletes one or more compute  The provider should not only stop the compute job but also delete
- * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
- * should also be deleted. None of the resources attached to the job, however, should be deleted.
- */
-export function remove(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/ucloud/aau/jobs",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Retrieve products (retrieveProducts)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * An API for retrieving the products and the support from a provider.
- */
-export function retrieveProducts(): APICallParameters<{}, JobsProviderRetrieveProductsResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: "/ucloud/aau/jobs" + "/retrieveProducts",
-        reloadId: Math.random(),
-    };
-}
-/**
- * Extend the duration of a job (extend)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
- */
-export function extend(
-    request: BulkRequest<JobsProviderExtendRequestItem>
-): APICallParameters<BulkRequest<JobsProviderExtendRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/extend",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function openInteractiveSession(
-    request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>
-): APICallParameters<BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>, JobsProviderOpenInteractiveSessionResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/interactiveSession",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieveUtilization(): APICallParameters<{}, JobsProviderUtilizationResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: "/ucloud/aau/jobs" + "/retrieveUtilization",
-        reloadId: Math.random(),
-    };
-}
-/**
- * Verify UCloud data is synchronized with provider (verify)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * This call is periodically executed by UCloud against all active providers. It is the job of the
- * provider to ensure that the jobs listed in the request are in its local database. If some of the
- * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
- * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
- * 
- * The backend should _not_ attempt to start the job.
- */
-export function verify(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/verify",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-/**
- * Suspend a job (suspend)
- *
- * ![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)
- * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
- * 
- */
-export function suspend(
-    request: BulkRequest<Job>
-): APICallParameters<BulkRequest<Job>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/ucloud/aau/jobs" + "/suspend",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-}
 export namespace maintenance {
+export function retrieve(
+    request: ucloud.AauComputeRetrieveRequest
+): APICallParameters<ucloud.AauComputeRetrieveRequest, Job> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/ucloud/aau/compute/jobs/maintenance" + "/retrieve", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
 export function sendUpdate(
     request: BulkRequest<ucloud.AauComputeSendUpdateRequest>
 ): APICallParameters<BulkRequest<ucloud.AauComputeSendUpdateRequest>, any /* unknown */> {
@@ -3429,17 +4234,6 @@ export function sendUpdate(
         payload: request,
     };
 }
-export function retrieve(
-    request: ucloud.AauComputeRetrieveRequest
-): APICallParameters<ucloud.AauComputeRetrieveRequest, Job> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/ucloud/aau/compute/jobs/maintenance" + "/retrieve", {id: request.id}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
 }
 }
 export namespace ApplicationParameterNS {
@@ -3449,7 +4243,7 @@ export interface InputFile {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "input_file",
+    type: ("input_file"),
 }
 export interface InputDirectory {
     name: string,
@@ -3457,7 +4251,7 @@ export interface InputDirectory {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "input_directory",
+    type: ("input_directory"),
 }
 export interface Text {
     name: string,
@@ -3465,7 +4259,15 @@ export interface Text {
     defaultValue?: kotlinx.serialization.json.JsonElement,
     title: string,
     description: string,
-    type: "text",
+    type: ("text"),
+}
+export interface TextArea {
+    name: string,
+    optional: boolean,
+    defaultValue?: kotlinx.serialization.json.JsonElement,
+    title: string,
+    description: string,
+    type: ("textarea"),
 }
 export interface Integer {
     name: string,
@@ -3477,7 +4279,7 @@ export interface Integer {
     max?: number /* int64 */,
     step?: number /* int64 */,
     unitName?: string,
-    type: "integer",
+    type: ("integer"),
 }
 export interface FloatingPoint {
     name: string,
@@ -3489,7 +4291,7 @@ export interface FloatingPoint {
     max?: number /* float64 */,
     step?: number /* float64 */,
     unitName?: string,
-    type: "floating_point",
+    type: ("floating_point"),
 }
 export interface Bool {
     name: string,
@@ -3499,7 +4301,7 @@ export interface Bool {
     description: string,
     trueValue: string,
     falseValue: string,
-    type: "boolean",
+    type: ("boolean"),
 }
 export interface Enumeration {
     name: string,
@@ -3508,7 +4310,7 @@ export interface Enumeration {
     title: string,
     description: string,
     options: EnumOption[],
-    type: "enumeration",
+    type: ("enumeration"),
 }
 export interface EnumOption {
     name: string,
@@ -3521,7 +4323,7 @@ export interface Peer {
     suggestedApplication?: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "peer",
+    type: ("peer"),
 }
 export interface Ingress {
     name: string,
@@ -3529,7 +4331,7 @@ export interface Ingress {
     description: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "ingress",
+    type: ("ingress"),
 }
 export interface LicenseServer {
     name: string,
@@ -3538,7 +4340,7 @@ export interface LicenseServer {
     description: string,
     tagged: string[],
     defaultValue?: kotlinx.serialization.json.JsonElement,
-    type: "license_server",
+    type: ("license_server"),
 }
 export interface NetworkIP {
     name: string,
@@ -3546,7 +4348,7 @@ export interface NetworkIP {
     description: string,
     defaultValue?: kotlinx.serialization.json.JsonElement,
     optional: boolean,
-    type: "network_ip",
+    type: ("network_ip"),
 }
 }
 }
@@ -3657,75 +4459,75 @@ export interface TransferApplicationMail {
     receiverProject: string,
     applicationProjectTitle: string,
     subject: string,
-    type: "transferApplication",
+    type: ("transferApplication"),
 }
 export interface LowFundsMail {
     category: string,
     provider: string,
     projectTitle: string,
     subject: string,
-    type: "lowFunds",
+    type: ("lowFunds"),
 }
 export interface StillLowFundsMail {
     category: string,
     provider: string,
     projectTitle: string,
     subject: string,
-    type: "stillLowFunds",
+    type: ("stillLowFunds"),
 }
 export interface UserRoleChangeMail {
     subjectToChange: string,
     roleChange: string,
     projectTitle: string,
     subject: string,
-    type: "userRoleChange",
+    type: ("userRoleChange"),
 }
 export interface UserLeftMail {
     leavingUser: string,
     projectTitle: string,
     subject: string,
-    type: "userLeft",
+    type: ("userLeft"),
 }
 export interface UserRemovedMail {
     leavingUser: string,
     projectTitle: string,
     subject: string,
-    type: "userRemoved",
+    type: ("userRemoved"),
 }
 export interface UserRemovedMailToUser {
     projectTitle: string,
     subject: string,
-    type: "userRemovedToUser",
+    type: ("userRemovedToUser"),
 }
 export interface ProjectInviteMail {
     projectTitle: string,
     subject: string,
-    type: "invitedToProject",
+    type: ("invitedToProject"),
 }
 export interface NewGrantApplicationMail {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "newGrantApplication",
+    type: ("newGrantApplication"),
 }
 export interface GrantAppAutoApproveToAdminsMail {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "autoApproveGrant",
+    type: ("autoApproveGrant"),
 }
 export interface GrantApplicationUpdatedMail {
     projectTitle: string,
     sender: string,
     subject: string,
-    type: "applicationUpdated",
+    type: ("applicationUpdated"),
 }
 export interface GrantApplicationUpdatedMailToAdmins {
     projectTitle: string,
     sender: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "applicationUpdatedToAdmins",
+    type: ("applicationUpdatedToAdmins"),
 }
 export interface GrantApplicationStatusChangedToAdmin {
     status: string,
@@ -3733,468 +4535,47 @@ export interface GrantApplicationStatusChangedToAdmin {
     sender: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "applicationStatusChangedToAdmins",
+    type: ("applicationStatusChangedToAdmins"),
 }
 export interface GrantApplicationApproveMail {
     projectTitle: string,
     subject: string,
-    type: "applicationApproved",
+    type: ("applicationApproved"),
 }
 export interface GrantApplicationApproveMailToAdmins {
     sender: string,
     projectTitle: string,
     subject: string,
-    type: "applicationApprovedToAdmins",
+    type: ("applicationApprovedToAdmins"),
 }
 export interface GrantApplicationRejectedMail {
     projectTitle: string,
     subject: string,
-    type: "applicationRejected",
+    type: ("applicationRejected"),
 }
 export interface GrantApplicationWithdrawnMail {
     projectTitle: string,
     sender: string,
     subject: string,
-    type: "applicationWithdrawn",
+    type: ("applicationWithdrawn"),
 }
 export interface NewCommentOnApplicationMail {
     sender: string,
     projectTitle: string,
     receivingProjectTitle: string,
     subject: string,
-    type: "newComment",
+    type: ("newComment"),
 }
 export interface ResetPasswordMail {
     token: string,
     subject: string,
-    type: "resetPassword",
+    type: ("resetPassword"),
 }
 export interface VerificationReminderMail {
     projectTitle: string,
     role: string,
     subject: string,
-    type: "verificationReminder",
-}
-}
-}
-export namespace provider {
-export interface ResourceAclEntry<Permission = unknown> {
-    entity: AclEntity,
-    permissions: Permission[],
-}
-export type AclEntity = AclEntityNS.ProjectGroup
-/**
- * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
- * 
- * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
- * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
- * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
- * the provider APIs for communicating the status of the `Job`.
- * 
- * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
- * with metadata, such as: ownership, billing and status.
- * 
- * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
- *  It is then up to the provider to implement the functionality of the `Resource`.
- * 
- * ![](/backend/provider-service/wiki/resource_create.svg)
- * 
- * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
- * 
- */
-export interface ResourceDoc {
-    /**
-     * A unique identifier referencing the `Resource`
-     * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
-     */
-    id: string,
-    /**
-     * Timestamp referencing when the request for creation was received by UCloud
-     */
-    createdAt: number /* int64 */,
-    /**
-     * Holds the current status of the `Resource`
-     */
-    status: ResourceStatus,
-    /**
-     * Contains a list of updates from the provider as well as UCloud
-     * 
-     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-     * resource.
-     */
-    updates: ResourceUpdate[],
-    specification: ResourceSpecification,
-    /**
-     * Contains information related to billing information for this `Resource`
-     */
-    billing: ResourceBilling,
-    /**
-     * Contains information about the original creator of the `Resource` along with project association
-     */
-    owner: ResourceOwner,
-    /**
-     * An ACL for this `Resource`
-     */
-    acl?: ResourceAclEntry[],
-}
-/**
- * Describes the current state of the `Resource`
- * 
- * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
- * this will contain information such as:
- * 
- * - A state value. For example, a compute `Job` might be `RUNNING`
- * - Key metrics about the resource.
- * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
- *   should be listed in the `status` section.
- * 
- */
-export interface ResourceStatus {
-}
-/**
- * Describes an update to the `Resource`
- * 
- * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
- * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
- * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
- * An update will typically contain information similar to the `status` field, for example:
- * 
- * - A state value. For example, a compute `Job` might be `RUNNING`.
- * - Change in key metrics.
- * - Bindings to related `Resource`s.
- * 
- */
-export interface ResourceUpdate {
-    /**
-     * A generic text message describing the current status of the `Resource`
-     */
-    status?: string,
-    /**
-     * A timestamp referencing when UCloud received this update
-     */
-    timestamp: number /* int64 */,
-}
-export interface ResourceSpecification {
-    /**
-     * A reference to the product which backs this `Resource`
-     * 
-     * All `Resource`s must be backed by a `Product`, even `Resource`s which are free to consume. If a `Resource` is free to
-     * consume the backing `Product` should simply have a `pricePerUnit` of 0.
-     */
-    product?: accounting.ProductReference,
-}
-/**
- * Contains information related to the accounting/billing of a `Resource`
- * 
- * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
- * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
- * to be charged a different price than newly launched products.
- */
-export interface ResourceBilling {
-    /**
-     * Amount of credits charged in total for this `Resource`
-     */
-    creditsCharged: number /* int64 */,
-    /**
-     * The price per unit. This can differ from current price of `Product`
-     */
-    pricePerUnit: number /* int64 */,
-}
-/**
- * The owner of a `Resource`
- */
-export interface ResourceOwner {
-    createdBy: string,
-    project?: string,
-}
-export interface ProviderSpecification {
-    id: string,
-    domain: string,
-    https: boolean,
-    port?: number /* int32 */,
-    product?: accounting.ProductReference,
-}
-export interface ProvidersUpdateAclRequestItem {
-    id: string,
-    acl: ResourceAclEntry<"EDIT">[],
-}
-export interface ProvidersRenewRefreshTokenRequestItem {
-    id: string,
-}
-/**
- * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
- * 
- * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
- * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
- * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
- * the provider APIs for communicating the status of the `Job`.
- * 
- * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
- * with metadata, such as: ownership, billing and status.
- * 
- * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
- *  It is then up to the provider to implement the functionality of the `Resource`.
- * 
- * ![](/backend/provider-service/wiki/resource_create.svg)
- * 
- * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
- * 
- */
-export interface Provider {
-    /**
-     * A unique identifier referencing the `Resource`
-     * 
-     * This ID is assigned by UCloud and is globally unique across all providers.
-     */
-    id: string,
-    specification: ProviderSpecification,
-    refreshToken: string,
-    publicKey: string,
-    /**
-     * Timestamp referencing when the request for creation was received by UCloud
-     */
-    createdAt: number /* int64 */,
-    /**
-     * Holds the current status of the `Resource`
-     */
-    status: ProviderStatus,
-    /**
-     * Contains a list of updates from the provider as well as UCloud
-     * 
-     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
-     * resource.
-     */
-    updates: ProviderUpdate[],
-    /**
-     * Contains information related to billing information for this `Resource`
-     */
-    billing: ProviderBilling,
-    /**
-     * Contains information about the original creator of the `Resource` along with project association
-     */
-    owner: ProviderOwner,
-    /**
-     * An ACL for this `Resource`
-     */
-    acl: ResourceAclEntry<"EDIT">[],
-}
-/**
- * Describes the current state of the `Resource`
- * 
- * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
- * this will contain information such as:
- * 
- * - A state value. For example, a compute `Job` might be `RUNNING`
- * - Key metrics about the resource.
- * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
- *   should be listed in the `status` section.
- * 
- */
-export interface ProviderStatus {
-}
-/**
- * Describes an update to the `Resource`
- * 
- * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
- * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
- * use the full update history if you only wish to know the _current_ state of a `Resource`.
- * 
- * An update will typically contain information similar to the `status` field, for example:
- * 
- * - A state value. For example, a compute `Job` might be `RUNNING`.
- * - Change in key metrics.
- * - Bindings to related `Resource`s.
- * 
- */
-export interface ProviderUpdate {
-    /**
-     * A timestamp referencing when UCloud received this update
-     */
-    timestamp: number /* int64 */,
-    /**
-     * A generic text message describing the current status of the `Resource`
-     */
-    status?: string,
-}
-/**
- * Contains information related to the accounting/billing of a `Resource`
- * 
- * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
- * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
- * to be charged a different price than newly launched products.
- */
-export interface ProviderBilling {
-    /**
-     * The price per unit. This can differ from current price of `Product`
-     */
-    pricePerUnit: number /* int64 */,
-    /**
-     * Amount of credits charged in total for this `Resource`
-     */
-    creditsCharged: number /* int64 */,
-}
-/**
- * The owner of a `Resource`
- */
-export interface ProviderOwner {
-    createdBy: string,
-    project?: string,
-}
-/**
- * The base type for requesting paginated content.
- * 
- * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
- * semantics of the call:
- * 
- * | Consistency | Description |
- * |-------------|-------------|
- * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
- * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
- * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
- * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
- * must contain all the items, in the correct order and without duplicates.
- * 
- * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
- * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
- * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
- * consistent.
- * 
- * The results might become inconsistent if the client either takes too long, or a service instance goes down while
- * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
- * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
- * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
- * ---
- * 
- * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
- * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
- * paginate through the results.
- * 
- * ---
- * 
- */
-export interface ProvidersBrowseRequest {
-    /**
-     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-     */
-    itemsPerPage?: number /* int32 */,
-    /**
-     * A token requesting the next page of items
-     */
-    next?: string,
-    /**
-     * Controls the consistency guarantees provided by the backend
-     */
-    consistency?: "PREFER" | "REQUIRE",
-    /**
-     * Items to skip ahead
-     */
-    itemsToSkip?: number /* int64 */,
-}
-export namespace resources {
-export function create(
-    request: BulkRequest<ResourceDoc>
-): APICallParameters<BulkRequest<ResourceDoc>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/doc/resources",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function browse(
-    request: PaginationRequestV2
-): APICallParameters<PaginationRequestV2, PageV2<ResourceDoc>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/doc/resources" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-}
-export namespace providers {
-export function create(
-    request: BulkRequest<ProviderSpecification>
-): APICallParameters<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/providers",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function updateAcl(
-    request: BulkRequest<ProvidersUpdateAclRequestItem>
-): APICallParameters<BulkRequest<ProvidersUpdateAclRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/providers" + "/updateAcl",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function renewToken(
-    request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
-): APICallParameters<BulkRequest<ProvidersRenewRefreshTokenRequestItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/providers" + "/renewToken",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieve(
-    request: FindByStringId
-): APICallParameters<FindByStringId, Provider> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/providers" + "/retrieve", {id: request.id}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function retrieveSpecification(
-    request: FindByStringId
-): APICallParameters<FindByStringId, ProviderSpecification> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/providers" + "/retrieveSpecification", {id: request.id}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function browse(
-    request: ProvidersBrowseRequest
-): APICallParameters<ProvidersBrowseRequest, PageV2<Provider>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/providers" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-}
-export namespace AclEntityNS {
-export interface ProjectGroup {
-    projectId: string,
-    group: string,
-    type: "project_group",
+    type: ("verificationReminder"),
 }
 }
 }
@@ -4344,10 +4725,7 @@ export interface CreateSingleUserRequest {
     username: string,
     password?: string,
     email?: string,
-    role?: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
-    firstnames?: string,
-    lastname?: string,
-    orgId?: string,
+    role?: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface UpdateUserInfoRequest {
     email?: string,
@@ -4363,15 +4741,15 @@ export type Principal = Person | ServicePrincipal | ProviderPrincipal
 export type Person = PersonNS.ByWAYF | PersonNS.ByPassword
 export interface ServicePrincipal {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     uid: number /* int64 */,
-    type: "service",
+    type: ("service"),
 }
 export interface ProviderPrincipal {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     uid: number /* int64 */,
-    type: "provider",
+    type: ("provider"),
 }
 export interface GetPrincipalRequest {
     username: string,
@@ -4390,7 +4768,7 @@ export interface LookupUsersResponse {
 export interface UserLookup {
     subject: string,
     uid: number /* int64 */,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
 }
 export interface LookupUsersRequest {
     users: string[],
@@ -4463,6 +4841,10 @@ export interface AuthProvidersRegisterRequestItem {
 }
 export interface AuthProvidersRetrievePublicKeyResponse {
     publicKey: string,
+}
+export interface AuthProvidersGenerateKeyPairResponse {
+    publicKey: string,
+    privateKey: string,
 }
 export namespace users {
 export function createNewUser(
@@ -4665,7 +5047,7 @@ export function refresh(
  *
  * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
  * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
- * 
+ *
  * This RPC signs an access-token which will be used by authorized UCloud services to act as an
  * orchestrator of resources.
  */
@@ -4716,6 +5098,23 @@ export function retrievePublicKey(
         reloadId: Math.random(),
     };
 }
+/**
+ * Generates an RSA key pair useful for JWT signatures (generateKeyPair)
+ *
+ * ![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)
+ * ![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)
+ *
+ * Generates an RSA key pair and returns it to the client. The key pair is not stored or registered in any
+ * way by the authentication service.
+ */
+export function generateKeyPair(): APICallParameters<{}, AuthProvidersGenerateKeyPairResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/auth/providers" + "/generateKeyPair",
+        reloadId: Math.random(),
+    };
+}
 }
 export namespace twofactor {
 export function createCredentials(): APICallParameters<{}, Create2FACredentialsResponse> {
@@ -4750,7 +5149,7 @@ export function twoFactorStatus(): APICallParameters<{}, TwoFactorStatusResponse
 export namespace PersonNS {
 export interface ByWAYF {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     title?: string,
     firstNames: string,
     lastName: string,
@@ -4763,11 +5162,11 @@ export interface ByWAYF {
     wayfId: string,
     displayName: string,
     twoFactorAuthentication: boolean,
-    type: "wayf",
+    type: ("wayf"),
 }
 export interface ByPassword {
     id: string,
-    role: "GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN",
+    role: ("GUEST" | "USER" | "ADMIN" | "SERVICE" | "THIRD_PARTY_APP" | "PROVIDER" | "UNKNOWN"),
     title?: string,
     firstNames: string,
     lastName: string,
@@ -4778,30 +5177,752 @@ export interface ByPassword {
     twoFactorAuthentication: boolean,
     serviceLicenseAgreement: number /* int32 */,
     displayName: string,
-    type: "password",
+    type: ("password"),
 }
 }
 }
-export namespace filesearch {
-export function advancedSearch(
-    request: AdvancedSearchRequest
-): APICallParameters<AdvancedSearchRequest, Page<file.StorageFile>> {
+export namespace provider {
+/**
+ * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+ *
+ * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+ * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+ * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+ * the provider APIs for communicating the status of the `Job`.
+ *
+ * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+ * with metadata, such as: ownership, billing and status.
+ *
+ * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+ *  It is then up to the provider to implement the functionality of the `Resource`.
+ *
+ * ![](/backend/provider-service/wiki/resource_create.svg)
+ *
+ * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+ *
+ */
+export interface ResourceDoc {
+    /**
+     * A unique identifier referencing the `Resource`
+     *
+     * The ID is unique across a provider for a single resource type.
+     */
+    id: string,
+    /**
+     * Timestamp referencing when the request for creation was received by UCloud
+     */
+    createdAt: number /* int64 */,
+    /**
+     * Holds the current status of the `Resource`
+     */
+    status: ResourceStatus,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     *
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: ResourceUpdate[],
+    specification: ResourceSpecification,
+    /**
+     * Contains information related to billing information for this `Resource`
+     * @deprecated
+     */
+    billing: ResourceBilling,
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: ResourceOwner,
+    /**
+     * An ACL for this `Resource`
+     * @deprecated
+     */
+    acl?: ResourceAclEntry[],
+    /**
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: ResourcePermissions,
+    providerGeneratedId?: string,
+}
+/**
+ * Describes the current state of the `Resource`
+ *
+ * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+ * this will contain information such as:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`
+ * - Key metrics about the resource.
+ * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+ *   should be listed in the `status` section.
+ *
+ */
+export interface ResourceStatus {
+    resolvedSupport?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+    resolvedProduct?: accounting.Product;
+}
+/**
+ * Describes an update to the `Resource`
+ *
+ * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+ * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+ * use the full update history if you only wish to know the _current_ state of a `Resource`.
+ *
+ * An update will typically contain information similar to the `status` field, for example:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`.
+ * - Change in key metrics.
+ * - Bindings to related `Resource`s.
+ *
+ */
+export interface ResourceUpdate {
+    /**
+     * A generic text message describing the current status of the `Resource`
+     */
+    status?: string,
+    /**
+     * A timestamp referencing when UCloud received this update
+     */
+    timestamp: number /* int64 */,
+}
+export interface ResourceSpecification {
+    /**
+     * A reference to the product which backs this `Resource`
+     */
+    product: accounting.ProductReference,
+}
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ *
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface ResourceBilling {
+    /**
+     * Amount of credits charged in total for this `Resource`
+     */
+    creditsCharged: number /* int64 */,
+    /**
+     * The price per unit. This can differ from current price of `Product`
+     */
+    pricePerUnit: number /* int64 */,
+}
+/**
+ * The owner of a `Resource`
+ */
+export interface ResourceOwner {
+    createdBy: string,
+    project?: string,
+}
+export interface ResourceAclEntry<Permission = unknown> {
+    entity: AclEntity,
+    permissions: Permission[],
+}
+export type AclEntity = AclEntityNS.ProjectGroup | AclEntityNS.User
+export interface ResourcePermissions {
+    /**
+     * The permissions that the requesting user has access to
+     */
+    myself: Permission[],
+    /**
+     * The permissions that other users might have access to
+     *
+     * This value typically needs to be included through the `includeFullPermissions` flag
+     */
+    others?: ResourceAclEntry<Permission>[],
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ *
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ *
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ *
+ */
+export type Permission = PermissionNS.Read | PermissionNS.Edit | PermissionNS.Admin | PermissionNS.Provider
+export interface IntegrationControlApproveConnectionRequest {
+    username: string,
+}
+export interface IntegrationBrowseResponseItem {
+    provider: string;
+    connected: boolean;
+    providerTitle: string;
+}
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface IntegrationBrowseRequest {
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export interface IntegrationClearConnectionRequest {
+    username: string,
+    provider: string,
+}
+export interface IntegrationConnectResponse {
+    redirectTo: string,
+}
+export interface IntegrationConnectRequest {
+    provider: string,
+}
+export interface ProviderSpecification {
+    id: string,
+    domain: string,
+    https: boolean,
+    port?: number /* int32 */,
+    product: accounting.ProductReference,
+}
+export interface ProvidersUpdateAclRequestItem {
+    id: string,
+    acl: ResourceAclEntry<("EDIT")>[],
+}
+export interface ProvidersRenewRefreshTokenRequestItem {
+    id: string,
+}
+/**
+ * A `Resource` is the core data model used to synchronize tasks between UCloud and a [provider](/backend/provider-service/README.md).
+ *
+ * `Resource`s provide instructions to providers on how they should complete a given task. Examples of a `Resource`
+ * include: [Compute jobs](/backend/app-orchestrator-service/README.md), HTTP ingress points and license servers. For
+ * example, a (compute) `Job` provides instructions to the provider on how to start a software computation. It also gives
+ * the provider APIs for communicating the status of the `Job`.
+ *
+ * All `Resource` share a common interface and data model. The data model contains a specification of the `Resource`, along
+ * with metadata, such as: ownership, billing and status.
+ *
+ * `Resource`s are created in UCloud when a user requests it. This request is verified by UCloud and forwarded to the
+ *  It is then up to the provider to implement the functionality of the `Resource`.
+ *
+ * ![](/backend/provider-service/wiki/resource_create.svg)
+ *
+ * __Figure:__ UCloud orchestrates with the provider to create a `Resource`
+ *
+ */
+export interface Provider {
+    /**
+     * A unique identifier referencing the `Resource`
+     *
+     * The ID is unique across a provider for a single resource type.
+     */
+    id: string,
+    specification: ProviderSpecification,
+    refreshToken: string,
+    publicKey: string,
+    /**
+     * Timestamp referencing when the request for creation was received by UCloud
+     */
+    createdAt: number /* int64 */,
+    /**
+     * Holds the current status of the `Resource`
+     */
+    status: ProviderStatus,
+    /**
+     * Contains a list of updates from the provider as well as UCloud
+     *
+     * Updates provide a way for both UCloud, and the provider to communicate to the user what is happening with their
+     * resource.
+     */
+    updates: ProviderUpdate[],
+    /**
+     * Contains information related to billing information for this `Resource`
+     * @deprecated
+     */
+    billing: ProviderBilling,
+    /**
+     * Contains information about the original creator of the `Resource` along with project association
+     */
+    owner: ResourceOwner,
+    /**
+     * An ACL for this `Resource`
+     * @deprecated
+     */
+    acl: ResourceAclEntry<("EDIT")>[],
+    /**
+     * Permissions assigned to this resource
+     *
+     * A null value indicates that permissions are not supported by this resource type.
+     */
+    permissions?: ResourcePermissions,
+    providerGeneratedId?: string,
+}
+/**
+ * Describes the current state of the `Resource`
+ *
+ * The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
+ * this will contain information such as:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`
+ * - Key metrics about the resource.
+ * - Related resources. For example, certain `Resource`s are bound to another `Resource` in a mutually exclusive way, this
+ *   should be listed in the `status` section.
+ *
+ */
+export interface ProviderStatus {
+    support?: accounting.providers.ResolvedSupport<any /* unknown */, any /* unknown */>,
+}
+/**
+ * Describes an update to the `Resource`
+ *
+ * Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+ * The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+ * use the full update history if you only wish to know the _current_ state of a `Resource`.
+ *
+ * An update will typically contain information similar to the `status` field, for example:
+ *
+ * - A state value. For example, a compute `Job` might be `RUNNING`.
+ * - Change in key metrics.
+ * - Bindings to related `Resource`s.
+ *
+ */
+export interface ProviderUpdate {
+    /**
+     * A timestamp referencing when UCloud received this update
+     */
+    timestamp: number /* int64 */,
+    /**
+     * A generic text message describing the current status of the `Resource`
+     */
+    status?: string,
+}
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ *
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface ProviderBilling {
+    /**
+     * The price per unit. This can differ from current price of `Product`
+     */
+    pricePerUnit: number /* int64 */,
+    /**
+     * Amount of credits charged in total for this `Resource`
+     */
+    creditsCharged: number /* int64 */,
+}
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface ProvidersBrowseRequest {
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+}
+export type ProvidersRequestApprovalResponse = ProvidersRequestApprovalResponseNS.RequiresSignature | ProvidersRequestApprovalResponseNS.AwaitingAdministratorApproval
+export type ProvidersRequestApprovalRequest = ProvidersRequestApprovalRequestNS.Information | ProvidersRequestApprovalRequestNS.Sign
+export interface ProvidersApproveRequest {
+    token: string,
+}
+export namespace resources {
+export function create(
+    request: BulkRequest<ResourceDoc>
+): APICallParameters<BulkRequest<ResourceDoc>, any /* unknown */> {
     return {
         context: "",
         method: "POST",
-        path: "/api/file-search" + "/advanced",
+        path: "/doc/resources",
         parameters: request,
         reloadId: Math.random(),
         payload: request,
     };
 }
-export interface AdvancedSearchRequest {
-    fileName?: string,
-    extensions?: string[],
-    fileTypes?: "FILE" | "DIRECTORY"[],
-    includeShares?: boolean,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
+export function browse(
+    request: PaginationRequestV2
+): APICallParameters<PaginationRequestV2, PageV2<ResourceDoc>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/doc/resources" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+}
+export namespace control {
+export function approveConnection(
+    request: IntegrationControlApproveConnectionRequest
+): APICallParameters<IntegrationControlApproveConnectionRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration/control" + "/approveConnection",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace ProvidersRequestApprovalResponseNS {
+export interface RequiresSignature {
+    token: string,
+    type: ("requires_signature"),
+}
+export interface AwaitingAdministratorApproval {
+    token: string,
+    type: ("awaiting_admin_approval"),
+}
+}
+export namespace providers {
+export function create(
+    request: BulkRequest<ProviderSpecification>
+): APICallParameters<BulkRequest<ProviderSpecification>, BulkResponse<FindByStringId>> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function updateAcl(
+    request: BulkRequest<ProvidersUpdateAclRequestItem>
+): APICallParameters<BulkRequest<ProvidersUpdateAclRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/updateAcl",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function renewToken(
+    request: BulkRequest<ProvidersRenewRefreshTokenRequestItem>
+): APICallParameters<BulkRequest<ProvidersRenewRefreshTokenRequestItem>, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/renewToken",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function retrieve(
+    request: FindByStringId
+): APICallParameters<FindByStringId, Provider> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers" + "/retrieve", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function retrieveSpecification(
+    request: FindByStringId
+): APICallParameters<FindByStringId, ProviderSpecification> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers" + "/retrieveSpecification", {id: request.id}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function browse(
+    request: ProvidersBrowseRequest
+): APICallParameters<ProvidersBrowseRequest, PageV2<Provider>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function requestApproval(
+    request: ProvidersRequestApprovalRequest
+): APICallParameters<ProvidersRequestApprovalRequest, ProvidersRequestApprovalResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/requestApproval",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function approve(
+    request: ProvidersApproveRequest
+): APICallParameters<ProvidersApproveRequest, FindByStringId> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers" + "/approve",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace AclEntityNS {
+export interface ProjectGroup {
+    projectId: string,
+    group: string,
+    type: ("project_group"),
+}
+export interface User {
+    username: string,
+    type: ("user"),
+}
+}
+export namespace ResourceBillingNS {
+/**
+ * Contains information related to the accounting/billing of a `Resource`
+ *
+ * Note that this object contains the price of the `Product`. This price may differ, over-time, from the actual price of
+ * the `Product`. This allows providers to provide a gradual change of price for products. By allowing existing `Resource`s
+ * to be charged a different price than newly launched products.
+ */
+export interface Free {
+    creditsCharged: number /* int64 */,
+    pricePerUnit: number /* int64 */,
+}
+}
+export namespace im {
+export function browse(
+    request: IntegrationBrowseRequest
+): APICallParameters<IntegrationBrowseRequest, PageV2<IntegrationBrowseResponseItem>> {
+    return {
+        context: "",
+        method: "GET",
+        path: buildQueryString("/api/providers/integration" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
+        parameters: request,
+        reloadId: Math.random(),
+    };
+}
+export function clearConnection(
+    request: IntegrationClearConnectionRequest
+): APICallParameters<IntegrationClearConnectionRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration" + "/clearConnection",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+export function connect(
+    request: IntegrationConnectRequest
+): APICallParameters<IntegrationConnectRequest, IntegrationConnectResponse> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/providers/integration" + "/connect",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
+}
+export namespace PermissionNS {
+/**
+ * Base type for all permissions of the UCloud authorization model
+
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ *
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ *
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ *
+ */
+export interface Read {
+    canBeGranted: boolean,
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Read"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ *
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ *
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ *
+ */
+export interface Edit {
+    canBeGranted: boolean,
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Edit"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ *
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ *
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ *
+ */
+export interface Admin {
+    canBeGranted: boolean,
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Admin"),
+}
+/**
+ * Base type for all permissions of the UCloud authorization model
+
+ * This type covers the permission part of UCloud's RBAC based authorization model. UCloud defines a set of standard
+ * permissions that can be applied to a resource and its associated operations.
+ *
+ * 1. `READ`: Grants an entity access to all read-based operations. Read-based operations must not alter the state of a
+ * resource. Typical examples include the `browse` and `retrieve*` endpoints.
+ * 2. `EDIT`: Grants an entity access to all write-based operations. Write-based operations are allowed to alter the state
+ * of a resource. This permission is required for most `update*` endpoints.
+ * 3. `ADMIN`: Grants an entity access to special privileged operations. This permission will allow the entity to perform
+ * any action on the resource, unless the operation specifies otherwise. This operation is, for example, used for updating
+ * the permissions attached to a resource.
+ *
+ * Apart from the standard permissions, a resource may define additional permissions. These are documented along with
+ * the resource and related operations.
+ *
+ */
+export interface Provider {
+    canBeGranted: boolean,
+    name: string,
+    type: ("dk.sdu.cloud.api.Permission.Provider"),
+}
+}
+export namespace ProvidersRequestApprovalRequestNS {
+export interface Information {
+    specification: ProviderSpecification,
+    type: ("information"),
+}
+export interface Sign {
+    token: string,
+    type: ("sign"),
+}
 }
 }
 export namespace project {
@@ -5007,17 +6128,7 @@ export function viewProject(
         reloadId: Math.random(),
     };
 }
-export function listSubProjects(
-    request: ListSubProjectsRequest
-): APICallParameters<ListSubProjectsRequest, Page<Project>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/projects" + "/sub-projects", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
+
 export function countSubProjects(): APICallParameters<{}, number /* int64 */> {
     return {
         context: "",
@@ -5154,202 +6265,6 @@ export function search(
         payload: request,
     };
 }
-export interface CreateProjectRequest {
-    title: string,
-    parent?: string,
-    principalInvestigator?: string,
-}
-export interface InviteRequest {
-    projectId: string,
-    usernames: string[],
-}
-export interface DeleteMemberRequest {
-    projectId: string,
-    member: string,
-}
-export interface ViewMemberInProjectResponse {
-    member: ProjectMember,
-}
-export interface ProjectMember {
-    username: string,
-    role: "PI" | "ADMIN" | "USER",
-    memberOfAnyGroup?: boolean,
-}
-export interface ViewMemberInProjectRequest {
-    projectId: string,
-    username: string,
-}
-export interface ExistsResponse {
-    exists: boolean,
-}
-export interface ExistsRequest {
-    projectId: string,
-}
-export interface ChangeUserRoleRequest {
-    projectId: string,
-    member: string,
-    newRole: "PI" | "ADMIN" | "USER",
-}
-export interface UserProjectSummary {
-    projectId: string,
-    title: string,
-    whoami: ProjectMember,
-    needsVerification: boolean,
-    isFavorite: boolean,
-    archived: boolean,
-    parent?: string,
-    ancestorPath?: string,
-}
-export interface ListFavoriteProjectsRequest {
-    user?: string,
-    itemsPerPage: number /* int32 */,
-    page: number /* int32 */,
-    archived: boolean,
-    showAncestorPath?: boolean,
-}
-export interface ListProjectsRequest {
-    user?: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-    archived?: boolean,
-    noFavorites?: boolean,
-    showAncestorPath?: boolean,
-}
-export interface AcceptInviteRequest {
-    projectId: string,
-}
-export interface RejectInviteRequest {
-    username?: string,
-    projectId: string,
-}
-export interface IngoingInvite {
-    project: string,
-    title: string,
-    invitedBy: string,
-    timestamp: number /* int64 */,
-}
-export interface ListIngoingInvitesRequest {
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface OutgoingInvite {
-    username: string,
-    invitedBy: string,
-    timestamp: number /* int64 */,
-}
-export interface ListOutgoingInvitesRequest {
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface TransferPiRoleRequest {
-    newPrincipalInvestigator: string,
-}
-export interface ArchiveRequest {
-    archiveStatus: boolean,
-}
-export interface ArchiveBulkRequest {
-    projects: UserProjectSummary[],
-}
-export interface ViewProjectRequest {
-    id: string,
-}
-export interface Project {
-    id: string,
-    title: string,
-    parent?: string,
-    archived: boolean,
-    fullPath?: string,
-}
-export interface ListSubProjectsRequest {
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface LookupByTitleRequest {
-    title: string,
-}
-export interface LookupByIdRequest {
-    id: string,
-}
-export interface LookupByIdBulkRequest {
-    ids: string[],
-}
-export interface LookupPrincipalInvestigatorResponse {
-    principalInvestigator: string,
-}
-export interface AllowsRenamingResponse {
-    allowed: boolean,
-}
-export interface AllowsRenamingRequest {
-    projectId: string,
-}
-export interface ToggleRenamingRequest {
-    projectId: string,
-}
-export interface RenameProjectRequest {
-    id: string,
-    newTitle: string,
-}
-export interface UpdateDataManagementPlanRequest {
-    id: string,
-    dmp?: string,
-}
-export interface FetchDataManagementPlanResponse {
-    dmp?: string,
-}
-/**
- * The base type for requesting paginated content.
- * 
- * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
- * semantics of the call:
- * 
- * | Consistency | Description |
- * |-------------|-------------|
- * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
- * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
- * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
- * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
- * must contain all the items, in the correct order and without duplicates.
- * 
- * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
- * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
- * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
- * consistent.
- * 
- * The results might become inconsistent if the client either takes too long, or a service instance goes down while
- * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
- * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
- * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
- * ---
- * 
- * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
- * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
- * paginate through the results.
- * 
- * ---
- * 
- */
-export interface ProjectSearchByPathRequest {
-    path: string,
-    /**
-     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-     */
-    itemsPerPage?: number /* int32 */,
-    /**
-     * A token requesting the next page of items
-     */
-    next?: string,
-    /**
-     * Controls the consistency guarantees provided by the backend
-     */
-    consistency?: "PREFER" | "REQUIRE",
-    /**
-     * Items to skip ahead
-     */
-    itemsToSkip?: number /* int64 */,
-    includeFullPath?: boolean,
-}
 export interface CreateGroupRequest {
     group: string,
 }
@@ -5415,6 +6330,13 @@ export interface ProjectAndGroup {
     project: Project,
     group: ProjectGroup,
 }
+export interface Project {
+    id: string,
+    title: string,
+    parent?: string,
+    archived: boolean,
+    fullPath?: string,
+}
 export interface ProjectGroup {
     id: string,
     title: string,
@@ -5432,6 +6354,11 @@ export interface UserStatusInProject {
     title: string,
     whoami: ProjectMember,
     parent?: string,
+}
+export interface ProjectMember {
+    username: string,
+    role: ("PI" | "ADMIN" | "USER"),
+    memberOfAnyGroup?: boolean,
 }
 export interface UserGroupSummary {
     project: string,
@@ -5458,6 +6385,190 @@ export interface LookupAdminsBulkResponse {
 }
 export interface LookupAdminsBulkRequest {
     projectId: string[],
+}
+export interface CreateProjectRequest {
+    title: string,
+    parent?: string,
+    principalInvestigator?: string,
+}
+export interface InviteRequest {
+    projectId: string,
+    usernames: string[],
+}
+export interface DeleteMemberRequest {
+    projectId: string,
+    member: string,
+}
+export interface ViewMemberInProjectResponse {
+    member: ProjectMember,
+}
+export interface ViewMemberInProjectRequest {
+    projectId: string,
+    username: string,
+}
+export interface ExistsResponse {
+    exists: boolean,
+}
+export interface ExistsRequest {
+    projectId: string,
+}
+export interface ChangeUserRoleRequest {
+    projectId: string,
+    member: string,
+    newRole: ("PI" | "ADMIN" | "USER"),
+}
+export interface UserProjectSummary {
+    projectId: string,
+    title: string,
+    whoami: ProjectMember,
+    needsVerification: boolean,
+    isFavorite: boolean,
+    archived: boolean,
+    parent?: string,
+    ancestorPath?: string,
+}
+export interface ListFavoriteProjectsRequest {
+    user?: string,
+    itemsPerPage: number /* int32 */,
+    page: number /* int32 */,
+    archived: boolean,
+    showAncestorPath?: boolean,
+}
+export interface ListProjectsRequest {
+    user?: string,
+    itemsPerPage?: number /* int32 */,
+    page?: number /* int32 */,
+    archived?: boolean,
+    noFavorites?: boolean,
+    showAncestorPath?: boolean,
+}
+export interface AcceptInviteRequest {
+    projectId: string,
+}
+export interface RejectInviteRequest {
+    username?: string,
+    projectId: string,
+}
+export interface IngoingInvite {
+    project: string,
+    title: string,
+    invitedBy: string,
+    timestamp: number /* int64 */,
+}
+export interface ListIngoingInvitesRequest {
+    itemsPerPage?: number /* int32 */,
+    page?: number /* int32 */,
+}
+export interface OutgoingInvite {
+    username: string,
+    invitedBy: string,
+    timestamp: number /* int64 */,
+}
+export interface ListOutgoingInvitesRequest {
+    itemsPerPage?: number /* int32 */,
+    page?: number /* int32 */,
+}
+export interface TransferPiRoleRequest {
+    newPrincipalInvestigator: string,
+}
+export interface ArchiveRequest {
+    archiveStatus: boolean,
+}
+export interface ArchiveBulkRequest {
+    projects: UserProjectSummary[],
+}
+export interface ViewProjectRequest {
+    id: string,
+}
+export interface ListSubProjectsRequest {
+    itemsPerPage?: number /* int32 */,
+    page?: number /* int32 */,
+}
+export interface LookupByTitleRequest {
+    title: string,
+}
+export interface LookupByIdRequest {
+    id: string,
+}
+export interface LookupByIdBulkRequest {
+    ids: string[],
+}
+export interface LookupPrincipalInvestigatorResponse {
+    principalInvestigator: string,
+}
+export interface AllowsRenamingResponse {
+    allowed: boolean,
+}
+export interface AllowsRenamingRequest {
+    projectId: string,
+}
+export interface ToggleRenamingRequest {
+    projectId: string,
+}
+export interface RenameProjectRequest {
+    id: string,
+    newTitle: string,
+}
+export interface UpdateDataManagementPlanRequest {
+    id: string,
+    dmp?: string,
+}
+export interface FetchDataManagementPlanResponse {
+    dmp?: string,
+}
+/**
+ * The base type for requesting paginated content.
+ *
+ * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+ * semantics of the call:
+ *
+ * | Consistency | Description |
+ * |-------------|-------------|
+ * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+ * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+ *
+ * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+ * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+ * must contain all the items, in the correct order and without duplicates.
+ *
+ * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+ * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+ * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+ * consistent.
+ *
+ * The results might become inconsistent if the client either takes too long, or a service instance goes down while
+ * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+ * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+ * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+ *
+ * ---
+ *
+ * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+ * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+ * paginate through the results.
+ *
+ * ---
+ *
+ */
+export interface ProjectSearchByPathRequest {
+    path: string,
+    /**
+     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+     */
+    itemsPerPage?: number /* int32 */,
+    /**
+     * A token requesting the next page of items
+     */
+    next?: string,
+    /**
+     * Controls the consistency guarantees provided by the backend
+     */
+    consistency?: ("PREFER" | "REQUIRE"),
+    /**
+     * Items to skip ahead
+     */
+    itemsToSkip?: number /* int64 */,
+    includeFullPath?: boolean,
 }
 export namespace members {
 export function userStatus(
@@ -5532,104 +6643,6 @@ export function toggleFavorite(
         payload: request,
     };
 }
-}
-}
-export namespace repository {
-export function list(
-    request: RepositoryListRequest
-): APICallParameters<RepositoryListRequest, Page<Repository>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/projects/repositories", {itemsPerPage: request.itemsPerPage, page: request.page, user: request.user}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function create(
-    request: RepositoryCreateRequest
-): APICallParameters<RepositoryCreateRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/projects/repositories",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function remove(
-    request: RepositoryDeleteRequest
-): APICallParameters<RepositoryDeleteRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/projects/repositories",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function update(
-    request: RepositoryUpdateRequest
-): APICallParameters<RepositoryUpdateRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/projects/repositories" + "/update",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function listFiles(
-    request: RepositoryListRequest
-): APICallParameters<RepositoryListRequest, Page<file.StorageFile>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/projects/repositories" + "/list-files", {itemsPerPage: request.itemsPerPage, page: request.page, user: request.user}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function updatePermissions(
-    request: UpdatePermissionsRequest
-): APICallParameters<UpdatePermissionsRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/projects/repositories" + "/update-permissions",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export interface RepositoryCreateRequest {
-    name: string,
-}
-export interface RepositoryDeleteRequest {
-    name: string,
-}
-export interface Repository {
-    name: string,
-}
-export interface RepositoryListRequest {
-    user?: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface RepositoryUpdateRequest {
-    oldName: string,
-    newName: string,
-}
-export interface UpdatePermissionsRequest {
-    repository: string,
-    newAcl: ProjectAclEntry[],
-}
-export interface ProjectAclEntry {
-    group: string,
-    rights: "READ" | "WRITE"[],
 }
 }
 export namespace group {
@@ -5801,11 +6814,11 @@ export interface AddToBalanceRequest {
 }
 export interface Wallet {
     id: string,
-    type: "USER" | "PROJECT",
+    type: ("USER" | "PROJECT"),
     paysFor: ProductCategoryId,
 }
 export interface ProductCategoryId {
-    id: string,
+    name: string,
     provider: string,
 }
 export interface AddToBalanceBulkRequest {
@@ -5823,7 +6836,7 @@ export interface ReserveCreditsRequest {
     chargeImmediately: boolean,
     skipIfExists: boolean,
     skipLimitCheck: boolean,
-    transactionType: "GIFTED" | "TRANSFERRED_TO_PERSONAL" | "TRANSFERRED_TO_PROJECT" | "PAYMENT",
+    transactionType: ("GIFTED" | "TRANSFERRED_TO_PERSONAL" | "TRANSFERRED_TO_PROJECT" | "PAYMENT"),
 }
 export interface ReserveCreditsBulkRequest {
     reservations: ReserveCreditsRequest[],
@@ -5850,11 +6863,11 @@ export interface WalletBalance {
     balance: number /* int64 */,
     allocated: number /* int64 */,
     used: number /* int64 */,
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
 }
 export interface RetrieveBalanceRequest {
     id?: string,
-    type?: "USER" | "PROJECT",
+    type?: ("USER" | "PROJECT"),
     includeChildren?: boolean,
     showHidden?: boolean,
 }
@@ -5865,6 +6878,9 @@ export interface SetBalanceRequest {
 }
 export interface RetrieveWalletsForProjectsRequest {
     projectIds: string[],
+}
+export interface WalletsGrantProviderCreditsRequest {
+    provider: string,
 }
 export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
@@ -5880,7 +6896,7 @@ export interface ListProductsRequest {
 }
 export interface ListProductsByAreaRequest {
     provider: string,
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     showHidden: boolean,
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
@@ -5891,37 +6907,37 @@ export interface RetrieveAllFromProviderRequest {
 }
 /**
  * The base type for requesting paginated content.
- * 
+ *
  * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
  * semantics of the call:
- * 
+ *
  * | Consistency | Description |
  * |-------------|-------------|
  * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
  * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
+ *
  * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
  * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
  * must contain all the items, in the correct order and without duplicates.
- * 
+ *
  * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
  * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
  * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
  * consistent.
- * 
+ *
  * The results might become inconsistent if the client either takes too long, or a service instance goes down while
  * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
  * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
  * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
+ *
  * ---
- * 
+ *
  * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
  * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
  * paginate through the results.
- * 
+ *
  * ---
- * 
+ *
  */
 export interface ProductsBrowseRequest {
     /**
@@ -5935,13 +6951,13 @@ export interface ProductsBrowseRequest {
     /**
      * Controls the consistency guarantees provided by the backend
      */
-    consistency?: "PREFER" | "REQUIRE",
+    consistency?: ("PREFER" | "REQUIRE"),
     /**
      * Items to skip ahead
      */
     itemsToSkip?: number /* int64 */,
     filterProvider?: string,
-    filterArea?: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    filterArea?: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     filterUsable?: boolean,
     filterCategory?: string,
     includeBalance?: boolean,
@@ -5954,7 +6970,7 @@ export interface UsageChart {
     lines: UsageLine[],
 }
 export interface UsageLine {
-    area: "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP",
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     category: string,
     projectPath?: string,
     projectId?: string,
@@ -6011,11 +7027,11 @@ export function updateProduct(
     };
 }
 export function createProduct(
-    request: Product
-): APICallParameters<Product, any /* unknown */> {
+    request: BulkRequest<Product>
+): APICallParameters<BulkRequest<Product>, any /* unknown */> {
     return {
         context: "",
-        method: "PUT",
+        method: "POST",
         path: "/api/products",
         parameters: request,
         reloadId: Math.random(),
@@ -6069,11 +7085,11 @@ export function browse(
 }
 export namespace ProductAvailabilityNS {
 export interface Available {
-    type: "available",
+    type: ("available"),
 }
 export interface Unavailable {
     reason: string,
-    type: "unavailable",
+    type: ("unavailable"),
 }
 }
 export namespace visualization {
@@ -6087,6 +7103,12 @@ export function usage(
         parameters: request,
         reloadId: Math.random(),
     };
+}
+}
+export namespace providers {
+export interface ResolvedSupport<P = unknown, Support = unknown> {
+    product: P,
+    support: Support,
 }
 }
 export namespace wallets {
@@ -6197,6 +7219,18 @@ export function retrieveWalletsFromProjects(
         payload: request,
     };
 }
+export function grantProviderCredits(
+    request: WalletsGrantProviderCreditsRequest
+): APICallParameters<WalletsGrantProviderCreditsRequest, any /* unknown */> {
+    return {
+        context: "",
+        method: "POST",
+        path: "/api/accounting/wallets" + "/grantProviderCredits",
+        parameters: request,
+        reloadId: Math.random(),
+        payload: request,
+    };
+}
 }
 export namespace ProductNS {
 export interface Storage {
@@ -6207,11 +7241,12 @@ export interface Storage {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "storage",
+    type: ("storage"),
 }
 export interface Compute {
     id: string,
@@ -6224,11 +7259,12 @@ export interface Compute {
     cpu?: number /* int32 */,
     memoryInGigs?: number /* int32 */,
     gpu?: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "compute",
+    type: ("compute"),
 }
 export interface Ingress {
     id: string,
@@ -6238,12 +7274,13 @@ export interface Ingress {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "ingress",
+    type: ("ingress"),
 }
 export interface License {
     id: string,
@@ -6254,12 +7291,13 @@ export interface License {
     availability: ProductAvailability,
     priority: number /* int32 */,
     tags: string[],
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "license",
+    type: ("license"),
 }
 export interface NetworkIP {
     id: string,
@@ -6269,12 +7307,13 @@ export interface NetworkIP {
     hiddenInGrantApplications: boolean,
     availability: ProductAvailability,
     priority: number /* int32 */,
-    paymentModel: "FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION",
+    paymentModel: ("FREE_BUT_REQUIRE_BALANCE" | "PER_ACTIVATION"),
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP"),
     /**
      * Included only with certain endpoints which support `includeBalance`
      */
     balance?: number /* int64 */,
-    type: "network_ip",
+    type: ("network_ip"),
 }
 }
 }
@@ -6338,7 +7377,7 @@ export function activityFeed(
     };
 }
 export interface ActivityForFrontend {
-    type: "download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp",
+    type: ("download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp"),
     timestamp: number /* int64 */,
     activityEvent: ActivityEvent,
 }
@@ -6358,7 +7397,7 @@ export interface Response {
 }
 export interface Request {
     user?: string,
-    type?: "download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp",
+    type?: ("download" | "deleted" | "favorite" | "moved" | "copy" | "usedInApp" | "directoryCreated" | "reclassify" | "upload" | "updatedACL" | "sharedWith" | "allUsedInApp"),
     minTimestamp?: number /* int64 */,
     maxTimestamp?: number /* int64 */,
     offset?: number /* int32 */,
@@ -6372,42 +7411,42 @@ export interface Reclassify {
     timestamp: number /* int64 */,
     filePath: string,
     newSensitivity: string,
-    type: "reclassify",
+    type: ("reclassify"),
 }
 export interface DirectoryCreated {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "directory_created",
+    type: ("directory_created"),
 }
 export interface Download {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "download",
+    type: ("download"),
 }
 export interface Copy {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     copyFilePath: string,
-    type: "copy",
+    type: ("copy"),
 }
 export interface Uploaded {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "uploaded",
+    type: ("uploaded"),
 }
 export interface UpdatedAcl {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     rightsAndUser: RightsAndUser[],
-    type: "updated_acl",
+    type: ("updated_acl"),
 }
 export interface RightsAndUser {
-    rights: "READ" | "WRITE"[],
+    rights: string[],
     user: string,
 }
 export interface UpdateProjectAcl {
@@ -6416,31 +7455,31 @@ export interface UpdateProjectAcl {
     filePath: string,
     project: string,
     acl: ProjectAclEntry[],
-    type: "update_project_acl",
+    type: ("update_project_acl"),
 }
 export interface ProjectAclEntry {
     group: string,
-    rights: "READ" | "WRITE"[],
+    rights: string[],
 }
 export interface Favorite {
     username: string,
     isFavorite: boolean,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "favorite",
+    type: ("favorite"),
 }
 export interface Moved {
     username: string,
     newName: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "moved",
+    type: ("moved"),
 }
 export interface Deleted {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
-    type: "deleted",
+    type: ("deleted"),
 }
 export interface SingleFileUsedByApplication {
     username: string,
@@ -6448,7 +7487,7 @@ export interface SingleFileUsedByApplication {
     filePath: string,
     applicationName: string,
     applicationVersion: string,
-    type: "single_file_used_by_application",
+    type: ("single_file_used_by_application"),
 }
 export interface AllFilesUsedByApplication {
     username: string,
@@ -6456,15 +7495,15 @@ export interface AllFilesUsedByApplication {
     filePath: string,
     applicationName: string,
     applicationVersion: string,
-    type: "all_files_used_by_application",
+    type: ("all_files_used_by_application"),
 }
 export interface SharedWith {
     username: string,
     timestamp: number /* int64 */,
     filePath: string,
     sharedWith: string,
-    status: "READ" | "WRITE"[],
-    type: "shared_with",
+    status: string[],
+    type: ("shared_with"),
 }
 }
 }
@@ -6552,925 +7591,40 @@ export interface MarkResponse {
     failures: number /* int64 */[],
 }
 }
-export namespace share {
-export function list(
-    request: SharesNS.ListNS.Request
-): APICallParameters<SharesNS.ListNS.Request, Page<SharesByPath>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/shares", {sharedByMe: request.sharedByMe, itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function create(
-    request: SharesNS.CreateNS.Request
-): APICallParameters<SharesNS.CreateNS.Request, any /* unknown */> {
-    return {
-        context: "",
-        method: "PUT",
-        path: "/api/shares",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function accept(
-    request: SharesNS.AcceptNS.Request
-): APICallParameters<SharesNS.AcceptNS.Request, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/shares" + "/accept",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function revoke(
-    request: SharesNS.RevokeNS.Request
-): APICallParameters<SharesNS.RevokeNS.Request, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/shares" + "/revoke",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function update(
-    request: SharesNS.UpdateNS.Request
-): APICallParameters<SharesNS.UpdateNS.Request, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/shares" + "/update",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function findByPath(
-    request: SharesNS.FindByPathNS.Request
-): APICallParameters<SharesNS.FindByPathNS.Request, SharesByPath> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/shares" + "/byPath", {path: request.path}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function listFiles(
-    request: SharesNS.ListFilesNS.Request
-): APICallParameters<SharesNS.ListFilesNS.Request, Page<file.StorageFile>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/shares" + "/list-files", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export interface SharesByPath {
-    path: string,
-    sharedBy: string,
-    sharedByMe: boolean,
-    shares: MinimalShare[],
-}
-export interface MinimalShare {
-    sharedWith: string,
-    rights: "READ" | "WRITE"[],
-    state: "REQUEST_SENT" | "UPDATING" | "ACCEPTED",
-}
-export namespace SharesNS {
-
-export namespace ListFilesNS {
-export interface Request {
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-}
-export namespace FindByPathNS {
-export interface Request {
-    path: string,
-}
-}
-export namespace RevokeNS {
-export interface Request {
-    path: string,
-    sharedWith: string,
-}
-}
-export namespace UpdateNS {
-export interface Request {
-    path: string,
-    sharedWith: string,
-    rights: "READ" | "WRITE"[],
-}
-}
-export namespace AcceptNS {
-export interface Request {
-    path: string,
-}
-}
-export namespace CreateNS {
-export interface Request {
-    sharedWith: string,
-    path: string,
-    rights: "READ" | "WRITE"[],
-}
-}
-export namespace ListNS {
-export interface Request {
-    sharedByMe: boolean,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-}
-}
-}
-export namespace file {
-export function createPersonalRepository(
-    request: CreatePersonalRepositoryRequest
-): APICallParameters<CreatePersonalRepositoryRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/create-personal-repository",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function createDirectory(
-    request: CreateDirectoryRequest
-): APICallParameters<CreateDirectoryRequest, LongRunningResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/directory",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function listAtPath(
-    request: ListDirectoryRequest
-): APICallParameters<ListDirectoryRequest, Page<StorageFile>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files", {path: request.path, itemsPerPage: request.itemsPerPage, page: request.page, order: request.order, sortBy: request.sortBy, attributes: request.attributes, type: request.type}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function deleteFile(
-    request: DeleteFileRequest
-): APICallParameters<DeleteFileRequest, LongRunningResponse> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/files",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function move(
-    request: MoveRequest
-): APICallParameters<MoveRequest, LongRunningResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: buildQueryString("/api/files" + "/move", {path: request.path, newPath: request.newPath, policy: request.policy}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function copy(
-    request: CopyRequest
-): APICallParameters<CopyRequest, LongRunningResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: buildQueryString("/api/files" + "/copy", {path: request.path, newPath: request.newPath, policy: request.policy}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function normalizePermissions(
-    request: NormalizePermissionsRequest
-): APICallParameters<NormalizePermissionsRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/normalize-permissions",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function retrieveQuota(
-    request: RetrieveQuotaRequest
-): APICallParameters<RetrieveQuotaRequest, Quota> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files" + "/quota", {path: request.path, includeUsage: request.includeUsage}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function updateQuota(
-    request: UpdateQuotaRequest
-): APICallParameters<UpdateQuotaRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/quota",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function transferQuota(
-    request: TransferQuotaRequest
-): APICallParameters<TransferQuotaRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/transfer-quota",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function lookupFileInDirectory(
-    request: LookupFileInDirectoryRequest
-): APICallParameters<LookupFileInDirectoryRequest, Page<StorageFile>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files" + "/lookup", {path: request.path, itemsPerPage: request.itemsPerPage, sortBy: request.sortBy, order: request.order, attributes: request.attributes}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function stat(
-    request: StatRequest
-): APICallParameters<StatRequest, StorageFile> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files" + "/stat", {path: request.path, attributes: request.attributes}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function findHomeFolder(
-    request: FindHomeFolderRequest
-): APICallParameters<FindHomeFolderRequest, FindHomeFolderResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files" + "/homeFolder", {username: request.username}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function updateAcl(
-    request: UpdateAclRequest
-): APICallParameters<UpdateAclRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/update-acl",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function updateProjectAcl(
-    request: UpdateProjectAclRequest
-): APICallParameters<UpdateProjectAclRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/update-project-acl",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function reclassify(
-    request: ReclassifyRequest
-): APICallParameters<ReclassifyRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/reclassify",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function verifyFileKnowledge(
-    request: VerifyFileKnowledgeRequest
-): APICallParameters<VerifyFileKnowledgeRequest, VerifyFileKnowledgeResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/verify-knowledge",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function download(
-    request: DownloadByURI
-): APICallParameters<DownloadByURI, any /* unknown */> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files" + "/download", {path: request.path, token: request.token}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function extract(
-    request: ExtractRequest
-): APICallParameters<ExtractRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files" + "/extract",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export interface StorageFile {
-    fileType?: "FILE" | "DIRECTORY",
-    path?: string,
-    createdAt?: number /* int64 */,
-    modifiedAt?: number /* int64 */,
-    ownerName?: string,
-    size?: number /* int64 */,
-    acl?: AccessEntry[],
-    sensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-    ownSensitivityLevel?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-    permissionAlert: boolean,
-}
-export interface AccessEntry {
-    entity: ACLEntity,
-    rights: "READ" | "WRITE"[],
-}
-export type ACLEntity = ACLEntityNS.User | ACLEntityNS.ProjectAndGroup
-export interface CreatePersonalRepositoryRequest {
-    project: string,
-    username: string,
-}
-
-export interface LongRunningResponse {
-    type: string;
-}
-export interface CreateDirectoryRequest {
-    path: string,
-    owner?: string,
-    sensitivity?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-}
-export interface DeleteFileRequest {
-    path: string,
-}
-export interface ListDirectoryRequest {
-    path: string,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-    order?: "ASCENDING" | "DESCENDING",
-    sortBy?: "TYPE" | "PATH" | "CREATED_AT" | "MODIFIED_AT" | "SIZE" | "SENSITIVITY",
-    attributes?: string,
-    type?: "FILE" | "DIRECTORY",
-}
-export interface MoveRequest {
-    path: string,
-    newPath: string,
-    policy?: "OVERWRITE" | "MERGE" | "RENAME" | "REJECT",
-}
-export interface CopyRequest {
-    path: string,
-    newPath: string,
-    policy?: "OVERWRITE" | "MERGE" | "RENAME" | "REJECT",
-}
-export interface NormalizePermissionsRequest {
-    path: string,
-}
-export interface UpdateQuotaRequest {
-    path: string,
-    quotaInBytes: number /* int64 */,
-    additive: boolean,
-}
-export interface Quota {
-    quotaInTotal: number /* int64 */,
-    remainingQuota: number /* int64 */,
-    allocatedToSubProjects: number /* int64 */,
-    inProjectUsage?: number /* int64 */,
-    allocated: number /* int64 */,
-    quotaInBytes: number /* int64 */,
-    quotaUsed?: number /* int64 */,
-}
-export interface RetrieveQuotaRequest {
-    path: string,
-    includeUsage: boolean,
-}
-export interface TransferQuotaRequest {
-    path: string,
-    quotaInBytes: number /* int64 */,
-}
-export interface LookupFileInDirectoryRequest {
-    path: string,
-    itemsPerPage: number /* int32 */,
-    order: "ASCENDING" | "DESCENDING",
-    sortBy: "TYPE" | "PATH" | "CREATED_AT" | "MODIFIED_AT" | "SIZE" | "SENSITIVITY",
-    attributes?: string,
-}
-export interface StatRequest {
-    path: string,
-    attributes?: string,
-}
-export interface FindHomeFolderResponse {
-    path: string,
-}
-export interface FindHomeFolderRequest {
-    username: string,
-}
-export interface UpdateAclRequest {
-    path: string,
-    changes: AclEntryRequest[],
-}
-export interface AclEntryRequest {
-    entity: ACLEntityNS.User,
-    rights: "READ" | "WRITE"[],
-    revoke: boolean,
-}
-export interface UpdateProjectAclRequest {
-    path: string,
-    project: string,
-    newAcl: ProjectAclEntryRequest[],
-}
-export interface ProjectAclEntryRequest {
-    group: string,
-    rights: "READ" | "WRITE"[],
-}
-export interface ReclassifyRequest {
-    path: string,
-    sensitivity?: "PRIVATE" | "CONFIDENTIAL" | "SENSITIVE",
-}
-export interface VerifyFileKnowledgeResponse {
-    responses: boolean[],
-}
-export interface VerifyFileKnowledgeRequest {
-    user: string,
-    files: string[],
-    mode?: KnowledgeMode,
-}
-export type KnowledgeMode = KnowledgeModeNS.List | KnowledgeModeNS.Permission
-export interface DownloadByURI {
-    path: string,
-    token?: string,
-}
-export interface BulkUploadErrorMessage {
-    message: string,
-}
-export interface ExtractRequest {
-    path: string,
-    removeOriginalArchive?: boolean,
-}
-export interface FindMetadataResponse {
-    metadata: MetadataUpdate[],
-}
-export interface MetadataUpdate {
-    path: string,
-    type: string,
-    username?: string,
-    jsonPayload: string,
-}
-export interface FindMetadataRequest {
-    path?: string,
-    type?: string,
-    username?: string,
-}
-export interface FindByPrefixRequest {
-    pathPrefix: string,
-    username?: string,
-    type?: string,
-}
-export interface RemoveMetadataRequest {
-    updates: FindMetadataRequest[],
-}
-export interface UpdateMetadataRequest {
-    updates: MetadataUpdate[],
-}
-export interface CreateMetadataRequest {
-    updates: MetadataUpdate[],
-}
-export interface VerifyRequest {
-    paths: string[],
-}
-export interface SynchronizedFolder {
-    id: string,
-    path: string,
-    device: string,
-}
-export interface SynchronizationRetrieveFolderRequest {
-    path: string,
-    provider: string,
-}
-export interface SynchronizationAddFolderItem {
-    path: string,
-    provider: string,
-}
-export interface SynchronizationDeleteFolderItem {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationDeviceItem {
-    id: string,
-    provider: string,
-}
-export interface SynchronizationDevice {
-    id: string,
-}
-/**
- * The base type for requesting paginated content.
- * 
- * Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
- * semantics of the call:
- * 
- * | Consistency | Description |
- * |-------------|-------------|
- * | `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
- * | `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
- * 
- * The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
- * results to be consistent if it contains a complete view at some point in time. In practice this means that the results
- * must contain all the items, in the correct order and without duplicates.
- * 
- * If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
- * contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
- * for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
- * consistent.
- * 
- * The results might become inconsistent if the client either takes too long, or a service instance goes down while
- * fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
- * This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
- * within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
- * 
- * ---
- * 
- * __📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
- * needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
- * paginate through the results.
- * 
- * ---
- * 
- */
-export interface SynchronizationBrowseDevicesRequest {
-    provider: string,
-    /**
-     * Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
-     */
-    itemsPerPage?: number /* int32 */,
-    /**
-     * A token requesting the next page of items
-     */
-    next?: string,
-    /**
-     * Controls the consistency guarantees provided by the backend
-     */
-    consistency?: "PREFER" | "REQUIRE",
-    /**
-     * Items to skip ahead
-     */
-    itemsToSkip?: number /* int64 */,
-}
-export namespace metadata {
-export function findMetadata(
-    request: FindMetadataRequest
-): APICallParameters<FindMetadataRequest, FindMetadataResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/metadata" + "/find",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function findByPrefix(
-    request: FindByPrefixRequest
-): APICallParameters<FindByPrefixRequest, FindMetadataResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/metadata" + "/by-prefix",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function updateMetadata(
-    request: UpdateMetadataRequest
-): APICallParameters<UpdateMetadataRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/metadata",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function removeMetadata(
-    request: RemoveMetadataRequest
-): APICallParameters<RemoveMetadataRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/files/metadata",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function createMetadata(
-    request: CreateMetadataRequest
-): APICallParameters<CreateMetadataRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "PUT",
-        path: "/api/files/metadata",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function verify(
-    request: VerifyRequest
-): APICallParameters<VerifyRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/metadata" + "/verify",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-}
-export namespace stats {
-export function usage(
-    request: UsageRequest
-): APICallParameters<UsageRequest, UsageResponse> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files/stats" + "/usage", {path: request.path}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function directorySize(
-    request: DirectorySizesRequest
-): APICallParameters<DirectorySizesRequest, DirectorySizesResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/stats" + "/directory-sizes",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export interface UsageResponse {
-    bytes: number /* int64 */,
-    path: string,
-}
-export interface UsageRequest {
-    path?: string,
-}
-export interface DirectorySizesResponse {
-    size: number /* int64 */,
-}
-export interface DirectorySizesRequest {
-    paths: string[],
-}
-}
-export namespace favorite {
-export function toggleFavorite(
-    request: ToggleFavoriteRequest
-): APICallParameters<ToggleFavoriteRequest, ToggleFavoriteResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: buildQueryString("/api/files/favorite" + "/toggle", {path: request.path}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function favoriteStatus(
-    request: FavoriteStatusRequest
-): APICallParameters<FavoriteStatusRequest, FavoriteStatusResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/favorite" + "/status",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function list(
-    request: PaginationRequest
-): APICallParameters<PaginationRequest, Page<StorageFile>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files/favorite" + "/list", {itemsPerPage: request.itemsPerPage, page: request.page}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export interface ToggleFavoriteResponse {
-    failures: string[],
-}
-export interface ToggleFavoriteRequest {
-    path: string,
-}
-export interface FavoriteStatusResponse {
-    favorited: Record<string, boolean>,
-}
-export interface FavoriteStatusRequest {
-    files: string[],
-}
-}
-export namespace LongRunningResponseNS {
-
-export interface Timeout<T> extends LongRunningResponse {
-    type: "timeout"
-}
-
-export interface Ok extends LongRunningResponse {
-    type: "result"
-}
-}
-export namespace synchronization {
-export function retrieveFolder(
-    request: SynchronizationRetrieveFolderRequest
-): APICallParameters<SynchronizationRetrieveFolderRequest, SynchronizedFolder> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files/synchronization" + "/retrieve", {path: request.path, provider: request.provider}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-export function addFolder(
-    request: BulkRequest<SynchronizationAddFolderItem>
-): APICallParameters<BulkRequest<SynchronizationAddFolderItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/synchronization/folder",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function removeFolder(
-    request: BulkRequest<SynchronizationDeleteFolderItem>
-): APICallParameters<BulkRequest<SynchronizationDeleteFolderItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/files/synchronization/folder",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function addDevice(
-    request: BulkRequest<SynchronizationDeviceItem>
-): APICallParameters<BulkRequest<SynchronizationDeviceItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/synchronization/device",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function removeDevice(
-    request: BulkRequest<SynchronizationDeviceItem>
-): APICallParameters<BulkRequest<SynchronizationDeviceItem>, any /* unknown */> {
-    return {
-        context: "",
-        method: "DELETE",
-        path: "/api/files/synchronization/device",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function browseDevices(
-    request: SynchronizationBrowseDevicesRequest
-): APICallParameters<SynchronizationBrowseDevicesRequest, PageV2<SynchronizationDevice>> {
-    return {
-        context: "",
-        method: "GET",
-        path: buildQueryString("/api/files/synchronization" + "/browse", {provider: request.provider, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip}),
-        parameters: request,
-        reloadId: Math.random(),
-    };
-}
-}
-export namespace KnowledgeModeNS {
-export interface List {
-    type: "list",
-}
-export interface Permission {
-    requireWrite: boolean,
-    type: "permission",
-}
-}
-export namespace upload {
-export function simpleUpload(): APICallParameters<{}, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/upload" + "/file",
-        reloadId: Math.random(),
-    };
-}
-export function simpleBulkUpload(): APICallParameters<{}, BulkUploadErrorMessage> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/upload" + "/archive",
-        reloadId: Math.random(),
-    };
-}
-}
-export namespace ACLEntityNS {
-export interface User {
-    username: string,
-    type: "user",
-}
-export interface ProjectAndGroup {
-    projectId: string,
-    group: string,
-    type: "project_group",
-}
-}
-export namespace trash {
-export function trash(
-    request: TrashRequest
-): APICallParameters<TrashRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/trash",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function clear(
-    request: ClearRequest
-): APICallParameters<ClearRequest, any /* unknown */> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/files/trash" + "/clear",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export interface TrashRequest {
-    files: string[],
-}
-export interface ClearRequest {
-    trashPath?: string,
-}
-}
-}
 export namespace grant {
+export interface AvailableGiftsResponse {
+    gifts: GiftWithId[],
+}
+export interface GiftWithId {
+    id: number /* int64 */,
+    resourcesOwnedBy: string,
+    title: string,
+    description: string,
+    resources: ResourceRequest[],
+}
+export interface ResourceRequest {
+    productCategory: string,
+    productProvider: string,
+    balanceRequested?: number /* int64 */,
+}
+export interface ClaimGiftRequest {
+    giftId: number /* int64 */,
+}
+export interface GiftWithCriteria {
+    id: number /* int64 */,
+    resourcesOwnedBy: string,
+    title: string,
+    description: string,
+    resources: ResourceRequest[],
+    criteria: UserCriteria[],
+}
+export type UserCriteria = UserCriteriaNS.Anyone | UserCriteriaNS.EmailDomain | UserCriteriaNS.WayfOrganization
+export interface DeleteGiftRequest {
+    giftId: number /* int64 */,
+}
+export interface ListGiftsResponse {
+    gifts: GiftWithCriteria[],
+}
 export interface ApproveApplicationRequest {
     requestId: number /* int64 */,
 }
@@ -7499,12 +7653,6 @@ export interface CreateApplication {
     requestedResources: ResourceRequest[],
 }
 export type GrantRecipient = GrantRecipientNS.PersonalProject | GrantRecipientNS.ExistingProject | GrantRecipientNS.NewProject
-export interface ResourceRequest {
-    productCategory: string,
-    productProvider: string,
-    creditsRequested?: number /* int64 */,
-    quotaRequested?: number /* int64 */,
-}
 export interface EditApplicationRequest {
     id: number /* int64 */,
     newDocument: string,
@@ -7524,7 +7672,6 @@ export interface AutomaticApprovalSettings {
     from: UserCriteria[],
     maxResources: ResourceRequest[],
 }
-export type UserCriteria = UserCriteriaNS.Anyone | UserCriteriaNS.EmailDomain | UserCriteriaNS.WayfOrganization
 export interface ReadRequestSettingsRequest {
     projectId: string,
 }
@@ -7532,7 +7679,7 @@ export interface ReadTemplatesRequest {
     projectId: string,
 }
 export interface Application {
-    status: "APPROVED" | "REJECTED" | "CLOSED" | "IN_PROGRESS",
+    status: ("APPROVED" | "REJECTED" | "CLOSED" | "IN_PROGRESS"),
     resourcesOwnedBy: string,
     requestedBy: string,
     grantRecipient: GrantRecipient,
@@ -7549,12 +7696,12 @@ export interface Application {
 export interface IngoingApplicationsRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE",
+    filter: ("SHOW_ALL" | "ACTIVE" | "INACTIVE"),
 }
 export interface OutgoingApplicationsRequest {
     itemsPerPage?: number /* int32 */,
     page?: number /* int32 */,
-    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE",
+    filter: ("SHOW_ALL" | "ACTIVE" | "INACTIVE"),
 }
 export interface ApplicationWithComments {
     application: Application,
@@ -7615,44 +7762,17 @@ export interface GrantsRetrieveProductsRequest {
     recipientId: string,
     showHidden: boolean,
 }
-export interface AvailableGiftsResponse {
-    gifts: GiftWithId[],
-}
-export interface GiftWithId {
-    id: number /* int64 */,
-    resourcesOwnedBy: string,
-    title: string,
-    description: string,
-    resources: ResourceRequest[],
-}
-export interface ClaimGiftRequest {
-    giftId: number /* int64 */,
-}
-export interface GiftWithCriteria {
-    id: number /* int64 */,
-    resourcesOwnedBy: string,
-    title: string,
-    description: string,
-    resources: ResourceRequest[],
-    criteria: UserCriteria[],
-}
-export interface DeleteGiftRequest {
-    giftId: number /* int64 */,
-}
-export interface ListGiftsResponse {
-    gifts: GiftWithCriteria[],
-}
 export namespace UserCriteriaNS {
 export interface Anyone {
-    type: "anyone",
+    type: ("anyone"),
 }
 export interface EmailDomain {
     domain: string,
-    type: "email",
+    type: ("email"),
 }
 export interface WayfOrganization {
     org: string,
-    type: "wayf",
+    type: ("wayf"),
 }
 }
 export namespace grant {
@@ -7933,15 +8053,15 @@ export function retrieveProducts(
 export namespace GrantRecipientNS {
 export interface PersonalProject {
     username: string,
-    type: "personal",
+    type: ("personal"),
 }
 export interface ExistingProject {
     projectId: string,
-    type: "existing_project",
+    type: ("existing_project"),
 }
 export interface NewProject {
     projectTitle: string,
-    type: "new_project",
+    type: ("new_project"),
 }
 }
 export namespace gifts {
@@ -8131,17 +8251,17 @@ export interface JsonLiteral {
     body: any /* unknown */,
     isString: boolean,
     content: string,
-    type: "JsonLiteral",
+    type: ("JsonLiteral"),
 }
 export interface JsonNull {
     content: string,
     isString: boolean,
-    type: "JsonNull",
+    type: ("JsonNull"),
 }
 export interface JsonArray {
     content: JsonElement[],
     size: number /* int32 */,
-    type: "JsonArray",
+    type: ("JsonArray"),
 }
 }
 }
@@ -8277,106 +8397,6 @@ export interface GetPostByIdRequest {
     id: number /* int64 */,
 }
 }
-export namespace indexing {
-export function query(
-    request: QueryRequest
-): APICallParameters<QueryRequest, Page<file.StorageFile>> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/indexing/query",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function statistics(
-    request: StatisticsRequest
-): APICallParameters<StatisticsRequest, StatisticsResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/indexing/query" + "/statistics",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export function size(
-    request: SizeRequest
-): APICallParameters<SizeRequest, SizeResponse> {
-    return {
-        context: "",
-        method: "POST",
-        path: "/api/indexing/query" + "/size",
-        parameters: request,
-        reloadId: Math.random(),
-        payload: request,
-    };
-}
-export interface QueryRequest {
-    query: FileQuery,
-    sortBy?: SortRequest,
-    itemsPerPage?: number /* int32 */,
-    page?: number /* int32 */,
-}
-export interface FileQuery {
-    roots: string[],
-    fileNameQuery?: string[],
-    fileNameExact?: AllOf<string>,
-    extensions?: AllOf<string>,
-    fileTypes?: AllOf<"FILE" | "DIRECTORY">,
-    fileDepth?: AllOf<Comparison<number /* int32 */>>,
-    fileSize?: AllOf<Comparison<number /* int64 */>>,
-}
-
-export interface AllOf<Pred> {
-    allOf: AnyOf<Pred>[]
-}
-
-export interface AnyOf<Pred> {
-    anyOf: Pred[],
-    negate?: boolean,
-}
-export interface Comparison<Value = unknown> {
-    value: Value,
-    operator: "GREATER_THAN" | "GREATER_THAN_EQUALS" | "LESS_THAN" | "LESS_THAN_EQUALS" | "EQUALS",
-}
-export interface SortRequest {
-    field: "FILE_NAME" | "FILE_TYPE" | "SIZE",
-    direction: "ASCENDING" | "DESCENDING",
-}
-export interface StatisticsResponse {
-    count: number /* int64 */,
-    size?: NumericStatistics,
-    fileDepth?: NumericStatistics,
-}
-export interface NumericStatistics {
-    mean?: number /* float64 */,
-    minimum?: number /* float64 */,
-    maximum?: number /* float64 */,
-    sum?: number /* float64 */,
-    percentiles: number /* float64 */[],
-}
-export interface StatisticsRequest {
-    query: FileQuery,
-    size?: NumericStatisticsRequest,
-    fileDepth?: NumericStatisticsRequest,
-}
-export interface NumericStatisticsRequest {
-    calculateMean: boolean,
-    calculateMinimum: boolean,
-    calculateMaximum: boolean,
-    calculateSum: boolean,
-    percentiles: number /* float64 */[],
-}
-export interface SizeResponse {
-    size: number /* int64 */,
-}
-export interface SizeRequest {
-    paths: string[],
-}
-}
 export namespace kotlin {
 export interface Pair<A = unknown, B = unknown> {
     first: A,
@@ -8490,21 +8510,21 @@ export function listAllContactsForUser(
 export interface InsertRequest {
     fromUser: string,
     toUser: string[],
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface DeleteRequest {
     fromUser: string,
     toUser: string,
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface QueryContactsResponse {
     contacts: string[],
 }
 export interface QueryContactsRequest {
     query: string,
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 export interface AllContactsForUserRequest {
-    serviceOrigin: "SHARE_SERVICE" | "PROJECT_SERVICE",
+    serviceOrigin: ("SHARE_SERVICE" | "PROJECT_SERVICE"),
 }
 }

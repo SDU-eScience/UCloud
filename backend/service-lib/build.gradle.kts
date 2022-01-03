@@ -7,12 +7,13 @@ plugins {
 repositories {
     jcenter()
     mavenCentral()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 kotlin {
-    val jacksonVersion = "2.10.4"
-    val ktorVersion = "1.5.2"
-    val jasyncVersion = "1.1.3"
+    val jacksonVersion = "2.10.0.pr3"
+    val ktorVersion = "1.6.2-native-mm-eap-196"
 
     macosX64()
     linuxX64()
@@ -37,7 +38,8 @@ kotlin {
             dependencies {
                 implementation(kotlin("stdlib-common"))
                 api("io.ktor:ktor-client-core:$ktorVersion")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.0.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
             }
         }
 
@@ -55,8 +57,8 @@ kotlin {
                 api("io.ktor:ktor-client-websockets:$ktorVersion")
                 api("io.ktor:ktor-client-cio:$ktorVersion")
 
-                api("org.apache.logging.log4j:log4j-api:2.16.0")
-                api("org.apache.logging.log4j:log4j-core:2.16.0")
+                api("org.apache.logging.log4j:log4j-api:2.17.1")
+                api("org.apache.logging.log4j:log4j-core:2.17.1")
                 implementation(kotlin("reflect"))
                 implementation("com.google.guava:guava:27.0.1-jre")
                 api("com.auth0:java-jwt:3.8.3")
@@ -65,7 +67,7 @@ kotlin {
 
         val jvmTest by getting {
             dependencies {
-                implementation(kotlin("test-junit"))
+                implementation(kotlin("test-junit5"))
             }
         }
 
@@ -90,28 +92,28 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 }
 
-version = "2021.1.2"
+version = rootProject.file("./version.txt").readText().trim()
 extensions.configure<PublishingExtension>("publishing") {
     repositories {
         maven {
             mavenLocal()
 
             maven {
-                name = "GitHubPackages"
-                url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+                name = "UCloudMaven"
+                url = uri("https://mvn.cloud.sdu.dk/releases")
                 credentials {
-                    username = (project.findProperty("gpr.user") as? String?)
-                        ?: System.getenv("GITHUB_USERNAME")
-                    password = (project.findProperty("gpr.key") as? String?)
-                        ?: System.getenv("GITHUB_TOKEN")
+                    username = (project.findProperty("ucloud.mvn.username") as? String?)
+                        ?: System.getenv("UCLOUD_MVN_USERNAME")
+                    password = (project.findProperty("ucloud.mvn.token") as? String?)
+                        ?: System.getenv("UCLOUD_MVN_TOKEN")
                 }
             }
         }

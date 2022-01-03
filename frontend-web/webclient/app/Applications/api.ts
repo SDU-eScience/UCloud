@@ -1,8 +1,8 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {b64EncodeUnicode} from "Utilities/XHRUtils";
-import {inSuccessRange} from "UtilityFunctions";
-import {appLogoCache, toolLogoCache} from "Applications/AppToolLogo";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
+import {inSuccessRange} from "@/UtilityFunctions";
+import {appLogoCache, toolLogoCache} from "@/Applications/AppToolLogo";
 
 export type AppOrTool = "APPLICATION" | "TOOL";
 
@@ -25,7 +25,7 @@ export async function uploadLogo(props: UploadLogoProps): Promise<boolean> {
         request.onreadystatechange = () => {
             if (request.status !== 0) {
                 if (!inSuccessRange(request.status)) {
-                    let message: string = "Logo upload failed";
+                    let message = "Logo upload failed";
                     try {
                         message = JSON.parse(request.responseText).why;
                     } catch (e) {

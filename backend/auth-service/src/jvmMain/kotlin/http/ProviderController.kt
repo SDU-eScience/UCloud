@@ -2,6 +2,7 @@ package dk.sdu.cloud.auth.http
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.auth.api.AuthProviders
+import dk.sdu.cloud.auth.api.AuthProvidersGenerateKeyPairResponse
 import dk.sdu.cloud.auth.api.AuthProvidersRetrievePublicKeyResponse
 import dk.sdu.cloud.auth.services.ProviderService
 import dk.sdu.cloud.calls.BulkResponse
@@ -37,6 +38,14 @@ class ProviderController(private val service: ProviderService) : Controller {
 
         implement(AuthProviders.retrievePublicKey) {
             ok(AuthProvidersRetrievePublicKeyResponse(service.retrievePublicKey(request.id)))
+        }
+
+        implement(AuthProviders.generateKeyPair) {
+            val keys = service.generateKeys()
+            ok(AuthProvidersGenerateKeyPairResponse(
+                keys.publicKey,
+                keys.privateKey
+            ))
         }
         return@with
     }

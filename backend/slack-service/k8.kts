@@ -3,12 +3,12 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "slack"
-    version = "0.3.7"
+    version = "2022.1.0"
     
     withAmbassador() {}
     
     val deployment = withDeployment {
-        deployment.spec.replicas = 1
+        deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
 
         injectSecret("support-notifiers")
         injectSecret("alerting-tokens")

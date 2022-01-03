@@ -1,10 +1,10 @@
-import Spinner from "LoadingIcon/LoadingIcon";
+import Spinner from "@/LoadingIcon/LoadingIcon";
 import * as React from "react";
 import {useSelector} from "react-redux";
 import styled from "styled-components";
-import {Absolute, Box, Hide} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {ResponsiveReduxObject} from "DefaultObjects";
+import {Absolute, Box, Hide} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {ResponsiveReduxObject} from "@/DefaultObjects";
 
 export interface MainContainerProps {
     sidebar?: React.ReactNode;
@@ -26,14 +26,14 @@ export const MainContainer = ({
     const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
-    const pad = 14; // padding unit
+    const pad = 16; // padding unit
 
     const mainYpad = header ? headerSize : pad;
     const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
 
     return (
         <React.StrictMode>
-            <Box backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
+            <Box data-component={"main"} backgroundColor="white" ml={leftSidebarSize} pt={topMenuSize} pb={pad} pl={pad} pr="0">
                 {header && (
                     <HeaderContainer
                         top={topMenuSize}
@@ -51,6 +51,7 @@ export const MainContainer = ({
                 {sidebar && (
                     <Hide sm xs md>
                         <SidebarContainer
+                            data-component={"sidebar"}
                             height="100%"
                             data-tag="sidebar"
                             pt={topMenuSize + mainYpad}

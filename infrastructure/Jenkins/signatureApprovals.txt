@@ -1,0 +1,5 @@
+signature approvals:
+
+method hudson.model.Run getLog int
+method org.jenkinsci.plugins.workflow.support.steps.build.RunWrapper getRawBuild
+

@@ -173,7 +173,7 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
 thresholds for the system events. The auditing system is described
-[here](../../backend/service-lib/wiki/auditing.md).
+`here <../../backend/service-common/wiki/auditing.md>`__.
 
 The support team monitors the output.
 

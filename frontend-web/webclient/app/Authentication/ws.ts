@@ -1,4 +1,5 @@
-import HttpClient from "./lib";
+import {HttpClient} from "./lib";
+import {inDevEnvironment} from "@/UtilityFunctions";
 
 export interface WebSocketOpenSettings {
     /**
@@ -22,9 +23,13 @@ export class WebSocketFactory {
         return new WebSocketConnection(this.client, async () => {
             await this.client.waitForCloudReady();
 
-            const url = this.client.computeURL("/api", path)
+            let url = this.client.computeURL("/api", path)
                 .replace("http://", "ws://")
                 .replace("https://", "wss://");
+
+            if (inDevEnvironment() && url.indexOf("integration-module") !== -1) {
+                url = url.replace("integration-module", "localhost");
+            }
 
             return new WebSocket(url);
         }, settingsOrDefault);
@@ -60,10 +65,10 @@ interface CallParameters<T = any> {
 export class WebSocketConnection {
     private client: HttpClient;
     private socket: WebSocket;
-    private nextStreamId: number = 0;
-    private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
-    private internalClosed: boolean = false;
     private settings: WebSocketOpenSettings;
+    private handlers: Map<string, (message: WebsocketResponse) => void> = new Map();
+    private nextStreamId = 0;
+    private internalClosed = false;
 
     constructor(client: HttpClient, socketFactory: () => Promise<WebSocket>, settings: WebSocketOpenSettings) {
         this.client = client;
@@ -86,22 +91,21 @@ export class WebSocketConnection {
 
     public async subscribe<T>({call, payload, handler}: SubscribeParameters<T>): Promise<void> {
         const streamId = (this.nextStreamId++).toString();
-        this.handlers.set(streamId, message => {
-            handler(message);
-            if (message.type === "response") {
-                this.handlers.delete(streamId);
-            }
-        });
+        const bearer = this.settings.includeAuthentication !== false ?
+            await this.client.receiveAccessTokenOrRefreshIt() : undefined;
 
-        const project = this.client.projectId;
+        return new Promise((resolve) => {
+            this.handlers.set(streamId, message => {
+                handler(message);
+                if (message.type === "response") {
+                    this.handlers.delete(streamId);
+                    resolve();
+                }
+            });
 
-        this.sendMessage({
-            call,
-            streamId,
-            payload,
-            project,
-            bearer: this.settings.includeAuthentication !== false ?
-                await this.client.receiveAccessTokenOrRefreshIt() : undefined
+            const project = this.client.projectId;
+
+            this.sendMessage({call, streamId, payload, project, bearer});
         });
     }
 
@@ -150,7 +154,7 @@ export class WebSocketConnection {
 
             if (!!message.type && !!message.streamId) {
                 const handler = this.handlers.get(message.streamId);
-                if (!!handler) {
+                if (handler) {
                     handler(message);
                 }
             }

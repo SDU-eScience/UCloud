@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 repositories {
     mavenCentral()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 buildscript {
@@ -13,8 +15,8 @@ buildscript {
     }
 
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.30")
-        classpath("org.jetbrains.kotlin:kotlin-serialization:1.4.30")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.0")
+        classpath("org.jetbrains.kotlin:kotlin-serialization:1.6.0")
     }
 }
 
@@ -35,12 +37,15 @@ subprojects {
         "dk.sdu.cloud." + groupBuilder.reversed().joinToString(".")
     }
 
+    val isUtil = project.name == "util"
     val isApi = project.name == "api"
     val isService = project.name.endsWith("-service")
 
     repositories {
         jcenter()
         mavenCentral()
+        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
     }
 
     if (isService) {
@@ -80,6 +85,11 @@ subprojects {
                         val myApiProject = project.childProjects["api"]
                         if (myApiProject != null) {
                             implementation(myApiProject)
+                        }
+
+                        val myUtilProject = project.childProjects["util"]
+                        if (myUtilProject != null) {
+                            implementation(myUtilProject)
                         }
                         implementation(project(":service-lib-server"))
                     }
@@ -133,6 +143,8 @@ subprojects {
         tasks.withType<KotlinCompile>().configureEach {
             kotlinOptions.freeCompilerArgs += "-progressive"
             kotlinOptions.freeCompilerArgs += "-Xopt-in=kotlin.RequiresOptIn"
+
+            dependsOn(generateBuildConfig)
         }
 
         tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
@@ -230,13 +242,13 @@ subprojects {
                     mavenLocal()
 
                     maven {
-                        name = "GitHubPackages"
-                        url = uri("https://maven.pkg.github.com/sdu-escience/ucloud")
+                        name = "UCloudMaven"
+                        url = uri("https://mvn.cloud.sdu.dk/releases")
                         credentials {
-                            username = (project.findProperty("gpr.user") as? String?)
-                                ?: System.getenv("GITHUB_USERNAME")
-                            password = (project.findProperty("gpr.key") as? String?)
-                                ?: System.getenv("GITHUB_TOKEN")
+                            username = (project.findProperty("ucloud.mvn.username") as? String?)
+                                ?: System.getenv("UCLOUD_MVN_USERNAME")
+                            password = (project.findProperty("ucloud.mvn.token") as? String?)
+                                ?: System.getenv("UCLOUD_MVN_TOKEN")
                         }
                     }
                 }
@@ -248,6 +260,69 @@ subprojects {
                         this.groupId = "dk.sdu.cloud"
                         val metadata = artifactId.substringAfterLast("-")
                         this.artifactId = project.parent!!.name + "-api" + if (metadata == "api") "" else "-$metadata"
+                    }
+                }
+            }
+        }
+
+        tasks.withType<Jar> {
+            val metadata = archiveName.substringAfterLast("-").removeSuffix(".jar")
+            val name = if (groupBuilder.isEmpty()) {
+                "ucloud"
+            } else {
+                "ucloud-" + groupBuilder.reversed().joinToString("-")
+            }
+
+            archiveName = "$name-${metadata}.jar"
+        }
+    }
+
+    if (isUtil) {
+        apply(plugin = "org.jetbrains.kotlin.multiplatform")
+        apply(plugin = "org.jetbrains.kotlin.plugin.serialization")
+
+        val utilProject = project
+        utilProject.parent?.afterEvaluate {
+            utilProject.version = project.version
+        }
+
+        extensions.configure<KotlinMultiplatformExtension>("kotlin") {
+            macosX64()
+            linuxX64()
+
+            jvm {
+                withJava()
+
+                val main by compilations.getting {
+                    kotlinOptions {
+                        jvmTarget = "11"
+                    }
+                }
+
+                val test by compilations.getting {
+                    kotlinOptions {
+                        jvmTarget = "11"
+                    }
+                }
+            }
+
+            sourceSets {
+                val jvmMain by getting {
+                    dependencies {
+                        implementation(project(":service-lib"))
+
+                        val myApiProject = project.parent?.childProjects?.get("api")
+                        if (myApiProject != null) {
+                            implementation(myApiProject)
+                        }
+
+                        implementation(project(":service-lib-server"))
+                    }
+                }
+
+                val jvmTest by getting {
+                    dependencies {
+                        implementation(project(":service-lib-test"))
                     }
                 }
             }

@@ -1,15 +1,15 @@
-import {Client} from "Authentication/HttpClientInstance";
-import {MainContainer} from "MainContainer/MainContainer";
-import {setLoading, SetStatusLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {usePromiseKeeper} from "PromiseKeeper";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {MainContainer} from "@/MainContainer/MainContainer";
+import {setLoading, SetStatusLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
-import {snackbarStore} from "Snackbar/SnackbarStore";
-import {Button, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {defaultErrorHandler} from "UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Button, Input, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {defaultErrorHandler} from "@/UtilityFunctions";
 import {UserCreationState} from ".";
 
 const initialState: UserCreationState = {
@@ -17,13 +17,9 @@ const initialState: UserCreationState = {
     password: "",
     repeatedPassword: "",
     email: "",
-    firstnames: "",
-    lastname: "",
     usernameError: false,
     passwordError: false,
-    emailError: false,
-    firstnamesError: false,
-    lastnameError: false
+    emailError: false
 };
 
 type Action<T, B> = {payload: B; type: T};
@@ -31,14 +27,10 @@ type UpdateUsername = Action<"UpdateUsername", {username: string}>;
 type UpdatePassword = Action<"UpdatePassword", {password: string}>;
 type UpdateRepeatedPassword = Action<"UpdateRepeatedPassword", {repeatedPassword: string}>;
 type UpdateEmail = Action<"UpdateEmail", {email: string}>;
-type UpdateFirstnames = Action<"UpdateFirstnames", {firstnames: string}>;
-type UpdateLastname = Action<"UpdateLastname", {lastname: string}>;
-type UpdateErrors = Action<"UpdateErrors", {
-    usernameError: boolean; passwordError: boolean; emailError: boolean, firstnamesError: boolean, lastnameError: boolean
-}>;
+type UpdateErrors = Action<"UpdateErrors", {usernameError: boolean; passwordError: boolean; emailError: boolean}>;
 type Reset = Action<"Reset", {}>;
 type UserCreationActionType = |
-    UpdateUsername | UpdatePassword | UpdateRepeatedPassword | UpdateErrors | UpdateEmail | UpdateFirstnames | UpdateLastname | Reset;
+    UpdateUsername | UpdatePassword | UpdateRepeatedPassword | UpdateErrors | UpdateEmail | Reset;
 
 const reducer = (state: UserCreationState, action: UserCreationActionType): UserCreationState => {
     switch (action.type) {
@@ -47,8 +39,6 @@ const reducer = (state: UserCreationState, action: UserCreationActionType): User
         case "UpdateErrors":
         case "UpdateEmail":
         case "UpdatePassword":
-        case "UpdateFirstnames":
-        case "UpdateLastname":
             return {...state, ...action.payload};
         case "Reset":
             return initialState;
@@ -70,14 +60,10 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
         usernameError,
         passwordError,
         emailError,
-        firstnamesError,
-        lastnameError,
         username,
         password,
         repeatedPassword,
-        email,
-        firstnames,
-        lastname
+        email
     } = state;
 
     return (
@@ -128,26 +114,6 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                                 placeholder="Email..."
                             />
                         </Label>
-                        <Label mb="1em">
-                            First Names
-                            <Input
-                                value={firstnames}
-                                type="firstnames"
-                                error={firstnamesError}
-                                onChange={e => dispatch({type: "UpdateFirstnames", payload: {firstnames: e.target.value}})}
-                                placeholder="First names..."
-                            />
-                        </Label>
-                        <Label mb="1em">
-                            Last Name
-                            <Input
-                                value={lastname}
-                                type="lastname"
-                                error={lastnameError}
-                                onChange={e => dispatch({type: "UpdateLastname", payload: {lastname: e.target.value}})}
-                                placeholder="Last name..."
-                            />
-                        </Label>
                         <Button
                             type="submit"
                             color="green"
@@ -167,9 +133,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
         let hasUsernameError = false;
         let hasPasswordError = false;
         let hasEmailError = false;
-        let hasFirstnamesError = false;
-        let hasLastnameError = false;
-        const {username, password, repeatedPassword, email, firstnames, lastname} = state;
+        const {username, password, repeatedPassword, email} = state;
         if (!username) hasUsernameError = true;
         if (!password || password !== repeatedPassword) {
             hasPasswordError = true;
@@ -179,31 +143,17 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
             hasEmailError = true;
             snackbarStore.addFailure("Email is required", false);
         }
-        if (!firstnames) {
-            hasFirstnamesError = true;
-            snackbarStore.addFailure("First names is required", false);
-        }
-        if (!lastname) {
-            hasLastnameError = true;
-            snackbarStore.addFailure("Last name is required", false);
-        }
         dispatch({
             type: "UpdateErrors",
-            payload: {
-                usernameError: hasUsernameError,
-                passwordError: hasPasswordError,
-                emailError: hasEmailError,
-                firstnamesError: hasFirstnamesError,
-                lastnameError: hasLastnameError
-            }
+            payload: {usernameError: hasUsernameError, passwordError: hasPasswordError, emailError: hasEmailError}
         });
 
-        if (!hasUsernameError && !hasPasswordError && !hasEmailError && !hasFirstnamesError && !hasLastnameError) {
+        if (!hasUsernameError && !hasPasswordError && !hasEmailError) {
             try {
                 props.setLoading(true);
                 setSubmitted(true);
                 await promiseKeeper.makeCancelable(
-                    Client.post("/auth/users/register", [{username, password, email, firstnames, lastname}], "")
+                    Client.post("/auth/users/register", [{username, password, email}], "")
                 ).promise;
                 snackbarStore.addSuccess(`User '${username}' successfully created`, false);
                 dispatch({type: "Reset", payload: {}});
@@ -211,7 +161,7 @@ function UserCreation(props: SetStatusLoading): JSX.Element | null {
                 const status = defaultErrorHandler(err);
                 if (status === 409) dispatch({
                     type: "UpdateErrors",
-                    payload: {usernameError: true, passwordError: false, emailError: false, firstnamesError: false, lastnameError: false}
+                    payload: {usernameError: true, passwordError: false, emailError: false}
                 });
             } finally {
                 props.setLoading(false);

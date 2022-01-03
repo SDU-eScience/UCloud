@@ -1,6 +1,8 @@
 package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.TYPE_REF
+import dk.sdu.cloud.calls.UCloudApiDoc
 import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
@@ -24,9 +26,19 @@ sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpS
 }
 
 @Serializable
+@UCloudApiDoc("""
+    The ApplicationType determines how user's interact with an Application
+    
+    - `BATCH`: A non-interactive $TYPE_REF Application which runs without user input
+    - `VNC`: An interactive $TYPE_REF Application exposing a remote desktop interface
+    - `WEB`: An interactive $TYPE_REF Application exposing a graphical web interface
+""", importance = 980)
 enum class ApplicationType {
+    @UCloudApiDoc("A non-interactive $TYPE_REF Application which runs without user input")
     BATCH,
+    @UCloudApiDoc("An interactive $TYPE_REF Application exposing a remote desktop interface")
     VNC,
+    @UCloudApiDoc("An interactive $TYPE_REF Application exposing a graphical web interface")
     WEB
 }
 

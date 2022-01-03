@@ -5,6 +5,7 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.KSerializer
 
 data class UCloudClient(val nonBlockingClient: AuthenticatedClient)
 
@@ -32,7 +33,7 @@ fun UCloudClient(
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(
     request: R,
-    authenticatedBackend: UCloudClient
+    authenticatedBackend: UCloudClient,
 ): IngoingCallResponse<S, E> {
     val c = authenticatedBackend.nonBlockingClient
 
@@ -43,7 +44,7 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.call(
             request,
             c.backend as OutgoingCallCompanion<OutgoingCall>,
             c.authenticator,
-            c.afterHook
+            afterHook = c.afterHook
         )
     }
 }

@@ -1,56 +1,16 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.ProductPriceUnit
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
-
-// Data model
-interface NetworkIPId {
-    val id: String
-}
-
-fun NetworkIPId(id: String): NetworkIPRetrieve = NetworkIPRetrieve(id)
-@Serializable
-data class NetworkIPRetrieve(override val id: String) : NetworkIPId
-
-@Serializable
-data class NetworkIPRetrieveWithFlags(
-    override val id: String,
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-) : NetworkIPDataIncludeFlags, NetworkIPId
-
-interface NetworkIPDataIncludeFlags {
-    @UCloudApiDoc("Includes `updates`")
-    val includeUpdates: Boolean?
-
-    @UCloudApiDoc("Includes `resolvedProduct`")
-    val includeProduct: Boolean?
-
-    @UCloudApiDoc("Includes `acl`")
-    val includeAcl: Boolean?
-}
-
-@Serializable
-data class NetworkIPDataIncludeFlagsImpl(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-) : NetworkIPDataIncludeFlags
-
-fun NetworkIPDataIncludeFlags(
-    includeUpdates: Boolean? = null,
-    includeProduct: Boolean? = null,
-    includeAcl: Boolean? = null,
-): NetworkIPDataIncludeFlags = NetworkIPDataIncludeFlagsImpl(includeUpdates, includeProduct, includeAcl)
+import kotlin.reflect.typeOf
 
 @Serializable
 data class NetworkIPSpecification(
@@ -68,7 +28,7 @@ data class NetworkIPSpecification(
 data class FirewallAndId(
     override val id: String,
     val firewall: NetworkIPSpecification.Firewall,
-) : NetworkIPId {
+) : WithStringId {
     init {
         val ranges = firewall.openPorts.map { it.start..it.end }
         ranges.forEachIndexed { i1, r1 ->
@@ -109,7 +69,15 @@ data class PortRangeAndProto(
     val start: Int,
     val end: Int,
     val protocol: IPProtocol,
-)
+) : DocVisualizable {
+    init {
+        if (start < 1 || end < 1) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+    }
+
+    override fun visualize(): DocVisualization =
+        if (start != end) DocVisualization.Inline("$start-$end $protocol")
+        else DocVisualization.Inline("$start $protocol")
+}
 
 @Serializable
 enum class IPProtocol {
@@ -127,7 +95,7 @@ data class NetworkIP(
     override val specification: NetworkIPSpecification,
 
     @UCloudApiDoc("Information about the owner of this resource")
-    override val owner: NetworkIPOwner,
+    override val owner: ResourceOwner,
 
     @UCloudApiDoc("Information about when this resource was created")
     override val createdAt: Long,
@@ -135,22 +103,13 @@ data class NetworkIP(
     @UCloudApiDoc("The current status of this resource")
     override val status: NetworkIPStatus,
 
-    @UCloudApiDoc("Billing information associated with this `NetworkIP`")
-    override val billing: NetworkIPBilling,
-
     @UCloudApiDoc("A list of updates for this `NetworkIP`")
     override val updates: List<NetworkIPUpdate> = emptyList(),
 
     val resolvedProduct: Product.NetworkIP? = null,
 
-    override val acl: List<ResourceAclEntry<NetworkIPPermission>>? = null,
-) : Resource<NetworkIPPermission>, NetworkIPId
-
-@Serializable
-data class NetworkIPBilling(
-    override val pricePerUnit: Long,
-    override val creditsCharged: Long,
-) : ResourceBilling
+    override val permissions: ResourcePermissions? = null,
+) : Resource<Product.NetworkIP, NetworkIPSupport>
 
 @UCloudApiDoc("The status of an `NetworkIP`")
 @Serializable
@@ -158,11 +117,13 @@ data class NetworkIPStatus(
     val state: NetworkIPState,
 
     @UCloudApiDoc("The ID of the `Job` that this `NetworkIP` is currently bound to")
-    val boundTo: String? = null,
+    override val boundTo: List<String> = emptyList(),
 
     @UCloudApiDoc("The externally accessible IP address allocated to this `NetworkIP`")
     val ipAddress: String? = null,
-) : ResourceStatus
+    override var resolvedSupport: ResolvedSupport<Product.NetworkIP, NetworkIPSupport>? = null,
+    override var resolvedProduct: Product.NetworkIP? = null,
+) : JobBoundStatus<Product.NetworkIP, NetworkIPSupport>
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 @Serializable
@@ -177,7 +138,7 @@ enum class NetworkIPState {
 
     @UCloudApiDoc(
         "A state indicating that the `NetworkIP` is currently unavailable.\n\n" +
-            "This state can be used to indicate downtime or service interruptions by the provider."
+                "This state can be used to indicate downtime or service interruptions by the provider."
     )
     UNAVAILABLE
 }
@@ -186,120 +147,242 @@ enum class NetworkIPState {
 @Serializable
 data class NetworkIPUpdate(
     @UCloudApiDoc("A timestamp for when this update was registered by UCloud")
-    override val timestamp: Long,
+    override val timestamp: Long = 0L,
 
     @UCloudApiDoc("The new state that the `NetworkIP` transitioned to (if any)")
-    val state: NetworkIPState? = null,
+    override val state: NetworkIPState? = null,
 
     @UCloudApiDoc("A new status message for the `NetworkIP` (if any)")
     override val status: String? = null,
 
-    val didBind: Boolean = false,
-
-    val newBinding: String? = null,
-
     val changeIpAddress: Boolean? = null,
 
     val newIpAddress: String? = null,
-) : ResourceUpdate
+
+    override val binding: JobBinding? = null,
+) : JobBoundUpdate<NetworkIPState>
 
 @Serializable
-data class NetworkIPOwner(
-    @UCloudApiDoc(
-        "The username of the user which created this resource.\n\n" +
-            "In cases where this user is removed from the project the ownership will be transferred to the current " +
-            "PI of the project."
+data class NetworkIPFlags(
+    val filterState: NetworkIPState? = null,
+    override val includeOthers: Boolean = false,
+    override val includeUpdates: Boolean = false,
+    override val includeSupport: Boolean = false,
+    override val includeProduct: Boolean = false,
+    override val filterCreatedBy: String? = null,
+    override val filterCreatedAfter: Long? = null,
+    override val filterCreatedBefore: Long? = null,
+    override val filterProvider: String? = null,
+    override val filterProductId: String? = null,
+    override val filterProductCategory: String? = null,
+    override val filterProviderIds: String? = null,
+    override val filterIds: String? = null,
+    override val hideProductId: String? = null,
+    override val hideProductCategory: String? = null,
+    override val hideProvider: String? = null,
+) : ResourceIncludeFlags
+
+@Serializable
+data class NetworkIPSupport(
+    override val product: ProductReference,
+    val firewall: Firewall = Firewall(),
+) : ProductSupport {
+    @Serializable
+    data class Firewall(
+        var enabled: Boolean? = null
     )
-    override val createdBy: String,
-
-    @UCloudApiDoc("The project which owns the resource")
-    override val project: String? = null,
-) : ResourceOwner
-
-interface NetworkIPFilters {
-    val provider: String?
 }
-
-// Request and response types
-@Serializable
-data class NetworkIPsBrowseRequest(
-    override val includeUpdates: Boolean? = null,
-    override val includeProduct: Boolean? = null,
-    override val includeAcl: Boolean? = null,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-    override val provider: String? = null,
-) : NetworkIPDataIncludeFlags, NetworkIPFilters, WithPaginationRequestV2
-
-typealias NetworkIPsBrowseResponse = PageV2<NetworkIP>
-
-typealias NetworkIPsCreateRequest = BulkRequest<NetworkIPCreateRequestItem>
-
-typealias NetworkIPCreateRequestItem = NetworkIPSpecification
-
-@Serializable
-data class NetworkIPsCreateResponse(val ids: List<String>)
-
-typealias NetworkIPsDeleteRequest = BulkRequest<NetworkIPRetrieve>
-typealias NetworkIPsDeleteResponse = Unit
-
-typealias NetworkIPsRetrieveRequest = NetworkIPRetrieveWithFlags
-typealias NetworkIPsRetrieveResponse = NetworkIP
-
-@Serializable
-enum class NetworkIPPermission {
-    USE,
-}
-
-typealias NetworkIPsUpdateAclRequest = BulkRequest<NetworkIPsUpdateAclRequestItem>
-
-@Serializable
-data class NetworkIPsUpdateAclRequestItem(
-    override val id: String,
-    val acl: List<ResourceAclEntry<NetworkIPPermission>>,
-) : NetworkIPId
-
-typealias NetworkIPsUpdateAclResponse = Unit
 
 typealias NetworkIPsUpdateFirewallRequest = BulkRequest<FirewallAndId>
 typealias NetworkIPsUpdateFirewallResponse = Unit
 
+@Serializable
+data class FirewallAndIP(
+    val networkIp: NetworkIP,
+    val firewall: NetworkIPSpecification.Firewall
+)
+
 @TSNamespace("compute.networkips")
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-object NetworkIPs : CallDescriptionContainer("networkips") {
-    const val baseContext = "/api/networkips"
+object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus,
+        Product.NetworkIP, NetworkIPSupport>("networkips") {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
 
     init {
-        title = "Compute: NetworkIPs"
+        val Job = "$TYPE_REF dk.sdu.cloud.app.orchestrator.api.Job"
         description = """
-            TODO
-        """
+Network IPs grant users access to an IP address resource.
+
+${Resources.readMeFirst}
+
+IPs are used in combination with $Job s. This will attach an IP address to the compute resource. For 
+example, on a virtual machine, this might add a new network interface with the IP address.
+
+It is not a strict requirement that the IP address is visible inside the compute environment. However,
+it is required that users can access the services exposed by a $Job through this API.
+
+If the firewall feature is supported by the provider, then users must define which ports are expected to be
+in use by the $Job . If the firewall feature is not supported, then all ports must be open by default or
+managed from within the compute environment. For example, the firewall feature is not supported if the
+firewall is controlled by the virtual machine.
+        """.trimIndent()
     }
 
-    val browse = call<NetworkIPsBrowseRequest, NetworkIPsBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext)
+    override fun documentation() {
+        useCase(
+            "simple",
+            "Create and configure firewall",
+            flow = {
+                val user = basicUser()
+
+                comment("In this example we will see how to create and manage a public IP address")
+
+                success(
+                    retrieveProducts,
+                    Unit,
+                    SupportByProvider(
+                        mapOf(
+                            "example" to listOf(
+                                ResolvedSupport(
+                                    Product.NetworkIP(
+                                        "example-ip",
+                                        1L,
+                                        ProductCategoryId("example-id", "example"),
+                                        "A public IP address",
+                                        unitOfPrice = ProductPriceUnit.PER_UNIT
+                                    ),
+                                    NetworkIPSupport(
+                                        ProductReference("example-ip", "example-ip", "example"),
+                                        NetworkIPSupport.Firewall(enabled = true)
+                                    )
+                                )
+                            )
+                        )
+                    ),
+                    user
+                )
+
+                comment("We have a single product available to us. It supports the firewall feature.")
+
+                success(
+                    create,
+                    bulkRequestOf(
+                        NetworkIPSpecification(
+                            ProductReference("example-ip", "example-ip", "example"),
+                            NetworkIPSpecification.Firewall(listOf(PortRangeAndProto(1000, 1100, IPProtocol.TCP)))
+                        )
+                    ),
+                    BulkResponse(listOf(FindByStringId("5123"))),
+                    user
+                )
+
+                comment("The IP address has been created and has ID 5123")
+                comment("Updating the firewall causes existing ports to be removed.")
+
+                success(
+                    updateFirewall,
+                    bulkRequestOf(
+                        FirewallAndId(
+                            "5123",
+                            NetworkIPSpecification.Firewall(listOf(PortRangeAndProto(80, 80, IPProtocol.TCP)))
+                        )
+                    ),
+                    NetworkIPsUpdateFirewallResponse,
+                    user
+                )
+
+                comment("We can read the current state by retrieving the resource")
+
+                success(
+                    retrieve,
+                    ResourceRetrieveRequest(NetworkIPFlags(), "5123"),
+                    NetworkIP(
+                        "5123",
+                        NetworkIPSpecification(
+                            ProductReference("example-ip", "example-ip", "example"),
+                            NetworkIPSpecification.Firewall(listOf(PortRangeAndProto(80, 80, IPProtocol.TCP)))
+                        ),
+                        ResourceOwner("user", null),
+                        1635170395571L,
+                        NetworkIPStatus(NetworkIPState.READY),
+                    ),
+                    user
+                )
+            }
+        )
     }
 
-    val create = call<NetworkIPsCreateRequest, NetworkIPsCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext)
-    }
-
-    val delete = call<NetworkIPsDeleteRequest, NetworkIPsDeleteResponse, CommonErrorMessage>("delete") {
-        httpDelete(baseContext)
-    }
-
-    val retrieve = call<NetworkIPsRetrieveRequest, NetworkIPsRetrieveResponse, CommonErrorMessage>("retrieve") {
-        httpRetrieve(baseContext)
-    }
-
-    val updateAcl = call<NetworkIPsUpdateAclRequest, NetworkIPsUpdateAclResponse, CommonErrorMessage>("updateAcl") {
-        httpUpdate(baseContext, "acl")
-    }
+    override val create get() = super.create!!
+    override val search get() = super.search!!
+    override val delete get() = super.delete!!
 
     val updateFirewall = call<NetworkIPsUpdateFirewallRequest, NetworkIPsUpdateFirewallResponse,
-        CommonErrorMessage>("updateFirewall") {
+            CommonErrorMessage>("updateFirewall") {
         httpUpdate(baseContext, "firewall")
+    }
+}
+
+@TSNamespace("compute.networkips.control")
+object NetworkIPControl : ResourceControlApi<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
+        NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips") {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
+}
+
+open class NetworkIPProvider(provider: String) : ResourceProviderApi<NetworkIP, NetworkIPSpecification,
+        NetworkIPUpdate, NetworkIPFlags, NetworkIPStatus, Product.NetworkIP, NetworkIPSupport>("networkips", provider) {
+    @OptIn(ExperimentalStdlibApi::class)
+    override val typeInfo = ResourceTypeInfo(
+        NetworkIP.serializer(),
+        typeOf<NetworkIP>(),
+        NetworkIPSpecification.serializer(),
+        typeOf<NetworkIPSpecification>(),
+        NetworkIPUpdate.serializer(),
+        typeOf<NetworkIPUpdate>(),
+        NetworkIPFlags.serializer(),
+        typeOf<NetworkIPFlags>(),
+        NetworkIPStatus.serializer(),
+        typeOf<NetworkIPStatus>(),
+        NetworkIPSupport.serializer(),
+        typeOf<NetworkIPSupport>(),
+        Product.NetworkIP.serializer(),
+        typeOf<Product.NetworkIP>(),
+    )
+
+    override val delete get() = super.delete!!
+
+    val updateFirewall = call<BulkRequest<FirewallAndIP>, BulkResponse<Unit?>, CommonErrorMessage>("updateFirewall") {
+        httpUpdate(baseContext, "firewall", roles = Roles.PRIVILEGED)
     }
 }

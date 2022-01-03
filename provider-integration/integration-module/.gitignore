@@ -4,6 +4,8 @@
 **/build/
 !src/**/build/
 
+.getenvoy
+
 # Ignore Gradle GUI config
 gradle-app.setting
 

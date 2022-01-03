@@ -1,32 +1,32 @@
-import * as UCloud from "UCloud";
-import {AppToolLogo} from "Applications/AppToolLogo";
-import {Tag} from "Applications/Card";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
-import {emptyPage} from "DefaultObjects";
-import {dialogStore} from "Dialog/DialogStore";
-import {MainContainer} from "MainContainer/MainContainer";
+import * as UCloud from "@/UCloud";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {Tag} from "@/Applications/Card";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {emptyPage} from "@/DefaultObjects";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCallback, useEffect, useRef} from "react";
 import * as React from "react";
 import {useState} from "react";
 import {useRouteMatch} from "react-router";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled from "styled-components";
-import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "ui-components";
-import Box from "ui-components/Box";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import * as Heading from "ui-components/Heading";
-import Input, {HiddenInputField, InputLabel} from "ui-components/Input";
-import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "ui-components/Table";
-import {addStandardDialog} from "UtilityComponents";
-import {PropType, stopPropagation} from "UtilityFunctions";
-import {compute} from "UCloud";
+import {Button, Checkbox, Flex, Icon, Label, Text, VerticalButtonGroup} from "@/ui-components";
+import Box from "@/ui-components/Box";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import * as Heading from "@/ui-components/Heading";
+import Input, {HiddenInputField, InputLabel} from "@/ui-components/Input";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
+import {addStandardDialog} from "@/UtilityComponents";
+import {PropType, stopPropagation} from "@/UtilityFunctions";
+import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
-import {clearLogo, uploadLogo} from "Applications/api";
-import {useLoading, useTitle} from "Navigation/Redux/StatusActions";
-import {SidebarPages, useSidebarPage} from "ui-components/Sidebar";
-import {usePrioritizedSearch} from "Utilities/SearchUtilities";
-import {useRefreshFunction} from "Navigation/Redux/HeaderActions";
+import {clearLogo, uploadLogo} from "@/Applications/api";
+import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {usePrioritizedSearch} from "@/Utilities/SearchUtilities";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 
 interface AppVersion {
     version: string;
@@ -324,7 +324,7 @@ export const App: React.FunctionComponent = () => {
                                                     width={180}
                                                     type="text"
                                                     ref={projectEntityField}
-                                                    placeholder="Project Name (ancestors/.../project)"
+                                                    placeholder="Project name"
                                                 />
                                                 <Input
                                                     leftLabel

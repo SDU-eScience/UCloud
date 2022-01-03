@@ -19,18 +19,20 @@ import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import java.net.ConnectException
 import java.util.*
 import kotlin.collections.HashMap
 
 class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
 
     fun createIndex() {
-        if(elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
-            return
-        }
-        val request = CreateIndexRequest(CONTACT_BOOK_INDEX)
-        request.settings(
-            """
+        try {
+            if (elasticClient.indices().exists(GetIndexRequest(CONTACT_BOOK_INDEX), RequestOptions.DEFAULT)) {
+                return
+            }
+            val request = CreateIndexRequest(CONTACT_BOOK_INDEX)
+            request.settings(
+                """
                 {
                     "number_of_shards": 2,
                     "number_of_replicas": 2,
@@ -40,11 +42,11 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
                     }
                 }
             """,
-            XContentType.JSON
-        )
+                XContentType.JSON
+            )
 
-        request.mapping(
-            """
+            request.mapping(
+                """
                 {
                     "properties" : {
                         "fromUser" : {
@@ -83,10 +85,13 @@ class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
                     }
                 }
             """,
-            XContentType.JSON
-        )
-        elasticClient.indices().create(request, RequestOptions.DEFAULT)
-        elasticClient.indices().flush(FlushRequest(CONTACT_BOOK_INDEX).waitIfOngoing(true), RequestOptions.DEFAULT)
+                XContentType.JSON
+            )
+            elasticClient.indices().create(request, RequestOptions.DEFAULT)
+            elasticClient.indices().flush(FlushRequest(CONTACT_BOOK_INDEX).waitIfOngoing(true), RequestOptions.DEFAULT)
+        } catch (ex: ConnectException) {
+            log.info("Failed to create index because of missing elasticsearch.")
+        }
     }
 
     private fun createInsertContactRequest(fromUser: String, toUser: String, serviceOrigin: String): IndexRequest {

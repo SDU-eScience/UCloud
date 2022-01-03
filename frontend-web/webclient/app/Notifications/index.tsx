@@ -1,30 +1,28 @@
-import {Client, WSFactory} from "Authentication/HttpClientInstance";
+import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject} from "DefaultObjects";
+import {NotificationsReduxObject} from "@/DefaultObjects";
 import * as React from "react";
 import {connect, useSelector} from "react-redux";
 import {Redirect, useHistory} from "react-router";
 import {Dispatch} from "redux";
-import {Snack} from "Snackbar/Snackbars";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Snack} from "@/Snackbar/Snackbars";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Flex, Icon, Relative} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {IconName} from "ui-components/Icon";
-import {TextSpan} from "ui-components/Text";
-import theme, {Theme, ThemeColor} from "ui-components/theme";
-import {setUploaderVisible} from "Uploader/Redux/UploaderActions";
-import {replaceHomeOrProjectFolder} from "Utilities/FileUtilities";
-import * as UF from "UtilityFunctions";
+import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {IconName} from "@/ui-components/Icon";
+import {TextSpan} from "@/ui-components/Text";
+import theme, {Theme, ThemeColor} from "@/ui-components/theme";
+import * as UF from "@/UtilityFunctions";
 import {
     fetchNotifications,
     notificationRead,
     readAllNotifications,
     receiveSingleNotification
 } from "./Redux/NotificationsActions";
-import {dispatchSetProjectAction} from "Project/Redux";
-import {useProjectStatus} from "Project/cache";
-import {getProjectNames} from "Utilities/ProjectUtilities";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {useProjectStatus} from "@/Project/cache";
+import {getProjectNames} from "@/Utilities/ProjectUtilities";
 
 interface NotificationProps {
     items: Notification[];
@@ -40,6 +38,12 @@ function Notifications(props: Notifications): JSX.Element {
     const history = useHistory();
     const projectNames = getProjectNames(useProjectStatus());
     const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+
+    const [showError, setShowError] = React.useState(false);
+
+    React.useEffect(() => {
+        setShowError(!!props.error);
+    }, [props.error]);
 
     React.useEffect(() => {
         reload();
@@ -87,14 +91,14 @@ function Notifications(props: Notifications): JSX.Element {
         }
     }
 
-    const entries: JSX.Element[] = props.items.map((notification, index) => (
+    const entries: JSX.Element[] = React.useMemo(() => props.items.map((notification, index) => (
         <NotificationEntry
             key={index}
             notification={notification}
             onMarkAsRead={it => props.notificationRead(it.id)}
             onAction={onNotificationAction}
         />
-    ));
+    )), [props.items]);
 
     if (props.redirectTo) {
         return <Redirect to={props.redirectTo} />;
@@ -109,12 +113,13 @@ function Notifications(props: Notifications): JSX.Element {
     ) : null;
     return (
         <ClickableDropdown
+            data-component={"notifications"}
             colorOnHover={false}
             top="37px"
             width="380px"
             left="-270px"
             trigger={(
-                <Flex>
+                <Flex onClick={() => showError ? setShowError(false) : undefined}>
                     <Relative top="0" left="0">
                         <Flex justifyContent="center" width="48px">
                             <Icon
@@ -127,7 +132,14 @@ function Notifications(props: Notifications): JSX.Element {
                         {unreadLength > 0 ? (
                             <ThemeProvider theme={theme}>
                                 <Absolute top="-12px" left="28px">
-                                    <Badge bg="red">{unreadLength}</Badge>
+                                    <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
+                                </Absolute>
+                            </ThemeProvider>
+                        ) : null}
+                        {showError ? (
+                            <ThemeProvider theme={theme}>
+                                <Absolute top="-12px" left="28px">
+                                    <Badge bg="red">!</Badge>
                                 </Absolute>
                             </ThemeProvider>
                         ) : null}
@@ -136,6 +148,7 @@ function Notifications(props: Notifications): JSX.Element {
             )}
         >
             <ContentWrapper>
+                <Error error={props.error} />
                 {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
             </ContentWrapper>
         </ClickableDropdown>
@@ -184,7 +197,7 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 <TextSpan color="grey" fontSize={1}>
                     {formatDistance(notification.ts, new Date(), {addSuffix: true})}
                 </TextSpan>
-                <TextSpan fontSize={1}>{replaceHomeOrProjectFolder(notification.message, Client, [])}</TextSpan>
+                <TextSpan fontSize={1}>{notification.message}</TextSpan>
             </Flex>
         </NotificationWrapper>
     );
@@ -238,7 +251,6 @@ interface NotificationsOperations {
     receiveNotification: (notification: Notification) => void;
     fetchNotifications: () => void;
     notificationRead: (id: number) => void;
-    showUploader: () => void;
     readAll: () => void;
     setActiveProject: (projectId?: string) => void;
 }
@@ -247,7 +259,6 @@ const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
     receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
-    showUploader: () => dispatch(setUploaderVisible(true, Client.homeFolder)),
     readAll: async () => dispatch(await readAllNotifications()),
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId)
 });

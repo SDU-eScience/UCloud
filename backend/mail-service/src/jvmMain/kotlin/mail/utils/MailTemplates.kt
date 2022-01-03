@@ -222,15 +222,16 @@ fun stillLowResources (
 
 fun lowResourcesTemplate(
     recipient: String,
-    category: String,
-    provider: String,
-    projectTitle: String
+    walletLines: List<String>
 ) = """
         <p>Dear ${escapeHtml(recipient)}</p>
         <p>
-            The project '${escapeHtml(projectTitle)}' is running low on the ${escapeHtml(category)} resource 
-            from ${escapeHtml(provider)}. <br>
-            If needed, you can request additional resources from the project's resource page.
+            Following allocations are getting low on resources:
+            <ul>
+                ${walletLines.joinToString(separator = "")}
+            </ul>
+            <br>
+            If needed, you can request additional resources from the resource page within the specific workspace.
         </p>
         $NO_NOTIFICATIONS_DISCLAIMER
     """.trimIndent()

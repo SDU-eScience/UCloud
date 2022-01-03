@@ -1,7 +1,7 @@
-import {AppOrTool} from "Applications/api";
+import {AppOrTool} from "@/Applications/api";
 import * as localForage from "localforage";
-import {AppLogo, hashF} from "Applications/Card";
-import {Client} from "Authentication/HttpClientInstance";
+import {AppLogo, hashF} from "@/Applications/Card";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useEffect, useState} from "react";
 

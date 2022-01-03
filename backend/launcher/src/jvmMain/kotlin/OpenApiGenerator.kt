@@ -1,12 +1,6 @@
 package dk.sdu.cloud
 
 import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonProperty
-import com.fasterxml.jackson.annotation.JsonSubTypes
-import com.fasterxml.jackson.annotation.JsonTypeInfo
-import com.fasterxml.jackson.module.kotlin.isKotlinClass
-import dk.sdu.cloud.app.orchestrator.api.JobsProvider
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.IngoingRequestInterceptor
@@ -15,37 +9,13 @@ import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.server
 import io.ktor.http.*
-import io.swagger.v3.core.util.Json
-import io.swagger.v3.core.util.Yaml
-import io.swagger.v3.oas.models.*
-import io.swagger.v3.oas.models.examples.Example
-import io.swagger.v3.oas.models.info.Contact
-import io.swagger.v3.oas.models.info.Info
-import io.swagger.v3.oas.models.info.License
-import io.swagger.v3.oas.models.media.*
-import io.swagger.v3.oas.models.parameters.Parameter
-import io.swagger.v3.oas.models.parameters.RequestBody
-import io.swagger.v3.oas.models.responses.ApiResponse
-import io.swagger.v3.oas.models.responses.ApiResponses
-import io.swagger.v3.oas.models.servers.Server
-import io.swagger.v3.oas.models.tags.Tag
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Transient
-import kotlinx.serialization.json.JsonObject
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
-import java.math.BigDecimal
-import java.math.BigInteger
-import kotlin.reflect.KClass
 import kotlin.reflect.KProperty1
 import kotlin.reflect.full.*
 import kotlin.reflect.javaType
-import kotlin.reflect.jvm.javaField
-import kotlin.reflect.jvm.jvmName
 import kotlin.system.exitProcess
-
-private val componentsRef = "#/components/schemas/"
 
 data class CallExtension(
     @JsonIgnore val call: CallDescription<*, *, *>,
@@ -57,9 +27,13 @@ data class CallExtension(
     }
 }
 
-@OptIn(ExperimentalStdlibApi::class)
 fun main() {
-    val reg = ServiceRegistry(arrayOf("--dev"), PlaceholderServiceDescription)
+    runOpenApiGenerator()
+}
+
+@OptIn(ExperimentalStdlibApi::class)
+fun runOpenApiGenerator(args: Array<String>? = null) {
+    val reg = ServiceRegistry(args ?: arrayOf("--dev"), PlaceholderServiceDescription)
     val knownCalls = ArrayList<CallDescription<*, *, *>>()
     reg.rootMicro.server.attachRequestInterceptor(object : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
         override val companion = HttpCall.Companion
@@ -92,357 +66,86 @@ fun main() {
     reg.start(wait = false)
 
     val log = LoggerFactory.getLogger("dk.sdu.cloud.OpenApiGenerator")
-    val maturityWarnings = HashSet<String>()
-    fun warnMissingMaturity(call: CallDescription<*, *, *>) {
-        if (!maturityWarnings.contains(call.namespace)) {
-            maturityWarnings.add(call.namespace)
-            log.warn("${call.namespace} has no maturity associated with it")
-            log.warn("Future warnings for this namespace will be supressed")
-        }
-    }
 
-    val groupedCalls = knownCalls.groupBy { call ->
-        val maturity = call.apiMaturityOrNull
-        if (maturity == null) {
-            warnMissingMaturity(call)
-        }
-
-        maturity ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
-    }
-
-    writeSpecification(
-        groupedCalls.filterKeys { it is UCloudApiMaturity.Internal }.values.flatten().toMutableList(),
-        File("/tmp/swagger/internal"),
-        subtitle = "Internal API"
-    )
-    writeSpecification(
-        groupedCalls.filterKeys { it !is UCloudApiMaturity.Internal }.values.flatten().toMutableList(),
-        File("/tmp/swagger/public"),
-        subtitle = "Public API"
-    )
-
-
-    log.info("UCloud has ${knownCalls.size} number of calls in total")
     writeSpecification(
         knownCalls,
         File("/tmp/swagger/combined"),
         subtitle = "Full API",
-        writeMarkdown = true,
+        isFullApi = true,
     )
 
-    run {
-        // Provider calls
-        val calls = buildList {
-            addAll(JobsProvider(PROVIDER_ID_PLACEHOLDER).callContainer)
-            addAll(JobsControl.callContainer)
-        }
-
-        writeSpecification(
-            calls.toMutableList(),
-            File("/tmp/swagger/providers-complete"),
-            subtitle = "Provider API (UCloud and Provider)"
-        )
-    }
-
-    run {
-        // Provider API only
-        val calls = buildList {
-            addAll(JobsProvider(PROVIDER_ID_PLACEHOLDER).callContainer)
-        }
-
-        writeSpecification(
-            calls.toMutableList(),
-            File("/tmp/swagger/providers-only"),
-            subtitle = "Provider API (Provider only)"
-        )
-    }
     exitProcess(0)
 }
 
-private fun badge(
-    label: String,
-    message: String,
-    color: String,
-    altText: String = "$label: $message",
-): String {
-    return "![$altText](https://img.shields.io/static/v1?label=$label&message=$message&color=$color&style=flat-square)"
-}
-
-private fun apiMaturityBadge(level: UCloudApiMaturity): String {
-    val label = "API"
-    fun normalizeEnum(enum: Enum<*>): String {
-        return enum.name.toLowerCase().capitalize()
-    }
-    return when (level) {
-        is UCloudApiMaturity.Internal -> badge(label, "Internal/${normalizeEnum(level.level)}", "red")
-        is UCloudApiMaturity.Experimental -> badge(label, "Experimental/${normalizeEnum(level.level)}", "orange")
-        UCloudApiMaturity.Stable -> badge(label, "Stable", "green")
-        else -> error("unknown level")
-    }
-}
-
-private fun rolesBadge(roles: Set<Role>): String {
-    val message = when (roles) {
-        Roles.AUTHENTICATED -> "Authenticated"
-        Roles.PRIVILEGED -> "Services"
-        Roles.END_USER -> "Users"
-        Roles.ADMIN -> "Admin"
-        Roles.PUBLIC -> "Public"
-        Roles.PROVIDER -> "Provider"
-        else -> roles.joinToString(", ")
-    }
-
-    return badge("Auth", message, "informational")
-}
 
 private fun writeSpecification(
     knownCalls: MutableList<CallDescription<*, *, *>>,
     output: File,
     subtitle: String? = null,
     documentation: String? = null,
-    writeMarkdown: Boolean = false
+    isFullApi: Boolean = false
 ) {
     val typeRegistry = LinkedHashMap<String, ComputedType>()
-    val doc = OpenAPI().apply {
-        servers = listOf(Server().url("https://cloud.sdu.dk"))
-        info = Info().apply {
-            version = "1.0.0"
-            title = "UCloud" + if (subtitle == null) "" else " | $subtitle"
-            license = License().apply {
-                name = "EUPL-1.2"
-                url = "https://github.com/SDU-eScience/UCloud/blob/master/LICENSE.md"
-            }
-            addExtension("x-logo", mapOf("url" to "https://docs.cloud.sdu.dk/dev/_images/logo.png"))
-            termsOfService = "https://legal.cloud.sdu.dk"
-            contact = Contact().apply {
-                email = "support@escience.sdu.dk"
-            }
-            this.description = documentation
-        }
+    knownCalls
+        .groupBy { it.httpOrNull?.path?.toKtorTemplate(true) ?: "" }
+        .forEach { (path, calls) ->
+            if (path == "") return@forEach
 
-        externalDocs = ExternalDocumentation().apply {
-            url = "https://docs.cloud.sdu.dk"
-        }
+            for (call in calls) {
+                val http = call.httpOrNull ?: continue
+                val doc = call.docOrNull
+                val matchingField = call.field
 
-        // NOTE(Dan): Currently made to be rendered by https://github.com/Redocly/redoc
-
-        tags = arrayListOf()
-        paths = Paths()
-        components = Components()
-
-        knownCalls
-            .groupBy { it.httpOrNull?.path?.toKtorTemplate(true) ?: "" }
-            .forEach { (path, calls) ->
-                if (path == "") return@forEach
-
-                val pathItem = PathItem()
-                paths[path] = pathItem
-
-                for (call in calls) {
-                    val http = call.httpOrNull ?: continue
-
-                    if (tags.none { it.name == call.containerRef.namespace }) {
-                        tags.add(Tag().apply {
-                            name = call.containerRef.namespace
-                            val displayTitle = call.containerRef.title
-                            if (displayTitle != null) addExtension("x-displayName", displayTitle)
-                            description = call.containerRef.description
-                        })
-                    }
-
-                    val doc = call.docOrNull
-                    val matchingField = call.field
-
-                    if (matchingField == null) {
-                        Launcher.log.warn("Could not find call $call")
-                    }
-
-                    val op = Operation()
-                    when (http.method) {
-                        HttpMethod.Get -> pathItem.get = op
-                        HttpMethod.Post -> pathItem.post = op
-                        HttpMethod.Delete -> pathItem.delete = op
-                        HttpMethod.Head -> pathItem.head = op
-                        HttpMethod.Put -> pathItem.put = op
-                        HttpMethod.Options -> pathItem.options = op
-                        HttpMethod.Patch -> pathItem.patch = op
-                    }
-
-                    val callExtension = CallExtension(call)
-                    op.addExtension(CallExtension.EXTENSION, callExtension)
-
-                    val maturity = call.apiMaturityOrNull ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
-
-                    op.description = """
-                        ${apiMaturityBadge(maturity)}
-                        ${rolesBadge(call.authDescription.roles)}
-                        
-                        
-                    """.trimIndent()
-                    if (doc != null) {
-                        if (doc.description != null) op.description += doc.description
-                        op.summary = doc.summary + " (${call.name})"
-                        op.deprecated = matchingField?.hasAnnotation<Deprecated>()
-                    }
-
-                    op.operationId = call.fullName
-                    if (op.operationId.contains(".")) {
-                        // Hack: Delete anything after '.' to allow versioning in call ids
-                        op.operationId = op.operationId.substringBefore('.')
-                    }
-                    op.tags = listOf(call.namespace)
-                    op.responses = ApiResponses().apply {
-                        set("200", apiResponse(call.successClass.javaType, typeRegistry).apply {
-                            if (doc != null) {
-                                val json = this.content[ContentType.Application.Json.toString()]
-                                if (json != null) {
-                                    json.examples = LinkedHashMap()
-                                    for (example in doc.examples) {
-                                        if (example.statusCode.isSuccess() && example.response != null) {
-                                            json.examples[example.name] = createExample(example).apply {
-                                                value = example.response
-                                            }
-                                        }
-                                    }
-                                    if (json.examples.isEmpty()) json.examples = null
-                                }
-                            }
-                        })
-
-                        doc?.examples?.groupBy { it.statusCode }?.filterKeys { !it.isSuccess() }
-                            ?.forEach { (code, examples) ->
-                                set(code.value.toString(), apiResponse(call.errorClass.javaType, typeRegistry).apply {
-                                    this.description = code.description
-                                    val json = this.content[ContentType.Application.Json.toString()]
-                                    if (json != null) {
-                                        json.examples = LinkedHashMap()
-                                        for (example in examples) {
-                                            if (example.error != null) {
-                                                json.examples[example.name] = createExample(example).apply {
-                                                    value = example.error
-                                                }
-                                            }
-                                        }
-                                        if (json.examples.isEmpty()) json.examples = null
-                                    }
-                                })
-                            }
-
-                        doc?.errors?.forEach { err ->
-                            val description = computeIfAbsent(
-                                err.statusCode.value.toString(),
-                                { apiResponse(call.errorClass.javaType, typeRegistry) }
-                            )
-
-                            description.description = err.description
-                        }
-
-                        default = apiResponse(call.errorClass.javaType, typeRegistry)
-                    }
-
-                    if (call.successClass.javaType != Unit::class) {
-                        callExtension.responseType = traverseType(call.successClass.javaType, typeRegistry)
-                    }
-
-                    val body = http.body
-                    if (body != null && !body.ref.descriptor.serialName.startsWith("kotlin.Unit")) {
-                        val requestType = traverseType(call.requestClass.javaType, typeRegistry)
-                        callExtension.requestType = requestType
-                        op.requestBody = RequestBody()
-                        op.requestBody.content = Content().apply {
-                            set(ContentType.Application.Json.toString(), MediaType().apply {
-                                if (doc != null && body is HttpBody.BoundToEntireRequest<*>) {
-                                    examples = LinkedHashMap()
-                                    doc.examples.forEach { example ->
-                                        if (example.request != null) {
-                                            examples[example.name] = createExample(example).apply {
-                                                value = example.request
-                                            }
-                                        }
-                                    }
-                                    if (examples.isEmpty()) examples = null
-                                }
-                                schema = requestType.toOpenApiSchema()
-                            })
-                        }
-                    }
-
-                    val params = http.params
-                    if (params != null) {
-                        val requestType = traverseType(call.requestClass.javaType, typeRegistry) as? ComputedType.Struct
-                            ?: error("Query params bound to a non-class ${call.fullName}")
-                        callExtension.requestType = requestType
-
-                        op.parameters = params.parameters.map { p ->
-                            when (p) {
-                                is HttpQueryParameter.Property<*> -> {
-                                    Parameter().apply {
-                                        name = p.property
-                                        schema = requestType.properties[name]!!.toOpenApiSchema()
-                                        `in` = "query"
-                                    }
-                                }
-
-                                else -> error("unknown property")
-                            }
-                        }
-                    }
+                if (matchingField == null) {
+                    Launcher.log.warn("Could not find call $call")
                 }
-            }
 
-        for ((k, v) in typeRegistry) {
-            val struct = v as? ComputedType.Struct
-            if (struct != null) {
-                val disc = struct.discriminator
-                if (disc != null) {
-                    for ((prop, typeName) in disc.valueToQualifiedName) {
-                        val child = typeRegistry[typeName] as? ComputedType.Struct
-                        if (child != null) {
-                            child.properties[disc.property] = ComputedType.Enum(listOf(prop))
-                            child.parent = v.asRef()
-                        }
-                    }
+                val maturity = call.apiMaturityOrNull ?: UCloudApiMaturity.Internal(InternalLevel.BETA)
+                var description = ""
+                var summary = ""
+                var deprecated = false
+                var callId = ""
 
-                    struct.properties[disc.property] = ComputedType.Enum(disc.valueToQualifiedName.keys.toList())
+                description = """
+                    ${apiMaturityBadge(maturity)}
+                    ${rolesBadge(call.authDescription.roles)}
+                    
+                    
+                """.trimIndent()
+                if (doc != null) {
+                    if (doc.description != null) description += doc.description
+                    summary = doc.summary + " (${call.name})"
+                    deprecated = matchingField?.hasAnnotation<Deprecated>() ?: false
+                }
+
+                callId = call.fullName
+                if (callId.contains(".")) {
+                    // Hack: Delete anything after '.' to allow versioning in call ids
+                    callId = callId.substringBefore('.')
+                }
+
+                if (call.successClass.javaType != Unit::class) {
+                    traverseType(call.successClass.javaType, typeRegistry)
+                }
+
+                val body = http.body
+                if (body != null && !body.ref.descriptor.serialName.startsWith("kotlin.Unit")) {
+                    traverseType(call.requestClass.javaType, typeRegistry)
+                }
+
+                val params = http.params
+                if (params != null) {
+                    traverseType(call.requestClass.javaType, typeRegistry) as? ComputedType.Struct
+                        ?: error("Query params bound to a non-class ${call.fullName}")
                 }
             }
         }
-
-        components.schemas = typeRegistry.map { (k, v) ->
-            (k) to v.toOpenApiSchema()
-        }.toMap()
-    }
 
     println("UCloud has ${typeRegistry.size} number of types")
     output.mkdirs()
-    generateTypeScriptCode(output, doc, typeRegistry)
-    generateSpringMvcCode()
-    if (writeMarkdown) injectMarkdownDocs(doc, typeRegistry)
-    File(output, "swagger.yaml").writeText(Yaml.pretty(doc))
-    File(output, "swagger.json").writeText(Json.pretty(doc))
-}
-
-private fun createExample(example: UCloudCallDoc.Example<out Any, out Any, out Any>): Example {
-    return Example().apply {
-        summary = example.summary
-        description = example.description
-    }
-}
-
-private fun apiResponse(type: Type, registry: LinkedHashMap<String, ComputedType>): ApiResponse {
-    return ApiResponse().apply {
-        val computedType = traverseType(type, registry)
-        description = computedType.documentation
-        if (type == Unit::class.java) {
-            description = "No response"
-        }
-
-        content = Content().apply {
-            set("application/json", MediaType().apply {
-                schema = computedType.asRef().toOpenApiSchema()
-            })
-        }
-    }
+//    generateTypeScriptCode(output, doc, typeRegistry)
+//    generateSpringMvcCode()
+    // injectMarkdownDocs(doc, typeRegistry)
 }
 
 // Call tree traversal
@@ -452,99 +155,36 @@ sealed class ComputedType {
     var nullable: Boolean = false
     var optional: Boolean = false
 
-    protected fun baseSchema(): Schema<*> {
-        return Schema<Any?>().apply {
-            this.description = this@ComputedType.documentation
-            this.deprecated = this@ComputedType.deprecated
-            this.nullable = this@ComputedType.nullable
-        }
-    }
-
-    abstract fun toOpenApiSchema(): Schema<*>
-
-    open fun asRef(): ComputedType {
-        return this
-    }
-
     class Integer(val size: Int) : ComputedType() {
         override fun toString(): String = "int$size"
-
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "integer"
-                format = "int$size"
-            }
-        }
     }
 
     class FloatingPoint(val size: Int) : ComputedType() {
         override fun toString() = "float$size"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "number"
-                format = "float$size"
-            }
-        }
     }
 
     class Text() : ComputedType() {
         override fun toString() = "text"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "string"
-            }
-        }
     }
 
     class Bool() : ComputedType() {
         override fun toString() = "bool"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "boolean"
-            }
-        }
     }
 
     class Array(val itemType: ComputedType) : ComputedType() {
         override fun toString() = "$itemType[]"
-
-        override fun toOpenApiSchema(): Schema<*> {
-            return ArraySchema().apply {
-                type = "array"
-                this.description = this@Array.documentation
-                this.deprecated = this@Array.deprecated
-                this.nullable = this@Array.nullable
-                items = itemType.toOpenApiSchema()
-            }
-        }
     }
 
     data class Dictionary(val itemType: ComputedType) : ComputedType() {
         override fun toString() = "dict_${itemType}_"
-
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                additionalProperties = itemType.asRef().toOpenApiSchema()
-            }
-        }
     }
 
     class Unknown : ComputedType() {
         override fun toString() = "unknown"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "object"
-            }
-        }
     }
 
     class Generic(val id: String) : ComputedType() {
         override fun toString() = "_${id}_"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "object"
-            }
-        }
     }
 
     data class Struct(
@@ -556,29 +196,7 @@ sealed class ComputedType {
         var tsDef: TSDefinition? = null,
         var parent: ComputedType.StructRef? = null,
     ) : ComputedType() {
-        override fun asRef() = StructRef(qualifiedName)
-
         override fun toString() = qualifiedName
-
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "object"
-
-                val discRef = this@Struct.discriminator
-                if (discRef != null) {
-                    discriminator = Discriminator().apply {
-                        this.propertyName = discRef.property
-                        this.mapping = discRef.valueToQualifiedName.mapValues {
-                            componentsRef + it.value
-                        }
-                    }
-                }
-
-                properties = this@Struct.properties.map {
-                    it.key to it.value.toOpenApiSchema()
-                }.toMap()
-            }
-        }
 
         data class GenericInfo(
             var baseType: String,
@@ -586,29 +204,10 @@ sealed class ComputedType {
         )
     }
 
-    class StructRef(val qualifiedName: String) : ComputedType() {
-        override fun toOpenApiSchema(): Schema<*> {
-            return ComposedSchema().apply {
-                `$ref` = componentsRef + qualifiedName + if (this@StructRef.nullable == true) "_Opt" else ""
-                this.description = this@StructRef.documentation
-                this.deprecated = this@StructRef.deprecated
-                this.nullable = this@StructRef.nullable
-            }
-        }
-    }
+    class StructRef(val qualifiedName: String) : ComputedType()
 
     class Enum(val options: List<String>) : ComputedType() {
         override fun toString() = "enum_${options.joinToString("_")})"
-        override fun toOpenApiSchema(): Schema<*> {
-            return baseSchema().apply {
-                type = "string"
-                enum = options
-            }
-        }
-    }
-
-    class CustomSchema(private val schema: Schema<*>, val tsDefinition: ComputedType? = null) : ComputedType() {
-        override fun toOpenApiSchema(): Schema<*> = schema
     }
 
     data class Discriminator(
@@ -619,6 +218,8 @@ sealed class ComputedType {
 
 @OptIn(ExperimentalStdlibApi::class)
 private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, ComputedType>): ComputedType {
+    TODO()
+    /*
     when (type) {
         is GenericArrayType -> {
             return ComputedType.Array(traverseType(type.genericComponentType, visitedTypes))
@@ -646,43 +247,6 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
 
                     val actualTypeArgs = type.actualTypeArguments.map { traverseType(it, visitedTypes) }
                     val typeParams = rawType.typeParameters
-
-                    if (rawType == BulkRequest::class.java) {
-                        return ComputedType.CustomSchema(
-                            ComposedSchema().apply {
-                                oneOf = listOf(
-                                    actualTypeArgs[0].asRef().toOpenApiSchema().apply {
-                                        this.name = "Single (${actualTypeArgs[0]})"
-                                    },
-                                    Schema<Any?>().apply {
-                                        this.type = "object"
-                                        this.name = "Bulk (${actualTypeArgs[0]})"
-
-                                        properties = mapOf(
-                                            "type" to Schema<Any?>().apply {
-                                                this.type = "string"
-                                                enum = listOf("bulk")
-                                            },
-                                            "items" to ArraySchema().apply {
-                                                items = actualTypeArgs[0].asRef().toOpenApiSchema()
-                                            }
-                                        )
-                                    }
-                                )
-                            },
-                            tsDefinition = rawComputedType.apply {
-                                qualifiedName = "${rawComputedType}_" +
-                                    "${actualTypeArgs.joinToString(",") { it.toString().replace(".", "_") }}_ "
-
-                                genericInfo = ComputedType.Struct.GenericInfo(
-                                    initialType.qualifiedName,
-                                    actualTypeArgs
-                                )
-
-                                visitedTypes[qualifiedName] = this
-                            }
-                        )
-                    }
 
                     rawComputedType.genericInfo = ComputedType.Struct.GenericInfo(
                         rawComputedType.qualifiedName,
@@ -771,6 +335,10 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
 
         java.lang.Boolean::class.java, Boolean::class.java -> {
             return ComputedType.Bool()
+        }
+
+        java.lang.Void::class.java -> {
+            return ComputedType.Unknown()
         }
 
         is Class<*> -> {
@@ -920,6 +488,7 @@ private fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, Compute
             error("Unknown thing: $type")
         }
     }
+     */
 }
 
 val CallDescription<*, *, *>.field: KProperty1<CallDescriptionContainer, *>?

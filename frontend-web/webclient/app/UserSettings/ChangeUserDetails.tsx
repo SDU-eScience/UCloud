@@ -1,10 +1,10 @@
-import {useCloudCommand} from "Authentication/DataHook";
-import {Client} from "Authentication/HttpClientInstance";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {Client} from "@/Authentication/HttpClientInstance";
 import * as React from "react";
 import {useCallback, useEffect, useRef} from "react";
-import {Box, Button, Checkbox, Input, Label} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import {Box, Button, Checkbox, Input, Label} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 interface UserDetailsState {
     placeHolderFirstNames: string;
@@ -99,7 +99,6 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             First names
                             <Input
                                 ref={userFirstNames}
-                                style={{maxWidth: "700px"}}
                                 type="text"
                                 placeholder={state.placeHolderFirstNames}
                             />
@@ -111,7 +110,6 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             Last name
                             <Input
                                 ref={userLastName}
-                                style={{maxWidth: "700px"}}
                                 type="text"
                                 placeholder={state.placeHolderLastName}
                             />
@@ -122,7 +120,6 @@ export const ChangeUserDetails: React.FunctionComponent<{setLoading: (loading: b
                             Email
                             <Input
                                 ref={userEmail}
-                                style={{maxWidth: "700px"}}
                                 type="email"
                                 placeholder={state.placeHolderEmail}
                             />

@@ -24,6 +24,7 @@ import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
 import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.mail.utils.*
+import dk.sdu.cloud.service.escapeHtml
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.io.ByteArrayOutputStream
@@ -134,7 +135,7 @@ class MailService(
     }
 
     suspend fun sendSupportTicket(
-        userEmail: String,
+        fromEmail: String,
         subject: String,
         text: String
     ) {
@@ -142,9 +143,9 @@ class MailService(
 
         try {
             val message = MimeMessage(session)
-            message.setFrom("ticketsystem@escience.sdu.dk")
+            message.setFrom(InternetAddress(fromEmail))
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = "$userEmail-|-$subject"
+            message.subject = subject
 
             val multipart = MimeMultipart()
 
@@ -173,7 +174,8 @@ class MailService(
         recipient: String,
         mail: Mail,
         emailRequestedByUser: Boolean,
-        testMail: Boolean = false
+        testMail: Boolean? = false,
+        recipientEmail: String? = null
     ) {
         if (principal.username !in whitelist && !devMode) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized, "Unable to send mail")
@@ -188,16 +190,27 @@ class MailService(
             }
         }
 
-        val getEmail = if (testMail) {
-            LookupEmailResponse("test@email.dk")
-        } else {
-            UserDescriptions.lookupEmail.call(
-                LookupEmailRequest(recipient),
-                authenticatedClient
-            ).orThrow()
-        }
+        val receivingEmail = recipientEmail
+            ?: if (testMail == true) {
+                "test@email.dk"
+            } else {
+                ctx.withSession { session ->
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("username", recipient)
+                        },
+                        """
+                                SELECT email 
+                                FROM "auth".principals
+                                WHERE :username=id
+                            """
+                    ).rows
+                        .singleOrNull()
+                        ?.getString(0) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
+            }
 
-        val recipientAddress = InternetAddress(getEmail.email)
+        val recipientAddress = InternetAddress(receivingEmail)
 
         val text = when (mail) {
             is Mail.TransferApplicationMail -> {
@@ -231,7 +244,16 @@ class MailService(
                 newIngoingApplicationTemplate(recipient, mail.sender, mail.projectTitle)
             }
             is Mail.LowFundsMail -> {
-                lowResourcesTemplate(recipient, mail.category, mail.provider, mail.projectTitle)
+                val walletLines = mutableListOf<String>()
+                mail.projectTitles.forEachIndexed { index, projectTitle ->
+                    val resourceLine = "<li>Resource: ${escapeHtml(mail.categories[index])}</li> <li>Provider: ${escapeHtml(mail.providers[index])}</li>"
+                    if (projectTitle != null) {
+                        walletLines.add("<li>Project: ${escapeHtml(projectTitle)} <ul> $resourceLine </ul> </li>")
+                    } else {
+                        walletLines.add("<li>Own workspace, <ul>$resourceLine</ul></li>")
+                    }
+                }
+                lowResourcesTemplate(recipient, walletLines)
             }
             is Mail.StillLowFundsMail  -> {
                 stillLowResources(recipient, mail.category, mail.provider, mail.projectTitle)
@@ -298,7 +320,7 @@ class MailService(
             })
 
             message.setContent(multipart)
-            if (devMode) {
+            if (devMode || testMail == true) {
                 fakeSend(message)
             } else {
                 Transport.send(message)

@@ -1,18 +1,21 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {compute} from "UCloud";
+import * as UCloud from "@/UCloud";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./index";
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
-import Flex from "ui-components/Flex";
-import {useState} from "react";
-import Box from "ui-components/Box";
+import Flex from "@/ui-components/Flex";
+import {useCallback, useMemo, useState} from "react";
+import Box from "@/ui-components/Box";
 import styled from "styled-components";
-import Input from "ui-components/Input";
-import Label from "ui-components/Label";
+import Input from "@/ui-components/Input";
+import Label from "@/ui-components/Label";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {ControlledJobSelector} from "../JobSelector";
-import {emptyPage} from "DefaultObjects";
-import {useCloudAPI} from "Authentication/DataHook";
+import {emptyPage} from "@/DefaultObjects";
+import {useCloudAPI} from "@/Authentication/DataHook";
+import {default as ReactModal} from "react-modal";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {JobBrowse} from "@/Applications/Jobs/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface PeerProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Peer;
@@ -46,7 +49,7 @@ export const PeerParameter: React.FunctionComponent<PeerProps> = props => {
     </Flex>;
 };
 
-export const PeerValidator: WidgetValidator = (param) => {
+export function PeerValidator(param: compute.ApplicationParameter): WidgetValidationAnswer {
     if (param.type === "peer") {
         const nameElem = findElementName(param);
         const jobElem = findElementJob(param);
@@ -61,7 +64,7 @@ export const PeerValidator: WidgetValidator = (param) => {
     }
 
     return {valid: true};
-};
+}
 
 export const PeerSetter: WidgetSetter = (param, value) => {
     if (param.type !== "peer") return;
@@ -92,6 +95,13 @@ interface JobSelectorProps {
 const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
     const [selectedPeer, setSelectedPeer] = useState<string>("");
     const [allowAutoConfigure, setAllowAutoConfigure] = useState<boolean>(true);
+    const [open, setOpen] = useState(false);
+    const doOpen = useCallback(() => {
+        setOpen(true);
+    }, [setOpen]);
+    const doClose = useCallback(() => {
+        setOpen(false)
+    }, [setOpen]);
 
     const [suggestedApplicationApi] = useCloudAPI<Page<UCloud.compute.Job>>(
         props.suggestedApplication ?
@@ -108,161 +118,37 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
-    return (
-        <ControlledJobSelector
-            hasSelectedJob={selectedPeer != null}
-            suggestedApplication={suggestedApplication ? {
-                name: suggestedApplication.specification.application.name,
-                version: suggestedApplication.specification.application.version
-            } : undefined}
-            allowAutoConfigure={allowAutoConfigure}
-            onSelect={job => {
-                setSelectedPeer(job.id);
-                setAllowAutoConfigure(false);
-            }}
-            trigger={
-                <Input
-                    id={widgetId(props.parameter) + "job"}
-                    /* height is not recognized as a prop for some reason */
-                    style={{height: "39px"}}
-                    value={selectedPeer}
-                    placeholder="No selected job"
-                    readOnly
-                />
-            }
+    const filters = useMemo(() => ({filterState: "RUNNING"}), []);
+
+    return (<Flex>
+        <PointerInput
+            id={widgetId(props.parameter) + "job"}
+            placeholder={"No selected run"}
+            onClick={doOpen}
+            value={selectedPeer}
+            style={{height: "39px"}}
+            readOnly
         />
-    );
-
-    /* 
-
-            DELETE THIS COMMENT-BLOCK WHEN SUGGESTED APP WORKS AS INTENDED.
-    if ((suggestedApplicationApi.data.itemsPerPage !== -1 || isSelectorOpen) && peerParams.noop) {
-        // Load available peers once we have loaded the suggested application (if one exists)
-        const name = suggestedApplication ? suggestedApplication.metadata.name : undefined;
-        const version = suggestedApplication ? suggestedApplication.metadata.version : undefined;
-        fetchAvailablePeers(UCloud.compute.jobs.browse({
-            itemsPerPage: 50,
-            application: name,
-            version,
-            filter: "RUNNING"
-        }));
-    }
-
-    if (selectedPeer === undefined && availablePeers.data.items.length > 0 && allowAutoConfigure) {
-        // Auto-configure a job if one can be selected
-        setSelectedPeer(availablePeers.data.items[0].jobId);
-        setAllowAutoConfigure(false);
-    }
-
-    return (
-        <>
-            <Flex>
-                <PointerInput
-                    readOnly
-                    placeholder={"No selected job"}
-                    id={widgetId(props.parameter) + "job"}
-                    value={selectedPeer ? selectedPeer : ""}
-                    onClick={() => {
-                        setAllowAutoConfigure(false);
-                        setSelectorOpen(true);
-                    }}
-                    error={props.error}
-                />
-            </Flex>
-
-            {suggestedApplication === null ? null : (
-                <Text>
-                    This application requires you to run {" "}
-                    <Link to={viewApplication(suggestedApplication.metadata)} target={"_blank"}>
-                        {suggestedApplication.metadata.title}.
-                    </Link>
-                    {" "}
-                    Would you like to start {" "}
-                    <Link to={runApplication(suggestedApplication.metadata)} target={"_blank"}>
-                        a new one?
-                    </Link>
-                </Text>
-            )}
-
-            <ReactModal
-                isOpen={isSelectorOpen}
-                onRequestClose={() => setSelectorOpen(false)}
-                shouldCloseOnEsc={true}
-                ariaHideApp={false}
-                style={defaultModalStyle}
-            >
-                <div>
-                    <Flex alignItems={"center"}>
-                        <Box flexGrow={1}>
-                            <Heading.h3>Jobs</Heading.h3>
-                        </Box>
-                        <div>
-                            {!(peerParams.parameters && peerParams.parameters.application) ? null : (
-                                <OutlineButton
-                                    type={"button"}
-                                    mr={8}
-                                    onClick={() => {
-                                        fetchAvailablePeers(UCloud.compute.jobs.browse({
-                                            ...(peerParams.parameters!),
-                                            application: undefined,
-                                            version: undefined
-                                        }));
-                                    }}
-                                >
-                                    Show all
-                                </OutlineButton>
-                            )}
-                            <Refresh
-                                spin={availablePeers.loading}
-                                onClick={() => fetchAvailablePeers(UCloud.compute.jobs.browse(peerParams.parameters!))}
-                            />
-                        </div>
-                    </Flex>
-                    <Divider/>
-
-                    <Pagination.List
-                        page={availablePeers.data}
-                        customEmptyPage={(
-                            <Box width={500}>
-                                You don&#39;t currently have any running jobs. You can start a new job by selecting an
-                                application
-                                (in &quot;Apps&quot;) and submitting it to be run.
-                            </Box>
-                        )}
-                        onPageChanged={newPage => {
-                            const params = peerParams.parameters;
-                            if (!params) return;
-                            fetchAvailablePeers(UCloud.compute.jobs.browse({...params, page: newPage}));
-                        }}
-                        loading={availablePeers.loading}
-                        pageRenderer={page => {
-                            return page.items.map((item, index) => (
-                                <Flex key={index} mb={8}>
-                                    <Box flexGrow={1}>
-                                        {item.metadata.title}
-                                        {" "}
-                                        ({item.name ? item.name : shortUUID(item.jobId)})
-                                        <br/>
-                                        {dateToString(item.createdAt)}
-                                    </Box>
-                                    <Button
-                                        type={"button"}
-                                        onClick={() => {
-                                            setSelectedPeer(item.jobId);
-                                            setSelectorOpen(false);
-                                        }}
-                                    >
-                                        Select
-                                    </Button>
-                                </Flex>
-                            ));
-                        }}
-                    />
-                </div>
-            </ReactModal>
-        </>
-    );
-     */
+        <input type="hidden" id={widgetId(props.parameter)}/>
+        <ReactModal
+            isOpen={open}
+            ariaHideApp={false}
+            style={largeModalStyle}
+            shouldCloseOnEsc
+            shouldCloseOnOverlayClick
+            onRequestClose={doClose}
+        >
+            <JobBrowse
+                additionalFilters={filters}
+                onSelect={job => {
+                    setSelectedPeer(job.id);
+                    setAllowAutoConfigure(false);
+                    doClose();
+                }}
+                browseType={BrowseType.Embedded}
+            />
+        </ReactModal>
+    </Flex>);
 };
 
 export const PointerInput = styled(Input)`

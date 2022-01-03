@@ -1,10 +1,14 @@
 package dk.sdu.cloud.calls.client
 
 import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import io.ktor.http.HttpStatusCode
 
-sealed class IngoingCallResponse<S : Any, E : Any> {
+object FakeOutgoingCall : OutgoingCall {
+    override val attributes: AttributeContainer = AttributeContainer()
+}
+
+sealed class IngoingCallResponse<S : Any, E : Any> : DocVisualizable {
     abstract val statusCode: HttpStatusCode
     abstract val ctx: OutgoingCall
 
@@ -12,13 +16,26 @@ sealed class IngoingCallResponse<S : Any, E : Any> {
         val result: S,
         override val statusCode: HttpStatusCode,
         override val ctx: OutgoingCall,
-    ) : IngoingCallResponse<S, E>()
+    ) : IngoingCallResponse<S, E>() {
+        override fun visualize(): DocVisualization = DocVisualization.Card(
+            "$statusCode",
+            emptyList(),
+            listOf(visualizeValue(result))
+        )
+    }
 
     data class Error<S : Any, E : Any>(
         val error: E?,
         override val statusCode: HttpStatusCode,
         override val ctx: OutgoingCall,
-    ) : IngoingCallResponse<S, E>()
+    ) : IngoingCallResponse<S, E>() {
+        override fun visualize(): DocVisualization = DocVisualization.Card(
+            "$statusCode",
+            emptyList(),
+            if (error != null) listOf(visualizeValue(error))
+            else listOf(DocVisualization.Inline("No error information")),
+        )
+    }
 }
 
 fun <T : Any> IngoingCallResponse<T, *>.orThrow(): T {

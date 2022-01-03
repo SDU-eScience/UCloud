@@ -3,6 +3,7 @@ import * as React from "react";
 const SvgLogoEsc = (props: any) => (
   <svg
     viewBox="0 0 1276 1458"
+    xmlns="http://www.w3.org/2000/svg"
     fillRule="evenodd"
     clipRule="evenodd"
     strokeLinecap="round"

@@ -8,8 +8,10 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.slf4j.Logger
 import java.time.LocalDate
+import java.util.*
 
 class ExpiredEntriesDeleteService(
     private val elastic: RestHighLevelClient
@@ -57,11 +59,10 @@ class ExpiredEntriesDeleteService(
         val currentDate = LocalDate.now()
         val daysToSave = 180
 
-        val dateToDelete = currentDate.minusDays(daysToSave.toLong()).toString().replace("-", ".")
         val indexToDelete = if (indexExists("development_default-*", elastic))
-            "development_default-${dateToDelete}*"
+            "development_default-${currentDate.minusDays(daysToSave.toLong())}*"
         else
-            "kubernetes-production-${dateToDelete}*"
+            "kubernetes-production-${currentDate.minusDays(daysToSave.toLong())}*"
 
         if (!indexExists(indexToDelete, elastic)) {
             log.info("no index with the name $indexToDelete")

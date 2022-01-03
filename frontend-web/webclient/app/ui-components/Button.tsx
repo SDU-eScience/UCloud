@@ -39,7 +39,7 @@ export const attached = (props: {attached?: boolean}): string | null => props.at
     border-bottom-left-radius: 0;`
     : null;
 
-export const asSquare = (props: {asSquare?: boolean}) => props.asSquare ? {
+export const asSquare = (props: {asSquare?: boolean}): {borderRadius: 0} | null => props.asSquare ? {
     borderRadius: 0
 } : null;
 

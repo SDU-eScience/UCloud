@@ -1,7 +1,8 @@
-import {KeyCode} from "DefaultObjects";
+import {KeyCode} from "@/DefaultObjects";
 import * as React from "react";
-import {Icon} from "ui-components";
-import * as Text from "ui-components/Text";
+import * as ReactDOM from "react-dom";
+import {Icon} from "@/ui-components";
+import * as Text from "@/ui-components/Text";
 import Box from "./Box";
 import {Dropdown, DropdownContent} from "./Dropdown";
 import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} from "react";
@@ -27,20 +28,44 @@ export interface ClickableDropdownProps<T> {
     bottom?: string | number;
     right?: string | number;
 
+    useMousePositioning?: boolean;
+    paddingControlledByContent?: boolean;
+
     chevron?: boolean;
     overflow?: string;
     colorOnHover?: boolean;
     squareTop?: boolean;
+
+    // NOTE(Dan): I am sorry for having to go imperative but this is needed to force close a mouse positioned
+    // dropdown. Otherwise, this will cause issues for confirmation buttons (which require a hold action versus a
+    // click).
+    closeFnRef?: React.MutableRefObject<() => void>;
+    openFnRef?: React.MutableRefObject<(left: number, top: number) => void>;
+    onKeyDown?: (ev: KeyboardEvent) => void;
 }
 
 type ClickableDropdownType = <T>(props: PropsWithChildren<ClickableDropdownProps<T>>, context?: any) =>
     JSX.Element | null;
 
+const dropdownPortal = "dropdown-portal";
+
 const ClickableDropdown: ClickableDropdownType =
     ({keepOpenOnClick, onChange, onTriggerClick, ...props}) => {
         const dropdownRef = useRef<HTMLDivElement>(null);
         const [open, setOpen] = useState(props.open ?? false);
+        const [location, setLocation] = useState<[number, number]>([0, 0]);
         const isControlled = useMemo(() => props.open !== undefined, []);
+        let portal = document.getElementById(dropdownPortal);
+        if (!portal) {
+            const elem = document.createElement("div");
+            elem.id = dropdownPortal;
+            document.body.appendChild(elem);
+            portal = elem;
+        }
+
+        if (isControlled && props.useMousePositioning) {
+            throw "Cannot use a controlled dropdown with useMousePositioning";
+        }
 
         useEffect(() => {
             if (isControlled && props.open !== undefined) {
@@ -48,21 +73,31 @@ const ClickableDropdown: ClickableDropdownType =
             }
         }, [props.open]);
 
-
         const close = useCallback(() => {
             if (isControlled && props.onClose) props.onClose();
             else if (!isControlled) setOpen(false);
         }, [props.onClose]);
+        if (props.closeFnRef) props.closeFnRef.current = close;
 
         const doOpen = useCallback(() => {
             onTriggerClick?.();
             if (!isControlled) setOpen(true);
         }, [onTriggerClick]);
 
-        const toggle = useCallback(() => {
+        const forceOpen = useCallback((left: number, top: number) => {
+            setLocation([left, top]);
+            doOpen()
+        }, [doOpen, setLocation]);
+        if (props.openFnRef) props.openFnRef.current = forceOpen;
+
+        const toggle = useCallback((e: React.MouseEvent) => {
             if (open) close();
             else doOpen();
-        }, [open]);
+
+            if (props.useMousePositioning) {
+                setLocation([e.clientX, e.clientY]);
+            }
+        }, [open, props.useMousePositioning]);
 
         let neither = true;
         if (props.children) neither = false;
@@ -72,14 +107,17 @@ const ClickableDropdown: ClickableDropdownType =
         // https://stackoverflow.com/questions/32553158/detect-click-outside-react-component#42234988
         const handleClickOutside = useCallback(event => {
             if (props.keepOpenOnOutsideClick) return;
-            if (dropdownRef.current && !dropdownRef.current.contains(event.target) && open) {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target) && open &&
+                !portal?.contains(event.target)) {
                 close();
             }
         }, [props.keepOpenOnOutsideClick, open]);
 
-        const handleEscPress = useCallback((event: { keyCode: KeyCode }): void => {
+        const handleEscPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
             if (event.keyCode === KeyCode.ESC && open) {
                 close();
+            } else {
+                props.onKeyDown?.(event);
             }
         }, [open]);
 
@@ -109,7 +147,42 @@ const ClickableDropdown: ClickableDropdownType =
             children = props.children;
         }
         const emptyChildren = (React.Children.map(children, it => it) ?? []).length === 0;
-        const width = props.fullWidth ? "100%" : props.width;
+        let width = props.fullWidth && !props.useMousePositioning ? "100%" : props.width;
+        let top = !props.useMousePositioning ? props.top : location[1];
+
+        let left = !props.useMousePositioning ? props.left : location[0];
+        if (props.useMousePositioning) {
+            if (width === undefined) width = 300;
+            const widthAsNumber = parseInt(width.toString().replace("px", ""));
+            const leftAsNumber = parseInt((left ?? 0).toString().replace("px", ""));
+            left = leftAsNumber - widthAsNumber;
+            if (left < 0) left = leftAsNumber;
+
+            const topAsNumber = parseInt((top ?? 0).toString().replace("px", ""));
+            const estimatedHeight = 38 * children.length;
+            if (window.innerHeight - (topAsNumber + estimatedHeight) < 50) {
+                top = topAsNumber - estimatedHeight;
+            }
+        }
+
+        const dropdownContent = <DropdownContent
+            overflow={"visible"}
+            squareTop={props.squareTop}
+            cursor="pointer"
+            {...(props as any)}
+            top={top}
+            left={left}
+            fixed={props.useMousePositioning}
+            width={width}
+            hover={false}
+            visible={open}
+            onClick={e => {
+                e.stopPropagation();
+                !keepOpenOnClick ? close() : null;
+            }}
+        >
+            {children}
+        </DropdownContent>;
         return (
             <Dropdown data-tag="dropdown" ref={dropdownRef} fullWidth={props.fullWidth}>
                 <Text.TextSpan
@@ -117,27 +190,17 @@ const ClickableDropdown: ClickableDropdownType =
                     onClick={e => {
                         e.preventDefault();
                         e.stopPropagation();
-                        toggle();
+                        toggle(e);
                     }}
                 >
-                    {props.trigger}{props.chevron ? <Icon name="chevronDown" size=".7em" ml=".7em"/> : null}
+                    {props.trigger}{props.chevron ? <Icon name="chevronDownLight" size="1em" ml=".7em" color={"darkGray"} /> : null}
                 </Text.TextSpan>
                 {emptyChildren || !open ? null : (
-                    <DropdownContent
-                        overflow={"visible"}
-                        squareTop={props.squareTop}
-                        cursor="pointer"
-                        {...props}
-                        width={width}
-                        hover={false}
-                        visible={open}
-                        onClick={e => {
-                            e.stopPropagation();
-                            !keepOpenOnClick ? close() : null;
-                        }}
-                    >
-                        {children}
-                    </DropdownContent>
+                    props.useMousePositioning ?
+                    ReactDOM.createPortal(
+                        dropdownContent,
+                        portal
+                    ) : dropdownContent
                 )}
             </Dropdown>
         );

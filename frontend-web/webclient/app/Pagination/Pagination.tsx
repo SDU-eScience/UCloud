@@ -1,8 +1,8 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Button, Flex, Input, OutlineButton, Text} from "ui-components";
-import ClickableDropdown from "ui-components/ClickableDropdown";
-import {TextSpan} from "ui-components/Text";
+import {Button, Flex, Input, OutlineButton, Text} from "@/ui-components";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {TextSpan} from "@/ui-components/Text";
 
 const EntriesPerPageSelectorOptions = [
     {key: 1, text: "10", value: 10},

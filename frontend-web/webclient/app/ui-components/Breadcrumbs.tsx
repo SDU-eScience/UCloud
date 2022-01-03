@@ -1,11 +1,11 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Icon, Text, Flex} from "ui-components";
-import {addTrailingSlash, removeTrailingSlash} from "UtilityFunctions";
-import HttpClient from "Authentication/lib";
-import {pathComponents} from "Utilities/FileUtilities";
-import {ProjectStatus, useProjectStatus} from "Project/cache";
-import {Center} from "UtilityComponents";
+import {Box, Icon, Text, Flex} from "@/ui-components";
+import {addTrailingSlash, removeTrailingSlash} from "@/UtilityFunctions";
+import {HttpClient} from "../Authentication/lib";
+import {pathComponents} from "@/Utilities/FileUtilities";
+import {ProjectStatus, useProjectStatus} from "@/Project/cache";
+import {Center} from "@/UtilityComponents";
 
 // https://www.w3schools.com/howto/howto_css_breadcrumbs.asp
 export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
@@ -37,7 +37,7 @@ export const BreadCrumbsBase = styled(Flex) <{embedded: boolean}>`
         text-decoration: none;
     }
 
-    & > span:last-child:hover {
+    &.isMain > span:last-child:hover {
         color: var(--text, #f00);
         cursor: default;
     }
@@ -68,7 +68,7 @@ export const BreadCrumbs = ({
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
-        <span key={p.local} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
+        <span key={p.local} data-component={"crumb"} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
             {p.local}
         </span>
     ));

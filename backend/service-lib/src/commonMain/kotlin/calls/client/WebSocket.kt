@@ -7,6 +7,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.client.*
 import io.ktor.client.features.websocket.*
+import io.ktor.client.request.*
 import io.ktor.http.*
 import io.ktor.http.cio.websocket.*
 import io.ktor.util.KtorExperimentalAPI
@@ -30,6 +31,7 @@ class OutgoingWSCall : OutgoingCall {
         override val attributes = AttributeContainer()
 
         internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
+        val proxyAttribute = AttributeKey<String>("ucloud-username")
     }
 }
 
@@ -90,7 +92,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             else log.debug(requestDebug)
         }
 
-        val session = connectionPool.retrieveConnection(url)
+        val session = connectionPool.retrieveConnection(url, ctx.attributes.getOrNull(OutgoingWSCall.proxyAttribute))
         val wsRequest = WSRequest(
             call.fullName,
             streamId,
@@ -292,21 +294,22 @@ internal class WSConnectionPool {
     private val websocketClient: HttpClient = createWebsocketClient()
 
     suspend fun retrieveConnection(
-        location: String
+        location: String,
+        proxiedTo: String?
     ): WSClientSession {
-        val existing = connectionPool[location]
+        val key = "$location/$proxiedTo"
+        val existing = connectionPool[key]
         if (existing != null) {
-            if (existing.underlyingSession.outgoing.isClosedForSend ||
-                existing.underlyingSession.incoming.isClosedForReceive
-            ) {
-                connectionPool.remove(location)
+            val realSession = existing.underlyingSession
+            if (realSession.outgoing.isClosedForSend || realSession.incoming.isClosedForReceive) {
+                connectionPool.remove(key)
             } else {
                 return existing
             }
         }
 
         mutex.withLock {
-            val existingAfterLock = connectionPool[location]
+            val existingAfterLock = connectionPool[key]
             if (existingAfterLock != null) return existingAfterLock
 
             val url = URLBuilder(location).build()
@@ -314,11 +317,16 @@ internal class WSConnectionPool {
             val session = websocketClient.webSocketSession(
                 host = url.host,
                 port = url.port,
-                path = url.fullPath
+                path = url.fullPath,
+                block = {
+                    if (proxiedTo != null) {
+                        header("UCloud-Username", proxiedTo)
+                    }
+                }
             )
 
             val wrappedSession = WSClientSession(session)
-            connectionPool[location] = wrappedSession
+            connectionPool[key] = wrappedSession
             wrappedSession.startProcessing(GlobalScope)
             return wrappedSession
         }

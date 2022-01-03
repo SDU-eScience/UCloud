@@ -1,22 +1,21 @@
-import {buildQueryString} from "Utilities/URIUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {PropType} from "UtilityFunctions";
-import * as UCloud from "UCloud";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {IconName} from "@/ui-components/Icon";
+import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, PaginationRequestV2} from "@/UCloud";
 
-export const productCacheKey = {cacheKey: "accounting.products", cacheTtlMs: 1000 * 60 * 30};
+export const UCLOUD_PROVIDER = "ucloud";
 
 export type AccountType = "USER" | "PROJECT";
-export type PaymentModel = NonNullable<PropType<UCloud.accounting.ProductNS.License, "paymentModel">>;
-export type ProductArea = NonNullable<PropType<UCloud.accounting.ListProductsByAreaRequest, "area">>;
-export const productAreas: ProductArea[] = ["STORAGE", "COMPUTE", "INGRESS", "LICENSE"];
+/* @deprecated */
+export type ProductArea = ProductType;
 
 export interface ProductCategoryId {
-    id: string;
+    name: string;
     provider: string;
     title?: string;
 }
 
-export function productToArea(product: UCloud.accounting.Product): ProductArea {
+export function productToArea(product: Product): ProductArea {
     switch (product.type) {
         case "compute": return "COMPUTE";
         case "ingress": return "INGRESS";
@@ -41,103 +40,119 @@ export function productAreaTitle(area: ProductArea): string {
     }
 }
 
-export interface WalletBalance {
-    wallet: Wallet;
+export interface VisualizationFlags {
+    filterStartDate?: number | null;
+    filterEndDate?: number | null;
+    filterType?: ProductType | null;
+    filterProvider?: string | null;
+    filterProductCategory?: string | null;
+    filterAllocation?: string | null;
+}
+
+export function retrieveUsage(request: VisualizationFlags): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/visualization", "usage");
+}
+
+export function retrieveBreakdown(request: VisualizationFlags): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/visualization", "breakdown");
+}
+
+export function browseWallets(request: PaginationRequestV2): APICallParameters {
+    return apiBrowse(request, "/api/accounting/wallets");
+}
+
+export interface TransferRecipient {
+    id: string;
+    isProject: boolean;
+    title: string;
+    principalInvestigator: string;
+    numberOfMembers: number;
+}
+
+export function retrieveRecipient(request: { query: string }): APICallParameters {
+    return apiRetrieve(request, "/api/accounting/wallets", "recipient");
+}
+
+export interface DepositToWalletRequestItem {
+    recipient: WalletOwner;
+    sourceAllocation: string;
+    amount: number;
+    description: string;
+    startDate: number;
+    endDate?: number;
+    dry?: boolean;
+}
+
+export interface TransferToWalletRequestItem {
+    categoryId: ProductCategoryId;
+    target: WalletOwner;
+    source: WalletOwner;
+    amount: number;
+    startDate: number;
+    endDate: number;
+}
+
+export interface UpdateAllocationRequestItem {
+    id: string;
     balance: number;
-    allocated: number;
-    used: number;
-    area: ProductArea;
+    startDate: number;
+    endDate?: number | null;
+    reason: string;
+    dry?: boolean;
+}
+
+export function updateAllocation(request: BulkRequest<UpdateAllocationRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "allocation");
+}
+
+export function deposit(request: BulkRequest<DepositToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "deposit");
+}
+
+export function transfer(request: BulkRequest<TransferToWalletRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "transfer");
+}
+
+interface RootDepositRequestItem {
+    categoryId: ProductCategoryId;
+    recipient: WalletOwner;
+    amount: number;
+    description: string;
+    startDate?: number | null;
+    endDate?: number | null;
+    transactionId?: string;
+}
+
+export function rootDeposit(request: BulkRequest<RootDepositRequestItem>): APICallParameters {
+    return apiUpdate(request, "/api/accounting", "rootDeposit");
+}
+
+export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+
+export interface WalletAllocation {
+    id: string;
+    allocationPath: string;
+    balance: number;
+    initialBalance: number;
+    localBalance: number;
+    startDate: number;
+    endDate?: number | null;
+    grantedIn?: number
 }
 
 export interface Wallet {
-    id: string;
-    type: AccountType;
+    owner: WalletOwner;
     paysFor: ProductCategoryId;
-}
-
-export function walletEquals(a: Wallet, b: Wallet): boolean {
-    return a.id === b.id && a.type === b.type && productCategoryEquals(a.paysFor, b.paysFor);
+    allocations: WalletAllocation[];
+    chargePolicy: "EXPIRE_FIRST";
+    productType: ProductType;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
 }
 
 export function productCategoryEquals(a: ProductCategoryId, b: ProductCategoryId): boolean {
-    return a.provider === b.provider && a.id === b.id;
+    return a.provider === b.provider && a.name === b.name;
 }
-
-export interface RetrieveBalanceRequest {
-    id?: string;
-    type?: AccountType;
-    includeChildren?: boolean;
-}
-
-export interface RetrieveBalanceResponse {
-    wallets: WalletBalance[];
-}
-
-export function retrieveBalance(request: RetrieveBalanceRequest): APICallParameters<RetrieveBalanceRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/wallets/balance", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface GrantCreditsRequest {
-    wallet: Wallet;
-    credits: number;
-}
-
-export type GrantCreditsResponse = {};
-
-export function grantCredits(request: GrantCreditsRequest): APICallParameters<GrantCreditsRequest> {
-    return {
-        method: "POST",
-        path: "/accounting/wallets/add-credits",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface SetCreditsRequest {
-    wallet: Wallet;
-    lastKnownBalance: number;
-    newBalance: number;
-}
-
-export type SetCreditsResponse = {};
-
-export function setCredits(request: SetCreditsRequest): APICallParameters<SetCreditsRequest> {
-    return {
-        method: "POST",
-        path: "/accounting/wallets/set-balance",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
-}
-
-export interface RetrieveCreditsRequest {
-    id: string;
-    type: AccountType;
-}
-
-export interface RetrieveCreditsResponse {
-    wallets: WalletBalance[];
-}
-
-export function retrieveCredits(request: RetrieveCreditsRequest): APICallParameters<RetrieveCreditsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/wallets/balance", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
-}
-
-// Machines
-
-export type Product = UCloud.accounting.Product;
 
 export interface ListProductsRequest extends PaginationRequest {
     provider: string;
@@ -186,233 +201,472 @@ export function retrieveFromProvider(
     };
 }
 
-export interface TimeRangeQuery {
-    bucketSize: number;
-    periodStart: number;
-    periodEnd: number;
-}
-
-export interface UsageRequest extends TimeRangeQuery {
-}
-
-export interface UsagePoint {
-    timestamp: number;
-    creditsUsed: number;
-}
-
-export interface UsageLine {
-    area: ProductArea;
-    category: string;
-    projectPath?: string;
-    projectId?: string;
-    points: UsagePoint[];
-}
-
 export interface UsageChart {
-    provider: string;
-    lines: UsageLine[];
+    type: ProductType;
+    periodUsage: number;
+    chargeType: ChargeType;
+    unit: ProductPriceUnit;
+    chart: {
+        lines: {
+            name: string;
+            points: {
+                timestamp: number;
+                value: number;
+            }[]
+        }[]
+    }
 }
 
-export interface UsageResponse {
-    charts: UsageChart[];
+
+export type ChargeType = "ABSOLUTE" | "DIFFERENTIAL_QUOTA";
+export type ProductPriceUnit =
+    "PER_UNIT" |
+    "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
+    "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
+
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
+export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
+export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
+
+export function productTypeToJsonType(type: ProductType): Type {
+    switch (type) {
+        case "COMPUTE": return "compute";
+        case "INGRESS": return "ingress";
+        case "LICENSE": return "license";
+        case "NETWORK_IP": return "network_ip";
+        case "STORAGE": return "storage";
+        default: return (type as any).toString().tolowerCase();
+    }
 }
 
-export function usage(request: UsageRequest): APICallParameters<UsageRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/accounting/visualization/usage", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+export interface ProductMetadata {
+    category: ProductCategoryId;
+    freeToUse: boolean;
+    productType: ProductType;
+    unitOfPrice: ProductPriceUnit;
+    chargeType: ChargeType;
+    hiddenInGrantApplications: boolean;
 }
 
-export interface NativeChartPoint extends Record<string, number> {
-    time: number;
+export interface ProductBase extends ProductMetadata {
+    type: Type;
+    pricePerUnit: number;
+    name: string;
+    description: string;
+    priority: number;
+    version?: number;
+    balance?: number | null;
 }
 
-export interface UsageRow {
-    title: string;
-    projectId: string;
-    projectPath: string;
-    creditsUsed: number;
-    creditsRemaining: number;
-    wallet?: WalletBalance;
-    children: UsageRow[];
+export interface ProductStorage extends ProductBase {
+    type: "storage";
+    productType: "STORAGE"
 }
 
-export interface UsageTable {
-    rows: UsageRow[];
+export interface ProductCompute extends ProductBase {
+    type: "compute";
+    productType: "COMPUTE";
+    cpu?: number | null;
+    memoryInGigs?: number | null;
+    gpu?: number | null;
 }
 
-interface AccountingProject {
-    categories: CategoryUsage[];
-    totalUsage: number;
-    totalAllocated: number;
-    projectId: string;
-    projectTitle: string;
+export interface ProductIngress extends ProductBase {
+    type: "ingress";
+    productType: "INGRESS"
 }
 
-interface CategoryUsage {
-    product: string;
-    usage: number;
-    allocated: number;
+export interface ProductLicense extends ProductBase {
+    type: "license";
+    productType: "LICENSE";
+    tags?: string[];
 }
 
-export function transformUsageChartForTable(
-    rootProject: string | undefined,
-    chart: UsageChart,
-    type: ProductArea,
-    wallets: WalletBalance[],
-    expanded: Set<string>
-): { provider: string; projects: AccountingProject[] } {
-    const projectMap: Record<string, AccountingProject> = {};
-    const relevantWallets = wallets.filter(it =>
-        it.area === type &&
-        ((rootProject && it.wallet.type === "PROJECT") ||
-            (!rootProject && it.wallet.type === "USER"))
-    );
+export interface ProductNetworkIP extends ProductBase {
+    type: "network_ip";
+    productType: "NETWORK_IP";
+}
 
-    chart.lines.filter(it => it.area === type).forEach(line => {
-        const projectName = !rootProject ? Client.username :
-            line.projectPath !== undefined ? line.projectPath : line.projectId;
-        if (!projectName) return;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
 
-        const lineUsage = line.points.reduce((acc, p) => p.creditsUsed + acc, 0);
-        const allocated = relevantWallets
-            .find(it => !rootProject || it.wallet.id === line.projectId)
-            ?.allocated ?? 0;
+export function productTypeToTitle(type: ProductType): string {
+    switch (type) {
+        case "INGRESS":
+            return "Public Link"
+        case "COMPUTE":
+            return "Compute";
+        case "STORAGE":
+            return "Storage";
+        case "NETWORK_IP":
+            return "Public IP";
+        case "LICENSE":
+            return "Software License";
+    }
+}
 
-        if (!projectMap[projectName]) {
-            projectMap[projectName] = {
-                categories: expanded.has(projectName) ?
-                    [{product: line.category, usage: lineUsage, allocated}] : [],
-                totalUsage: lineUsage,
-                totalAllocated: allocated,
-                projectId: line.projectId!,
-                projectTitle: projectName
-            };
-        } else {
-            const project = projectMap[projectName];
-            if (expanded.has(projectName)) {
-                projectMap[projectName].categories =
-                    project.categories.concat([{product: line.category, usage: lineUsage, allocated}]);
+export function productTypeToIcon(type: ProductType): IconName {
+    switch (type) {
+        case "INGRESS":
+            return "globeEuropeSolid"
+        case "COMPUTE":
+            return "cpu";
+        case "STORAGE":
+            return "hdd";
+        case "NETWORK_IP":
+            return "networkWiredSolid";
+        case "LICENSE":
+            return "apps";
+    }
+}
+
+export function explainAllocation(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            switch (type) {
+                case "INGRESS":
+                    return "Public links";
+                case "NETWORK_IP":
+                    return "Public IPs";
+                case "LICENSE":
+                    return "Licenses";
+                case "STORAGE":
+                    return "GB";
+                case "COMPUTE":
+                    return "Jobs";
             }
-            projectMap[projectName].totalUsage += lineUsage;
-            projectMap[projectName].totalAllocated += allocated;
-        }
-    });
-
-    const projects: AccountingProject[] = [];
-
-    for (const project of Object.keys(projectMap)) {
-        projectMap[project].categories.sort((a, b) => b.usage - a.usage);
-        projects.push(projectMap[project]);
-    }
-
-    return {provider: chart.provider, projects: projects.sort((a, b) => b.totalUsage - a.totalUsage)};
-}
-
-export interface NativeChart {
-    provider: string;
-    lineNames: string[];
-    points: NativeChartPoint[];
-}
-
-export function transformUsageChartForCharting(
-    chart: UsageChart,
-    type: ProductArea
-): NativeChart {
-    const builder: Record<string, NativeChartPoint> = {};
-    let lineNames: string[] = [];
-    const numberToInclude = 4;
-    const otherId = "Others";
-
-    const usagePerProject: Record<string, number> = {};
-
-    for (const line of chart.lines) {
-        if (type !== line.area) continue;
-        const projectName = line.projectPath ? line.projectPath : line.projectId;
-        if (!projectName) continue;
-
-
-        if (!lineNames.includes(projectName)) {
-            lineNames.push(projectName);
         }
 
-        usagePerProject[projectName] =
-            (usagePerProject[projectName] ?? 0) +
-            line.points.reduce((prev, cur) => prev + cur.creditsUsed, 0);
-    }
-
-    lineNames.sort((a, b) => (usagePerProject[b] ?? 0) - (usagePerProject[a] ?? 0));
-    lineNames = lineNames.filter((_, idx) => idx < numberToInclude);
-    if (lineNames.length === numberToInclude) lineNames.push(otherId);
-
-    for (const line of chart.lines) {
-        if (type !== line.area) continue;
-        const projectName = line.projectPath ? line.projectPath : line.projectId;
-        if (!projectName) continue;
-
-
-        const ranking = lineNames.indexOf(projectName);
-        let id = projectName;
-        if (ranking === -1) {
-            id = otherId;
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            return "DKK";
         }
 
-        for (const point of line.points) {
-            const dataPoint = builder[`${point.timestamp}`] ?? {time: point.timestamp};
-
-            if (dataPoint[id] === undefined) dataPoint[id] = 0;
-            dataPoint[id] += point.creditsUsed;
-
-            builder[`${point.timestamp}`] = dataPoint;
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "Days of public link";
+                case "NETWORK_IP":
+                    return "Days of public IP";
+                case "LICENSE":
+                    return "Days of license";
+                case "STORAGE":
+                    // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
+                    //  bill like this, but I also don't know what to call it.
+                    return "Days of GB";
+                case "COMPUTE":
+                    return "Core hours";
+            }
         }
     }
-
-    return {provider: chart.provider, lineNames, points: Object.values(builder)};
 }
 
-
-export interface RetrieveQuotaRequest {
-    path: string;
-    includeUsage?: boolean;
+export function explainUsage(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    // NOTE(Dan): I think this is generally the case, but I am leaving a separate function just in case we need to
+    // change it.
+    return explainAllocation(type, chargeType, unit);
 }
 
-export interface RetrieveQuotaResponse {
-    quotaInBytes: number;
-    quotaInTotal: number;
-    quotaUsed?: number;
+export function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            switch (type) {
+                case "INGRESS":
+                    return "Public links";
+                case "NETWORK_IP":
+                    return "Public IPs";
+                case "LICENSE":
+                    return "Licenses";
+                case "STORAGE":
+                    return "GB";
+                case "COMPUTE":
+                    return "Jobs";
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "DKK/day";
+                case "NETWORK_IP":
+                    return "DKK/day";
+                case "LICENSE":
+                    return "DKK/day";
+                case "STORAGE":
+                    return "DKK/day of one GB";
+                case "COMPUTE":
+                    return "DKK/hour";
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            switch (type) {
+                case "INGRESS":
+                    return "Days of public link";
+                case "NETWORK_IP":
+                    return "Days of public IP";
+                case "LICENSE":
+                    return "Days of license";
+                case "STORAGE":
+                    // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
+                    //  bill like this, but I also don't know what to call it.
+                    return "Days of GB";
+                case "COMPUTE":
+                    return "Core hours";
+            }
+        }
+    }
 }
 
-export function retrieveQuota(request: RetrieveQuotaRequest): APICallParameters<RetrieveQuotaRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/files/quota", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+const MINUTE = 1;
+const HOUR = MINUTE * 60;
+const DAY = HOUR * 24;
+
+export function normalizeBalanceForBackend(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit
+): number {
+    switch (unit) {
+        case "PER_UNIT": {
+            return balance;
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            return balance * 1000000;
+        }
+
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            const inputIs = unit === "UNITS_PER_MINUTE" ? MINUTE : unit === "UNITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = DAY / inputIs;
+                    return Math.ceil(balance * factor);
+                }
+                case "NETWORK_IP": {
+                    const factor = DAY / inputIs;
+                    return Math.ceil(balance * factor);
+                }
+                case "LICENSE": {
+                    const factor = DAY / inputIs;
+                    return Math.ceil(balance * factor);
+                }
+                case "STORAGE": {
+                    const factor = DAY / inputIs;
+                    return Math.ceil(balance * factor);
+                }
+                case "COMPUTE": {
+                    const factor = HOUR / inputIs;
+                    return Math.ceil(balance * factor);
+                }
+            }
+        }
+    }
 }
 
-export interface UpdateQuotaRequest {
-    path: string;
-    quotaInBytes: number;
+export function normalizeBalanceForFrontend(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit,
+    isPrice: boolean,
+    precisionOverride?: number,
+    multiplier?: number
+): string {
+    switch (unit) {
+        case "PER_UNIT": {
+            return balance.toString();
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "CREDITS_PER_MINUTE":
+        case "CREDITS_PER_HOUR":
+        case "CREDITS_PER_DAY": {
+            if (!isPrice) {
+                return currencyFormatter(balance, precisionOverride ?? 2);
+            }
+
+            const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                }
+                case "NETWORK_IP": {
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                }
+                case "LICENSE": {
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                }
+                case "STORAGE": {
+                    const factor = (DAY / inputIs) * (multiplier ?? 1);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                }
+                case "COMPUTE": {
+                    const factor = (HOUR / inputIs) * (multiplier ?? 1);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
+                }
+            }
+        }
+
+        // eslint-disable-next-line no-fallthrough
+        case "UNITS_PER_MINUTE":
+        case "UNITS_PER_HOUR":
+        case "UNITS_PER_DAY": {
+            const inputIs = unit === "UNITS_PER_MINUTE" ? MINUTE : unit === "UNITS_PER_HOUR" ? HOUR : DAY;
+
+            switch (type) {
+                case "INGRESS": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "NETWORK_IP": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "LICENSE": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "STORAGE": {
+                    const factor = DAY / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+                case "COMPUTE": {
+                    const factor = HOUR / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
+            }
+        }
+    }
 }
 
-export type UpdateQuotaResponse = {};
+function currencyFormatter(credits: number, precision = 2): string {
+    if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
 
-export function updateQuota(request: UpdateQuotaRequest): APICallParameters<UpdateQuotaRequest> {
-    return {
-        method: "POST",
-        path: "/files/quota",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
+    // Edge-case handling
+    if (credits < 0) {
+        return "-" + currencyFormatter(-credits);
+    } else if (credits === 0) {
+        return "0";
+    } else if (credits < Math.pow(10, 6 - precision)) {
+        if (precision === 0) return "< 1";
+        let builder = "< 0,";
+        for (let i = 0; i < precision - 1; i++) builder += "0";
+        builder += "1";
+        return builder;
+    }
+
+    // Group into before and after decimal separator
+    const stringified = credits.toString().padStart(6, "0");
+
+    let before = stringified.substr(0, stringified.length - 6);
+    let after = stringified.substr(stringified.length - 6);
+    if (before === "") before = "0";
+    if (after === "") after = "0";
+    after = after.padStart(precision, "0");
+    after = after.substr(0, precision);
+
+    // Truncate trailing zeroes (but keep at least two)
+    if (precision > 2) {
+        let firstZeroAt = -1;
+        for (let i = 2; i < after.length; i++) {
+            if (after[i] === "0") {
+                if (firstZeroAt === -1) firstZeroAt = i;
+            } else {
+                firstZeroAt = -1;
+            }
+        }
+
+        if (firstZeroAt !== -1) { // We have trailing zeroes
+            after = after.substr(0, firstZeroAt);
+        }
+    }
+
+    // Thousand separator
+    const beforeFormatted = addThousandSeparators(before);
+
+    if (after === "") return `${beforeFormatted}`;
+    else return `${beforeFormatted},${after}`;
 }
 
-export const UCLOUD_PROVIDER = "ucloud";
+function addThousandSeparators(numberOrString: string | number): string {
+    const numberAsString = typeof numberOrString === "string" ? numberOrString : numberOrString.toString(10);
+    let result = "";
+    const chunksInTotal = Math.ceil(numberAsString.length / 3);
+    let offset = 0;
+    for (let i = 0; i < chunksInTotal; i++) {
+        if (i === 0) {
+            let firstChunkSize = numberAsString.length % 3;
+            if (firstChunkSize === 0) firstChunkSize = 3;
+            result += numberAsString.substr(0, firstChunkSize);
+            offset += firstChunkSize;
+        } else {
+            result += '.';
+            result += numberAsString.substr(offset, 3);
+            offset += 3;
+        }
+    }
+    return result;
+}
 
-export function isQuotaSupported(category: ProductCategoryId): boolean {
-    return category.provider === UCLOUD_PROVIDER && category.id === "u1-cephfs";
+export function priceExplainer(product: Product): string {
+    const amount = normalizeBalanceForFrontend(product.pricePerUnit, product.productType, product.chargeType,
+        product.unitOfPrice, true, undefined, product.productType === "COMPUTE" ? (product["cpu"] ?? 1) : undefined);
+    const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
+    return `${amount} ${suffix}`
+}
+
+export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
+    let unitsToBuy: number;
+    const cpuFactor = product.productType === "COMPUTE" ? product["cpu"] as number : 1;
+    switch (product.unitOfPrice) {
+        case "PER_UNIT":
+            unitsToBuy = 1;
+            break;
+        case "CREDITS_PER_MINUTE":
+        case "UNITS_PER_MINUTE":
+            unitsToBuy = minutes;
+            break;
+        case "CREDITS_PER_HOUR":
+        case "UNITS_PER_HOUR":
+            unitsToBuy = Math.ceil(minutes / 60);
+            break;
+        case "CREDITS_PER_DAY":
+        case "UNITS_PER_DAY":
+            unitsToBuy = Math.ceil(minutes / (60 * 24));
+            break;
+    }
+
+    return unitsToBuy * product.pricePerUnit * numberOfProducts * cpuFactor;
+}
+
+export function usageExplainer(
+    usage: number,
+    productType: ProductType,
+    chargeType: ChargeType,
+    unitOfPrice: ProductPriceUnit
+): string {
+    const amount = normalizeBalanceForFrontend(usage, productType, chargeType, unitOfPrice, false);
+    const suffix = explainUsage(productType, chargeType, unitOfPrice);
+    return `${amount} ${suffix}`;
 }

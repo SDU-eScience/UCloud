@@ -9,4 +9,7 @@ annotation class TSTopLevel
 @Target(AnnotationTarget.CLASS)
 annotation class TSNamespace(val namespace: String)
 
+@Target(AnnotationTarget.CLASS)
+annotation class TSSkipCodegen()
+
 const val OAS_TS_DEF = "x-ucloud-ts"

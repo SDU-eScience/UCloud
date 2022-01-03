@@ -1,7 +1,12 @@
 import * as React from "react";
 
 const SvgCpu = (props: any) => (
-  <svg viewBox="0 0 79 79" fill="currentcolor" {...props}>
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 79 79"
+    fill="currentcolor"
+    {...props}
+  >
     <rect
       width={47.49}
       height={47.49}

@@ -1,4 +1,4 @@
-version = "0.22.2"
+version = "2022.1.0"
 
 application {
     mainClassName = "dk.sdu.cloud.app.kubernetes.MainKt"
@@ -9,7 +9,8 @@ kotlin.sourceSets {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation(project(":app-orchestrator-service:api"))
-            implementation(project(":project-service:api"))
+            implementation(project(":file-orchestrator-service:api"))
+            implementation(project(":file-ucloud-service:util"))
         }
     }
 }

@@ -1,419 +1,358 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
-import io.swagger.v3.oas.models.OpenAPI
-import io.swagger.v3.oas.models.Operation
+import kotlinx.serialization.KSerializer
 import java.io.File
 import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.HashMap
-import kotlin.collections.HashSet
+import kotlin.collections.LinkedHashMap
+import kotlin.reflect.KClass
 
-class GenerationContext {
-    val writers = HashMap<String, StringBuilder>()
-    val nsDoc = HashMap<String, String>()
-
-    inline fun writer(ns: String, block: StringBuilder.() -> Unit) {
-        writers.computeIfAbsent(ns, { StringBuilder() }).block()
-    }
+fun typescriptBaseFileName(namespace: String): String {
+    return namespace.split(".").joinToString("") { it.replaceFirstChar { it.uppercaseChar() } }
 }
+
+var didGenerateTypeScriptCore = false
+
+const val TYPESCRIPT_AUTO_GENERATED = "/* DO NOT MODIFY - AUTO GENERATED CODE - DO NOT MODIFY */"
 
 fun generateTypeScriptCode(
-    outputDir: File,
-    api: OpenAPI,
-    typeRegistry: Map<String, ComputedType>,
+    types: LinkedHashMap<String, GeneratedType>,
+    calls: List<GeneratedRemoteProcedureCall>,
+    title: String,
+    container: CallDescriptionContainer
 ) {
-    val outputFile = File(outputDir, "Applications/index.ts")
-    outputFile.parentFile.mkdirs()
+    val baseDirectory = File("../../frontend-web/webclient/app/UCloudTest").takeIf { it.exists() }
+        ?: File("/opt/frontend/app/UCloudTest").takeIf { it.exists() }
 
-    val ctx = GenerationContext()
-    with(ctx) {
-        for ((path, pathItem) in api.paths) {
-            if (pathItem.get != null) {
-                val callExtension = pathItem.get.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Get, pathItem.get, callExtension, typeRegistry)
-            }
-            if (pathItem.post != null) {
-                val callExtension = pathItem.post.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Post, pathItem.post, callExtension, typeRegistry)
-            }
-            if (pathItem.delete != null) {
-                val callExtension = pathItem.delete.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Delete, pathItem.delete, callExtension, typeRegistry)
-            }
-            if (pathItem.head != null) {
-                val callExtension = pathItem.head.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Head, pathItem.head, callExtension, typeRegistry)
-            }
-            if (pathItem.put != null) {
-                val callExtension = pathItem.put.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Put, pathItem.put, callExtension, typeRegistry)
-            }
-            if (pathItem.options != null) {
-                val callExtension = pathItem.options.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Options, pathItem.options, callExtension, typeRegistry)
-            }
-            if (pathItem.patch != null) {
-                val callExtension = pathItem.patch.extensions[CallExtension.EXTENSION] as CallExtension
-                generateOp(HttpMethod.Patch, pathItem.patch, callExtension, typeRegistry)
+    if (baseDirectory == null) {
+        println("WARN: Could not find frontend code")
+        return
+    }
+
+    if (!didGenerateTypeScriptCore) {
+        didGenerateTypeScriptCore = true
+        baseDirectory.listFiles()?.forEach {
+            if (it.readLines().any { it == TYPESCRIPT_AUTO_GENERATED }) {
+                it.delete()
             }
         }
-
-        for ((name, type) in typeRegistry) {
-            if (!name.endsWith("_Opt")) {
-                if (type is ComputedType.Struct && type.genericInfo != null) {
-                    continue
-                }
-
-                writer(simplifyNamespace(name).substringBeforeLast('.', "")) {
-                    buildType(type, typeRegistry)
-                }
-            }
-        }
-
-        outputFile.writer().use { w ->
+        File(baseDirectory, "Numbers.ts").writer().use { w ->
             w.appendLine("/* eslint-disable */")
-            w.appendLine("/* AUTO GENERATED CODE - DO NOT MODIFY */")
-            w.appendLine("/* Generated at: ${Date()} */")
-            w.appendLine()
-            w.appendLine(
-                """
-                    import {buildQueryString} from "Utilities/URIUtilities";
-                    
-                """.trimIndent()
-            )
-
-            data class Node(val name: String, val children: ArrayList<Node>, val namespace: String, var text: String)
-
-            val root = Node("", ArrayList(), "", "")
-            for ((ns, text) in ctx.writers) {
-                var nodeSearch = root
-                var namespaceBuilder = ""
-                var first = true
-                ns.split(".").filter { it.isNotEmpty() }.forEach { n ->
-                    val nextNode = nodeSearch.children.find { it.name == n }
-
-                    if (first) first = false
-                    else namespaceBuilder += "."
-                    namespaceBuilder += n
-
-                    if (nextNode == null) {
-                        val newNode = Node(n, ArrayList(), namespaceBuilder, "")
-                        nodeSearch.children.add(newNode)
-                        nodeSearch = newNode
-                    } else {
-                        nodeSearch = nextNode
-                    }
-                }
-
-                nodeSearch.text += text
-            }
-
-            fun writeNode(node: Node) {
-                if (node.name != "") {
-                    w.appendLine("export namespace ${node.name} {")
-                }
-
-                var text = node.text.removeSuffix("\n")
-                for (n in node.namespace.split(".")) {
-                    text = text.replace("$n.", "")
-                }
-
-                w.appendLine(text)
-
-                for (child in node.children) {
-                    writeNode(child)
-                }
-
-                if (node.name != "") w.appendLine("}")
-            }
-
-            writeNode(root)
+            w.appendLine(TYPESCRIPT_AUTO_GENERATED)
+            w.appendLine("export type Int8 = number;")
+            w.appendLine("export type Int16 = number;")
+            w.appendLine("export type Int32 = number;")
+            w.appendLine("export type Int64 = number;")
+            w.appendLine("export type Float32 = number;")
+            w.appendLine("export type Float64 = number;")
         }
     }
-}
 
-private fun GenerationContext.generateOp(
-    method: HttpMethod,
-    op: Operation,
-    info: CallExtension,
-    registry: Map<String, ComputedType>,
-) {
+    if (container.namespace.contains(PROVIDER_ID_PLACEHOLDER) || container.namespace.contains(".provider")) return
 
-    val namespace =
-        (info.call.containerRef.javaClass.annotations.find { it is TSNamespace } as TSNamespace?)?.namespace
-            ?: simplifyNamespace(
-                info.call.containerRef.javaClass.canonicalName!!.substringBeforeLast('.') +
-                    if (info.call.containerRef.javaClass.annotations.any { it is TSTopLevel }) ""
-                    else '.' + info.call.namespace.substringAfterLast('.')
-            )
+    val importBuilder = TsImportBuilder(container::class, types, HashMap<String, HashSet<String>>())
+    val outputFile = File(baseDirectory, "${typescriptBaseFileName(container.namespace)}.ts")
 
-    writer(namespace) {
-        if (op.summary != null) {
-            appendLine("/**")
-            appendLine(op.summary.prependIndent(" * "))
-            appendLine(" *")
-            appendLine(op.description.prependIndent(" * "))
-            if (op.deprecated == true) appendLine(" * @deprecated")
-            appendLine(" */")
-        }
-        // Hack: Delete anything after '.' to allow versioning in call ids
-        append("export function ${tsSafeIdentifier(info.call.name.substringBefore('.'))}(")
-        val requestType = info.requestType
-        if (requestType != null) {
-            appendLine()
-            append("    request: ")
-            buildType(requestType.asRef(), registry)
-            appendLine()
-        }
-        append("): APICallParameters<")
-        if (requestType == null) {
-            append("{}")
-        } else {
-            buildType(requestType.asRef(), registry)
+    val fileBuilder = StringBuilder().let { w ->
+        for ((_, type) in types) {
+            if (type.owner != container::class) continue
+            w.appendLine(type.typescript(importBuilder))
         }
 
-        val responseType = info.responseType
-        if (responseType == null) {
-            append(", {}")
-        } else {
-            append(", ")
-            buildType(responseType.asRef(), registry)
-        }
+        w.appendLine("class ${container.typescriptApiName()} {")
+        for ((index, call) in calls.withIndex()) {
+            val http = call.realCall.httpOrNull ?: continue
 
-        appendLine("> {")
-        appendLine("    return {")
-        appendLine("        context: \"\",")
-        appendLine("        method: \"${method.value.toUpperCase()}\",")
-        append("        path: ")
-        with(info.call.http.path) {
-            val usesParams = info.call.http.params?.parameters?.isNotEmpty() == true
-            if (usesParams) {
-                append("buildQueryString(")
+            if (index != 0) {
+                w.appendLine()
+                w.appendLine()
             }
-            append('"' + basePath.removeSuffix("/") + '"')
-            for (segment in segments) {
-                when (segment) {
-                    is HttpPathSegment.Simple -> {
-                        append(" + \"/")
-                        append(segment.text)
-                        append('"')
-                    }
-                }
-            }
-            if (usesParams) {
-                append(", {")
-                var isFirst = true
-                for (param in (info.call.http.params?.parameters ?: emptyList())) {
-                    when (param) {
-                        is HttpQueryParameter.Property<*> -> {
-                            if (isFirst) {
-                                isFirst = false
-                            } else {
-                                append(", ")
-                            }
-
-                            append(param.property)
-                            append(": ")
-                            append("request.${param.property}")
-                        }
-                    }
-                }
-                append("})")
-            }
-            appendLine(",")
-        }
-        if (requestType != null) appendLine("        parameters: request,")
-        appendLine("        reloadId: Math.random(),")
-        if (op.requestBody != null) {
-            appendLine("        payload: request,")
-        }
-        appendLine("    };")
-        appendLine("}")
-
-    }
-}
-
-private fun Appendable.buildType(
-    computedType: ComputedType,
-    registry: Map<String, ComputedType>,
-) {
-    when (computedType) {
-        is ComputedType.Integer -> append("number /* int${computedType.size} */")
-
-        is ComputedType.FloatingPoint -> append("number /* float${computedType.size} */")
-
-        is ComputedType.Text -> append("string")
-
-        is ComputedType.Bool -> append("boolean")
-
-        is ComputedType.Array -> {
-            buildType(computedType.itemType.asRef(), registry)
-            append("[]")
-        }
-
-        is ComputedType.Dictionary -> {
-            append("Record<string, ")
-            buildType(computedType.itemType.asRef(), registry)
-            append(">")
-        }
-
-        is ComputedType.Unknown -> {
-            append("any /* unknown */")
-        }
-
-        is ComputedType.Generic -> {
-            append(computedType.id)
-        }
-
-        is ComputedType.Struct -> {
-            if (computedType.documentation != null) {
-                appendLine("/**")
-                append(computedType.documentation!!.prependIndent(" * ").removeSuffix("\n"))
+            w.append(buildString {
+                append("public ")
+                append(tsSafeIdentifier(call.name))
+                appendLine("(")
+                append("    request")
+                append(call.requestType.typescript(importBuilder))
                 appendLine()
-                if (computedType.deprecated) {
-                    appendLine(" * @deprecated")
+                append("): APICallParameters<")
+                append(call.requestType.typescript(importBuilder, addColon = false))
+                append(", ")
+                append(call.responseType.typescript(importBuilder, addColon = false))
+                appendLine("> {")
+
+                val method = when (http.method) {
+                    HttpMethod.Get -> "'GET'"
+                    HttpMethod.Post -> "'POST'"
+                    HttpMethod.Delete -> "'DELETE'"
+                    HttpMethod.Put -> "'PUT'"
+                    HttpMethod.Patch -> "'PATCH'"
+                    HttpMethod.Options -> "'OPTIONS'"
+                    HttpMethod.Head -> "'HEAD'"
+                    else -> null
                 }
-                appendLine(" */")
-            }
-            if (computedType.tsDef != null) {
-                append(computedType.tsDef!!.code)
-            } else {
-                if (computedType.discriminator != null) {
-                    append("export type ${computedType.qualifiedName.substringAfterLast('.')} = ")
-                    var first = true
-                    for ((k, v) in computedType.discriminator!!.valueToQualifiedName) {
-                        if (first) first = false
-                        else append(" | ")
-                        buildType(registry.getValue(v).asRef(), registry)
+
+                when {
+                    method != null && http.params != null && http.body == null && http.headers == null -> {
+                        // Simple-case: Bind everything from query parameters
+                        append(buildString {
+                            appendLine("return {")
+
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(true))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+                            appendLine("    parameters: request,")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
                     }
-                    appendLine()
-                } else {
-                    append("export interface ${computedType.qualifiedName.substringAfterLast('.')}")
-                    run {
-                        val alreadyAdded = HashSet<String>()
-                        var first = true
-                        computedType.properties.filter {
-                            val value = it.value
 
-                            value is ComputedType.Generic ||
-                                (value is ComputedType.Array && value.itemType is ComputedType.Generic)
-                        }.forEach { prop ->
-                            val id = if (prop.value is ComputedType.Generic) {
-                                (prop.value as ComputedType.Generic).id
-                            } else {
-                                ((prop.value as ComputedType.Array).itemType as ComputedType.Generic).id
-                            }
+                    method != null && http.params == null && http.body != null && http.headers == null -> {
+                        // Simple-case: Bind everything to the body
+                        append(buildString {
+                            appendLine("return {")
 
-                            if (id in alreadyAdded) return@forEach
-                            alreadyAdded.add(id)
-                            if (first) {
-                                first = false
-                                append("<")
-                            } else {
-                                append(", ")
-                            }
-                            append(id)
-                            append(" = unknown")
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(false))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+                            appendLine("    parameters: request,")
+                            appendLine("    payload: request,")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
+                    }
+
+                    method != null && http.params == null && http.body == null && http.headers == null -> {
+                        // Simple-case: Everything is null
+                        append(buildString {
+                            appendLine("return {")
+
+                            append("    method: ")
+                            append(method)
+                            appendLine(",")
+
+                            append("    path: ")
+                            append(http.pathToTypescript(false))
+                            appendLine(",")
+
+                            appendLine("    context: '',")
+
+                            appendLine("};")
+                        }.prependIndent("    ").trimEnd())
+                    }
+
+                    else -> {
+                        if (call.name.contains("upload")) {
+                            appendLine("throw Error('Uploads are not supported from this interface');")
+                        } else {
+                            println("Cannot generate implementation for ${call.namespace}.${call.name}")
+                            appendLine("throw Error('Missing implementation for ${call.namespace}.${call.name}');")
                         }
-                        if (alreadyAdded.isNotEmpty()) {
-                            append(">")
+                    }
+                }
+                appendLine()
+                appendLine("}")
+            }.prependIndent("    ").trimEnd())
+        }
+        w.appendLine()
+        w.appendLine("}")
+        w.appendLine()
+        w.appendLine("export default new ${container.typescriptApiName()};")
+    }
+
+    outputFile.writer().use { w ->
+        w.appendLine("/* eslint-disable */")
+        w.appendLine(TYPESCRIPT_AUTO_GENERATED)
+        w.appendLine("// noinspection ES6UnusedImports")
+        w.appendLine()
+        w.appendLine(
+            """
+                import {buildQueryString} from "@/Utilities/URIUtilities";
+                import {Int8, Int16, Int32, Int64, Float32, Float64} from "@/UCloudTest/Numbers";
+            """.trimIndent()
+        )
+
+        for ((module, imports) in importBuilder.imports) {
+            w.appendLine("import {${imports.joinToString(", ")}} from \"@/UCloudTest/${typescriptBaseFileName(module)}\"")
+        }
+        w.appendLine()
+
+        w.appendLine(fileBuilder)
+    }
+}
+
+fun HttpRequest<*, *, *>.pathToTypescript(usesParams: Boolean): String {
+    return buildString {
+        if (usesParams) append("buildQueryString(")
+        append('"' + path.basePath.removeSuffix("/") + '"')
+        for (segment in path.segments) {
+            when (segment) {
+                is HttpPathSegment.Simple -> {
+                    append(" + \"/")
+                    append(segment.text)
+                    append('"')
+                }
+            }
+        }
+        if (usesParams) append(", request)")
+    }
+}
+
+fun CallDescriptionContainer.typescriptApiName(): String {
+    return namespace.split(".").joinToString("") { it.replaceFirstChar { it.uppercaseChar() } } + "Api"
+}
+
+data class TsImportBuilder(
+    val owner: KClass<out CallDescriptionContainer>,
+    val visitedTypes: Map<String, GeneratedType>,
+    val imports: MutableMap<String, HashSet<String>>,
+)
+
+fun GeneratedTypeReference.typescript(
+    importBuilder: TsImportBuilder,
+    addColon: Boolean = true
+): String {
+    val baseValue = when (this) {
+        is GeneratedTypeReference.Any -> "any"
+        is GeneratedTypeReference.Array -> "(${valueType.typescript(importBuilder, addColon = false)})[]"
+        is GeneratedTypeReference.Bool -> "boolean"
+        is GeneratedTypeReference.ConstantString -> "\"${value}\""
+        is GeneratedTypeReference.Dictionary -> "Record<string, any>"
+        is GeneratedTypeReference.Float32 -> "Float32"
+        is GeneratedTypeReference.Float64 -> "Float64"
+        is GeneratedTypeReference.Int8 -> "Int8"
+        is GeneratedTypeReference.Int16 -> "Int16"
+        is GeneratedTypeReference.Int32 -> "Int32"
+        is GeneratedTypeReference.Int64 -> "Int64"
+        is GeneratedTypeReference.Structure -> buildString {
+            val type = importBuilder.visitedTypes[name]
+            if (type != null && importBuilder.owner != type.owner && name.startsWith("dk.sdu.cloud.")) {
+                val typeOwner = type.owner ?: run {
+                    println("MISSING OWNER FOR $name. THIS SHOULD NOT HAPPEN.")
+                    null
+                }
+
+                if (typeOwner != null) {
+                    val namespace = typeOwner.objectInstance?.namespace
+                    if (namespace != null) {
+                        val imports = importBuilder.imports[namespace] ?: run {
+                            val newList = HashSet<String>()
+                            importBuilder.imports[namespace] = newList
+                            newList
                         }
+                        imports.add(simplifyClassName(name))
+                    }
+                }
+            }
+
+            append(simplifyClassName(name))
+            if (generics.isNotEmpty()) {
+                append("<")
+                for ((index, generic) in generics.withIndex()) {
+                    if (index != 0) append(", ")
+                    append(generic.typescript(importBuilder, addColon = false))
+                }
+                append(">")
+            }
+        }
+        is GeneratedTypeReference.Text -> "string"
+        is GeneratedTypeReference.Void -> "{}"
+    }
+
+    return when {
+        nullable && addColon -> "?: $baseValue | null"
+        nullable && !addColon -> "$baseValue | null | undefined"
+        addColon -> ": $baseValue"
+        else -> baseValue
+    }
+}
+
+fun GeneratedType.typescript(importBuilder: TsImportBuilder): String {
+    return when (this) {
+        is GeneratedType.Enum -> {
+            buildString {
+                append("export type ${simplifyClassName(name)} = ")
+                for ((index, option) in options.withIndex()) {
+                    if (index != 0) append(" | ")
+                    append('"')
+                    append(option.name)
+                    append('"')
+                }
+                appendLine(";")
+                append("export const ${simplifyClassName(name)}Values: ${simplifyClassName(name)}[] = [")
+                for ((index, option) in options.withIndex()) {
+                    if (index != 0) append(", ")
+                    append('"')
+                    append(option.name)
+                    append('"')
+                    append(" as const")
+                }
+                appendLine("];")
+            }
+        }
+        is GeneratedType.Struct -> {
+            buildString {
+                append("export interface ${simplifyClassName(name)}")
+                if (generics.isNotEmpty()) {
+                    append("<")
+                    for ((index, generic) in generics.withIndex()) {
+                        if (index != 0) append(", ")
+                        append(generic)
+                    }
+                    append(">")
+                }
+                appendLine(" {")
+                for (property in properties) {
+                    appendLine("    ${property.name}${property.type.typescript(importBuilder, addColon = true)};")
+                }
+                appendLine("}")
+            }
+        }
+        is GeneratedType.TaggedUnion -> {
+            buildString {
+                val hasBase = baseProperties.isNotEmpty()
+                if (hasBase) {
+                    append("export interface ${simplifyClassName(name)}Base")
+                    if (generics.isNotEmpty()) {
+                        append("<")
+                        for ((index, generic) in generics.withIndex()) {
+                            if (index != 0) append(", ")
+                            append(generic)
+                        }
+                        append(">")
                     }
                     appendLine(" {")
-                    computedType.properties.forEach { (name, type) ->
-                        if (type.documentation != null) {
-                            appendLine("/**".prependIndent("    "))
-                            append(type.documentation!!.prependIndent("     * ").removeSuffix("\n"))
-                            appendLine()
-                            if (type.deprecated) {
-                                appendLine("     * @deprecated")
-                            }
-                            appendLine(" */".prependIndent("    "))
-                        }
-                        append("    ")
-                        append(name)
-                        if (type.nullable) {
-                            append("?")
-                        }
-                        append(": ")
-                        buildType(type.asRef(), registry)
-                        appendLine(",")
+                    for (property in baseProperties) {
+                        appendLine("    ${property.name}${property.type.typescript(importBuilder, addColon = true)};")
                     }
                     appendLine("}")
                 }
-            }
-        }
-
-        is ComputedType.StructRef -> {
-            val structMaybe = registry[computedType.qualifiedName] as? ComputedType.Struct
-            val isGeneric = structMaybe?.genericInfo != null
-            if (isGeneric) {
-                val struct = structMaybe!!
-                val genericInfo = struct.genericInfo!!
-                val baseType = registry[genericInfo.baseType]!!
-                buildType(baseType.asRef(), registry)
-                append("<")
-                var first = true
-                for (gen in genericInfo.typeParameters) {
-                    if (first) {
-                        first = false
-                    } else {
-                        append(", ")
-                    }
-                    buildType(gen.asRef(), registry)
+                append("export type ${simplifyClassName(name)} = ")
+                for ((index, option) in options.withIndex()) {
+                    if (index != 0) append(" | ")
+                    append(option.typescript(importBuilder, addColon = false))
                 }
-                append(">")
-            } else {
-                append(simplifyNamespace(computedType.qualifiedName))
-            }
-        }
-
-        is ComputedType.Enum -> {
-            append(computedType.options.joinToString(" | ") { '"' + it + '"' })
-        }
-
-        is ComputedType.CustomSchema -> {
-            if (computedType.tsDefinition != null) {
-                buildType(computedType.tsDefinition.asRef(), registry)
-            } else {
-                append("any /* CustomSchema */")
+                appendLine(";")
             }
         }
     }
 }
 
-private fun simplifyNamespace(qualifiedName: String): String {
-    val result = StringBuilder()
-    val components = qualifiedName
-        .removeSuffix("_Opt")
-        .replace("dk.sdu.cloud.app.license.", "compute.license.")
-        .replace("dk.sdu.cloud.app.store.", "compute.")
-        .replace("dk.sdu.cloud.app.orchestrator.", "compute.")
-        .replace("dk.sdu.cloud.app.kubernetes.", "compute.ucloud.")
-        .replace("contact.book", "contactbook")
-        .removePrefix("dk.sdu.cloud.calls.types")
-        .removePrefix("dk.sdu.cloud.calls")
-        .removePrefix("dk.sdu.cloud.service")
-        .removePrefix("dk.sdu.cloud")
-        .split(".")
-        .filter { it.isNotEmpty() }
-        .filter {
-            it != "api"
-        }
-
-    for ((index, component) in components.withIndex()) {
-        if (index != 0) {
-            result.append(".")
-        }
-        result.append(component)
-        if (component.first().isUpperCase() && index != components.lastIndex) {
-            result.append("NS")
-        }
-    }
-
-    return result.toString()
+private fun simplifyClassName(qualifiedName: String): String {
+    return simplifyName(qualifiedName).replace(".", "")
 }
 
 private fun tsSafeIdentifier(name: String): String {
@@ -421,5 +360,75 @@ private fun tsSafeIdentifier(name: String): String {
         "delete" -> "remove"
         "new" -> "new_" // not ideal but will be deprecated anyway
         else -> name
+    }
+}
+
+fun UseCase.typescript(): String {
+    return buildString {
+        var lastActor: String? = null
+
+        appendLine("```typescript")
+        for (node in nodes) {
+            when (node) {
+                is UseCaseNode.Actor -> {
+                    // Do nothing
+                }
+                is UseCaseNode.Call<*, *, *> -> {
+                    if (lastActor != node.actor.name) {
+                        appendLine("// Authenticated as ${node.actor.name}")
+                        lastActor = node.actor.name
+                    }
+
+                    if (node.name != null) {
+                        append("const ")
+                        append(node.name)
+                        append(" = ")
+                    }
+                    append("await callAPI(")
+                    append(node.call.containerRef.typescriptApiName())
+                    append(".")
+                    append(node.call.field?.name ?: node.call.name)
+                    appendLine("(")
+                    appendLine(
+                        prettyMapper.encodeToString(
+                            node.call.requestType as KSerializer<Any>, node.request
+                        ).prependIndent("    ")
+                    )
+                    appendLine(");")
+                    appendLine()
+                    appendLine("/*")
+                    if (node.name != null) {
+                        append(node.name)
+                        append(" = ")
+                    }
+                    when (val response = node.response) {
+                        is IngoingCallResponse.Error -> {
+                            appendLine(response.statusCode.toString())
+                        }
+                        is IngoingCallResponse.Ok -> {
+                            appendLine(
+                                prettyMapper.encodeToString(node.call.successType as KSerializer<Any>, response.result)
+                            )
+                        }
+                    }
+                    appendLine("*/")
+                }
+                is UseCaseNode.Comment -> {
+                    appendLine()
+                    appendLine("/* ${node.comment} */")
+                    appendLine()
+                }
+                is UseCaseNode.SourceCode -> {
+                    if (node.language == UseCaseNode.Language.TYPESCRIPT) {
+                        appendLine(node.code)
+                    }
+                }
+
+                else -> {
+                    // TODO
+                }
+            }
+        }
+        appendLine("```")
     }
 }

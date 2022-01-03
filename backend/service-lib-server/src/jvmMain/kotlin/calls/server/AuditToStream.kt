@@ -127,6 +127,7 @@ class AuditToEventStream(
                 val expiresPeriod = auditDescription?.retentionPeriod ?: AuditDescription.DEFAULT_RETENTION_PERIOD
                 val expiry = Time.now() + expiresPeriod
                 val auditSerializer = (auditDescription?.auditType ?: call.requestType) as KSerializer<Any?>
+
                 coroutineScope {
                     launch {
                         val entry = HttpCallLogEntry(

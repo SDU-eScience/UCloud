@@ -87,8 +87,8 @@ class HttpCallQueryParamsBuilder<R : Any> internal constructor() {
         return HttpQueryParameter.Property(property.name)
     }
 
-    fun boundTo(property: String): HttpQueryParameter.Property<R> {
-        return HttpQueryParameter.Property(property)
+    fun boundTo(property: String, nestedInside: String? = null): HttpQueryParameter.Property<R> {
+        return HttpQueryParameter.Property(property, nestedInside)
     }
 
     fun build(): HttpParams<R> = HttpParams(params)
@@ -112,8 +112,9 @@ class HttpCallHeadersBuilder<R : Any> internal constructor() {
     fun <T> boundTo(
         header: String,
         property: KProperty1<R, T>,
+        base64Encoded: Boolean = true
     ): HttpHeaderParameter.Property<R, T> {
-        return HttpHeaderParameter.Property(header, property)
+        return HttpHeaderParameter.Property(header, property, base64Encoded)
     }
 
     fun build(): HttpHeaderDescription<R> {

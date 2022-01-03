@@ -1,12 +1,14 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "./index";
-import {Input} from "ui-components";
-import {compute} from "UCloud";
+import {TextArea, Input} from "@/ui-components";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
+import styled from "styled-components";
 
 type GenericTextType =
     UCloud.compute.ApplicationParameterNS.Text |
+    UCloud.compute.ApplicationParameterNS.TextArea |
     UCloud.compute.ApplicationParameterNS.Integer |
     UCloud.compute.ApplicationParameterNS.FloatingPoint;
 
@@ -30,11 +32,32 @@ export const GenericTextParameter: React.FunctionComponent<GenericTextProps> = p
     />;
 };
 
+const TextAreaApp = styled(TextArea)`
+    width: 100%;
+    height: 300px;
+    resize: vertical;
+`;
+
+export const GenericTextAreaAppParameter: React.FunctionComponent<GenericTextProps> = props => {
+    let placeholder = "File content";
+    const error = props.errors[props.parameter.name] != null;
+    return <TextAreaApp
+        id={widgetId(props.parameter)}
+        placeholder={placeholder}
+        error={error}
+
+
+    />;
+};
+
 export const GenericTextValidator: WidgetValidator = (param) => {
     const elem = findElement(param);
     if (elem === null) return {valid: true};
 
     if (param.type === "text") {
+        if (elem.value === "") return {valid: true};
+        return {valid: true, value: {type: "text", value: elem.value}};
+    } else if (param.type === "textarea") {
         if (elem.value === "") return {valid: true};
         return {valid: true, value: {type: "text", value: elem.value}};
     } else if (param.type === "integer") {
@@ -57,7 +80,7 @@ export const GenericTextValidator: WidgetValidator = (param) => {
 };
 
 export const GenericTextSetter: WidgetSetter = (param, value) => {
-    if (param.type !== "text" && param.type != "integer" && param.type != "floating_point") return;
+    if (param.type !== "text" && param.type !== "textarea" && param.type != "integer" && param.type != "floating_point") return;
 
     const selector = findElement(param as GenericTextType);
     if (selector == null) throw "Missing element for " + param.name;

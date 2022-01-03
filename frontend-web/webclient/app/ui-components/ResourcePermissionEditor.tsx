@@ -1,19 +1,19 @@
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import * as React from "react";
-import {ShakingBox} from "UtilityComponents";
-import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "ui-components/index";
-import {groupSummaryRequest, useProjectId} from "Project";
-import {useCloudAPI, useCloudCommand} from "Authentication/DataHook";
-import {GroupWithSummary} from "Project/GroupList";
-import {bulkRequestOf, emptyPage} from "DefaultObjects";
+import {ShakingBox} from "@/UtilityComponents";
+import {Button, Flex, RadioTile, RadioTilesContainer, Text, Truncate} from "@/ui-components/index";
+import {groupSummaryRequest, useProjectId} from "@/Project";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {GroupWithSummary} from "@/Project/GroupList";
+import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
 import {useCallback, useEffect, useState} from "react";
-import * as Pagination from "Pagination";
-import {TextSpan} from "ui-components/Text";
+import * as Pagination from "@/Pagination";
+import {TextSpan} from "@/ui-components/Text";
 import {Link} from "react-router-dom";
-import {BulkRequest, provider} from "UCloud";
+import {BulkRequest, provider} from "@/UCloud";
 import ResourceAclEntry = provider.ResourceAclEntry;
 import ResourceDoc = provider.ResourceDoc;
-import {IconName} from "ui-components/Icon";
+import {IconName} from "@/ui-components/Icon";
 
 interface ResourcePermissionEditorProps<T extends ResourceDoc> {
     entityName: string;
@@ -49,7 +49,10 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
         if (commandLoading) return;
 
         const newAcl = acl
-            .filter(it => !(it.entity.projectId === projectId && it.entity.group === group));
+            .filter(it => !(
+                "projectId" in it.entity &&
+                it.entity.projectId === projectId && it.entity.group === group
+            ));
         newAcl.push({entity: {projectId, group, type: "project_group"}, permissions});
 
         setAcl(newAcl);
@@ -72,7 +75,7 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
                   flexDirection={"column"}>
                 <ShakingBox shaking mb={"10px"}>
                     No groups exist for this project.{" "}
-                    <TextSpan bold>As a result, this {entityName} can only be used by project admins!</TextSpan>
+                    <TextSpan bold>As a result, this {entityName.toLowerCase()} can only be used by project admins!</TextSpan>
                 </ShakingBox>
 
                 <Link to={"/project/members"} target={"_blank"}><Button fullWidth>Create group</Button></Link>
@@ -82,16 +85,17 @@ export function ResourcePermissionEditor<T extends ResourceDoc>(
             <>
                 {anyGroupHasPermission || !(props.showMissingPermissionHelp ?? true) ? null :
                     <ShakingBox shaking mb={16}>
-                        <Text bold>This {entityName} can only be used by project admins</Text>
+                        <Text bold>This {entityName.toLowerCase()} can only be used by project admins</Text>
                         <Text>
                             You must assign permissions to one or more group, if your collaborators need to use this
-                            {entityName}.
+                            {" "}{entityName.toLowerCase()}.
                         </Text>
                     </ShakingBox>
                 }
                 {projectGroups.data.items.map(summary => {
                     const g = summary.groupId;
                     const permissions = acl.find(it =>
+                        "projectId" in it.entity &&
                         it.entity.group === g &&
                         it.entity.projectId === projectId
                     )?.permissions ?? [];

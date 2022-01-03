@@ -14,6 +14,7 @@ replicas: 3
 clusterName: "elasticsearch"
 nodeGroup: "data"
 masterService: elasticsearch-master
+imageTag: "7.15.0"
 
 #esConfig:
 #  elasticsearch.yml: |
@@ -39,4 +40,3 @@ volumeClaimTemplate:
   resources:
     requests:
       storage: 5000Gi
-  storageClassName: "rbd"

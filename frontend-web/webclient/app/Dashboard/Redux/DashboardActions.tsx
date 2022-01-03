@@ -1,4 +1,4 @@
-import {SetLoadingAction} from "Types";
+import {SetLoadingAction} from "@/Types";
 import {
     DASHBOARD_RECENT_JOBS_ERROR,
     SET_ALL_LOADING,

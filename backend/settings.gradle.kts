@@ -3,9 +3,6 @@ rootProject.name = "ucloud"
 include("service-lib")
 include("service-lib-test")
 include("launcher")
-/*
-include("integration-testing")
-*/
 
 // Automatically pull in sub-projects
 (rootProject.projectDir.listFiles() ?: emptyArray()).forEach { file ->
@@ -16,6 +13,12 @@ include("integration-testing")
         val apiBuild = File(apiPackage, "build.gradle.kts")
         if (apiBuild.exists()) {
             include("${file.name}:api")
+        }
+
+        val utilPackage = File(file, "util")
+        val utilBuild = File(utilPackage, "build.gradle.kts")
+        if (utilBuild.exists()) {
+            include("${file.name}:util")
         }
     }
 }

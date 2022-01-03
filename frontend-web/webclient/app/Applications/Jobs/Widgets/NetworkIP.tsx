@@ -1,17 +1,19 @@
 import * as React from "react";
-import {Flex} from "ui-components";
-import ReactModal from "react-modal";
-import {largeModalStyle} from "Utilities/ModalUtilities";
-import {Browse} from "Applications/NetworkIP/Browse";
-import * as UCloud from "UCloud";
-import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "Applications/Jobs/Widgets/index";
-import {PointerInput} from "Applications/Jobs/Widgets/Peer";
+import {default as ReactModal} from "react-modal";
+import {Flex} from "@/ui-components";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {NetworkIPBrowse} from "@/Applications/NetworkIP/Browse";
+import {default as NetworkIPApi, NetworkIPFlags} from "@/UCloud/NetworkIPApi";
+import * as UCloud from "@/UCloud";
+import {widgetId, WidgetProps, WidgetSetter, WidgetValidator} from "@/Applications/Jobs/Widgets/index";
+import {PointerInput} from "@/Applications/Jobs/Widgets/Peer";
 import {useCallback, useLayoutEffect, useState} from "react";
-import {compute} from "UCloud";
-import NetworkIP = compute.NetworkIP;
+import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "Authentication/DataHook";
+import {callAPI} from "@/Authentication/DataHook";
+import {NetworkIP} from "@/UCloud/NetworkIPApi";
+import {BrowseType} from "@/Resource/BrowseType";
 
 interface NetworkIPProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.NetworkIP;
@@ -44,7 +46,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             const value = valueInput();
             if (value) {
                 const networkId = value!.value;
-                const network = await callAPI<NetworkIP>(UCloud.compute.networkips.retrieve({id: networkId}));
+                const network = await callAPI<NetworkIP>(NetworkIPApi.retrieve({id: networkId}));
                 const visual = visualInput();
                 if (visual) {
                     visual.value = network.status.ipAddress ?? "No address";
@@ -59,6 +61,10 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
         }
     }, []);
 
+    const filters: NetworkIPFlags = React.useMemo(() => ({
+        filterState: "READY"
+    }), []);
+
     return (<Flex>
         <PointerInput
             id={widgetId(props.parameter) + "visual"}
@@ -66,7 +72,7 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             error={error}
             onClick={doOpen}
         />
-        <input type="hidden" id={widgetId(props.parameter)}/>
+        <input type="hidden" id={widgetId(props.parameter)} />
         <ReactModal
             isOpen={open}
             ariaHideApp={false}
@@ -75,7 +81,13 @@ export const NetworkIPParameter: React.FunctionComponent<NetworkIPProps> = props
             shouldCloseOnOverlayClick
             onRequestClose={doClose}
         >
-            <Browse provider={props.provider} onUse={onUse}/>
+            <NetworkIPBrowse
+                provider={props.provider}
+                additionalFilters={filters}
+                onSelect={onUse}
+                browseType={BrowseType.Embedded}
+                onSelectRestriction={res => res.status.boundTo.length === 0}
+            />
         </ReactModal>
     </Flex>);
 }

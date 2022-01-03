@@ -1,134 +1,201 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.grant.api.*
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletBrowseRequest
+import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.grant.api.AvailableGiftsRequest
+import dk.sdu.cloud.grant.api.AvailableGiftsResponse
+import dk.sdu.cloud.grant.api.ClaimGiftRequest
+import dk.sdu.cloud.grant.api.DKK
+import dk.sdu.cloud.grant.api.GiftWithCriteria
+import dk.sdu.cloud.grant.api.Gifts
+import dk.sdu.cloud.grant.api.ResourceRequest
+import dk.sdu.cloud.grant.api.UserCriteria
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.integration.t
-import dk.sdu.cloud.project.api.ChangeUserRoleRequest
-import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.integration.assertUserError
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.isSuccess
-import org.junit.Ignore
-import org.junit.Test
+import java.util.*
 
-suspend fun createGift(
-    projectId: String,
-    client: AuthenticatedClient
-): IngoingCallResponse<CreateGiftResponse, CommonErrorMessage> {
-    return Gifts.createGift.call(
-        CreateGiftRequest(
-            0,
-            projectId,
-            "My Gift",
-            "Free stuff",
-            listOf(ResourceRequest.fromProduct(sampleCompute, 1000.DKK)),
-            listOf(UserCriteria.Anyone())
-        ),
-        client
-    )
-}
+class GiftTest : IntegrationTest() {
+    override fun defineTests() {
+        run {
+            data class SimplifiedGift(val criteria: List<UserCriteria>, val resources: List<ResourceRequest>)
+            class In(
+                val gifts: List<SimplifiedGift>,
+                val userEmail: String = "user@ucloud.dk",
+                val userOrganization: String = "ucloud.dk",
+            )
+            class Out(
+                val availableGifts: AvailableGiftsResponse,
+                val walletsOfUser: List<Wallet>
+            )
 
-class GiftTests : IntegrationTest() {
-    @Test
-    fun `test permissions for createGift`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        val adminUser = createUser()
-        val member = createUser()
-        val outsideUser = createUser()
+            test<In, Out>("Gifts, expected flow") {
+                execute {
+                    val grantPi = createUser("pi-${UUID.randomUUID()}")
+                    val normalUser = createUser(
+                        "user-${UUID.randomUUID()}",
+                        email = input.userEmail,
+                        organization = input.userOrganization
+                    )
+                    val evilUser = createUser("evil-${UUID.randomUUID()}")
 
-        addMemberToProject(project.projectId, project.piClient, adminUser.client, adminUser.username)
-        Projects.changeUserRole.call(
-            ChangeUserRoleRequest(project.projectId, adminUser.username, ProjectRole.ADMIN),
-            project.piClient
-        ).orThrow()
+                    val createdProject = initializeRootProject(grantPi.username)
+                    for (simplifiedGift in input.gifts) {
+                        val gift = GiftWithCriteria(
+                            0L,
+                            createdProject,
+                            "My gift ${UUID.randomUUID()}",
+                            "Description",
+                            simplifiedGift.resources,
+                            simplifiedGift.criteria
+                        )
 
-        addMemberToProject(project.projectId, project.piClient, member.client, member.username)
+                        Gifts.createGift.call(gift, evilUser.client).assertUserError()
+                        Gifts.createGift.call(gift, grantPi.client).orThrow()
+                    }
 
-        createGift(project.projectId, project.piClient).orThrow().also { resp ->
-            Gifts.deleteGift.call(DeleteGiftRequest(resp.id), project.piClient).orThrow()
-        }
-        createGift(project.projectId, adminUser.client).orThrow().also { resp ->
-            assertThatInstance(Gifts.deleteGift.call(DeleteGiftRequest(resp.id), member.client), "fails") {
-                !it.statusCode.isSuccess()
+                    val availableGifts = Gifts.availableGifts.call(AvailableGiftsRequest, normalUser.client).orThrow()
+                    for (gift in availableGifts.gifts) {
+                        Gifts.claimGift.call(ClaimGiftRequest(gift.id), normalUser.client).orThrow()
+                        Gifts.claimGift.call(ClaimGiftRequest(gift.id), normalUser.client).assertUserError()
+                    }
+
+                    val walletsOfUser = Wallets.browse.call(WalletBrowseRequest(), normalUser.client).orThrow().items
+                    Out(availableGifts, walletsOfUser)
+                }
+
+                case("Gifts for all") {
+                    input(In(
+                        listOf(
+                            SimplifiedGift(
+                                listOf(UserCriteria.Anyone()),
+                                listOf(
+                                    ResourceRequest(
+                                        sampleCompute.category.name,
+                                        sampleCompute.category.provider,
+                                        1000.DKK
+                                    )
+                                )
+                            )
+                        )
+                    ))
+
+                    check {
+                        assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
+                        assertThatInstance(output.walletsOfUser, "has a new allocation") {
+                            it.find { it.paysFor == sampleCompute.category }?.allocations
+                                ?.sumOf { it.balance } == 1000.DKK
+                        }
+                    }
+                }
+
+                case("Excluded by org") {
+                    input(In(
+                        listOf(
+                            SimplifiedGift(
+                                listOf(UserCriteria.WayfOrganization("ucloud.dk")),
+                                listOf(
+                                    ResourceRequest(
+                                        sampleCompute.category.name,
+                                        sampleCompute.category.provider,
+                                        1000.DKK
+                                    )
+                                )
+                            )
+                        ),
+                        userOrganization = "sdu.dk"
+                    ))
+
+                    check {
+                        assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
+                        assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
+                            (wallets.find { it.paysFor == sampleCompute.category }?.allocations
+                                ?.sumOf { it.balance } ?: 0L) == 0.DKK
+                        }
+                    }
+                }
+
+                case("Excluded by mail") {
+                    input(In(
+                        listOf(
+                            SimplifiedGift(
+                                listOf(UserCriteria.EmailDomain("ucloud.dk")),
+                                listOf(
+                                    ResourceRequest(
+                                        sampleCompute.category.name,
+                                        sampleCompute.category.provider,
+                                        1000.DKK
+                                    )
+                                )
+                            )
+                        ),
+                        userEmail = "user@sdu.dk"
+                    ))
+
+                    check {
+                        assertThatInstance(output.availableGifts, "has no gifts") { it.gifts.isEmpty() }
+                        assertThatInstance(output.walletsOfUser, "has a new allocation") { wallets ->
+                            (wallets.find { it.paysFor == sampleCompute.category }?.allocations
+                                ?.sumOf { it.balance } ?: 0L) == 0.DKK
+                        }
+                    }
+                }
+
+                case("Included by mail") {
+                    input(In(
+                        listOf(
+                            SimplifiedGift(
+                                listOf(UserCriteria.EmailDomain("sdu.dk")),
+                                listOf(
+                                    ResourceRequest(
+                                        sampleCompute.category.name,
+                                        sampleCompute.category.provider,
+                                        1000.DKK
+                                    )
+                                )
+                            )
+                        ),
+                        userEmail = "user@sdu.dk"
+                    ))
+
+                    check {
+                        assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
+                        assertThatInstance(output.walletsOfUser, "has a new allocation") {
+                            it.find { it.paysFor == sampleCompute.category }?.allocations
+                                ?.sumOf { it.balance } == 1000.DKK
+                        }
+                    }
+                }
+
+                case("Included by organization") {
+                    input(In(
+                        listOf(
+                            SimplifiedGift(
+                                listOf(UserCriteria.WayfOrganization("sdu.dk")),
+                                listOf(
+                                    ResourceRequest(
+                                        sampleCompute.category.name,
+                                        sampleCompute.category.provider,
+                                        1000.DKK
+                                    )
+                                )
+                            )
+                        ),
+                        userOrganization = "sdu.dk"
+                    ))
+
+                    check {
+                        assertThatInstance(output.availableGifts, "had one gift") { it.gifts.size == 1 }
+                        assertThatInstance(output.walletsOfUser, "has a new allocation") {
+                            it.find { it.paysFor == sampleCompute.category }?.allocations
+                                ?.sumOf { it.balance } == 1000.DKK
+                        }
+                    }
+                }
             }
-            Gifts.deleteGift.call(DeleteGiftRequest(resp.id), adminUser.client).orThrow()
         }
-        assertThatInstance(createGift(project.projectId, member.client), "fails") { !it.statusCode.isSuccess() }
-        assertThatInstance(createGift(project.projectId, outsideUser.client), "fails") { !it.statusCode.isSuccess() }
-    }
-
-    @Test
-    fun `we can list gifts`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        val outsideUser = createUser()
-
-        val id = createGift(project.projectId, project.piClient).orThrow().id
-        assertThatInstance(
-            Gifts.listGifts.call(ListGiftsRequest, project.piClient.withProject(project.projectId)).orThrow().gifts,
-            "has the gift"
-        ) { it.any { it.id == id } }
-
-        assertThatInstance(
-            Gifts.listGifts.call(ListGiftsRequest, outsideUser.client),
-            "fails because we are not an admin"
-        ) { !it.statusCode.isSuccess() }
-    }
-
-    @Test
-    fun `we can view available gifts`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-
-        val id = createGift(project.projectId, project.piClient).orThrow().id
-        assertThatInstance(
-            Gifts.availableGifts.call(ListGiftsRequest, project.piClient).orThrow().gifts,
-            "has the gift"
-        ) { it.any { it.id == id } }
-    }
-
-    @Test
-    fun `we can claim a gift`() = t {
-        val project = initializeNormalProject(initializeRootProject())
-        val outsideUser = createUser()
-
-        val id = createGift(project.projectId, project.piClient).orThrow().id
-        Gifts.claimGift.call(ClaimGiftRequest(id), outsideUser.client).orThrow()
-        assertThatInstance(
-            Gifts.claimGift.call(ClaimGiftRequest(id), outsideUser.client),
-            "but not double claim them"
-        ) { !it.statusCode.isSuccess() }
-
-        val walletsAfter = Wallets.retrieveBalance.call(
-            RetrieveBalanceRequest(outsideUser.username, WalletOwnerType.USER, false),
-            outsideUser.client
-        ).orThrow().wallets
-
-        assertThatInstance(walletsAfter.find { it.wallet.paysFor == sampleCompute.category }, "is not empty") {
-            it != null && it.balance > 0
-        }
-    }
-
-    @Test
-    fun `test claiming when we are out of resources`() = t {
-        val project = initializeNormalProject(initializeRootProject(), initializeWallet = false)
-        val users = (1..2).map { createUser() }
-        Wallets.setBalance.call(
-            SetBalanceRequest(
-                Wallet(project.projectId, WalletOwnerType.PROJECT, sampleCompute.category),
-                0L,
-                1500.DKK
-            ),
-            serviceClient
-        ).orThrow()
-
-        val id = createGift(project.projectId, project.piClient).orThrow().id
-        Gifts.claimGift.call(ClaimGiftRequest(id), users[0].client).orThrow()
-        assertThatInstance(
-            Gifts.claimGift.call(ClaimGiftRequest(id), users[1].client),
-            "fails due to lack of funds"
-        ) { !it.statusCode.isSuccess() }
     }
 }

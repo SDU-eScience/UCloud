@@ -1,8 +1,8 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
+import * as UCloud from "@/UCloud";
 import {useCallback, useEffect, useState} from "react";
-import {useCloudCommand} from "Authentication/DataHook";
-import {Button} from "ui-components";
+import {useCloudCommand} from "@/Authentication/DataHook";
+import {Button} from "@/ui-components";
 
 export const FavoriteToggle: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags

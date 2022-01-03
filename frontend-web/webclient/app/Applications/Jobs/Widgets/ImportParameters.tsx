@@ -1,29 +1,27 @@
 import * as React from "react";
-import * as UCloud from "UCloud";
-import * as ReactModal from "react-modal";
-import {defaultModalStyle} from "Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label} from "ui-components";
-import {HiddenInputField} from "ui-components/Input";
-import {snackbarStore} from "Snackbar/SnackbarStore";
+import * as UCloud from "@/UCloud";
+import {default as ReactModal} from "react-modal";
+import {defaultModalStyle} from "@/Utilities/ModalUtilities";
+import {Box, Button, Flex, Icon, Label} from "@/ui-components";
+import {HiddenInputField} from "@/ui-components/Input";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
-import FileSelector from "Files/FileSelector";
-import {useCallback, useEffect, useState} from "react";
-import BaseLink from "ui-components/BaseLink";
-import {
-    checkIfFileExists,
-    expandHomeOrProjectFolder,
-    fetchFileContent,
-    getFilenameFromPath
-} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import {callAPI, useCloudAPI} from "Authentication/DataHook";
-import {emptyPage} from "DefaultObjects";
-import {errorMessageOrDefault} from "UtilityFunctions";
-import {compute} from "UCloud";
+import {useCallback, useState} from "react";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
+import {compute, PageV2} from "@/UCloud";
 import JobSpecification = compute.JobSpecification;
 import AppParameterValue = compute.AppParameterValue;
 import styled from "styled-components";
-import {TextP} from "ui-components/Text";
+import {TextP} from "@/ui-components/Text";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {default as JobsApi, Job} from "@/UCloud/JobsApi";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {BrowseType} from "@/Resource/BrowseType";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {api as FilesApi} from "@/UCloud/FilesApi";
+import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
+import {JobBrowse} from "../Browse";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -31,23 +29,43 @@ export const ImportParameters: React.FunctionComponent<{
     importDialogOpen: boolean;
     onImportDialogClose: () => void;
 }> = ({application, onImport, importDialogOpen, onImportDialogClose}) => {
-    const [fsShown, setFsShown] = useState<boolean>(false);
 
-    const title = application.metadata.title;
-    const path = Client.hasActiveProject ?
-        `${Client.currentProjectFolder}/Members' Files/${Client.username}/Jobs/${title}`
-        : `${Client.homeFolder}Jobs/${title}`;
-
-    const [previousRuns, fetchPreviousRuns] = useCloudAPI<UCloud.Page<UCloud.file.StorageFile>>(
-        {noop: true},
-        emptyPage
+    const [previousRuns] = useCloudAPI<PageV2<Job>>(
+        JobsApi.browse({
+            itemsPerPage: 50,
+            filterApplication: application.metadata.name,
+        }),
+        emptyPageV2
     );
 
     const [messages, setMessages] = useState<ImportMessage[]>([]);
 
-    useEffect(() => {
-        fetchPreviousRuns(UCloud.file.listAtPath({path, sortBy: "CREATED_AT", order: "DESCENDING"}));
-    }, [path]);
+    const readParsedJSON = useCallback(async (parsedJson: any) => {
+        if (typeof parsedJson === "object") {
+            const version = parsedJson["siteVersion"];
+
+            let result: ImportResult;
+            if (version === 1) {
+                result = await importVersion1(application, parsedJson);
+            } else if (version === 2) {
+                result = await importVersion2(application, parsedJson);
+            } else if (version === 3) {
+                result = await importVersion2(application, parsedJson);
+            } else {
+                result = {messages: [{type: "error", message: "Corrupt or invalid import file"}]};
+            }
+
+            result = await cleanupImportResult(application, result)
+            setMessages(result.messages);
+
+            /* Is this correct? Is the typeof an undefined value not a string? */
+            if (typeof result.output === undefined) {
+                // Do nothing
+            } else {
+                onImport(result.output!);
+            }
+        }
+    }, [])
 
     const importParameters = useCallback((file: File) => {
         const fileReader = new FileReader();
@@ -55,74 +73,52 @@ export const ImportParameters: React.FunctionComponent<{
             const rawInputFile = fileReader.result as string;
             try {
                 const parsedJson = JSON.parse(rawInputFile);
-                if (typeof parsedJson === "object") {
-                    const version = parsedJson["siteVersion"];
-                    let result: ImportResult;
-                    if (version === 1) {
-                        result = await importVersion1(application, parsedJson);
-                    } else if (version === 2) {
-                        result = await importVersion2(application, parsedJson);
-                    } else {
-                        result = {messages: [{type: "error", message: "Corrupt or invalid import file"}]};
-                    }
-
-                    result = await cleanupImportResult(application, result)
-                    setMessages(result.messages);
-
-                    if (typeof result.output === undefined) {
-                        // Do nothing
-                    } else {
-                        onImport(result.output!);
-                    }
-                }
-
+                readParsedJSON(parsedJson);
             } catch (e) {
                 console.warn(e);
-                snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
+                if (!file.name.endsWith(".json")) {
+                    snackbarStore.addFailure(
+                        errorMessageOrDefault(e, "An error occurred. The file format must be JSON."), false
+                    );
+                } else {
+                    snackbarStore.addFailure(errorMessageOrDefault(e, "An error occurred"), false);
+                }
             }
         };
         fileReader.readAsText(file);
     }, []);
 
-    const fetchAndImportParameters = useCallback(async (file: {path: string}) => {
-        const fileStat = await callAPI(UCloud.file.stat({path: file.path}));
-        if (fileStat.size! > 5_000_000) {
-            snackbarStore.addFailure("File size exceeds 5 MB. This is not allowed.", false);
+    const [, invokeCommand] = useCloudCommand();
+
+    const fetchAndImportParameters = useCallback(async (file: UFile) => {
+        const download = await invokeCommand<UCloud.BulkResponse<FilesCreateDownloadResponseItem>>(
+            FilesApi.createDownload(bulkRequestOf({id: file.id})),
+            {defaultErrorHandler: false}
+        );
+        const downloadEndpoint = download?.responses[0]?.endpoint;
+        if (!downloadEndpoint) {
             return;
         }
-        const response = await fetchFileContent(file.path, Client);
-        if (response.ok) importParameters(new File([await response.blob()], "params"));
+        const content = await fetch(downloadEndpoint);
+        if (content.ok) importParameters(new File([await content.blob()], "params"));
     }, []);
+
+    const previousRunsValid: Job[] = [];
+    for (const run of previousRuns.data.items) {
+        if (previousRunsValid.length >= 10) break;
+        if (run.status.jobParametersJson != null && run.status.jobParametersJson["siteVersion"] != null) {
+            previousRunsValid.push(run);
+        }
+    }
 
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            {
-                previousRuns.data.items.slice(0, 5).map((file, idx) => (
-                    <Box mr="0.8em" key={idx}>
-                        <BaseLink
-                            href="#"
-                            onClick={async e => {
-                                e.preventDefault();
-
-                                try {
-                                    await fetchAndImportParameters(
-                                        {path: `${file.path}/JobParameters.json`}
-                                    );
-                                } catch (ex) {
-                                    snackbarStore.addFailure(
-                                        "Could not find a parameters file for this " +
-                                        "run. Try a different run.",
-                                        false
-                                    );
-                                }
-                            }}
-                        >
-                            {getFilenameFromPath(file.path!, [])}
-                        </BaseLink>
-                    </Box>
-                ))
-            }
+            {previousRunsValid.map((run, idx) => (
+                <Box cursor="pointer" onClick={() => readParsedJSON(run.status.jobParametersJson)} mr="0.8em" key={idx}>
+                    {run.specification.name ?? run.id}
+                </Box>
+            ))}
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -141,15 +137,6 @@ export const ImportParameters: React.FunctionComponent<{
             </Box>
         )}
 
-        <FileSelector
-            onFileSelect={(f) => {
-                if (f) fetchAndImportParameters(f);
-                setFsShown(false);
-            }}
-            trigger={null}
-            visible={fsShown}
-        />
-
         <ReactModal
             isOpen={importDialogOpen}
             shouldCloseOnEsc
@@ -163,6 +150,7 @@ export const ImportParameters: React.FunctionComponent<{
                         Upload file
                         <HiddenInputField
                             type="file"
+                            accept="application/json"
                             onChange={e => {
                                 onImportDialogClose();
                                 if (e.target.files) {
@@ -177,14 +165,47 @@ export const ImportParameters: React.FunctionComponent<{
                         />
                     </Button>
                     <Button mt="6px" fullWidth onClick={() => {
-                        setFsShown(true);
                         onImportDialogClose();
+                        dialogStore.addDialog(
+                            /* TODO(Jonas): Only allow files */
+                            <FilesBrowse
+                                browseType={BrowseType.Embedded}
+                                onSelect={res => {
+                                    fetchAndImportParameters(res);
+                                    dialogStore.success();
+                                }}
+                                pathRef={{current: ""}}
+                                onSelectRestriction={res => res.status.type === "FILE" && res.id.endsWith(".json")}
+                            />,
+                            () => undefined,
+                            true
+                        );
                     }}>
                         Select file from {CONF.PRODUCT_NAME}
                     </Button>
+                    <Button mt="6px" fullWidth onClick={() => {
+                        onImportDialogClose();
+                        dialogStore.addDialog(
+                            <JobBrowse
+                                browseType={BrowseType.Embedded}
+                                onSelect={res => {
+                                    readParsedJSON(res.status.jobParametersJson);
+                                    dialogStore.success();
+                                }}
+                                additionalFilters={{filterApplication: application.metadata.name}}
+                                onSelectRestriction={res =>
+                                    res.specification.application.name === application.metadata.name
+                                }
+                            />,
+                            () => undefined,
+                            true
+                        );
+                    }}>
+                        Select parameters from jobs
+                    </Button>
                 </div>
                 <Flex mt="20px">
-                    <Button onClick={onImportDialogClose} color="red" mr="5px">Cancel</Button>
+                    <Button onClick={onImportDialogClose} color="red" mr="5px">Close</Button>
                 </Flex>
             </div>
         </ReactModal>
@@ -258,14 +279,14 @@ async function importVersion1(application: UCloud.compute.Application, json: any
             case "text":
                 userInputValues[param.name] = {type: "text", value: valueFromFile};
                 break;
+            case "textarea":
+                userInputValues[param.name] = {type: "textarea", value: valueFromFile};
+                break;
             case "input_directory":
             case "input_file": {
                 userInputValues[param.name] = {
                     type: "file",
-                    path: expandHomeOrProjectFolder(
-                        valueFromFile?.["source"]?.toString() ?? valueFromFile?.["ref"]?.toString() ?? "",
-                        Client
-                    ),
+                    path: valueFromFile?.["source"]?.toString() ?? valueFromFile?.["ref"]?.toString() ?? "",
                     readOnly: false
                 }
                 break;
@@ -349,7 +370,6 @@ async function cleanupImportResult(
         // noinspection SuspiciousTypeOfGuard
         if ((type === "input_file" || type === "input_directory") &&
             (typeof param["path"] !== "string" || typeof param["readOnly"] !== "boolean")) {
-            console.log("BAD!");
             badParam(paramName);
             continue;
         }
@@ -380,10 +400,13 @@ async function cleanupImportResult(
 
         if (type === "input_file" || type === "input_directory") {
             if (!param["path"]) delete parameters[paramName];
+            /*
+            TODO
             else if (!await checkIfFileExists(param["path"] as string, Client)) {
                 result.messages.push({type: "warning", message: "File no longer exists: " + param["path"]});
                 delete parameters[paramName];
             }
+             */
         }
     }
 
@@ -398,10 +421,13 @@ async function cleanupImportResult(
                 continue;
             }
 
+            /*
+            TODO
             if (!await checkIfFileExists(param.path, Client)) {
                 result.messages.push({type: "warning", message: "File no longer exists: " + param.path});
                 resources.splice(i, 1);
             }
+             */
         }
     }
 

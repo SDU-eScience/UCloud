@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.PaymentModel
-import dk.sdu.cloud.accounting.api.ProductAvailability
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
@@ -23,9 +21,7 @@ data class KubernetesLicense(
     val pricePerUnit: Long = 1_000_000,
     val description: String = "",
     val hiddenInGrantApplications: Boolean = false,
-    val availability: ProductAvailability = ProductAvailability.Available(),
     val priority: Int = 0,
-    val paymentModel: PaymentModel = PaymentModel.PER_ACTIVATION,
 )
 
 interface KubernetesLicenseFilter {
@@ -56,14 +52,14 @@ object KubernetesLicenseMaintenance : CallDescriptionContainer("compute.licenses
     val baseContext = KubernetesLicenses.baseContext + "/maintenance"
 
     val create = call<KubernetesLicenseCreateRequest, KubernetesLicenseCreateResponse, CommonErrorMessage>("create") {
-        httpCreate(baseContext, roles = Roles.PUBLIC)
+        httpCreate(baseContext, roles = Roles.ADMIN)
     }
 
     val browse = call<KubernetesLicenseBrowseRequest, KubernetesLicenseBrowseResponse, CommonErrorMessage>("browse") {
-        httpBrowse(baseContext, roles = Roles.PUBLIC)
+        httpBrowse(baseContext, roles = Roles.ADMIN)
     }
 
     val update = call<KubernetesLicenseUpdateRequest, KubernetesLicenseUpdateResponse, CommonErrorMessage>("update") {
-        httpUpdate(baseContext, "update", roles = Roles.PUBLIC)
+        httpUpdate(baseContext, "update", roles = Roles.ADMIN)
     }
 }

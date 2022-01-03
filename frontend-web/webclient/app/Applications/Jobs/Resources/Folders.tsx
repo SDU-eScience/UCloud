@@ -1,13 +1,11 @@
 import * as React from "react";
-import * as UCloud from "UCloud"
-import {Box, Button, Flex} from "ui-components";
-import * as Heading from "ui-components/Heading";
-import Link from "ui-components/Link";
-import {fileTablePage} from "Utilities/FileUtilities";
-import {Client} from "Authentication/HttpClientInstance";
-import BaseLink from "ui-components/BaseLink";
-import {Widget} from "Applications/Jobs/Widgets";
-import {compute} from "UCloud";
+import * as UCloud from "@/UCloud"
+import {Box, Button, Flex} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
+import Link from "@/ui-components/Link";
+import BaseLink from "@/ui-components/BaseLink";
+import {Widget} from "@/Applications/Jobs/Widgets";
+import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 
 export const FolderResource: React.FunctionComponent<{
@@ -17,7 +15,7 @@ export const FolderResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return application.invocation.allowAdditionalMounts === false || application.invocation.tool.tool!.description.backend === "VIRTUAL_MACHINE" ? null : (
+    return !application.invocation.allowAdditionalMounts ? null : (
         <Box>
             <Flex alignItems="center">
                 <Box flexGrow={1}>
@@ -36,7 +34,7 @@ export const FolderResource: React.FunctionComponent<{
                     <>
                         If you need to use your {" "}
                         <Link
-                            to={fileTablePage(Client.homeFolder)}
+                            to={"/files/"}
                             target="_blank"
                         >
                             files

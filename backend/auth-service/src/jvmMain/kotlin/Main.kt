@@ -93,6 +93,14 @@ object AuthService : dk.sdu.cloud.micro.Service {
         if (micro.developmentModeEnabled) {
             ServiceDAO.insert(
                 Service(
+                    "web",
+                    "http://localhost:9000/app/login/wayf",
+                    ServiceMode.WEB,
+                    1000 * 60 * 60 * 24 * 365L
+                )
+            )
+            ServiceDAO.insert(
+                Service(
                     "dev-web",
                     "http://localhost:9000/app/login/wayf",
                     ServiceMode.WEB,

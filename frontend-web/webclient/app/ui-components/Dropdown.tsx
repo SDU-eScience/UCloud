@@ -13,7 +13,7 @@ import {
     TopProps,
     HeightProps,
 } from "styled-system";
-import {Button} from "ui-components";
+import {Button} from "@/ui-components";
 import {CSSVarThemeColor} from "./theme";
 import {Cursor} from "./Types";
 
@@ -52,14 +52,13 @@ export const DropdownContent = styled.div<DropdownContentProps>`
     border-top-right-radius: ${props => props.squareTop ? "0" : "5px"};
     ${boxShadow}
     ${props => props.hover ? "display: none;" : ""}
-    position: absolute;
+    position: ${p => p.fixed ? "fixed" : "absolute"};
     background-color: var(${p => p.backgroundColor}, #f00);
     color: var(--${p => p.color}, #f00);
     width: ${props => props.width};
-    ${props => props.minWidth ? `min-width: ${props.minWidth};` : "min-width: 138px;"}
+    min-width: ${props => props.minWidth ? `${props.minWidth}` : "138px"};
     max-height: ${props => props.maxHeight ? props.maxHeight : ""};
-    padding: 12px 16px;
-    z-index: 47;
+    z-index: 1000;
     text-align: left;
     cursor: ${props => props.cursor};
     visibility: ${props => props.visible ? "visible" : "hidden"};
@@ -71,11 +70,14 @@ export const DropdownContent = styled.div<DropdownContentProps>`
             background-color: var(--lightBlue);
         }` : null};
 
-    & > div {
-        margin-left: -17px;
-        margin-right: -17px;
-        padding-left: 17px;
-    }
+    ${p => p.paddingControlledByContent ? null : `
+        padding: 12px 16px;
+        & > div {
+                margin-left: -17px;
+                margin-right: -17px;
+                padding-left: 17px;
+        }
+    `}
 
     ${top} ${left} ${right} ${bottom} ${height};
 `;
@@ -108,4 +110,6 @@ interface DropdownContentProps extends RightProps, LeftProps, TopProps, BottomPr
     colorOnHover?: boolean;
     squareTop?: boolean;
     visible?: boolean;
+    fixed?: boolean;
+    paddingControlledByContent?: boolean;
 }
