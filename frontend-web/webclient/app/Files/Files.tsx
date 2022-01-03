@@ -45,6 +45,7 @@ export const FilesBrowse: React.FunctionComponent<{
         browseType !== BrowseType.Embedded ? pathFromQuery : props.pathRef?.current ?? pathFromQuery
     );
     const path = browseType === BrowseType.Embedded ? pathFromState : pathFromQuery;
+    const shouldFetch = useCallback(() => path.length > 0, [path]);
     const additionalFilters = useMemo((() => {
         const base = {
             path, includeMetadata: "true",
@@ -131,14 +132,19 @@ export const FilesBrowse: React.FunctionComponent<{
 
     useEffect(() => {
         const components = pathComponents(path);
-        if (components.length >= 1) {
-            const collectionId = components[0];
+        if (path.length > 0) {
+            if (components.length >= 1) {
+                const collectionId = components[0];
 
-            if (collection.data?.id !== collectionId && !collection.loading) {
-                fetchCollection({...FileCollectionsApi.retrieve({id: collectionId, includeSupport: true}), projectOverride: localActiveProject});
+                if (collection.data?.id !== collectionId && !collection.loading) {
+                    fetchCollection({
+                        ...FileCollectionsApi.retrieve({id: collectionId, includeSupport: true}),
+                        projectOverride: localActiveProject
+                    });
+                }
             }
+            fetchDirectory({...FilesApi.retrieve({id: path}), projectOverride: localActiveProject})
         }
-        fetchDirectory({...FilesApi.retrieve({id: path}), projectOverride: localActiveProject})
     }, [path, localActiveProject]);
 
     const headerComponent = useMemo((): JSX.Element => {
@@ -278,6 +284,7 @@ export const FilesBrowse: React.FunctionComponent<{
         viewPropertiesInline={viewPropertiesInline}
         showCreatedBy={false}
         showProduct={false}
+        shouldFetch={shouldFetch}
     />;
 };
 

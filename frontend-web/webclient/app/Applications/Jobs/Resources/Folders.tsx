@@ -15,7 +15,7 @@ export const FolderResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return !application.invocation.allowAdditionalMounts ? null : (
+    return (application.invocation.allowAdditionalMounts === false || application.invocation.applicationType === "BATCH") ? null : (
         <Box>
             <Flex alignItems="center">
                 <Box flexGrow={1}>

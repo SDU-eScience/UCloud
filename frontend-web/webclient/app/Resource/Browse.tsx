@@ -76,6 +76,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     showGroups?: boolean;
 
     onResourcesLoaded?: (newItems: Res[]) => void;
+    shouldFetch?: () => boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -192,6 +193,10 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, [selectedProduct, productsWithSupport]);
 
     const generateFetch = useCallback((next?: string): APICallParameters => {
+        if (props.shouldFetch && !props.shouldFetch()) {
+            return {noop: true};
+        }
+
         if (props.isSearch) {
             return api.search({
                 itemsPerPage: 100, flags: {includeOthers, ...filters}, query,
@@ -203,7 +208,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }
-    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters]);
+    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters, props.shouldFetch]);
 
     useEffectSkipMount(() => {
         setSelectedProduct(props.inlineProduct ?? null);
