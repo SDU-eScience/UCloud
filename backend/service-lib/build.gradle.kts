@@ -14,7 +14,6 @@ repositories {
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
     val ktorVersion = "1.6.2-native-mm-eap-196"
-    val jasyncVersion = "1.1.3"
 
     macosX64()
     linuxX64()
@@ -93,10 +92,10 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 }
