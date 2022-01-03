@@ -89,7 +89,7 @@ class UsageScan(
 
                     val mappedChunk = chunk.map { filename ->
                         resolvedCollections
-                            .find { it.providerGeneratedId == PathConverter.COLLECTION_HOME_PREFIX + it }
+                            .find { it.providerGeneratedId == PathConverter.COLLECTION_HOME_PREFIX + filename }
                             ?.id
                             ?.toLongOrNull()
                     }
