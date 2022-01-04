@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes.services
 
+import dk.sdu.cloud.app.kubernetes.NodeConfiguration
 import dk.sdu.cloud.app.kubernetes.TolerationKeyAndValue
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.orchestrator.api.Job
@@ -21,6 +22,8 @@ import kotlinx.serialization.json.JsonPrimitive
 class TaskPlugin(
     private val toleration: TolerationKeyAndValue?,
     private val useSmallReservation: Boolean,
+    private val useMachineSelector: Boolean,
+    private val nodes: NodeConfiguration?,
 ) : JobManagementPlugin {
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val jobResources = resources.findResources(job)
@@ -54,10 +57,21 @@ class TaskPlugin(
                         )
                     }
 
+                    if (useMachineSelector) {
+                        pSpec.nodeSelector = JsonObject(mapOf(
+                            "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
+                        ))
+                    }
+
                     container.name = "user-job"
                     container.image = tool.container
                     container.imagePullPolicy = "IfNotPresent"
                     container.resources = run {
+                        val reservedCpu = nodes?.systemReservedCpuMillis ?: 0
+                        val reservedMem = nodes?.systemReservedMemMegabytes ?: 0
+                        val totalCpu = nodes?.types?.get(jobResources.product.category.id)?.cpuMillis
+                        val totalMem = nodes?.types?.get(jobResources.product.category.id)?.memMegabytes
+
                         val resources = HashMap<String, JsonElement>()
                         val reservation = jobResources.product
 
@@ -65,7 +79,13 @@ class TaskPlugin(
                             resources += if (useSmallReservation) {
                                 "cpu" to JsonPrimitive("${reservation.cpu!! * 100}m")
                             } else {
-                                "cpu" to JsonPrimitive("${reservation.cpu!! * 1000}m")
+                                val requestedCpu = reservation.cpu!! * 1000
+                                val actualCpu = if (totalCpu != null) {
+                                    (requestedCpu - (reservedCpu * (requestedCpu / totalCpu.toDouble()))).toInt()
+                                } else {
+                                    requestedCpu
+                                }
+                                "cpu" to JsonPrimitive("${actualCpu}m")
                             }
                         }
 
@@ -73,7 +93,13 @@ class TaskPlugin(
                             resources += if (useSmallReservation) {
                                 "memory" to JsonPrimitive("${reservation.memoryInGigs!!}Mi")
                             } else {
-                                "memory" to JsonPrimitive("${reservation.memoryInGigs!!}Gi")
+                                val requestedMem = reservation.memoryInGigs!! * 1024
+                                val actualMem = if (totalMem != null) {
+                                    (requestedMem - (reservedMem * (requestedMem / totalMem.toDouble()))).toInt()
+                                } else {
+                                    requestedMem
+                                }
+                                "memory" to JsonPrimitive("${actualMem}Mi")
                             }
                         }
 

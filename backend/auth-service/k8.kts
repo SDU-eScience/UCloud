@@ -6,7 +6,7 @@ import java.util.*
 
 bundle { ctx ->
     name = "auth"
-    version = "2022.1.0"
+    version = "2022.1.1"
 
     val tos = config<String>("tos", "Terms of Service")
     val tosVersion = config<Int>("tosVersion", "Terms of Service version")

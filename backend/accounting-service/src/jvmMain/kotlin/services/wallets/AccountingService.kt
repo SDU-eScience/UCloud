@@ -854,6 +854,9 @@ class AccountingService(
                                 alloc_owner.username ilike '%' || :query || '%' or
                                 pc.category ilike '%' || :query || '%' or
                                 pc.provider ilike '%' || :query || '%'
+                            ) and
+                            (
+                                nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
                             )
                         order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
                     """

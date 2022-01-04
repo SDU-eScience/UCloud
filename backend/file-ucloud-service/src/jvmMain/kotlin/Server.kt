@@ -124,7 +124,7 @@ class Server(
                 ScriptMetadata(
                     "ucloud-storage-index",
                     "UCloud/Storage: Indexing",
-                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                    WhenToStart.Periodically(1000L * 60L * 60L * 96)
                 ),
                 script = {
                     FileScanner(

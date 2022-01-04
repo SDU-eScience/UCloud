@@ -160,8 +160,10 @@ class NetworkIPService(
         session
             .sendPreparedStatement(
                 {
-                    val ids by parameterList<Long?>()
-                    val ipAddresses by parameterList<String?>()
+                    val ids = ArrayList<Long?>()
+                    val ipAddresses = ArrayList<String?>()
+                    setParameter("ids", ids)
+                    setParameter("ip_addresses", ipAddresses)
 
                     for ((id, update) in updates) {
                         if (update.changeIpAddress == true) {
