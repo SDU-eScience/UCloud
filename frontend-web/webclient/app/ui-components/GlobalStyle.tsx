@@ -11,6 +11,7 @@ export function injectFonts(): void {
         
         @font-face {
             font-family: 'Inter';
+            font-feature-settings: "cv05" on, "cv09" on, "cv02" on, "calt" on, "ss03" on;
             src: url('${inter}');
             font-display: swap;
             -webkit-font-smoothing: antialiased;
