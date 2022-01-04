@@ -161,6 +161,7 @@ class JobOrchestrator(
                 val names = ArrayList<String?>().also { setParameter("names", it) }
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
                 val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
+                val replicas = ArrayList<Int>().also { setParameter("replicas", it) }
                 setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
@@ -170,6 +171,7 @@ class JobOrchestrator(
                     names.add(spec.name)
                     resources.add(id)
                     openedFiles.add(spec.openedFile)
+                    replicas.add(spec.replicas)
                 }
             },
             """
@@ -177,12 +179,12 @@ class JobOrchestrator(
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
                            unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
-                           unnest(:opened_file::text[]) opened_file
+                           unnest(:opened_file::text[]) opened_file, unnest(:replicas::int[]) replicas
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
-                     output_folder, current_state, started_at, resource, job_parameters, opened_file) 
-                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file
+                     output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file, replicas
                 from bulk_data
             """
         )

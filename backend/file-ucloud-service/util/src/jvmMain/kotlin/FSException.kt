@@ -28,6 +28,7 @@ private const val DIRECTORY_NOT_EMPTY = 39
 private const val OUT_OF_STREAMS_RESOURCES = 63 //error on mac when 36 is expected
 private const val PROTOCOL_NOT_SUPPORTED = 93
 private const val NO_DATA = 61
+private const val ELOOP = 40
 
 // Observed on OSX. Code doesn't really makes sense [DIRECTORY_NOT_EMPTY] would make more sense.
 private const val OBJECT_IS_REMOTE = 66
@@ -39,7 +40,7 @@ fun throwExceptionBasedOnStatus(status: Int, cause: Throwable? = null): Nothing 
 
         IS_A_DIRECTORY -> throw FSException.IsDirectoryConflict(cause = cause)
 
-        NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound(cause = cause)
+        ELOOP, NO_SUCH_FILE_OR_DIR, PROTOCOL_NOT_SUPPORTED -> throw FSException.NotFound(cause = cause)
 
         IO_ERROR, NO_SUCH_DEVICE_OR_ADDRESS, DEVICE_OR_RESOURCE_BUSY,
         NO_SUCH_DEVICE, FILE_TABLE_OVERFLOW, TOO_MANY_OPEN_FILES, FILE_TOO_LARGE,

@@ -84,7 +84,8 @@ class FileScanner(
         collection: FileCollection,
         upperLimitOfEntries: Long = Long.MAX_VALUE
     ) {
-        val fileList = fs.listFiles(file).map { InternalFile(file.path + "/" + it) }
+        val fileList = runCatching { fs.listFiles(file).map { InternalFile(file.path + "/" + it) } }.getOrNull()
+            ?: return
         if (fileList.isEmpty() || fileList.any { it.fileName() == ".skipFolder" }) {
             log.debug("Skipping ${file.path} due to .skipFolder file or because the folder is empty")
             return
@@ -108,18 +109,26 @@ class FileScanner(
         }
 
         var newUpperLimitOfEntries = 1L
-        if (fs.stat(file).fileType == FileType.DIRECTORY) {
-            val rctime = runCatching { fastDirectoryStats.getRecursiveTime(file) }.getOrNull()
-            val (shouldContinue, limit) = shouldContinue(file, upperLimitOfEntries)
-            newUpperLimitOfEntries = limit
-            if (rctime != null && thisFileInIndex != null && thisFileInIndex.rctime == rctime && !shouldContinue) {
-                log.debug("${file.path} already up-to-date")
-                return
+        try {
+            if (fs.stat(file).fileType == FileType.DIRECTORY) {
+                val rctime = runCatching { fastDirectoryStats.getRecursiveTime(file) }.getOrNull()
+                val (shouldContinue, limit) = shouldContinue(file, upperLimitOfEntries)
+                newUpperLimitOfEntries = limit
+                if (rctime != null && thisFileInIndex != null && thisFileInIndex.rctime == rctime && !shouldContinue) {
+                    log.debug("${file.path} already up-to-date")
+                    return
+                }
             }
+        } catch (ex: FSException) {
+            log.debug(ex.stackTraceToString())
+            return
         }
-        val filesInDir = fileList.map {
-            fs.stat(it).toElasticIndexedFile(it, collection)
-        }.associateBy { it.path }
+
+        val filesInDir = runCatching {
+            fileList.map {
+                fs.stat(it).toElasticIndexedFile(it, collection)
+            }.associateBy { it.path }
+        }.getOrElse { emptyMap() }
 
         val relativeFilePath = pathConverter.internalToUCloud(InternalFile(file.path)).path
 
@@ -186,7 +195,7 @@ class FileScanner(
         bulk.flush()
 
         fileList.mapNotNull { f ->
-            val stat = fs.stat(f)
+            val stat = runCatching { fs.stat(f) }.getOrNull() ?: return@mapNotNull null
             withContext(pool) {
                 if (stat.fileType == FileType.DIRECTORY) {
                     launch {

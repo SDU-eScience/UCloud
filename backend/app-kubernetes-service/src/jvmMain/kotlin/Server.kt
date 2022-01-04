@@ -114,11 +114,13 @@ class Server(
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
-            true.also { repeat(10) { println("MASTER ELECTION DISABLED") } } || (configuration.disableMasterElection && micro.developmentModeEnabled),
+            (configuration.disableMasterElection && micro.developmentModeEnabled),
         ).apply {
             register(TaskPlugin(
                 configuration.toleration,
-                configuration.useSmallReservation && micro.developmentModeEnabled
+                configuration.useSmallReservation && micro.developmentModeEnabled,
+                configuration.useMachineSelector == true,
+                configuration.nodes,
             ))
             register(ParameterPlugin(licenseService))
             val fileMountPlugin = FileMountPlugin(
@@ -137,9 +139,9 @@ class Server(
             register(NetworkLimitPlugin)
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
-            register(ConnectToJobPlugin)
             register(ingressService)
             register(networkIpService)
+            register(FirewallPlugin(db, configuration.networkGatewayCidr))
             register(ProxyPlugin(broadcastingStream, ingressService))
             register(FileOutputPlugin(pathConverter, fs, logService, fileMountPlugin))
 

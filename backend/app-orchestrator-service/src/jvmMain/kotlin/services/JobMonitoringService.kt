@@ -146,7 +146,6 @@ class JobMonitoringService(
                 break
             }
         }
-
     }
 
     private suspend fun terminateAndUpdateJob(
@@ -267,8 +266,8 @@ class JobMonitoringService(
 
         log.debug("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
 
-        val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }
-        val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }
+        val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
+        val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
 
         log.debug("readonly: ${readOnlyFiles.size}, write: ${readWriteFiles.size}")
 
@@ -283,7 +282,7 @@ class JobMonitoringService(
         return HasPermissionForExistingMounts(true, null)
     }
 
-    private suspend fun checkFiles(session: DBContext, readOnly: Boolean, files: List<String>, job: Job): HasPermissionForExistingMounts {
+    private suspend fun checkFiles(session: DBContext, readOnly: Boolean, files: Set<String>, job: Job): HasPermissionForExistingMounts {
         if (files.isEmpty()) return HasPermissionForExistingMounts(true, null)
 
         val canAccess = fileCollectionService.retrieveBulk(
