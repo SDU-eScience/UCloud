@@ -324,15 +324,15 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
         case "PER_UNIT": {
             switch (type) {
                 case "INGRESS":
-                    return "Public links";
+                    return "Public link(s)";
                 case "NETWORK_IP":
-                    return "Public IPs";
+                    return "Public IP(s)";
                 case "LICENSE":
-                    return "Licenses";
+                    return "License(s)";
                 case "STORAGE":
                     return "GB";
                 case "COMPUTE":
-                    return "Jobs";
+                    return "Job(s)";
             }
         }
 

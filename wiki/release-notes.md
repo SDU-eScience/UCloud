@@ -7,6 +7,42 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 05-01-21
+
+Post-launch patches.
+
+```
+✅  Deployment(webclient, 2022.1.2-patch.3) (UP-TO-DATE)
+```
+
+## 04-01-21
+
+Upgrade UCloud to release 2022.1.0. Note: This deletes all other deployments.
+
+```
+✅  Deployment(accounting, 2022.1.1-patch.0) (UP-TO-DATE)
+✅  Deployment(password-reset, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.1-patch.0) (UP-TO-DATE)
+✅  Deployment(alerting, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(slack, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(auth, 2022.1.1) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(task, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(notification, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.0-patch.3) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.1-patch.3) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(news, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-aau, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-store, 2022.1.0-patch.1) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.1-patch.2) (UP-TO-DATE)
+✅  Deployment(avatar, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.1.2-patch.2) (UP-TO-DATE)
+```
+
 ## 16-12-21
 
 Upgrade log4j to version 2.16.0.
