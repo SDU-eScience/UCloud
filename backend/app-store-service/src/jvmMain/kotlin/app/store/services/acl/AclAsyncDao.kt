@@ -39,7 +39,7 @@ class AclAsyncDao {
                     setParameter("appname", applicationName)
                 },
                 """
-                    select permission
+                    select distinct permission
                     from app_store.permissions
                     where
                         (application_name = :appname) and
@@ -51,7 +51,7 @@ class AclAsyncDao {
                             )
                         )
                 """
-            ).rows.singleOrNull()
+            ).rows.firstOrNull()
         }
 
         if (!result.isNullOrEmpty()) {

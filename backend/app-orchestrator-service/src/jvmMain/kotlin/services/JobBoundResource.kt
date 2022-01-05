@@ -160,6 +160,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     from new_updates u
                     where u.id = i.resource
                 """,
+                "${this::class.simpleName} on bound update"
             )
     }
 }

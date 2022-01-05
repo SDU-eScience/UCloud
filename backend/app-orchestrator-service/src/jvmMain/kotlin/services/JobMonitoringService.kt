@@ -92,7 +92,8 @@ class JobMonitoringService(
                                         limit 100
                                     )
                                 returning resource;
-                            """
+                            """,
+                            "job monitoring loop"
                         )
                         .rows
                         .map { it.getLong(0)!! }

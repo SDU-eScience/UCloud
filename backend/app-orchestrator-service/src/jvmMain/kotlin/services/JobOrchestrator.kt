@@ -186,7 +186,8 @@ class JobOrchestrator(
                      output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas) 
                 select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file, replicas
                 from bulk_data
-            """
+            """,
+            "job spec create"
         )
 
         session.sendPreparedStatement(
@@ -204,7 +205,8 @@ class JobOrchestrator(
             """
                 insert into app_orchestrator.job_resources (resource, job_id) 
                 select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
-            """
+            """,
+            "job resources create"
         )
 
         session.sendPreparedStatement(
@@ -224,7 +226,8 @@ class JobOrchestrator(
             """
                 insert into app_orchestrator.job_input_parameters (name, value, job_id)  
                 select unnest(:names::text[]), unnest(:values::jsonb[]), unnest(:job_ids::bigint[])
-            """
+            """,
+            "job input parameters create"
         )
 
         idWithSpec.forEach { (id, spec) ->
@@ -279,7 +282,8 @@ class JobOrchestrator(
                                 output_folder = coalesce(:output_folder::text, output_folder),
                                 time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id
-                        """
+                        """,
+                        "job update"
                     )
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
