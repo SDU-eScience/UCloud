@@ -19,7 +19,7 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import {displayErrorMessageOrDefault, doNothing, extensionFromPath, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -47,7 +47,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {callAPI, InvokeCommand} from "@/Authentication/DataHook";
 import metadataDocumentApi from "@/UCloud/MetadataDocumentApi";
 import {Spacer} from "@/ui-components/Spacer";
-import metadataNamespaceApi, {FileMetadataTemplate, FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
+import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import {useEffect, useState} from "react";
@@ -423,7 +423,9 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             {
                 text: "Download",
                 icon: "download",
-                enabled: (selected, cb) => selected.length >= 1 && selected.every(it => it.status.type === "FILE"),
+                enabled: selected =>
+                    ((isLikelySafari && selected.length === 1) || (!isLikelySafari && selected.length >= 1)) &&
+                    selected.every(it => it.status.type === "FILE"),
                 onClick: async (selected, cb) => {
                     // TODO(Dan): We should probably add a feature flag for file types
                     const result = await cb.invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
@@ -826,7 +828,7 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
     return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
         <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}
-                defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
+            defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
             {Object.keys(SensitivityLevelMap).map(it =>
                 <option key={it} value={it}>{prettierString(it)}</option>
             )}
