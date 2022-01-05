@@ -4,6 +4,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.AccessEntity
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.EntityWithPermission
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
 import dk.sdu.cloud.service.db.async.getField
@@ -38,15 +39,18 @@ class AclAsyncDao {
                     setParameter("appname", applicationName)
                 },
                 """
-                    SELECT *
-                    FROM permissions
-                    WHERE (username = ?user) OR
+                    select permission
+                    from app_store.permissions
+                    where
+                        (application_name = :appname) and
                         (
-                            (project = ?project) AND
-                            (project_group IN (select unnest (?groups::text[])))
-                        ) AND
-                        (application_name = ?appname)
-                """.trimIndent()
+                            username = :user or
+                            (
+                                project = :project and
+                                project_group = some(:groups::text[])
+                            )
+                        )
+                """
             ).rows.singleOrNull()
         }
 
@@ -156,5 +160,9 @@ class AclAsyncDao {
                 )
             }
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
