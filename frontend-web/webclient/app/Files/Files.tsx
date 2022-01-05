@@ -242,7 +242,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.items, lightTheme, localActiveProject]);
+    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject]);
 
     const onRename = useCallback(async (text: string, res: UFile, cb: ResourceBrowseCallbacks<UFile>) => {
         await cb.invokeCommand(FilesApi.move(bulkRequestOf({
