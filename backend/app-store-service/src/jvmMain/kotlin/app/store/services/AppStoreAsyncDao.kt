@@ -268,7 +268,7 @@ class AppStoreAsyncDao(
                                         select
                                             a.*,
                                             row_number() over (
-                                                partition by created_at
+                                                partition by name
                                                 order by created_at desc
                                             ) as rno
                                         from
@@ -318,26 +318,26 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ): ApplicationWithFavoriteAndTags {
-        if (!ctx.withSession { session ->
-                internalHasPermission(
-                    session,
-                    user,
-                    currentProject,
-                    projectGroups,
-                    appName,
-                    appVersion,
-                    ApplicationAccessRight.LAUNCH,
-                    publicAsyncDao,
-                    aclDAO
-                )
-            }
-        ) throw ApplicationException.NotFound()
+        return ctx.withSession { session ->
+            val hasPermission = internalHasPermission(
+                session,
+                user,
+                currentProject,
+                projectGroups,
+                appName,
+                appVersion,
+                ApplicationAccessRight.LAUNCH,
+                publicAsyncDao,
+                aclDAO
+            )
 
-        val entity = ctx.withSession { session ->
-            internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
-        } ?: throw ApplicationException.NotFound()
+            if (!hasPermission) throw ApplicationException.NotFound()
 
-        return ctx.withSession { session -> preparePageForUser(session, user.username, Page(1, 1, 0, listOf(entity))).items.first()}
+            val application = internalByNameAndVersion(session, appName, appVersion)?.toApplicationWithInvocation()
+                ?: throw ApplicationException.NotFound()
+
+            preparePageForUser(session, user.username, Page(1, 1, 0, listOf(application))).items.first()
+        }
     }
 
     suspend fun listLatestVersion(

@@ -120,6 +120,7 @@ function createResumeable(
         return new Promise(((resolve, reject) => {
             const progressStart = upload.progressInBytes;
             const request = new XMLHttpRequest();
+
             request.open("POST", strategy!.endpoint);
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
@@ -266,8 +267,14 @@ const Uploader: React.FunctionComponent = () => {
         });
     }, [uploads]);
 
+    const clearUploads = useCallback((batch: Upload[]) => {
+        /* Note(Jonas): This is intended as pointer equality. Does this make sense in a Javascript context? */
+        setUploads(uploads.filter(u => !batch.some(b => b === u)));
+        toggleSet.uncheckAll();
+    }, [uploads]);
+
     const callbacks: UploadCallback = useMemo(() => (
-        {startUploads, stopUploads, pauseUploads, resumeUploads}
+        {startUploads, stopUploads, pauseUploads, resumeUploads, clearUploads}
     ), [startUploads, stopUploads]);
 
     const onSelectedFile = useCallback(async (e) => {
@@ -359,15 +366,15 @@ const Uploader: React.FunctionComponent = () => {
                     extra={callbacks}
                     entityNameSingular={entityName}
                 />
-                <Divider/>
+                <Divider />
 
                 <label htmlFor={"fileUploadBrowse"}>
                     <DropZoneBox onDrop={onSelectedFile} onDragEnter={preventDefault} onDragLeave={preventDefault}
-                                 onDragOver={preventDefault} slim={uploads.length > 0}>
+                        onDragOver={preventDefault} slim={uploads.length > 0}>
                         <Flex width={320} alignItems={"center"} flexDirection={"column"}>
-                            {uploads.length > 0 ? null : <UploaderArt/>}
+                            {uploads.length > 0 ? null : <UploaderArt />}
                             <Box ml={"-1.5em"}>
-                                <TextSpan mr="0.5em"><Icon name="upload"/></TextSpan>
+                                <TextSpan mr="0.5em"><Icon name="upload" /></TextSpan>
                                 <TextSpan mr="0.3em">Drop files here or</TextSpan>
                                 <i>browse</i>
                                 <input
@@ -412,6 +419,7 @@ interface UploadCallback {
     stopUploads: (batch: Upload[]) => void;
     pauseUploads: (batch: Upload[]) => void;
     resumeUploads: (batch: Upload[]) => void;
+    clearUploads: (batch: Upload[]) => void;
 }
 
 const renderer: ItemRenderer<Upload> = {
@@ -450,19 +458,26 @@ const renderer: ItemRenderer<Upload> = {
                     ({sizeToString(uploadCalculateSpeed(resource))}/s)
                 </ListRowStat>
             }
+            {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
+                <ErrorSpan>Quota has been exceeded. Delete some files and try again later.</ErrorSpan>
+            </ListRowStat>}
         </>
     },
 
     ImportantStats: ({resource}) => {
         const upload = resource;
         if (!upload) return null;
+        const {terminationRequested, paused, state, error} = upload;
+        const iconName = terminationRequested || error ? "close" : "check";
+        const iconColor = terminationRequested || error ? "red" : "green";
         return <>
-            {upload.state !== UploadState.DONE ? null : (
-                upload.paused ? null :
-                    (upload.terminationRequested ?
-                        <Icon name="close" color="red" /> :
-                        <Icon name="check" color="green" />
-                    )
+            {state !== UploadState.DONE ? null : (
+                paused ? null : <Box>
+                    <Icon
+                        name={iconName}
+                        color={iconColor}
+                    />
+                </Box>
             )}
         </>;
     }
@@ -490,8 +505,24 @@ const operations: Operation<Upload, UploadCallback>[] = [
         text: "Resume",
         icon: "play",
         primary: true
+    },
+    {
+        enabled: selected => selected.length > 0 && selected.every(it => it.state === UploadState.DONE),
+        onClick: (selected, cb) => cb.clearUploads(selected),
+        text: "Clear",
+        icon: "close",
+        color: "red"
     }
 ];
+
+const ErrorSpan = styled.span`
+    color: var(--white);
+    border: 1px solid red;
+    background-color: red;
+    padding-left: 4px;
+    padding-right: 4px;
+    border-radius: 2px;
+`
 
 const UploaderArt: React.FunctionComponent = () => {
     return <UploadArtWrapper>
@@ -525,7 +556,7 @@ const modalStyle = {
     }
 };
 
-const DropZoneBox = styled.div<{ slim?: boolean }>`
+const DropZoneBox = styled.div<{slim?: boolean}>`
     width: 100%;
     ${p => p.slim ? {height: "80px"} : {height: "280px"}}
     border-width: 2px;

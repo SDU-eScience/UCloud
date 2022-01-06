@@ -12,7 +12,7 @@ import java.util.*
 
 data class Payment(
     val chargeId: String,
-    val numberOfProducts: Long,
+    val periods: Long,
     val units: Long,
     val pricePerUnit: Long,
     val resourceId: String,
@@ -40,7 +40,27 @@ class PaymentService(
                 ChargeWalletRequestItem(
                     it.owner,
                     it.units,
-                    it.numberOfProducts,
+                    it.periods,
+                    it.product,
+                    it.performedBy,
+                    it.description ?: "Payment",
+                    "${it.product.provider}-${it.chargeId}"
+                )
+            }),
+            serviceClient
+        ).orThrow().responses.map { success ->
+            if (success) ChargeResult.Charged
+            else ChargeResult.InsufficientFunds
+        }
+    }
+
+    suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
+        return Accounting.check.call(
+            BulkRequest(payments.map {
+                ChargeWalletRequestItem(
+                    it.owner,
+                    it.units,
+                    it.periods,
                     it.product,
                     it.performedBy,
                     it.description ?: "Payment",

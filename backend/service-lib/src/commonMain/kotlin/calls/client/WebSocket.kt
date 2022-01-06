@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.client
 
+import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.defaultMapper
@@ -320,7 +321,7 @@ internal class WSConnectionPool {
                 path = url.fullPath,
                 block = {
                     if (proxiedTo != null) {
-                        header("UCloud-Username", proxiedTo)
+                        header("UCloud-Username", base64Encode(proxiedTo.encodeToByteArray()))
                     }
                 }
             )

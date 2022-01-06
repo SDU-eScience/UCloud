@@ -12,11 +12,15 @@ import {FileCollection} from "@/UCloud/FileCollectionsApi";
 import JobsApi from "@/UCloud/JobsApi";
 import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {Button} from "@/ui-components";
-import {bulkRequestOf} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {getParentPath} from "@/Utilities/FileUtilities";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useHistory} from "react-router";
-import {Product} from "@/Accounting";
+import {Product, ProductCompute} from "@/Accounting";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as UCloud from "@/UCloud";
+import {joinToString} from "@/UtilityFunctions";
+import {findRelevantMachinesForApplication, Machines} from "@/Applications/Jobs/Widgets/Machines";
 
 function findApplicationsByExtension(
     request: { files: string[] } & PaginationRequestV2
@@ -52,29 +56,61 @@ interface OpenWithProps {
 }
 
 export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collection}) => {
-    const [productsWithSupport, fetchProducts] = useCloudAPI<SupportByProvider>({noop: true}, {productsByProvider: {}});
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
     const [selectedApplication, setSelectedApplication] = useState<ApplicationWithExtension | null>(null);
     const [commandLoading, invokeCommand] = useCloudCommand();
+    const [wallets, fetchWallet] = useCloudAPI<UCloud.PageV2<ProductCompute>>({noop: true}, emptyPageV2);
+    const [machineSupport, fetchMachineSupport] = useCloudAPI<UCloud.compute.JobsRetrieveProductsResponse>(
+        {noop: true},
+        {productsByProvider: {}}
+    );
+    const [resolvedApplication, fetchResolvedApplication] = useCloudAPI<UCloud.compute.Application | null>({noop: true}, null);
+
     const history = useHistory();
+
     useEffect(() => {
-        fetchProducts(JobsApi.retrieveProducts());
+        fetchWallet(UCloud.accounting.products.browse({
+            filterUsable: true,
+            filterArea: "COMPUTE",
+            itemsPerPage: 250,
+            includeBalance: true
+        }));
     }, []);
 
-    const products = useMemo(() => {
-        const relevantProducts = productsWithSupport.data.productsByProvider[collection.specification.product.provider];
-        if (relevantProducts) {
-            return relevantProducts.map(it => it.product as unknown as Product)
-        } else {
-            return [];
-        }
-    }, [productsWithSupport.data, collection]);
+    useEffect(() => {
+        const s = new Set<string>();
+        wallets.data.items.forEach(it => s.add(it.category.provider));
 
-    const generateCall = useCallback(next => findApplicationsByExtension({
-        files: [file.id],
-        itemsPerPage: 50,
-        next: next
-    }), [file.id]);
+        if (s.size > 0) {
+            fetchMachineSupport(UCloud.compute.jobs.retrieveProducts({
+                providers: joinToString(Array.from(s), ",")
+            }));
+        }
+    }, [wallets]);
+
+    useEffect(() => {
+        if (selectedApplication != null) {
+            fetchResolvedApplication(
+                UCloud.compute.apps.findByNameAndVersion({
+                    appName: selectedApplication.metadata.name,
+                    appVersion: selectedApplication.metadata.version
+                })
+            );
+        }
+    }, [selectedApplication]);
+
+    const allProducts: ProductCompute[] = !resolvedApplication.data ? [] :
+        findRelevantMachinesForApplication(resolvedApplication.data, machineSupport.data, wallets.data);
+
+    const generateCall = useCallback(next => {
+        const normalizedFileId = file.status.type === "DIRECTORY" ? `${file.id}/` : file.id;
+
+        return findApplicationsByExtension({
+            files: [normalizedFileId],
+            itemsPerPage: 50,
+            next: next
+        });
+    }, [file.id]);
 
     const callbacks: ExtraCallbacks = useMemo(() => ({
         setSelectedApplication
@@ -111,10 +147,14 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
                         type: "file",
                         path: file.status.type === "DIRECTORY" ? file.id : getParentPath(file.id),
                         readOnly: false
-                    }]
+                    }],
+                    openedFile: file.id
                 })),
                 {defaultErrorHandler: false}
             );
+
+            dialogStore.success();
+
             const ids = response?.responses;
             if (!ids || ids.length === 0) {
                 snackbarStore.addFailure("UCloud failed to submit the job", false);
@@ -136,7 +176,7 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
         />
 
         {!selectedApplication ? null : <>
-            <ProductSelector products={products} onProductSelected={onProductSelected} />
+            <Machines machines={allProducts} onMachineChange={onProductSelected} />
             <Button mt={"8px"} fullWidth onClick={launch} disabled={commandLoading}>Launch</Button>
         </>}
     </>;

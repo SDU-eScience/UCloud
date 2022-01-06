@@ -18,7 +18,7 @@ class CustomScripts(val client: RestHighLevelClient) {
                 val response = findEntriesContaining("$query*", index, field)
                 val ids = response.hits.map { it.id }
                 deleteInBulk(index, ids)
-            } while (response.hits.totalHits?.value?.toInt() == 10000)
+            } while (response.hits.totalHits.value?.toInt() == 10000)
         }
 
     }
@@ -48,10 +48,10 @@ class CustomScripts(val client: RestHighLevelClient) {
     }
 
     fun deleteInBulk(index: String, ids: List<String>) {
-        val request = BulkRequest(index)
+        val request = BulkRequest()
 
         ids.forEach { id ->
-            val deleteRequest = DeleteRequest(index, id)
+            val deleteRequest = DeleteRequest(index, "_doc_", id)
             request.add(deleteRequest)
         }
 

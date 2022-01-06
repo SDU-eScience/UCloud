@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
@@ -20,6 +19,12 @@ interface ResourceSvc<
     Update : ResourceUpdate,
     Prod : Product,
     Support : ProductSupport> {
+    suspend fun init(
+        actorAndProject: ActorAndProject,
+    ) {
+        // Default: Do nothing
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: ResourceBrowseRequest<F>,
@@ -57,7 +62,8 @@ interface ResourceSvc<
 
     suspend fun addUpdate(
         actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<Update>>
+        updates: BulkRequest<ResourceUpdateAndId<Update>>,
+        requireAll: Boolean = true,
     ) {
         throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }
@@ -75,7 +81,8 @@ interface ResourceSvc<
 
     suspend fun chargeCredits(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<ResourceChargeCredits>
+        request: BulkRequest<ResourceChargeCredits>,
+        checkOnly: Boolean = false,
     ): ResourceChargeCreditsResponse {
         throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }

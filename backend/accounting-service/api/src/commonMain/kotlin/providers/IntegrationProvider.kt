@@ -2,6 +2,7 @@ package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -68,7 +69,10 @@ fun AuthenticatedClient.withProxyInfo(username: String?): AuthenticatedClient {
             if (username != null) {
                 when (it) {
                     is OutgoingHttpCall -> {
-                        it.builder.header(IntegrationProvider.UCLOUD_USERNAME_HEADER, username)
+                        it.builder.header(
+                            IntegrationProvider.UCLOUD_USERNAME_HEADER,
+                            base64Encode(username.encodeToByteArray())
+                        )
                     }
 
                     is OutgoingWSCall -> {

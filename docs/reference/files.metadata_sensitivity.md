@@ -137,6 +137,9 @@ Files.retrieve.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeMetadata = true, 
             includeOthers = false, 
             includePermissions = null, 
@@ -155,8 +158,6 @@ Files.retrieve.call(
 
 /*
 UFile(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635151675465, 
     id = "/51231/my/file", 
     owner = ResourceOwner(
@@ -403,7 +404,10 @@ await callAPI(FilesApi.retrieve(
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "51231"
     }
@@ -515,9 +519,6 @@ await callAPI(FilesApi.retrieve(
         "others": [
         ]
     },
-    "billing": {
-    },
-    "acl": null,
     "updates": [
     ]
 }
@@ -738,9 +739,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #         "others": [
 #         ]
 #     },
-#     "billing": {
-#     },
-#     "acl": null,
 #     "updates": [
 #     ]
 # }

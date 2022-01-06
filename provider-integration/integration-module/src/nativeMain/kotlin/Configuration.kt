@@ -104,11 +104,20 @@ class IMConfiguration(
     }
 
     @Serializable
+    data class DevelopmentInstance(
+        val username: String,
+        val userId: Int,
+        val port: Int,
+    )
+
+    @Serializable
     data class Core(
         val providerId: String,
         val certificateFile: String? = null,
         val certificate: String? = null,
         val ipcDirectory: String? = null,
+        // NOTE(Dan): If this is specified, this instance will never be launched
+        val developmentInstance: DevelopmentInstance? = null,
     ) {
         fun normalize(): Core {
             if (providerId != PLACEHOLDER_ID) {

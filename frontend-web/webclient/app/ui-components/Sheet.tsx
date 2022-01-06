@@ -42,7 +42,7 @@ export function StaticCell(
     };
 }
 
-interface DropdownOption {
+export interface SheetDropdownOption {
     value: string;
     icon: IconName;
     title: string;
@@ -51,10 +51,10 @@ interface DropdownOption {
 
 interface DropdownCell extends CellBase {
     type: "dropdown";
-    options: DropdownOption[]
+    options: SheetDropdownOption[]
 }
 
-export function DropdownCell(options: DropdownOption[], opts?: Partial<DropdownCell>): DropdownCell {
+export function DropdownCell(options: SheetDropdownOption[], opts?: Partial<DropdownCell>): DropdownCell {
     return {
         type: "dropdown",
         options,
@@ -101,11 +101,11 @@ export function TextCell(placeholder?: string, opts?: Partial<TextCell>): TextCe
 interface FuzzyCell extends CellBase {
     type: "fuzzy";
     placeholder?: string;
-    suggestions: (query: string, column: number, row: number) => DropdownOption[];
+    suggestions: (query: string, column: number, row: number) => SheetDropdownOption[];
 }
 
 export function FuzzyCell(
-    suggestions: (query: string, column: number, row: number) => DropdownOption[],
+    suggestions: (query: string, column: number, row: number) => SheetDropdownOption[],
     placeholder?: string,
     opts?: Partial<FuzzyCell>
 ): FuzzyCell {
@@ -139,8 +139,9 @@ export interface CellCoordinates {
     row: number;
 }
 
-interface SheetCallbacks {
+export interface SheetCallbacks {
     sheet: SheetRenderer;
+    extra?: any;
 }
 
 interface SheetProps {
@@ -150,6 +151,8 @@ interface SheetProps {
     renderer: React.MutableRefObject<SheetRenderer | null>;
     newRowPrefix: string;
     onRowDeleted: (rowId: string) => void;
+    operations: (defaultOps: Operation<never, SheetCallbacks>[]) => Operation<never, SheetCallbacks>[];
+    extra?: any;
 }
 
 export const Sheet: React.FunctionComponent<SheetProps> = props => {
@@ -175,58 +178,62 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
     }, [renderer, props.onRowUpdated]);
 
     const counter = useRef(0);
-    const callbacks = useMemo(() => ({sheet: renderer}), [renderer]);
-    const dropdownOptions = useMemo<Operation<never, SheetCallbacks>[]>(() => [
-        {
-            text: "Insert row",
-            icon: "upload",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
-            }
-        },
-        {
-            text: "Insert 50 rows",
-            icon: "uploadFolder",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                for (let i = 0; i < 50; i++) {
-                    cb.sheet.addRow(`${props.newRowPrefix}-${counter.current++}`);
+    const callbacks = useMemo(() => ({sheet: renderer, extra: props.extra}), [renderer]);
+    const dropdownOptions = useMemo<Operation<never, SheetCallbacks>[]>(() => {
+        const defaultOps: Operation<never, SheetCallbacks>[] = [
+            {
+                text: "Insert row",
+                icon: "upload",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+                }
+            },
+            {
+                text: "Insert 50 rows",
+                icon: "uploadFolder",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    for (let i = 0; i < 50; i++) {
+                        cb.sheet.addRow(`${props.newRowPrefix}-${counter.current++}`);
+                    }
+                }
+            },
+            {
+                text: "Clone",
+                icon: "copy",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    const rowNumber = sheet.contextMenuTriggeredBy + 1;
+                    sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
+                    for (let col = 0; col < sheet.cells.length; col++) {
+                        const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
+                        if (value != null) sheet.writeValue(col, rowNumber, value);
+                    }
+                }
+            },
+            {
+                text: "Delete",
+                icon: "trash",
+                confirm: true,
+                color: "red",
+                enabled: () => true,
+                onClick: (_, cb) => {
+                    const sheet = cb.sheet;
+                    const rowToDelete = sheet.contextMenuTriggeredBy;
+                    const rowId = sheet.retrieveRowId(rowToDelete);
+                    if (rowId != null) {
+                        sheet.removeRow(rowToDelete);
+                        props.onRowDeleted(rowId);
+                    }
                 }
             }
-        },
-        {
-            text: "Clone",
-            icon: "copy",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                const rowNumber = sheet.contextMenuTriggeredBy + 1;
-                sheet.addRow(`${props.newRowPrefix}-${counter.current++}`, sheet.contextMenuTriggeredBy + 1);
-                for (let col = 0; col < sheet.cells.length; col++) {
-                    const value = sheet.readValue(col, sheet.contextMenuTriggeredBy);
-                    if (value != null) sheet.writeValue(col, rowNumber, value);
-                }
-            }
-        },
-        {
-            text: "Delete",
-            icon: "trash",
-            confirm: true,
-            color: "red",
-            enabled: () => true,
-            onClick: (_, cb) => {
-                const sheet = cb.sheet;
-                const rowToDelete = sheet.contextMenuTriggeredBy;
-                const rowId = sheet.retrieveRowId(rowToDelete);
-                if (rowId != null) {
-                    sheet.removeRow(rowToDelete);
-                    props.onRowDeleted(rowId);
-                }
-            }
-        }
-    ], [props.newRowPrefix, props.onRowDeleted]);
+        ];
+
+        return props.operations(defaultOps);
+    }, [props.newRowPrefix, props.onRowDeleted]);
 
     const requiredIcons: IconName[] = useMemo(() => {
         const result: IconName[] = [];
@@ -313,6 +320,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         <StyledSheet id={sheetId}>
             <thead>
             <tr>
+                <th>#</th>
                 {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
             </tr>
             </thead>
@@ -330,6 +338,7 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
             extra={callbacks}
             selected={[]}
             entityNameSingular={""}
+            forceEvaluationOnOpen
         />
 
         <TooltipContent id={`${sheetId}-tooltip`} textAlign={"left"} />
@@ -382,7 +391,7 @@ export class SheetRenderer {
     // Dropdown state
     private dropdownCoordinates: CellCoordinates | null = null;
     private dropdownOpen = false;
-    private dropdownCell: DropdownOption[] | null = null;
+    private dropdownCell: SheetDropdownOption[] | null = null;
     private dropdownEntry = 0;
 
     // Clipboard state
@@ -544,7 +553,8 @@ export class SheetRenderer {
                         }
                     } else if (!hasInput) {
                         if (ev.code === "ShiftLeft" || ev.code === "ShiftRight" || ev.code === "Escape" ||
-                            ev.code === "ControlLeft" || ev.code === "ControlRight") return;
+                            ev.code === "ControlLeft" || ev.code === "ControlRight" || ev.code === "MetaLeft" ||
+                            ev.code === "MetaRight") return;
 
                         // NOTE(Dan): This should activate the current cell, if any
                         if (!hasAnyField) return;
@@ -620,17 +630,23 @@ export class SheetRenderer {
         this.body = node;
     }
 
-    registerValidation(column: number, row: number, validationState?: ValidationState) {
+    registerValidation(column: number, row: number, validationState?: ValidationState, message?: string) {
         const cell = this.findTableCell(column, row);
         if (!cell) return;
         cell.querySelector(".validation")?.remove();
         if (validationState) {
-            cell.append(...this.cloneTemplate(".validation-" + validationState));
+            const validation = this.cloneTemplate(".validation-" + validationState)[0] as HTMLElement;
+            cell.appendChild(validation);
+            if (message) {
+                const tooltipContent = document.createElement("p");
+                tooltipContent.textContent = message;
+                this.attachTooltip(validation, tooltipContent);
+            }
         }
     }
 
     findTableCell(column: number, row: number): HTMLTableCellElement | null {
-        return this.body.children.item(row)?.children?.item(column) as HTMLTableCellElement ?? null;
+        return this.body.children.item(row)?.children?.item(column + 1) as HTMLTableCellElement ?? null;
     }
 
     readValue(column: number, row: number): string | null {
@@ -649,7 +665,7 @@ export class SheetRenderer {
     }
 
     retrieveRowId(row: number): string | null {
-        return this.body.children[row]?.getAttribute("data-row-id") ?? null;
+        return this.body?.children[row]?.getAttribute("data-row-id") ?? null;
     }
 
     // Re-renders a cell with, potentially, a new value. value == undefined can be used when re-rendering is desired.
@@ -727,6 +743,10 @@ export class SheetRenderer {
             }
         };
         newRow.setAttribute("data-row-id", rowId);
+        const rowCounter = document.createElement("th");
+        rowCounter.textContent = index !== undefined ? (index + 1).toString() : (this.rows + 1).toString();
+        newRow.appendChild(rowCounter);
+
         for (let col = 0; col < this.cells.length; col++) {
             const cell = this.cells[col];
             const cellElement = document.createElement("td");
@@ -738,10 +758,22 @@ export class SheetRenderer {
             this.renderCell(cell, cellElement, this.rows, col);
         }
         this.rows++;
+
+        if (index != undefined) this.evaluateRowNumbers(index);
+    }
+
+    evaluateRowNumbers(startIdx: number) {
+        const children = this.body.children;
+        for (let i = startIdx; i < children.length; i++) {
+            const row = children[i];
+            (row.children[0] as HTMLTableCellElement).textContent = (i + 1).toString();
+        }
     }
 
     removeRow(row: number) {
         this.body.children[row]?.remove();
+        this.evaluateRowNumbers(row);
+        this.rows--;
     }
 
     private markActiveCells() {
@@ -753,12 +785,29 @@ export class SheetRenderer {
         const startY = Math.min(this.cellStartY, this.cellEndY);
         const endX = Math.max(this.cellStartX, this.cellEndX);
         const endY = Math.max(this.cellStartY, this.cellEndY);
+        let isFirst = true;
         for (let row = startY; row <= endY; row++) {
             const rowElement = this.body.children[row];
             if (!rowElement) return;
+            if (isFirst) {
+                isFirst = false;
+
+                const scrollingContainer = this.table.parentElement;
+                if (scrollingContainer) {
+                    const height = scrollingContainer.clientHeight;
+                    const rowHeight = 34;
+
+                    const firstRow = scrollingContainer.scrollTop / rowHeight;
+                    const lastRow = ((scrollingContainer.scrollTop + height) / rowHeight) - 2;
+
+                    if (row <= firstRow || row >= lastRow) {
+                        scrollingContainer.scrollTop = rowHeight * row;
+                    }
+                }
+            }
 
             for (let col = startX; col <= endX; col++) {
-                const cellElement = rowElement.children[col];
+                const cellElement = rowElement.children[col + 1];
                 if (!cellElement) break;
                 cellElement.classList.add("active");
                 if (col === startX && row === startY) {
@@ -903,7 +952,7 @@ export class SheetRenderer {
         }
     }
 
-    private renderDropdownMenu(anchor: Element, options: DropdownOption[], column: number, row: number) {
+    private renderDropdownMenu(anchor: Element, options: SheetDropdownOption[], column: number, row: number) {
         const container = this.cloneTemplate(".dropdown-container")[0];
         {
             // Create container for dropdown
@@ -937,7 +986,7 @@ export class SheetRenderer {
         }
     }
 
-    private renderDropdownRow(container: Element, opt: DropdownOption): Element {
+    private renderDropdownRow(container: Element, opt: SheetDropdownOption): Element {
         const optElement = this.cloneTemplate(".dropdown-row")[0];
         container.appendChild(optElement);
 
@@ -967,7 +1016,7 @@ export class SheetRenderer {
             return;
         }
 
-        const tableCell = this.body.children.item(coord.row)?.children.item(coord.column)! as HTMLTableCellElement;
+        const tableCell = this.body.children.item(coord.row)?.children.item(coord.column + 1)! as HTMLTableCellElement;
         SheetRenderer.removeChildren(tableCell);
         this.renderCell(this.cells[coord.column], tableCell, coord.row, coord.column, options[this.dropdownEntry].value);
         this.closeDropdown();
@@ -1037,30 +1086,36 @@ const StyledSheet = styled.table`
   width: 100%;
   color: var(--text);
   position: relative;
-  border-collapse: collapse;
-
-  tr, td, th {
-    border: 2px inset #eee;
-    padding: 4px;
-  }
-
-  td {
-    position: relative;
-  }
+  white-space: nowrap;
+  margin: 0;
+  border-collapse: separate;
+  border-spacing: 0;
 
   .validation {
     position: absolute;
     right: 10px;
   }
 
+  tr, td, th {
+    border: 2px inset #eee;
+    padding: 4px;
+  }
+  
+  td, th {
+    border: 1px solid var(--text);
+  }
+
+  td {
+    position: relative;
+  }
+
   td.active, th.active {
-    border: 2px solid var(--blue);
+    background: var(--activeSpreadsheet);
   }
 
   th {
     font-weight: bold;
     text-align: left;
-    position: sticky;
     top: 0;
     box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
   }
@@ -1081,7 +1136,7 @@ const StyledSheet = styled.table`
   .pointer {
     cursor: pointer;
   }
-  
+
   a {
     color: var(--blue);
   }
@@ -1109,5 +1164,33 @@ const StyledSheet = styled.table`
 
   input {
     cursor: default;
+  }
+
+  thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--white);
+  }
+
+  td {
+    background: var(--white);
+  }
+
+  tbody th {
+    position: relative;
+  }
+
+  thead th:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+
+  tbody th {
+    position: sticky;
+    left: 0;
+    background: var(--white);
+    z-index: 1;
   }
 `;

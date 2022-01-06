@@ -2,47 +2,25 @@ package dk.sdu.cloud.integration
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.accounting.AccountingService
-import dk.sdu.cloud.app.kubernetes.AppKubernetesService
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
-import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
-import dk.sdu.cloud.app.store.AppStoreService
-import dk.sdu.cloud.audit.ingestion.AuditIngestionService
-import dk.sdu.cloud.auth.AuthService
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.contact.book.services.ContactBookElasticDao
 import dk.sdu.cloud.elastic.management.ElasticManagementService
-import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.integration.backend.sampleStorage
-import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.micro.Service
-import dk.sdu.cloud.news.NewsService
-import dk.sdu.cloud.notification.NotificationService
-import dk.sdu.cloud.password.reset.PasswordResetService
 import dk.sdu.cloud.redis.cleaner.RedisCleanerService
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.service.SimpleCache
-import dk.sdu.cloud.service.SystemTimeProvider
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.service.test.TestDB
-import dk.sdu.cloud.support.SupportService
-import dk.sdu.cloud.task.TaskService
+import dk.sdu.cloud.services
 import dk.sdu.cloud.test.UCloudTest
 import kotlinx.coroutines.*
 import org.apache.logging.log4j.core.config.ConfigurationFactory
@@ -53,6 +31,8 @@ import java.io.File
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.nio.file.Files
+import java.security.KeyPairGenerator
+import java.security.SecureRandom
 import java.util.*
 
 val disableBuiltInDatabases: Boolean
@@ -108,7 +88,6 @@ object UCloudLauncher : Loggable {
 
                 launch {
                     // Redis
-
                     if (!disableBuiltInDatabases && !disableBuiltInRedis) {
                         // For macos we always use the same file name as it appears to have some problems with macOS
                         // security features
@@ -149,8 +128,124 @@ object UCloudLauncher : Loggable {
         runBlocking { job.await() }
     }
 
+    data class ProviderTokens(
+        val configPath: List<String>,
+        val providerId: String,
+        val domain: String,
+        val port: Int,
+        val https: Boolean,
+        val publicKey: String,
+        val privateKey: String,
+        val refreshToken: String,
+        val sharedSecret: String,
+    ) {
+        fun generateConfig(): String = configPath.joinToString("\n") { path ->
+            buildString {
+                var indent = ""
+                path.split(".").forEachIndexed { index, component ->
+                    append(indent)
+                    append(component)
+                    appendLine(":")
+                    indent += "  "
+                }
+                append(indent)
+                appendLine("providerRefreshToken: $refreshToken")
+                append(indent)
+                appendLine("ucloudCertificate: $publicKey")
+            }
+        }
+    }
+
+    private suspend fun generateProviderTokens(
+        configPath: List<String>,
+        providerId: String,
+        domain: String,
+        port: Int,
+        https: Boolean,
+    ): ProviderTokens {
+        val random = SecureRandom()
+        val keyGen = KeyPairGenerator.getInstance("RSA")
+        keyGen.initialize(2048)
+        val keyPair = keyGen.genKeyPair()
+        val public = keyPair.public.encoded.let { Base64.getEncoder().encodeToString(it) }
+        val private = keyPair.private.encoded.let { Base64.getEncoder().encodeToString(it) }
+
+        val sharedSecret = ByteArray(64).also { random.nextBytes(it) }.let { Base64.getEncoder().encodeToString(it) }
+        val refreshToken = ByteArray(64).also { random.nextBytes(it) }.let { Base64.getEncoder().encodeToString(it) }
+        return ProviderTokens(
+            configPath,
+            providerId,
+            domain,
+            port,
+            https,
+            public,
+            private,
+            refreshToken,
+            sharedSecret
+        )
+    }
+
+    private suspend fun prepareProvider(
+        providerTokens: ProviderTokens
+    ): Unit = with(providerTokens) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("shared_secret", sharedSecret)
+                    setParameter("requested_id", providerId)
+                    setParameter("domain", domain)
+                    setParameter("port", port)
+                    setParameter("https", https)
+                    setParameter("signed_by", "_ucloud")
+                },
+                """
+                    insert into provider.approval_request (shared_secret, requested_id, domain, https, port, signed_by) 
+                    values (:shared_secret, :requested_id, :domain, :https, :port, :signed_by)
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("shared_secret", sharedSecret)
+                    setParameter("public_key", publicKey)
+                    setParameter("private_key", privateKey)
+                },
+                """
+                    select refresh_token
+                    from provider.approve_request(:shared_secret, :public_key, :private_key, null)
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("name", providerId)
+                    setParameter("refresh_token", refreshToken)
+                },
+                """
+                    update provider.providers
+                    set refresh_token = :refresh_token
+                    where unique_name = :name
+                """
+            )
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("name", providerId)
+                    setParameter("refresh_token", refreshToken)
+                },
+                """
+                    update auth.providers
+                    set refresh_token = :refresh_token
+                    where id = :name
+                """
+            )
+        }
+
+        Unit
+    }
+
     private fun createConfiguration(): File {
-        val dir = Files.createTempDirectory("c").toFile()
+        val dir = Files.createTempDirectory("c").toFile().also { println("Configuration at $it") }
 
         initializeDatabases()
 
@@ -223,14 +318,9 @@ object UCloudLauncher : Loggable {
             """.trimIndent()
         )
 
-        File(dir, "k8s.yml").writeText(
-            """
-                ---
-                app:
-                  kubernetes:
-                    reloadableK8Config: ${File(tempDir, "k3s.yml").absolutePath}
-            """.trimIndent()
-        )
+        providers.forEach {
+            File(dir, it.providerId + ".yaml").writeText(it.generateConfig())
+        }
 
         return dir
     }
@@ -320,7 +410,13 @@ object UCloudLauncher : Loggable {
                     """
                 )
         }
+
+        for (provider in providers) {
+            prepareProvider(provider)
+        }
     }
+
+    private val providers = ArrayList<ProviderTokens>()
 
     fun launch() {
         runBlocking {
@@ -329,16 +425,38 @@ object UCloudLauncher : Loggable {
                 return@runBlocking
             }
 
-            integrationTestingIsKubernetesReady = false
             isRunning = true
             Runtime.getRuntime().addShutdownHook(Thread { shutdown() })
+
+            if (providers.isEmpty()) {
+                providers.add(
+                    generateProviderTokens(
+                        configPath = listOf("app.kubernetes", "files.ucloud"),
+                        providerId = "ucloud",
+                        domain = "localhost",
+                        port = 8080,
+                        https = false
+                    )
+                )
+
+                providers.add(
+                    generateProviderTokens(
+                        configPath = listOf("dummy"),
+                        providerId = "dummy",
+                        domain = "localhost",
+                        port = 8080,
+                        https = false
+                    )
+                )
+            }
 
             val serviceRefreshToken = UUID.randomUUID().toString()
             refreshToken = serviceRefreshToken
             val reg = ServiceRegistry(
-                *buildList<String> {
+                buildList<String> {
                     add("--dev")
                     add("--no-implicit-config")
+                    add("--no-scripts")
                     add("--config-dir")
                     add(createConfiguration().absolutePath)
                     add("--config-dir")
@@ -399,7 +517,7 @@ object UCloudLauncher : Loggable {
                 session.sendQuery("select public.drop_schemas()")
             }
             dbConfig.migrateAll()
-            run {
+            runCatching {
                 // TODO Deal with elasticsearch
                 val me = micro.createScope()
                 me.install(ElasticFeature)
@@ -446,27 +564,10 @@ object UCloudLauncher : Loggable {
                 ElasticManagementService,
             )
 
-            val services = setOf(
-                AccountingService,
-                AppKubernetesService,
-                AppOrchestratorService,
-                AppStoreService,
-                AuditIngestionService,
-                AuthService,
-                AvatarService,
-                ContactBookService,
-                ElasticManagementService,
-                FileOrchestratorService,
-                MailService,
-                NewsService,
-                NotificationService,
-                PasswordResetService,
-                SupportService,
-                TaskService,
-            )
+            val servicesToRun = services + setOf(DummyProviderService)
 
             // Reflection is _way_ too slow
-            services.forEach { objectInstance ->
+            servicesToRun.forEach { objectInstance ->
                 if (objectInstance !in blacklist) {
                     try {
                         log.trace("Registering ${objectInstance.javaClass.canonicalName}")

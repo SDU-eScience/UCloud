@@ -1,8 +1,22 @@
 package dk.sdu.cloud.integration.backend
 
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.auth.api.LookupUsersRequest
-import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.accounting.api.Accounting
+import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
+import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.RootDepositRequestItem
+import dk.sdu.cloud.accounting.api.Transaction
+import dk.sdu.cloud.accounting.api.Transactions
+import dk.sdu.cloud.accounting.api.TransactionsBrowseRequest
+import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
+import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletAllocation
+import dk.sdu.cloud.accounting.api.WalletBrowseRequest
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -13,13 +27,15 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
-import dk.sdu.cloud.integration.UCloudLauncher.adminClient
 import dk.sdu.cloud.integration.UCloudLauncher.db
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
-import dk.sdu.cloud.project.api.*
+import dk.sdu.cloud.project.api.AcceptInviteRequest
+import dk.sdu.cloud.project.api.CreateProjectRequest
+import dk.sdu.cloud.project.api.InviteRequest
+import dk.sdu.cloud.project.api.Projects
+import dk.sdu.cloud.project.api.TransferPiRoleRequest
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -27,7 +43,10 @@ import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import java.util.*
 import kotlin.math.max
-import kotlin.test.*
+import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 suspend fun findWallet(
     client: AuthenticatedClient,
@@ -171,12 +190,13 @@ class AccountingTest : IntegrationTest() {
                 val singleProjectMultipleAllocations: Boolean = false,
                 val duplicateCharge: Boolean = false
             )
+
             class Out(
                 val transactions: List<Transaction>,
                 val firstChargeResults: List<Boolean>,
                 val secondChargeResults: List<Boolean>
             )
-            test<In,Out>("Transaction tests") {
+            test<In, Out>("Transaction tests") {
                 execute {
                     var firstChargeResults = emptyList<Boolean>()
                     var secondChargeResults = emptyList<Boolean>()
@@ -253,7 +273,7 @@ class AccountingTest : IntegrationTest() {
                             serviceClient
                         ).orThrow().responses
                         if (input.duplicateCharge) {
-                            secondChargeResults =  Accounting.charge.call(
+                            secondChargeResults = Accounting.charge.call(
                                 bulkRequestOf(
                                     ChargeWalletRequestItem(
                                         walletOwner,
@@ -366,14 +386,14 @@ class AccountingTest : IntegrationTest() {
                         assertTrue(firstCharge!!)
                         val secondCharge = output.secondChargeResults.firstOrNull()
                         assertNotNull(secondCharge)
-                        assertFalse(secondCharge!!)
+                        assertTrue(secondCharge!!)
                     }
                 }
             }
         }
 
         run {
-            class In (
+            class In(
                 val product: Product,
                 val expectedChargeResults: List<Boolean>
             )
@@ -382,7 +402,7 @@ class AccountingTest : IntegrationTest() {
                 val wallets: PageV2<Wallet>
             )
 
-            test<In,Out>("Single product test") {
+            test<In, Out>("Single product test") {
                 execute {
                     createProvider("ucloud")
                     Products.create.call(
@@ -406,15 +426,17 @@ class AccountingTest : IntegrationTest() {
                     ).orThrow()
 
                     val results = Accounting.charge.call(
-                        bulkRequestOf(ChargeWalletRequestItem(
-                            targetOwner,
-                            10L,
-                            1L,
-                            input.product.toReference(),
-                            user1.username,
-                            "test charging",
-                            transactionId = UUID.randomUUID().toString()
-                        )),
+                        bulkRequestOf(
+                            ChargeWalletRequestItem(
+                                targetOwner,
+                                10L,
+                                1L,
+                                input.product.toReference(),
+                                user1.username,
+                                "test charging",
+                                transactionId = UUID.randomUUID().toString()
+                            )
+                        ),
                         serviceClient
                     ).orThrow().responses
 
@@ -431,19 +453,24 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("zero price per unit") {
-                    input(In(
-                        sampleCompute.copy(pricePerUnit = 0),
-                        expectedChargeResults = listOf(true)
-                    ))
+                    input(
+                        In(
+                            sampleCompute.copy(pricePerUnit = 0),
+                            expectedChargeResults = listOf(true)
+                        )
+                    )
                     check {
-                        assertEquals(output.wallets.items.singleOrNull()?.allocations?.singleOrNull()?.localBalance, 10000.DKK)
+                        assertEquals(
+                            output.wallets.items.singleOrNull()?.allocations?.singleOrNull()?.localBalance,
+                            10000.DKK
+                        )
                     }
                 }
             }
         }
 
         run {
-            class In (
+            class In(
                 val products: List<Product>,
                 val providers: List<String>,
                 val user: String,
@@ -452,7 +479,8 @@ class AccountingTest : IntegrationTest() {
                 val walletAmount: Long = 10000.DKK,
                 val createWallet: Boolean = false
             )
-            class Out (
+
+            class Out(
                 val allocation: WalletAllocation?,
                 val chargeResults: List<Boolean>
             )
@@ -539,7 +567,7 @@ class AccountingTest : IntegrationTest() {
                             ),
                             user = "user1",
                             productsToCharge = listOf(
-                               freeCompute
+                                freeCompute
                             )
                         )
                     )
@@ -623,7 +651,10 @@ class AccountingTest : IntegrationTest() {
                     )
                     check {
                         assertNotNull(output.allocation)
-                        assertEquals(input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ), output.allocation?.localBalance)
+                        assertEquals(
+                            input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit),
+                            output.allocation?.localBalance
+                        )
                         assertEquals(listOf(true, true, true), output.chargeResults)
                     }
 
@@ -665,7 +696,10 @@ class AccountingTest : IntegrationTest() {
                         check {
                             assertNotNull(output.allocation)
                             assertEquals(listOf(true, true, false), output.chargeResults)
-                            assertEquals(input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit ), output.allocation?.localBalance)
+                            assertEquals(
+                                input.walletAmount - (input.chargeAmount * sampleCompute.pricePerUnit),
+                                output.allocation?.localBalance
+                            )
                         }
                     }
                 }
@@ -715,7 +749,7 @@ class AccountingTest : IntegrationTest() {
 
                     projectIds.forEachIndexed { index, projectId ->
                         Projects.invite.call(
-                            InviteRequest(projectId!!, setOf("user${index+1}")),
+                            InviteRequest(projectId!!, setOf("user${index + 1}")),
                             leaves[index].client
                         ).orThrow()
 
@@ -725,7 +759,7 @@ class AccountingTest : IntegrationTest() {
                         ).orThrow()
 
                         Projects.transferPiRole.call(
-                            TransferPiRoleRequest("user${index+1}"),
+                            TransferPiRoleRequest("user${index + 1}"),
                             leaves[index].client
                         ).orThrow()
                     }
@@ -766,9 +800,8 @@ class AccountingTest : IntegrationTest() {
                         alternativeTarget: WalletOwner?,
                         transferToSelf: Boolean,
                         noRequest: Boolean
-                    )
-                    {
-                        val chosenTarget = if ( transferToSelf ) {
+                    ) {
+                        val chosenTarget = if (transferToSelf) {
                             source
                         } else {
                             alternativeTarget ?: target
@@ -845,11 +878,11 @@ class AccountingTest : IntegrationTest() {
                     }
                     val targetWallets = Wallets.browse.call(
                         WalletBrowseRequest(),
-                        if ( input.targetIsProject) user1.client.withProject(targetId) else user1.client
+                        if (input.targetIsProject) user1.client.withProject(targetId) else user1.client
                     ).orThrow()
                     val sourceWallets = Wallets.browse.call(
                         WalletBrowseRequest(),
-                        if ( input.sourceIsProject) user3.client.withProject(projectIds.last()!!) else user2.client
+                        if (input.sourceIsProject) user3.client.withProject(projectIds.last()!!) else user2.client
                     ).orThrow()
 
                     val rootWallet = if (input.includeRootProjectWallet) {
@@ -899,7 +932,7 @@ class AccountingTest : IntegrationTest() {
                 case("user to project - single transfer") {
                     input(
                         In(
-                            sourceIsProject= false,
+                            sourceIsProject = false,
                             targetIsProject = true
                         )
                     )
@@ -935,7 +968,7 @@ class AccountingTest : IntegrationTest() {
                         In(
                             sourceIsProject = true,
                             targetIsProject = true,
-                            transferAmount =  100000.DKK
+                            transferAmount = 100000.DKK
                         )
                     )
                     expectStatusCode(HttpStatusCode.PaymentRequired)
@@ -1005,7 +1038,10 @@ class AccountingTest : IntegrationTest() {
                         for (i in 0 until input.numberOfTransfers) {
                             assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
                         }
-                        assertEquals(960.DKK, output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance)
+                        assertEquals(
+                            960.DKK,
+                            output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance
+                        )
                     }
                 }
 
@@ -1029,7 +1065,10 @@ class AccountingTest : IntegrationTest() {
                         for (i in 0 until input.numberOfTransfers) {
                             assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
                         }
-                        assertEquals(900.DKK, output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance)
+                        assertEquals(
+                            900.DKK,
+                            output.rootWallets?.items?.find { it.paysFor == sampleCompute.category }?.allocations?.single()?.balance
+                        )
                     }
                 }
 
@@ -1049,10 +1088,10 @@ class AccountingTest : IntegrationTest() {
                         val targetWallets = output.targetWallets.items
                         val sourceWallets = output.sourceWallets.items
                         val target = targetWallets.find { it.paysFor.name == sampleCompute.category.name }
-                        val supposedCompletedTransfers = input.numberOfTransfers -1
+                        val supposedCompletedTransfers = input.numberOfTransfers - 1
                         assertEquals(1000.DKK, sourceWallets.single().allocations.single().initialBalance)
                         assertEquals(0.DKK, sourceWallets.single().allocations.single().balance)
-                        assertEquals(supposedCompletedTransfers , target?.allocations?.size)
+                        assertEquals(supposedCompletedTransfers, target?.allocations?.size)
                         for (i in 0 until supposedCompletedTransfers) {
                             assertEquals(input.transferAmount, target?.allocations?.get(i)?.balance)
                         }
@@ -1200,7 +1239,7 @@ class AccountingTest : IntegrationTest() {
                 val walletBelongsToProject: Boolean,
                 val initialBalance: Long,
                 val units: Long,
-                val numberOfProducts: Long = 1,
+                val periods: Long = 1,
                 val product: Product = sampleCompute,
                 val expectedChargeResults: List<Boolean>? = emptyList()
             )
@@ -1265,7 +1304,7 @@ class AccountingTest : IntegrationTest() {
                             ChargeWalletRequestItem(
                                 owner,
                                 input.units,
-                                input.numberOfProducts,
+                                input.periods,
                                 input.product.toReference(),
                                 createdUser.username,
                                 "Test charge",
@@ -1291,7 +1330,7 @@ class AccountingTest : IntegrationTest() {
 
                     fun balanceWasDeducted(input: In, output: Out) {
                         assertEquals(
-                            input.initialBalance - (input.product.pricePerUnit * input.units * input.numberOfProducts),
+                            input.initialBalance - (input.product.pricePerUnit * input.units * input.periods),
                             output.newBalance
                         )
                     }
@@ -1321,7 +1360,7 @@ class AccountingTest : IntegrationTest() {
                     case("$name with no products involved") {
                         input(In(isProject, 100.DKK, 0, expectedChargeResults = listOf(true)))
                         //expectStatusCode(HttpStatusCode.BadRequest)
-                        check {  }
+                        check { }
                     }
                 }
             }
@@ -1332,10 +1371,11 @@ class AccountingTest : IntegrationTest() {
                 val rootBalance: Long,
                 val chainFromRoot: List<Allocation>,
                 val units: Long,
-                val numberOfProducts: Long = 1,
+                val periods: Long = 1,
                 val product: Product = sampleCompute,
                 val skipCreationOfLeaf: Boolean = false,
-                val expectedChargeResults: List<Boolean>? = emptyList()
+                val expectedChargeResults: List<Boolean>? = emptyList(),
+                val numberOfChargeIterations: Int = 1,
             )
 
             class ChargeOutput(
@@ -1358,23 +1398,25 @@ class AccountingTest : IntegrationTest() {
                 execute {
                     val leaves = prepare(input)
 
-                   val chargeResults = Accounting.charge.call(
-                        bulkRequestOf(
-                            ChargeWalletRequestItem(
-                                leaves.last().owner,
-                                input.units,
-                                input.numberOfProducts,
-                                input.product.toReference(),
-                                leaves.last().username,
-                                "Test charge",
-                                transactionId = UUID.randomUUID().toString()
-                            )
-                        ),
-                        serviceClient
-                    ).orThrow().responses
+                    repeat(input.numberOfChargeIterations) {
+                        val chargeResults = Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    leaves.last().owner,
+                                    input.units,
+                                    input.periods,
+                                    input.product.toReference(),
+                                    leaves.last().username,
+                                    "Test charge",
+                                    transactionId = UUID.randomUUID().toString()
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow().responses
 
-                    assertThatInstance(chargeResults, "charges behaving as expected") {
-                        it == input.expectedChargeResults
+                        assertThatInstance(chargeResults, "charges behaving as expected") {
+                            it == input.expectedChargeResults
+                        }
                     }
 
                     ChargeOutput(
@@ -1391,7 +1433,7 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 fun balanceWasDeducted(input: In, output: ChargeOutput) {
-                    val paymentRequired = input.product.pricePerUnit * input.units * input.numberOfProducts
+                    val paymentRequired = input.product.pricePerUnit * input.units * input.periods
 
                     println("Payment required: $paymentRequired")
 
@@ -1400,7 +1442,7 @@ class AccountingTest : IntegrationTest() {
 //                            if (index == output.balancesFromRoot.lastIndex) {
 //                                max(0, input.chainFromRoot[index].amount - paymentRequired)
 //                            } else {
-                                input.chainFromRoot[index].amount - paymentRequired,
+                            input.chainFromRoot[index].amount - paymentRequired,
 //                            },
                             balance,
                             "New balance of $index should match expected value"
@@ -1442,9 +1484,9 @@ class AccountingTest : IntegrationTest() {
                         assertThatPropertyEquals(charge, { it.units }, input.units, "units[$index]")
                         assertThatPropertyEquals(
                             charge,
-                            { it.numberOfProducts },
-                            input.numberOfProducts,
-                            "numberOfProducts[$index]"
+                            { it.periods },
+                            input.periods,
+                            "periods[$index]"
                         )
                         assertThatPropertyEquals(charge, { it.productId }, input.product.name, "productId[$index]")
                         assertThatPropertyEquals(
@@ -1503,13 +1545,13 @@ class AccountingTest : IntegrationTest() {
                     expectStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                case("negative numberOfProducts") {
+                case("negative periods") {
                     input(
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
                             units = 1L,
-                            numberOfProducts = -1L
+                            periods = -1L
                         )
                     )
 
@@ -1536,11 +1578,12 @@ class AccountingTest : IntegrationTest() {
                             chainFromRoot = listOf(Allocation(true, 100.DKK)),
                             product = sampleStorageDifferential,
                             units = 0,
-                            expectedChargeResults = listOf(true)
+                            expectedChargeResults = listOf(true),
+                            numberOfChargeIterations = 10
                         )
                     )
 
-                    check {  }
+                    check { }
                 }
 
                 case("Charge missing payer") {
@@ -1553,7 +1596,7 @@ class AccountingTest : IntegrationTest() {
                         )
                     )
 
-                    expectStatusCode(HttpStatusCode.BadRequest)
+                    expectStatusCode(HttpStatusCode.PaymentRequired)
                 }
             }
 
@@ -1566,7 +1609,7 @@ class AccountingTest : IntegrationTest() {
                                 ChargeWalletRequestItem(
                                     leaves.last().owner,
                                     input.units,
-                                    input.numberOfProducts,
+                                    input.periods,
                                     input.product.toReference(),
                                     leaves.last().username,
                                     "Test charge",
@@ -1624,13 +1667,13 @@ class AccountingTest : IntegrationTest() {
                     expectStatusCode(HttpStatusCode.BadRequest)
                 }
 
-                case("negative numberOfProducts") {
+                case("negative periods") {
                     input(
                         In(
                             rootBalance = 1000.DKK,
                             chainFromRoot = listOf(Allocation(true, 1000.DKK)),
                             units = 1L,
-                            numberOfProducts = -1L
+                            periods = -1L
                         )
                     )
 
@@ -1712,7 +1755,7 @@ class AccountingTest : IntegrationTest() {
                                 ChargeWalletRequestItem(
                                     payer = leaf.owner,
                                     units = charge.amount,
-                                    numberOfProducts = 1L,
+                                    periods = 1L,
                                     product = input.product.toReference(),
                                     performedBy = leaf.username,
                                     description = "Charge",
@@ -1759,19 +1802,21 @@ class AccountingTest : IntegrationTest() {
                 val initialStartDate = ((Time.now() + (1000 * 60 * 60 * 24 * 7)) / 1000) * 1000
 
                 case("Update differential") {
-                    input(In(
-                        chainFromRoot = listOf(
-                            Allocation(true, 1_000_000),
-                            Allocation(true, 1000),
-                            Allocation(true, 1000)
-                        ),
-                        updateIndex = 1,
-                        newBalance = 10_000,
-                        newStartDate = initialStartDate,
-                        newEndDate = null,
-                        product = sampleStorageDifferential,
-                        charges = listOf(Charge(1, 100L), Charge(2, 200L))
-                    ))
+                    input(
+                        In(
+                            chainFromRoot = listOf(
+                                Allocation(true, 1_000_000),
+                                Allocation(true, 1000),
+                                Allocation(true, 1000)
+                            ),
+                            updateIndex = 1,
+                            newBalance = 10_000,
+                            newStartDate = initialStartDate,
+                            newEndDate = null,
+                            product = sampleStorageDifferential,
+                            charges = listOf(Charge(1, 100L), Charge(2, 200L))
+                        )
+                    )
 
                     check {
                         assertEquals(10_000, output.allocationsFromRoot[1].initialBalance)
@@ -1795,7 +1840,13 @@ class AccountingTest : IntegrationTest() {
 
                                 input(
                                     In(
-                                        (0 until nlevels).map { Allocation(isProject, initialBalance, initialStartDate) },
+                                        (0 until nlevels).map {
+                                            Allocation(
+                                                isProject,
+                                                initialBalance,
+                                                initialStartDate
+                                            )
+                                        },
                                         updateIdx,
                                         newBalance,
                                         initialStartDate,
@@ -1807,12 +1858,16 @@ class AccountingTest : IntegrationTest() {
                                     output.allocationsFromRoot.forEachIndexed { idx, alloc ->
                                         if (idx == updateIdx) {
                                             assertThatPropertyEquals(alloc, { it.balance }, newBalance, "balance")
-                                            assertThatPropertyEquals(alloc, { it.initialBalance }, newBalance,
-                                                "initialBalance")
+                                            assertThatPropertyEquals(
+                                                alloc, { it.initialBalance }, newBalance,
+                                                "initialBalance"
+                                            )
                                         } else {
                                             assertThatPropertyEquals(alloc, { it.balance }, initialBalance, "balance")
-                                            assertThatPropertyEquals(alloc, { it.initialBalance }, initialBalance,
-                                                "initialBalance")
+                                            assertThatPropertyEquals(
+                                                alloc, { it.initialBalance }, initialBalance,
+                                                "initialBalance"
+                                            )
                                         }
                                     }
                                 }
@@ -1825,7 +1880,11 @@ class AccountingTest : IntegrationTest() {
                                         } else {
                                             assertThatInstance(updates, "has only one update") { it.size == 1 }
                                             val update = updates.single()
-                                            assertThatPropertyEquals(update, { it.change }, -(initialBalance - newBalance))
+                                            assertThatPropertyEquals(
+                                                update,
+                                                { it.change },
+                                                -(initialBalance - newBalance)
+                                            )
                                         }
                                     }
                                 }
@@ -1901,8 +1960,10 @@ class AccountingTest : IntegrationTest() {
 
             test<In, Out>("Differential quota products") {
                 execute {
-                    val leaves = prepareProjectChain(input.rootBalance, input.chainFromRoot,
-                        sampleStorageDifferential.category, breadth = input.breadth)
+                    val leaves = prepareProjectChain(
+                        input.rootBalance, input.chainFromRoot,
+                        sampleStorageDifferential.category, breadth = input.breadth
+                    )
 
                     for (iteration in input.chargesFromRoot) {
                         val requests = iteration.mapIndexedNotNull { idx, charge ->
@@ -1930,11 +1991,13 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("Single allocation, no over-charge") {
-                    input(In(
-                        rootBalance = 1000L,
-                        chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
-                        chargesFromRoot = listOf(listOf(null, 100L))
-                    ))
+                    input(
+                        In(
+                            rootBalance = 1000L,
+                            chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                            chargesFromRoot = listOf(listOf(null, 100L))
+                        )
+                    )
 
                     check {
                         assertEquals(900, output.wallets[0].allocations[0].balance)
@@ -1946,11 +2009,13 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("Single allocation, multiple charges, no over-charge") {
-                    input(In(
-                        rootBalance = 1000L,
-                        chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
-                        chargesFromRoot = listOf(listOf(null, 100L), listOf(50L, 50L))
-                    ))
+                    input(
+                        In(
+                            rootBalance = 1000L,
+                            chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                            chargesFromRoot = listOf(listOf(null, 100L), listOf(50L, 50L))
+                        )
+                    )
 
                     check {
                         assertEquals(900, output.wallets[0].allocations[0].balance)
@@ -1962,12 +2027,14 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("Multiple allocations, spread without over-charge") {
-                    input(In(
-                        rootBalance = 1000L,
-                        chainFromRoot = listOf(Allocation(true, 4000L), Allocation(true, 1500L)),
-                        chargesFromRoot = listOf(listOf(null, 2000L)),
-                        breadth = 2,
-                    ))
+                    input(
+                        In(
+                            rootBalance = 1000L,
+                            chainFromRoot = listOf(Allocation(true, 4000L), Allocation(true, 1500L)),
+                            chargesFromRoot = listOf(listOf(null, 2000L)),
+                            breadth = 2,
+                        )
+                    )
 
                     check {
                         assertEquals(2500, output.wallets[0].allocations[0].balance)
@@ -1983,11 +2050,13 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("Single allocation, with over-charge in leaf") {
-                    input(In(
-                        rootBalance = 1_000_000,
-                        chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
-                        chargesFromRoot = listOf(listOf(null, 1), listOf(null, 10000), listOf(null, 5000L))
-                    ))
+                    input(
+                        In(
+                            rootBalance = 1_000_000,
+                            chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
+                            chargesFromRoot = listOf(listOf(null, 1), listOf(null, 10000), listOf(null, 5000L))
+                        )
+                    )
 
                     check {
                         assertEquals(5000, output.wallets[0].allocations[0].balance)
@@ -1999,12 +2068,14 @@ class AccountingTest : IntegrationTest() {
                 }
 
                 case("Multiple allocation, with over-charge in leaf") {
-                    input(In(
-                        rootBalance = 1_000_000,
-                        chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
-                        chargesFromRoot = listOf(listOf(null, 1), listOf(null, 100_000), listOf(null, 10_000L)),
-                        breadth = 2
-                    ))
+                    input(
+                        In(
+                            rootBalance = 1_000_000,
+                            chainFromRoot = listOf(Allocation(true, 10_000L), Allocation(true, 4000)),
+                            chargesFromRoot = listOf(listOf(null, 1), listOf(null, 100_000), listOf(null, 10_000L)),
+                            breadth = 2
+                        )
+                    )
 
                     check {
                         assertEquals(4000, output.wallets[0].allocations[0].balance)

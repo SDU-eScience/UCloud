@@ -1,4 +1,4 @@
-version = "2021.3.0-alpha0"
+version = "2022.1.1-patch.1"
 
 application {
     mainClassName = "dk.sdu.cloud.mail.MainKt"
@@ -13,4 +13,3 @@ kotlin.sourceSets {
         }
     }
 }
-

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseBody
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
+import kotlin.reflect.full.isSubtypeOf
+import kotlin.reflect.full.starProjectedType
 
 private val defaultMapper = Json {
     encodeDefaults = true
@@ -25,6 +27,17 @@ abstract class UCloudRpcDispatcher(
     init {
         wsDispatcher.addContainer(container)
         wsDispatcher.addHandler(this) // probably a bad idea
+
+        // Force loading of all calls
+        container::class.members.forEach {
+            try {
+                if (it.returnType.isSubtypeOf(CallDescription::class.starProjectedType) && it.name != "call") {
+                    it.call(container)
+                }
+            } catch (ex: Throwable) {
+                println("Unexpected failure: ${container} ${it}. ${ex.stackTraceToString()}")
+            }
+        }
     }
 
     @RequestMapping("/**", consumes = [MediaType.ALL_VALUE], produces = [MediaType.APPLICATION_JSON_VALUE])

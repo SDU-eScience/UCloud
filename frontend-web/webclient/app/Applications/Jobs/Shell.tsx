@@ -44,7 +44,7 @@ export const Shell: React.FunctionComponent = () => {
         setClosed(false);
 
         const wsConnection = WSFactory.open(
-            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket`,
+            `${sessionWithProvider.providerDomain}/ucloud/${sessionWithProvider.providerId}/websocket?session=${sessionIdentifier}`,
             {
                 reconnect: false,
                 includeAuthentication: false,

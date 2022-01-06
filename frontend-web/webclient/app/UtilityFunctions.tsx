@@ -616,3 +616,6 @@ export function removeExpiredFileUploads(): void {
         }
     });
 }
+
+/* As user agent is being deprecated, this might be the better approach. Not tested for handhelds. */
+export const isLikelySafari: boolean = navigator.vendor === "Apple Computer, Inc.";

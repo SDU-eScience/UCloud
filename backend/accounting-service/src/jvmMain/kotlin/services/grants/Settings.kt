@@ -170,6 +170,11 @@ class GrantSettingsService(
                             (pm.role = 'ADMIN' or pm.role = 'PI') and
                             pm.username = :username
                     ) t 
+                    where 
+                        allow_from is not null or 
+                        auto_approve_from is not null or 
+                        exclude_from is not null or 
+                        auto_limit is not null;
                 """
             )
         }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }

@@ -5,31 +5,88 @@ import {Button, Checkbox, Input, Label, Select, TextArea} from "@/ui-components"
 import {InputLabel} from "@/ui-components/Input";
 import {LabelProps} from "@/ui-components/Label";
 import {errorMessageOrDefault, stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {useLayoutEffect, useState} from "react";
 
-interface DataType {
+export interface DataType {
     required: string[];
     fields: Record<string, any>;
 }
 const DataContext = React.createContext<DataType>({required: [], fields: {}});
 
+const dynamicPropExclusion: string[] = [
+    "id", "dependencies", "styling", "required"
+];
+
+function evaluateProperties(ctx: DataType, props: any): Record<string, any> {
+    const output: Record<string, any> = {};
+    for (const key of Object.keys(props)) {
+        const propValue = props[key];
+        if (dynamicPropExclusion.indexOf(key) !== -1) {
+            output[key] = propValue;
+        } else if (typeof propValue === "function") {
+            output[key] = propValue(ctx);
+        } else {
+            output[key] = propValue;
+        }
+    }
+    return output;
+}
+
+function useEvaluatedProperties<E extends ResourceField>(ctx: DataType, props: E): Record<string, any> {
+    const [evaluatedProps, setEvaluatedProps] = useState<Record<string, any>>(evaluateProperties(ctx, props));
+    useLayoutEffect(() => {
+        if (props.dependencies) {
+            const listener: () => void = () => {
+                setTimeout(() => setEvaluatedProps(evaluateProperties(ctx, props)), 0);
+            };
+
+            for (const dep of props.dependencies) {
+                const depElement = document.querySelector(`#${dep}`);
+                if (depElement) {
+                    depElement.addEventListener("blur", listener);
+                    depElement.addEventListener("change", listener);
+                }
+            }
+
+            return () => {
+                if (!props.dependencies) return;
+                for (const dep of props.dependencies) {
+                    const depElement = document.querySelector(`#${dep}`);
+                    if (depElement) {
+                        depElement.removeEventListener("blur", listener);
+                        depElement.removeEventListener("change", listener);
+                    }
+                }
+            };
+        }
+        return () => {};
+    }, [props.dependencies]);
+
+    return evaluatedProps as E;
+}
+
+type DynamicProp<E> = ((t: DataType) => E) | E;
+
 interface ResourceField {
     id: string;
-    label: string;
+    label: DynamicProp<string>;
     required?: boolean;
-    placeholder?: string;
+    placeholder?: DynamicProp<string>;
     styling: LabelProps;
-    leftLabel?: string;
-    rightLabel?: string;
+    leftLabel?: DynamicProp<string>;
+    rightLabel?: DynamicProp<string>;
+
+    dependencies?: string[];
 }
 
 interface NumberField extends ResourceField {
-    min?: number;
-    max?: number;
-    step?: string;
+    min?: DynamicProp<number>;
+    max?: DynamicProp<number>;
+    step?: DynamicProp<string>;
 }
 
 interface SelectField extends Omit<ResourceField, "leftLabel" | "rightLabel"> {
-    options: {value: string, text: string}[];
+    options: DynamicProp<{value: string, text: string}[]>;
 }
 
 interface CheckboxField extends Omit<ResourceField, "leftLabel" | "rightLabel" | "placeholder"> {
@@ -116,92 +173,97 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
         return missingFields.length === 0;
     }
 
-    public static Number({id, label, styling, leftLabel, rightLabel, ...props}: NumberField): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required});
+    public static Number(props: NumberField): JSX.Element {
+        const ctx = useResourceFormField({id: props.id, required: props.required as boolean});
+        const p = useEvaluatedProperties(ctx, props);
 
         /* Why in the world is color not allowed? */
-        const {color, ...remainingStyle} = styling;
+        const {color, ...remainingStyle} = props.styling;
 
-        const isInt = !props.step?.includes(".");
+        const isInt = !p.step?.includes(".");
 
         return <Label {...remainingStyle}>
-            {label}
+            {p.label}
             <div style={{display: "flex"}}>
-                {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
+                {p.leftLabel ? <InputLabel leftLabel>{p.leftLabel}</InputLabel> : null}
                 <Input
                     type="number"
-                    onChange={e => {ctx.fields[id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}}
-                    leftLabel={!!leftLabel}
-                    rightLabel={!!rightLabel}
-                    {...props}
+                    onChange={e => {ctx.fields[props.id] = isInt ? parseInt(e.target.value) : parseFloat(e.target.value)}}
+                    leftLabel={!!p.leftLabel}
+                    rightLabel={!!p.rightLabel}
+                    {...p}
                 />
-                {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
+                {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}
             </div>
         </Label>
     }
 
-    public static Select({id, label, options, styling, ...props}: SelectField): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required})
+    public static Select(props: SelectField): JSX.Element {
+        const ctx = useResourceFormField({id: props.id, required: props.required})
+        const p = useEvaluatedProperties(ctx, props);
 
         React.useEffect(() => {
-            if (props.required) ctx.fields[id] = options[0].value;
+            if (props.required) ctx.fields[props.id] = p.options[0].value;
         }, []);
 
         /* Why in the world is color not allowed? */
-        const {color, ...remainingStyle} = styling;
+        const {color, ...remainingStyle} = props.styling;
 
         return <Label {...remainingStyle}>
-            {label}
-            <Select {...props} onChange={e => ctx.fields[id] = e.target.value}>
+            {p.label}
+            <Select {...p} onChange={e => ctx.fields[props.id] = e.target.value}>
                 {props.required ? null : <option></option>}
-                {options.map(option => (
+                {p.options.map(option => (
                     <option key={option.value} value={option.value}>{option.text}</option>
                 ))}
             </Select>
         </Label>;
     }
 
-    public static Checkbox({id, label, ...props}: CheckboxField): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required, defaultChecked: props.defaultChecked});
+    public static Checkbox(props: CheckboxField): JSX.Element {
+        const ctx = useResourceFormField({id: props.id, required: props.required, defaultChecked: props.defaultChecked});
+        const p = useEvaluatedProperties(ctx, props);
 
         return <Label>
-            <Checkbox onClick={() => ctx.fields[id] = !ctx.fields[id]} onChange={stopPropagation} {...props} />
-            {label}
+            <Checkbox onClick={() => ctx.fields[props.id] = !ctx.fields[props.id]} onChange={stopPropagation} {...p} />
+            {p.label}
         </Label>;
     }
 
-    public static Text({id, label, styling, leftLabel, rightLabel, ...props}: ResourceField): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required})
+    public static Text(props: ResourceField): JSX.Element {
+        const ctx = useResourceFormField({id: props.id, required: props.required})
+        const p = useEvaluatedProperties(ctx, props);
 
         /* Why in the world is color not allowed? */
-        const {color, ...remainingStyle} = styling;
+        const {color, ...remainingStyle} = props.styling;
 
         return <Label {...remainingStyle}>
-            {label}
+            {p.label}
             <div style={{display: "flex"}}>
-                {leftLabel ? <InputLabel leftLabel>{leftLabel}</InputLabel> : null}
+                {p.leftLabel ? <InputLabel leftLabel>{p.leftLabel}</InputLabel> : null}
                 <Input
                     type="text"
-                    onChange={e => ctx.fields[id] = e.target.value}
-                    leftLabel={!!leftLabel}
-                    rightLabel={!!rightLabel}
-                    {...props}
+                    onChange={e => ctx.fields[props.id] = e.target.value}
+                    leftLabel={!!p.leftLabel}
+                    rightLabel={!!p.rightLabel}
+                    {...p}
                 />
-                {rightLabel ? <InputLabel rightLabel>{rightLabel}</InputLabel> : null}
+                {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}
             </div>
         </Label>
     }
 
-    public static TextArea({id, label, styling, ...props}: TextAreaField): JSX.Element {
-        const ctx = useResourceFormField({id, required: props.required})
+    public static TextArea(props: TextAreaField): JSX.Element {
+        const ctx = useResourceFormField({id: props.id, required: props.required})
+        const p = useEvaluatedProperties(ctx, props);
 
         /* Why in the world is color not allowed? */
-        const {color, ...remainingStyle} = styling;
+        const {color, ...remainingStyle} = props.styling;
 
         return <Label {...remainingStyle}>
-            {label}
+            {p.label}
             <div>
-                <TextArea width="100%" onChange={e => ctx.fields[id] = e.target.value} {...props} />
+                <TextArea width="100%" onChange={e => ctx.fields[props.id] = e.target.value} {...p} />
             </div>
         </Label>
     }

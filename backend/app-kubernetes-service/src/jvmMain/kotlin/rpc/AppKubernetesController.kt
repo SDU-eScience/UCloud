@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
+import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
@@ -94,6 +95,10 @@ class AppKubernetesController(
             ok(jobManagement.retrieveProductsTemporary())
         }
 
+        implement(KubernetesCompute.updateAcl) {
+            ok(BulkResponse(request.items.map {  }))
+        }
+
         implement(KubernetesCompute.follow) {
             when (val request = request) {
                 is JobsProviderFollowRequest.Init -> {
@@ -115,7 +120,7 @@ class AppKubernetesController(
                         ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     } catch (ex: Throwable) {
                         streamsMutex.withLock { streams.remove(streamId) }
-                        okContentAlreadyDelivered()
+                        ok(JobsProviderFollowResponse(streamId, -1, null, null))
                     }
                 }
 

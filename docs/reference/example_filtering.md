@@ -40,6 +40,9 @@ Resources.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = State.RUNNING, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -57,8 +60,6 @@ Resources.browse.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "1234", 
         owner = ResourceOwner(
@@ -138,7 +139,10 @@ await callAPI(ExampleApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -195,10 +199,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -277,10 +278,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null

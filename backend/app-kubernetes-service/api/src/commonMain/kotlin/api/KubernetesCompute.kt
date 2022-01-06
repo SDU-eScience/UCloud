@@ -5,9 +5,6 @@ import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.app.orchestrator.api.Shells
 import dk.sdu.cloud.calls.*
 
-var integrationTestingIsKubernetesReady = true
-var integrationTestingKubernetesFilePath: String? = null
-
 @TSNamespace("compute.ucloud.jobs")
 object KubernetesCompute : JobsProvider(UCLOUD_PROVIDER)
 

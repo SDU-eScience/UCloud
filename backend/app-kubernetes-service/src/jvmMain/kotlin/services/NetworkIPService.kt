@@ -20,6 +20,7 @@ import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.k8.Pod
 import dk.sdu.cloud.service.k8.Volume
@@ -27,17 +28,6 @@ import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.log2
-
-object BoundNetworkIPTable : SQLTable("bound_network_ips") {
-    val networkIpId = text("network_ip_id")
-    val jobId = text("job_id")
-}
-
-object NetworkIPTable : SQLTable("network_ips") {
-    val id = text("id")
-    val externalIpAddress = text("external_ip_address")
-    val internalIpAddress = text("internal_ip_address")
-}
 
 object NetworkIPPoolTable : SQLTable("network_ip_pool") {
     val externalCidr = text("external_cidr")
@@ -63,27 +53,27 @@ class NetworkIPService(
                 )
             }
 
-            // Immediately charge the user before we do any IP allocation
-            NetworkIPControl.chargeCredits.call(
-                bulkRequestOf(networks.items.map { ResourceChargeCredits(it.id, it.id, 1) }),
-                k8.serviceClient
-            ).orThrow()
-
             for (network in networks.items) {
                 val ipAddress: Address = findAddressFromPool(session)
-                session.insert(NetworkIPTable) {
-                    set(NetworkIPTable.id, network.id)
-                    set(NetworkIPTable.externalIpAddress, formatIpAddress(ipAddress.externalAddress))
-                    set(
-                        NetworkIPTable.internalIpAddress,
-                        formatIpAddress(
+                session.sendPreparedStatement(
+                    {
+                        setParameter("id", network.id)
+                        setParameter("external", formatIpAddress(ipAddress.externalAddress))
+                        setParameter("internal", formatIpAddress(
                             remapAddress(ipAddress.externalAddress, ipAddress.externalSubnet, ipAddress.internalSubnet)
-                        )
-                    )
-                }
+                        ))
+                        setParameter("owner", network.owner.project ?: network.owner.createdBy)
+                    },
+                    """
+                        insert into app_kubernetes.network_ips (id, external_ip_address, internal_ip_address, owner) 
+                        values (:id, :external, :internal, :owner)
+                    """
+                )
 
                 allocatedAddresses.add(IdAndIp(network.id, formatIpAddress(ipAddress.externalAddress)))
             }
+
+            account(networks, session)
         }
 
         NetworkIPControl.update.call(
@@ -104,9 +94,42 @@ class NetworkIPService(
         ).orThrow()
     }
 
-    suspend fun delete(ingresses: BulkRequest<NetworkIP>) {
+    private suspend fun account(
+        networks: BulkRequest<NetworkIP>,
+        session: AsyncDBConnection,
+        allowFailures: Boolean = false
+    ) {
+        val ownersAndResources = HashMap<String, String>()
+        for (network in networks.items) {
+            ownersAndResources[network.owner.project ?: network.owner.createdBy] = network.id
+        }
+
+        val now = Time.now()
+        for ((owner, resourceId) in ownersAndResources) {
+            val currentUsage = session.sendPreparedStatement(
+                { setParameter("owner", owner) },
+                "select count(*)::bigint from app_kubernetes.network_ips where owner = :owner"
+            ).rows.singleOrNull()?.getLong(0) ?: 1L
+
+            try {
+                // Immediately charge the user before we do any IP allocation
+                val request =
+                    bulkRequestOf(ResourceChargeCredits(resourceId, resourceId + now.toString(), currentUsage))
+                val results = NetworkIPControl.checkCredits.call(request, k8.serviceClient).orThrow()
+                if (results.insufficientFunds.isNotEmpty()) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired, "Missing resources")
+                } else {
+                    NetworkIPControl.chargeCredits.call(request, k8.serviceClient)
+                }
+            } catch (ex: Throwable) {
+                if (!allowFailures) throw ex
+            }
+        }
+    }
+
+    suspend fun delete(networks: BulkRequest<NetworkIP>) {
         db.withSession { session ->
-            ingresses.items.forEach { ingress ->
+            networks.items.forEach { ingress ->
                 session.sendPreparedStatement(
                     { setParameter("id", ingress.id) },
                     "delete from app_kubernetes.bound_network_ips where network_ip_id = :id"
@@ -116,6 +139,8 @@ class NetworkIPService(
                     { setParameter("id", ingress.id) },
                     "delete from app_kubernetes.network_ips where id = :id"
                 )
+
+                account(networks, session, allowFailures = true)
             }
         }
     }
@@ -123,6 +148,8 @@ class NetworkIPService(
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val networks = job.networks
         if (networks.isEmpty()) return
+
+        data class RetrievedIpAddress(val id: String, val internal: String, val external: String)
 
         if (job.specification.replicas > 1) {
             // TODO(Dan): This should probably be solved at the orchestrator level
@@ -150,11 +177,11 @@ class NetworkIPService(
             session.sendPreparedStatement(
                 { setParameter("networkIds", networks.map { it.id }) },
                 """
-                    select id, internal_ip_address 
+                    select id, internal_ip_address, external_ip_address
                     from app_kubernetes.network_ips 
                     where id in (select unnest(:networkIds::text[]))
                 """
-            ).rows.map { it.getString(0)!! to it.getString(1)!! }
+            ).rows.map { RetrievedIpAddress(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!) }
         }
 
         val volName = "ipman"
@@ -206,6 +233,9 @@ class NetworkIPService(
                     )
                 }
             }
+
+            k8.addStatus(job.id, "Successfully attached the following IP addresses: " +
+                idsAndIps.joinToString(", ") { it.external })
         }
     }
 

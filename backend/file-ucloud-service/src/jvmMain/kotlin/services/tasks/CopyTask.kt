@@ -1,10 +1,12 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -26,7 +28,8 @@ data class CopyTaskRequirements(
     val fileCount: Int?,
 )
 
-const val COPY_REQUIREMENTS_HARD_LIMIT = 10_000
+const val COPY_REQUIREMENTS_HARD_LIMIT = 100
+const val COPY_REQUIREMENTS_SIZE_HARD_LIMIT = 1000 * 1000 * 100
 const val COPY_REQUIREMENTS_HARD_TIME_LIMIT = 2000
 
 class CopyTask : TaskHandler {
@@ -43,33 +46,42 @@ class CopyTask : TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<FilesCopyRequest>(request)
 
-        var fileCount = 0
         val deadline = if (maxTime == null) Time.now() + COPY_REQUIREMENTS_HARD_TIME_LIMIT else Time.now() + maxTime
-        // TODO We need to check if the initial files even exist
         val pathStack = ArrayDeque(realRequest.items.map {
-            FileToCopy(
-                pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path,
-                pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path,
-                it.conflictPolicy
-            )
+            val oldId = pathConverter.ucloudToInternal(UCloudFile.create(it.oldId)).path
+            val newId = pathConverter.ucloudToInternal(UCloudFile.create(it.newId)).path
+
+            if (newId.startsWith("$oldId/")) {
+                throw RPCException("Refusing to copy a file to a sub-directory of itself.", HttpStatusCode.BadRequest)
+            }
+
+            FileToCopy(oldId, newId, it.conflictPolicy)
         })
+        var fileCount = pathStack.size
+        var fileSize = 0L
 
         while (coroutineContext.isActive && (Time.now() <= deadline)) {
             if (fileCount >= COPY_REQUIREMENTS_HARD_LIMIT) break
+            if (fileSize >= COPY_REQUIREMENTS_SIZE_HARD_LIMIT) break
             val nextItem = pathStack.removeFirstOrNull() ?: break
-            fileCount++
 
+            val stat = runCatching { nativeFs.stat(InternalFile((nextItem.oldId))) }.getOrNull() ?: continue
+            fileSize += stat.size
 
-            val nestedFiles = runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }.getOrNull() ?: continue
-            nestedFiles.forEach { fileName ->
-                val oldPath = nextItem.oldId + "/" + fileName
-                val newPath = nextItem.newId + "/" + fileName
+            if (stat.fileType == FileType.DIRECTORY) {
+                val nestedFiles =
+                    runCatching { nativeFs.listFiles(InternalFile(nextItem.oldId)) }.getOrNull() ?: continue
+                fileCount += nestedFiles.size
+                nestedFiles.forEach { fileName ->
+                    val oldPath = nextItem.oldId + "/" + fileName
+                    val newPath = nextItem.newId + "/" + fileName
 
-                pathStack.add(FileToCopy(oldPath, newPath, WriteConflictPolicy.REPLACE))
+                    pathStack.add(FileToCopy(oldPath, newPath, WriteConflictPolicy.REPLACE))
+                }
             }
         }
 
-        val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT
+        val hardLimitReached = fileCount >= COPY_REQUIREMENTS_HARD_LIMIT || fileSize >= COPY_REQUIREMENTS_SIZE_HARD_LIMIT
         return TaskRequirements(
             hardLimitReached,
             defaultMapper.encodeToJsonElement(

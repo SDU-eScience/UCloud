@@ -26,6 +26,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
@@ -98,9 +99,6 @@ class JobOrchestrator(
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
-        "application" to SqlObject.Column(table, "application_name"),
-        "name" to SqlObject.Column(table, "name"),
-        "state" to SqlObject.Column(table, "current_state")
     )
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
@@ -127,7 +125,7 @@ class JobOrchestrator(
             }
 
             ToolBackend.VIRTUAL_MACHINE -> {
-                if (support.virtualMachine.enabled != null) {
+                if (support.virtualMachine.enabled != true) {
                     throw JobException.VerificationError("Application is not supported by provider")
                 }
             }
@@ -162,6 +160,8 @@ class JobOrchestrator(
                 val timeAllocationMillis = ArrayList<Long?>().also { setParameter("time_allocation", it) }
                 val names = ArrayList<String?>().also { setParameter("names", it) }
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
+                val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
+                val replicas = ArrayList<Int>().also { setParameter("replicas", it) }
                 setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
@@ -170,20 +170,24 @@ class JobOrchestrator(
                     timeAllocationMillis.add(spec.timeAllocation?.toMillis())
                     names.add(spec.name)
                     resources.add(id)
+                    openedFiles.add(spec.openedFile)
+                    replicas.add(spec.replicas)
                 }
             },
             """
                 with bulk_data as (
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
-                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export
+                           unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
+                           unnest(:opened_file::text[]) opened_file, unnest(:replicas::int[]) replicas
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
-                     output_folder, current_state, started_at, resource, job_parameters) 
-                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export
+                     output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file, replicas
                 from bulk_data
-            """
+            """,
+            "job spec create"
         )
 
         session.sendPreparedStatement(
@@ -201,7 +205,8 @@ class JobOrchestrator(
             """
                 insert into app_orchestrator.job_resources (resource, job_id) 
                 select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
-            """
+            """,
+            "job resources create"
         )
 
         session.sendPreparedStatement(
@@ -221,8 +226,14 @@ class JobOrchestrator(
             """
                 insert into app_orchestrator.job_input_parameters (name, value, job_id)  
                 select unnest(:names::text[]), unnest(:values::jsonb[]), unnest(:job_ids::bigint[])
-            """
+            """,
+            "job input parameters create"
         )
+
+        idWithSpec.forEach { (id, spec) ->
+            val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
+            listeners.forEach { it.onCreate(db, preliminaryJob) }
+        }
     }
 
     override suspend fun onUpdate(
@@ -240,16 +251,24 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
 
-                if ((newState != null || update.outputFolder != null) && !currentState.isFinal()) {
+                if (didChange && !currentState.isFinal()) {
                     if (newState != null && newState.isFinal()) {
-                        listeners.forEach { it.onTermination(session, job) }
+                        listeners.forEach {
+                            try {
+                                it.onTermination(session, job)
+                            } catch (ex: Throwable) {
+                                log.warn("Failure while terminating job: $job\n${ex.stackTraceToString()}")
+                            }
+                        }
                     }
 
                     session.sendPreparedStatement(
                         {
                             setParameter("new_state", newState?.name)
                             setParameter("output_folder", update.outputFolder)
+                            setParameter("new_time_allocation", update.newTimeAllocation)
                             setParameter("job_id", jobId)
                         },
                         """
@@ -260,9 +279,11 @@ class JobOrchestrator(
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
                                 end,
-                                output_folder = coalesce(:output_folder::text, output_folder)
+                                output_folder = coalesce(:output_folder::text, output_folder),
+                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id
-                        """
+                        """,
+                        "job update"
                     )
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
@@ -275,12 +296,13 @@ class JobOrchestrator(
         }
     }
 
-    override suspend fun browseQuery(flags: JobIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: JobIncludeFlags?, query: String?): PartialQuery {
         @Suppress("SqlResolve")
         return PartialQuery(
             {
                 setParameter("query", query)
                 setParameter("filter_state", flags?.filterState?.name)
+                setParameter("filter_application", flags?.filterApplication)
             },
             """
                 select
@@ -300,6 +322,7 @@ class JobOrchestrator(
 
                 where
                     (:filter_state::text is null or current_state = :filter_state::text) and
+                    (:filter_application::text is null or application_name = :filter_application) and
                     (
                         :query::text is null or
                         job.name ilike '%' || :query || '%' or
@@ -390,44 +413,52 @@ class JobOrchestrator(
             coroutineScope {
                 val logJob = if (!logsSupported) null else launch {
                     while (isActive) {
-                        if (currentState.get() == JobState.RUNNING.ordinal) {
-                            proxy.proxySubscription(
-                                actorAndProject,
-                                Unit,
-                                object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
-                                    Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
-                                    override val isUserRequest: Boolean = true
-                                    override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
+                        try {
+                            if (currentState.get() == JobState.RUNNING.ordinal) {
+                                proxy.proxySubscription(
+                                    actorAndProject,
+                                    Unit,
+                                    object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
+                                        Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                        override val isUserRequest: Boolean = true
+                                        override fun retrieveCall(comms: ComputeCommunication) =
+                                            providerApi(comms).follow
 
-                                    override suspend fun verifyAndFetchResources(
-                                        actorAndProject: ActorAndProject,
-                                        request: Unit
-                                    ): RequestWithRefOrResource<Unit, Job> {
-                                        return Unit to ProductRefOrResource.SomeResource(initialJob)
-                                    }
+                                        override suspend fun verifyAndFetchResources(
+                                            actorAndProject: ActorAndProject,
+                                            request: Unit
+                                        ): RequestWithRefOrResource<Unit, Job> {
+                                            return Unit to ProductRefOrResource.SomeResource(initialJob)
+                                        }
 
-                                    override suspend fun beforeCall(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>
-                                    ): JobsProviderFollowRequest {
-                                        return JobsProviderFollowRequest.Init(initialJob)
-                                    }
+                                        override suspend fun beforeCall(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>
+                                        ): JobsProviderFollowRequest {
+                                            return JobsProviderFollowRequest.Init(initialJob)
+                                        }
 
-                                    override suspend fun onMessage(
-                                        provider: String,
-                                        resource: RequestWithRefOrResource<Unit, Job>,
-                                        message: JobsProviderFollowResponse
-                                    ) {
-                                        if (streamId == null) streamId = message.streamId
-                                        sendWSMessage(
-                                            JobsFollowResponse(
-                                                emptyList(),
-                                                listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                        override suspend fun onMessage(
+                                            provider: String,
+                                            resource: RequestWithRefOrResource<Unit, Job>,
+                                            message: JobsProviderFollowResponse
+                                        ) {
+                                            if (streamId == null) streamId = message.streamId
+                                            sendWSMessage(
+                                                JobsFollowResponse(
+                                                    emptyList(),
+                                                    listOf(JobsLog(message.rank, message.stdout, message.stderr))
+                                                )
                                             )
-                                        )
+                                        }
                                     }
-                                }
-                            )
+                                )
+                            }
+                        } catch (ignore: java.util.concurrent.CancellationException) {
+                            break
+                        } catch (ex: Throwable) {
+                            log.debug("Caught exception while following logs:\n${ex.stackTraceToString()}")
+                            break
                         }
 
                         delay(100)
@@ -473,10 +504,7 @@ class JobOrchestrator(
                 }
 
                 try {
-                    select<Unit> {
-                        (logJob ?: Job()).onJoin {}
-                        updateJob.onJoin {}
-                    }
+                    updateJob.join()
                 } finally {
                     val capturedId = streamId
                     if (capturedId != null) {
@@ -499,7 +527,8 @@ class JobOrchestrator(
                                     resource: RequestWithRefOrResource<Unit, Job>
                                 ): JobsProviderFollowRequest = JobsProviderFollowRequest.CancelStream(capturedId)
 
-                            }
+                            },
+                            useHttpClient = false
                         )
                     }
 

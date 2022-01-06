@@ -59,8 +59,6 @@ class Providers<Communication : ProviderComms>(
 
             val simpleComms = SimpleProviderCommunication(httpClient, wsClient, providerSpec)
 
-            println("DEBUG DEBUG DEBUG $provider => $hostInfo DEBUG DEBUG DEBUG")
-
             communicationFactory(simpleComms)
         }
     )

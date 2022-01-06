@@ -839,6 +839,6 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     }
 
     override val create: Nothing? = null
-    override val search: Nothing? = null
+    override val search get() = super.search!!
     override val delete get() = super.delete!!
 }

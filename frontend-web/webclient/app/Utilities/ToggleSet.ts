@@ -74,8 +74,7 @@ export interface ToggleSetHook<T> {
 export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {
     const [checked, setChecked] = useState<{set: ToggleSet<T>}>({set: new ToggleSet()});
     const allItems = useRef<T[]>(items);
-    allItems.current = items;
-    const allChecked = checked.set.items.length > 0 && checked.set.items.length === items.length;
+    const allChecked = checked.set.items.length > 0 && checked.set.items.length === allItems.current.length;
     const toggle = useCallback((job: T) => {
         checked.set.toggle(job);
         setChecked({...checked});
@@ -85,7 +84,7 @@ export function useToggleSet<T>(items: T[]): ToggleSetHook<T> {
         if (allChecked) {
             checked.set.clear();
         } else {
-            checked.set.activateAll(items);
+            checked.set.activateAll(allItems.current);
         }
         setChecked({...checked});
     }, [setChecked, items, allChecked]);

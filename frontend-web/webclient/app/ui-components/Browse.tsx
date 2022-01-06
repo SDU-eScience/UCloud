@@ -2,7 +2,7 @@ import * as React from "react";
 import {DependencyList, EventHandler, MouseEvent, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {PageV2} from "@/UCloud";
 import {emptyPageV2, pageV2Of} from "@/DefaultObjects";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APIError, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Pagination from "@/Pagination";
 import {PageRenderer} from "@/Pagination/PaginationV2";
@@ -10,7 +10,7 @@ import {ToggleSetHook, useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
-import {doNothing, EmptyObject} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, doNothing, EmptyObject, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
 import * as H from "history";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
@@ -22,6 +22,7 @@ import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
+import {SmallScreenSearchField} from "@/Navigation/Header";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -29,6 +30,8 @@ interface BrowseProps<T> {
     pageRenderer: PageRenderer<T>;
     onLoad?: (newItems: T[]) => void;
 
+    isSearch?: boolean;
+    browseType?: BrowseType;
     loadingRef?: React.MutableRefObject<boolean>;
     reloadRef?: React.MutableRefObject<() => void>;
     onReload?: () => void;
@@ -40,42 +43,66 @@ interface BrowseProps<T> {
 
 export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>): JSX.Element | null {
     const hasPreloadedResources = !!props.preloadedResources;
-    const [remoteResources, fetchResources] = useCloudAPI<PageV2<T>>({noop: true}, emptyPageV2);
+    const [remoteResources, setRemoteResources] = useState<PageV2<T>>(emptyPageV2);
+    const [error, setError] = useState<APIError | undefined>(undefined)
+    const [loading, invokeCommand] = useCloudCommand();
     const [infScroll, setInfScroll] = useState(0);
     const resources = useMemo(() =>
-        hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources.data,
-        [props.preloadedResources, remoteResources.data]);
+        hasPreloadedResources ? pageV2Of(...props.preloadedResources!) : remoteResources,
+        [props.preloadedResources, remoteResources]);
 
     useEffect(() => {
         if (props.onLoad) props.onLoad(resources.items);
     }, [resources, props.onLoad]);
 
-    const isLoading = hasPreloadedResources ? false : remoteResources.loading;
+    const isLoading = hasPreloadedResources ? false : loading;
     if (props.loadingRef) props.loadingRef.current = isLoading;
 
     if (props.pageSizeRef && !props.preloadedResources) {
-        props.pageSizeRef.current = remoteResources.data.items.length;
+        props.pageSizeRef.current = remoteResources.items.length;
     }
 
-    const reload = useCallback(() => {
-        setInfScroll(prev => prev + 1);
+    const reload = useCallback(async () => {
         if (hasPreloadedResources) return;
-        fetchResources(props.generateCall());
+        try {
+            const result = await invokeCommand<PageV2<T>>(props.generateCall());
+            if (result != null) {
+                setInfScroll(prev => prev + 1);
+                setRemoteResources(result);
+            }
+        } catch (e) {
+            if ("why" in e) {
+                setError(e);
+            } else {
+                displayErrorMessageOrDefault(e, "Failed to load more entries. ");
+            }
+        }
         if (props.onReload) props.onReload();
     }, [props.generateCall, props.onReload, hasPreloadedResources]);
 
     if (props.reloadRef) props.reloadRef.current = reload;
 
-    const loadMore = useCallback(() => {
+    const loadMore = useCallback(async () => {
         if (hasPreloadedResources) return;
         if (resources.next) {
-            fetchResources(props.generateCall(resources.next));
+            try {
+                const result = await invokeCommand<PageV2<T>>(props.generateCall(resources.next), {defaultErrorHandler: false});
+                if (result != null) {
+                    setRemoteResources(result);
+                }
+            } catch (e) {
+                if ("why" in e) {
+                    setError(e);
+                } else {
+                    displayErrorMessageOrDefault(e, "Failed to load more entries. ");
+                }
+            }
         }
     }, [props.generateCall, hasPreloadedResources, resources.next]);
 
     if (props.toggleSet) props.toggleSet.allItems.current = resources.items;
 
-    useEffect(() => reload(), [reload]);
+    useEffect(() => {reload()}, [reload]);
 
     if (props.setRefreshFunction !== false) {
         useRefreshFunction(reload);
@@ -83,9 +110,12 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 
     if (props.hide === true) return null;
 
-    return <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-        onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={remoteResources.error?.why}
-        infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />;
+    return <>
+        {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
+        <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={error?.why}
+            infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
+    </>
 }
 
 export interface ItemRenderer<T, CB = any> {
@@ -107,6 +137,7 @@ interface ItemRowProps<T, CB> {
     callbacks: CB;
     itemTitle: string;
     itemTitlePlural?: string;
+    disableSelection?: boolean;
 
     renaming?: RenamingState<T>;
 }
@@ -138,6 +169,7 @@ export const ItemRow = <T, CB>(
     }, []);
 
     return <ListRow
+        disableSelection={props.disableSelection}
         onContextMenu={onContextMenu}
         icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} /> : null}
         left={
@@ -169,6 +201,7 @@ export const ItemRow = <T, CB>(
                         operations={props.operations}
                         row={props.item}
                         openFnRef={openOperationsRef}
+                        forceEvaluationOnOpen
                     /> : null}
             </>
         }
@@ -230,6 +263,7 @@ interface StandardListBrowse<T, CB> {
     titlePlural?: string;
     embedded?: boolean | "inline" | "dialog";
     onSelect?: (item: T) => void;
+    onSelectRestriction?: (item: T) => boolean;
     emptyPage?: JSX.Element;
     sidebarPage?: SidebarPages;
     extraCallbacks?: CB;
@@ -258,6 +292,7 @@ export function StandardList<T, CB = EmptyObject>(
         history,
         reload: () => reloadRef.current(),
         onSelect: props.onSelect,
+        onSelectRestriction: props.onSelectRestriction,
         embedded: !isMainContainer,
         commandLoading,
         invokeCommand,

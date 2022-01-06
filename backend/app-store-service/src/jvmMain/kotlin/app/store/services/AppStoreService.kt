@@ -233,17 +233,26 @@ class AppStoreService(
         aclDao.revokePermission(session, entity, applicationName)
     }
 
+    @OptIn(ExperimentalStdlibApi::class)
     suspend fun findBySupportedFileExtension(
         securityPrincipal: SecurityPrincipal,
         request: NormalizedPaginationRequestV2,
         project: String?,
         files: List<String>
     ): PageV2<ApplicationWithExtension> {
-        val extensions = files.map { file ->
+        val extensions = files.flatMap { file ->
             if (file.contains(".")) {
-                "." + file.substringAfterLast('.')
+                listOf("." + file.substringAfterLast('.'))
             } else {
-                file.substringAfterLast('/')
+                buildList {
+                    val name = file.substringAfterLast('/')
+                    add(name.removeSuffix("/"))
+
+                    if (file.endsWith("/")) {
+                        add("$name/")
+                        add("/")
+                    }
+                }
             }
         }.toSet()
 

@@ -17,6 +17,7 @@ import dk.sdu.cloud.accounting.util.SqlObject
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
@@ -63,6 +64,7 @@ class ShareService(
     init {
         files.addMoveHandler(::onFilesMoved)
         files.addTrashHandler(::onFilesDeleted)
+        collections.addDeleteHandler(::onFileCollectionDeleted)
     }
 
     private suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
@@ -151,8 +153,65 @@ class ShareService(
                             using affected_shares share, affected_file_collections fc
                             where
                             r.id = share.resource or r.id = fc.resource
-                """, debug = true
+                """
             )
+        }
+    }
+
+    private suspend fun onFileCollectionDeleted(request: BulkRequest<FindByStringId>) {
+        db.withSession { session ->
+            val shares = session.sendPreparedStatement(
+                {
+                    setParameter("ids", request.items.map { "/${it.id}/%" })
+                },
+                """
+                    select s.resource, s.available_at
+                    from
+                        file_orchestrator.shares s
+                    where original_file_path like any((select unnest(:ids::text[])))
+                """
+            ).rows.associate {
+                Pair(it.getLong(0)!!, it.getString(1)!!.removePrefix("/"))
+            }
+
+            if (shares.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", shares.values.toList())
+                    },
+                    "delete from file_orchestrator.file_collections where resource = any(:ids::bigint[])"
+                )
+
+                val shareIds = shares.keys.toList()
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", shareIds)
+                    },
+                    "delete from file_orchestrator.shares where resource = some(:ids::bigint[])"
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", shareIds)
+                    },
+                    "delete from provider.resource_acl_entry where resource_id = some(:ids)"
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", shareIds)
+                    },
+                    "delete from provider.resource_update where resource = some(:ids)"
+                )
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("ids", shareIds)
+                    },
+                    "delete from provider.resource where id = some(:ids)"
+                )
+            }
         }
     }
 
@@ -196,8 +255,9 @@ class ShareService(
                 where id in (select unnest(:username::text[]))
             """
         ).rows
+
         if (idWithSpec.size != returnedUsers.size) {
-            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            throw RPCException("Unknown user. Did you write the correct user ID?", HttpStatusCode.BadRequest)
         }
 
         val collIds = idWithSpec.map { extractPathMetadata(it.second.sourceFilePath).collection }.toSet()
@@ -250,7 +310,7 @@ class ShareService(
                     it.second.sharedWith,
                     Notification(
                         NotificationType.SHARE_REQUEST.name,
-                        "${actorAndProject.actor.safeUsername()} wants to share a file with you",
+                        "${actorAndProject.actor.safeUsername()} wants to share a folder with you",
                         meta = JsonObject(emptyMap())
                     )
                 ),
@@ -583,7 +643,7 @@ class ShareService(
         )
     }
 
-    override suspend fun browseQuery(flags: ShareFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ShareFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("filter_path", flags?.filterOriginalPath?.normalize())

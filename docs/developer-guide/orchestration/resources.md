@@ -149,6 +149,10 @@ this, then UCloud/Core will reject all requests counting backwards.
 <td>Creates one or more resources</td>
 </tr>
 <tr>
+<td><a href='#delete'><code>delete</code></a></td>
+<td>Deletes one or more resources</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Updates the ACL attached to a resource</td>
 </tr>
@@ -182,6 +186,10 @@ this, then UCloud/Core will reject all requests counting backwards.
 <tr>
 <td><a href='#supportbyprovider'><code>SupportByProvider</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ufileupdate'><code>UFileUpdate</code></a></td>
+<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#aclentity'><code>AclEntity</code></a></td>
@@ -234,10 +242,6 @@ this, then UCloud/Core will reject all requests counting backwards.
 <tr>
 <td><a href='#resourceaclentry'><code>ResourceAclEntry</code></a></td>
 <td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#resourceupdate'><code>ResourceUpdate</code></a></td>
-<td>Describes an update to the `Resource`</td>
 </tr>
 <tr>
 <td><a href='#resourceupdateandid'><code>ResourceUpdateAndId</code></a></td>
@@ -304,6 +308,9 @@ Resources.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -321,8 +328,6 @@ Resources.browse.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "1234", 
         owner = ResourceOwner(
@@ -403,7 +408,10 @@ await callAPI(ExampleApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -460,10 +468,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -543,10 +548,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?inc
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -626,6 +628,9 @@ Resources.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -638,8 +643,6 @@ Resources.retrieve.call(
 
 /*
 ExampleResource(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "1234", 
     owner = ResourceOwner(
@@ -739,7 +742,10 @@ await callAPI(ExampleApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "1234"
     }
@@ -788,10 +794,7 @@ await callAPI(ExampleApi.retrieve(
         ],
         "others": [
         ]
-    },
-    "billing": {
-    },
-    "acl": null
+    }
 }
 */
 ```
@@ -884,10 +887,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 #         ],
 #         "others": [
 #         ]
-#     },
-#     "billing": {
-#     },
-#     "acl": null
+#     }
 # }
 
 ```
@@ -944,6 +944,9 @@ Resources.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = State.RUNNING, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -961,8 +964,6 @@ Resources.browse.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "1234", 
         owner = ResourceOwner(
@@ -1042,7 +1043,10 @@ await callAPI(ExampleApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -1099,10 +1103,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -1181,10 +1182,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -1243,6 +1241,9 @@ Resources.browse.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = State.RUNNING, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -1260,8 +1261,6 @@ Resources.browse.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "1", 
         owner = ResourceOwner(
@@ -1290,8 +1289,6 @@ PageV2(
         updates = emptyList(), 
         providerGeneratedId = "1", 
     ), ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "2", 
         owner = ResourceOwner(
@@ -1320,8 +1317,6 @@ PageV2(
         updates = emptyList(), 
         providerGeneratedId = "2", 
     ), ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "3", 
         owner = ResourceOwner(
@@ -1371,6 +1366,9 @@ Resources.search.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -1389,8 +1387,6 @@ Resources.search.call(
 /*
 PageV2(
     items = listOf(ExampleResource(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635170395571, 
         id = "3", 
         owner = ResourceOwner(
@@ -1459,7 +1455,10 @@ await callAPI(ExampleApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -1504,10 +1503,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         },
         {
             "id": "2",
@@ -1539,10 +1535,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         },
         {
             "id": "3",
@@ -1574,10 +1567,7 @@ await callAPI(ExampleApi.browse(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -1602,7 +1592,10 @@ await callAPI(ExampleApi.search(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "query": "300",
         "itemsPerPage": null,
@@ -1648,10 +1641,7 @@ await callAPI(ExampleApi.search(
                 ],
                 "others": [
                 ]
-            },
-            "billing": {
-            },
-            "acl": null
+            }
         }
     ],
     "next": null
@@ -1716,10 +1706,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         },
 #         {
 #             "id": "2",
@@ -1751,10 +1738,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         },
 #         {
 #             "id": "3",
@@ -1786,10 +1770,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/browse?fil
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -1812,7 +1793,10 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
         "filterProductId": null,
         "filterProductCategory": null,
         "filterProviderIds": null,
-        "filterIds": null
+        "filterIds": null,
+        "hideProductId": null,
+        "hideProductCategory": null,
+        "hideProvider": null
     },
     "query": "300",
     "itemsPerPage": null,
@@ -1857,10 +1841,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 #                 ],
 #                 "others": [
 #                 ]
-#             },
-#             "billing": {
-#             },
-#             "acl": null
+#             }
 #         }
 #     ],
 #     "next": null
@@ -2484,6 +2465,9 @@ Resources.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -2535,6 +2519,9 @@ Resources.retrieve.call(
             filterProvider = null, 
             filterProviderIds = null, 
             filterState = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -2547,8 +2534,6 @@ Resources.retrieve.call(
 
 /*
 ExampleResource(
-    acl = null, 
-    billing = ResourceBilling.Free, 
     createdAt = 1635170395571, 
     id = "1234", 
     owner = ResourceOwner(
@@ -2651,7 +2636,10 @@ await callAPI(ExampleApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "1234"
     }
@@ -2715,7 +2703,10 @@ await callAPI(ExampleApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "id": "1234"
     }
@@ -2764,10 +2755,7 @@ await callAPI(ExampleApi.retrieve(
         ],
         "others": [
         ]
-    },
-    "billing": {
-    },
-    "acl": null
+    }
 }
 */
 ```
@@ -2902,10 +2890,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?i
 #         ],
 #         "others": [
 #         ]
-#     },
-#     "billing": {
-#     },
-#     "acl": null
+#     }
 # }
 
 ```
@@ -3004,6 +2989,20 @@ _Creates one or more resources_
 
 
 
+### `delete`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Deletes one or more resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
 ### `updateAcl`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -3080,7 +3079,7 @@ data class ResourceChargeCredits(
     val id: String,
     val chargeId: String,
     val units: Long,
-    val numberOfProducts: Long?,
+    val periods: Long?,
     val performedBy: String?,
     val description: String?,
 )
@@ -3127,7 +3126,7 @@ This charge ID must be unique for the `Resource`, UCloud will reject charges whi
 
 <details>
 <summary>
-<code>numberOfProducts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+<code>periods</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
 </summary>
 
 
@@ -3234,6 +3233,64 @@ data class SupportByProvider<P, S>(
 <details>
 <summary>
 <code>productsByProvider</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `UFileUpdate`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Describes an update to the `Resource`_
+
+```kotlin
+data class UFileUpdate(
+    val timestamp: Long,
+    val status: String?,
+)
+```
+Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
+The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
+use the full update history if you only wish to know the _current_ state of a `Resource`.
+
+An update will typically contain information similar to the `status` field, for example:
+
+- A state value. For example, a compute `Job` might be `RUNNING`.
+- Change in key metrics.
+- Bindings to related `Resource`s.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
 </summary>
 
 
@@ -3393,8 +3450,6 @@ data class ExampleResource(
     val updates: List<ExampleResource.Update>,
     val owner: ResourceOwner,
     val permissions: ResourcePermissions?,
-    val acl: List<ResourceAclEntry>?,
-    val billing: ResourceBilling.Free,
     val providerGeneratedId: String?,
 )
 ```
@@ -3482,28 +3537,6 @@ resource.
 
 
 A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>acl</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#resourceaclentry'>ResourceAclEntry</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>billing</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceBilling.Free.md'>ResourceBilling.Free</a></code></code>
-</summary>
-
-
-
 
 
 </details>
@@ -3831,6 +3864,9 @@ data class ExampleResourceFlags(
     val filterProductCategory: String?,
     val filterProviderIds: String?,
     val filterIds: String?,
+    val hideProductId: String?,
+    val hideProductCategory: String?,
+    val hideProvider: String?,
 )
 ```
 
@@ -3974,6 +4010,39 @@ data class ExampleResourceFlags(
 <details>
 <summary>
 <code>filterIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the resource ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProductCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 
@@ -4200,64 +4269,6 @@ data class ResourceAclEntry(
 <details>
 <summary>
 <code>permissions</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#permission'>Permission</a>&gt;</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `ResourceUpdate`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_Describes an update to the `Resource`_
-
-```kotlin
-data class ResourceUpdate(
-    val status: String?,
-    val timestamp: Long,
-)
-```
-Updates can optionally be fetched for a `Resource`. The updates describe how the `Resource` changes state over time.
-The current state of a `Resource` can typically be read from its `status` field. Thus, it is typically not needed to
-use the full update history if you only wish to know the _current_ state of a `Resource`.
-
-An update will typically contain information similar to the `status` field, for example:
-
-- A state value. For example, a compute `Job` might be `RUNNING`.
-- Change in key metrics.
-- Bindings to related `Resource`s.
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A generic text message describing the current status of the `Resource`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A timestamp referencing when UCloud received this update
 </summary>
 
 

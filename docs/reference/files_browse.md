@@ -36,6 +36,9 @@ Files.browse.call(
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeMetadata = null, 
             includeOthers = false, 
             includePermissions = null, 
@@ -59,8 +62,6 @@ Files.browse.call(
 /*
 PageV2(
     items = listOf(UFile(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1632903417165, 
         id = "/123/folder/file.txt", 
         owner = ResourceOwner(
@@ -131,7 +132,10 @@ await callAPI(FilesApi.browse(
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -176,9 +180,6 @@ await callAPI(FilesApi.browse(
                 "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
             },
             "permissions": null,
-            "billing": {
-            },
-            "acl": null,
             "updates": [
             ]
         }
@@ -238,9 +239,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #                 "project": "f63919cd-60d3-45d3-926b-0246dcc697fd"
 #             },
 #             "permissions": null,
-#             "billing": {
-#             },
-#             "acl": null,
 #             "updates": [
 #             ]
 #         }

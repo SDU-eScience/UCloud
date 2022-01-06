@@ -36,6 +36,7 @@ sealed class ApplicationDescription(val application: String) {
         val allowAdditionalMounts: Boolean? = null,
         val allowAdditionalPeers: Boolean? = null,
         val allowMultiNode: Boolean? = false,
+        val allowPublicIp: Boolean? = false,
         var fileExtensions: List<String> = emptyList(),
         var licenseServers: List<String> = emptyList(),
         val website: String? = null
@@ -243,6 +244,7 @@ sealed class ApplicationDescription(val application: String) {
                 allowAdditionalMounts = allowAdditionalMounts,
                 allowAdditionalPeers = allowAdditionalPeers,
                 allowMultiNode = allowMultiNode ?: false,
+                allowPublicIp = allowPublicIp,
                 fileExtensions = fileExtensions,
                 licenseServers = licenseServers
             )

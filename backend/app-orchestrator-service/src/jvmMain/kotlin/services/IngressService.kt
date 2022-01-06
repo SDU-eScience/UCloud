@@ -58,11 +58,12 @@ class IngressService(
                     """
                         insert into app_orchestrator.ingresses (domain, resource) values (:domain, :resource) 
                         on conflict (resource) do update set domain = excluded.domain
-                    """
+                    """,
+                    "ingress spec create"
                 )
         }
     }
-    override suspend fun browseQuery(flags: IngressIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: IngressIncludeFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

@@ -1,6 +1,6 @@
 import {Client} from "@/Authentication/HttpClientInstance";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
-import {HeaderSearchType, KeyCode} from "@/DefaultObjects";
+import {defaultSearch, defaultSearchPlaceholder, HeaderSearchType, KeyCode} from "@/DefaultObjects";
 import {HeaderStateToProps} from "@/Navigation";
 import {setPrioritizedSearch} from "@/Navigation/Redux/HeaderActions";
 import Notification from "@/Notifications";
@@ -9,7 +9,6 @@ import * as React from "react";
 import {connect} from "react-redux";
 import {useHistory, useLocation} from "react-router";
 import {Dispatch} from "redux";
-import * as SearchActions from "@/Search/Redux/SearchActions";
 import styled from "styled-components";
 import * as ui from "@/ui-components";
 import {DevelopmentBadgeBase} from "@/ui-components/Badge";
@@ -19,24 +18,23 @@ import Link from "@/ui-components/Link";
 import {TextSpan} from "@/ui-components/Text";
 import {ThemeToggler} from "@/ui-components/ThemeToggle";
 import {findAvatar} from "@/UserSettings/Redux/AvataaarActions";
-import {searchPage} from "@/Utilities/SearchUtilities";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {
     displayErrorMessageOrDefault,
     inDevEnvironment,
     isLightThemeStored,
-    prettierString,
     useFrameHidden,
     stopPropagationAndPreventDefault, doNothing
 } from "@/UtilityFunctions";
 import CONF from "../../site.config.json";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {NewsPost} from "@/Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
+import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
 import {VersionManager} from "@/VersionManager/VersionManager";
-import * as Applications from "@/Applications"
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
+import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
+import {useEffect, useRef} from "react";
+import {ResourceInit} from "@/Services/ResourceInit";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -60,7 +58,6 @@ export function NonAuthenticatedHeader(): JSX.Element {
 function Header(props: HeaderProps): JSX.Element | null {
     const [upcomingDowntime, setUpcomingDowntime] = React.useState(-1);
     const [intervalId, setIntervalId] = React.useState(-1);
-    const history = useHistory();
     const promises = usePromiseKeeper();
 
     React.useEffect(() => {
@@ -77,10 +74,6 @@ function Header(props: HeaderProps): JSX.Element | null {
     if (useFrameHidden()) return null;
     if (!Client.isLoggedIn) return null;
 
-    function toSearch(): void {
-        history.push("/search/files");
-    }
-
     const {refresh, spin} = props;
 
     return (
@@ -88,18 +81,7 @@ function Header(props: HeaderProps): JSX.Element | null {
             <Logo />
             <ContextSwitcher />
             <ui.Box ml="auto" />
-            <ui.Hide xs sm md lg>
-                <Search />
-            </ui.Hide>
-            <ui.Hide xxl xl>
-                <ui.Icon
-                    name="search"
-                    size="32"
-                    mr="3px"
-                    cursor="pointer"
-                    onClick={toSearch}
-                />
-            </ui.Hide>
+            <Search />
             <ui.Box mr="auto" />
             {upcomingDowntime !== -1 ? (
                 <Link to={`/news/detailed/${upcomingDowntime}`}>
@@ -128,10 +110,15 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Support />
             <Notification />
             <AutomaticGiftClaim />
+            <ResourceInit/>
             <ClickableDropdown
                 width="200px"
                 left="-180%"
-                trigger={<ui.Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</ui.Flex>}
+                trigger={
+                    <ui.Flex data-component={"avatar"}>
+                        {Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}
+                    </ui.Flex>
+                }
             >
                 {!CONF.STATUS_PAGE ? null : (
                     <>
@@ -162,7 +149,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                         </ui.Flex>
                     </Link>
                 </ui.Flex>
-                <ui.Flex onClick={() => Client.logout()}>
+                <ui.Flex onClick={() => Client.logout()} data-component={"logout-button"}>
                     <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </ui.Flex>
@@ -201,7 +188,8 @@ export const Refresh = ({
     headerLoading
 }: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
     <RefreshIcon
-        data-tag="refreshButton"
+        data-component="refresh"
+        data-loading={spin}
         name="refresh"
         spin={spin || headerLoading}
         onClick={onClick}
@@ -229,6 +217,7 @@ const LogoText = styled(ui.Text)`
 
 const Logo = (): JSX.Element => (
     <Link
+        data-component={"logo"}
         to="/"
         width={[null, null, null, null, null, "190px"]}
     >
@@ -295,12 +284,10 @@ const SearchInput = styled(ui.Flex)`
 
 interface SearchStateProps {
     prioritizedSearch: HeaderSearchType;
-    search: string;
 }
 
 interface SearchOperations {
     setSearchType: (st: HeaderSearchType) => void;
-    setSearch: (search: string) => void;
 }
 
 type SearchProps = SearchOperations & SearchStateProps;
@@ -308,101 +295,94 @@ type SearchProps = SearchOperations & SearchStateProps;
 
 // eslint-disable-next-line no-underscore-dangle
 const _Search = (props: SearchProps): JSX.Element => {
-    const history = useHistory();
-    const location = useLocation();
-    React.useEffect(() => {
-        props.setSearch(getQueryParamOrElse({history, location}, "query", ""));
-    }, []);
-    const {prioritizedSearch, setSearchType} = props;
-    const allowedSearchTypes: HeaderSearchType[] = ["files", "applications"];
-    const [searchPlaceholder] = useGlobal("searchPlaceholder", "");
-    const [onSearch] = useGlobal("onSearch", doNothing);
+    const searchRef = useRef<HTMLInputElement>(null);
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
+    const [onSearch] = useGlobal("onSearch", defaultSearch);
     const hasSearch = onSearch !== doNothing;
+    const history = useHistory();
 
-    return (
-        <ui.Relative>
-            <SearchInput>
-                <ui.Input
-                    pl="30px"
-                    pr="28px"
-                    pt="6px"
-                    pb="6px"
-                    id="search_input"
-                    type="text"
-                    overrideDisabledColor={ui.theme.colors.darkBlue}
-                    value={props.search}
-                    disabled={!hasSearch}
-                    placeholder={searchPlaceholder}
-                    noBorder
-                    onKeyDown={e => {
-                        if (e.keyCode === KeyCode.ENTER) {
-                            if (hasSearch) {
-                                onSearch(props.search);
-                            } else {
-                                if (props.search) {
-                                    fetchAll();
+    useEffect(() => {
+        const search = searchRef.current;
+        const query = getQueryParamOrElse(history.location.search, "q", "");
+        if (search) search.value = query;
+    }, [onSearch]);
+
+    return (<>
+        <ui.Hide xs sm md lg>
+            <ui.Relative>
+                <SearchInput>
+                    <ui.Input
+                        pl="30px"
+                        pr="28px"
+                        pt="6px"
+                        pb="6px"
+                        id="search_input"
+                        type="text"
+                        overrideDisabledColor={ui.theme.colors.darkBlue}
+                        disabled={!hasSearch}
+                        placeholder={searchPlaceholder}
+                        ref={searchRef}
+                        noBorder
+                        onKeyDown={e => {
+                            if (e.keyCode === KeyCode.ENTER) {
+                                if (hasSearch) {
+                                    onSearch(searchRef.current!.value, history);
                                 }
                             }
-                        }
-                    }}
-                    onChange={e => props.setSearch(e.target.value)}
-                />
-                <ui.Absolute left="6px" top="7px">
-                    <ui.Label htmlFor="search_input">
-                        <ui.Icon name="search" size="20" />
-                    </ui.Label>
-                </ui.Absolute>
-                {/* <ClickableDropdown
-                    keepOpenOnOutsideClick
-                    overflow="visible"
-                    left={-425}
-                    top={15}
-                    width="425px"
-                    colorOnHover={false}
-                    keepOpenOnClick
-                    squareTop
-                    trigger={(
-                        <ui.Absolute hidden={!hasSearch} top={-12.5} right={12} bottom={0} left={-22}>
-                            <ui.Icon cursor="pointer" name="chevronDown" size="12px" />
-                        </ui.Absolute>
-                    )}
-                >
-                    <ui.SelectableTextWrapper>
-                        <ui.Box ml="auto" />
-                        {allowedSearchTypes.map(it => (
-                            <ui.SelectableText
-                                key={it}
-                                onClick={() => setSearchType(it)}
-                                mr="1em"
-                                selected={it === prioritizedSearch}
-                            >
-                                {prettierString(it)}
-                            </ui.SelectableText>
-                        ))}
-                        <ui.Box mr="auto" />
-                    </ui.SelectableTextWrapper>
-                    {prioritizedSearch !== "applications" ? null : <Applications.SearchWidget />}
-                </ClickableDropdown> */}
-            </SearchInput>
-        </ui.Relative>
+                        }}
+                    />
+                    <ui.Absolute left="6px" top="7px">
+                        <ui.Label htmlFor="search_input">
+                            <ui.Icon name="search" size="20" />
+                        </ui.Label>
+                    </ui.Absolute>
+                </SearchInput>
+            </ui.Relative>
+        </ui.Hide>
+        <ui.Hide xxl xl>
+            <ui.Icon
+                name="search"
+                size="32"
+                mr="3px"
+                color={hasSearch ? "#FFF" : "gray"}
+                cursor={hasSearch ? "pointer" : undefined}
+                /* HACK(Jonas): To circumvent the `q === ""` check */
+                onClick={() => onSearch(undefined as unknown as string, history)}
+            />
+        </ui.Hide>
+    </>
     );
-
-    function fetchAll(): void {
-        history.push(searchPage(prioritizedSearch, props.search));
-    }
 };
+
+export function SmallScreenSearchField(): JSX.Element {
+    const [searchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
+    const [onSearch] = useGlobal("onSearch", defaultSearch);
+    const ref = React.useRef<HTMLInputElement>(null);
+    const history = useHistory();
+
+    return <ui.Hide xl xxl>
+        <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", history))}>
+            <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
+            <ui.Input
+                required
+                mt="3px"
+                width={"100%"}
+                placeholder={searchPlaceholder}
+                ref={ref}
+            />
+            <ui.Button mt="3px" width={"100%"}>Search</ui.Button>
+        </form>
+    </ui.Hide>;
+}
 
 const mapSearchStateToProps = ({
     header,
-    simpleSearch
 }: ReduxObject): SearchStateProps => ({
     prioritizedSearch: header.prioritizedSearch,
-    search: simpleSearch.search,
 });
 
 const mapSearchDispatchToProps = (dispatch: Dispatch): SearchOperations => ({
     setSearchType: (st: HeaderSearchType) => dispatch(setPrioritizedSearch(st)),
-    setSearch: search => dispatch(SearchActions.setSearch(search))
 });
 
 const Search = connect(mapSearchStateToProps, mapSearchDispatchToProps)(_Search);

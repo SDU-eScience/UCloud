@@ -4,7 +4,7 @@ import {accounting, BulkRequest, BulkResponse, PageV2, PaginationRequestV2} from
 import ProductReference = accounting.ProductReference;
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {InvokeCommand} from "@/Authentication/DataHook";
+import {apiUpdate, InvokeCommand} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
@@ -102,14 +102,17 @@ export interface ResourceBrowseCallbacks<Res extends Resource> {
     api: ResourceApi<Res, never>;
     isCreating: boolean;
     startCreation?: () => void;
+    cancelCreation?: () => void;
     viewProperties?: (res: Res) => void;
     closeProperties?: () => void;
     onSelect?: (resource: Res) => void;
+    onSelectRestriction?: (resource: Res) => boolean;
     embedded: boolean;
     dispatch: Dispatch;
     startRenaming?: (resource: Res, defaultValue: string) => void;
     history: H.History;
     supportByProvider: SupportByProvider;
+    isWorkspaceAdmin: boolean;
 }
 
 export interface SortFlags {
@@ -203,7 +206,7 @@ export abstract class ResourceApi<Res extends Resource,
             {
                 text: "Use",
                 primary: true,
-                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined,
+                enabled: (selected, cb) => selected.length === 1 && cb.onSelect !== undefined && (cb.onSelectRestriction?.(selected[0]) ?? true),
                 canAppearInLocation: loc => loc === "IN_ROW",
                 onClick: (selected, cb) => {
                     cb.onSelect!(selected[0]);
@@ -216,12 +219,22 @@ export abstract class ResourceApi<Res extends Resource,
                 primary: true,
                 canAppearInLocation: loc => loc !== "IN_ROW",
                 enabled: (selected, cb) => {
-                    if (selected.length !== 0 || cb.startCreation == null) return false;
-                    if (cb.isCreating) return "You are already creating a " + this.title.toLowerCase();
+                    if (selected.length !== 0 || cb.startCreation == null || cb.isCreating) return false;
                     return true;
                 },
                 onClick: (selected, cb) => cb.startCreation!(),
                 tag: CREATE_TAG
+            },
+            {
+                text: "Cancel",
+                icon: "close",
+                color: "red",
+                canAppearInLocation: loc => loc === "SIDEBAR" || loc === "TOPBAR",
+                primary: true,
+                enabled: (selected, cb) => {
+                    return cb.isCreating
+                },
+                onClick: (selected, cb) => cb.cancelCreation!(),
             },
             {
                 text: "Permissions",
@@ -255,6 +268,10 @@ export abstract class ResourceApi<Res extends Resource,
                     await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
                     cb.reload();
                     cb.closeProperties?.();
+                    
+                    if (!cb.viewProperties && !cb.embedded) {
+                        cb.history.push(`/${cb.api.routingNamespace}`)
+                    }
                 },
                 tag: DELETE_TAG
             },
@@ -273,6 +290,10 @@ export abstract class ResourceApi<Res extends Resource,
     public get titlePlural(): string {
         if (this.title.endsWith("s")) return this.title + "es";
         return this.title + "s";
+    }
+
+    init(): APICallParameters {
+        return apiUpdate({}, this.baseContext, "init");
     }
 
     browse(req: PaginationRequestV2 & Flags & SortFlags): APICallParameters<PaginationRequestV2 & Flags, PageV2<Res>> {

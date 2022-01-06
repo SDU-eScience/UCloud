@@ -550,6 +550,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             state.reload();
         }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
 
+        const cancelEditOfRefId = useCallback(async () => {
+            setIsEditingProjectReference(false);
+            state.reload();
+        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+
         const approveRequest = useCallback(async () => {
             if (state.editingApplication !== undefined) {
                 addStandardDialog({
@@ -780,7 +785,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                         <>
                                                                             <td>
                                                                                 <Input
-                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                    placeholder={state.editingApplication?.referenceId != null ? state.editingApplication?.referenceId : "e.g. DeiC-SDU-L1-000001"}
                                                                                     ref={projectReferenceIdRef}
                                                                                 />
                                                                             </td>
@@ -788,8 +793,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 <Button
                                                                                     color="blue"
                                                                                     onClick={updateReferenceID}
+                                                                                    mx="6px"
                                                                                 >
                                                                                     Update Reference ID
+                                                                                </Button>
+                                                                                <Button
+                                                                                    color="red"
+                                                                                    onClick={cancelEditOfRefId}
+                                                                                >
+                                                                                    Cancel
                                                                                 </Button>
                                                                             </td>
                                                                         </>) : (
@@ -798,8 +810,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 {state.editingApplication?.referenceId ?? "No ID given"}
                                                                             </td>
                                                                             <td>
-                                                                                <Button
-                                                                                    onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                                <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
                                                                             </td>
                                                                         </>)
                                                                     }

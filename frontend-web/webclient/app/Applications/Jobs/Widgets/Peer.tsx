@@ -4,7 +4,7 @@ import {widgetId, WidgetProps, WidgetSetter, WidgetValidationAnswer} from "./ind
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import Flex from "@/ui-components/Flex";
-import {useCallback, useState} from "react";
+import {useCallback, useMemo, useState} from "react";
 import Box from "@/ui-components/Box";
 import styled from "styled-components";
 import Input from "@/ui-components/Input";
@@ -14,7 +14,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {default as ReactModal} from "react-modal";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-import {JobBrowse} from "@/Applications/Jobs/NewApi";
+import {JobBrowse} from "@/Applications/Jobs/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 
 interface PeerProps extends WidgetProps {
@@ -118,6 +118,8 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
         }
     }, [props.suggestedApplication, allowAutoConfigure]);
 
+    const filters = useMemo(() => ({filterState: "RUNNING"}), []);
+
     return (<Flex>
         <PointerInput
             id={widgetId(props.parameter) + "job"}
@@ -137,6 +139,7 @@ const JobSelector: React.FunctionComponent<JobSelectorProps> = props => {
             onRequestClose={doClose}
         >
             <JobBrowse
+                additionalFilters={filters}
                 onSelect={job => {
                     setSelectedPeer(job.id);
                     setAllowAutoConfigure(false);

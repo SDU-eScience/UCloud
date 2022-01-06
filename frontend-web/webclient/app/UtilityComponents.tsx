@@ -16,6 +16,7 @@ import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 
 interface StandardDialog {
     title?: string;
@@ -93,34 +94,35 @@ export async function addStandardInputDialog({
     width = "300px",
 }: InputDialog): Promise<{result: string}> {
     return new Promise((resolve, reject) => dialogStore.addDialog(
-        <div>
+        <form onSubmit={
+            e => {
+                stopPropagationAndPreventDefault(e);
+                const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                if (validator(elem.value)) {
+                    dialogStore.success();
+                    return resolve({result: elem.value});
+                } else snackbarStore.addFailure(validationFailureMessage, false);
+            }
+        }>
             <div>
                 <Heading.h3>{title}</Heading.h3>
                 {title ? <Divider /> : null}
-                {help ? help : null}
+                {help ?? null}
                 <Input
                     id={"dialog-input"}
                     as={type}
                     width={width}
                     placeholder={placeholder}
+                    autoFocus
                 />
             </div>
             <Flex mt="20px">
-                <Button onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
-                <Button
-                    onClick={() => {
-                        const elem = document.querySelector("#dialog-input") as HTMLInputElement;
-                        if (validator(elem.value)) {
-                            dialogStore.success();
-                            resolve({result: elem.value});
-                        } else snackbarStore.addFailure(validationFailureMessage, false);
-                    }}
-                    color="green"
-                >
+                <Button type={"button"} onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
+                <Button type={"submit"} color="green">
                     {confirmText}
                 </Button>
             </Flex>
-        </div>, () => reject({cancelled: true}), addToFront));
+        </form>, () => reject({cancelled: true}), addToFront));
 }
 
 interface ConfirmCancelButtonsProps {
@@ -128,6 +130,7 @@ interface ConfirmCancelButtonsProps {
     cancelText?: string;
     height?: number | string;
     showCancelButton?: boolean;
+    disabled?: boolean;
 
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
 
@@ -140,12 +143,13 @@ export const ConfirmCancelButtons = ({
     onConfirm,
     onCancel,
     height,
-    showCancelButton
+    showCancelButton,
+    disabled
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
-        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button disabled={disabled} onClick={onConfirm} type="button" color="green">{confirmText}</Button>
         {showCancelButton === false ? null :
-            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>}
+            <Button disabled={disabled} onClick={onCancel} type="button" color="red">{cancelText}</Button>}
     </ButtonGroup>
 );
 
@@ -156,10 +160,16 @@ export const NamingField: React.FunctionComponent<{
     suffix?: string | null;
     inputRef: React.MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
+    disabled?: boolean;
     defaultValue?: string;
 }> = props => {
     const submit = React.useCallback((e) => {
         e.preventDefault();
+        const value = props.inputRef.current?.value ?? "";
+        if (!value.trim()) {
+            snackbarStore.addFailure("Title can't be empty or blank", false);
+            return;
+        }
         props.onSubmit(e);
     }, [props.onSubmit]);
 
@@ -170,7 +180,7 @@ export const NamingField: React.FunctionComponent<{
     }, [props.onCancel]);
 
     return (
-        <form onSubmit={submit}>
+        props.disabled ? <LoadingIcon /> : <form onSubmit={submit}>
             <Flex onClick={stopPropagationAndPreventDefault}>
                 <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons
@@ -180,7 +190,7 @@ export const NamingField: React.FunctionComponent<{
                         onCancel={props.onCancel}
                     />
                 </div>
-                {props.prefix ? <Text color={"gray"}>{props.prefix}</Text> : null}
+                {props.prefix ? <Text pl="10px" mt="4px" color={"gray"}>{props.prefix}</Text> : null}
                 <Input
                     pt="0px"
                     pb="0px"
@@ -198,7 +208,7 @@ export const NamingField: React.FunctionComponent<{
                     autoFocus
                     ref={props.inputRef}
                 />
-                {props.suffix ? <Text color={"gray"} mr={8}>{props.suffix}</Text> : null}
+                {props.suffix ? <Text mt="4px" color={"gray"} mr={8}>{props.suffix}</Text> : null}
             </Flex>
         </form>
     );

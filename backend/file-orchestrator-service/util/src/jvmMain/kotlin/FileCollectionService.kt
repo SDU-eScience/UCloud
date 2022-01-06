@@ -14,8 +14,8 @@ import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.serializer
 
-
 typealias AclUpdateHandler = suspend (session: AsyncDBConnection, batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
+typealias DeleteHandler = suspend (batch: BulkRequest<FindByStringId>) -> Unit
 
 private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
@@ -28,14 +28,16 @@ class FileCollectionService(
 ) : Super(db, providers, support, serviceClient) {
     private val aclUpdateHandlers = ArrayList<AclUpdateHandler>()
     override val table = SqlObject.Table("file_orchestrator.file_collections")
-    override val defaultSortColumn = SqlObject.Column(table, "resource")
+    override val defaultSortColumn = SqlObject.Column(table, "title")
     override val sortColumns = mapOf(
-        "resource" to SqlObject.Column(table, "resource")
+        "title" to SqlObject.Column(table, "title")
     )
 
+    private val deleteHandlers = ArrayList<DeleteHandler>()
     override val serializer = serializer<FileCollection>()
     override val updateSerializer = serializer<FileCollection.Update>()
     override val productArea = ProductArea.STORAGE
+    override val requireAdminForCreate: Boolean = true
 
     override fun userApi() = FileCollections
     override fun controlApi() = FileCollectionsControl
@@ -43,6 +45,10 @@ class FileCollectionService(
 
     fun addAclUpdateHandler(handler: AclUpdateHandler) {
         aclUpdateHandlers.add(handler)
+    }
+
+    fun addDeleteHandler(handler: DeleteHandler) {
+        deleteHandlers.add(handler)
     }
 
     override suspend fun createSpecifications(
@@ -67,10 +73,19 @@ class FileCollectionService(
         )
     }
 
-    override suspend fun browseQuery(flags: FileCollectionIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: FileCollectionIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
+                setParameter("username", actorAndProject.actor.safeUsername())
                 setParameter("query", query)
+                setParameter(
+                    "filter_member_files",
+                    flags?.filterMemberFiles?.name ?: MemberFilesFilter.DONT_FILTER_COLLECTIONS.name
+                )
             },
             """
                 select c.*
@@ -78,7 +93,21 @@ class FileCollectionService(
                     accessible_resources resc join
                     file_orchestrator.file_collections c on (resc.r).id = resource
                 where
-                    (:query::text is null or title ilike '%' || :query || '%')
+                    (:query::text is null or title ilike '%' || :query || '%') and
+                    (
+                        :filter_member_files = '${MemberFilesFilter.DONT_FILTER_COLLECTIONS.name}' or
+                        (
+                            :filter_member_files = '${MemberFilesFilter.SHOW_ONLY_MINE.name}' and
+                            (
+                                c.title = 'Member Files: ' || :username or
+                                c.title not like 'Member Files: %'
+                            )
+                        ) or
+                        (
+                            :filter_member_files = '${MemberFilesFilter.SHOW_ONLY_MEMBER_FILES.name}' and
+                            c.title like 'Member Files: %'
+                        )
+                    )
             """
         )
     }
@@ -197,5 +226,13 @@ class FileCollectionService(
         request: BulkRequest<UpdatedAclWithResource<FileCollection>>
     ) {
         aclUpdateHandlers.forEach { it(session, request) }
+    }
+
+    override suspend fun delete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ): BulkResponse<Unit?> {
+        deleteHandlers.forEach { handler -> handler(request) }
+        return super.delete(actorAndProject, request)
     }
 }

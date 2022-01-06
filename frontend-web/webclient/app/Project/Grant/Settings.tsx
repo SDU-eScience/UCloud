@@ -468,7 +468,8 @@ const UserCriteriaEditor: React.FunctionComponent<{
                     </TableRow>
                 </> : null}
 
-                {props.criteria.map((it, idx) => <>
+                {props.criteria.map((it, idx) =>
+                    /* TODO(Jonas): Missing key  */
                     <TableRow>
                         <TableCell textAlign={"left"}>{userCriteriaTypePrettifier(it.type)}</TableCell>
                         <TableCell textAlign={"left"}>
@@ -480,7 +481,7 @@ const UserCriteriaEditor: React.FunctionComponent<{
                             <Icon color={"red"} name={"trash"} cursor={"pointer"} onClick={() => props.onRemove(idx)} />
                         </TableCell>
                     </TableRow>
-                </>)}
+                )}
                 {showRequestFromEditor ?
                     <UserCriteriaRowEditor
                         onSubmit={(c) => {

@@ -3,6 +3,8 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinMultiplatformExtension
 
 repositories {
     mavenCentral()
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
 buildscript {
@@ -13,8 +15,8 @@ buildscript {
     }
 
     dependencies {
-        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.5.10")
-        classpath("org.jetbrains.kotlin:kotlin-serialization:1.5.10")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:1.6.0")
+        classpath("org.jetbrains.kotlin:kotlin-serialization:1.6.0")
     }
 }
 
@@ -42,6 +44,8 @@ subprojects {
     repositories {
         jcenter()
         mavenCentral()
+        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
+        maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
     }
 
     if (isService) {

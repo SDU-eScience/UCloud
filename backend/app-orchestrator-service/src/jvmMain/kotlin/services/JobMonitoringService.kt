@@ -38,7 +38,7 @@ class JobMonitoringService(
     private val ingressService: IngressService,
     private val networkIPService: NetworkIPService,
     private val licenseService: LicenseService
-    ) {
+) {
     suspend fun initialize() {
         scope.launch {
             val lock = distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
@@ -81,14 +81,19 @@ class JobMonitoringService(
                                 set last_scan = to_timestamp(cast(:now as bigint))
                                 where
                                     resource in (
-                                        select resource from jobs
+                                        select resource
+                                        from
+                                            app_orchestrator.jobs j join
+                                            provider.resource r on r.id = j.resource
                                         where
                                             current_state in (select unnest(:nonFinalStates::text[])) and
-                                            last_scan <= to_timestamp(cast(:before as bigint))
+                                            last_scan <= to_timestamp(cast(:before as bigint)) and
+                                            r.confirmed_by_provider = true
                                         limit 100
                                     )
                                 returning resource;
-                            """
+                            """,
+                            "job monitoring loop"
                         )
                         .rows
                         .map { it.getLong(0)!! }
@@ -122,7 +127,7 @@ class JobMonitoringService(
                             job,
                             session
                         )
-                        if (!hasPermissions ) {
+                        if (!hasPermissions) {
                             terminateAndUpdateJob(job, files)
                         }
 
@@ -142,7 +147,6 @@ class JobMonitoringService(
                 break
             }
         }
-
     }
 
     private suspend fun terminateAndUpdateJob(
@@ -175,12 +179,12 @@ class JobMonitoringService(
     private suspend fun hasResources(
         job: Job,
         session: DBContext
-    ):HasResource  {
-        val ingress = job.ingressPoints.map { it.id }
-        val networkIPs = job.networks.map { it.id }
-        val licenses = job.licences.map { it.id }
+    ): HasResource {
+        val ingress = job.ingressPoints.map { it.id }.toSet()
+        val networkIPs = job.networks.map { it.id }.toSet()
+        val licenses = job.licences.map { it.id }.toSet()
 
-        run {
+        if (ingress.isNotEmpty()) {
             val available = ingressService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 ingress,
@@ -194,33 +198,37 @@ class JobMonitoringService(
 
                 val lostIngresses =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
+                log.debug("Failed access to ingress (${available.size} != ${ingress.size})")
                 return HasResource(false, lostIngresses)
             }
 
         }
-        run {
+
+        if (networkIPs.isNotEmpty()) {
             val available = networkIPService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 networkIPs,
                 listOf(Permission.READ),
+                requireAll = false,
                 ctx = session
             )
-            if (available.size != ingress.size) {
+            if (available.size != networkIPs.size) {
                 val networkIPsAvailable = available.map { it.id }
                 val lostPermissionTo = ingress.filterNot { networkIPsAvailable.contains(it) }
 
                 val lostNetworkIPs =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
-                NetworkIP
+                log.debug("Failed access to IP (${available.size} != ${networkIPs.size})")
                 return HasResource(false, lostNetworkIPs)
             }
         }
 
-        run {
+        if (licenses.isNotEmpty()) {
             val available = licenseService.retrieveBulk(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(job.owner.createdBy), job.owner.project),
                 licenses,
                 listOf(Permission.READ),
+                requireAll = false,
                 ctx = session
             )
             if (available.size != licenses.size) {
@@ -229,7 +237,7 @@ class JobMonitoringService(
 
                 val lostLicenses =
                     available.filter { lostPermissionTo.contains(it.id) }.map { it.specification.product.id }
-                NetworkIP
+                log.debug("Failed access to license (${available.size} != ${licenses.size})")
                 return HasResource(false, lostLicenses)
             }
         }
@@ -262,13 +270,13 @@ class JobMonitoringService(
 
         log.debug("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
 
-        val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }
-        val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }
+        val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
+        val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
 
         log.debug("readonly: ${readOnlyFiles.size}, write: ${readWriteFiles.size}")
 
         val permissionToRead = checkFiles(session, true, readOnlyFiles, job)
-        if(!permissionToRead.hasPermission) {
+        if (!permissionToRead.hasPermission) {
             return permissionToRead
         }
         val permissionToWrite = checkFiles(session, false, readWriteFiles, job)
@@ -278,7 +286,12 @@ class JobMonitoringService(
         return HasPermissionForExistingMounts(true, null)
     }
 
-    private suspend fun checkFiles(session: DBContext, readOnly: Boolean, files: List<String>, job: Job): HasPermissionForExistingMounts {
+    private suspend fun checkFiles(
+        session: DBContext,
+        readOnly: Boolean,
+        files: Set<String>,
+        job: Job
+    ): HasPermissionForExistingMounts {
         if (files.isEmpty()) return HasPermissionForExistingMounts(true, null)
 
         val canAccess = fileCollectionService.retrieveBulk(
@@ -289,7 +302,7 @@ class JobMonitoringService(
             ctx = session
         )
         log.debug(canAccess.joinToString())
-        log.debug("${canAccess.size} vs ${files.size}" )
+        log.debug("${canAccess.size} vs ${files.size}")
         if (canAccess.size != files.size) {
             val accessibleFiles = canAccess.map { it.id }
             val lostPermissionTo = files.filterNot { accessibleFiles.contains(it) }

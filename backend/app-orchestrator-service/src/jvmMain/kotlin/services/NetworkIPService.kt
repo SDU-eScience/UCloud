@@ -160,8 +160,10 @@ class NetworkIPService(
         session
             .sendPreparedStatement(
                 {
-                    val ids by parameterList<Long?>()
-                    val ipAddresses by parameterList<String?>()
+                    val ids = ArrayList<Long?>()
+                    val ipAddresses = ArrayList<String?>()
+                    setParameter("ids", ids)
+                    setParameter("ip_addresses", ipAddresses)
 
                     for ((id, update) in updates) {
                         if (update.changeIpAddress == true) {
@@ -182,10 +184,11 @@ class NetworkIPService(
             )
     }
 
-    override suspend fun browseQuery(flags: NetworkIPFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: NetworkIPFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)
+                setParameter("filter_state", flags?.filterState?.name)
             },
             """
                 select i.* 
@@ -193,7 +196,8 @@ class NetworkIPService(
                     accessible_resources resc join
                     app_orchestrator.network_ips i on (resc.r).id = resource
                 where
-                    (:query::text is null or ip_address ilike '%' || :query || '%')
+                    (:query::text is null or ip_address ilike '%' || :query || '%') and
+                    (:filter_state::text is null or current_state = :filter_state)
             """
         )
     }

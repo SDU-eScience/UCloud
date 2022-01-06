@@ -13,6 +13,11 @@ class FileCollectionsController(
     private val fileCollections: FileCollectionsService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(UCloudFileCollections.init) {
+            fileCollections.init(request.principal)
+            ok(Unit)
+        }
+
         implement(UCloudFileCollections.create) {
             fileCollections.create(request)
             ok(BulkResponse(request.items.map { null }))

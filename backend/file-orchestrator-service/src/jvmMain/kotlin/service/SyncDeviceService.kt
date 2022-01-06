@@ -54,7 +54,11 @@ class SyncDeviceService(
             )
     }
 
-    override suspend fun browseQuery(flags: SyncDeviceIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: SyncDeviceIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

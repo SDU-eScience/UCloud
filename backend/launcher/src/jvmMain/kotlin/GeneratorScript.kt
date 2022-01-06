@@ -488,6 +488,7 @@ fun generateCode() {
                     )
 
                     generateTypeScriptCode(types, calls, chapter.title, chapter.container)
+                    generateSerializerCode(types, calls, chapter.container)
                 }
             }
 
@@ -505,4 +506,5 @@ fun generateCode() {
             }
         }
     }
+    writeSerializer()
 }

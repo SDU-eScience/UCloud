@@ -1,6 +1,7 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.micro.*
+import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
 import io.ktor.application.featureOrNull
 import io.ktor.application.install
 import io.ktor.application.uninstall
@@ -51,6 +52,7 @@ val CommonServer.isRunning: Boolean
 
 fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
     if (micro.isEmbeddedService) return@runBlocking
+    EnhancedPreparedStatement.debug = micro.commandLineArguments.contains("--debug")
 
     @Suppress("TooGenericExceptionCaught")
     try {

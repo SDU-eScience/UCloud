@@ -22,7 +22,7 @@ export const NetworkIPResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (!inDevEnvironment() && !onDevSite() && localStorage.getItem("enablepublicip") == null) return null;
+    if (!application.invocation.allowPublicIp) return null;
 
     return <Box>
         <Flex alignItems="center">

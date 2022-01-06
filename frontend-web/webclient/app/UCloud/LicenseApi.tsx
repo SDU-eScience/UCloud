@@ -1,8 +1,9 @@
 import * as React from "react";
 import {
+    CREATE_TAG,
     ProductSupport,
     Resource,
-    ResourceApi, ResourceIncludeFlags,
+    ResourceApi, ResourceBrowseCallbacks, ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
     ResourceUpdate
@@ -13,6 +14,7 @@ import {EnumFilter} from "@/Resource/Filter";
 import {JobBinding} from "@/UCloud/JobsApi";
 import {ItemRenderer} from "@/ui-components/Browse";
 import {ProductLicense} from "@/Accounting";
+import {Operation} from "@/ui-components/Operation";
 
 export type LicenseSpecification = ResourceSpecification;
 
@@ -78,6 +80,13 @@ class LicenseApi extends ResourceApi<License, ProductLicense, LicenseSpecificati
                 }
             ]
         ));
+    }
+
+    retrieveOperations(): Operation<License, ResourceBrowseCallbacks<License>>[] {
+        const res = super.retrieveOperations();
+        const createOp = res.find(it => it.tag === CREATE_TAG);
+        if (createOp) createOp.text = "Activate license";
+        return res;
     }
 }
 

@@ -93,7 +93,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
             sidebar={null}
             main={(
                 <>
-                    <ProjectDashboardGrid minmax={300}>
+                    <ProjectDashboardGrid minmax={330}>
                         {projectId !== undefined && projectId !== "" ? (
                             <HighlightedCard
                                 subtitle={<RightArrow />}
@@ -171,7 +171,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 </Table>
                             </HighlightedCard>
                         )}
-                        {isPersonalProjectActive(projectId) ? null :
+                        {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) ? null :
                             <HighlightedCard
                                 subtitle={<RightArrow/>}
                                 onClick={() => history.push(`/subprojects?subproject=${projectId}`)}

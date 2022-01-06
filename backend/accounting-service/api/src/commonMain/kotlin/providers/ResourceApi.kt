@@ -103,6 +103,34 @@ abstract class ResourceApi<
 
     abstract val typeInfo: ResourceTypeInfo<Res, Spec, Update, Flags, Status, Prod, Support>
 
+    val init: CallDescription<Unit, Unit, CommonErrorMessage>
+        get() = call(
+            name = "init",
+            handler = {
+                httpUpdate(
+                    Unit.serializer(),
+                    baseContext,
+                    "init"
+                )
+
+                documentation {
+                    summary = "Request (potential) initialization of resources"
+                    description = """
+                        This request is sent by the client, if the client believes that initialization of resources 
+                        might be needed. NOTE: This request might be sent even if initialization has already taken 
+                        place. UCloud/Core does not check if initialization has already taken place, it simply validates
+                        the request.
+                    """.trimIndent()
+                }
+            },
+            requestType = Unit.serializer(),
+            successType = Unit.serializer(),
+            errorType =  CommonErrorMessage.serializer(),
+            requestClass = typeOf<Unit>(),
+            successClass = typeOf<Unit>(),
+            errorClass = typeOf<CommonErrorMessage>()
+        )
+
     val browse: CallDescription<ResourceBrowseRequest<Flags>, PageV2<Res>, CommonErrorMessage>
         get() = call(
             name = "browse",

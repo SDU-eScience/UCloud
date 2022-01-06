@@ -90,7 +90,7 @@ class ComputeController(
                             req.id,
                             JobUpdate(
                                 JobState.IN_QUEUE,
-                                "A request has been submitted and is now awaiting approval by a system administrator. " +
+                                status = "A request has been submitted and is now awaiting approval by a system administrator. " +
                                     "This might take a few business days."
                             )
                         )
@@ -139,7 +139,7 @@ class ComputeController(
                             req.id,
                             JobUpdate(
                                 JobState.IN_QUEUE,
-                                "A request for deletion has been submitted and is now awaiting action by a system administrator. " +
+                                status = "A request for deletion has been submitted and is now awaiting action by a system administrator. " +
                                     "This might take a few business days."
                             )
                         )
@@ -163,7 +163,7 @@ class ComputeController(
                     bulkRequestOf(request.items.map { req ->
                         ResourceUpdateAndId(
                             req.id,
-                            JobUpdate(req.newState, req.update)
+                            JobUpdate(req.newState, status = req.update)
                         )
                     }),
                     client.client

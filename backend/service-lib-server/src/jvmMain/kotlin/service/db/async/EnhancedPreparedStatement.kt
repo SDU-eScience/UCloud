@@ -3,12 +3,21 @@ package dk.sdu.cloud.service.db.async
 import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.intellij.lang.annotations.Language
 import org.joda.time.LocalDateTime
+import java.io.File
+import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.stream.Collectors
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
+import kotlin.collections.HashSet
 import kotlin.reflect.KProperty
 
 /**
@@ -77,8 +86,6 @@ class EnhancedPreparedStatement(
 
     fun retain(vararg names: String) {
         val newMap = rawParameters.filterKeys { it in names }
-        println(rawParameters)
-        println(newMap)
         rawParameters.clear()
         rawParameters.putAll(newMap)
     }
@@ -140,12 +147,19 @@ class EnhancedPreparedStatement(
         rawParameters[name] = value
     }
 
-    suspend fun sendPreparedStatement(session: AsyncDBConnection, release: Boolean = false): QueryResult {
+    private val slowSampleParameters = Collections.synchronizedSet(HashSet<String>()).toMutableSet()
+
+    suspend fun sendPreparedStatement(
+        session: AsyncDBConnection,
+        release: Boolean = false,
+        tagName: String = "Untitled query"
+    ): QueryResult {
         val context = DebugContext.Job(
             session.context.id + "-" + queryCounter.getAndIncrement(),
             session.context.id
         )
 
+        val start = Time.now()
         session.debug?.sendMessage(
             DebugMessage.DatabaseQuery(
                 context,
@@ -170,6 +184,34 @@ class EnhancedPreparedStatement(
             }
         }
         val response = session.sendPreparedStatement(preparedStatement, parameters.toList(), release)
+        val end = Time.now()
+        if (end - start > 3_000) {
+            log.warn("'${tagName}' took a long time to execute (${end - start}ms).")
+            runCatching {
+                if (tagName !in slowSampleParameters) {
+                    slowSampleParameters.add(tagName)
+                    if (debug) {
+                        File("/tmp/slowqueries/${tagName}_params.json")
+                            .also { it.parentFile.mkdirs() }
+                            .also {
+                                it.writeText(
+                                    defaultMapper.encodeToString(
+                                        JsonObject(
+                                            rawParameters.map { (param, value) ->
+                                                param to JsonPrimitive(value.toString())
+                                            }.toMap()
+                                        )
+                                    )
+                                )
+                            }
+                    }
+
+                    File("/tmp/slowqueries/${tagName}_query.json")
+                        .also { it.parentFile.mkdirs() }
+                        .also { it.writeText(rawStatement) }
+                }
+            }
+        }
         session.debug?.sendMessage(DebugMessage.DatabaseResponse(context))
         return response
     }
@@ -199,6 +241,7 @@ class EnhancedPreparedStatement(
         override val log = logger()
         private val statementInputRegex = Regex("(^|[^:])[?:]([a-zA-Z0-9_]+)")
         private val queryCounter = AtomicInteger(0)
+        var debug = false
     }
 }
 
@@ -206,13 +249,14 @@ suspend inline fun AsyncDBConnection.sendPreparedStatement(
     block: EnhancedPreparedStatement.() -> Unit,
     @Language("sql")
     query: String,
+    tagName: String = "Untitled query",
     release: Boolean = false,
     debug: Boolean = false,
 ): QueryResult {
     val statement = EnhancedPreparedStatement(query)
     statement.block()
     if (debug) EnhancedPreparedStatement.log.debug(statement.toString())
-    return statement.sendPreparedStatement(this, release)
+    return statement.sendPreparedStatement(this, release, tagName)
 }
 
 private val camelToSnakeRegex = "([a-z])([A-Z]+)".toRegex()

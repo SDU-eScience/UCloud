@@ -197,6 +197,51 @@ class FileMountPlugin(
         }
     }
 
+    override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
+        val workMount = findWorkMount(jobFromServer)
+        val volumeMounts =
+            jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
+
+        if (workMount != null && volumeMounts != null) {
+            for (mount in volumeMounts) {
+                val mountPath = (mount.mountPath)?.removeSuffix("/") ?: continue
+                if (mountPath == "/work" || !mountPath.startsWith("/work/") || mountPath.count { it == '/' } != 2) {
+                    continue
+                }
+
+                val mountedDirectoryName = mountPath.removePrefix("/work/")
+                val mountedDirectory = pathConverter.relativeToInternal(
+                    RelativeInternalFile(joinPath(workMount.path, mountedDirectoryName).removeSuffix("/"))
+                )
+
+                try {
+                    fs.delete(mountedDirectory, allowRecursion = false)
+                } catch (ex: Throwable) {
+                    log.info("Caught exception while cleaning up empty mount directories for:" +
+                        "\n\tjob = $jobId" +
+                        "\n\tmountedDirectory=$mountedDirectory" +
+                        "\n\tvolcanoJob=$jobFromServer"
+                    )
+                    log.info(ex.stackTraceToString())
+                }
+            }
+        }
+    }
+
+    fun findWorkMount(jobFromServer: VolcanoJob): RelativeInternalFile? {
+        return jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
+            ?.find { it.name == VOL_NAME }
+            ?.subPath
+            ?.let { path ->
+                if (cephConfiguration.subfolder.isNotEmpty()) {
+                    path.removePrefix(cephConfiguration.subfolder.removePrefix("/")).removePrefix("/")
+                } else {
+                    path
+                }
+            }
+            ?.let { path -> RelativeInternalFile("/${path}") }
+    }
+
     companion object : Loggable {
         const val CEPHFS = "cephfs"
         const val VOL_NAME = "data"

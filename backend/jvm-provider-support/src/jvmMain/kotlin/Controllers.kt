@@ -2,100 +2,17 @@
 package dk.sdu.cloud.providers
 
 /* AUTO GENERATED CODE - DO NOT MODIFY */
-/* Generated at: Tue May 25 13:07:01 CEST 2021 */
+/* Generated at: Mon Dec 06 10:49:27 CET 2021 */
 
 
+import dk.sdu.cloud.providers.UCloudRpcDispatcher
+import dk.sdu.cloud.providers.UCloudWsDispatcher
+import dk.sdu.cloud.providers.UCloudWsContext
 import dk.sdu.cloud.calls.CallDescription
 import javax.servlet.http.HttpServletRequest
 import javax.servlet.http.HttpServletResponse
 import org.springframework.web.bind.annotation.RequestMapping
 
-/**
- * 
- * The calls described in this section covers the API that providers of compute must implement. Not all
- * features of the compute API must be implemented. The individual calls and types will describe how the manifest
- * affects them.
- *             
- * Compute providers must answer to the calls listed below. Providers should take care to verify the bearer
- * token according to the TODO documentation.
- *             
- * The provider and UCloud works in tandem by sending pushing information to each other when new information
- * becomes available. Compute providers can push information to UCloud by using the
- * [`jobs.control`](#tag/jobs.control) API.
- * 
- * ### What information does `Job` include?
- * 
- * The UCloud API will communicate with the provider and include a reference of the `Job` which the request is about. The
- * `Job` model has several optional fields which are not always included. You can see which flags are set by UCloud when
- * retrieving the `Job`. If you need additional data you may use [`jobs.control.retrieve`](#operation/jobs.control.retrieve) to fetch additional
- * information about the job. The flags selected below should give the provider enough information that the rest can
- * easily be cached locally. For example, providers can with great benefit choose to cache product and application
- * information.
- * 
- * | Flag | Included | Comment |
- * |------|----------|---------|
- * | `includeParameters` | `true` | Specifies how the user invoked the application. |
- * | `includeApplication` | `false` | Application information specifies the tool and application running. Can safely be cached indefinitely by name and version. |
- * | `includeProduct` | `false` | Product information specifies dimensions of the machine. Can safely be cached for 24 hours by name. |
- * | `includeUpdates` | `false` | You, the provider, will have supplied all updates but they are stored by UCloud. |
- * | `includeWeb` | `false` | You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
- * | `includeVnc` | `false` | You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
- * | `includeShell` | `false` |  You, the provider, will supply this information. Asking would cause UCloud to ask you back. |
- *             
- * ### Accounting
- *             
- * It is up to the provider how accounting is done and if they wish to push accounting information to UCloud. 
- * A provider might, for example, choose to do all of the accounting on their own (including tracking who has
- * access). This would allow a provider to use UCloud just as an interface.
- *            
- * If a provider wishes to use UCloud for accounting then this is possible. UCloud provides an API which 
- * allows the provider to charge for a running compute job. The provider may call this API repeatedly to 
- * charge the user for their job. UCloud will respond with a payment required if the user's wallet
- * is out of credits. This indicates to the compute provider that the job should be terminated (since they 
- * no longer have credit for the job).
- *  
- * ### Example: Complete example with accounting
- *             
- * | ID | UCloud | - | Provider | Call | Message |
- * |----|--------|---|----------|------|---------|
- * | [1] Request | UCloud | → | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | Start application with ID `FOO123` |
- * | [1] Response | UCloud | ← | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | OK |
- * | [2] Request | UCloud | ← | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed to `RUNNING` |
- * | [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [4] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [5] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [6] Request | UCloud | → | Provider | [`delete`](#operation/jobs.compute.PROVIDERID.delete) | Delete `FOO123` |
- * | [7] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 3 minutes of use |
- * | [8] Request | UCloud | ← | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed to `SUCCESS` |
- * 
- * ### Example: Missing credits
- *             
- * | ID | UCloud | - | Provider | Call | Message |
- * |----|--------|---|----------|------|---------|
- * | [1] Request | UCloud | → | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | Start application with ID `FOO123` |
- * | [1] Response | UCloud | ← | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | OK |
- * | [2] Request | UCloud | ← | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed to `RUNNING` |
- * | [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | 402 Payment Required |
- * | [4] Request | UCloud | ← | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed to `SUCCESS` with message 'Insufficient funds' |
- * 
- * ### Example: UCloud and provider out-of-sync
- * 
- * | ID | UCloud | - | Provider | Call | Message |
- * |----|--------|---|----------|------|---------|
- * | [1] Request | UCloud | → | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | Start application with ID `FOO123` |
- * | [1] Response | UCloud | ← | Provider | [`create`](#operation/jobs.compute.PROVIDERID.create) | OK |
- * | [2] Request | UCloud | ← | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed to `RUNNING` |
- * | [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | 402 Payment Required |           
- * | [3] Request | UCloud | ← | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | Charge for 15 minutes of use |
- * | [3] Response | UCloud | → | Provider | [`jobs.control.chargeCredits`](#operation/jobs.control.chargeCredits) | 402 Payment Required |           
- * | [4] Comment | | | | | `FOO123` disappears/crashes at provider - Provider did not notice and notify UCloud automatically |
- * | [5] Request | UCloud | → | Provider | [`verify`](#operation/jobs.compute.PROVIDERID.verify) | Verify that `FOO123` is running |
- * | [5] Response | UCloud | ← | Provider | [`verify`](#operation/jobs.compute.PROVIDERID.verify) | OK |
- * | [6] Request | UCloud | → | Provider | [`jobs.control.update`](#operation/jobs.control.update) | Proceed `FOO123` to `FAILURE` |
- * 
- */
 @RequestMapping(
     "/ucloud/*/jobs/retrieveProducts",
     "/ucloud/*/jobs/verify",
@@ -103,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestMapping
     "/ucloud/*/jobs/extend",
     "/ucloud/*/jobs/interactiveSession",
     "/ucloud/*/jobs/retrieveUtilization",
+    "/ucloud/*/jobs/terminate",
+    "/ucloud/*/jobs/updateAcl",
     "/ucloud/*/jobs",
 )
 abstract class JobsController(
@@ -110,81 +29,138 @@ abstract class JobsController(
     wsDispatcher: UCloudWsDispatcher,
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.JobsProvider(providerId), wsDispatcher) {
     /**
-     * Start a compute job
+     * Extend the duration of one or more jobs
      *
-     * Starts one or more compute jobs. The jobs have already been verified by UCloud and it is assumed to be
-     * ready for the provider. The provider can choose to reject the entire batch by responding with a 4XX or
-     * 5XX status code. Note that the batch must be handled as a single transaction.
+     * __Implementation requirements:__ 
+     *  - [`docker.timeExtension = true`](#TYPEREFLINK#= ComputeSupport.Docker) or 
+     *  - [`virtualMachine.timeExtension = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine)
      * 
-     * The provider should respond to this request as soon as the jobs have been scheduled. The provider should
-     * then switch to [`jobs.control.update`](#operation/jobs.control.update) in order to provide updates about the progress.
+     * For more information, see the end-user API (#CALLREF#= jobs.extend)
+     * 
      */
-    abstract fun create(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): kotlin.Unit
+    abstract fun extend(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
     
     /**
      * Request job cancellation and destruction
      *
-     * Deletes one or more compute jobs. The provider should not only stop the compute job but also delete
-     * _compute_ related resources. For example, if the job is a virtual machine job, the underlying machine
-     * should also be deleted. None of the resources attached to the job, however, should be deleted.
+     * __Implementation requirements:__ Mandatory
+     * 
+     * For more information, see the end-user API (#CALLREF#= jobs.terminate)
+     * 
      */
-    abstract fun delete(
+    abstract fun terminate(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
-    /**
-     * Extend the duration of a job
-     *
-     */
-    abstract fun extend(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>,
-    ): kotlin.Unit
     
     /**
      * Suspend a job
      *
+     * __Implementation requirements:__ 
+     *  - [`virtualMachine.suspension = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine)
+     * 
+     * For more information, see the end-user API (#CALLREF#= jobs.suspend)
+     * 
      */
     abstract fun suspend(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
     ): kotlin.Unit
     
-    /**
-     * Verify UCloud data is synchronized with provider
-     *
-     * This call is periodically executed by UCloud against all active providers. It is the job of the
-     * provider to ensure that the jobs listed in the request are in its local database. If some of the
-     * jobs are not in the provider's database then this should be treated as a job which is no longer valid.
-     * The compute backend should trigger normal cleanup code and notify UCloud about the job's termination.
-     * 
-     * The backend should _not_ attempt to start the job.
-     */
-    abstract fun verify(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
-    ): kotlin.Unit
     
+    /**
+     * Follow the progress of a job
+     *
+     * __Implementation requirements:__ 
+     *  - [`docker.logs = true`](#TYPEREFLINK#= ComputeSupport.Docker) or
+     *  - [`virtualMachine.logs = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine)
+     * 
+     * For more information, see the end-user API (#CALLREF#= jobs.follow)
+     * 
+     */
     abstract fun follow(
         request: dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest,
         wsContext: UCloudWsContext<dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest, dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse, dk.sdu.cloud.CommonErrorMessage>,
     )
     
-    abstract fun openInteractiveSession(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>,
-    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionResponse
-    
-    abstract fun retrieveUtilization(
-        request: kotlin.Unit,
-    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
     
     /**
-     * Retrieve products
+     * Opens an interactive session (e.g. terminal, web or VNC)
      *
-     * An API for retrieving the products and the support from a provider.
+     * __Implementation requirements:__ 
+     *  - [`docker.vnc = true`](#TYPEREFLINK#= ComputeSupport.Docker) or
+     *  - [`docker.terminal = true`](#TYPEREFLINK#= ComputeSupport.Docker) or
+     *  - [`docker.web = true`](#TYPEREFLINK#= ComputeSupport.Docker) or
+     *  - [`virtualMachine.vnc = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine) or
+     *  - [`virtualMachine.terminal = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine)
+     * 
+     * For more information, see the end-user API (#CALLREF#= jobs.openInteractiveSession)
+     * 
      */
-//    abstract fun retrieveProducts(
-//        request: kotlin.Unit,
-//    ): dk.sdu.cloud.app.orchestrator.api.JobsProviderRetrieveProductsResponse
+    abstract fun openInteractiveSession(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.OpenSession>
+    
+    
+    /**
+     * Retrieve information about how busy the provider's cluster currently is
+     *
+     * __Implementation requirements:__ 
+     *  - [`docker.utilization = true`](#TYPEREFLINK#= ComputeSupport.Docker) or
+     *  - [`virtualMachine.utilization = true`](#TYPEREFLINK#= ComputeSupport.VirtualMachine)
+     * 
+     * For more information, see the end-user API (#CALLREF#= jobs.retrieveUtilization)
+     * 
+     */
+    abstract fun retrieveUtilization(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.app.orchestrator.api.JobsRetrieveUtilizationResponse
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.ComputeSupport>
+    
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
+    abstract fun verify(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>,
+    ): kotlin.Unit
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Job>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
     
     @Suppress("UNCHECKED_CAST")
@@ -195,20 +171,21 @@ abstract class JobsController(
         rawResponse: HttpServletResponse,
     ): S {
         return when (call.fullName.replace(providerId, "*")) {
-            "jobs.compute.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
-            "jobs.compute.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
-            "jobs.compute.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>) as S
-            "jobs.compute.*.suspend" -> suspend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
-            "jobs.compute.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
-            "jobs.compute.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
-            "jobs.compute.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
-//            "jobs.compute.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "jobs.provider.*.extend" -> extend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem>) as S
+            "jobs.provider.*.terminate" -> terminate(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.provider.*.suspend" -> suspend(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.provider.*.openInteractiveSession" -> openInteractiveSession(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.JobsProviderOpenInteractiveSessionRequestItem>) as S
+            "jobs.provider.*.retrieveUtilization" -> retrieveUtilization(request as kotlin.Unit) as S
+            "jobs.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "jobs.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Job>) as S
+            "jobs.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Job>>) as S
             else -> error("Unhandled call")
         }
     }
     
     override fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean {
-        if (call.fullName.replace(providerId, "*") == "jobs.compute.*.follow") return true
+        if (call.fullName.replace(providerId, "*") == "jobs.provider.*.follow") return true
         return false
     }
     
@@ -217,16 +194,17 @@ abstract class JobsController(
         request: R,
     ) {
         when (ctx.call.fullName.replace(providerId, "*")) {
-            "jobs.compute.*.follow" -> follow(request as dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest, ctx as UCloudWsContext<dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest, dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse, dk.sdu.cloud.CommonErrorMessage>)
+            "jobs.provider.*.follow" -> follow(request as dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest, ctx as UCloudWsContext<dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowRequest, dk.sdu.cloud.app.orchestrator.api.JobsProviderFollowResponse, dk.sdu.cloud.CommonErrorMessage>)
             else -> error("Unhandled call")
         }
     }
     
 }
 
-
 @RequestMapping(
+    "/ucloud/*/networkips/updateAcl",
     "/ucloud/*/networkips",
+    "/ucloud/*/networkips/retrieveProducts",
     "/ucloud/*/networkips/verify",
     "/ucloud/*/networkips/firewall",
 )
@@ -234,20 +212,57 @@ abstract class NetworkIPController(
     private val providerId: String,
     wsDispatcher: UCloudWsDispatcher,
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider(providerId), wsDispatcher) {
-    abstract fun create(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): kotlin.Unit
+    abstract fun updateFirewall(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndIP>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
     
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.NetworkIP>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>,
-    ): kotlin.Unit
-    
-    abstract fun updateFirewall(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndId>,
     ): kotlin.Unit
     
     
@@ -259,10 +274,12 @@ abstract class NetworkIPController(
         rawResponse: HttpServletResponse,
     ): S {
         return when (call.fullName.replace(providerId, "*")) {
-            "networkips.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>) as S
+            "networkips.provider.*.updateFirewall" -> updateFirewall(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndIP>) as S
             "networkips.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>) as S
+            "networkips.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>) as S
+            "networkips.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "networkips.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.NetworkIP>>) as S
             "networkips.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.NetworkIP>) as S
-            "networkips.provider.*.updateFirewall" -> updateFirewall(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.FirewallAndId>) as S
             else -> error("Unhandled call")
         }
     }
@@ -282,31 +299,63 @@ abstract class NetworkIPController(
     
 }
 
-
 @RequestMapping(
     "/ucloud/*/ingresses",
-    "/ucloud/*/ingresses/retrieveSettings",
     "/ucloud/*/ingresses/verify",
+    "/ucloud/*/ingresses/updateAcl",
+    "/ucloud/*/ingresses/retrieveProducts",
 )
 abstract class IngressController(
     private val providerId: String,
     wsDispatcher: UCloudWsDispatcher,
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.IngressProvider(providerId), wsDispatcher) {
-    abstract fun create(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
-    ): kotlin.Unit
-    
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.IngressSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Ingress>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>,
     ): kotlin.Unit
-    
-    abstract fun retrieveSettings(
-        request: dk.sdu.cloud.accounting.api.ProductReference,
-    ): dk.sdu.cloud.app.orchestrator.api.IngressSupport
     
     
     @Suppress("UNCHECKED_CAST")
@@ -317,10 +366,11 @@ abstract class IngressController(
         rawResponse: HttpServletResponse,
     ): S {
         return when (call.fullName.replace(providerId, "*")) {
-            "ingresses.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>) as S
             "ingresses.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>) as S
+            "ingresses.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>) as S
+            "ingresses.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "ingresses.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.Ingress>>) as S
             "ingresses.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.Ingress>) as S
-            "ingresses.provider.*.retrieveSettings" -> retrieveSettings(request as dk.sdu.cloud.accounting.api.ProductReference) as S
             else -> error("Unhandled call")
         }
     }
@@ -340,10 +390,6 @@ abstract class IngressController(
     
 }
 
-
-/**
- * Provides an API for providers to give shell access to their running compute jobs.
- */
 @RequestMapping(
 )
 abstract class ShellsController(
@@ -385,23 +431,60 @@ abstract class ShellsController(
     
 }
 
-
 @RequestMapping(
     "/ucloud/*/licenses",
+    "/ucloud/*/licenses/updateAcl",
+    "/ucloud/*/licenses/retrieveProducts",
     "/ucloud/*/licenses/verify",
 )
 abstract class LicenseController(
     private val providerId: String,
     wsDispatcher: UCloudWsDispatcher,
 ): UCloudRpcDispatcher(dk.sdu.cloud.app.orchestrator.api.LicenseProvider(providerId), wsDispatcher) {
-    abstract fun create(
-        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
-    ): kotlin.Unit
-    
     abstract fun delete(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
-    ): kotlin.Unit
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
     
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.app.orchestrator.api.LicenseSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.License>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
     abstract fun verify(
         request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>,
     ): kotlin.Unit
@@ -415,9 +498,441 @@ abstract class LicenseController(
         rawResponse: HttpServletResponse,
     ): S {
         return when (call.fullName.replace(providerId, "*")) {
-            "licenses.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>) as S
             "licenses.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>) as S
+            "licenses.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>) as S
+            "licenses.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "licenses.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.app.orchestrator.api.License>>) as S
             "licenses.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.app.orchestrator.api.License>) as S
+            else -> error("Unhandled call")
+        }
+    }
+    
+    override fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean {
+        return false
+    }
+    
+    override fun <R : Any, S : Any, E : Any> dispatchToWebSocketHandler(
+        ctx: UCloudWsContext<R, S, E>,
+        request: R,
+    ) {
+        when (ctx.call.fullName.replace(providerId, "*")) {
+            else -> error("Unhandled call")
+        }
+    }
+    
+}
+
+@RequestMapping(
+    "/ucloud/*/files/collections",
+    "/ucloud/*/files/collections/verify",
+    "/ucloud/*/files/collections/retrieveProducts",
+    "/ucloud/*/files/collections/rename",
+    "/ucloud/*/files/collections/updateAcl",
+)
+abstract class FileCollectionsController(
+    private val providerId: String,
+    wsDispatcher: UCloudWsDispatcher,
+): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider(providerId), wsDispatcher) {
+    abstract fun rename(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollectionsProviderRenameRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    abstract fun delete(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FSSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.FileCollection>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
+    abstract fun verify(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>,
+    ): kotlin.Unit
+    
+    
+    @Suppress("UNCHECKED_CAST")
+    override fun <R : Any, S : Any, E : Any> dispatchToHandler(
+        call: CallDescription<R, S, E>,
+        request: R,
+        rawRequest: HttpServletRequest,
+        rawResponse: HttpServletResponse,
+    ): S {
+        return when (call.fullName.replace(providerId, "*")) {
+            "files.collections.provider.*.rename" -> rename(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollectionsProviderRenameRequestItem>) as S
+            "files.collections.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>) as S
+            "files.collections.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>) as S
+            "files.collections.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "files.collections.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.FileCollection>>) as S
+            "files.collections.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FileCollection>) as S
+            else -> error("Unhandled call")
+        }
+    }
+    
+    override fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean {
+        return false
+    }
+    
+    override fun <R : Any, S : Any, E : Any> dispatchToWebSocketHandler(
+        ctx: UCloudWsContext<R, S, E>,
+        request: R,
+    ) {
+        when (ctx.call.fullName.replace(providerId, "*")) {
+            else -> error("Unhandled call")
+        }
+    }
+    
+}
+
+@RequestMapping(
+    "/ucloud/*/files/retrieveProducts",
+    "/ucloud/*/files/retrieve",
+    "/ucloud/*/files",
+    "/ucloud/*/files/emptyTrash",
+    "/ucloud/*/files/browse",
+    "/ucloud/*/files/download",
+    "/ucloud/*/files/folder",
+    "/ucloud/*/files/verify",
+    "/ucloud/*/files/trash",
+    "/ucloud/*/files/updateAcl",
+    "/ucloud/*/files/upload",
+    "/ucloud/*/files/move",
+    "/ucloud/*/files/copy",
+    "/ucloud/*/files/search",
+)
+abstract class FilesController(
+    private val providerId: String,
+    wsDispatcher: UCloudWsDispatcher,
+): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.FilesProvider(providerId), wsDispatcher) {
+    abstract fun browse(
+        request: dk.sdu.cloud.file.orchestrator.api.FilesProviderBrowseRequest,
+    ): dk.sdu.cloud.PageV2<dk.sdu.cloud.file.orchestrator.api.PartialUFile>
+    
+    
+    abstract fun retrieve(
+        request: dk.sdu.cloud.file.orchestrator.api.FilesProviderRetrieveRequest,
+    ): dk.sdu.cloud.file.orchestrator.api.PartialUFile
+    
+    
+    abstract fun move(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderMoveRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
+    
+    
+    abstract fun copy(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCopyRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
+    
+    
+    abstract fun createFolder(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateFolderRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
+    
+    
+    abstract fun trash(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderTrashRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
+    
+    
+    abstract fun emptyTrash(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderEmptyTrashRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.LongRunningTask>
+    
+    
+    abstract fun createUpload(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateUploadRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FilesCreateUploadResponseItem>
+    
+    
+    abstract fun createDownload(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FilesCreateDownloadResponseItem>
+    
+    
+    abstract fun search(
+        request: dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest,
+    ): dk.sdu.cloud.PageV2<dk.sdu.cloud.file.orchestrator.api.PartialUFile>
+    
+    
+    abstract fun delete(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.FSSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.UFile>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
+    abstract fun verify(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>,
+    ): kotlin.Unit
+    
+    
+    @Suppress("UNCHECKED_CAST")
+    override fun <R : Any, S : Any, E : Any> dispatchToHandler(
+        call: CallDescription<R, S, E>,
+        request: R,
+        rawRequest: HttpServletRequest,
+        rawResponse: HttpServletResponse,
+    ): S {
+        return when (call.fullName.replace(providerId, "*")) {
+            "files.provider.*.browse" -> browse(request as dk.sdu.cloud.file.orchestrator.api.FilesProviderBrowseRequest) as S
+            "files.provider.*.retrieve" -> retrieve(request as dk.sdu.cloud.file.orchestrator.api.FilesProviderRetrieveRequest) as S
+            "files.provider.*.move" -> move(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderMoveRequestItem>) as S
+            "files.provider.*.copy" -> copy(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCopyRequestItem>) as S
+            "files.provider.*.createFolder" -> createFolder(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateFolderRequestItem>) as S
+            "files.provider.*.trash" -> trash(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderTrashRequestItem>) as S
+            "files.provider.*.emptyTrash" -> emptyTrash(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderEmptyTrashRequestItem>) as S
+            "files.provider.*.createUpload" -> createUpload(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateUploadRequestItem>) as S
+            "files.provider.*.createDownload" -> createDownload(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem>) as S
+            "files.provider.*.search" -> search(request as dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest) as S
+            "files.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>) as S
+            "files.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>) as S
+            "files.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "files.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.UFile>>) as S
+            "files.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.UFile>) as S
+            else -> error("Unhandled call")
+        }
+    }
+    
+    override fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean {
+        return false
+    }
+    
+    override fun <R : Any, S : Any, E : Any> dispatchToWebSocketHandler(
+        ctx: UCloudWsContext<R, S, E>,
+        request: R,
+    ) {
+        when (ctx.call.fullName.replace(providerId, "*")) {
+            else -> error("Unhandled call")
+        }
+    }
+    
+}
+
+@RequestMapping(
+    "/ucloud/chunked",
+)
+abstract class ChunkedUploadProtocolController(
+    private val providerId: String,
+    wsDispatcher: UCloudWsDispatcher,
+): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol(providerId, "/ucloud/chunked"), wsDispatcher) {
+    /**
+     * Uploads a new chunk to the file at a given offset
+     *
+     * Uploads a new chunk to a file, specified by an upload session token. An upload session token can be
+     * created using the #CALLREF#= files.createUpload call.
+     * 
+     * A session MUST be live for at least 30 minutes after the last `uploadChunk`
+     * call was active. That is, since the last byte was transferred to this session or processed by the
+     * provider. It is recommended that a provider keep a session for up to 48 hours. A session SHOULD NOT be
+     * kept alive for longer than 48 hours.
+     * 
+     * This call MUST add the HTTP request body to the file, backed by the session, at the specified offset.
+     * Clients may use the special offset '-1' to indicate that the payload SHOULD be appended to the file.
+     * Providers MUST NOT interpret the request body in any way, the payload is binary and SHOULD be written
+     * to the file as is. Providers SHOULD reject offset values that don't fulfill one of the following
+     * criteria:
+     * 
+     * - Is equal to -1
+     * - Is a valid offset in the file
+     * - Is equal to the file size + 1
+     * 
+     * Clients MUST send a chunk which is at most 32MB large (32,000,000 bytes). Clients MUST declare the size
+     * of chunk by specifying the `Content-Length` header. Providers MUST reject values that are not valid or
+     * are too large. Providers SHOULD assume that the `Content-Length` header is valid.
+     * However, the providers MUST NOT wait indefinitely for all bytes to be delivered. A provider SHOULD
+     * terminate a connection which has been idle for too long to avoid trivial DoS by specifying a large
+     * `Content-Length` without sending any bytes.
+     * 
+     * If a chunk upload is terminated before it is finished then a provider SHOULD NOT delete the data
+     * already written to the file. Clients SHOULD assume that the entire chunk has failed and SHOULD re-upload
+     * the entire chunk.
+     * 
+     * Providers SHOULD NOT cache a chunk before writing the data to the FS. Data SHOULD be streamed
+     * directly into the file.
+     * 
+     * Providers MUST NOT respond to this call before the data has been written to disk.
+     * 
+     * Clients SHOULD avoid sending multiple chunks at the same time. Providers are allowed to reject parallel
+     * calls to this endpoint.
+     */
+    abstract fun uploadChunk(
+        request: dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocolUploadChunkRequest,
+    ): kotlin.Unit
+    
+    
+    @Suppress("UNCHECKED_CAST")
+    override fun <R : Any, S : Any, E : Any> dispatchToHandler(
+        call: CallDescription<R, S, E>,
+        request: R,
+        rawRequest: HttpServletRequest,
+        rawResponse: HttpServletResponse,
+    ): S {
+        return when (call.fullName.replace(providerId, "*")) {
+            "*.uploadChunk" -> uploadChunk(request as dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocolUploadChunkRequest) as S
+            else -> error("Unhandled call")
+        }
+    }
+    
+    override fun canHandleWebSocketCall(call: CallDescription<*, *, *>): Boolean {
+        return false
+    }
+    
+    override fun <R : Any, S : Any, E : Any> dispatchToWebSocketHandler(
+        ctx: UCloudWsContext<R, S, E>,
+        request: R,
+    ) {
+        when (ctx.call.fullName.replace(providerId, "*")) {
+            else -> error("Unhandled call")
+        }
+    }
+    
+}
+
+@RequestMapping(
+    "/ucloud/*/shares/verify",
+    "/ucloud/*/shares/retrieveProducts",
+    "/ucloud/*/shares/updateAcl",
+    "/ucloud/*/shares",
+)
+abstract class SharesController(
+    private val providerId: String,
+    wsDispatcher: UCloudWsDispatcher,
+): UCloudRpcDispatcher(dk.sdu.cloud.file.orchestrator.api.SharesProvider(providerId), wsDispatcher) {
+    abstract fun delete(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    abstract fun create(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.FindByStringId>
+    
+    
+    /**
+     * Retrieve product support for this providers
+     *
+     * This endpoint responds with the #TYPEREF#= dk.sdu.cloud.accounting.api.Product s supported by
+     * this provider along with details for how #TYPEREF#= dk.sdu.cloud.accounting.api.Product is
+     * supported. The #TYPEREF#= dk.sdu.cloud.accounting.api.Product s must be registered with
+     * UCloud/Core already.
+     */
+    abstract fun retrieveProducts(
+        request: kotlin.Unit,
+    ): dk.sdu.cloud.calls.BulkResponse<dk.sdu.cloud.file.orchestrator.api.ShareSupport>
+    
+    
+    /**
+     * Callback received by the Provider when permissions are updated
+     *
+     * This endpoint is mandatory for Providers to implement. If the Provider does not need to keep
+     * internal state, then they may simply ignore this request by responding with `200 OK`. The
+     * Provider _MUST_ reply with an OK status. UCloud/Core will fail the request if the Provider does
+     * not acknowledge the request.
+     */
+    abstract fun updateAcl(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.Share>>,
+    ): dk.sdu.cloud.calls.BulkResponse<kotlin.Unit>
+    
+    
+    /**
+     * Invoked by UCloud/Core to trigger verification of a single batch
+     *
+     * This endpoint is periodically invoked by UCloud/Core for resources which are deemed active. The
+     * Provider should immediately determine if these are still valid and recognized by the Provider.
+     * If any of the resources are not valid, then the Provider should notify UCloud/Core by issuing
+     * an update for each affected resource.
+     */
+    abstract fun verify(
+        request: dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>,
+    ): kotlin.Unit
+    
+    
+    @Suppress("UNCHECKED_CAST")
+    override fun <R : Any, S : Any, E : Any> dispatchToHandler(
+        call: CallDescription<R, S, E>,
+        request: R,
+        rawRequest: HttpServletRequest,
+        rawResponse: HttpServletResponse,
+    ): S {
+        return when (call.fullName.replace(providerId, "*")) {
+            "shares.provider.*.delete" -> delete(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>) as S
+            "shares.provider.*.create" -> create(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>) as S
+            "shares.provider.*.retrieveProducts" -> retrieveProducts(request as kotlin.Unit) as S
+            "shares.provider.*.updateAcl" -> updateAcl(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.provider.api.UpdatedAclWithResource<dk.sdu.cloud.file.orchestrator.api.Share>>) as S
+            "shares.provider.*.verify" -> verify(request as dk.sdu.cloud.calls.BulkRequest<dk.sdu.cloud.file.orchestrator.api.Share>) as S
             else -> error("Unhandled call")
         }
     }

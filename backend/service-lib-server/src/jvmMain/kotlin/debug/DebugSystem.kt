@@ -1,6 +1,5 @@
 package dk.sdu.cloud.debug
 
-import calls.server.RpcCoroutineContext
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.calls.*

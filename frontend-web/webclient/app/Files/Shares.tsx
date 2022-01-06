@@ -10,12 +10,15 @@ import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
     isSearch?: boolean;
-    browseType: BrowseType;
+    browseType?: BrowseType;
 }> = props => {
+    const browseType = props.browseType ?? BrowseType.MainContent;
     const location = useLocation();
     const filterIngoing = getQueryParam(location.search, "filterIngoing") !== "false";
     const filterRejected = getQueryParam(location.search, "filterRejected") !== "false";
@@ -39,9 +42,13 @@ export const ShareBrowse: React.FunctionComponent<{
         avatars.updateCache(items.map(it => it.specification.sharedWith));
     }, []);
 
-    const navigateToEntry = React.useCallback((history: History, share: Share) => {
-        if (props.browseType === BrowseType.MainContent) {
-            history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+    const navigateToEntry = React.useCallback((history: History, share: Share): void => {
+        if (browseType === BrowseType.MainContent) {
+            if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
+                history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+            } else {
+                snackbarStore.addFailure("Share must be accepted to access.", false);
+            }
         } else {
             // Should we handle this differently for other browseTypes?
             history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
@@ -50,8 +57,9 @@ export const ShareBrowse: React.FunctionComponent<{
 
     return <ResourceBrowse
         api={SharesApi}
+        disableSearch // HACK(Jonas): THIS IS TEMPORARY, UNTIL SEARCH WORKS FOR ALL SHARES 
         onSelect={props.onSelect}
-        browseType={props.browseType}
+        browseType={browseType}
         isSearch={props.isSearch}
         onResourcesLoaded={onSharesLoaded}
         additionalFilters={additionalFilters}
@@ -60,9 +68,9 @@ export const ShareBrowse: React.FunctionComponent<{
         headerSize={55}
         emptyPage={
             <Heading.h3 textAlign={"center"}>
-                No shares
+                No shares match your search/filter criteria.
                 <br />
-                <small>You can create a new share by clicking 'Share' on one of your files.</small>
+                <small>You can create a new share by clicking 'Share' on one of your directories.</small>
             </Heading.h3>
         }
     />;

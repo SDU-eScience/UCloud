@@ -5,7 +5,25 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
+import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
+import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
+import dk.sdu.cloud.accounting.api.RootDepositRequestItem
+import dk.sdu.cloud.accounting.api.SubAllocation
+import dk.sdu.cloud.accounting.api.SubAllocationQuery
+import dk.sdu.cloud.accounting.api.Transaction
+import dk.sdu.cloud.accounting.api.TransactionsBrowseRequest
+import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
+import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
+import dk.sdu.cloud.accounting.api.VisualizationRetrieveBreakdownRequest
+import dk.sdu.cloud.accounting.api.VisualizationRetrieveBreakdownResponse
+import dk.sdu.cloud.accounting.api.VisualizationRetrieveUsageRequest
+import dk.sdu.cloud.accounting.api.VisualizationRetrieveUsageResponse
+import dk.sdu.cloud.accounting.api.Wallet
+import dk.sdu.cloud.accounting.api.WalletBrowseRequest
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.api.WalletsRetrieveRecipientRequest
+import dk.sdu.cloud.accounting.api.WalletsRetrieveRecipientResponse
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.BulkRequest
@@ -49,32 +67,42 @@ class AccountingService(
             result.add(true)
         }
 
-        db.withSession(remapExceptions = true, transactionMode) { session ->
-            session.sendPreparedStatement(
-                packChargeRequests(request),
-                """
-                    with requests as (
-                        select (
-                            unnest(:payer_ids::text[]),
-                            unnest(:payer_is_project::boolean[]),
-                            unnest(:units::bigint[]),
-                            unnest(:number_of_products::bigint[]),
-                            unnest(:product_ids::text[]),
-                            unnest(:product_categories::text[]),
-                            unnest(:product_provider::text[]),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]), 
-                            unnest(:transaction_ids::text[])
-                        )::accounting.charge_request req
-                    )
-                    select accounting.charge(array_agg(req))
-                    from requests;
-                """
-            ).rows.forEach {
-                val res = it[0] as? Int
-                if (res != null) {
-                    result[res] = false
+        try {
+            db.withSession(remapExceptions = true, transactionMode) { session ->
+                session.sendPreparedStatement(
+                    packChargeRequests(request),
+                    """
+                        with requests as (
+                            select (
+                                unnest(:payer_ids::text[]),
+                                unnest(:payer_is_project::boolean[]),
+                                unnest(:units::bigint[]),
+                                unnest(:periods::bigint[]),
+                                unnest(:product_ids::text[]),
+                                unnest(:product_categories::text[]),
+                                unnest(:product_provider::text[]),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]), 
+                                unnest(:transaction_ids::text[])
+                            )::accounting.charge_request req
+                        )
+                        select accounting.charge(array_agg(req))
+                        from requests;
+                    """,
+                    "Accounting Charge"
+                ).rows.forEach {
+                    val res = it[0] as? Int
+                    if (res != null) {
+                        result[res] = false
+                    }
                 }
+            }
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.BadRequest && ex.why.contains("Permission denied")) {
+                throw RPCException(
+                    "Unable to pay for this product. Make sure that you have enough resources to perform this action!",
+                    HttpStatusCode.PaymentRequired
+                )
             }
         }
 
@@ -85,37 +113,49 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
     ): BulkResponse<Boolean> {
-        val actor = actorAndProject.actor
-        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
-        return BulkResponse(
-            db.withSession(remapExceptions = true, transactionMode) { session ->
-                session.sendPreparedStatement(
-                    packChargeRequests(request),
-                    """
-                        with requests as (
-                            select (
-                                unnest(:payer_ids::text[]),
-                                unnest(:payer_is_project::boolean[]),
-                                unnest(:units::bigint[]),
-                                unnest(:number_of_products::bigint[]),
-                                unnest(:product_ids::text[]),
-                                unnest(:product_categories::text[]),
-                                unnest(:product_provider::text[]),
-                                unnest(:performed_by::text[]),
-                                unnest(:descriptions::text[]),
-                                unnest(:transaction_ids::text[])
-                            )::accounting.charge_request req
-                        )
-                        select accounting.credit_check(array_agg(req))
-                        from requests;
-                    """
-                ).rows.map {
-                    it.getBoolean(0)!! }
+        try {
+            val actor = actorAndProject.actor
+            if (actor != Actor.System && (actor !is Actor.User || actor.principal.role != Role.SERVICE)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             }
-        )
+
+            return BulkResponse(
+                db.withSession(remapExceptions = true, transactionMode) { session ->
+                    session.sendPreparedStatement(
+                        packChargeRequests(request),
+                        """
+                            with requests as (
+                                select (
+                                    unnest(:payer_ids::text[]),
+                                    unnest(:payer_is_project::boolean[]),
+                                    unnest(:units::bigint[]),
+                                    unnest(:periods::bigint[]),
+                                    unnest(:product_ids::text[]),
+                                    unnest(:product_categories::text[]),
+                                    unnest(:product_provider::text[]),
+                                    unnest(:performed_by::text[]),
+                                    unnest(:descriptions::text[]),
+                                    unnest(:transaction_ids::text[])
+                                )::accounting.charge_request req
+                            )
+                            select accounting.credit_check(array_agg(req))
+                            from requests;
+                        """,
+                        "Accounting Check"
+                    ).rows.map {
+                        it.getBoolean(0)!!
+                    }
+                }
+            )
+        } catch (ex: RPCException) {
+            if (ex.httpStatusCode == HttpStatusCode.BadRequest && ex.why.contains("Permission denied")) {
+                throw RPCException(
+                    "Unable to pay for this product. Make sure that you have enough resources to perform this action!",
+                    HttpStatusCode.PaymentRequired
+                )
+            }
+            throw ex
+        }
     }
 
     private fun packChargeRequests(request: BulkRequest<ChargeWalletRequestItem>): EnhancedPreparedStatement.() -> Unit =
@@ -123,7 +163,7 @@ class AccountingService(
             val payerIds by parameterList<String>()
             val payerIsProject by parameterList<Boolean>()
             val units by parameterList<Long>()
-            val numberOfProducts by parameterList<Long>()
+            val periods by parameterList<Long>()
             val productIds by parameterList<String>()
             val productCategories by parameterList<String>()
             val productProvider by parameterList<String>()
@@ -142,7 +182,7 @@ class AccountingService(
                     }
                 }
                 units.add(req.units)
-                numberOfProducts.add(req.numberOfProducts)
+                periods.add(req.periods)
                 productIds.add(req.product.id)
                 productCategories.add(req.product.category)
                 productProvider.add(req.product.provider)
@@ -152,85 +192,108 @@ class AccountingService(
             }
         }
 
+    class DryRunException : RuntimeException("Dry run - Aborting")
+
     suspend fun deposit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<DepositToWalletRequestItem>,
     ) {
-        val providerIds = db.withSession(remapExceptions = true, transactionMode) { session ->
-            session.sendPreparedStatement(
-                {
-                    val initiatedBy by parameterList<String>()
-                    val recipients by parameterList<String>()
-                    val recipientIsProject by parameterList<Boolean>()
-                    val sourceAllocation by parameterList<Long?>()
-                    val desiredBalance by parameterList<Long>()
-                    val startDates by parameterList<Long?>()
-                    val endDates by parameterList<Long?>()
-                    val descriptions by parameterList<String>()
-                    val transactionIds by parameterList<String>()
-                    val applicationIds by parameterList<Long?>()
-                    for (req in request.items) {
-                        initiatedBy.add(actorAndProject.actor.safeUsername())
-                        when (val recipient = req.recipient) {
-                            is WalletOwner.Project -> {
-                                recipients.add(recipient.projectId)
-                                recipientIsProject.add(true)
-                            }
-                            is WalletOwner.User -> {
-                                recipients.add(recipient.username)
-                                recipientIsProject.add(false)
-                            }
-                        }
-                        sourceAllocation.add(req.sourceAllocation.toLongOrNull())
-                        desiredBalance.add(req.amount)
-                        startDates.add(req.startDate?.let { it / 1000 })
-                        endDates.add(req.endDate?.let { it / 1000 })
-                        descriptions.add(req.description)
-                        transactionIds.add(req.transactionId)
-                        applicationIds.add(null)
-                    }
-                },
-                """
-                    with requests as (
-                        select (
-                            unnest(:initiated_by::text[]),
-                            unnest(:recipients::text[]),
-                            unnest(:recipient_is_project::boolean[]),
-                            unnest(:source_allocation::bigint[]),
-                            unnest(:desired_balance::bigint[]),
-                            to_timestamp(unnest(:start_dates::bigint[])),
-                            to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[]),
-                            unnest(:application_ids::bigint[])
-                        )::accounting.deposit_request req
-                    )
-                    select accounting.deposit(array_agg(req))
-                    from requests
-                """
-            )
+        var isDry: Boolean? = null
+        for (item in request.items) {
+            if (isDry != null && item.dry != isDry) {
+                throw RPCException(
+                    "The entire transaction must be either dry or wet. You cannot mix items in a single transaction.",
+                    HttpStatusCode.BadRequest
+                )
+            }
 
-            session.sendPreparedStatement(
-                {
-                    request.items.split {
-                        into("source_allocation") { it.sourceAllocation.toLongOrNull() ?: -1 }
-                    }
-                },
-                """
-                    select distinct pc.provider
-                    from
-                        accounting.wallet_allocations alloc join
-                        accounting.wallets w on alloc.associated_wallet = w.id join
-                        accounting.product_categories pc on w.category = pc.id
-                    where
-                        alloc.id = some(:source_allocation::bigint[])
-                """
-            ).rows.map { it.getString(0)!! }
+            isDry = item.dry
         }
 
-        providerIds.forEach { provider ->
-            val comms = providers.prepareCommunication(provider)
-            DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+        try {
+            val providerIds = db.withSession(remapExceptions = true, transactionMode) { session ->
+                session.sendPreparedStatement(
+                    {
+                        val initiatedBy by parameterList<String>()
+                        val recipients by parameterList<String>()
+                        val recipientIsProject by parameterList<Boolean>()
+                        val sourceAllocation by parameterList<Long?>()
+                        val desiredBalance by parameterList<Long>()
+                        val startDates by parameterList<Long?>()
+                        val endDates by parameterList<Long?>()
+                        val descriptions by parameterList<String>()
+                        val transactionIds by parameterList<String>()
+                        val applicationIds by parameterList<Long?>()
+                        for (req in request.items) {
+                            initiatedBy.add(actorAndProject.actor.safeUsername())
+                            when (val recipient = req.recipient) {
+                                is WalletOwner.Project -> {
+                                    recipients.add(recipient.projectId)
+                                    recipientIsProject.add(true)
+                                }
+                                is WalletOwner.User -> {
+                                    recipients.add(recipient.username)
+                                    recipientIsProject.add(false)
+                                }
+                            }
+                            sourceAllocation.add(req.sourceAllocation.toLongOrNull())
+                            desiredBalance.add(req.amount)
+                            startDates.add(req.startDate?.let { it / 1000 })
+                            endDates.add(req.endDate?.let { it / 1000 })
+                            descriptions.add(req.description)
+                            transactionIds.add(req.transactionId)
+                            applicationIds.add(null)
+                        }
+                    },
+                    """
+                        with requests as (
+                            select (
+                                unnest(:initiated_by::text[]),
+                                unnest(:recipients::text[]),
+                                unnest(:recipient_is_project::boolean[]),
+                                unnest(:source_allocation::bigint[]),
+                                unnest(:desired_balance::bigint[]),
+                                to_timestamp(unnest(:start_dates::bigint[])),
+                                to_timestamp(unnest(:end_dates::bigint[])),
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[]),
+                                unnest(:application_ids::bigint[])
+                            )::accounting.deposit_request req
+                        )
+                        select accounting.deposit(array_agg(req))
+                        from requests
+                    """,
+                    "Accounting Deposit"
+                )
+
+                if (isDry == true) {
+                    throw DryRunException()
+                }
+
+                session.sendPreparedStatement(
+                    {
+                        request.items.split {
+                            into("source_allocation") { it.sourceAllocation.toLongOrNull() ?: -1 }
+                        }
+                    },
+                    """
+                        select distinct pc.provider
+                        from
+                            accounting.wallet_allocations alloc join
+                            accounting.wallets w on alloc.associated_wallet = w.id join
+                            accounting.product_categories pc on w.category = pc.id
+                        where
+                            alloc.id = some(:source_allocation::bigint[])
+                    """
+                ).rows.map { it.getString(0)!! }
+            }
+
+            providerIds.forEach { provider ->
+                val comms = providers.prepareCommunication(provider)
+                DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+            }
+        } catch (ex: DryRunException) {
+            // Do nothing
         }
     }
 
@@ -276,7 +339,7 @@ class AccountingService(
                         values (unnest(:usernames::text[]), unnest(:project_ids::text[]))
                         on conflict do nothing
                     """
-                ).rowsAffected.also { println("owners $it") }
+                )
             } catch (ex: GenericDatabaseException) {
                 if (ex.errorCode == PostgresErrorCodes.FOREIGN_KEY_VIOLATION) {
                     throw RPCException("No such payer exists", HttpStatusCode.BadRequest)
@@ -369,193 +432,215 @@ class AccountingService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<TransferToWalletRequestItem>,
     ) {
-        db.withSession(remapExceptions = true, transactionMode) { session ->
-            val parameters: EnhancedPreparedStatement.() -> Unit = {
-                val sourceIds by parameterList<String>()
-                val sourcesAreProjects by parameterList<Boolean>()
-                val targetIds by parameterList<String>()
-                val targetsAreProjects by parameterList<Boolean>()
-                val amounts by parameterList<Long>()
-                val categories by parameterList<String>()
-                val providers by parameterList<String>()
-                val startDates by parameterList<Long?>()
-                val endDates by parameterList<Long?>()
-                val performedBy by parameterList<String>()
-                val descriptions by parameterList<String>()
-                val transactionIds by parameterList<String>()
-                for (req in request.items) {
-                    val sourceId = when (val source = req.source) {
-                        is WalletOwner.Project -> {
-                            sourcesAreProjects.add(true)
-                            sourceIds.add(source.projectId)
-                            source.projectId
-                        }
-                        is WalletOwner.User -> {
-                            sourcesAreProjects.add(false)
-                            sourceIds.add(source.username)
-                            source.username
-                        }
-                    }
-                    val targetId = when (val target = req.target) {
-                        is WalletOwner.Project -> {
-                            targetsAreProjects.add(true)
-                            targetIds.add(target.projectId)
-                            target.projectId
-                        }
-                        is WalletOwner.User -> {
-                            targetsAreProjects.add(false)
-                            targetIds.add(target.username)
-                            target.username
-                        }
-                    }
-                    amounts.add(req.amount)
-                    categories.add(req.categoryId.name)
-                    providers.add(req.categoryId.provider)
-                    startDates.add(req.startDate?.let { it / 1000 })
-                    endDates.add(req.endDate?.let { it / 1000 })
-                    performedBy.add(actorAndProject.actor.safeUsername())
-                    descriptions.add("Transfer from $sourceId to $targetId")
-                    transactionIds.add(req.transactionId)
-                }
+        var isDry: Boolean? = null
+        for (item in request.items) {
+            if (isDry != null && item.dry != isDry) {
+                throw RPCException(
+                    "The entire transaction must be either dry or wet. You cannot mix items in a single transaction.",
+                    HttpStatusCode.BadRequest
+                )
             }
 
-            session.sendPreparedStatement(
-                {
-                    parameters()
-                },
-                """
-                    with requests as (
-                        select (
-                            unnest(:source_ids::text[]),
-                            unnest(:sources_are_projects::bool[]),
-                            unnest(:target_ids::text[]),
-                            unnest(:targets_are_projects::bool[]),
-                            unnest(:amounts::bigint[]),
-                            unnest(:categories::text[]),
-                            unnest(:providers::text[]),
-                            to_timestamp(unnest(:start_dates::bigint[])),
-                            to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[])
-                        )::accounting.transfer_request req
-                    )
-                    select accounting.credit_check(array_agg(req))
-                    from requests;
-                """
-            ).rows
-                .forEach {
-                    if (!it.getBoolean(0)!!) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired)
+            isDry = item.dry
+        }
+
+        try {
+            db.withSession(remapExceptions = true, transactionMode) { session ->
+                val parameters: EnhancedPreparedStatement.() -> Unit = {
+                    val sourceIds by parameterList<String>()
+                    val sourcesAreProjects by parameterList<Boolean>()
+                    val targetIds by parameterList<String>()
+                    val targetsAreProjects by parameterList<Boolean>()
+                    val amounts by parameterList<Long>()
+                    val categories by parameterList<String>()
+                    val providers by parameterList<String>()
+                    val startDates by parameterList<Long?>()
+                    val endDates by parameterList<Long?>()
+                    val performedBy by parameterList<String>()
+                    val descriptions by parameterList<String>()
+                    val transactionIds by parameterList<String>()
+                    for (req in request.items) {
+                        val sourceId = when (val source = req.source) {
+                            is WalletOwner.Project -> {
+                                sourcesAreProjects.add(true)
+                                sourceIds.add(source.projectId)
+                                source.projectId
+                            }
+                            is WalletOwner.User -> {
+                                sourcesAreProjects.add(false)
+                                sourceIds.add(source.username)
+                                source.username
+                            }
+                        }
+                        val targetId = when (val target = req.target) {
+                            is WalletOwner.Project -> {
+                                targetsAreProjects.add(true)
+                                targetIds.add(target.projectId)
+                                target.projectId
+                            }
+                            is WalletOwner.User -> {
+                                targetsAreProjects.add(false)
+                                targetIds.add(target.username)
+                                target.username
+                            }
+                        }
+                        amounts.add(req.amount)
+                        categories.add(req.categoryId.name)
+                        providers.add(req.categoryId.provider)
+                        startDates.add(req.startDate?.let { it / 1000 })
+                        endDates.add(req.endDate?.let { it / 1000 })
+                        performedBy.add(actorAndProject.actor.safeUsername())
+                        descriptions.add("Transfer from $sourceId to $targetId")
+                        transactionIds.add(req.transactionId)
                     }
                 }
-            //Charge the source wallet and create transfer transaction
-            session.sendPreparedStatement(
-                {
-                    parameters()
-                },
-                """
-                    with requests as (
-                        select (
-                            unnest(:source_ids::text[]),
-                            unnest(:sources_are_projects::bool[]),
-                            unnest(:target_ids::text[]),
-                            unnest(:targets_are_projects::bool[]),
-                            unnest(:amounts::bigint[]),
-                            unnest(:categories::text[]),
-                            unnest(:providers::text[]),
-                            to_timestamp(unnest(:start_dates::bigint[])),
-                            to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[])
-                        )::accounting.transfer_request req
-                    )
-                    select accounting.transfer(array_agg(req))
-                    from requests
-                """.trimIndent()
-            )
 
-            //make deposit to target wallet
-            session.sendPreparedStatement(
-                {
-                    parameters()
-                    retain("categories", "providers", "targets_are_projects", "target_ids")
-                },
-                """
-                    with requests as (
-                        select
-                            unnest(:categories::text[]) product_category,
-                            unnest(:providers::text[]) product_provider,
-                            unnest(:targets_are_projects::bool[]) is_project,
-                            unnest(:target_ids::text[]) account_id
-                    )
-                    insert into accounting.wallets (category, owned_by) 
-                    select pc.id, wo.id
-                    from
-                        requests req join
-                        accounting.product_categories pc on
-                            req.product_category = pc.category and
-                            req.product_provider = pc.provider join
-                        accounting.wallet_owner wo on 
-                            ( req.is_project and req.account_id = wo.project_id) 
-                            or (not req.is_project and req.account_id = wo.username)
-                           
-                    on conflict do nothing
-                """
-            )
-            val rowsAffected = session.sendPreparedStatement(
-                {
-                    parameters()
-                },
-                """
-                    with 
-                        requests as (
-                            select 
-                                nextval('accounting.wallet_allocations_id_seq') alloc_id,
+                session.sendPreparedStatement(
+                    {
+                        parameters()
+                    },
+                    """
+                        with requests as (
+                            select (
+                                unnest(:source_ids::text[]),
+                                unnest(:sources_are_projects::bool[]),
+                                unnest(:target_ids::text[]),
+                                unnest(:targets_are_projects::bool[]),
+                                unnest(:amounts::bigint[]),
+                                unnest(:categories::text[]),
+                                unnest(:providers::text[]),
+                                to_timestamp(unnest(:start_dates::bigint[])),
+                                to_timestamp(unnest(:end_dates::bigint[])),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[])
+                            )::accounting.transfer_request req
+                        )
+                        select accounting.credit_check(array_agg(req))
+                        from requests;
+                    """,
+                    "Accounting Transfer 1"
+                ).rows
+                    .forEach {
+                        if (!it.getBoolean(0)!!) {
+                            throw RPCException.fromStatusCode(HttpStatusCode.PaymentRequired)
+                        }
+                    }
+                //Charge the source wallet and create transfer transaction
+                session.sendPreparedStatement(
+                    {
+                        parameters()
+                    },
+                    """
+                        with requests as (
+                            select (
+                                unnest(:source_ids::text[]),
+                                unnest(:sources_are_projects::bool[]),
+                                unnest(:target_ids::text[]),
+                                unnest(:targets_are_projects::bool[]),
+                                unnest(:amounts::bigint[]),
+                                unnest(:categories::text[]),
+                                unnest(:providers::text[]),
+                                to_timestamp(unnest(:start_dates::bigint[])),
+                                to_timestamp(unnest(:end_dates::bigint[])),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[])
+                            )::accounting.transfer_request req
+                        )
+                        select accounting.transfer(array_agg(req))
+                        from requests
+                    """.trimIndent(),
+                    "Accounting Transfer 2"
+                )
+
+                //make deposit to target wallet
+                session.sendPreparedStatement(
+                    {
+                        parameters()
+                        retain("categories", "providers", "targets_are_projects", "target_ids")
+                    },
+                    """
+                        with requests as (
+                            select
                                 unnest(:categories::text[]) product_category,
                                 unnest(:providers::text[]) product_provider,
                                 unnest(:targets_are_projects::bool[]) is_project,
-                                unnest(:target_ids::text[]) account_id,
-                                unnest(:amounts::bigint[]) balance,
-                                to_timestamp(unnest(:start_dates::bigint[])) start_date,
-                                to_timestamp(unnest(:end_dates::bigint[])) end_date,    
-                                unnest(:performed_by::text[]) performed_by, 
-                                unnest(:descriptions::text[]) description,
-                                unnest(:transaction_ids::text[]) transaction_id
-                        ),
-                        new_allocations as (
-                            insert into accounting.wallet_allocations
-                                (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
-                                allocation_path) 
-                            select
-                                req.alloc_id,
-                                w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
-                                req.end_date, req.alloc_id::text::ltree
-                            from
-                                requests req join
-                                accounting.product_categories pc on
-                                    req.product_category = pc.category and
-                                    req.product_provider = pc.provider join
-                                accounting.wallet_owner wo on
-                                    (req.is_project and req.account_id = wo.project_id) or
-                                    (not req.is_project and req.account_id = wo.username) join
-                                accounting.wallets w on
-                                    w.category = pc.id and
-                                    w.owned_by = wo.id
-                            returning id, balance
+                                unnest(:target_ids::text[]) account_id
                         )
-                    insert into accounting.transactions
-                        (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
-                    select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
-                    from
-                        new_allocations alloc join
-                        requests r on alloc.id = r.alloc_id
-                """
-            ).rowsAffected
-            if (rowsAffected != request.items.size.toLong()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        insert into accounting.wallets (category, owned_by) 
+                        select pc.id, wo.id
+                        from
+                            requests req join
+                            accounting.product_categories pc on
+                                req.product_category = pc.category and
+                                req.product_provider = pc.provider join
+                            accounting.wallet_owner wo on 
+                                ( req.is_project and req.account_id = wo.project_id) 
+                                or (not req.is_project and req.account_id = wo.username)
+                               
+                        on conflict do nothing
+                    """,
+                    "Accounting Transfer 3"
+                )
+                val rowsAffected = session.sendPreparedStatement(
+                    {
+                        parameters()
+                    },
+                    """
+                        with 
+                            requests as (
+                                select 
+                                    nextval('accounting.wallet_allocations_id_seq') alloc_id,
+                                    unnest(:categories::text[]) product_category,
+                                    unnest(:providers::text[]) product_provider,
+                                    unnest(:targets_are_projects::bool[]) is_project,
+                                    unnest(:target_ids::text[]) account_id,
+                                    unnest(:amounts::bigint[]) balance,
+                                    to_timestamp(unnest(:start_dates::bigint[])) start_date,
+                                    to_timestamp(unnest(:end_dates::bigint[])) end_date,    
+                                    unnest(:performed_by::text[]) performed_by, 
+                                    unnest(:descriptions::text[]) description,
+                                    unnest(:transaction_ids::text[]) transaction_id
+                            ),
+                            new_allocations as (
+                                insert into accounting.wallet_allocations
+                                    (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+                                    allocation_path) 
+                                select
+                                    req.alloc_id,
+                                    w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
+                                    req.end_date, req.alloc_id::text::ltree
+                                from
+                                    requests req join
+                                    accounting.product_categories pc on
+                                        req.product_category = pc.category and
+                                        req.product_provider = pc.provider join
+                                    accounting.wallet_owner wo on
+                                        (req.is_project and req.account_id = wo.project_id) or
+                                        (not req.is_project and req.account_id = wo.username) join
+                                    accounting.wallets w on
+                                        w.category = pc.id and
+                                        w.owned_by = wo.id
+                                returning id, balance
+                            )
+                        insert into accounting.transactions
+                            (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+                        select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
+                        from
+                            new_allocations alloc join
+                            requests r on alloc.id = r.alloc_id
+                    """,
+                    "Accounting Transfer 4"
+                ).rowsAffected
+                if (rowsAffected != request.items.size.toLong()) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                if (isDry == true) throw DryRunException()
             }
+        } catch (ex: DryRunException) {
+           // Do nothing
         }
     }
 
@@ -596,8 +681,79 @@ class AccountingService(
                     )
                     select accounting.update_allocations(array_agg(req))
                     from requests
-                """
+                """,
+                "Accounting Update"
             )
+
+            val validAccordingToAncestors = session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long?>()
+                    for (req in request.items) {
+                        ids.add(req.id.toLongOrNull())
+                    }
+                },
+                """
+                    select bool_or(valid) is_valid
+                    from (
+                        select
+                            (ancestor.start_date <= updated.start_date) and
+                            (
+                                ancestor.end_date is null or
+                                ancestor.end_date >= updated.end_date
+                            ) is true as valid
+                        from
+                            accounting.wallet_allocations updated join
+                            accounting.wallet_allocations ancestor on
+                                ancestor.allocation_path @> updated.allocation_path and
+                                ancestor.id != updated.id
+                        where
+                            updated.id = some(:ids::bigint[])
+                    ) checks
+                """,
+                debug = true
+            ).rows.firstOrNull()?.getBoolean(0) ?: false
+
+            if (!validAccordingToAncestors) {
+                throw RPCException(
+                    "New allocation period is invalid. It doesn't overlap with ancestors.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            val validAccordingToDescendants = session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long?>()
+                    for (req in request.items) {
+                        ids.add(req.id.toLongOrNull())
+                    }
+                },
+                """
+                    select bool_or(valid) is_valid
+                    from (
+                        select
+                            (updated.start_date <= descendant.start_date) and
+                            (
+                                updated.end_date is null or
+                                updated.end_date >= descendant.end_date
+                            ) is true as valid
+                        from
+                            accounting.wallet_allocations updated join
+                            accounting.wallet_allocations descendant on
+                                updated.allocation_path @> descendant.allocation_path and
+                                descendant.id != updated.id
+                        where
+                            updated.id = some(:ids::bigint[])
+                    ) checks;
+                """,
+                debug = true
+            ).rows.firstOrNull()?.getBoolean(0) ?: false
+
+            if (!validAccordingToDescendants) {
+                throw RPCException(
+                    "New allocation period is invalid. It doesn't overlap with descendants.",
+                    HttpStatusCode.BadRequest
+                )
+            }
         }
     }
 
@@ -636,7 +792,8 @@ class AccountingService(
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
-                    """
+                    """,
+                    "Accounting Browse Wallets"
                 )
             },
             mapper = { _, rows ->
@@ -690,7 +847,8 @@ class AccountingService(
                             )
                         order by 
                             w.id, alloc.id, t.created_at desc
-                    """
+                    """,
+                    "Accounting Browse Transactions"
                 )
             },
             mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
@@ -718,6 +876,7 @@ class AccountingService(
                         select
                             jsonb_build_object(
                                 'id', alloc.id, 
+                                'path', alloc.allocation_path::text,
                                 
                                 'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
                                 'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
@@ -775,9 +934,13 @@ class AccountingService(
                                 alloc_owner.username ilike '%' || :query || '%' or
                                 pc.category ilike '%' || :query || '%' or
                                 pc.provider ilike '%' || :query || '%'
+                            ) and
+                            (
+                                nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
                             )
-                        order by pc.provider, pc.category, alloc.id
-                    """
+                        order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
+                    """,
+                    "Accounting Browse Allocations"
                 )
             },
             mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
@@ -805,188 +968,188 @@ class AccountingService(
                     setParameter("num_buckets", 30 as Int)
                 },
                 """
-with
-    -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-    -- from the associated product category. The category is crucial to create charts which make sense.
-    -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-    -- then this is most likely the place to look.
-    all_transactions as (
-        select
-            t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
-            pc.product_type, pc.unit_of_price
-        from
-            accounting.wallet_owner wo join
-            accounting.wallets w on w.owned_by = wo.id join
-            accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-            accounting.transactions t on t.affected_allocation_id = alloc.id join
-            accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
-            accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
-            accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
-            accounting.product_categories pc on w.category = pc.id left join
-            project.project_members pm on
-                pm.project_id = wo.project_id and
-                (pm.role = 'ADMIN' or pm.role = 'PI')
-        where
-            t.type = 'charge' and
-            t.created_at >= to_timestamp(:start_date / 1000.0) and
-            t.created_at <= to_timestamp(:end_date / 1000.0) and
-            (
-                (wo.project_id = :project::text and pm.username = :username) or
-                (:project::text is null and wo.username = :username)
-            ) and
-            (
-                :filter_type::accounting.product_type is null or
-                pc.product_type = :filter_type::accounting.product_type
-            ) and
-            (
-                :filter_provider::text is null or
-                pc.provider = :filter_provider
-            ) and
-            (
-                :filter_category::text is null or
-                pc.category = :filter_category
-            ) and
-            (
-                :filter_allocation::bigint is null or
-                t.source_allocation_id = :filter_allocation
-            ) and
-            (
-                :filter_workspace::text is null or
-                (
-                    (
-                        :filter_workspace_project::boolean = true and
-                        source_owner.project_id = :filter_workspace
-                    ) or
-                    (
-                        :filter_workspace_project::boolean is distinct from true and
-                        source_owner.username = :filter_workspace
-                    )
-                )
+                    with
+                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
+                        -- from the associated product category. The category is crucial to create charts which make sense.
+                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
+                        -- then this is most likely the place to look.
+                        all_transactions as (
+                            select
+                                t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
+                                pc.product_type, pc.unit_of_price
+                            from
+                                accounting.wallet_owner wo join
+                                accounting.wallets w on w.owned_by = wo.id join
+                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
+                                accounting.transactions t on t.affected_allocation_id = alloc.id join
+                                accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
+                                accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
+                                accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
+                                accounting.product_categories pc on w.category = pc.id left join
+                                project.project_members pm on
+                                    pm.project_id = wo.project_id and
+                                    (pm.role = 'ADMIN' or pm.role = 'PI')
+                            where
+                                t.type = 'charge' and
+                                t.created_at >= to_timestamp(:start_date / 1000.0) and
+                                t.created_at <= to_timestamp(:end_date / 1000.0) and
+                                (
+                                    (wo.project_id = :project::text and pm.username = :username) or
+                                    (:project::text is null and wo.username = :username)
+                                ) and
+                                (
+                                    :filter_type::accounting.product_type is null or
+                                    pc.product_type = :filter_type::accounting.product_type
+                                ) and
+                                (
+                                    :filter_provider::text is null or
+                                    pc.provider = :filter_provider
+                                ) and
+                                (
+                                    :filter_category::text is null or
+                                    pc.category = :filter_category
+                                ) and
+                                (
+                                    :filter_allocation::bigint is null or
+                                    t.source_allocation_id = :filter_allocation
+                                ) and
+                                (
+                                    :filter_workspace::text is null or
+                                    (
+                                        (
+                                            :filter_workspace_project::boolean = true and
+                                            source_owner.project_id = :filter_workspace
+                                        ) or
+                                        (
+                                            :filter_workspace_project::boolean is distinct from true and
+                                            source_owner.username = :filter_workspace
+                                        )
+                                    )
+                                )
+                        ),
+                        -- NOTE(Dan): Next we split up our data processing into two separate tracks, for a little while. The first
+                        -- track will process `DIFFERENTIAL_QUOTA`. This path will use the units to track actual usage recorded. Unlike
+                        -- the `ABSOLUTE` track, we will be picking the last recorded entry if multiple entries fall into the same bucket.
+                        -- To start with we will produce multiple results per bucket, these will be differentiated by the
+                        -- source_allocation_id. This allows us to capture usage from different sub-allocations.
+                        units_per_bucket as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price,
+                                width_bucket(
+                                    provider.timestamp_to_unix(transaction.created_at),
+                                    :start_date,
+                                    :end_date,
+                                    :num_buckets - 1
+                                ) as bucket,
+                                provider.last(units) as data_point
+                            from all_transactions transaction
+                            where charge_type = 'DIFFERENTIAL_QUOTA'
+                            group by category, provider, charge_type, product_type, unit_of_price, source_allocation_id, bucket
+                        ),
+                        -- NOTE(Dan): We now combine the data from multiple sub-allocations into a single entry per bucket. We do this by
+                        -- simply summing the total usage in each bucket.
+                        units_per_bucket_sum as (
+                            select category, provider, charge_type, product_type, unit_of_price, bucket, sum(data_point) as data_point
+                            from units_per_bucket
+                            group by category, provider, charge_type, product_type, unit_of_price, bucket
+                            order by provider, category, bucket
+                        ),
+                        -- NOTE(Dan): We now switch our processing back to the `ABSOLUTE` type products. These products are a bit simpler
+                        -- given that we simply need to sum up all changes, we don't need to pick any specific recording from a bucket since
+                        -- all records in a bucket are relevant for us. This section will give us a data point which represents the total
+                        -- change inside of a single bucket.
+                        change_per_bucket as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price,
+                                width_bucket(
+                                    provider.timestamp_to_unix(transaction.created_at),
+                                    :start_date,
+                                    :end_date,
+                                    :num_buckets - 1
+                                ) as bucket,
+                                sum(change) as data_point
+                            from all_transactions transaction
+                            where charge_type = 'ABSOLUTE'
+                            group by category, provider, charge_type, product_type, unit_of_price, bucket
+                            order by provider, category, bucket
+                        ),
+                        -- NOTE(Dan): We now transform the change (which is negative) into usage (the inverse). At the same time we
+                        -- compute a rolling sum to get a chart which always trend up.
+                        change_per_bucket_sum as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price, bucket,
+                                sum(data_point) over (partition by category, provider order by bucket) * -1 as data_point
+                            from change_per_bucket
+                            order by provider, category, product_type, unit_of_price, bucket
+                        ),
+                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
+                        -- the charts.
+                        all_entries as (
+                            select * from change_per_bucket_sum
+                            union
+                            select * from units_per_bucket_sum
+                        ),
+                        -- NOTE(Dan): The clients don't care about buckets, they care about concrete timestamps. In this section we convert
+                        -- the bucket index into an actual timestamp. While doing so, we fetch the total usage in the period, we can do this
+                        -- by simply picking the last data point.
+                        bucket_to_timestamp as (
+                            select
+                                ceil((bucket - 1) * ((:end_date - :start_date) / :num_buckets::double precision) + :start_date) as ts,
+                                data_point,
+                                l.period_usage,
+                                e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price
+                            from
+                                all_entries e join
+                                (
+                                    select category, provider, charge_type, provider.last(data_point) period_usage
+                                    from (select * from all_entries order by bucket) t
+                                    group by category, provider, charge_type
+                                ) l on
+                                    e.category = l.category and
+                                    e.provider = l.provider and
+                                    e.charge_type = l.charge_type
+                        ),
+                        -- NOTE(Dan): We now start our marshalling to JSON by first combining all data points into lines.
+                        point_aggregation as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price, period_usage,
+                                array_agg(jsonb_build_object(
+                                    'timestamp', ts,
+                                    'value', data_point
+                                )) points
+                            from bucket_to_timestamp
+                            group by category, provider, charge_type, product_type, unit_of_price, period_usage
+                        ),
+                        -- NOTE(Dan): The lines are then combined into complete charts.
+                        chart_aggregation as (
+                            select jsonb_build_object(
+                                'type', product_type,
+                                'chargeType', charge_type,
+                                'unit', unit_of_price,
+                                'periodUsage', sum(period_usage),
+                                'chart', jsonb_build_object(
+                                    'lines', array_agg(jsonb_build_object(
+                                        'name', category || ' / ' || provider,
+                                        'points', points
+                                    ))
+                                )
+                            ) chart
+                            from point_aggregation
+                            group by product_type, charge_type, unit_of_price
+                        ),
+                        -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
+                        combined_charts as (
+                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[])) result
+                            from chart_aggregation
+                        )
+                    select * from combined_charts;
+                """,
+                "Accounting Retrieve Usage"
             )
-    ),
-    -- NOTE(Dan): Next we split up our data processing into two separate tracks, for a little while. The first
-    -- track will process `DIFFERENTIAL_QUOTA`. This path will use the units to track actual usage recorded. Unlike
-    -- the `ABSOLUTE` track, we will be picking the last recorded entry if multiple entries fall into the same bucket.
-    -- To start with we will produce multiple results per bucket, these will be differentiated by the
-    -- source_allocation_id. This allows us to capture usage from different sub-allocations.
-    units_per_bucket as (
-        select
-            category, provider, charge_type, product_type, unit_of_price,
-            width_bucket(
-                provider.timestamp_to_unix(transaction.created_at),
-                :start_date,
-                :end_date,
-                :num_buckets - 1
-            ) as bucket,
-            provider.last(units) as data_point
-        from all_transactions transaction
-        where charge_type = 'DIFFERENTIAL_QUOTA'
-        group by category, provider, charge_type, product_type, unit_of_price, source_allocation_id, bucket
-    ),
-    -- NOTE(Dan): We now combine the data from multiple sub-allocations into a single entry per bucket. We do this by
-    -- simply summing the total usage in each bucket.
-    units_per_bucket_sum as (
-        select category, provider, charge_type, product_type, unit_of_price, bucket, sum(data_point) as data_point
-        from units_per_bucket
-        group by category, provider, charge_type, product_type, unit_of_price, bucket
-        order by provider, category, bucket
-    ),
-    -- NOTE(Dan): We now switch our processing back to the `ABSOLUTE` type products. These products are a bit simpler
-    -- given that we simply need to sum up all changes, we don't need to pick any specific recording from a bucket since
-    -- all records in a bucket are relevant for us. This section will give us a data point which represents the total
-    -- change inside of a single bucket.
-    change_per_bucket as (
-        select
-            category, provider, charge_type, product_type, unit_of_price,
-            width_bucket(
-                provider.timestamp_to_unix(transaction.created_at),
-                :start_date,
-                :end_date,
-                :num_buckets - 1
-            ) as bucket,
-            sum(change) as data_point
-        from all_transactions transaction
-        where charge_type = 'ABSOLUTE'
-        group by category, provider, charge_type, product_type, unit_of_price, bucket
-        order by provider, category, bucket
-    ),
-    -- NOTE(Dan): We now transform the change (which is negative) into usage (the inverse). At the same time we
-    -- compute a rolling sum to get a chart which always trend up.
-    change_per_bucket_sum as (
-        select
-            category, provider, charge_type, product_type, unit_of_price, bucket,
-            sum(data_point) over (partition by category, provider order by bucket) * -1 as data_point
-        from change_per_bucket
-        order by provider, category, product_type, unit_of_price, bucket
-    ),
-    -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-    -- the charts.
-    all_entries as (
-        select * from change_per_bucket_sum
-        union
-        select * from units_per_bucket_sum
-    ),
-    -- NOTE(Dan): The clients don't care about buckets, they care about concrete timestamps. In this section we convert
-    -- the bucket index into an actual timestamp. While doing so, we fetch the total usage in the period, we can do this
-    -- by simply picking the last data point.
-    bucket_to_timestamp as (
-        select
-            ceil((bucket - 1) * ((:end_date - :start_date) / :num_buckets::double precision) + :start_date) as ts,
-            data_point,
-            l.period_usage,
-            e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price
-        from
-            all_entries e join
-            (
-                select category, provider, charge_type, provider.last(data_point) period_usage
-                from (select * from all_entries order by bucket) t
-                group by category, provider, charge_type
-            ) l on
-                e.category = l.category and
-                e.provider = l.provider and
-                e.charge_type = l.charge_type
-    ),
-    -- NOTE(Dan): We now start our marshalling to JSON by first combining all data points into lines.
-    point_aggregation as (
-        select
-            category, provider, charge_type, product_type, unit_of_price, period_usage,
-            array_agg(jsonb_build_object(
-                'timestamp', ts,
-                'value', data_point
-            )) points
-        from bucket_to_timestamp
-        group by category, provider, charge_type, product_type, unit_of_price, period_usage
-    ),
-    -- NOTE(Dan): The lines are then combined into complete charts.
-    chart_aggregation as (
-        select jsonb_build_object(
-            'type', product_type,
-            'chargeType', charge_type,
-            'unit', unit_of_price,
-            'periodUsage', sum(period_usage),
-            'chart', jsonb_build_object(
-                'lines', array_agg(jsonb_build_object(
-                    'name', category || ' / ' || provider,
-                    'points', points
-                ))
-            )
-        ) chart
-        from point_aggregation
-        group by product_type, charge_type, unit_of_price
-    ),
-    -- NOTE(Dan): And the charts are combined into a single output for consumption by UCloud/Core.
-    combined_charts as (
-        select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[])) result
-        from chart_aggregation
-    )
-select * from combined_charts;
-                """
-            )
-        }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?:
-            throw RPCException(
-                "No usage data found. Are you sure you are allowed to view the data?",
-                HttpStatusCode.NotFound
-            )
+        }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
+            "No usage data found. Are you sure you are allowed to view the data?",
+            HttpStatusCode.NotFound
+        )
     }
 
     suspend fun retrieveBreakdown(
@@ -1009,140 +1172,141 @@ select * from combined_charts;
                     setParameter("filter_workspace_project", request.filterWorkspaceProject)
                 },
                 """
- with
-    -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
-    -- from the associated product category. The category is crucial to create charts which make sense.
-    -- This section is also the only section which fetches data from an actual table. If this code needs optimization
-    -- then this is most likely the place to look.
-    all_transactions as (
-        select
-            t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
-            pc.product_type, pc.unit_of_price, p.name as product
-        from
-            accounting.wallet_owner wo join
-            accounting.wallets w on w.owned_by = wo.id join
-            accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
-            accounting.transactions t on t.affected_allocation_id = alloc.id join
-            accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
-            accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
-            accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
-            accounting.products p on t.product_id = p.id join
-            accounting.product_categories pc on p.category = pc.id left join
-            project.project_members pm on
-                pm.project_id = wo.project_id and
-                (pm.role = 'ADMIN' or pm.role = 'PI')
-        where
-            t.type = 'charge' and
-            t.created_at >= to_timestamp(:start_date / 1000.0) and
-            t.created_at <= to_timestamp(:end_date / 1000.0) and
-            (
-                (wo.project_id = :project::text and pm.username = :username) or
-                (:project::text is null and wo.username = :username)
-            ) and
-            (
-                :filter_type::accounting.product_type is null or
-                pc.product_type = :filter_type::accounting.product_type
-            ) and
-            (
-                :filter_provider::text is null or
-                pc.provider = :filter_provider
-            ) and
-            (
-                :filter_category::text is null or
-                pc.category = :filter_category
-            ) and
-            (
-                :filter_allocation::bigint is null or
-                t.source_allocation_id = :filter_allocation
-            ) and
-            (
-                :filter_workspace::text is null or
-                (
-                    (
-                        :filter_workspace_project::boolean = true and
-                        source_owner.project_id = :filter_workspace
-                    ) or
-                    (
-                        :filter_workspace_project::boolean is distinct from true and
-                        source_owner.username = :filter_workspace
-                    )
-                )
-            )
-    ),
-    -- NOTE(Dan): We pick the latest recording for every source_allocation_id
-    units_per_bucket as (
-        select
-            category, provider, charge_type, product_type, unit_of_price, product,
-            provider.last(units) as data_point
-        from all_transactions transaction
-        where charge_type = 'DIFFERENTIAL_QUOTA'
-        group by category, provider, charge_type, product_type, unit_of_price, product, source_allocation_id
-    ),
-    -- NOTE(Dan): Similar to the usage, we need to sum these together
-    units_per_bucket_sum as (
-        select category, provider, charge_type, product_type, unit_of_price, product, sum(data_point) as data_point
-        from units_per_bucket
-        group by category, provider, charge_type, product_type, unit_of_price, product
-    ),
-    -- NOTE(Dan): As opposed to usage, we can take a more direct route to compute the concrete period usage
-    change_per_bucket_sum as (
-        select
-            category, provider, charge_type, product_type, unit_of_price, product,
-            sum(change) * -1 as data_point
-        from all_transactions transaction
-        where charge_type = 'ABSOLUTE'
-        group by category, provider, charge_type, product_type, unit_of_price, product
-    ),
-    -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
-    -- the charts.
-    all_entries as (
-        select * from change_per_bucket_sum
-        union
-        select * from units_per_bucket_sum
-    ),
-    -- NOTE(Dan): We rank every row of every chart to determine the top-3 of every chart
-    ranked_categories as (
-        select
-            e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price, e.product, e.data_point,
-            row_number() over (partition by e.category, e.provider order by data_point desc) rank
-        from all_entries e
-    ),
-    -- NOTE(Dan): We use this information to combine entries with rank > 3 into a single entry
-    collapse_others as (
-        select charge_type, product_type, unit_of_price, data_point,
-            product || ' / ' || category || ' / ' || provider as name
-        from ranked_categories
-        where rank <= 3
-        union
-        select charge_type, product_type, unit_of_price, sum(data_point), 'Other' as name
-        from ranked_categories
-        where rank > 3
-        group by charge_type, product_type, unit_of_price
-    ),
-    -- NOTE(Dan): Once we have this building the chart is straight-forward
-    chart_aggregation as (
-        select jsonb_build_object(
-            'type', product_type,
-            'chargeType', charge_type,
-            'unit', unit_of_price,
-            'chart', jsonb_build_object(
-                'points', array_agg(
-                    jsonb_build_object(
-                        'name', name,
-                        'value', data_point
-                    )
-                )
-            )
-        ) chart
-        from collapse_others
-        group by product_type, charge_type, unit_of_price
-    ),
-    combined_charts as (
-        select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
-        from chart_aggregation
-    )
-select * from combined_charts;
-                """
+                     with
+                        -- NOTE(Dan): We start by fetching all relevant transactions. We combine the transactions with information
+                        -- from the associated product category. The category is crucial to create charts which make sense.
+                        -- This section is also the only section which fetches data from an actual table. If this code needs optimization
+                        -- then this is most likely the place to look.
+                        all_transactions as (
+                            select
+                                t.created_at, t.change, t.units, t.source_allocation_id, pc.category, pc.provider, pc.charge_type,
+                                pc.product_type, pc.unit_of_price, p.name as product
+                            from
+                                accounting.wallet_owner wo join
+                                accounting.wallets w on w.owned_by = wo.id join
+                                accounting.wallet_allocations alloc on alloc.associated_wallet = w.id  join
+                                accounting.transactions t on t.affected_allocation_id = alloc.id join
+                                accounting.wallet_allocations source_allocation on t.source_allocation_id = source_allocation.id join
+                                accounting.wallets source_wallet on source_allocation.associated_wallet = source_wallet.id join
+                                accounting.wallet_owner source_owner on source_owner.id = source_wallet.owned_by join
+                                accounting.products p on t.product_id = p.id join
+                                accounting.product_categories pc on p.category = pc.id left join
+                                project.project_members pm on
+                                    pm.project_id = wo.project_id and
+                                    (pm.role = 'ADMIN' or pm.role = 'PI')
+                            where
+                                t.type = 'charge' and
+                                t.created_at >= to_timestamp(:start_date / 1000.0) and
+                                t.created_at <= to_timestamp(:end_date / 1000.0) and
+                                (
+                                    (wo.project_id = :project::text and pm.username = :username) or
+                                    (:project::text is null and wo.username = :username)
+                                ) and
+                                (
+                                    :filter_type::accounting.product_type is null or
+                                    pc.product_type = :filter_type::accounting.product_type
+                                ) and
+                                (
+                                    :filter_provider::text is null or
+                                    pc.provider = :filter_provider
+                                ) and
+                                (
+                                    :filter_category::text is null or
+                                    pc.category = :filter_category
+                                ) and
+                                (
+                                    :filter_allocation::bigint is null or
+                                    t.source_allocation_id = :filter_allocation
+                                ) and
+                                (
+                                    :filter_workspace::text is null or
+                                    (
+                                        (
+                                            :filter_workspace_project::boolean = true and
+                                            source_owner.project_id = :filter_workspace
+                                        ) or
+                                        (
+                                            :filter_workspace_project::boolean is distinct from true and
+                                            source_owner.username = :filter_workspace
+                                        )
+                                    )
+                                )
+                        ),
+                        -- NOTE(Dan): We pick the latest recording for every source_allocation_id
+                        units_per_bucket as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price, product,
+                                provider.last(units) as data_point
+                            from all_transactions transaction
+                            where charge_type = 'DIFFERENTIAL_QUOTA'
+                            group by category, provider, charge_type, product_type, unit_of_price, product, source_allocation_id
+                        ),
+                        -- NOTE(Dan): Similar to the usage, we need to sum these together
+                        units_per_bucket_sum as (
+                            select category, provider, charge_type, product_type, unit_of_price, product, sum(data_point) as data_point
+                            from units_per_bucket
+                            group by category, provider, charge_type, product_type, unit_of_price, product
+                        ),
+                        -- NOTE(Dan): As opposed to usage, we can take a more direct route to compute the concrete period usage
+                        change_per_bucket_sum as (
+                            select
+                                category, provider, charge_type, product_type, unit_of_price, product,
+                                sum(change) * -1 as data_point
+                            from all_transactions transaction
+                            where charge_type = 'ABSOLUTE'
+                            group by category, provider, charge_type, product_type, unit_of_price, product
+                        ),
+                        -- NOTE(Dan): We know merge the two separate branches into a unified branch. We now have all data needed to produce
+                        -- the charts.
+                        all_entries as (
+                            select * from change_per_bucket_sum
+                            union
+                            select * from units_per_bucket_sum
+                        ),
+                        -- NOTE(Dan): We rank every row of every chart to determine the top-3 of every chart
+                        ranked_categories as (
+                            select
+                                e.category, e.provider, e.charge_type, e.product_type, e.unit_of_price, e.product, e.data_point,
+                                row_number() over (partition by e.category, e.provider order by data_point desc) rank
+                            from all_entries e
+                        ),
+                        -- NOTE(Dan): We use this information to combine entries with rank > 3 into a single entry
+                        collapse_others as (
+                            select charge_type, product_type, unit_of_price, data_point,
+                                product || ' / ' || category || ' / ' || provider as name
+                            from ranked_categories
+                            where rank <= 3
+                            union
+                            select charge_type, product_type, unit_of_price, sum(data_point), 'Other' as name
+                            from ranked_categories
+                            where rank > 3
+                            group by charge_type, product_type, unit_of_price
+                        ),
+                        -- NOTE(Dan): Once we have this building the chart is straight-forward
+                        chart_aggregation as (
+                            select jsonb_build_object(
+                                'type', product_type,
+                                'chargeType', charge_type,
+                                'unit', unit_of_price,
+                                'chart', jsonb_build_object(
+                                    'points', array_agg(
+                                        jsonb_build_object(
+                                            'name', name,
+                                            'value', data_point
+                                        )
+                                    )
+                                )
+                            ) chart
+                            from collapse_others
+                            group by product_type, charge_type, unit_of_price
+                        ),
+                        combined_charts as (
+                            select jsonb_build_object('charts', coalesce(array_remove(array_agg(chart), null), array[]::jsonb[]))
+                            from chart_aggregation
+                        )
+                    select * from combined_charts;
+                """,
+                "Accounting Retrieve Breakdown"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
                 "No usage data found. Are you sure you are allowed to view the data?",
                 HttpStatusCode.NotFound
@@ -1210,7 +1374,8 @@ select * from combined_charts;
                         'numberOfMembers', number_of_members
                     ) as result
                     from entries
-                """
+                """,
+                "Accounting Retrieve Recipient"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
                 ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
         }

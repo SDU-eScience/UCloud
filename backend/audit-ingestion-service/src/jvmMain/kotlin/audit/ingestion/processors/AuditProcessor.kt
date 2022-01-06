@@ -20,6 +20,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
+import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 object HttpLogsStream : EventStream<String> {
@@ -81,13 +82,20 @@ class AuditProcessor(
                 .forEach { chunk ->
                     try {
                         client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
-                    } catch (ex: ConnectException) {
-                        if (isDevMode) {
-                            if (didWarnAboutDevMode.compareAndSet(false, true)) {
-                                log.info("Could not contact ElasticSearch. We are assuming that this is not needed in" +
+                    } catch (ex: Throwable) {
+                        if (ex is ExecutionException || ex is ConnectException) {
+                            if (isDevMode) {
+                                if (didWarnAboutDevMode.compareAndSet(false, true)) {
+                                    log.info("Could not contact ElasticSearch. We are assuming that this is not needed in" +
                                         "dev mode - No activity will be produced!")
+                                    return@forEach
+                                }
+                            } else {
+                                log.warn(ex.stackTraceToString())
+                                return@forEach
                             }
                         }
+                        log.warn(ex.stackTraceToString())
                     }
                 }
         })

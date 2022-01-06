@@ -1586,6 +1586,7 @@ export interface ApplicationInvocationDescription {
     allowAdditionalMounts?: boolean,
     allowAdditionalPeers?: boolean,
     allowMultiNode: boolean,
+    allowPublicIp: boolean,
     fileExtensions: string[],
     licenseServers: string[],
     // shouldAllowAdditionalMounts: boolean,
@@ -1954,7 +1955,7 @@ export interface JobsExtendRequestItem {
     requestedTime: SimpleDuration,
 }
 export interface JobsOpenInteractiveSessionResponse {
-    sessions: OpenSessionWithProvider[],
+    responses: OpenSessionWithProvider[],
 }
 export interface OpenSessionWithProvider {
     providerDomain: string,

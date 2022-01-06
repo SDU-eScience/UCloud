@@ -7,6 +7,407 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 05-01-21
+
+Post-launch patches.
+
+```
+✅  Deployment(accounting, 2022.1.1-patch.4) (UP-TO-DATE)
+✅  Deployment(password-reset, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.1-patch.1) (UP-TO-DATE)
+✅  Deployment(alerting, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(slack, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(auth, 2022.1.1) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(task, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(notification, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.0-patch.4) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.1-patch.5) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.0-patch.0) (UP-TO-DATE)
+✅  Deployment(news, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-aau, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-store, 2022.1.0-patch.4) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.1-patch.5) (UP-TO-DATE)
+✅  Deployment(avatar, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.1.2-patch.4) (UP-TO-DATE)
+```
+
+## 04-01-21
+
+Upgrade UCloud to release 2022.1.0. Note: This deletes all other deployments.
+
+```
+✅  Deployment(accounting, 2022.1.1-patch.0) (UP-TO-DATE)
+✅  Deployment(password-reset, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.1-patch.0) (UP-TO-DATE)
+✅  Deployment(alerting, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(contact-book, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(slack, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(auth, 2022.1.1) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(task, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(notification, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.0-patch.3) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.1-patch.3) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(news, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-aau, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(app-store, 2022.1.0-patch.1) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.1-patch.2) (UP-TO-DATE)
+✅  Deployment(avatar, 2022.1.0) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.1.2-patch.2) (UP-TO-DATE)
+```
+
+## 16-12-21
+
+Upgrade log4j to version 2.16.0.
+
+```
+✅  Deployment(accounting, 1.7.10) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.8) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.7) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.10) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.8) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.9) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.9) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.7) (UP-TO-DATE)
+✅  Deployment(share, 1.10.8) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.7) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.7) (UP-TO-DATE)
+✅  Deployment(support, 1.6.7) (UP-TO-DATE)
+✅  Deployment(task, 0.5.7) (UP-TO-DATE)
+✅  Deployment(notification, 1.5.8) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.8) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.7) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.7) (UP-TO-DATE)
+✅  Deployment(storage, 4.5.4) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.7) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.18) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.22.2) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.7) (UP-TO-DATE)
+✅  Deployment(news, 0.3.7) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.11) (UP-TO-DATE)
+✅  Deployment(project, 3.5.8) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.7) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.7) (UP-TO-DATE)
+✅  Deployment(app-store, 0.17.2) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.7.2) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.7) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.7) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.17) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.7) (UP-TO-DATE)
+```
+
+## 13-12-21
+
+Bug fix for upcoming downtime icon.
+
+```
+✅  Deployment(frontend, 0.46.2) (UP-TO-DATE)
+```
+
+## 10-12-21
+
+Upgrade log4j to version 2.15.0.
+
+```
+✅  Deployment(accounting, 1.7.8) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.7) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.6) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.9) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.7) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.8) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.7) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.6) (UP-TO-DATE)
+✅  Deployment(share, 1.10.7) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.6) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.6) (UP-TO-DATE)
+✅  Deployment(support, 1.6.6) (UP-TO-DATE)
+✅  Deployment(task, 0.5.6) (UP-TO-DATE)
+✅  Deployment(notification, 1.5.7) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.7) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.6) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.6) (UP-TO-DATE)
+✅  Deployment(storage, 4.5.3) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.6) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.22.1) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.6) (UP-TO-DATE)
+✅  Deployment(news, 0.3.6) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.10) (UP-TO-DATE)
+✅  Deployment(project, 3.5.7) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.6) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.6) (UP-TO-DATE)
+✅  Deployment(app-store, 0.17.1) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.7.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.6) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.16) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.6) (UP-TO-DATE)
+```
+
+## 24-09-21
+
+Fix a frontend issue related to copying of files.
+
+```
+✅  Deployment(webclient, 0.46.1) (UP-TO-DATE)
+```
+
+## 20-09-21
+
+Internal testing of synchronization feature.
+
+```
+✅  Deployment(storage, 4.5.2) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.6) (UP-TO-DATE)
+```
+
+
+
+## 24-08-21
+
+Internal testing of synchronization feature.
+
+```
+✅  Deployment(webclient, 0.46.0) (UP-TO-DATE)
+✅  Deployment(storage, 4.5.1) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 0.1.5) (UP-TO-DATE)
+```
+
+## 11-08-21
+
+Minor fix to permission UI.
+
+```
+✅  Deployment(webclient, 0.45.3) (UP-TO-DATE)
+```
+
+
+## 23-07-21
+
+Minor change to app store UI.
+
+```
+✅  Deployment(webclient, 0.45.1) (UP-TO-DATE)
+```
+
+## 12-07-21
+
+Public IPs release.
+
+```
+✅  Deployment(app-orchestrator, 2.7.0) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.22.0) (UP-TO-DATE)
+✅  Deployment(app-store, 0.17.0) (UP-TO-DATE)
+✅  Deployment(webclient, 0.45.0) (UP-TO-DATE)
+```
+
+
+
+## 02-06-21
+
+Fix sort order of a query
+
+```
+✅  Deployment(app-orchestrator, 2.6.7) (UP-TO-DATE)
+✅  Deployment(accounting, 1.7.7) (UP-TO-DATE)
+```
+
+## 27-05-21
+redis fix
+```
+✅  Deployment(accounting, 1.7.5) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.6) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.6) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.9) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.23) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.6) (UP-TO-DATE)
+✅  Deployment(app-store, 0.16.11) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.5) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.5) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.5) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.5) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.5) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.5) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.5) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.5) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.5) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.15) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.6) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.6) (UP-TO-DATE)
+✅  Deployment(news, 0.3.5) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.6) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.5) (UP-TO-DATE)
+✅  Deployment(project, 3.5.6) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.5) (UP-TO-DATE)
+✅  Deployment(share, 1.10.6) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.5) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.7) (UP-TO-DATE)
+✅  Deployment(support, 1.6.5) (UP-TO-DATE)
+✅  Deployment(task, 0.5.5) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.10) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.6) (UP-TO-DATE)
+✅  Deployment(webclient, 0.44.11) (UP-TO-DATE)
+```
+
+
+## 25-05-21
+
+```
+✅  Deployment(webclient, 0.44.11) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.6) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.22) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.5) (UP-TO-DATE)
+```
+
+## 18-05-21
+Update of frontend plus minor issue fixes.
+
+Commit - b6d6af254105ab86e4d08313992aabcffbc024b7
+```
+✅  Deployment(accounting, 1.7.4) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.5) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.5) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.8) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.20) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.4) (UP-TO-DATE)
+✅  Deployment(app-store, 0.16.10) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.4) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.4) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.4) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.4) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.4) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.4) (UP-TO-DATE)
+✅  Deployment(file-trash, 1.7.4) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.4) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.4) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.14) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.5) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.5) (UP-TO-DATE)
+✅  Deployment(news, 0.3.4) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.5) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.4) (UP-TO-DATE)
+✅  Deployment(project, 3.5.5) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.4) (UP-TO-DATE)
+✅  Deployment(share, 1.10.5) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.4) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.5) (UP-TO-DATE)
+✅  Deployment(support, 1.6.4) (UP-TO-DATE)
+✅  Deployment(task, 0.5.4) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.9) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.5) (UP-TO-DATE)
+✅  Deployment(webclient, 0.44.10) (UP-TO-DATE)
+```
+
+
+## 06-05-21
+App ACL fix
+```
+✅  Deployment(app-store, 0.16.8) (UP-TO-DATE)
+```
+
+
+## 04-05-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.18) (UP-TO-DATE)
+```
+
+
+## 03-05-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.14) (UP-TO-DATE)
+```
+
+## 28-04-21
+
+```
+✅  Deployment(app-aau, 0.21.13) (UP-TO-DATE)
+```
+
+
+## 26-04-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.13) (UP-TO-DATE)
+```
+
+## 21-04-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.12-2) (UP-TO-DATE)
+```
+
+
+## 19-04-21
+Issue fix for trailing / in invocation
+```
+✅  Deployment(app-kubernetes, 0.21.12-1) (UP-TO-DATE)
+```
+
+
+## 25-03-21
+
+```
+✅  Deployment(app-store, 0.16.4) (UP-TO-DATE)
+```
+
+## 25-03-21
+
+```
+✅  Deployment(webclient, 0.44.9) (UP-TO-DATE)
+✅  Deployment(share, 1.10.3) (UP-TO-DATE)
+```
+
+## 24-03-21
+
+```
+✅  Deployment(accounting, 1.7.2) (UP-TO-DATE)
+✅  Deployment(password-reset, 0.4.3) (UP-TO-DATE)
+✅  Deployment(file-stats, 2.4.2) (UP-TO-DATE)
+✅  Deployment(mail, 0.4.2) (UP-TO-DATE)
+✅  Deployment(alerting, 1.4.2) (UP-TO-DATE)
+✅  Deployment(activity, 1.7.3) (UP-TO-DATE)
+✅  Deployment(contact-book, 0.4.2) (UP-TO-DATE)
+✅  Deployment(share, 1.10.2) (UP-TO-DATE)
+✅  Deployment(slack, 0.3.2) (UP-TO-DATE)
+✅  Deployment(auth, 1.32.1) (UP-TO-DATE)
+✅  Deployment(support, 1.6.2) (UP-TO-DATE)
+✅  Deployment(task, 0.5.2) (UP-TO-DATE)
+✅  Deployment(notification, 1.5.3) (UP-TO-DATE)
+✅  Deployment(webdav, 0.4.2) (UP-TO-DATE)
+✅  Deployment(provider, 0.2.2) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 0.4.2) (UP-TO-DATE)
+✅  Deployment(storage, 4.4.2) (UP-TO-DATE)
+✅  Deployment(grant, 0.4.2) (UP-TO-DATE)
+✅  Deployment(ucloud-data-extraction, 0.1.6-23) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 0.21.10) (UP-TO-DATE)
+✅  Deployment(file-favorite, 1.8.2) (UP-TO-DATE)
+✅  Deployment(news, 0.3.2) (UP-TO-DATE)
+✅  Deployment(app-aau, 0.2.6) (UP-TO-DATE)
+✅  Deployment(project, 3.5.2) (UP-TO-DATE)
+✅  Deployment(filesearch, 1.5.2) (UP-TO-DATE)
+✅  Deployment(project-repository, 0.4.2) (UP-TO-DATE)
+✅  Deployment(app-store, 0.16.2) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2.6.1) (UP-TO-DATE)
+✅  Deployment(avatar, 1.6.2) (UP-TO-DATE)
+✅  Deployment(kubernetes-monitor, 0.2.2) (UP-TO-DATE)
+✅  Deployment(indexing, 1.19.8) (UP-TO-DATE)
+✅  Deployment(webclient, 0.44.8) (UP-TO-DATE)
+```
+
+## 10-03-21
+
+```
+✅  Deployment(app-kubernetes, 0.21.1) (UP-TO-DATE)
+```
+
 ## 05-03-21
 
 ```

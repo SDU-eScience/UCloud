@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.Language
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -47,6 +48,7 @@ abstract class ResourceService<
     protected abstract val defaultSortColumn: SqlObject.Column
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
+    protected open val requireAdminForCreate: Boolean = false
 
     private val resourceTable = SqlObject.Table("provider.resource")
     private val defaultSortColumns = mapOf(
@@ -97,7 +99,7 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
-        val browseQuery = browseQuery(request.flags)
+        val browseQuery = browseQuery(actorAndProject, request.flags)
         return paginatedQuery(
             browseQuery,
             actorAndProject,
@@ -110,7 +112,11 @@ abstract class ResourceService<
         )
     }
 
-    protected open suspend fun browseQuery(flags: Flags?, query: String? = null): PartialQuery {
+    protected open suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: Flags?,
+        query: String? = null
+    ): PartialQuery {
         val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
         return PartialQuery(
             {},
@@ -131,7 +137,7 @@ abstract class ResourceService<
         asProvider: Boolean,
     ): Res {
         val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -160,6 +166,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                     """,
+                    "${this::class.simpleName} retrieve"
                 )
                 .rows
                 .singleOrNull()
@@ -190,7 +197,7 @@ abstract class ResourceService<
     ): List<Res> {
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
-        val (params, query) = browseQuery(flags)
+        val (params, query) = browseQuery(actorAndProject, flags)
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
 
         val (resourceParams, resourceQuery) = accessibleResources(
@@ -222,12 +229,13 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
+                    "${this::class.simpleName} retrieveBulk"
                 )
                 .rows
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
-                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER) {
+                    if (permissionOneOf.singleOrNull() == Permission.PROVIDER && actorAndProject.actor != Actor.System) {
                         // Admin isn't enough if we are looking for Provider
                         if (Permission.PROVIDER !in (it.permissions?.myself ?: emptyList())) {
                             return@filter false
@@ -396,7 +404,8 @@ abstract class ResourceService<
                                             returning resource_id
                                         )
                                     select distinct resource_id from acl_entries;
-                                """
+                                """,
+                                "${this::class.simpleName} create 1"
                             )
                             .rows
                             .map { it.getLong(0)!! }
@@ -417,7 +426,7 @@ abstract class ResourceService<
                             retrieveBulk(
                                 actorAndProject,
                                 generatedIds.map { it.toString() },
-                                listOf(Permission.EDIT),
+                                if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
                                 includeUnconfirmed = true,
                                 simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
@@ -443,16 +452,17 @@ abstract class ResourceService<
                                     setParameter("resource_ids", lastBatchOfIds ?: error("Logic error"))
                                 },
                                 """
-                                with backend_ids as (
-                                    select
-                                        unnest(:provider_ids::text[]) as provider_id, 
-                                        unnest(:resource_ids::bigint[]) as resource_id
-                                )
-                                update provider.resource
-                                set provider_generated_id = b.provider_id, confirmed_by_provider = true
-                                from backend_ids b
-                                where id = b.resource_id
-                            """
+                                    with backend_ids as (
+                                        select
+                                            unnest(:provider_ids::text[]) as provider_id, 
+                                            unnest(:resource_ids::bigint[]) as resource_id
+                                    )
+                                    update provider.resource
+                                    set provider_generated_id = b.provider_id, confirmed_by_provider = true
+                                    from backend_ids b
+                                    where id = b.resource_id
+                                """,
+                                "${this::class.simpleName} create 2"
                             )
                         lastBatchOfIds?.forEach { adjustedResponse.add(FindByStringId(it.toString())) }
                         lastBatchOfIds = null
@@ -590,9 +600,10 @@ abstract class ResourceService<
                                         setParameter("to_remove_users", toRemoveUsers)
                                     },
                                     """
-                                    select provider.update_acl(:id, :to_add_groups, :to_add_users, 
-                                        :to_add_permissions, :to_remove_groups, :to_remove_users)
-                                """
+                                        select provider.update_acl(:id, :to_add_groups, :to_add_users, 
+                                            :to_add_permissions, :to_remove_groups, :to_remove_users)
+                                    """,
+                                    "${this::class.simpleName} updateAcl"
                                 )
                         }
 
@@ -761,11 +772,18 @@ abstract class ResourceService<
 
     override suspend fun addUpdate(
         actorAndProject: ActorAndProject,
-        updates: BulkRequest<ResourceUpdateAndId<Update>>
+        updates: BulkRequest<ResourceUpdateAndId<Update>>,
+        requireAll: Boolean,
     ) {
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
-            val resources = retrieveBulk(actorAndProject, ids, listOf(Permission.PROVIDER), includeUnconfirmed = true)
+            val resources = retrieveBulk(
+                actorAndProject,
+                ids,
+                listOf(Permission.PROVIDER),
+                includeUnconfirmed = true,
+                requireAll = requireAll,
+            )
 
             session
                 .sendPreparedStatement(
@@ -774,6 +792,8 @@ abstract class ResourceService<
                         val statusMessages = ArrayList<String?>()
                         val extraMessages = ArrayList<String>()
                         for (update in updates.items) {
+                            resources.find { it.id == update.id } ?: continue
+
                             val rawEncoded = defaultMapper.encodeToJsonElement(updateSerializer, update.update)
                             val encoded = if (rawEncoded is JsonObject) {
                                 val entries = HashMap<String, JsonElement>()
@@ -800,7 +820,8 @@ abstract class ResourceService<
                         insert into provider.resource_update
                         (resource, created_at, status, extra) 
                         select unnest(:resource_ids::bigint[]), now(), unnest(:status_messages::text[]), unnest(:extra_messages::jsonb[])
-                    """
+                    """,
+                    "${this::class.simpleName} add update"
                 )
 
             onUpdate(resources, updates.items, session)
@@ -820,7 +841,7 @@ abstract class ResourceService<
             throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadRequest)
         }
 
-        return BulkResponse(db.withSession { session ->
+        return BulkResponse(db.withSession(remapExceptions = true) { session ->
             val generatedIds = session
                 .sendPreparedStatement(
                     {
@@ -884,7 +905,24 @@ abstract class ResourceService<
         })
     }
 
+    override suspend fun init(actorAndProject: ActorAndProject) {
+        val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+        val relevantProviders = findRelevantProviders(actorAndProject)
+        relevantProviders.forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            val api = providerApi(comms)
+
+            // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
+            api.init.call(ResourceInitializationRequest(owner), comms.client)
+        }
+    }
+
     override suspend fun retrieveProducts(actorAndProject: ActorAndProject): SupportByProvider<Prod, Support> {
+        val relevantProviders = findRelevantProviders(actorAndProject)
+        return SupportByProvider(support.retrieveProducts(relevantProviders))
+    }
+
+    private suspend fun findRelevantProviders(actorAndProject: ActorAndProject): List<String> {
         val relevantProviders = db.withSession { session ->
             session
                 .sendPreparedStatement(
@@ -894,41 +932,41 @@ abstract class ResourceService<
                         setParameter("username", actorAndProject.actor.safeUsername())
                     },
                     """
-                        select distinct pc.provider
-                        from
-                            accounting.product_categories pc join
-                            accounting.products product on product.category = pc.id left join
-                            accounting.wallets w on pc.id = w.category left join
-                            accounting.wallet_owner wo on wo.id = w.owned_by left join
-                            project.project_members pm on
-                                wo.project_id = pm.project_id and
-                                pm.project_id = :project::text and
-                                pm.username = :username
-                        where
-                            pc.product_type = :area::accounting.product_type and
-                            (
-                                product.free_to_use or
+                            select distinct pc.provider
+                            from
+                                accounting.product_categories pc join
+                                accounting.products product on product.category = pc.id left join
+                                accounting.wallets w on pc.id = w.category left join
+                                accounting.wallet_owner wo on wo.id = w.owned_by left join
+                                project.project_members pm on
+                                    wo.project_id = pm.project_id and
+                                    pm.project_id = :project::text and
+                                    pm.username = :username
+                            where
+                                pc.product_type = :area::accounting.product_type and
                                 (
-                                    wo.username = :username and
-                                    w.id is not null
-                                ) or
-                                (
-                                    wo.project_id = :project::text and
-                                    w.id is not null
+                                    product.free_to_use or
+                                    (
+                                        wo.username = :username and
+                                        w.id is not null
+                                    ) or
+                                    (
+                                        wo.project_id = :project::text and
+                                        w.id is not null
+                                    )
                                 )
-                            )
-                    """
+                        """
                 )
                 .rows
                 .map { it.getString(0)!! }
         }
-
-        return SupportByProvider(support.retrieveProducts(relevantProviders))
+        return relevantProviders
     }
 
     override suspend fun chargeCredits(
         actorAndProject: ActorAndProject,
-        request: BulkRequest<ResourceChargeCredits>
+        request: BulkRequest<ResourceChargeCredits>,
+        checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
         val ids = request.items.asSequence().map { it.id }.toSet()
 
@@ -946,7 +984,7 @@ abstract class ResourceService<
 
             Payment(
                 reqItem.chargeId,
-                reqItem.numberOfProducts,
+                reqItem.periods,
                 reqItem.units,
                 resource.status.resolvedSupport!!.product.pricePerUnit,
                 reqItem.id,
@@ -962,7 +1000,9 @@ abstract class ResourceService<
             )
         }
 
-        val chargeResult = payment.charge(paymentRequests)
+        val chargeResult =
+            if (checkOnly) payment.creditCheckForPayments(paymentRequests)
+            else payment.charge(paymentRequests)
 
         val insufficient = chargeResult.mapIndexedNotNull { index, result ->
             val request = request.items[index]
@@ -981,7 +1021,7 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(request.flags, request.query)
+        val search = browseQuery(actorAndProject, request.flags, request.query)
         return paginatedQuery(
             search, actorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx
@@ -1114,7 +1154,7 @@ abstract class ResourceService<
                                 (gm.username is not null) or
                                 (r.public_read = true)
                           ) and
-                          (:filter_created_by::text is null or :filter_created_by = r.created_by) and
+                          (:filter_created_by::text is null or r.created_by like '%' || :filter_created_by || '%') and
                           (:filter_created_after::bigint is null or r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)) and
                           (:filter_created_before::bigint is null or r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)) and
                           (:filter_provider::text is null or p_cat.provider = :filter_provider) and
@@ -1168,7 +1208,13 @@ abstract class ResourceService<
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
-        val sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        if (sortBy == "created_by") {
+            sortBy = "(resc.r).created_by"
+        } else if (sortBy == "created_at") {
+            sortBy = "(resc.r).created_at"
+        }
+
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
@@ -1201,7 +1247,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                         order by
-                            resc.category, resc.name, $sortBy $sortDirection
+                            $sortBy $sortDirection, resc.category, resc.name 
                     """,
                 )
             },

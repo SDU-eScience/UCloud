@@ -1,21 +1,13 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.server.CallHandler
-import dk.sdu.cloud.calls.server.HttpCall
-import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.WSCall
-import dk.sdu.cloud.calls.server.audit
-import dk.sdu.cloud.calls.server.withContext
+import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
-import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.FilesCreateUploadResponseItem
-import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
-import dk.sdu.cloud.file.orchestrator.api.UploadProtocol
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
 import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.services.*
@@ -23,6 +15,9 @@ import dk.sdu.cloud.file.ucloud.services.tasks.EmptyTrashRequestItem
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.actorAndProject
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*
@@ -34,10 +29,12 @@ val CallHandler<*, *, *>.ucloudUsername: String?
         var username: String? = null
         withContext<HttpCall> {
             username = ctx.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+                ?.let { base64Decode(it).decodeToString() }
         }
 
         withContext<WSCall> {
             username = ctx.session.underlyingSession.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+                ?.let { base64Decode(it).decodeToString() }
         }
         return username
     }
@@ -48,10 +45,17 @@ class FilesController(
     private val chunkedUploadService: ChunkedUploadService,
     private val downloadService: DownloadService,
     private val limitChecker: LimitChecker,
+    private val elasticQueryService: ElasticQueryService,
+    private val memberFiles: MemberFiles,
 ) : Controller {
     private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        implement(UCloudFiles.init) {
+            memberFiles.initializeMemberFiles(request.principal.createdBy, request.principal.project)
+            ok(Unit)
+        }
+
         implement(UCloudFiles.retrieve) {
             ok(
                 fileQueries.retrieve(
@@ -72,6 +76,12 @@ class FilesController(
                     FilesSortBy.valueOf(request.browse.sortBy ?: "PATH"),
                     request.browse.sortDirection
                 )
+            )
+        }
+
+        implement(UCloudFiles.search) {
+            ok(
+                elasticQueryService.query(request)
             )
         }
 
@@ -119,6 +129,15 @@ class FilesController(
                 limitChecker.checkLimit(reqItem.resolvedNewCollection)
             }
 
+            for (reqItem in request.items) {
+                if (reqItem.oldId.substringBeforeLast('/') == reqItem.newId.substringBeforeLast('/')) {
+                    if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                        fileQueries.fileExists(UCloudFile.create(reqItem.newId))) {
+                        throw RPCException("File or folder already exists", HttpStatusCode.Conflict)
+                    }
+                }
+            }
+
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
@@ -164,7 +183,7 @@ class FilesController(
 
         implement(UCloudFiles.emptyTrash) {
             val username = ucloudUsername ?: throw  RPCException("No username supplied", HttpStatusCode.BadRequest)
-            ok (
+            ok(
                 BulkResponse(
                     request.items.map { requestItem ->
                         taskSystem.submitTask(
@@ -181,6 +200,13 @@ class FilesController(
         implement(UCloudFiles.createFolder) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedCollection)
+            }
+
+            for (reqItem in request.items) {
+                if (reqItem.conflictPolicy == WriteConflictPolicy.REJECT &&
+                    fileQueries.fileExists(UCloudFile.create(reqItem.id))) {
+                    throw RPCException("Folder already exists", HttpStatusCode.Conflict)
+                }
             }
 
             ok(

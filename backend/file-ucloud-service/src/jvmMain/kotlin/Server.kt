@@ -22,12 +22,13 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.sync.mounter.api.Mounts
 import io.ktor.http.*
 import java.io.File
-import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicLong
+import org.elasticsearch.client.RestHighLevelClient
+import dk.sdu.cloud.file.ucloud.services.FileScanner
 
 // NOTE(Dan): This is only used in development mode
 object Scans : CallDescriptionContainer("file.ucloud.scans") {
@@ -47,6 +48,7 @@ class Server(
 ) : CommonServer {
     override val log = logger()
     private val lastWrite = AtomicLong(Time.now())
+    private lateinit var elastic: RestHighLevelClient
 
     @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
@@ -87,19 +89,11 @@ class Server(
         val nativeFs = NativeFS(pathConverter, micro)
         val cephStats = CephFsFastDirectoryStats(nativeFs)
 
-        val limitChecker = LimitChecker(db)
+        elastic = micro.elasticHighLevelClient
+        val limitChecker = LimitChecker(db, pathConverter)
         val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
-        if (micro.commandLineArguments.contains("--scan-accounting")) {
-            try {
-                runBlocking {
-                    usageScan.startScan()
-                    exitProcess(0)
-                }
-            } catch (ex: Throwable) {
-                log.warn(ex.stackTraceToString())
-                exitProcess(1)
-            }
-        }
+
+        val scriptManager = micro.feature(ScriptManager)
 
         val distributedStateFactory = RedisDistributedStateFactory(micro)
         val trashService = TrashService(pathConverter)
@@ -126,15 +120,56 @@ class Server(
             pathConverter,
             db,
             taskSystem,
-            nativeFs
+            nativeFs,
+            memberFiles
+        )
+
+        FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
+
+        val elasticQueryService = ElasticQueryService(
+            micro.elasticHighLevelClient,
+            nativeFs,
+            pathConverter
         )
 
         taskSystem.launchScheduler(micro.backgroundScope)
 
-//        useTestingSizes = micro.developmentModeEnabled
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-scan",
+                    "UCloud/Storage: Accounting",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 3)
+                ),
+                script = {
+                    usageScan.startScan()
+                }
+            )
+        )
+
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "ucloud-storage-index",
+                    "UCloud/Storage: Indexing",
+                    WhenToStart.Periodically(1000L * 60L * 60L * 96)
+                ),
+                script = {
+                    FileScanner(
+                        micro.elasticHighLevelClient,
+                        authenticatedClient,
+                        db,
+                        nativeFs,
+                        pathConverter,
+                        cephStats,
+                        elasticQueryService
+                    ).runScan()
+                }
+            )
+        )
 
         configureControllers(
-            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker),
+            FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService, memberFiles),
             FileCollectionsController(fileCollectionService),
             SyncController(syncService),
             ShareController(shareService),

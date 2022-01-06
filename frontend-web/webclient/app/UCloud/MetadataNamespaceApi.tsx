@@ -81,7 +81,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
     page = SidebarPages.Files;
     productType = undefined;
 
-    renderer: ItemRenderer<FileMetadataTemplateNamespace> = {
+    renderer: ItemRenderer<FileMetadataTemplateNamespace, StandardCallbacks<FileMetadataTemplate> & TemplateCallbacks> = {
         Icon({resource, size}) {return <Icon name={"docs"} size={size} />},
         MainTitle({resource}) {
             return <>{resource?.status?.latestTitle ?? resource?.specification?.name ?? ""}</>
@@ -93,17 +93,19 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
         }
     };
 
-    templateRenderer: ItemRenderer<FileMetadataTemplate> = {
+    templateRenderer: ItemRenderer<FileMetadataTemplate, TemplateCallbacks> = {
         Icon({resource, size}) {
             return <SvgFt width={size} height={size} type={"text"} ext={""}
                 color={getCssVar("FtIconColor")} color2={getCssVar("FtIconColor2")}
                 hasExt={false} />
         },
         MainTitle({resource}) {return !resource ? null : <>{resource.title}</>},
-        Stats({resource}) { return !resource ? null : <>
-            <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt ?? 0)}</ListRowStat>
-            <ListRowStat icon={"hashtag"}>{resource.version}</ListRowStat>
-        </>}
+        Stats({resource}) {
+            return !resource ? null : <>
+                <ListRowStat icon={"calendar"}>{dateToString(resource.createdAt ?? 0)}</ListRowStat>
+                <ListRowStat icon={"hashtag"}>{resource.version}</ListRowStat>
+            </>
+        }
     };
 
     private templateOps: Operation<FileMetadataTemplate, StandardCallbacks<FileMetadataTemplate> & TemplateCallbacks>[] = [
@@ -157,7 +159,7 @@ class MetadataNamespaceApi extends ResourceApi<FileMetadataTemplateNamespace, Pr
                 embedded={"inline"}
                 onSelect={props.onSelect}
                 extraCallbacks={extraCallbacks}
-                navigate={setPreviewing}
+                navigate={it => setPreviewing(it)}
                 hide={!!previewing}
             />
             {previewing ? <>

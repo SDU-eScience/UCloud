@@ -980,7 +980,7 @@ class ProjectQueryService(
                 )
             },
             mapper = { _, rows -> rows.map { row ->
-                val role = row.getField(ProjectMemberTable.role) as String?
+                val role = row.getFieldNullable(ProjectMemberTable.role)
                 MemberInProject(if (role == null) null else ProjectRole.valueOf(role), row.toProject()) }
             }
         )
@@ -1194,7 +1194,8 @@ class ProjectQueryService(
                 p.copy(
                     ancestorPath = viewAncestors(
                         session,
-                        actor,
+                        // NOTE(Dan): we always allow viewing the title of an ancestor project (fixes #3138)
+                        Actor.System,
                         p.projectId
                     ).dropLast(1).joinToString("/") { it.title }
                 )

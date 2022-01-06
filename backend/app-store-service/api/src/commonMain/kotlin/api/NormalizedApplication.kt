@@ -143,6 +143,9 @@ data class ApplicationInvocationDescription(
     @UCloudApiDoc("Flag to enable/disable multiple replicas of this Application (default: false)")
     val allowMultiNode: Boolean = false,
 
+    @UCloudApiDoc("Flag to enable/disable support for public IP (default false)")
+    val allowPublicIp: Boolean? = false,
+
     @UCloudApiDoc("""
         The file extensions which this Application can handle
         

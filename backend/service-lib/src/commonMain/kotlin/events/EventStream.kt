@@ -16,7 +16,7 @@ interface EventStream<V : Any> {
 data class JsonEventStream<V : Any>(
     override val name: String,
     val serializer: KSerializer<V>,
-    override val keySelector: (V) -> String,
+    override val keySelector: (V) -> String = { "" },
     override val desiredPartitions: Int? = null,
     override val desiredReplicas: Short? = null
 ) : EventStream<V> {

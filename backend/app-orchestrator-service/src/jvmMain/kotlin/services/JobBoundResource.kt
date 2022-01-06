@@ -78,11 +78,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                 val resources = resourcesFromJob(job)
                 if (resources.isEmpty()) return
 
-                val actorAndProject = ActorAndProject(
-                    // TODO This should probably be the provider?
-                    Actor.SystemOnBehalfOfUser(job.owner.createdBy),
-                    job.owner.project
-                )
+                val actorAndProject = ActorAndProject(Actor.System, job.owner.project)
 
                 addUpdate(
                     actorAndProject,
@@ -115,7 +111,8 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                                 boundUpdate(JobBinding(JobBindKind.UNBIND, job.id))
                             )
                         }
-                    )
+                    ),
+                    requireAll = false,
                 )
             }
         })
@@ -163,6 +160,7 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     from new_updates u
                     where u.id = i.resource
                 """,
+                "${this::class.simpleName} on bound update"
             )
     }
 }

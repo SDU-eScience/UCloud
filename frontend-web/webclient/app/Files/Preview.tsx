@@ -13,7 +13,7 @@ import styled from "styled-components";
 
 export const MAX_PREVIEW_SIZE_IN_BYTES = 50_000_000;
 
-export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) => {
+export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
     const extension = extensionFromPath(file.id);
     const isValidExtension = isExtPreviewSupported(extension);
     const type = extensionTypeFromPath(file.id);
@@ -24,8 +24,9 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
 
     const fetchData = React.useCallback(async () => {
         const size = file.status.sizeInBytes;
+        console.log(size);
         if (file.status.type !== "FILE") return;
-        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES) {
+        if (!loading && isValidExtension && size != null && size < MAX_PREVIEW_SIZE_IN_BYTES && size > 0) {
             try {
                 const download = await invokeCommand<BulkResponse<FilesCreateDownloadResponseItem>>(
                     FilesApi.createDownload(bulkRequestOf({id: file.id})),
@@ -59,6 +60,8 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
             }
         } else if (size != null && size >= MAX_PREVIEW_SIZE_IN_BYTES) {
             setError("File is too large to preview");
+        } else if (!size || size <= 0) {
+            setError("File is empty");
         } else {
             setError("Preview is not supported for this file.");
         }
@@ -69,7 +72,7 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
     }, [file]);
 
     if (file.status.type !== "FILE") return null;
-    if (loading) return <PredicatedLoadingSpinner loading/>
+    if ((loading || data === "") && !error) return <PredicatedLoadingSpinner loading />
 
     let node: JSX.Element | null;
 
@@ -78,13 +81,13 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
         case "code":
             /* Even 100_000 tanks performance. Anything above stalls or kills the sandbox process. */
             if (file.status.sizeInBytes == null || file.status.sizeInBytes > 100_000) {
-                node = <div><pre className="fullscreen">{data}</pre></div>
+                node = <FullWidth><pre className="fullscreen text-preview">{data}</pre></FullWidth>
             } else {
-                node = <div><SyntaxHighlighter className="fullscreen">{data}</SyntaxHighlighter></div>;
+                node = <FullWidth><SyntaxHighlighter className="fullscreen text-preview">{data}</SyntaxHighlighter></FullWidth>;
             }
             break;
         case "image":
-            node = <img alt={fileName(file.id)} src={data}/>
+            node = <img alt={fileName(file.id)} src={data} />
             break;
         case "audio":
             node = <audio controls src={data} />;
@@ -99,7 +102,7 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
             node = <div><Markdown>{data}</Markdown></div>;
             break;
         default:
-            node = <div/>
+            node = <div />
             break;
     }
 
@@ -110,14 +113,18 @@ export const FilePreview: React.FunctionComponent<{ file: UFile }> = ({file}) =>
     return <ItemWrapper>{node}</ItemWrapper>;
 }
 
+const FullWidth = styled.div`
+    width: 100%;
+`;
+
 const ItemWrapper = styled.div`
     display: flex;
     justify-content: center;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
 
     & > * {
       max-width: 100%;
-      max-height: calc(100vh - 200px);
+      max-height: calc(100vh - 300px);
       overflow-y: scroll;
     }
 `;

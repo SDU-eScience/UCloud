@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.kubernetes.rpc
 
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
 import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
 import dk.sdu.cloud.app.kubernetes.services.NetworkIPService
@@ -27,6 +28,10 @@ class NetworkIPController(
 
         implement(KubernetesNetworkIP.verify) {
             ok(Unit)
+        }
+
+        implement(KubernetesNetworkIP.updateAcl) {
+            ok(BulkResponse(request.items.map {  }))
         }
 
         implement(KubernetesNetworkIP.retrieveProducts) {

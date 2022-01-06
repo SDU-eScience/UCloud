@@ -46,7 +46,7 @@ export const Applications: React.FunctionComponent = () => {
 
     const goToPage = useCallback((page: number, itemsPerPage: number) => {
         if (tag === null) {
-             history.push(Pages.browse(itemsPerPage, page));
+            history.push(Pages.browse(itemsPerPage, page));
         } else {
             history.push(Pages.browseByTag(tag, itemsPerPage, page));
         }

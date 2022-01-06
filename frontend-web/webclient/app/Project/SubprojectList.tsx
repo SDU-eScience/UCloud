@@ -222,7 +222,7 @@ export default function SubprojectList(): JSX.Element | null {
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <>
-                    <ProjectBreadcrumbs omitActiveProject crumbs={[{title: subproject.data.title}, {title: "Subprojects"}]} />
+                    <ProjectBreadcrumbs crumbs={[{title: "Subprojects"}]} />
                     <StandardBrowse
                         reloadRef={reloadRef}
                         generateCall={generateCall}

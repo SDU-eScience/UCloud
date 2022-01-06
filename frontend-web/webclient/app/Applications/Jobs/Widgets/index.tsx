@@ -124,17 +124,18 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
 
     if (props.active !== false) {
         return <>
-            <Box mt={"1em"}>
+            <Box mt={"1em"} data-param-type={props.parameter.type} data-component={`app-parameter`}>
                 <Label fontSize={1} htmlFor={parameter.name}>
                     <Flex>
-                        <Flex>
+                        <Flex data-component={"param-title"}>
                             {parameter.title}
                             {parameter.optional ? null : <MandatoryField />}
                         </Flex>
                         {!parameter.optional || !props.onRemove ? null : (
                             <>
                                 <Box ml="auto" />
-                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}>
+                                <Text color="red" cursor="pointer" mb="4px" onClick={props.onRemove} selectable={false}
+                                      data-component={"param-remove"}>
                                     Remove
                                     <Icon ml="6px" size={16} name="close" />
                                 </Text>
@@ -150,9 +151,9 @@ export const Widget: React.FunctionComponent<WidgetProps & RootWidgetProps> = pr
             </Box>
         </>;
     } else {
-        return <Box>
+        return <Box data-param-type={props.parameter.type} data-component={"app-parameter"}>
             <InactiveWidget onClick={toggleOpen}>
-                <strong>{parameter.title}</strong>
+                <strong data-component={"param-title"}>{parameter.title}</strong>
                 {!open ? (
                     <EllipsedText width="200px">
                         <Markdown allowedElements={["text", "paragraph"]}>

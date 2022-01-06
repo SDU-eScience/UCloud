@@ -29,7 +29,7 @@ data class ResourceChargeCredits(
     @UCloudApiDoc("Amount of units to charge the user")
     val units: Long,
 
-    val numberOfProducts: Long = 1L,
+    val periods: Long = 1L,
 
     val performedBy: String? = null,
 
@@ -130,6 +130,26 @@ abstract class ResourceControlApi<
             requestClass = typeOf<BulkRequest<ResourceUpdateAndId<Update>>>(),
             successClass = typeOf<Unit>(),
             errorClass = typeOf<CommonErrorMessage>(),
+        )
+
+    val checkCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
+            CommonErrorMessage>
+        get() = call(
+            name = "checkCredits",
+            handler = {
+                httpUpdate(
+                    BulkRequest.serializer(ResourceChargeCredits.serializer()),
+                    baseContext,
+                    "checkCredits",
+                    roles = Roles.PROVIDER
+                )
+            },
+            requestType = BulkRequest.serializer(ResourceChargeCredits.serializer()),
+            successType = ResourceChargeCreditsResponse.serializer(),
+            errorType = CommonErrorMessage.serializer(),
+            requestClass = typeOf<BulkRequest<ResourceChargeCredits>>(),
+            successClass = typeOf<ResourceChargeCreditsResponse>(),
+            errorClass = typeOf<CommonErrorMessage>()
         )
 
     val chargeCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,

@@ -82,6 +82,8 @@ class GrantNotificationService(
                         project.projects existing_project on
                             app.grant_recipient_type = 'existing_project' and
                             app.grant_recipient = existing_project.id
+                    where
+                        app.id = :id
                 """
             ).rows.map {
                 QueryRow(
@@ -163,10 +165,12 @@ class GrantNotificationService(
                 )
             }
 
-            MailDescriptions.sendToUser.call(
-                bulkRequestOf(sendRequests),
-                serviceClient
-            )
+            if (sendRequests.isNotEmpty()) {
+                MailDescriptions.sendToUser.call(
+                    bulkRequestOf(sendRequests),
+                    serviceClient
+                )
+            }
         }
     }
 

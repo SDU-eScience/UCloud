@@ -92,10 +92,14 @@ FileCollections.browse.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -113,8 +117,6 @@ FileCollections.browse.call(
 /*
 PageV2(
     items = listOf(FileCollection(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "54123", 
         owner = ResourceOwner(
@@ -169,10 +171,14 @@ FileCollections.browse.call(
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
             filterIds = null, 
+            filterMemberFiles = null, 
             filterProductCategory = null, 
             filterProductId = null, 
             filterProvider = null, 
             filterProviderIds = null, 
+            hideProductCategory = null, 
+            hideProductId = null, 
+            hideProvider = null, 
             includeOthers = false, 
             includeProduct = false, 
             includeSupport = false, 
@@ -190,8 +196,6 @@ FileCollections.browse.call(
 /*
 PageV2(
     items = listOf(FileCollection(
-        acl = null, 
-        billing = ResourceBilling.Free, 
         createdAt = 1635151675465, 
         id = "54123", 
         owner = ResourceOwner(
@@ -305,6 +309,7 @@ await callAPI(FilesCollectionsApi.retrieveProducts(
 await callAPI(FilesCollectionsApi.browse(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -316,7 +321,10 @@ await callAPI(FilesCollectionsApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -359,10 +367,7 @@ await callAPI(FilesCollectionsApi.browse(
                 "others": [
                 ]
             },
-            "providerGeneratedId": null,
-            "acl": null,
-            "billing": {
-            }
+            "providerGeneratedId": null
         }
     ],
     "next": null
@@ -392,6 +397,7 @@ await callAPI(FilesCollectionsApi.rename(
 await callAPI(FilesCollectionsApi.browse(
     {
         "flags": {
+            "filterMemberFiles": null,
             "includeOthers": false,
             "includeUpdates": false,
             "includeSupport": false,
@@ -403,7 +409,10 @@ await callAPI(FilesCollectionsApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
-            "filterIds": null
+            "filterIds": null,
+            "hideProductId": null,
+            "hideProductCategory": null,
+            "hideProvider": null
         },
         "itemsPerPage": null,
         "next": null,
@@ -446,10 +455,7 @@ await callAPI(FilesCollectionsApi.browse(
                 "others": [
                 ]
             },
-            "providerGeneratedId": null,
-            "acl": null,
-            "billing": {
-            }
+            "providerGeneratedId": null
         }
     ],
     "next": null
@@ -567,10 +573,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                 "others": [
 #                 ]
 #             },
-#             "providerGeneratedId": null,
-#             "acl": null,
-#             "billing": {
-#             }
+#             "providerGeneratedId": null
 #         }
 #     ],
 #     "next": null
@@ -626,10 +629,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/collections/
 #                 "others": [
 #                 ]
 #             },
-#             "providerGeneratedId": null,
-#             "acl": null,
-#             "billing": {
-#             }
+#             "providerGeneratedId": null
 #         }
 #     ],
 #     "next": null

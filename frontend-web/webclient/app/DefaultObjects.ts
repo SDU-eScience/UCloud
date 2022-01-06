@@ -1,8 +1,6 @@
 import {DashboardStateProps} from "@/Dashboard";
 import {Notification} from "@/Notifications";
 import * as ProjectRedux from "@/Project/Redux";
-import {Reducer} from "redux";
-import {SimpleSearchStateProps} from "@/Search";
 import {SidebarOption} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Upload} from "@/Files/Upload";
@@ -24,6 +22,9 @@ import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {doNothing} from "@/UtilityFunctions";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
+import {useHistory} from "react-router";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {History} from "history";
 
 export enum KeyCode {
     ENTER = 13,
@@ -46,7 +47,7 @@ export const emptyPage: Readonly<Page<any>> =
     {items: [], itemsInTotal: 0, itemsPerPage: 25, pageNumber: 0};
 
 export const emptyPageV2: Readonly<UCloud.PageV2<any>> =
-    {items: [], itemsPerPage: 25};
+    {items: [], itemsPerPage: 100};
 
 export function pageV2Of<T>(...items: T[]): PageV2<T> {
     return {items, itemsPerPage: items.length, next: undefined};
@@ -129,7 +130,7 @@ export interface HookStore {
     uploadPath?: string;
 
     searchPlaceholder?: string;
-    onSearch?: (query: string) => void;
+    onSearch?: (query: string, history: History) => void;
 
     projectCache?: ProjectCache;
     projectManagementDetails?: APICallStateWithParams<UserInProject>;
@@ -150,8 +151,6 @@ interface LegacyReduxObject {
     status: StatusReduxObject;
     notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
-    sidebar: SidebarReduxObject;
-    simpleSearch: SimpleSearchStateProps;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
     project: ProjectRedux.State;
@@ -191,8 +190,6 @@ export function initObject(): ReduxObject {
         status: initStatus(),
         header: initHeader(),
         notifications: initNotifications(),
-        sidebar: initSidebar(),
-        simpleSearch: initSimpleSearch(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,
@@ -202,33 +199,28 @@ export function initObject(): ReduxObject {
 export type AvatarReduxObject = typeof defaultAvatar & { error?: string };
 export const initAvatar = (): AvatarReduxObject => ({...defaultAvatar, error: undefined});
 
-export const initSimpleSearch = (): SimpleSearchStateProps => ({
-    errors: [],
-    search: "",
-});
+export const defaultSearchPlaceholder = "Search files and applications..."
 
-export const initSidebar = (): SidebarReduxObject => ({
-    pp: false,
-    kcCount: 0,
-    options: []
-});
+export function defaultSearch(query: string, history: History) {
+    history.push(buildQueryString("/files/search", {q: query}));
+}
 
-export function useSearch(onSearch: (query: string) => void): void {
-    const [, setOnSearch] = useGlobal("onSearch", doNothing);
+export function useSearch(onSearch: (query: string, history: History) => void): void {
+    const [, setOnSearch] = useGlobal("onSearch", defaultSearch);
     useEffect(() => {
         setOnSearch(() => onSearch);
         return () => {
-            setOnSearch(() => doNothing);
+            setOnSearch(() => defaultSearch);
         };
     }, [setOnSearch, onSearch]);
 }
 
 export function useSearchPlaceholder(searchPlaceholder: string): void {
-    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", "");
+    const [, setSearchPlaceholder] = useGlobal("searchPlaceholder", defaultSearchPlaceholder);
     useEffect(() => {
         setSearchPlaceholder(searchPlaceholder);
         return () => {
-            setSearchPlaceholder("");
+            setSearchPlaceholder(defaultSearchPlaceholder);
         };
     }, [setSearchPlaceholder, searchPlaceholder]);
 }

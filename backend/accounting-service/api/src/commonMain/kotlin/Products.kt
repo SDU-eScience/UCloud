@@ -242,6 +242,8 @@ sealed class Product : DocVisualizable {
         init {
             verify()
         }
+
+        override fun toString() = super.toString()
     }
 
     @Serializable
@@ -293,6 +295,8 @@ sealed class Product : DocVisualizable {
                 )
             )
         }
+
+        override fun toString() = super.toString()
     }
 
     @Serializable
@@ -323,6 +327,8 @@ sealed class Product : DocVisualizable {
         init {
             verify()
         }
+
+        override fun toString() = super.toString()
     }
 
     @Serializable
@@ -354,6 +360,8 @@ sealed class Product : DocVisualizable {
         init {
             verify()
         }
+
+        override fun toString() = super.toString()
     }
 
     @Serializable
@@ -384,6 +392,8 @@ sealed class Product : DocVisualizable {
         init {
             verify()
         }
+
+        override fun toString() = super.toString()
     }
 
     @Serializable
@@ -468,6 +478,10 @@ sealed class Product : DocVisualizable {
 
             }
         }
+    }
+
+    override fun toString(): String {
+        return "${name}/${category.name}@${category.provider}"
     }
 }
 

@@ -15,6 +15,7 @@ data class PartialUFile(
     val createdAt: Long,
     val owner: ResourceOwner?,
     val permissions: ResourcePermissions?,
+    val legacySensitivity: String?,
 )
 ```
 
@@ -70,6 +71,17 @@ data class PartialUFile(
 <details>
 <summary>
 <code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> The permissions of the file. Corresponds to UFile.permissions.This will default to the collection's permissions.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>legacySensitivity</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Legacy for reading old sensitivity values stored on in extended attributes
 </summary>
 
 

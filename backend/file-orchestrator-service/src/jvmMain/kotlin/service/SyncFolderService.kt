@@ -249,7 +249,11 @@ class SyncFolderService(
             )
     }
 
-    override suspend fun browseQuery(flags: SyncFolderIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: SyncFolderIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)

@@ -101,15 +101,21 @@ class Server(
         val providerDao = ProviderDao()
         val providerService = ProviderService(micro.developmentModeEnabled, db, providerDao)
 
-        if (micro.commandLineArguments.contains("--tokenScan")) {
-            log.info("Scanning for expired refresh tokens.")
-            runBlocking {
-                db.withTransaction { session ->
-                    refreshTokenDao.deleteExpired(session)
+        val scriptManager = micro.feature(ScriptManager)
+        scriptManager.register(
+            Script(
+                ScriptMetadata(
+                    "token-scan",
+                    "Authentication: Token Scan",
+                    WhenToStart.Daily(0, 0)
+                ),
+                script = {
+                    db.withTransaction { session ->
+                        refreshTokenDao.deleteExpired(session)
+                    }
                 }
-            }
-            exitProcess(0)
-        }
+            )
+        )
 
         if (micro.developmentModeEnabled) {
             runBlocking {
