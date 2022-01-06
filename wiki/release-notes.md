@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 06-01-21
+
+Post-launch patches.
+
+```
+✅  Deployment(accounting, 2022.1.1-patch.7) (UP-TO-DATE)
+```
+
 ## 05-01-21
 
 Post-launch patches.
