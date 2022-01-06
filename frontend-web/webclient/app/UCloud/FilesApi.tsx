@@ -11,7 +11,7 @@ import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
 import {FileCollection, FileCollectionSupport} from "@/UCloud/FileCollectionsApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Box, Button, FtIcon, Link, Select, Text, TextArea} from "@/ui-components";
+import {Box, Button, Flex, FtIcon, Icon, Link, Select, Text, TextArea} from "@/ui-components";
 import * as React from "react";
 import {
     fileName,
@@ -43,7 +43,6 @@ import {SynchronizationSettings} from "@/Files/Synchronization";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {callAPI, InvokeCommand} from "@/Authentication/DataHook";
@@ -236,9 +235,16 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = useSensitivity(resource);
 
-            return <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
-                <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
-            </div>;
+            return <Flex>
+                {resource.status.synced ?
+                    <div style={{cursor: "pointer"}} onClick={() => addSynchronizationDialog(resource, callbacks)}>
+                        <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
+                    </div>
+                : null }
+                <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
+                    <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
+                </div>
+            </Flex>;
         },
         Stats({resource}) {
             if (resource == null) return null;
@@ -582,18 +588,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         selected[0].status.type === "DIRECTORY";
                 },
                 onClick: async (selected, cb) => {
-                    const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
-
-                    if (provider) {
-                        dialogStore.addDialog(
-                            <SynchronizationSettings file={selected[0]} provider={provider} onSuccess={() => cb.reload()} />,
-                            doNothing,
-                            true,
-                            this.fileSelectorModalStyle
-                        );
-                    } else {
-                        snackbarStore.addFailure("Synchronization not supported by provider", false);
-                    }
+                    addSynchronizationDialog(selected[0], cb)
                 }
             },
             {
@@ -901,6 +896,21 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
+}
+
+async function addSynchronizationDialog(file: UFile, cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): Promise<void> {
+    const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
+
+    if (provider) {
+        dialogStore.addDialog(
+            <SynchronizationSettings file={file} provider={provider} onSuccess={() => cb.reload()} />,
+            () => undefined,
+            true
+            //this.fileSelectorModalStyle
+        );
+    } else {
+        snackbarStore.addFailure("Synchronization not supported by provider", false);
+    }
 }
 
 const api = new FilesApi();
