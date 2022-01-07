@@ -143,8 +143,8 @@ internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: Str
             },
             """
                 SELECT *
-                FROM applications
-                WHERE name = ?appname
+                FROM app_store.applications
+                WHERE name = :appname
                 LIMIT 1
             """.trimIndent()
         ).rows.singleOrNull()?.getField(ApplicationTable.owner)
