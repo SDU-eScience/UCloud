@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
@@ -28,10 +29,12 @@ val CallHandler<*, *, *>.ucloudUsername: String?
         var username: String? = null
         withContext<HttpCall> {
             username = ctx.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+                ?.let { base64Decode(it).decodeToString() }
         }
 
         withContext<WSCall> {
             username = ctx.session.underlyingSession.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+                ?.let { base64Decode(it).decodeToString() }
         }
         return username
     }

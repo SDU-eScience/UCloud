@@ -164,11 +164,13 @@ const Resources: React.FunctionComponent = () => {
                             </VisualizationSection>
 
                             {managementStatus.allowManagement ?
-                                <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                    loadMore={loadMoreAllocations}
-                                    filterByAllocation={filterByAllocation}
-                                    filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                    onQuery={onSubAllocationQuery} /> : null}
+                                <div style={{height: "calc(100% + 280px)"}}>
+                                    <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                        loadMore={loadMoreAllocations}
+                                        filterByAllocation={filterByAllocation}
+                                        filterByWorkspace={filterByWorkspace} wallets={wallets}
+                                        onQuery={onSubAllocationQuery} />
+                                </div> : null}
                         </>
                     }
                 </Grid>

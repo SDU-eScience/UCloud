@@ -30,17 +30,37 @@ class GrantApplicationService(
                     setParameter("grant_recipient_type", request.recipientType)
                 },
                 """
-                    with can_submit_application as (
-                        select "grant".can_submit_application(:username, :source, :grant_recipient,
-                            :grant_recipient_type) can_submit
-                    )
+                    with
+                        can_submit_application as (
+                            select "grant".can_submit_application(:username, :source, :grant_recipient,
+                                :grant_recipient_type) can_submit
+                        ),
+                        approver_permission_check as (
+                            select true can_submit
+                            from
+                                project.project_members pm
+                            where
+                                pm.project_id = :source and
+                                (pm.role = 'ADMIN' or pm.role = 'PI') and
+                                pm.username = :username
+                        ),
+                        permission_check as (
+                            select bool_or(can_submit) can_submit
+                            from (
+                                select can_submit
+                                from can_submit_application
+                                union
+                                select can_submit
+                                from approver_permission_check
+                            ) t
+                        )
                     select accounting.product_to_json(p, pc, null)
                     from
-                        can_submit_application join
+                        permission_check join
                         accounting.products p on can_submit join
                         accounting.product_categories pc on p.category = pc.id join
                         accounting.wallet_owner wo on wo.project_id = :source join
-                        accounting.wallets w on 
+                        accounting.wallets w on
                             wo.id = w.owned_by and
                             pc.id = w.category join
                         accounting.wallet_allocations alloc on

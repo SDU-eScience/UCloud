@@ -88,7 +88,8 @@ class AccountingService(
                         )
                         select accounting.charge(array_agg(req))
                         from requests;
-                    """
+                    """,
+                    "Accounting Charge"
                 ).rows.forEach {
                     val res = it[0] as? Int
                     if (res != null) {
@@ -123,23 +124,24 @@ class AccountingService(
                     session.sendPreparedStatement(
                         packChargeRequests(request),
                         """
-                        with requests as (
-                            select (
-                                unnest(:payer_ids::text[]),
-                                unnest(:payer_is_project::boolean[]),
-                                unnest(:units::bigint[]),
-                                unnest(:periods::bigint[]),
-                                unnest(:product_ids::text[]),
-                                unnest(:product_categories::text[]),
-                                unnest(:product_provider::text[]),
-                                unnest(:performed_by::text[]),
-                                unnest(:descriptions::text[]),
-                                unnest(:transaction_ids::text[])
-                            )::accounting.charge_request req
-                        )
-                        select accounting.credit_check(array_agg(req))
-                        from requests;
-                    """
+                            with requests as (
+                                select (
+                                    unnest(:payer_ids::text[]),
+                                    unnest(:payer_is_project::boolean[]),
+                                    unnest(:units::bigint[]),
+                                    unnest(:periods::bigint[]),
+                                    unnest(:product_ids::text[]),
+                                    unnest(:product_categories::text[]),
+                                    unnest(:product_provider::text[]),
+                                    unnest(:performed_by::text[]),
+                                    unnest(:descriptions::text[]),
+                                    unnest(:transaction_ids::text[])
+                                )::accounting.charge_request req
+                            )
+                            select accounting.credit_check(array_agg(req))
+                            from requests;
+                        """,
+                        "Accounting Check"
                     ).rows.map {
                         it.getBoolean(0)!!
                     }
@@ -260,7 +262,8 @@ class AccountingService(
                         )
                         select accounting.deposit(array_agg(req))
                         from requests
-                    """
+                    """,
+                    "Accounting Deposit"
                 )
 
                 if (isDry == true) {
@@ -497,25 +500,26 @@ class AccountingService(
                         parameters()
                     },
                     """
-                    with requests as (
-                        select (
-                            unnest(:source_ids::text[]),
-                            unnest(:sources_are_projects::bool[]),
-                            unnest(:target_ids::text[]),
-                            unnest(:targets_are_projects::bool[]),
-                            unnest(:amounts::bigint[]),
-                            unnest(:categories::text[]),
-                            unnest(:providers::text[]),
-                            to_timestamp(unnest(:start_dates::bigint[])),
-                            to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[])
-                        )::accounting.transfer_request req
-                    )
-                    select accounting.credit_check(array_agg(req))
-                    from requests;
-                """
+                        with requests as (
+                            select (
+                                unnest(:source_ids::text[]),
+                                unnest(:sources_are_projects::bool[]),
+                                unnest(:target_ids::text[]),
+                                unnest(:targets_are_projects::bool[]),
+                                unnest(:amounts::bigint[]),
+                                unnest(:categories::text[]),
+                                unnest(:providers::text[]),
+                                to_timestamp(unnest(:start_dates::bigint[])),
+                                to_timestamp(unnest(:end_dates::bigint[])),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[])
+                            )::accounting.transfer_request req
+                        )
+                        select accounting.credit_check(array_agg(req))
+                        from requests;
+                    """,
+                    "Accounting Transfer 1"
                 ).rows
                     .forEach {
                         if (!it.getBoolean(0)!!) {
@@ -528,25 +532,26 @@ class AccountingService(
                         parameters()
                     },
                     """
-                    with requests as (
-                        select (
-                            unnest(:source_ids::text[]),
-                            unnest(:sources_are_projects::bool[]),
-                            unnest(:target_ids::text[]),
-                            unnest(:targets_are_projects::bool[]),
-                            unnest(:amounts::bigint[]),
-                            unnest(:categories::text[]),
-                            unnest(:providers::text[]),
-                            to_timestamp(unnest(:start_dates::bigint[])),
-                            to_timestamp(unnest(:end_dates::bigint[])),
-                            unnest(:performed_by::text[]),
-                            unnest(:descriptions::text[]),
-                            unnest(:transaction_ids::text[])
-                        )::accounting.transfer_request req
-                    )
-                    select accounting.transfer(array_agg(req))
-                    from requests
-                """.trimIndent()
+                        with requests as (
+                            select (
+                                unnest(:source_ids::text[]),
+                                unnest(:sources_are_projects::bool[]),
+                                unnest(:target_ids::text[]),
+                                unnest(:targets_are_projects::bool[]),
+                                unnest(:amounts::bigint[]),
+                                unnest(:categories::text[]),
+                                unnest(:providers::text[]),
+                                to_timestamp(unnest(:start_dates::bigint[])),
+                                to_timestamp(unnest(:end_dates::bigint[])),
+                                unnest(:performed_by::text[]),
+                                unnest(:descriptions::text[]),
+                                unnest(:transaction_ids::text[])
+                            )::accounting.transfer_request req
+                        )
+                        select accounting.transfer(array_agg(req))
+                        from requests
+                    """.trimIndent(),
+                    "Accounting Transfer 2"
                 )
 
                 //make deposit to target wallet
@@ -556,75 +561,77 @@ class AccountingService(
                         retain("categories", "providers", "targets_are_projects", "target_ids")
                     },
                     """
-                    with requests as (
-                        select
-                            unnest(:categories::text[]) product_category,
-                            unnest(:providers::text[]) product_provider,
-                            unnest(:targets_are_projects::bool[]) is_project,
-                            unnest(:target_ids::text[]) account_id
-                    )
-                    insert into accounting.wallets (category, owned_by) 
-                    select pc.id, wo.id
-                    from
-                        requests req join
-                        accounting.product_categories pc on
-                            req.product_category = pc.category and
-                            req.product_provider = pc.provider join
-                        accounting.wallet_owner wo on 
-                            ( req.is_project and req.account_id = wo.project_id) 
-                            or (not req.is_project and req.account_id = wo.username)
-                           
-                    on conflict do nothing
-                """
+                        with requests as (
+                            select
+                                unnest(:categories::text[]) product_category,
+                                unnest(:providers::text[]) product_provider,
+                                unnest(:targets_are_projects::bool[]) is_project,
+                                unnest(:target_ids::text[]) account_id
+                        )
+                        insert into accounting.wallets (category, owned_by) 
+                        select pc.id, wo.id
+                        from
+                            requests req join
+                            accounting.product_categories pc on
+                                req.product_category = pc.category and
+                                req.product_provider = pc.provider join
+                            accounting.wallet_owner wo on 
+                                ( req.is_project and req.account_id = wo.project_id) 
+                                or (not req.is_project and req.account_id = wo.username)
+                               
+                        on conflict do nothing
+                    """,
+                    "Accounting Transfer 3"
                 )
                 val rowsAffected = session.sendPreparedStatement(
                     {
                         parameters()
                     },
                     """
-                    with 
-                        requests as (
-                            select 
-                                nextval('accounting.wallet_allocations_id_seq') alloc_id,
-                                unnest(:categories::text[]) product_category,
-                                unnest(:providers::text[]) product_provider,
-                                unnest(:targets_are_projects::bool[]) is_project,
-                                unnest(:target_ids::text[]) account_id,
-                                unnest(:amounts::bigint[]) balance,
-                                to_timestamp(unnest(:start_dates::bigint[])) start_date,
-                                to_timestamp(unnest(:end_dates::bigint[])) end_date,    
-                                unnest(:performed_by::text[]) performed_by, 
-                                unnest(:descriptions::text[]) description,
-                                unnest(:transaction_ids::text[]) transaction_id
-                        ),
-                        new_allocations as (
-                            insert into accounting.wallet_allocations
-                                (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
-                                allocation_path) 
-                            select
-                                req.alloc_id,
-                                w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
-                                req.end_date, req.alloc_id::text::ltree
-                            from
-                                requests req join
-                                accounting.product_categories pc on
-                                    req.product_category = pc.category and
-                                    req.product_provider = pc.provider join
-                                accounting.wallet_owner wo on
-                                    (req.is_project and req.account_id = wo.project_id) or
-                                    (not req.is_project and req.account_id = wo.username) join
-                                accounting.wallets w on
-                                    w.category = pc.id and
-                                    w.owned_by = wo.id
-                            returning id, balance
-                        )
-                    insert into accounting.transactions
-                        (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
-                    select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
-                    from
-                        new_allocations alloc join
-                        requests r on alloc.id = r.alloc_id
-                """
+                        with 
+                            requests as (
+                                select 
+                                    nextval('accounting.wallet_allocations_id_seq') alloc_id,
+                                    unnest(:categories::text[]) product_category,
+                                    unnest(:providers::text[]) product_provider,
+                                    unnest(:targets_are_projects::bool[]) is_project,
+                                    unnest(:target_ids::text[]) account_id,
+                                    unnest(:amounts::bigint[]) balance,
+                                    to_timestamp(unnest(:start_dates::bigint[])) start_date,
+                                    to_timestamp(unnest(:end_dates::bigint[])) end_date,    
+                                    unnest(:performed_by::text[]) performed_by, 
+                                    unnest(:descriptions::text[]) description,
+                                    unnest(:transaction_ids::text[]) transaction_id
+                            ),
+                            new_allocations as (
+                                insert into accounting.wallet_allocations
+                                    (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+                                    allocation_path) 
+                                select
+                                    req.alloc_id,
+                                    w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
+                                    req.end_date, req.alloc_id::text::ltree
+                                from
+                                    requests req join
+                                    accounting.product_categories pc on
+                                        req.product_category = pc.category and
+                                        req.product_provider = pc.provider join
+                                    accounting.wallet_owner wo on
+                                        (req.is_project and req.account_id = wo.project_id) or
+                                        (not req.is_project and req.account_id = wo.username) join
+                                    accounting.wallets w on
+                                        w.category = pc.id and
+                                        w.owned_by = wo.id
+                                returning id, balance
+                            )
+                        insert into accounting.transactions
+                            (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+                        select 'deposit', alloc.id, r.performed_by, alloc.balance, r.description, coalesce(r.start_date, now()), r.transaction_id, r.transaction_id
+                        from
+                            new_allocations alloc join
+                            requests r on alloc.id = r.alloc_id
+                    """,
+                    "Accounting Transfer 4"
                 ).rowsAffected
                 if (rowsAffected != request.items.size.toLong()) {
                     throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
@@ -674,8 +681,79 @@ class AccountingService(
                     )
                     select accounting.update_allocations(array_agg(req))
                     from requests
-                """
+                """,
+                "Accounting Update"
             )
+
+            val validAccordingToAncestors = session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long?>()
+                    for (req in request.items) {
+                        ids.add(req.id.toLongOrNull())
+                    }
+                },
+                """
+                    select bool_or(valid) is_valid
+                    from (
+                        select
+                            (ancestor.start_date <= updated.start_date) and
+                            (
+                                ancestor.end_date is null or
+                                ancestor.end_date >= updated.end_date
+                            ) is true as valid
+                        from
+                            accounting.wallet_allocations updated join
+                            accounting.wallet_allocations ancestor on
+                                ancestor.allocation_path @> updated.allocation_path and
+                                ancestor.id != updated.id
+                        where
+                            updated.id = some(:ids::bigint[])
+                    ) checks
+                """,
+                debug = true
+            ).rows.firstOrNull()?.getBoolean(0) ?: false
+
+            if (!validAccordingToAncestors) {
+                throw RPCException(
+                    "New allocation period is invalid. It doesn't overlap with ancestors.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            val validAccordingToDescendants = session.sendPreparedStatement(
+                {
+                    val ids by parameterList<Long?>()
+                    for (req in request.items) {
+                        ids.add(req.id.toLongOrNull())
+                    }
+                },
+                """
+                    select bool_or(valid) is_valid
+                    from (
+                        select
+                            (updated.start_date <= descendant.start_date) and
+                            (
+                                updated.end_date is null or
+                                updated.end_date >= descendant.end_date
+                            ) is true as valid
+                        from
+                            accounting.wallet_allocations updated join
+                            accounting.wallet_allocations descendant on
+                                updated.allocation_path @> descendant.allocation_path and
+                                descendant.id != updated.id
+                        where
+                            updated.id = some(:ids::bigint[])
+                    ) checks;
+                """,
+                debug = true
+            ).rows.firstOrNull()?.getBoolean(0) ?: false
+
+            if (!validAccordingToDescendants) {
+                throw RPCException(
+                    "New allocation period is invalid. It doesn't overlap with descendants.",
+                    HttpStatusCode.BadRequest
+                )
+            }
         }
     }
 
@@ -714,7 +792,8 @@ class AccountingService(
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
-                    """
+                    """,
+                    "Accounting Browse Wallets"
                 )
             },
             mapper = { _, rows ->
@@ -768,7 +847,8 @@ class AccountingService(
                             )
                         order by 
                             w.id, alloc.id, t.created_at desc
-                    """
+                    """,
+                    "Accounting Browse Transactions"
                 )
             },
             mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
@@ -859,7 +939,8 @@ class AccountingService(
                                 nlevel(owner_allocations.allocation_path) = nlevel(alloc.allocation_path) - 1
                             )
                         order by alloc_owner.username, alloc_owner.project_id, pc.provider, pc.category, alloc.id
-                    """
+                    """,
+                    "Accounting Browse Allocations"
                 )
             },
             mapper = { _, rows -> rows.map { defaultMapper.decodeFromString(it.getString(0)!!) } }
@@ -1062,7 +1143,8 @@ class AccountingService(
                             from chart_aggregation
                         )
                     select * from combined_charts;
-                """
+                """,
+                "Accounting Retrieve Usage"
             )
         }.rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
             "No usage data found. Are you sure you are allowed to view the data?",
@@ -1223,7 +1305,8 @@ class AccountingService(
                             from chart_aggregation
                         )
                     select * from combined_charts;
-                """
+                """,
+                "Accounting Retrieve Breakdown"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) } ?: throw RPCException(
                 "No usage data found. Are you sure you are allowed to view the data?",
                 HttpStatusCode.NotFound
@@ -1291,7 +1374,8 @@ class AccountingService(
                         'numberOfMembers', number_of_members
                     ) as result
                     from entries
-                """
+                """,
+                "Accounting Retrieve Recipient"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
                 ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
         }

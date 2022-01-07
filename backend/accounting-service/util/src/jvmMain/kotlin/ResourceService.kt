@@ -166,6 +166,7 @@ abstract class ResourceService<
                             accessible_resources resc join
                             spec on (resc.r).id = spec.resource
                     """,
+                    "${this::class.simpleName} retrieve"
                 )
                 .rows
                 .singleOrNull()
@@ -228,6 +229,7 @@ abstract class ResourceService<
                         where
                             spec.resource = some(:ids::bigint[])
                     """,
+                    "${this::class.simpleName} retrieveBulk"
                 )
                 .rows
                 .asSequence()
@@ -402,7 +404,8 @@ abstract class ResourceService<
                                             returning resource_id
                                         )
                                     select distinct resource_id from acl_entries;
-                                """
+                                """,
+                                "${this::class.simpleName} create 1"
                             )
                             .rows
                             .map { it.getLong(0)!! }
@@ -449,16 +452,17 @@ abstract class ResourceService<
                                     setParameter("resource_ids", lastBatchOfIds ?: error("Logic error"))
                                 },
                                 """
-                                with backend_ids as (
-                                    select
-                                        unnest(:provider_ids::text[]) as provider_id, 
-                                        unnest(:resource_ids::bigint[]) as resource_id
-                                )
-                                update provider.resource
-                                set provider_generated_id = b.provider_id, confirmed_by_provider = true
-                                from backend_ids b
-                                where id = b.resource_id
-                            """
+                                    with backend_ids as (
+                                        select
+                                            unnest(:provider_ids::text[]) as provider_id, 
+                                            unnest(:resource_ids::bigint[]) as resource_id
+                                    )
+                                    update provider.resource
+                                    set provider_generated_id = b.provider_id, confirmed_by_provider = true
+                                    from backend_ids b
+                                    where id = b.resource_id
+                                """,
+                                "${this::class.simpleName} create 2"
                             )
                         lastBatchOfIds?.forEach { adjustedResponse.add(FindByStringId(it.toString())) }
                         lastBatchOfIds = null
@@ -589,9 +593,10 @@ abstract class ResourceService<
                                         setParameter("to_remove_users", toRemoveUsers)
                                     },
                                     """
-                                    select provider.update_acl(:id, :to_add_groups, :to_add_users, 
-                                        :to_add_permissions, :to_remove_groups, :to_remove_users)
-                                """
+                                        select provider.update_acl(:id, :to_add_groups, :to_add_users, 
+                                            :to_add_permissions, :to_remove_groups, :to_remove_users)
+                                    """,
+                                    "${this::class.simpleName} updateAcl"
                                 )
                         }
 
@@ -806,7 +811,8 @@ abstract class ResourceService<
                         insert into provider.resource_update
                         (resource, created_at, status, extra) 
                         select unnest(:resource_ids::bigint[]), now(), unnest(:status_messages::text[]), unnest(:extra_messages::jsonb[])
-                    """
+                    """,
+                    "${this::class.simpleName} add update"
                 )
 
             onUpdate(resources, updates.items, session)
