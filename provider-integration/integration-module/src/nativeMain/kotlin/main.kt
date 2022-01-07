@@ -11,13 +11,11 @@ import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
-import dk.sdu.cloud.plugins.compute.slurm.SlurmJobMapper
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
-import dk.sdu.cloud.utils.Process
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
@@ -213,6 +211,7 @@ fun main(args: Array<String>) {
                     with(server) {
                         configureControllers(
                             controllerContext,
+                            FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig)
                         )

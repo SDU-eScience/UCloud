@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import kotlinx.coroutines.runBlocking
@@ -20,6 +21,21 @@ class IpcProxyServer {
                 JobsControl.update.fullName -> {
                     // TODO Verify the request
                     JobsControl.update
+                }
+
+                FileCollectionsControl.register.fullName -> {
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    FileCollectionsControl.register
                 }
 
                 else -> null

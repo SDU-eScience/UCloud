@@ -7,9 +7,15 @@ import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.provider.api.Resource
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
+    /**
+     * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init
+     */
+    suspend fun PluginContext.init(owner: ResourceOwner): Unit {}
+
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts
      */

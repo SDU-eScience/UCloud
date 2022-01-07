@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha13")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.0")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             api("io.ktor:ktor-client-curl:1.6.2-test")
             api("io.ktor:ktor-client-websockets:1.6.2-test")
@@ -99,14 +99,12 @@ kotlin {
 
         all {
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
         }
-
-
     }
 }
 

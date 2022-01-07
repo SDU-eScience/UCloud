@@ -5,10 +5,11 @@ import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.freeze
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
+import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -16,6 +17,10 @@ import kotlinx.serialization.json.JsonObject
 class PluginLoaderException(message: String) : RuntimeException(message)
 
 class PluginLoader(private val pluginContext: PluginContext) {
+    private val fileCollectionsPlugin = mapOf<String, () -> FileCollectionPlugin>(
+        "posix" to { PosixCollectionPlugin() }
+    )
+
     private val computePlugins = mapOf<String, () -> ComputePlugin>(
         "slurm" to { SlurmPlugin() }
     )
@@ -91,11 +96,12 @@ class PluginLoader(private val pluginContext: PluginContext) {
     fun load(): LoadedPlugins {
         val config = pluginContext.config
 
+        val fileCollection = config.plugins.fileCollection?.let { loadProductBasedPlugin(fileCollectionsPlugin, it) }
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
         val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
 
-        return LoadedPlugins(compute, connection, identityMapper)
+        return LoadedPlugins(fileCollection, compute, connection, identityMapper)
     }
 }
 
@@ -120,6 +126,7 @@ data class ProductBasedPlugins<T : Plugin<ProductBasedConfiguration>>(
 }
 
 data class LoadedPlugins(
+    val fileCollection: ProductBasedPlugins<FileCollectionPlugin>?,
     val compute: ProductBasedPlugins<ComputePlugin>?,
     val connection: ConnectionPlugin?,
     val identityMapper: IdentityMapperPlugin?,

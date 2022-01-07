@@ -144,9 +144,19 @@ abstract class BaseResourceController<
             OutgoingCallResponse.Ok(Unit)
         }
 
-        configureCustomEndpoints(plugins, api)
+        implement(api.init) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            plugins.plugins.forEach { (_, plugin) ->
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        init(request.principal)
+                    }
+                }
+            }
 
-        /*
-        */
+            OutgoingCallResponse.Ok(Unit)
+        }
+
+        configureCustomEndpoints(plugins, api)
     }
 }

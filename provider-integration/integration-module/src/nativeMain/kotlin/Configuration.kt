@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.readText
@@ -7,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 
 @Serializable
 data class ProductReferenceWithoutProvider(
@@ -49,6 +51,33 @@ data class ProductBasedConfiguration(
         val name: String? = null,
         val configuration: JsonObject? = null,
     )
+}
+
+inline fun <reified Config> ProductBasedConfiguration.completeConfiguration(): Map<Config, List<ProductReferenceWithoutProvider>> {
+    return plugins.mapNotNull { plugin ->
+        val cfg = plugin.configuration ?: return@mapNotNull null
+        val activeFor = products.filter { product ->
+            plugin.activeFor.any { it.matches(product) }
+        }
+
+        try {
+            defaultMapper.decodeFromJsonElement<Config>(cfg) to activeFor
+        } catch (ex: Throwable) {
+            throw IllegalStateException("Invalid configuration found", ex)
+        }
+    }.toMap()
+}
+
+inline fun <reified Config> ProductBasedConfiguration.config(product: ProductReference): Config {
+    val ref = ProductReferenceWithoutProvider(product.id, product.category)
+    val relevantConfig = plugins.find { config -> config.activeFor.any { it.matches(ref) } }
+        ?.configuration ?: error("No configuration found for product: $ref")
+
+    return try {
+        defaultMapper.decodeFromJsonElement(relevantConfig)
+    } catch (ex: Throwable) {
+        throw IllegalStateException("Invalid configuration found for $ref", ex)
+    }
 }
 
 sealed class ConfigurationException(message: String) : RuntimeException(message) {
@@ -146,6 +175,7 @@ class IMConfiguration(
 
     @Serializable
     data class Plugins(
+        val fileCollection: ProductBasedConfiguration? = null,
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
         val identityMapper: JsonObject? = null,
