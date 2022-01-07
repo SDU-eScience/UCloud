@@ -8,8 +8,8 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
-import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
+import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
@@ -17,6 +17,10 @@ import kotlinx.serialization.json.JsonObject
 class PluginLoaderException(message: String) : RuntimeException(message)
 
 class PluginLoader(private val pluginContext: PluginContext) {
+    private val filesPlugin = mapOf<String, () -> FilePlugin>(
+        "posix" to { PosixFilesPlugin() }
+    )
+
     private val fileCollectionsPlugin = mapOf<String, () -> FileCollectionPlugin>(
         "posix" to { PosixCollectionPlugin() }
     )
@@ -96,12 +100,13 @@ class PluginLoader(private val pluginContext: PluginContext) {
     fun load(): LoadedPlugins {
         val config = pluginContext.config
 
+        val files = config.plugins.files?.let { loadProductBasedPlugin(filesPlugin, it) }
         val fileCollection = config.plugins.fileCollection?.let { loadProductBasedPlugin(fileCollectionsPlugin, it) }
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
         val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
 
-        return LoadedPlugins(fileCollection, compute, connection, identityMapper)
+        return LoadedPlugins(files, fileCollection, compute, connection, identityMapper)
     }
 }
 
@@ -126,6 +131,7 @@ data class ProductBasedPlugins<T : Plugin<ProductBasedConfiguration>>(
 }
 
 data class LoadedPlugins(
+    val files: ProductBasedPlugins<FilePlugin>?,
     val fileCollection: ProductBasedPlugins<FileCollectionPlugin>?,
     val compute: ProductBasedPlugins<ComputePlugin>?,
     val connection: ConnectionPlugin?,

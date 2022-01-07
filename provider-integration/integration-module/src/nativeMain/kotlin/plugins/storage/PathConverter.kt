@@ -38,7 +38,7 @@ class PathConverter(private val ctx: PluginContext) {
         val product: ProductReferenceWithoutProvider,
     )
 
-    private val collectionCache = SimpleCache<String, FileCollection>(
+    val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,
         lookup = { collectionId ->
             FileCollectionsControl.retrieve.call(

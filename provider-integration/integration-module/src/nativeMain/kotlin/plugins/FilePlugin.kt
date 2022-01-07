@@ -1,0 +1,20 @@
+package dk.sdu.cloud.plugins
+
+import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.ProductBasedConfiguration
+import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.plugins.storage.UCloudFile
+
+interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ProductBasedConfiguration> {
+    suspend fun PluginContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile>
+    suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
+
+    override suspend fun PluginContext.create(resource: UFile): FindByStringId? {
+        error("Not supported by this plugin")
+    }
+
+    override suspend fun PluginContext.runMonitoringLoop() {}
+}

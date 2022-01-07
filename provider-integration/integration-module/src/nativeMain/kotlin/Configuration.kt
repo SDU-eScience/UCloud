@@ -175,6 +175,7 @@ class IMConfiguration(
 
     @Serializable
     data class Plugins(
+        val files: ProductBasedConfiguration? = null,
         val fileCollection: ProductBasedConfiguration? = null,
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,

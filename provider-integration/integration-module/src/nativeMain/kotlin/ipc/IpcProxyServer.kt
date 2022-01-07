@@ -17,7 +17,7 @@ class IpcProxyServer {
         server.addHandler(IpcHandler(IpcProxyRequestInterceptor.IPC_PROXY_METHOD) { _, req ->
             val proxyRequest = defaultMapper.decodeFromJsonElement<IpcProxyRequest>(req.params)
 
-            val call: CallDescription<*, *, *>? = when (proxyRequest.call) {
+            val call: CallDescription<*, *, *> = when (proxyRequest.call) {
                 JobsControl.update.fullName -> {
                     // TODO Verify the request
                     JobsControl.update
@@ -38,8 +38,38 @@ class IpcProxyServer {
                     FileCollectionsControl.register
                 }
 
+                FileCollectionsControl.retrieve.fullName -> {
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    FileCollectionsControl.retrieve
+                }
+
+                FileCollectionsControl.browse.fullName -> {
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    FileCollectionsControl.browse
+                }
+
                 else -> null
-            }
+            } ?: throw IllegalStateException("Unknown call! ${proxyRequest.call}")
 
             runBlocking {
                 @Suppress("UNCHECKED_CAST")

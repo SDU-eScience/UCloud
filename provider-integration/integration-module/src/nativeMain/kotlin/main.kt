@@ -211,6 +211,7 @@ fun main(args: Array<String>) {
                     with(server) {
                         configureControllers(
                             controllerContext,
+                            FileController(controllerContext),
                             FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig)

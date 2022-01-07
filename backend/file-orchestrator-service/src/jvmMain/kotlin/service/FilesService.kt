@@ -136,17 +136,6 @@ class FilesService(
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<UFile> {
-        (ctx ?: db).withSession { session ->
-            session.sendPreparedStatement(
-                {
-
-                },
-                """
-                    select pg_sleep(3)
-                """,
-                "Sleep"
-            )
-        }
         val path = request.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.READ)
         verifyReadRequest(request.flags, resolvedCollection.status.resolvedSupport!!.support)
