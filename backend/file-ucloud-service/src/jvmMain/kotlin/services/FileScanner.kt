@@ -24,10 +24,7 @@ import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import io.ktor.http.*
-import kotlinx.coroutines.asCoroutineDispatcher
-import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.elasticsearch.ElasticsearchException
@@ -41,6 +38,7 @@ import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.joda.time.LocalDateTime
+import java.net.SocketTimeoutException
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.math.abs
@@ -160,8 +158,14 @@ class FileScanner(
                 try {
                     var moreToDelete = true
                     while (moreToDelete) {
-                        val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
-                        if (response.deleted == 0L) moreToDelete = false
+                        try {
+                            val response = elastic.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                            if (response.deleted == 0L) moreToDelete = false
+                        } catch (ex: SocketTimeoutException) {
+                            log.warn(ex.message)
+                            log.warn("Socket Timeout: Delay and try again")
+                            delay(2000)
+                        }
                     }
                 } catch (ex: ElasticsearchException) {
                     log.warn(ex.message)

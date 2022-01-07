@@ -15,14 +15,6 @@ class ApplicationLogoAsyncDao(
 ) {
 
     suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
-        val applicationOwner = ctx.withSession { session ->
-            findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
-
-        if (user != null && applicationOwner != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         val exists = fetchLogo(ctx, name)
         if (exists != null) {
             ctx.withSession { session ->
@@ -49,14 +41,6 @@ class ApplicationLogoAsyncDao(
     }
 
     suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
-        val application =
-            ctx.withSession { session ->
-                findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        if (application != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {
