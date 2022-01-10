@@ -13,6 +13,7 @@ class NativeJWTValidation(certificate: String) {
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun validateOrNull(token: String): SecurityPrincipalToken? = memScoped {
+        // TODO(Dan): Valgrind is reporting that we are definitely leaking in this function
         val jwtRef = allocArrayOfPointersTo<jwt_t>(null)
         if (jwt_new(jwtRef) != 0) error("Unable to create JWT")
         defer { jwt_free(jwtRef[0]) }

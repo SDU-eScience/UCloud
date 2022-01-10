@@ -6,8 +6,10 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.http.HttpContext
+import dk.sdu.cloud.http.ThisWillNeverBeFreed
+import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.storage.InternalFile
@@ -17,6 +19,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.NativeFileException
+import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import platform.posix.*
@@ -101,6 +104,41 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
+    override suspend fun PluginContext.createDownload(
+        request: BulkRequest<FilesProviderCreateDownloadRequestItem>
+    ): List<FileDownloadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that the file exists
+            val stat = nativeStat(file)
+            if (stat.status.type != FileType.FILE) {
+                throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+            }
+
+            FileDownloadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String) {
+        val stat = nativeStat(InternalFile(pluginData))
+        if (stat.status.type != FileType.FILE) {
+            throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+        }
+
+        println("Trying to download: ${stat}")
+
+        /*
+        h2o_file_send(
+            ctx.reqPtr,
+            200, "OK",
+            pluginData,
+            h2o_iovec_init(genericMimeType.nativelyAllocated, genericMimeType.length),
+            0
+        )
+         */
+    }
+
     override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
         return nativeStat(pathConverter.ucloudToInternal(UCloudFile.create(request.retrieve.id)))
     }
@@ -128,5 +166,6 @@ class PosixFilesPlugin : FilePlugin {
         private const val S_ISREG = 0x8000U
         const val DEFAULT_DIR_MODE = 488U // 0750
         const val DEFAULT_FILE_MODE = 416U // 0640
+        private val genericMimeType = ThisWillNeverBeFreed("application/octet-stream")
     }
 }

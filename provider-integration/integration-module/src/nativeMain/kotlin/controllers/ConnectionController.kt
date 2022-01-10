@@ -193,28 +193,28 @@ class ConnectionController(
             OutgoingCallResponse.Ok(Unit)
         }
     }
+}
 
-    private fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
-        var result: String? = null
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                //language=SQLite
-                """
+fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
+    var result: String? = null
+    dbConnection.withSession { session ->
+        session.prepareStatement(
+            //language=SQLite
+            """
                     select ucloud_id 
                     from user_mapping 
                     where local_identity = :local_id
                 """
-            ).useAndInvoke(
-                prepare = {
-                    bindString("local_id", localId)
-                },
-                readRow = { row ->
-                    result = row.getString(0)!!
-                }
-            )
-        }
-        return result
+        ).useAndInvoke(
+            prepare = {
+                bindString("local_id", localId)
+            },
+            readRow = { row ->
+                result = row.getString(0)!!
+            }
+        )
     }
+    return result
 }
 
 const val UCLOUD_IM_PORT = 42000

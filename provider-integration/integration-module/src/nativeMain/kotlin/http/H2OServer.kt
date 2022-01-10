@@ -469,7 +469,7 @@ class H2OServer(
         uv_timer_start(idle.ptr, staticCFunction { _: CPointer<uv.uv_timer_t>? ->
             // This runs on the same thread as the WS code
             while (true) {
-                val frame = outgoingFrames.poll() ?: break
+                val frame = outgoingFrames.tryReceive().getOrNull() ?: break
                 val connPtr = frame.connPtr ?: continue
                 val conn = connPtr.pointed
                 val messageToSend = frame.message.encodeToByteArray()
