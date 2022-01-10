@@ -1,7 +1,10 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.api.UFile
@@ -20,6 +23,9 @@ class FileController(
     override fun retrieveApi(providerId: String): FilesProvider = FilesProvider(providerId)
 
     override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
+
+        val pathConverter = PathConverter(controllerContext.pluginContext)
+
         implement(api.browse) {
             val path = request.browse.flags.path
                 ?: throw RPCException("Bad request from UCloud (no  path)", HttpStatusCode.BadRequest)
@@ -40,5 +46,21 @@ class FileController(
                 }
             }
         }
+
+        implement(api.createFolder) {
+            val result = request.items.map { createFolderRequest ->
+                val collection = pathConverter.ucloudToCollection(UCloudFile.create(createFolderRequest.id))
+
+                val plugin = plugins.lookup(collection.specification.product)
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        createFolder(bulkRequestOf(createFolderRequest))
+                    }
+                }
+                null
+            }
+            OutgoingCallResponse.Ok(BulkResponse(result))
+        }
+
     }
 }

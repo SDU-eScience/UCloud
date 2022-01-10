@@ -3,28 +3,45 @@ package dk.sdu.cloud.plugins.storage.posix
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.NativeFileException
 import io.ktor.http.*
 import kotlinx.cinterop.*
-import platform.posix.closedir
-import platform.posix.fdopendir
-import platform.posix.readdir
-import platform.posix.stat
+import platform.posix.*
 
 class PosixFilesPlugin : FilePlugin {
     private lateinit var pathConverter: PathConverter
 
     override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
         pathConverter = PathConverter(this)
+    }
+
+    override suspend fun PluginContext.createFolder(
+        req: BulkRequest<FilesProviderCreateFolderRequestItem>
+    ): BulkResponse<LongRunningTask?> {
+        val result = req.items.map { reqItem ->
+            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
+
+            val err = mkdir(internalFile.path, DEFAULT_DIR_MODE)
+            if (err < 0) {
+                log.debug("Could not create directories at ${internalFile.path}")
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            null
+        }
+        return BulkResponse(result)
     }
 
     override suspend fun PluginContext.browse(
@@ -105,7 +122,11 @@ class PosixFilesPlugin : FilePlugin {
         })
     }
 
-    companion object {
+    companion object: Loggable {
+        override val log: Logger = logger()
+
         private const val S_ISREG = 0x8000U
+        const val DEFAULT_DIR_MODE = 488U // 0750
+        const val DEFAULT_FILE_MODE = 416U // 0640
     }
 }

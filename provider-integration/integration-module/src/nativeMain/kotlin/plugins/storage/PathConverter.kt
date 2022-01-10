@@ -51,6 +51,11 @@ class PathConverter(private val ctx: PluginContext) {
     private val cachedProviderIdsMutex = Mutex()
     private val cachedProviderIds = HashMap<String, FileCollection>()
 
+    suspend fun ucloudToCollection(uCloudFile: UCloudFile): FileCollection {
+        val collectionID = uCloudFile.path.components().firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return collectionCache.get(collectionID) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+    }
+
     suspend fun registerCollectionWithUCloud(collections: List<Collection>) {
         FileCollectionsControl.register.call(
             BulkRequest(

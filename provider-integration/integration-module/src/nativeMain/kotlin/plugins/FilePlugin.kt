@@ -5,6 +5,7 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.storage.UCloudFile
 
@@ -17,4 +18,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
     }
 
     override suspend fun PluginContext.runMonitoringLoop() {}
+
+    suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): BulkResponse<LongRunningTask?>
+
 }
