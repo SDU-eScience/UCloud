@@ -62,19 +62,13 @@ class SyncDeviceService(
         return PartialQuery(
             {
                 setParameter("query", query)
-                setParameter("filter_owner", flags?.filterOwner)
             },
             """
                 select *
                 from file_orchestrator.sync_devices
                 where
-                    (:query::text is null or device_id ilike ('%' || :query || '%')) and
-                    (:filter_owner::text[] is null
-                        or array_length(:filter_owner::text[], 1) < 1
-                        or resource in (
-                            select id from provider.resource where type = 'sync_device' and created_by in (select unnest(:filter_owner::text[]))
-                        )
-                    )
+                    (:query::text is null or device_id ilike ('%' || :query || '%'))
+                    
             """
         )
     }

@@ -584,7 +584,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     return cb.embedded !== true &&
                         support &&
                         selected.length === 1 &&
-                        selected[0].permissions.myself.some(p => p === "ADMIN") &&
                         selected[0].status.type === "DIRECTORY";
                 },
                 onClick: async (selected, cb) => {

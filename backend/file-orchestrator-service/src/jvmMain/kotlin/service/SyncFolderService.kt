@@ -28,7 +28,7 @@ class SyncFolderService(
     providers: Providers<SimpleProviderCommunication>,
     support: ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncFolderSupport>,
     serviceClient: AuthenticatedClient,
-    private val files: FilesService,
+    files: FilesService,
     private val fileCollectionService: FileCollectionService,
 ) : FolderSvcSuper(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.sync_folders")
