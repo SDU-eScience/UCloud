@@ -5,36 +5,24 @@ import platform.posix.memcpy
 import kotlin.math.min
 
 class ByteBuffer {
-    private val arena: Arena?
     val capacity: Int
-    val rawMemory: CPointer<ByteVar>
+    val rawMemory: ByteArray
+    val rawMemoryPinned: Pinned<ByteArray>
 
     constructor(capacity: Int) {
         this.capacity = capacity
-        this.arena = Arena()
-        this.rawMemory = arena.allocArray(capacity)
+        this.rawMemory = ByteArray(capacity)
+        this.rawMemoryPinned = rawMemory.pin()
     }
 
-    constructor(rawMemory: CPointer<ByteVar>, capacity: Int) {
-        this.capacity = capacity
-        this.arena = null
-        this.rawMemory = rawMemory
+    constructor(other: ByteBuffer) {
+        this.capacity = other.capacity
+        this.rawMemory = other.rawMemory
+        this.rawMemoryPinned = other.rawMemoryPinned
     }
 
-    private var _writerIndex: Int = 0
-    var writerIndex: Int
-        get() = _writerIndex
-        set(value) {
-            require(value >= 0 && value < capacity())
-            _writerIndex = value
-        }
-    private var _readerIndex: Int = 0
-    var readerIndex: Int
-        get() = _readerIndex
-        set(value) {
-            require(value >= 0)
-            _readerIndex = value
-        }
+    var writerIndex: Int = 0
+    var readerIndex: Int = 0
 
     fun capacity(): Int = capacity
 
@@ -55,10 +43,7 @@ class ByteBuffer {
 
     fun put(index: Int, bytes: ByteArray) {
         check(index + bytes.size < capacity)
-
-        bytes.usePinned { pin ->
-            memcpy(rawMemory.plus(index), pin.addressOf(0), bytes.size.toULong())
-        }
+        bytes.copyInto(rawMemory, index)
     }
 
     fun put(buffer: ByteBuffer) {
@@ -67,8 +52,7 @@ class ByteBuffer {
 
     fun put(index: Int, buffer: ByteBuffer): Int {
         val readerRemaining = buffer.readerRemaining()
-        check(index + readerRemaining < capacity)
-        memcpy(rawMemory.plus(index), buffer.rawMemory.plus(buffer.readerIndex), readerRemaining.toULong())
+        buffer.rawMemory.copyInto(rawMemory, index, buffer.readerIndex, buffer.writerIndex)
         return readerRemaining
     }
 
@@ -175,30 +159,24 @@ class ByteBuffer {
     }
 
     fun get(index: Int, destination: ByteArray): Int {
-        check(index in 0 until capacity)
         val bytesToRead = min(writerIndex - index, destination.size)
-        require(bytesToRead >= 0)
-        destination.usePinned { pin ->
-            memcpy(pin.addressOf(0), rawMemory + index, bytesToRead.toULong())
-        }
+        rawMemory.copyInto(destination, 0, index, index + bytesToRead)
         return bytesToRead
     }
 
-    fun slice(): ByteBuffer = ByteBuffer(rawMemory, capacity).also {
-        it._readerIndex = _readerIndex
-        it._writerIndex = _writerIndex
-    }
+    fun slice(): ByteBuffer = ByteBuffer(this)
 
     fun compact() {
         val bytesToMove = readerRemaining()
-        memcpy(rawMemory, rawMemory.plus(readerIndex), bytesToMove.toULong())
+        rawMemory.copyInto(rawMemory, 0, readerIndex, writerIndex)
         readerIndex = 0
         writerIndex = bytesToMove
+        println("Moved $bytesToMove bytes")
     }
 
     fun clear() {
-        _readerIndex = 0
-        _writerIndex = 0
+        readerIndex = 0
+        writerIndex = 0
     }
 }
 

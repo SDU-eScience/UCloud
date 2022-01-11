@@ -16,7 +16,7 @@ typealias SocketChannel = NativeFile
 fun SocketChannel.write(buffer: ByteBuffer) {
     var bytesToWrite = buffer.readerRemaining()
     while (bytesToWrite > 0) {
-        val written = write(fd, buffer.rawMemory, bytesToWrite.toULong())
+        val written = write(fd, buffer.rawMemoryPinned.addressOf(buffer.readerIndex), bytesToWrite.toULong())
         if (written <= 0) throw EndOfStreamException()
         buffer.readerIndex += written.toInt()
         bytesToWrite = buffer.readerRemaining()
@@ -199,7 +199,7 @@ fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer): String {
             writerSpaceRemaining = buffer.writerSpaceRemaining()
         }
 
-        val bytesRead = read(fd, buffer.rawMemory + buffer.writerIndex, writerSpaceRemaining.toULong())
+        val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
         if (bytesRead <= 0) throw EndOfStreamException()
         buffer.writerIndex += bytesRead.toInt()
 
@@ -210,8 +210,12 @@ fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer): String {
 
 inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer) {
     while (buffer.readerRemaining() < minimumBytes) {
-        val writerSpaceRemaining = buffer.writerSpaceRemaining()
-        val bytesRead = read(fd, buffer.rawMemory + buffer.writerIndex, writerSpaceRemaining.toULong())
+        var writerSpaceRemaining = buffer.writerSpaceRemaining()
+        if (writerSpaceRemaining == 0) {
+            buffer.compact()
+            writerSpaceRemaining = buffer.writerSpaceRemaining()
+        }
+        val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
         if (bytesRead <= 0) throw EndOfStreamException()
         buffer.writerIndex += bytesRead.toInt()
     }
