@@ -38,8 +38,13 @@ value class ReadResult(private val bytesReadOrNegativeErrno: Long) {
     }
 }
 
-class NativeInputStream(val fd: Int) {
-    fun read(destination: ByteArray, offset: Int = 0, size: Int = destination.size): ReadResult {
+interface InputStream {
+    fun read(destination: ByteArray, offset: Int = 0, size: Int = destination.size): ReadResult
+    fun close()
+}
+
+class NativeInputStream(val fd: Int) : InputStream {
+    override fun read(destination: ByteArray, offset: Int, size: Int): ReadResult {
         require(offset >= 0) { "offset is negative ($offset)" }
         require(size >= 0) { "size is negative ($size)" }
         require(offset + size <= destination.size) {
@@ -51,12 +56,12 @@ class NativeInputStream(val fd: Int) {
         }
     }
 
-    fun close() {
+    override fun close() {
         platform.posix.close(fd)
     }
 }
 
-fun NativeInputStream.readBytes(limit: Int = 1024 * 128, autoClose: Boolean = true): ByteArray {
+fun InputStream.readBytes(limit: Int = 1024 * 128, autoClose: Boolean = true): ByteArray {
     val buffer = ByteArray(limit)
     var ptr = 0
 
@@ -74,7 +79,7 @@ fun NativeInputStream.readBytes(limit: Int = 1024 * 128, autoClose: Boolean = tr
     }
 }
 
-fun NativeInputStream.copyTo(
+fun InputStream.copyTo(
     outputStream: NativeOutputStream,
     autoCloseInput: Boolean = true,
     autoCloseOutput: Boolean = true

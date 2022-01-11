@@ -3,10 +3,10 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
 import dk.sdu.cloud.ipc.sendRequest
@@ -33,7 +33,7 @@ class ComputeController(
     override fun retrievePlugins(): ProductBasedPlugins<ComputePlugin>? = controllerContext.plugins.compute
     override fun retrieveApi(providerId: String): JobsProvider = JobsProvider(providerId)
 
-    override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
+    override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
         val serverMode = controllerContext.configuration.serverMode
         val shells = Shells(controllerContext.configuration.core.providerId)
 

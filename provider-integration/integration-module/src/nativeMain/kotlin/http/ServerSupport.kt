@@ -6,11 +6,9 @@ import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import io.ktor.http.*
-import kotlinx.cinterop.CPointer
 import kotlin.native.concurrent.AtomicReference
 import kotlin.native.concurrent.freeze
 
-val h2oServer = AtomicReference<H2OServer?>(null)
 val middlewares = AtomicReference<List<Middleware>>(emptyList())
 
 fun addMiddleware(middleware: Middleware) {
@@ -28,10 +26,6 @@ fun addMiddleware(middleware: Middleware) {
 interface Middleware {
     fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>)
 }
-
-data class HttpContext(
-    val reqPtr: CPointer<h2o.h2o_req_t>
-)
 
 data class IngoingCall<ServerCtx>(
     val attributes: AttributeContainer,

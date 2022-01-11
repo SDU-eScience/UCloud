@@ -6,27 +6,16 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.authDescription
 import dk.sdu.cloud.service.Log
-import h2o.H2O_TOKEN_AUTHORIZATION
-import h2o.h2o_find_header
 import io.ktor.http.*
-import kotlinx.cinterop.get
-import kotlinx.cinterop.pointed
-import kotlinx.cinterop.ptr
-import kotlinx.cinterop.readBytes
-import platform.posix.SIZE_MAX
 
 fun loadMiddleware(config: IMConfiguration, validation: NativeJWTValidation): Unit = with(config) {
     addMiddleware(object : Middleware {
         override fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
             when (val ctx = handler.ctx.serverContext) {
                 is HttpContext -> {
-                    val req = ctx.reqPtr.pointed
-                    val res = h2o_find_header(req.headers.ptr, H2O_TOKEN_AUTHORIZATION, SIZE_MAX.toLong())
-                    if (res != SIZE_MAX.toLong()) {
-                        val header = req.headers.entries?.get(res)?.value
-                        val authorizationHeader = header?.base?.readBytes(header.len.toInt())?.decodeToString()
-                        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return
-                        handler.ctx.bearerOrNull = authorizationHeader.removePrefix("Bearer ")
+                    val authHeader = ctx.headers.find { it.header.equals("Authorization", ignoreCase = true) }
+                    if (authHeader != null && authHeader.value.startsWith("Bearer ")) {
+                        handler.ctx.bearerOrNull = authHeader.value.removePrefix("Bearer ")
                     }
                 }
 

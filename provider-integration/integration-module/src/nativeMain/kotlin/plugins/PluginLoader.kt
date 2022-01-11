@@ -116,13 +116,21 @@ data class ProductBasedPlugins<T : Plugin<ProductBasedConfiguration>>(
     val criteria: List<Pair<String, PartialProductReferenceWithoutProvider>>
 ) {
     fun lookup(reference: ProductReferenceWithoutProvider): T {
+        return lookupWithName(reference).second
+    }
+
+    fun lookupWithName(reference: ProductReferenceWithoutProvider): Pair<String, T> {
         val id = criteria.find { (_, pluginCriteria) -> pluginCriteria.matches(reference) }?.first
             ?: throw RPCException(
                 "Unsupported product: ${reference.category} / ${reference.id}",
                 HttpStatusCode.BadRequest
             )
 
-        return plugins.getValue(id)
+        return Pair(id, plugins.getValue(id))
+    }
+
+    fun lookupWithName(reference: ProductReference): Pair<String, T> {
+        return lookupWithName(ProductReferenceWithoutProvider(reference.id, reference.category))
     }
 
     fun lookup(reference: ProductReference): T {

@@ -17,17 +17,22 @@ import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
 import dk.sdu.cloud.utils.startProcess
-import h2o.H2O_TOKEN_CONTENT_TYPE
 import io.ktor.http.*
+import io.ktor.http.HttpMethod
 import kotlinx.atomicfu.atomic
-import kotlinx.cinterop.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 import platform.posix.*
 
 object ConnectionIpc : IpcContainer("connections") {
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
 }
+
+@Serializable
+data class TicketRequest(
+    val ticket: String
+)
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
@@ -63,7 +68,7 @@ class ConnectionController(
         })
     }
 
-    override fun H2OServer.configure() {
+    override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
         val providerId = controllerContext.configuration.core.providerId
@@ -74,7 +79,7 @@ class ConnectionController(
         val calls = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
         val instructions = object : CallDescriptionContainer(calls.namespace + ".instructions") {
-            val retrieveInstructions = call<Unit, Unit, CommonErrorMessage>("retrieveInstructions") {
+            val retrieveInstructions = call<TicketRequest, Unit, CommonErrorMessage>("retrieveInstructions") {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -84,6 +89,9 @@ class ConnectionController(
                     method = HttpMethod.Get
                     path {
                         using(baseContext)
+                    }
+                    params {
+                        +boundTo(TicketRequest::ticket)
                     }
                 }
             }
@@ -119,17 +127,16 @@ class ConnectionController(
         implement(instructions.retrieveInstructions) {
             val server = (ctx.serverContext as? HttpContext)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-            val req = server.reqPtr.pointed
-
-            val parsed = ParsedQueryString.parse(req.readQuery() ?: "")
 
             with(pluginContext) {
                 with(plugin) {
-                    val html = showInstructions(parsed.attributes).html
+                    val html = showInstructions(mapOf("ticket" to listOf(request.ticket))).html
 
-                    req.res.status = 200
-                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeTextHtml)
-                    h2o_send_inline(server.reqPtr, html)
+                    server.session.sendHttpResponseWithData(
+                        200,
+                        listOf(Header("Content-Type", "text/html")),
+                        html.encodeToByteArray()
+                    )
                 }
             }
 
@@ -193,28 +200,28 @@ class ConnectionController(
             OutgoingCallResponse.Ok(Unit)
         }
     }
+}
 
-    private fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
-        var result: String? = null
-        dbConnection.withSession { session ->
-            session.prepareStatement(
-                //language=SQLite
-                """
+fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
+    var result: String? = null
+    dbConnection.withSession { session ->
+        session.prepareStatement(
+            //language=SQLite
+            """
                     select ucloud_id 
                     from user_mapping 
                     where local_identity = :local_id
                 """
-            ).useAndInvoke(
-                prepare = {
-                    bindString("local_id", localId)
-                },
-                readRow = { row ->
-                    result = row.getString(0)!!
-                }
-            )
-        }
-        return result
+        ).useAndInvoke(
+            prepare = {
+                bindString("local_id", localId)
+            },
+            readRow = { row ->
+                result = row.getString(0)!!
+            }
+        )
     }
+    return result
 }
 
 const val UCLOUD_IM_PORT = 42000

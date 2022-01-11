@@ -119,7 +119,7 @@ fun startProcess(
         if (attachStdin) {
             val pipes = allocArray<IntVar>(2)
             if (pipe(pipes) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
+                throw IllegalStateException("Failed to create stderr stdin: " + getNativeErrorMessage(errno))
             }
 
             stdinForChild = pipes[0]
@@ -129,10 +129,10 @@ fun startProcess(
         if (attachStdout) {
             val pipes = allocArray<IntVar>(2)
             if (pipe(pipes) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
+                throw IllegalStateException("Failed to create stdout pipe: " + getNativeErrorMessage(errno))
             }
 
-            if (!nonBlockingStdout || fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
+            if (nonBlockingStdout && fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
                 throw IllegalStateException(getNativeErrorMessage(errno))
             }
             stdoutForParent = NativeInputStream(pipes[0])
@@ -142,17 +142,15 @@ fun startProcess(
         if (attachStderr) {
             val pipes = allocArray<IntVar>(2)
             if (pipe(pipes) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
+                throw IllegalStateException("Failed to create stderr pipe: " + getNativeErrorMessage(errno))
             }
 
-            if (!nonBlockingStderr || fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
+            if (nonBlockingStderr && fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
                 throw IllegalStateException(getNativeErrorMessage(errno))
             }
             stderrForParent = NativeInputStream(pipes[0])
             stderrForChild = pipes[1]
         }
-
-        
 
         val pid = startProcess(args, envs = envs) {
             ProcessStreams(stdinForChild, stdoutForChild, stderrForChild)

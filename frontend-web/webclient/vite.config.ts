@@ -61,6 +61,17 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
             proxy: {
                 "/auth/": sharedProxySetting,
                 "/api/": sharedProxySetting,
+                "/ucloud/development/": {
+                    // NOTE(Dan): This always attempts to go to the integration module
+                    target: "http://integration-module:8889",
+                    ws: true,
+                    changeOrigin: true,
+                    headers: {
+                        "Access-Control-Allow-Origin": "*",
+                        "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",
+                        "Access-Control-Allow-Headers": "X-Requested-With, content-type, Authorization"
+                    }
+                },
                 "/ucloud/": sharedProxySetting,
                 "/AppVersion.txt": sharedProxySetting
             }

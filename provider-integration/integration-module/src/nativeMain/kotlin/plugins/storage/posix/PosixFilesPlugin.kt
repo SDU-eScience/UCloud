@@ -7,9 +7,14 @@ import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkResponseOf
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.http.ByteBuffer
+import dk.sdu.cloud.http.Header
+import dk.sdu.cloud.http.HttpContext
+import dk.sdu.cloud.http.write
+import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
+import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
@@ -18,6 +23,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.NativeFileException
+import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import platform.posix.*
@@ -264,7 +270,7 @@ class PosixFilesPlugin : FilePlugin {
             val error = stat(file.path, st.ptr)
             if (error < 0) {
                 // TODO actually remap the error code
-                throw RPCException("Could not open file", HttpStatusCode.NotFound)
+                throw RPCException("Could not open file: ${file}", HttpStatusCode.NotFound)
             }
 
             val modifiedAt = (st.st_mtim.tv_sec * 1000) + (st.st_mtim.tv_nsec / 1_000_000)
@@ -281,6 +287,34 @@ class PosixFilesPlugin : FilePlugin {
                 modifiedAt
             )
         }
+    }
+
+    override suspend fun PluginContext.createDownload(
+        request: BulkRequest<FilesProviderCreateDownloadRequestItem>
+    ): List<FileDownloadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that the file exists
+            val stat = nativeStat(file)
+            if (stat.status.type != FileType.FILE) {
+                throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+            }
+
+            FileDownloadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String) {
+        val stat = nativeStat(InternalFile(pluginData))
+        if (stat.status.type != FileType.FILE) {
+            throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+        }
+
+        ctx.session.sendHttpResponseWithFile(
+            pluginData,
+            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
+        )
     }
 
     override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
@@ -304,11 +338,57 @@ class PosixFilesPlugin : FilePlugin {
         })
     }
 
+    override suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that we can open the file
+            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
+
+            FileUploadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.handleUpload(
+        session: String,
+        pluginData: String,
+        offset: Long,
+        chunk: ByteBuffer
+    ) {
+        val fileHandle = NativeFile.open(pluginData, readOnly = false, mode = DEFAULT_FILE_MODE.toInt())
+        try {
+            if (offset >= 0) {
+                lseek(fileHandle.fd, offset, SEEK_SET)
+            }
+            fileHandle.write(chunk)
+        } finally {
+            fileHandle.close()
+        }
+    }
+
     companion object: Loggable {
         override val log: Logger = logger()
 
-        private const val S_ISREG = 0x8000U
         const val DEFAULT_DIR_MODE = 488U // 0750
         const val DEFAULT_FILE_MODE = 416U // 0640
+
+        private val safeFileNameChars =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-+,@£$€!½§~'=()[]{}0123456789".let {
+                CharArray(it.length) { i -> it[i] }.toSet()
+            }
+
+        private fun String.safeFileName(): String {
+            val normalName = fileName()
+            return buildString(normalName.length) {
+                normalName.forEach {
+                    when (it) {
+                        in safeFileNameChars -> append(it)
+                        else -> append('_')
+                    }
+                }
+            }
+        }
     }
 }
+
+const val S_ISREG = 0x8000U
