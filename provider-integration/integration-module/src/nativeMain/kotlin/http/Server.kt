@@ -86,7 +86,7 @@ class HttpClientSession<AppData>(
         }
     }
 
-    fun sendHttpResponseWithFile(path: String) {
+    fun sendHttpResponseWithFile(path: String, additionalHeaders: List<Header> = emptyList()) {
         memScoped {
             val openFile = NativeFile.open(path, readOnly = true)
             try {
@@ -96,7 +96,7 @@ class HttpClientSession<AppData>(
 
                 sendHttpResponse(
                     200,
-                    defaultHeaders(payloadSize = st.st_size) +
+                    defaultHeaders(payloadSize = st.st_size) + additionalHeaders +
                         listOf(
                             Header(
                                 "Content-Type",

@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.http.Header
 import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
@@ -125,8 +126,10 @@ class PosixFilesPlugin : FilePlugin {
             throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
         }
 
-        println("Trying to download: ${stat}")
-        ctx.session.sendHttpResponseWithFile(pluginData)
+        ctx.session.sendHttpResponseWithFile(
+            pluginData,
+            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
+        )
     }
 
     override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
@@ -155,6 +158,23 @@ class PosixFilesPlugin : FilePlugin {
 
         const val DEFAULT_DIR_MODE = 488U // 0750
         const val DEFAULT_FILE_MODE = 416U // 0640
+
+        private val safeFileNameChars =
+            "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-+,@£$€!½§~'=()[]{}0123456789".let {
+                CharArray(it.length) { i -> it[i] }.toSet()
+            }
+
+        private fun String.safeFileName(): String {
+            val normalName = fileName()
+            return buildString(normalName.length) {
+                normalName.forEach {
+                    when (it) {
+                        in safeFileNameChars -> append(it)
+                        else -> append('_')
+                    }
+                }
+            }
+        }
     }
 }
 
