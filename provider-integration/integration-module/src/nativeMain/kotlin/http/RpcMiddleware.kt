@@ -3,6 +3,8 @@ package dk.sdu.cloud.http
 import dk.sdu.cloud.IMConfiguration
 import dk.sdu.cloud.NativeJWTValidation
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.althttp.AltHttpContext
+import dk.sdu.cloud.althttp.HttpClientSession
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.authDescription
 import dk.sdu.cloud.service.Log
@@ -27,6 +29,13 @@ fun loadMiddleware(config: IMConfiguration, validation: NativeJWTValidation): Un
                         val authorizationHeader = header?.base?.readBytes(header.len.toInt())?.decodeToString()
                         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) return
                         handler.ctx.bearerOrNull = authorizationHeader.removePrefix("Bearer ")
+                    }
+                }
+
+                is AltHttpContext -> {
+                    val authHeader = ctx.headers.find { it.header.equals("Authorization", ignoreCase = true) }
+                    if (authHeader != null && authHeader.value.startsWith("Bearer ")) {
+                        handler.ctx.bearerOrNull = authHeader.value.removePrefix("Bearer ")
                     }
                 }
 

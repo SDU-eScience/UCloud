@@ -72,12 +72,18 @@ fun NativeFile.writeText(
     text: String,
     autoClose: Boolean = true,
 ) {
+    writeData(text.encodeToByteArray(), autoClose)
+}
+
+fun NativeFile.writeData(
+    data: ByteArray,
+    autoClose: Boolean = false,
+) {
     try {
-        val encoded = text.encodeToByteArray()
         var ptr = 0
-        encoded.usePinned { pinned ->
-            while (ptr < encoded.size) {
-                val written = platform.posix.write(fd, pinned.addressOf(ptr), encoded.size.toULong() - ptr.toULong())
+        data.usePinned { pinned ->
+            while (ptr < data.size) {
+                val written = platform.posix.write(fd, pinned.addressOf(ptr), data.size.toULong() - ptr.toULong())
                 if (written < 0) {
                     throw NativeFileException(getNativeErrorMessage(errno))
                 }

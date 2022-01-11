@@ -21,6 +21,19 @@ fun secureRandomLong(): Long {
         (buf[7].toLong() shl 7)
 }
 
+fun secureRandomInt(): Int {
+    val urandomFile = NativeFile.open("/dev/urandom", readOnly = true)
+    val buf = ByteArray(4)
+    buf.usePinned { pinnedBuf ->
+        platform.posix.read(urandomFile.fd, pinnedBuf.addressOf(0), 4)
+    }
+    urandomFile.close()
+    return buf[0].toInt() or
+        (buf[1].toInt() shl 1) or
+        (buf[2].toInt() shl 2) or
+        (buf[3].toInt() shl 3)
+}
+
 fun secureToken(size: Int): String {
     val urandomFile = NativeFile.open("/dev/urandom", readOnly = true)
     val buf = ByteArray(size)

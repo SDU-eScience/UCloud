@@ -2,6 +2,8 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.althttp.AltHttpContext
+import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.http.H2OServer
@@ -106,7 +108,7 @@ class FileController(
         })
     }
 
-    override fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
+    override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
         val pathConverter = PathConverter(controllerContext.pluginContext)
         val providerId = controllerContext.configuration.core.providerId
 
@@ -196,7 +198,7 @@ class FileController(
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
 
                 with(plugin) {
-                    handleDownload(ctx.serverContext as HttpContext, handler.session, handler.pluginData)
+                    handleDownload(ctx.serverContext as AltHttpContext, handler.session, handler.pluginData)
                 }
             }
 

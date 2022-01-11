@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -69,9 +70,9 @@ abstract class BaseResourceController<
         return result
     }
 
-    protected abstract fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
+    protected abstract fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
 
-    override fun H2OServer.configure() {
+    override fun RpcServer.configure() {
         println("Configuring ${this@BaseResourceController::class.simpleName}")
         val plugins = retrievePlugins()
         if (plugins == null) {

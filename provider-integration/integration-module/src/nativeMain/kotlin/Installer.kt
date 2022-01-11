@@ -3,6 +3,7 @@ package dk.sdu.cloud
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
@@ -109,7 +110,7 @@ fun runInstaller(
 
     currentLogLevel = LogLevel.INFO
     val envoy = EnvoyConfigurationService(ENVOY_CONFIG_PATH)
-    val h2oServer = H2OServer(UCLOUD_IM_PORT, showWelcomeMessage = false)
+    val h2oServer = RpcServer(UCLOUD_IM_PORT, showWelcomeMessage = false)
 
     val ip = IntegrationProvider(providerId)
     h2oServer.implement(ip.welcome) {

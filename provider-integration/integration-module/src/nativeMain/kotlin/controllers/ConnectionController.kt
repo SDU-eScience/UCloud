@@ -1,6 +1,7 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.http.*
@@ -63,7 +64,7 @@ class ConnectionController(
         })
     }
 
-    override fun H2OServer.configure() {
+    override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
         val providerId = controllerContext.configuration.core.providerId

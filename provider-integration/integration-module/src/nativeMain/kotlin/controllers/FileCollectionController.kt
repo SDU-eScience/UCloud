@@ -1,6 +1,7 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
@@ -19,7 +20,7 @@ class FileCollectionController(
     override fun retrieveApi(providerId: String): FileCollectionsProvider =
         FileCollectionsProvider(providerId)
 
-    override fun H2OServer.configureCustomEndpoints(
+    override fun RpcServer.configureCustomEndpoints(
         plugins: ProductBasedPlugins<FileCollectionPlugin>,
         api: FileCollectionsProvider
     ) {

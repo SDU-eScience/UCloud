@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.storage.posix
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.althttp.AltHttpContext
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -120,23 +121,14 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String) {
+    override suspend fun PluginContext.handleDownload(ctx: AltHttpContext, session: String, pluginData: String) {
         val stat = nativeStat(InternalFile(pluginData))
         if (stat.status.type != FileType.FILE) {
             throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
         }
 
         println("Trying to download: ${stat}")
-
-        /*
-        h2o_file_send(
-            ctx.reqPtr,
-            200, "OK",
-            pluginData,
-            h2o_iovec_init(genericMimeType.nativelyAllocated, genericMimeType.length),
-            0
-        )
-         */
+        ctx.session.sendHttpResponseWithFile(pluginData)
     }
 
     override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
@@ -163,9 +155,10 @@ class PosixFilesPlugin : FilePlugin {
     companion object: Loggable {
         override val log: Logger = logger()
 
-        private const val S_ISREG = 0x8000U
         const val DEFAULT_DIR_MODE = 488U // 0750
         const val DEFAULT_FILE_MODE = 416U // 0640
         private val genericMimeType = ThisWillNeverBeFreed("application/octet-stream")
     }
 }
+
+const val S_ISREG = 0x8000U
