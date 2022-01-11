@@ -4,7 +4,6 @@ import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*

@@ -436,7 +436,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(endpoint);
+                        downloadFile(endpoint.replace("integration-module:8889", "localhost:8889"));
                     }
                 }
             },
