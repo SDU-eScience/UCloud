@@ -7,10 +7,13 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.http.ByteBuffer
 import dk.sdu.cloud.http.Header
 import dk.sdu.cloud.http.HttpContext
+import dk.sdu.cloud.http.write
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
+import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
@@ -85,7 +88,7 @@ class PosixFilesPlugin : FilePlugin {
             val error = stat(file.path, st.ptr)
             if (error < 0) {
                 // TODO actually remap the error code
-                throw RPCException("Could not open file", HttpStatusCode.NotFound)
+                throw RPCException("Could not open file: ${file}", HttpStatusCode.NotFound)
             }
 
             val modifiedAt = (st.st_mtim.tv_sec * 1000) + (st.st_mtim.tv_nsec / 1_000_000)
@@ -151,6 +154,34 @@ class PosixFilesPlugin : FilePlugin {
                 FSFileSupport()
             )
         })
+    }
+
+    override suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that we can open the file
+            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
+
+            FileUploadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.handleUpload(
+        session: String,
+        pluginData: String,
+        offset: Long,
+        chunk: ByteBuffer
+    ) {
+        val fileHandle = NativeFile.open(pluginData, readOnly = false, mode = DEFAULT_FILE_MODE.toInt())
+        try {
+            if (offset >= 0) {
+                lseek(fileHandle.fd, offset, SEEK_SET)
+            }
+            fileHandle.write(chunk)
+        } finally {
+            fileHandle.close()
+        }
     }
 
     companion object: Loggable {

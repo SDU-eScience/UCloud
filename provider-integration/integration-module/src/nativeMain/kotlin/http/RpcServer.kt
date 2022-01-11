@@ -19,6 +19,7 @@ class ConnectionData(
 const val version = "2022.1.0"
 
 data class HttpContext(
+    val payload: ByteBuffer,
     val headers: List<Header>,
     val session: HttpClientSession<ConnectionData>,
 )
@@ -79,6 +80,7 @@ class RpcServer(
                     headers: List<Header>,
                     payload: ByteBuffer
                 ) {
+                    println("$method $path")
                     var foundCall: CallWithHandler<Any, Any, Any>? = null
                     for (callWithHandler in handlers) {
                         val (call) = callWithHandler
@@ -143,7 +145,7 @@ class RpcServer(
 
                         log.debug("Incoming call: ${call.fullName} [$requestMessage]")
                         val context = CallHandler(
-                            IngoingCall(AttributeContainer(), HttpContext(headers, this)),
+                            IngoingCall(AttributeContainer(), HttpContext(payload, headers, this)),
                             requestMessage,
                             call
                         )

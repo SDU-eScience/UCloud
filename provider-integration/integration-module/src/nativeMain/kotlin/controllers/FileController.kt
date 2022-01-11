@@ -22,15 +22,20 @@ import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class DownloadSessionWithPlugin(
+data class FileSessionWithPlugin(
     val pluginName: String,
     val session: String,
     val pluginData: String,
 )
 
 object FilesDownloadIpc : IpcContainer("files.download") {
-    val register = updateHandler<DownloadSessionWithPlugin, Unit>("registerDownloadSession")
-    val retrieve = retrieveHandler<FindByStringId, DownloadSessionWithPlugin>()
+    val register = updateHandler<FileSessionWithPlugin, Unit>("register")
+    val retrieve = retrieveHandler<FindByStringId, FileSessionWithPlugin>()
+}
+
+object FilesUploadIpc : IpcContainer("files.upload") {
+    val register = updateHandler<FileSessionWithPlugin, Unit>("register")
+    val retrieve = retrieveHandler<FindByStringId, FileSessionWithPlugin>()
 }
 
 @Serializable
@@ -83,7 +88,7 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
-            var result: DownloadSessionWithPlugin? = null
+            var result: FileSessionWithPlugin? = null
             dbConnection.prepareStatement(
                 """
                     select plugin_name, plugin_data
@@ -98,7 +103,64 @@ class FileController(
                 readRow = { row ->
                     val pluginName = row.getString(0)!!
                     val pluginData = row.getString(1)!!
-                    result = DownloadSessionWithPlugin(pluginName, request.id, pluginData)
+                    result = FileSessionWithPlugin(pluginName, request.id, pluginData)
+                }
+            )
+
+            result ?: throw RPCException("Invalid token supplied", HttpStatusCode.NotFound)
+        })
+
+        server.addHandler(FilesUploadIpc.register.handler { user, request ->
+            val ucloudIdentity = with(controllerContext.pluginContext) {
+                with(idMapper) {
+                    runCatching {
+                        lookupUCloudIdentifyFromLocalIdentity(
+                            mapUidToLocalIdentity(user.uid.toInt())
+                        )
+                    }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
+                }
+            }
+
+            dbConnection.prepareStatement(
+                """
+                    insert into file_upload_sessions(session, plugin_name, plugin_data)
+                    values (:session, :plugin_name, :plugin_data)
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindString("session", request.session)
+                    bindString("plugin_name", request.pluginName)
+                    bindString("plugin_data", request.pluginData)
+                }
+            )
+
+            envoyConfig.requestConfiguration(
+                EnvoyRoute.UploadSession(
+                    request.session,
+                    controllerContext.configuration.core.providerId,
+                    ucloudIdentity
+                ),
+                null,
+            )
+        })
+
+        server.addHandler(FilesUploadIpc.retrieve.handler { _, request ->
+            var result: FileSessionWithPlugin? = null
+            dbConnection.prepareStatement(
+                """
+                    select plugin_name, plugin_data
+                    from file_upload_sessions
+                    where
+                        session = :token
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("token", request.id)
+                },
+                readRow = { row ->
+                    val pluginName = row.getString(0)!!
+                    val pluginData = row.getString(1)!!
+                    result = FileSessionWithPlugin(pluginName, request.id, pluginData)
                 }
             )
 
@@ -122,6 +184,21 @@ class FileController(
                     method = HttpMethod.Get
                     path { using(downloadPath(providerId)) }
                     params { +boundTo(IMFileDownloadRequest::token) }
+                }
+            }
+        }
+
+        val uploadApi = object : CallDescriptionContainer("file.${providerId}.upload") {
+            val upload = call<Unit, Unit, CommonErrorMessage>("upload") {
+                audit<Unit>()
+                auth {
+                    access = AccessRight.READ
+                    roles = Roles.PUBLIC
+                }
+
+                http {
+                    method = HttpMethod.Post
+                    path { using(uploadPath(providerId)) }
                 }
             }
         }
@@ -177,7 +254,7 @@ class FileController(
 
                             ipcClient.sendRequest(
                                 FilesDownloadIpc.register,
-                                DownloadSessionWithPlugin(name, it.session, it.pluginData)
+                                FileSessionWithPlugin(name, it.session, it.pluginData)
                             )
                         }
                     }
@@ -202,12 +279,63 @@ class FileController(
 
             OutgoingCallResponse.AlreadyDelivered()
         }
+
+        implement(api.createUpload) {
+            val sessions = ArrayList<FilesCreateUploadResponseItem>()
+
+            request.items.forEach { uploadRequest ->
+                val (name, plugin) = plugins.lookupWithName(uploadRequest.resolvedCollection.specification.product)
+
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        createUpload(bulkRequestOf(uploadRequest)).forEach {
+                            sessions.add(FilesCreateUploadResponseItem(
+                                uploadPath(providerId),
+                                UploadProtocol.CHUNKED,
+                                it.session
+                            ))
+
+                            ipcClient.sendRequest(
+                                FilesUploadIpc.register,
+                                FileSessionWithPlugin(name, it.session, it.pluginData)
+                            )
+                        }
+                    }
+                }
+            }
+
+            OutgoingCallResponse.Ok(BulkResponse(sessions))
+        }
+
+        implement(uploadApi.upload) {
+            val sctx = ctx.serverContext as? HttpContext ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val offset = sctx.headers.find { it.header.equals("Chunked-Upload-Offset", true) }?.value?.toLongOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            val token = sctx.headers.find { it.header.equals("Chunked-Upload-Token", true) }?.value
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            with(controllerContext.pluginContext) {
+                val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
+                val plugin = plugins.plugins[handler.pluginName]
+                    ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
+
+                with(plugin) {
+                    handleUpload(token, handler.pluginData, offset, sctx.payload)
+                }
+            }
+
+            OutgoingCallResponse.Ok(Unit)
+        }
     }
 
     companion object {
         fun downloadPath(providerId: String, token: String? = null): String = buildString {
             append("/ucloud/${providerId}/download")
             if (token != null) append("?token=$token")
+        }
+
+        fun uploadPath(providerId: String): String = buildString {
+            append("/ucloud/${providerId}/chunked/upload")
         }
     }
 }

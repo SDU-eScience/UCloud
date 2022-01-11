@@ -248,6 +248,9 @@ fun sha1(data: ByteArray): ByteArray {
 
 const val NEW_LINE_DELIM = '\n'.code.toByte()
 
+// TODO(Dan): Needed for file uploads, but we should really just send partial payloads
+@ThreadLocal private val readBuffer = allocateDirect(1024 * 1024 * 32)
+
 @OptIn(ExperimentalUnsignedTypes::class)
 fun <AppData> startServer(
     port: Int,
@@ -286,7 +289,7 @@ fun <AppData> startServer(
         setsockopt(clientHandle, IPPROTO_TCP, TCP_NODELAY, trueSockValue.addressOf(0), 4)
 
         ProcessingScope.launch {
-            val readBuffer = allocateDirect(1024 * 8)
+//            val readBuffer = allocateDirect(1024 * 8)
             val outputBuffer = allocateDirect(1024 * 8)
 
             // NOTE(Dan): The fragmentation buffer is required if the client decides to fragment messages earlier

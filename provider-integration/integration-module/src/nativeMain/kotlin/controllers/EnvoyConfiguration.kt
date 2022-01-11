@@ -196,6 +196,12 @@ sealed class EnvoyRoute {
         val providerId: String,
         override val cluster: String
     ) : EnvoyRoute()
+
+    data class UploadSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String
+    ) : EnvoyRoute()
 }
 
 @Serializable
@@ -212,6 +218,7 @@ class EnvoyRouteConfiguration(
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
                 when (it) {
+                    is EnvoyRoute.UploadSession -> 1
                     is EnvoyRoute.DownloadSession -> 1
                     is EnvoyRoute.ShellSession -> 1
                     is EnvoyRoute.Standard -> 2
@@ -289,6 +296,23 @@ class EnvoyRouteConfiguration(
                                                 "query_parameters" to JsonArray(
                                                     JsonObject(
                                                         "name" to JsonPrimitive("token"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                        )
+                                    }
+
+                                    is EnvoyRoute.UploadSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive(FileController.uploadPath(route.providerId)),
+                                                "headers" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("Chunked-Upload-Token"),
                                                         "string_match" to JsonObject(
                                                             "exact" to JsonPrimitive(route.identifier)
                                                         )
