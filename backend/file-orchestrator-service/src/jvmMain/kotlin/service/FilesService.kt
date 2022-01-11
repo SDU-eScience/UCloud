@@ -546,7 +546,9 @@ class FilesService(
                         }
                     }
 
-                    moveHandlers.forEach { handler -> handler(batch) }
+                    if (batch.isNotEmpty()) {
+                        moveHandlers.forEach { handler -> handler(batch) }
+                    }
 
                     registerTasks(
                         findTasksInBackgroundFromResponse(response)

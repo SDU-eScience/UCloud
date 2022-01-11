@@ -21,4 +21,5 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
 
     suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): BulkResponse<LongRunningTask?>
 
+    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): BulkResponse<LongRunningTask?>
 }

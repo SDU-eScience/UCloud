@@ -5,9 +5,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.file.orchestrator.api.FSSupport
-import dk.sdu.cloud.file.orchestrator.api.FilesProvider
-import dk.sdu.cloud.file.orchestrator.api.UFile
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.plugins.FilePlugin
@@ -57,10 +55,24 @@ class FileController(
                         createFolder(bulkRequestOf(createFolderRequest))
                     }
                 }
-                null
+                LongRunningTask.Complete()
             }
             OutgoingCallResponse.Ok(BulkResponse(result))
         }
 
+        implement(api.move) {
+            val result = request.items.map { moveRequest ->
+                val collection = moveRequest.resolvedNewCollection.specification.product
+
+                val plugin = plugins.lookup(collection)
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        move(bulkRequestOf(moveRequest))
+                    }
+                }
+                LongRunningTask.Complete()
+            }
+            OutgoingCallResponse.Ok(BulkResponse(result))
+        }
     }
 }
