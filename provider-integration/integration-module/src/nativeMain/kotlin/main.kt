@@ -1,13 +1,12 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.althttp.*
+import dk.sdu.cloud.http.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
@@ -17,8 +16,6 @@ import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
-import dk.sdu.cloud.utils.buildCommand
-import io.ktor.utils.io.core.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned

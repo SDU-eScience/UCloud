@@ -3,11 +3,10 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.althttp.RpcServer
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
 import dk.sdu.cloud.ipc.sendRequest

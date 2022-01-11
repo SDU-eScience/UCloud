@@ -1,7 +1,6 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.althttp.RpcServer
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.http.*
@@ -18,17 +17,22 @@ import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
 import dk.sdu.cloud.utils.startProcess
-import h2o.H2O_TOKEN_CONTENT_TYPE
 import io.ktor.http.*
+import io.ktor.http.HttpMethod
 import kotlinx.atomicfu.atomic
-import kotlinx.cinterop.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 import platform.posix.*
 
 object ConnectionIpc : IpcContainer("connections") {
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
 }
+
+@Serializable
+data class TicketRequest(
+    val ticket: String
+)
 
 class ConnectionController(
     private val controllerContext: ControllerContext,
@@ -75,7 +79,7 @@ class ConnectionController(
         val calls = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
         val instructions = object : CallDescriptionContainer(calls.namespace + ".instructions") {
-            val retrieveInstructions = call<Unit, Unit, CommonErrorMessage>("retrieveInstructions") {
+            val retrieveInstructions = call<TicketRequest, Unit, CommonErrorMessage>("retrieveInstructions") {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -85,6 +89,9 @@ class ConnectionController(
                     method = HttpMethod.Get
                     path {
                         using(baseContext)
+                    }
+                    params {
+                        +boundTo(TicketRequest::ticket)
                     }
                 }
             }
@@ -120,17 +127,16 @@ class ConnectionController(
         implement(instructions.retrieveInstructions) {
             val server = (ctx.serverContext as? HttpContext)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-            val req = server.reqPtr.pointed
-
-            val parsed = ParsedQueryString.parse(req.readQuery() ?: "")
 
             with(pluginContext) {
                 with(plugin) {
-                    val html = showInstructions(parsed.attributes).html
+                    val html = showInstructions(mapOf("ticket" to listOf(request.ticket))).html
 
-                    req.res.status = 200
-                    req.addHeader(H2O_TOKEN_CONTENT_TYPE, HeaderValues.contentTypeTextHtml)
-                    h2o_send_inline(server.reqPtr, html)
+                    server.session.sendHttpResponseWithData(
+                        200,
+                        listOf(Header("Content-Type", "text/html")),
+                        html.encodeToByteArray()
+                    )
                 }
             }
 

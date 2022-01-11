@@ -2,12 +2,10 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.althttp.AltHttpContext
-import dk.sdu.cloud.althttp.RpcServer
+import dk.sdu.cloud.http.HttpContext
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.http.H2OServer
-import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
@@ -198,7 +196,7 @@ class FileController(
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
 
                 with(plugin) {
-                    handleDownload(ctx.serverContext as AltHttpContext, handler.session, handler.pluginData)
+                    handleDownload(ctx.serverContext as HttpContext, handler.session, handler.pluginData)
                 }
             }
 

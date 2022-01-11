@@ -70,19 +70,6 @@ kotlin {
                 }
             }
 
-            val libh2o by creating {
-                // openssl and libuv
-                includeDirs.allHeaders(File(projectDir, "vendor/libh2o"))
-                includeDirs.allHeaders(File("/usr/include"))
-                includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
-            }
-
-            val libuv by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libuv"))
-                includeDirs.allHeaders(File("/usr/include"))
-                includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
-            }
-
             val libsqlite3 by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
             }

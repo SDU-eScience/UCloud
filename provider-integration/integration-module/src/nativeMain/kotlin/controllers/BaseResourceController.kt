@@ -6,11 +6,10 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
-import dk.sdu.cloud.althttp.RpcServer
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ProductBasedPlugins

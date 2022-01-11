@@ -156,8 +156,6 @@ fun startProcess(
             ProcessStreams(stdinForChild, stdoutForChild, stderrForChild)
         }
 
-        println("Ready")
-
         return Process(stdinForParent, stdoutForParent, stderrForParent, pid)
     }
 }

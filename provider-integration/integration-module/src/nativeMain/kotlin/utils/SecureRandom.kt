@@ -1,6 +1,6 @@
 package dk.sdu.cloud.utils
 
-import h2o.h2o_base64_encode
+import dk.sdu.cloud.base64Encode
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
@@ -45,12 +45,6 @@ fun secureToken(size: Int): String {
             if (read == 0L) error("unexpected")
         }
 
-        // Bad estimation but it is always large enough
-        val output = ByteArray(size * 4)
-        val outputSize = output.usePinned { pin ->
-            h2o_base64_encode(pin.addressOf(0), pinnedBuf.addressOf(0), size.toULong(), 0)
-        }
-
-        return output.decodeToString(0, outputSize.toInt())
+        return base64Encode(buf)
     }
 }
