@@ -101,3 +101,11 @@ kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarge
         freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
     }
 }
+
+task("buildDebug") {
+    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkDebugExecutableNative" } })
+}
+
+task("buildRelease") {
+    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkReleaseExecutableNative" } })
+}

@@ -204,21 +204,13 @@ class PosixFilesPlugin : FilePlugin {
                 conflictPolicy
             ).needsToRecurse
             if (needsToRecurse) {
-                val files = browse(
-                    UCloudFile.create(source.path),
-                    FilesProviderBrowseRequest(
-                        pathConverter.ucloudToCollection(UCloudFile.create(source.path)),
-                        ResourceBrowseRequest(
-                            UFileIncludeFlags()
-                        )
-                    )
-                )
-                val requests = files.items.map { file ->
+                val files = listFiles(pathConverter.ucloudToInternal(source))
+                val requests = files.map { file ->
                     FilesProviderMoveRequestItem(
                         reqItem.resolvedOldCollection,
                         reqItem.resolvedNewCollection,
-                        source.path + "/" + file.id,
-                        destination.path + "/" + file.id,
+                        source.path + "/" + file.path.fileName(),
+                        destination.path + "/" + file.path.fileName(),
                         conflictPolicy
                     )
                 }
@@ -230,38 +222,42 @@ class PosixFilesPlugin : FilePlugin {
         return BulkResponse(result)
     }
 
-    override suspend fun PluginContext.browse(
-        path: UCloudFile,
-        request: FilesProviderBrowseRequest
-    ): PageV2<PartialUFile> {
-        val internalFile = pathConverter.ucloudToInternal(path)
+    private fun listFiles(internalFile: InternalFile): List<InternalFile> {
         val openedDirectory = try {
             NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
         } catch (ex: NativeFileException) {
-            println(internalFile.path)
-            println(ex.stackTraceToString())
+            log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
             throw RPCException("File not found", HttpStatusCode.NotFound)
         }
         try {
             val dir = fdopendir(openedDirectory.fd)
                 ?: throw RPCException("File is not a directory", HttpStatusCode.Conflict)
 
-            val result = ArrayList<PartialUFile>()
+            val result = ArrayList<InternalFile>()
             while (true) {
                 val ent = readdir(dir) ?: break
                 val name = ent.pointed.d_name.toKString()
                 if (name == "." || name == "..") continue
                 runCatching {
                     // NOTE(Dan): Ignore errors, in case the file is being changed while we inspect it
-                    result.add(nativeStat(InternalFile(internalFile.path + "/" + name)))
+                    result.add(InternalFile(internalFile.path + "/" + name))
                 }
             }
             closedir(dir)
 
-            return PageV2(result.size, result, null)
+            return result
         } finally {
             openedDirectory.close()
         }
+    }
+
+    override suspend fun PluginContext.browse(
+        path: UCloudFile,
+        request: FilesProviderBrowseRequest
+    ): PageV2<PartialUFile> {
+        // TODO(Dan): Proper pagination
+        val items = listFiles(pathConverter.ucloudToInternal(path)).map { nativeStat(it) }
+        return PageV2(items.size, items, null)
     }
 
     private fun nativeStat(file: InternalFile): PartialUFile {
