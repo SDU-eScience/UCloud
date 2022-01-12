@@ -13,6 +13,15 @@ select jsonb_build_object(
 );
 $$;
 
+create or replace function file_orchestrator.remove_sync_folders(
+    ids bigint[]
+) returns void language sql as $$
+    delete from file_orchestrator.sync_folders where resource in (select unnest(ids));
+    delete from provider.resource_acl_entry where resource_id in (select unnest(ids));
+    delete from provider.resource_update where resource in (select unnest(ids));
+    delete from provider.resource where id in (select unnest(ids));
+$$;
+
 create table file_orchestrator.sync_folders (
     resource bigint references provider.resource(id) primary key,
     device_id   varchar(64) null default null,

@@ -46,6 +46,7 @@ class SyncFolderService(
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
         fileCollectionService.addAclUpdateHandler(::onAclUpdated)
+
     }
 
     private suspend fun onAclUpdated(
@@ -166,39 +167,8 @@ class SyncFolderService(
                         setParameter("ids", affectedFolders.map { it.id })
                     },
                     """
-                            delete from file_orchestrator.sync_folders
-                            where resource in (select unnest(:ids::bigint[]))
-                        """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        setParameter("ids", affectedFolders.map { it.id })
-                    },
+                        select file_orchestrator.remove_sync_folders(unnest(:ids::bigint[]))  
                     """
-                            delete from provider.resource_acl_entry
-                            where resource_id in (select unnest(:ids::bigint[]))
-                        """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        setParameter("ids", affectedFolders.map { it.id })
-                    },
-                    """               
-                            delete from provider.resource_update
-                            where resource in (select unnest(:ids::bigint[]))
-                        """
-                )
-
-                session.sendPreparedStatement(
-                    {
-                        setParameter("ids", affectedFolders.map { it.id })
-                    },
-                    """
-                            delete from provider.resource
-                            where id in (select unnest(:ids::bigint[]))
-                        """
                 )
             }
         }
