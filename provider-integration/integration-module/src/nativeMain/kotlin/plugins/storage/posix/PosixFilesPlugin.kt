@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.storage.posix
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -21,6 +22,7 @@ import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.NativeFileException
 import dk.sdu.cloud.utils.fileExists
@@ -28,6 +30,7 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import platform.posix.*
+import kotlin.math.min
 
 class PosixFilesPlugin : FilePlugin {
     private lateinit var pathConverter: PathConverter
@@ -87,14 +90,14 @@ class PosixFilesPlugin : FilePlugin {
 
         val desiredFd = open(parent.path + "/" + desiredFileName, oflags, mode)
         if (!isDirectory) {
-            if (desiredFd >= 0) return Pair(parent.path + "/" +desiredFileName, desiredFd)
+            if (desiredFd >= 0) return Pair(parent.path + "/" + desiredFileName, desiredFd)
         } else {
             // If it exists and we allow overwrite then just return the open directory
             if (
                 (fixedConflictPolicy == WriteConflictPolicy.REPLACE || fixedConflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
                 desiredFd >= 0
             ) {
-                return Pair(parent.path + "/" +desiredFileName, desiredFd)
+                return Pair(parent.path + "/" + desiredFileName, desiredFd)
             } else if (desiredFd < 0) {
                 val result = createDirAndOpen(desiredFileName)
                 if (result != null) return result
@@ -132,7 +135,10 @@ class PosixFilesPlugin : FilePlugin {
             }
         }
 
-        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Too many files with this name exist: '$desiredFileName'")
+        throw RPCException.fromStatusCode(
+            HttpStatusCode.BadRequest,
+            "Too many files with this name exist: '$desiredFileName'"
+        )
     }
 
     data class MoveShouldContinue(val needsToRecurse: Boolean)
@@ -241,13 +247,72 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
+    private val browseCache = SimpleCache<String, List<PartialUFile>>(lookup = { null })
+
     override suspend fun PluginContext.browse(
         path: UCloudFile,
         request: FilesProviderBrowseRequest
     ): PageV2<PartialUFile> {
-        // TODO(Dan): Proper pagination
-        val items = listFiles(pathConverter.ucloudToInternal(path)).map { nativeStat(it) }
-        return PageV2(items.size, items, null)
+        val itemsPerPage = request.browse.itemsPerPage ?: 50
+        fun paginateFiles(files: List<PartialUFile>, offset: Int, token: String): PageV2<PartialUFile> {
+            try {
+                return PageV2(
+                    itemsPerPage,
+                    files.subList(offset, min(files.size, offset + itemsPerPage)),
+                    if (files.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
+                )
+            } catch (ex: IndexOutOfBoundsException) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+        }
+
+        var offset = 0
+        browseCache.cleanup()
+
+        val next = request.browse.next
+        if (next != null) {
+            val offsetText = next.substringBefore('-')
+            val token = next.substringAfter('-')
+            val parsedOffset = offsetText.toIntOrNull()
+            if (parsedOffset != null) {
+                offset = parsedOffset
+                val files = browseCache.get(token)
+                if (files != null) {
+                    return paginateFiles(files, offset, token)
+                }
+            }
+        }
+
+        val token = path.path
+        val items = listFiles(pathConverter.ucloudToInternal(path)).filter {
+            !request.browse.flags.filterHiddenFiles || !it.path.fileName().startsWith(".")
+        }
+
+        val shouldSort = items.size <= 10_000
+        if (shouldSort) {
+            val files = items.map { nativeStat(it) }
+            val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
+            var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
+                FilesSortBy.PATH -> pathComparator
+                FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
+                    ((a.status.sizeInBytes ?: 0L) - (b.status.sizeInBytes ?: 0L)).toInt()
+                }.thenComparator { a, b -> pathComparator.compare(a, b) }
+                FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
+                    ((a.status.modifiedAt ?: 0L) - (b.status.modifiedAt ?: 0L)).toInt()
+                }.thenComparator { a, b -> pathComparator.compare(a, b) }
+            }
+            if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
+            val sortedFiles = files.sortedWith(comparator)
+            browseCache.insert(token, sortedFiles)
+            return paginateFiles(sortedFiles, offset, token)
+        } else {
+            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).map { nativeStat(it) }
+            return PageV2(
+                itemsPerPage,
+                files,
+                if (items.size >= offset + itemsPerPage) "${offset + itemsPerPage}-${token}" else null
+            )
+        }
     }
 
     private fun nativeStat(file: InternalFile): PartialUFile {
@@ -353,15 +418,17 @@ class PosixFilesPlugin : FilePlugin {
                 }
             }
 
-            move(bulkRequestOf(
-                FilesProviderMoveRequestItem(
-                    reqItem.resolvedCollection,
-                    reqItem.resolvedCollection,
-                    reqItem.id,
-                    "/${reqItem.resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
-                    WriteConflictPolicy.RENAME
+            move(
+                bulkRequestOf(
+                    FilesProviderMoveRequestItem(
+                        reqItem.resolvedCollection,
+                        reqItem.resolvedCollection,
+                        reqItem.id,
+                        "/${reqItem.resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
+                        WriteConflictPolicy.RENAME
+                    )
                 )
-            )).responses.single()
+            ).responses.single()
         }
     }
 
@@ -434,7 +501,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    companion object: Loggable {
+    companion object : Loggable {
         override val log: Logger = logger()
 
         const val DEFAULT_DIR_MODE = 488U // 0750
