@@ -55,6 +55,11 @@ export const Create: React.FunctionComponent = () => {
         null
     );
 
+    const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
+        {noop: true},
+        null
+    );
+
     const [estimatedCost, setEstimatedCost] = useState<{cost: number, balance: number, product: Product | null}>({
         cost: 0, balance: 0, product: null
     });
@@ -80,6 +85,7 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
+        fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);
 
     const application = applicationResp.data;
@@ -243,27 +249,16 @@ export const Create: React.FunctionComponent = () => {
     return <MainContainer
         headerSize={92}
         header={
-            <AppHeader slim application={application} />
+            <AppHeader slim application={application} allVersions={previousResp.data?.items ?? []} />
         }
         sidebar={
             <VerticalButtonGroup>
                 <Link
                     to={`/applications/details/${appName}/${appVersion}/`}>
-                    <OutlineButton fullWidth>
-                        App details
-                    </OutlineButton>
+                    <Button fullWidth>
+                        App Details
+                    </Button>
                 </Link>
-                <OutlineButton
-                    fullWidth
-                    color={"darkGreen"}
-                    as={"label"}
-                    onClick={() => setImportDialogOpen(true)}
-                >
-                    Import parameters
-                </OutlineButton>
-
-                <FavoriteToggle application={application} />
-
                 <Button
                     type={"button"}
                     color={"blue"}
@@ -302,7 +297,7 @@ export const Create: React.FunctionComponent = () => {
                 <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
                     {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
                     <ImportParameters application={application} onImport={onLoadParameters}
-                        importDialogOpen={importDialogOpen}
+                        importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
                         onImportDialogClose={() => setImportDialogOpen(false)} />
                     <ReservationParameter
                         application={application}

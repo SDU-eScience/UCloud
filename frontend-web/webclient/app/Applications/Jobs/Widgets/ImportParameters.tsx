@@ -2,7 +2,7 @@ import * as React from "react";
 import * as UCloud from "@/UCloud";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {Box, Button, Flex, Icon, Label} from "@/ui-components";
+import {Box, Button, Flex, Icon, Label, Truncate} from "@/ui-components";
 import {HiddenInputField} from "@/ui-components/Input";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import CONF from "../../../../site.config.json";
@@ -22,13 +22,15 @@ import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi} from "@/UCloud/FilesApi";
 import {FilesCreateDownloadResponseItem, UFile} from "@/UCloud/FilesApi";
 import {JobBrowse} from "../Browse";
+import {format, isToday} from "date-fns/esm";
 
 export const ImportParameters: React.FunctionComponent<{
     application: UCloud.compute.Application;
     onImport: (parameters: Partial<UCloud.compute.JobSpecification>) => void;
     importDialogOpen: boolean;
+    setImportDialogOpen: React.Dispatch<React.SetStateAction<boolean>>;
     onImportDialogClose: () => void;
-}> = ({application, onImport, importDialogOpen, onImportDialogClose}) => {
+}> = ({application, onImport, importDialogOpen, onImportDialogClose, setImportDialogOpen}) => {
 
     const [previousRuns] = useCloudAPI<PageV2<Job>>(
         JobsApi.browse({
@@ -114,11 +116,28 @@ export const ImportParameters: React.FunctionComponent<{
     return <Box>
         <Label>Load parameters from a previous run:</Label>
         <Flex flexDirection="row" flexWrap="wrap">
-            {previousRunsValid.map((run, idx) => (
-                <Box cursor="pointer" onClick={() => readParsedJSON(run.status.jobParametersJson)} mr="0.8em" key={idx}>
-                    {run.specification.name ?? run.id}
-                </Box>
-            ))}
+            {previousRunsValid.length === 0 ? null :
+                <>
+                    <div>
+                        <div style={{textAlign: "center", border: "1px solid var(--gray)", borderBottom: "0px"}}>
+                            Date
+                        </div>
+                        <div style={{textAlign: "center", border: "1px solid var(--gray)", width: "100px"}}>
+                            Job ID
+                        </div>
+                    </div>
+                    {previousRunsValid.slice(0, 5).map((run, idx) => (
+                        <div key={idx}>
+                            <Box title={format(run.createdAt, "HH:mm dd/MM/yy")} width="85px" textAlign={"center"} style={{border: "1px solid var(--gray)", borderBottom: "0px"}}>
+                                {format(run.createdAt, isToday(run.createdAt) ? "HH:mm" : "dd/MM/yy")}
+                            </Box>
+                            <Box title={run.specification.name ?? run.id} px="3px" cursor="pointer" width="85px" onClick={() => readParsedJSON(run.status.jobParametersJson)} textAlign={"center"} style={{border: "1px solid var(--gray)"}}>
+                                <Truncate width={1}>{run.specification.name ?? run.id}</Truncate>
+                            </Box>
+                        </div>
+                    ))}
+                </>}
+            <Button ml="12px" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import Parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (
@@ -167,7 +186,6 @@ export const ImportParameters: React.FunctionComponent<{
                     <Button mt="6px" fullWidth onClick={() => {
                         onImportDialogClose();
                         dialogStore.addDialog(
-                            /* TODO(Jonas): Only allow files */
                             <FilesBrowse
                                 browseType={BrowseType.Embedded}
                                 onSelect={res => {

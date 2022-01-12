@@ -8,8 +8,10 @@ import {
     ExternalLink,
     Link,
     Markdown,
-    OutlineButton,
-    VerticalButtonGroup
+    VerticalButtonGroup,
+    Button,
+    Icon,
+    Tooltip
 } from "@/ui-components";
 import ContainerForText from "@/ui-components/ContainerForText";
 import * as Heading from "@/ui-components/Heading";
@@ -18,7 +20,7 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {capitalized} from "@/UtilityFunctions";
 import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
 import * as Pages from "./Pages";
-import {useRouteMatch} from "react-router";
+import {useHistory, useRouteMatch} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
@@ -30,6 +32,7 @@ import Application = compute.Application;
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {useResourceSearch} from "@/Resource/Search";
 import {ApiLike} from "./Overview";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
 const View: React.FunctionComponent = () => {
     const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
@@ -62,7 +65,7 @@ const View: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<AppHeader application={application!} />}
+            header={<AppHeader application={application!} allVersions={previous.items} />}
             headerSize={160}
             main={(
                 <ContainerForText left>
@@ -82,9 +85,17 @@ const View: React.FunctionComponent = () => {
     );
 }
 
-export const AppHeader: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags} & {slim?: boolean}> = props => {
+export const AppHeader: React.FunctionComponent<{
+    application: UCloud.compute.ApplicationWithFavoriteAndTags;
+    slim?: boolean;
+    allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
+}> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "64px" : "128px";
+    /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
+    const newest: UCloud.compute.ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
+    const history = useHistory();
+
     return (
         <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
             <Box mr={16}>
@@ -94,12 +105,31 @@ export const AppHeader: React.FunctionComponent<{application: UCloud.compute.App
             <Flex flexDirection={"column"} minWidth={0}>
                 {isSlim ? (
                     <>
-                        <Heading.h3>{props.application.metadata.title}</Heading.h3>
-                        <TextSpan>v{props.application.metadata.version}</TextSpan>
+                        <Heading.h3>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h3>
+                        <Flex>
+                            <ClickableDropdown
+                                trigger={<TextSpan>v{props.application.metadata.version}</TextSpan>}
+                                chevron
+                            >
+                                {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => history.push(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
+                            </ClickableDropdown>
+                            {newest && newest.metadata.version !== props.application.metadata.version ?
+                                <Tooltip trigger={<TriggerDiv onClick={e => {
+                                    e.preventDefault();
+                                    history.push(Pages.runApplication(newest.metadata));
+                                }}>!</TriggerDiv>}>
+                                    <div onClick={e => {
+                                        e.stopPropagation();
+                                    }}>
+                                        You are not using the newest version of the app.<br />
+                                        Click to use the newest version.
+                                    </div>
+                                </Tooltip> : null}
+                        </Flex>
                     </>
                 ) : (
                     <>
-                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                        <Heading.h2>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h2>
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                         <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
                         <Tags tags={props.application.tags} />
@@ -110,18 +140,26 @@ export const AppHeader: React.FunctionComponent<{application: UCloud.compute.App
     );
 };
 
+const TriggerDiv = styled.div`
+    margin-left: 4px; 
+    text-align: center;
+    color: var(--white);
+    background-color: var(--blue);
+    border-radius: 20px;
+    width: 25px;
+    cursor: pointer;
+`;
+
 const Sidebar: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags}> = props => (
     <VerticalButtonGroup>
-        <FavoriteToggle application={props.application} />
-
         {!props.application.metadata.website ? null : (
             <ExternalLink href={props.application.metadata.website}>
-                <OutlineButton fullWidth color={"blue"}>Documentation</OutlineButton>
+                <Button fullWidth color={"blue"}>Documentation</Button>
             </ExternalLink>
         )}
 
         <Link to={Pages.runApplication(props.application.metadata)}>
-            <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
+            <Button fullWidth color={"blue"}>Run Application</Button>
         </Link>
     </VerticalButtonGroup>
 );
