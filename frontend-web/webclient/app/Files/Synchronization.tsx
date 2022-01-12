@@ -57,8 +57,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder>>(
         SyncFolderApi.browse({
             itemsPerPage: 1,
-            filterByPath: file.id,
-            filterByUser: Client.username,
+            filterByPath: file.id
         }),
         emptyPageV2
     );

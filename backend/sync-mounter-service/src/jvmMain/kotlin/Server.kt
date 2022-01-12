@@ -88,7 +88,7 @@ class Server(
 
                 val internalAuthenticator = RefreshingJWTAuthenticator(
                     micro.client,
-                JwtRefresherSharedSecret(syncMounterSharedSecret)
+                    JwtRefresherSharedSecret(syncMounterSharedSecret)
                 )
                 @Suppress("UNCHECKED_CAST")
                 micro.providerTokenValidation = TokenValidationChain(listOf(

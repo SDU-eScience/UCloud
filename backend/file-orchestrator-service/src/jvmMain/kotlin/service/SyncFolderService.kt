@@ -259,20 +259,19 @@ class SyncFolderService(
                 setParameter("query", query)
                 setParameter("filter_path", flags?.filterByPath)
                 setParameter("filter_devices", flags?.filterDeviceId)
-                setParameter("filter_user", flags?.filterUser)
             },
             """
                 select f.resource, f.device_id, f.path, f.sync_type
-                from file_orchestrator.sync_folders f
-                join provider.resource r on f.resource = r.id
+                from
+                    accessible_resources resc join
+                    file_orchestrator.sync_folders f on (resc.r).id = resource
                 where
                     (:query::text is null or path ilike ('%' || :query || '%')) and
                     (:filter_path::text is null or :filter_path::text = path) and
                     (:filter_devices::text[] is null or
                         array_length(:filter_devices::text[], 1) < 1 or 
                         device_id in (select unnest(:filter_devices::text[]))
-                    ) and
-                    (:filter_user::text is null or :filter_user::text = r.created_by)
+                    )
             """
         )
     }
