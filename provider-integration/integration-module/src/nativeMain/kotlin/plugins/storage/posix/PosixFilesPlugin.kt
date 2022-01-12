@@ -3,10 +3,10 @@ package dk.sdu.cloud.plugins.storage.posix
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.http.ByteBuffer
 import dk.sdu.cloud.http.Header
@@ -23,6 +23,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.NativeFileException
+import dk.sdu.cloud.utils.fileExists
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import kotlinx.cinterop.*
@@ -49,14 +50,6 @@ class PosixFilesPlugin : FilePlugin {
             null
         }
         return BulkResponse(result)
-    }
-
-    private fun IntArray.closeAll() {
-        for (descriptor in this) {
-            if (descriptor > 0) {
-                close(descriptor)
-            }
-        }
     }
 
     private fun createAccordingToPolicy(
@@ -93,9 +86,6 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         val desiredFd = open(parent.path + "/" + desiredFileName, oflags, mode)
-        println("PATH " + parent.path + "/" + desiredFileName)
-        println("FLAGS: $oflags" )
-        println("MODE : " + mode)
         if (!isDirectory) {
             if (desiredFd >= 0) return Pair(parent.path + "/" +desiredFileName, desiredFd)
         } else {
@@ -270,8 +260,11 @@ class PosixFilesPlugin : FilePlugin {
             }
 
             val modifiedAt = (st.st_mtim.tv_sec * 1000) + (st.st_mtim.tv_nsec / 1_000_000)
+            val internalToUCloud = pathConverter.internalToUCloud(file)
+            val numberOfComponents = internalToUCloud.path.count { it == '/' }
+            val isTrash = numberOfComponents == 2 && internalToUCloud.path.endsWith("/Trash")
             PartialUFile(
-                pathConverter.internalToUCloud(file).path,
+                internalToUCloud.path,
                 UFileStatus(
                     if (st.st_mode and S_ISREG == 0U) FileType.DIRECTORY else FileType.FILE,
                     sizeInBytes = st.st_size,
@@ -279,6 +272,7 @@ class PosixFilesPlugin : FilePlugin {
                     unixOwner = st.st_uid.toInt(),
                     unixGroup = st.st_gid.toInt(),
                     unixMode = st.st_mode.toInt(),
+                    icon = if (isTrash) FileIconHint.DIRECTORY_TRASH else null
                 ),
                 modifiedAt
             )
@@ -317,10 +311,6 @@ class PosixFilesPlugin : FilePlugin {
         return nativeStat(pathConverter.ucloudToInternal(UCloudFile.create(request.retrieve.id)))
     }
 
-    override suspend fun PluginContext.delete(resource: UFile) {
-        TODO("Not yet implemented")
-    }
-
     override suspend fun PluginContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
@@ -334,7 +324,9 @@ class PosixFilesPlugin : FilePlugin {
         })
     }
 
-    override suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
+    override suspend fun PluginContext.createUpload(
+        request: BulkRequest<FilesProviderCreateUploadRequestItem>
+    ): List<FileUploadSession> {
         return request.items.map {
             val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
 
@@ -342,6 +334,86 @@ class PosixFilesPlugin : FilePlugin {
             NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
 
             FileUploadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.moveToTrash(
+        request: BulkRequest<FilesProviderTrashRequestItem>
+    ): List<LongRunningTask?> {
+        val didCreateTrash = HashSet<String>()
+        return request.items.map { reqItem ->
+            val expectedTrashLocation = pathConverter.ucloudToInternal(
+                UCloudFile.create("/${reqItem.resolvedCollection.id}/Trash")
+            )
+
+            if (reqItem.resolvedCollection.id !in didCreateTrash) {
+                didCreateTrash.add(reqItem.resolvedCollection.id)
+                if (!fileExists(expectedTrashLocation.path)) {
+                    mkdir(expectedTrashLocation.path, DEFAULT_DIR_MODE)
+                }
+            }
+
+            move(bulkRequestOf(
+                FilesProviderMoveRequestItem(
+                    reqItem.resolvedCollection,
+                    reqItem.resolvedCollection,
+                    reqItem.id,
+                    "/${reqItem.resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
+                    WriteConflictPolicy.RENAME
+                )
+            )).responses.single()
+        }
+    }
+
+    override suspend fun PluginContext.emptyTrash(
+        request: BulkRequest<FilesProviderEmptyTrashRequestItem>
+    ): List<LongRunningTask?> {
+        return request.items.map { reqItem ->
+            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
+            val isTrash = reqItem.id.count { it == '/' } == 2 && reqItem.id.endsWith("/Trash")
+            if (!isTrash) {
+                // Nothing to do
+                LongRunningTask.Complete()
+            } else {
+                delete(internalFile, keepRoot = true)
+                LongRunningTask.Complete()
+            }
+        }
+    }
+
+    override suspend fun PluginContext.delete(resource: UFile) {
+        delete(pathConverter.ucloudToInternal(UCloudFile.create(resource.id)))
+    }
+
+    private fun delete(file: InternalFile, keepRoot: Boolean = false) {
+        val stack = ArrayDeque<InternalFile>()
+        val discovered = HashSet<String>()
+        stack.add(file)
+
+        // Iterative bottom-up search of files
+        while (stack.isNotEmpty()) {
+            val nextItem = stack.removeFirst()
+            if (nextItem.path !in discovered) {
+                // If we have not seen the file before, check to see if it is a directory
+                val stat = nativeStat(nextItem)
+                if (stat.status.type == FileType.DIRECTORY) {
+                    // If it is a directory, then we must process all of its children first. Add them to the front of
+                    // the stack and revisit this folder again later. At this point, the folder will have been marked
+                    // as discovered, and thus we won't recheck any of the files.
+                    discovered.add(nextItem.path)
+                    stack.addFirst(nextItem)
+                    listFiles(nextItem).forEach {
+                        stack.addFirst(it)
+                    }
+                } else {
+                    // We can just delete normal files.
+                    unlink(nextItem.path)
+                }
+            } else {
+                if (keepRoot && nextItem == file) break
+                // If we have already seen a file, them it must be a directory. Delete it with rmdir.
+                rmdir(nextItem.path)
+            }
         }
     }
 

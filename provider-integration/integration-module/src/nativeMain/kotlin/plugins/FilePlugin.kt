@@ -22,13 +22,13 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
     suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): BulkResponse<LongRunningTask?>
     suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
     suspend fun PluginContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteBuffer)
+    suspend fun PluginContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
+    suspend fun PluginContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
+    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): BulkResponse<LongRunningTask?>
 
     override suspend fun PluginContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")
     }
 
     override suspend fun PluginContext.runMonitoringLoop() {}
-
-    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): BulkResponse<LongRunningTask?>
-
 }
