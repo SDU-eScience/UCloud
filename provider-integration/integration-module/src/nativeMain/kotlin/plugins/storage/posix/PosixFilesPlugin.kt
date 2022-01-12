@@ -382,9 +382,27 @@ class PosixFilesPlugin : FilePlugin {
         return BulkResponse(knownProducts.map {
             FSSupport(
                 it,
-                FSProductStatsSupport(),
-                FSCollectionSupport(),
-                FSFileSupport()
+                FSProductStatsSupport(
+                    sizeInBytes = true,
+                    sizeIncludingChildrenInBytes = false,
+                    modifiedAt = true,
+                    createdAt = false,
+                    accessedAt = false,
+                    unixPermissions = true,
+                    unixOwner = true,
+                    unixGroup = true,
+                ),
+                FSCollectionSupport(
+                    aclModifiable = false,
+                    usersCanCreate = false,
+                    usersCanDelete = false,
+                    usersCanRename = false,
+                ),
+                FSFileSupport(
+                    aclModifiable = false,
+                    trashSupported = true,
+                    isReadOnly = false,
+                )
             )
         })
     }

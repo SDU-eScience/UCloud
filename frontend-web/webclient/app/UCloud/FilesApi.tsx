@@ -77,6 +77,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeSizes?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
+    allowUnsupportedInclude?: boolean;
     path?: string;
 }
 
@@ -251,7 +252,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         includeMetadata: true,
         includeSizes: true,
         includeTimestamps: true,
-        includeUnixInfo: true
+        includeUnixInfo: true,
+        allowUnsupportedInclude: true,
     };
 
     public Properties = (props) => {
