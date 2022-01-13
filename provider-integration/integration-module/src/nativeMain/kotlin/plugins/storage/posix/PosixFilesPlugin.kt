@@ -23,8 +23,8 @@ import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.service.SimpleCache
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
@@ -255,6 +255,84 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         return result
+    }
+
+    override suspend fun PluginContext.copy(
+        req: BulkRequest<FilesProviderCopyRequestItem>
+    ): BulkResponse<LongRunningTask?> {
+        val result = req.items.map { reqItem ->
+            val source = UCloudFile.create(reqItem.oldId)
+            val destination = UCloudFile.create(reqItem.newId)
+            val conflictPolicy = reqItem.conflictPolicy
+            val result = copy(
+                pathConverter.ucloudToInternal(source),
+                pathConverter.ucloudToInternal(destination),
+                conflictPolicy
+            )
+            if (result is CopyResult.CreatedDirectory) {
+                val outputFile = result.outputFile
+                val files = listFiles(
+                    pathConverter.ucloudToInternal(source)
+                )
+
+                val requests = files.map { file ->
+                    FilesProviderCopyRequestItem(
+                        reqItem.resolvedOldCollection,
+                        reqItem.resolvedNewCollection,
+                        source.path + "/" + file.path.fileName(),
+                        pathConverter.internalToUCloud(InternalFile(outputFile.path + "/" + file.path.fileName())).path,
+                        conflictPolicy
+                    )
+                }
+                copy(BulkRequest(requests))
+            }
+            null
+        }
+        return BulkResponse(result)    }
+
+    sealed class CopyResult {
+        object CreatedFile : CopyResult()
+        class CreatedDirectory(val outputFile: InternalFile) : CopyResult()
+        object NothingToCreate : CopyResult()
+    }
+
+    private fun copy(
+        source: InternalFile,
+        destination: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+    ): CopyResult {
+        val sourceStat = nativeStat(source)
+        val desiredFileName = destination.path.fileName()
+        if (sourceStat.status.type == FileType.FILE) {
+            val (destinationName, destinationFd) = createAccordingToPolicy(
+                InternalFile(destination.path.parent()),
+                desiredFileName,
+                conflictPolicy,
+                sourceStat.status.type == FileType.DIRECTORY,
+            )
+
+            val outs = NativeOutputStream(destinationFd)
+            val ins = NativeInputStream(open(source.path, 0, 0))
+
+            ins.copyTo(outs)
+            fchmod(destinationFd, DEFAULT_FILE_MODE)
+            close(destinationFd)
+            return CopyResult.CreatedFile
+        }
+        else if (sourceStat.status.type == FileType.DIRECTORY) {
+            val (destinationName, destinationFd) = createAccordingToPolicy(
+                InternalFile(destination.path.parent()),
+                desiredFileName,
+                conflictPolicy,
+                sourceStat.status.type == FileType.DIRECTORY,
+            )
+            return CopyResult.CreatedDirectory(
+                destination
+            )
+        } else {
+            return CopyResult.NothingToCreate
+        }
+
     }
 
     private val browseCache = SimpleCache<String, List<PartialUFile>>(lookup = { null })

@@ -343,6 +343,20 @@ class FileController(
             OutgoingCallResponse.Ok(BulkResponse(result))
         }
 
+        implement(api.copy) {
+            val result = request.items.map { copyRequest ->
+                val collection = copyRequest.resolvedNewCollection.specification.product
+                val plugin = plugins.lookup(collection)
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        copy(bulkRequestOf(copyRequest))
+                    }
+                }
+                LongRunningTask.Complete()
+            }
+            OutgoingCallResponse.Ok(BulkResponse(result))
+        }
+
         implement(api.trash) {
             val result = request.items.map { request ->
                 val collection = request.resolvedCollection.specification.product
