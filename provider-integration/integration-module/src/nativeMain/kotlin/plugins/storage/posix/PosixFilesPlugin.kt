@@ -21,9 +21,7 @@ import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.NativeFileException
-import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.utils.*
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import platform.posix.*
@@ -93,9 +91,6 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         val desiredFd = open(parent.path + "/" + desiredFileName, oflags, mode)
-        println("PATH " + parent.path + "/" + desiredFileName)
-        println("FLAGS: $oflags" )
-        println("MODE : " + mode)
         if (!isDirectory) {
             if (desiredFd >= 0) return Pair(parent.path + "/" +desiredFileName, desiredFd)
         } else {
@@ -226,8 +221,102 @@ class PosixFilesPlugin : FilePlugin {
             }
             null
         }
-
         return BulkResponse(result)
+    }
+
+    override suspend fun PluginContext.copy(
+        req: BulkRequest<FilesProviderCopyRequestItem>
+    ): BulkResponse<LongRunningTask?> {
+        val result = req.items.map { reqItem ->
+            val source = UCloudFile.create(reqItem.oldId)
+            val destination = UCloudFile.create(reqItem.newId)
+            val conflictPolicy = reqItem.conflictPolicy
+            println("SOURCE = ${source.path}")
+            println("DEST = ${destination.path}")
+            val result = copy(
+                pathConverter.ucloudToInternal(source),
+                pathConverter.ucloudToInternal(destination),
+                conflictPolicy
+            )
+            if (result is CopyResult.CreatedDirectory) {
+                val outputFile = result.outputFile
+                val files = browse(
+                    UCloudFile.create(source.path),
+                    FilesProviderBrowseRequest(
+                        pathConverter.ucloudToCollection(UCloudFile.create(source.path)),
+                        ResourceBrowseRequest(
+                            UFileIncludeFlags()
+                        )
+                    )
+                )
+
+                val requests = files.items.map { file ->
+                    println("OUTPUTFILE")
+                    println(pathConverter.internalToUCloud(InternalFile(outputFile.path + "/" + file.id.fileName())).path)
+                    println("SOURCEFILE")
+                    println(source.path + "/" + file.id.fileName())
+                    FilesProviderCopyRequestItem(
+                        reqItem.resolvedOldCollection,
+                        reqItem.resolvedNewCollection,
+                        source.path + "/" + file.id.fileName(),
+                        pathConverter.internalToUCloud(InternalFile(outputFile.path + "/" + file.id.fileName())).path,
+                        conflictPolicy
+                    )
+                }
+                copy(BulkRequest(requests))
+            }
+            null
+        }
+        return BulkResponse(result)    }
+
+    sealed class CopyResult {
+        object CreatedFile : CopyResult()
+        class CreatedDirectory(val outputFile: InternalFile) : CopyResult()
+        object NothingToCreate : CopyResult()
+    }
+
+    private fun copy(
+        source: InternalFile,
+        destination: InternalFile,
+        conflictPolicy: WriteConflictPolicy,
+    ): CopyResult {
+        println("COPY")
+        val sourceStat = nativeStat(source)
+        val desiredFileName = destination.path.fileName()
+        if (sourceStat.status.type == FileType.FILE) {
+            println("IS FILE")
+            val (destinationName, destinationFd) = createAccordingToPolicy(
+                InternalFile(destination.path.parent()),
+                desiredFileName,
+                conflictPolicy,
+                sourceStat.status.type == FileType.DIRECTORY,
+            )
+
+            val outs = NativeOutputStream(destinationFd)
+            val ins = NativeInputStream(open(source.path, 0, 0))
+
+            ins.copyTo(outs)
+            fchmod(destinationFd, DEFAULT_FILE_MODE)
+            close(destinationFd)
+            println("RETUNRING CREATED FILE")
+            return CopyResult.CreatedFile
+        }
+        else if (sourceStat.status.type == FileType.DIRECTORY) {
+            println("IS DIR")
+            val (destinationName, destinationFd) = createAccordingToPolicy(
+                InternalFile(destination.path.parent()),
+                desiredFileName,
+                conflictPolicy,
+                sourceStat.status.type == FileType.DIRECTORY,
+            )
+            return CopyResult.CreatedDirectory(
+                destination
+            )
+        } else {
+            println("IS NOTHNG")
+            return CopyResult.NothingToCreate
+        }
+
     }
 
     override suspend fun PluginContext.browse(

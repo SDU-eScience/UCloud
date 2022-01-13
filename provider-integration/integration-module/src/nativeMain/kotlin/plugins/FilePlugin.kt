@@ -30,5 +30,6 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
     override suspend fun PluginContext.runMonitoringLoop() {}
 
     suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): BulkResponse<LongRunningTask?>
+    suspend fun PluginContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): BulkResponse<LongRunningTask?>
 
 }
