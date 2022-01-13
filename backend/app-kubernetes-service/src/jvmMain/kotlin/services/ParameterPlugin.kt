@@ -7,6 +7,9 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.components
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.file.orchestrator.api.normalize
+import dk.sdu.cloud.file.ucloud.services.PathConverter
+import dk.sdu.cloud.file.ucloud.services.UCloudFile
+import dk.sdu.cloud.file.ucloud.services.components
 import dk.sdu.cloud.service.k8.Pod
 import io.ktor.http.*
 
@@ -19,8 +22,11 @@ import io.ktor.http.*
  * - The container will receive a new command
  * - Environment variables will be initialized with values from the user
  */
-class ParameterPlugin(private val licenseService: LicenseService) : JobManagementPlugin {
-    private val argBuilder = OurArgBuilder(licenseService)
+class ParameterPlugin(
+    private val licenseService: LicenseService,
+    private val pathConverter: PathConverter,
+) : JobManagementPlugin {
+    private val argBuilder = OurArgBuilder(pathConverter, licenseService)
 
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
         val app = resources.findResources(job).application.invocation
@@ -63,12 +69,15 @@ class ParameterPlugin(private val licenseService: LicenseService) : JobManagemen
     }
 }
 
-private class OurArgBuilder(private val licenseService: LicenseService) : ArgumentBuilder {
+private class OurArgBuilder(
+    private val pathConverter: PathConverter,
+    private val licenseService: LicenseService,
+) : ArgumentBuilder {
     override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
         return when (parameter) {
             is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
                 val file = (value as AppParameterValue.File)
-                val components = file.path.normalize().components()
+                val components = pathConverter.ucloudToInternal(UCloudFile.create(file.path)).components()
                 if (components.isEmpty()) {
                     return ArgumentBuilder.Default.build(parameter, value)
                 }

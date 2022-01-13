@@ -10,6 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 13-01-21
 
 ```
+✅  Deployment(app-kubernetes, 2022.1.1-patch.7) (UP-TO-DATE)
 ✅  Deployment(webclient, 2022.1.2-patch.5) (UP-TO-DATE)
 ```
 
