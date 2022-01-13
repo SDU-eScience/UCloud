@@ -1,6 +1,7 @@
 package dk.sdu.cloud.sql.migrations
 
 import dk.sdu.cloud.sql.MigrationScript
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__Tasks(): MigrationScript = MigrationScript("V1__Tasks") { conn ->
     conn.prepareStatement(
@@ -12,5 +13,5 @@ fun V1__Tasks(): MigrationScript = MigrationScript("V1__Tasks") { conn ->
                 local_identity text not null
             )
         """
-    )
+    ).useAndInvokeAndDiscard()
 }

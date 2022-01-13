@@ -1,11 +1,11 @@
 package dk.sdu.cloud.plugins.storage.posix
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.controllers.TaskIpc
 import dk.sdu.cloud.controllers.TaskSpecification
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
@@ -45,7 +45,7 @@ class PosixTaskSystem(
         task.collectionId = task.collectionId
 
         val file = NativeFile.open(
-            joinPath(taskFolder.path, TASK_PREFIX, task.id, TASK_SUFFIX),
+            taskFolder.path + "/" + TASK_PREFIX + task.id + TASK_SUFFIX,
             readOnly = false,
             truncateIfNeeded = true
         )
@@ -57,7 +57,7 @@ class PosixTaskSystem(
     }
 
     suspend fun markTaskAsComplete(collectionId: String, taskId: String) {
-        val file = InternalFile(joinPath(findAndInitTaskFolder(collectionId).path, TASK_PREFIX, taskId, TASK_SUFFIX))
+        val file = InternalFile(findAndInitTaskFolder(collectionId).path + "/" + TASK_PREFIX + taskId + TASK_SUFFIX)
         pluginContext.ipcClient.sendRequest(TaskIpc.markAsComplete, FindByStringId(taskId))
         unlink(file.path)
     }
@@ -110,6 +110,7 @@ sealed class PosixTask {
     data class MoveToTrash(
         override val title: String,
         override var collectionId: String,
+        val request: FilesProviderTrashRequestItem,
         override var id: String = "",
         override var timestamp: Long = Time.now(),
     ) : PosixTask()
@@ -119,6 +120,7 @@ sealed class PosixTask {
     data class EmptyTrash(
         override val title: String,
         override var collectionId: String,
+        val request: FilesProviderEmptyTrashRequestItem,
         override var id: String = "",
         override var timestamp: Long = Time.now(),
     ) : PosixTask()
@@ -128,6 +130,17 @@ sealed class PosixTask {
     data class Move(
         override val title: String,
         override var collectionId: String,
+        val request: FilesProviderMoveRequestItem,
+        override var id: String = "",
+        override var timestamp: Long = Time.now(),
+    ) : PosixTask()
+
+    @Serializable
+    @SerialName("copy")
+    data class Copy(
+        override val title: String,
+        override var collectionId: String,
+        val request: FilesProviderCopyRequestItem,
         override var id: String = "",
         override var timestamp: Long = Time.now(),
     ) : PosixTask()

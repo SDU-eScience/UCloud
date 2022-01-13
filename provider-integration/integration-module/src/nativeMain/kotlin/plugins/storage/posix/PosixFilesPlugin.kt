@@ -23,11 +23,17 @@ import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.*
 import io.ktor.http.*
-import kotlinx.cinterop.*
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import platform.posix.*
 import kotlin.math.min
 
@@ -38,26 +44,39 @@ class PosixFilesPlugin : FilePlugin {
     override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
         pathConverter = PathConverter(this)
         taskSystem = PosixTaskSystem(this, pathConverter)
+    }
 
-        val posixCollectionPlugin = PosixCollectionPlugin.instance
-            ?: error("The posix files plugin also requires the companion collection plugin!")
+    private val tasksInitializedMutex = Mutex()
+    private val tasksInitialized = HashSet<String>()
+    private suspend fun initializeTasksIfNeeded(collection: FileCollection) {
+        var needsInit = false
+        tasksInitializedMutex.withLock {
+            if (collection.id !in tasksInitialized) {
+                tasksInitialized.add(collection.id)
+                needsInit = true
+            }
+        }
 
-        posixCollectionPlugin.localDrives.forEach { drive ->
-            val ucloudCollection = pathConverter.internalToUCloud(drive)
-            val collectionId = ucloudCollection.path.components().getOrNull(0) ?: return@forEach
-            taskSystem.retrieveCurrentTasks(collectionId).forEach { processTask(it, doCreate = false) }
+        if (needsInit) {
+            taskSystem.retrieveCurrentTasks(collection.id).forEach { processTask(it, doCreate = false) }
         }
     }
 
-    private suspend fun processTask(task: PosixTask, doCreate: Boolean) {
+    private suspend fun processTask(task: PosixTask, doCreate: Boolean = true): LongRunningTask {
         val shouldBackgroundProcess = if (!doCreate) {
             true
-        } else when(task) {
-            else -> true
+        } else {
+            // TODO(Dan): Come up with some better criteria based on the task requirements
+            true
         }
 
         val processor: suspend () -> Unit = {
-
+            when (task) {
+                is PosixTask.Move -> task.process()
+                is PosixTask.Copy -> task.process()
+                is PosixTask.MoveToTrash -> task.process()
+                is PosixTask.EmptyTrash -> task.process()
+            }
         }
 
         // Dispatch task related tasks and run the processor
@@ -65,33 +84,27 @@ class PosixFilesPlugin : FilePlugin {
             taskSystem.registerTask(task)
         }
 
-        if (shouldBackgroundProcess) {
+        return if (shouldBackgroundProcess) {
             ProcessingScope.launch {
                 try {
                     processor()
                 } finally {
-                    runCatching { taskSystem.markTaskAsComplete(task.collectionId, task.id) }
+                    // NOTE(Dan): If the task takes less than a second to complete, then it is still possible that
+                    // UCloud hasn't even processed our task creation request. Wait for a bit to make sure that it is
+                    // ready to mark it as complete.
+                    if (Time.now() - task.timestamp < 1000) {
+                        delay(250)
+                    }
+                    runCatching {
+                        taskSystem.markTaskAsComplete(task.collectionId, task.id)
+                    }
                 }
             }
+            LongRunningTask.ContinuesInBackground(task.id)
         } else {
             processor()
+            LongRunningTask.Complete()
         }
-    }
-
-    override suspend fun PluginContext.createFolder(
-        req: BulkRequest<FilesProviderCreateFolderRequestItem>
-    ): List<LongRunningTask?> {
-        val result = req.items.map { reqItem ->
-            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-
-            val err = mkdir(internalFile.path, DEFAULT_DIR_MODE)
-            if (err < 0) {
-                log.debug("Could not create directories at ${internalFile.path}")
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-            null
-        }
-        return result
     }
 
     private fun createAccordingToPolicy(
@@ -180,6 +193,50 @@ class PosixFilesPlugin : FilePlugin {
         )
     }
 
+    override suspend fun PluginContext.move(
+        req: BulkRequest<FilesProviderMoveRequestItem>
+    ): List<LongRunningTask?> {
+        val result = req.items.map { reqItem ->
+            processTask(PosixTask.Move("Moving files...", reqItem.resolvedOldCollection.id, reqItem))
+        }
+
+        return result
+    }
+
+    private suspend fun PosixTask.Move.process() {
+        val reqItem = request
+        val source = UCloudFile.create(reqItem.oldId)
+        val destination = UCloudFile.create(reqItem.newId)
+        val conflictPolicy = reqItem.conflictPolicy
+        val needsToRecurse = move(
+            pathConverter.ucloudToInternal(source),
+            pathConverter.ucloudToInternal(destination),
+            conflictPolicy
+        ).needsToRecurse
+
+        if (needsToRecurse) {
+            val files = listFiles(pathConverter.ucloudToInternal(source))
+            val requests = files.map { file ->
+                FilesProviderMoveRequestItem(
+                    reqItem.resolvedOldCollection,
+                    reqItem.resolvedNewCollection,
+                    source.path + "/" + file.path.fileName(),
+                    destination.path + "/" + file.path.fileName(),
+                    conflictPolicy
+                )
+            }
+            for (nextRequest in requests) {
+                PosixTask.Move(
+                    title,
+                    collectionId,
+                    nextRequest,
+                    id,
+                    timestamp
+                ).process()
+            }
+        }
+    }
+
     data class MoveShouldContinue(val needsToRecurse: Boolean)
 
     private fun move(
@@ -226,69 +283,52 @@ class PosixFilesPlugin : FilePlugin {
         return MoveShouldContinue(shouldContinue)
     }
 
-    override suspend fun PluginContext.move(
-        req: BulkRequest<FilesProviderMoveRequestItem>
+    override suspend fun PluginContext.copy(
+        req: BulkRequest<FilesProviderCopyRequestItem>
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
-            val source = UCloudFile.create(reqItem.oldId)
-            val destination = UCloudFile.create(reqItem.newId)
-            val conflictPolicy = reqItem.conflictPolicy
-            val needsToRecurse = move(
-                pathConverter.ucloudToInternal(source),
-                pathConverter.ucloudToInternal(destination),
-                conflictPolicy
-            ).needsToRecurse
-            if (needsToRecurse) {
-                val files = listFiles(pathConverter.ucloudToInternal(source))
-                val requests = files.map { file ->
-                    FilesProviderMoveRequestItem(
-                        reqItem.resolvedOldCollection,
-                        reqItem.resolvedNewCollection,
-                        source.path + "/" + file.path.fileName(),
-                        destination.path + "/" + file.path.fileName(),
-                        conflictPolicy
-                    )
-                }
-                move(BulkRequest(requests))
-            }
-            null
+            processTask(
+                PosixTask.Copy(
+                    "Copy Files...",
+                    reqItem.resolvedOldCollection.id,
+                    reqItem
+                )
+            )
         }
-
         return result
     }
 
-    override suspend fun PluginContext.copy(
-        req: BulkRequest<FilesProviderCopyRequestItem>
-    ): BulkResponse<LongRunningTask?> {
-        val result = req.items.map { reqItem ->
-            val source = UCloudFile.create(reqItem.oldId)
-            val destination = UCloudFile.create(reqItem.newId)
-            val conflictPolicy = reqItem.conflictPolicy
-            val result = copy(
-                pathConverter.ucloudToInternal(source),
-                pathConverter.ucloudToInternal(destination),
-                conflictPolicy
+    private suspend fun PosixTask.Copy.process() {
+        val reqItem = request
+        val source = UCloudFile.create(reqItem.oldId)
+        val destination = UCloudFile.create(reqItem.newId)
+        val conflictPolicy = reqItem.conflictPolicy
+        val result = copy(
+            pathConverter.ucloudToInternal(source),
+            pathConverter.ucloudToInternal(destination),
+            conflictPolicy
+        )
+        if (result is CopyResult.CreatedDirectory) {
+            val outputFile = result.outputFile
+            val files = listFiles(
+                pathConverter.ucloudToInternal(source)
             )
-            if (result is CopyResult.CreatedDirectory) {
-                val outputFile = result.outputFile
-                val files = listFiles(
-                    pathConverter.ucloudToInternal(source)
-                )
 
-                val requests = files.map { file ->
-                    FilesProviderCopyRequestItem(
-                        reqItem.resolvedOldCollection,
-                        reqItem.resolvedNewCollection,
-                        source.path + "/" + file.path.fileName(),
-                        pathConverter.internalToUCloud(InternalFile(outputFile.path + "/" + file.path.fileName())).path,
-                        conflictPolicy
-                    )
-                }
-                copy(BulkRequest(requests))
+            val requests = files.map { file ->
+                FilesProviderCopyRequestItem(
+                    reqItem.resolvedOldCollection,
+                    reqItem.resolvedNewCollection,
+                    source.path + "/" + file.path.fileName(),
+                    pathConverter.internalToUCloud(InternalFile(outputFile.path + "/" + file.path.fileName())).path,
+                    conflictPolicy
+                )
             }
-            null
+
+            for (newRequest in requests) {
+                PosixTask.Copy(title, collectionId, newRequest, id, timestamp).process()
+            }
         }
-        return BulkResponse(result)    }
+    }
 
     sealed class CopyResult {
         object CreatedFile : CopyResult()
@@ -318,8 +358,7 @@ class PosixFilesPlugin : FilePlugin {
             fchmod(destinationFd, DEFAULT_FILE_MODE)
             close(destinationFd)
             return CopyResult.CreatedFile
-        }
-        else if (sourceStat.status.type == FileType.DIRECTORY) {
+        } else if (sourceStat.status.type == FileType.DIRECTORY) {
             val (destinationName, destinationFd) = createAccordingToPolicy(
                 InternalFile(destination.path.parent()),
                 desiredFileName,
@@ -332,7 +371,10 @@ class PosixFilesPlugin : FilePlugin {
         } else {
             return CopyResult.NothingToCreate
         }
+    }
 
+    override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
+        return nativeStat(pathConverter.ucloudToInternal(UCloudFile.create(request.retrieve.id)))
     }
 
     private val browseCache = SimpleCache<String, List<PartialUFile>>(lookup = { null })
@@ -341,6 +383,8 @@ class PosixFilesPlugin : FilePlugin {
         path: UCloudFile,
         request: FilesProviderBrowseRequest
     ): PageV2<PartialUFile> {
+        initializeTasksIfNeeded(request.resolvedCollection)
+
         val itemsPerPage = request.browse.itemsPerPage ?: 50
         fun paginateFiles(files: List<PartialUFile>, offset: Int, token: String): PageV2<PartialUFile> {
             try {
@@ -434,125 +478,57 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.createDownload(
-        request: BulkRequest<FilesProviderCreateDownloadRequestItem>
-    ): List<FileDownloadSession> {
-        return request.items.map {
-            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
-
-            // Confirm that the file exists
-            val stat = nativeStat(file)
-            if (stat.status.type != FileType.FILE) {
-                throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
-            }
-
-            FileDownloadSession(secureToken(64), file.path)
-        }
-    }
-
-    override suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String) {
-        val stat = nativeStat(InternalFile(pluginData))
-        if (stat.status.type != FileType.FILE) {
-            throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
-        }
-
-        ctx.session.sendHttpResponseWithFile(
-            pluginData,
-            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
-        )
-    }
-
-    override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
-        return nativeStat(pathConverter.ucloudToInternal(UCloudFile.create(request.retrieve.id)))
-    }
-
-    override suspend fun PluginContext.retrieveProducts(
-        knownProducts: List<ProductReference>
-    ): BulkResponse<FSSupport> {
-        return BulkResponse(knownProducts.map {
-            FSSupport(
-                it,
-                FSProductStatsSupport(
-                    sizeInBytes = true,
-                    sizeIncludingChildrenInBytes = false,
-                    modifiedAt = true,
-                    createdAt = false,
-                    accessedAt = false,
-                    unixPermissions = true,
-                    unixOwner = true,
-                    unixGroup = true,
-                ),
-                FSCollectionSupport(
-                    aclModifiable = false,
-                    usersCanCreate = false,
-                    usersCanDelete = false,
-                    usersCanRename = false,
-                ),
-                FSFileSupport(
-                    aclModifiable = false,
-                    trashSupported = true,
-                    isReadOnly = false,
-                )
-            )
-        })
-    }
-
-    override suspend fun PluginContext.createUpload(
-        request: BulkRequest<FilesProviderCreateUploadRequestItem>
-    ): List<FileUploadSession> {
-        return request.items.map {
-            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
-
-            // Confirm that we can open the file
-            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
-
-            FileUploadSession(secureToken(64), file.path)
-        }
-    }
-
     override suspend fun PluginContext.moveToTrash(
         request: BulkRequest<FilesProviderTrashRequestItem>
     ): List<LongRunningTask?> {
-        val didCreateTrash = HashSet<String>()
         return request.items.map { reqItem ->
-            val expectedTrashLocation = pathConverter.ucloudToInternal(
-                UCloudFile.create("/${reqItem.resolvedCollection.id}/Trash")
-            )
-
-            if (reqItem.resolvedCollection.id !in didCreateTrash) {
-                didCreateTrash.add(reqItem.resolvedCollection.id)
-                if (!fileExists(expectedTrashLocation.path)) {
-                    mkdir(expectedTrashLocation.path, DEFAULT_DIR_MODE)
-                }
-            }
-
-            move(
-                bulkRequestOf(
-                    FilesProviderMoveRequestItem(
-                        reqItem.resolvedCollection,
-                        reqItem.resolvedCollection,
-                        reqItem.id,
-                        "/${reqItem.resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
-                        WriteConflictPolicy.RENAME
-                    )
+            processTask(
+                PosixTask.MoveToTrash(
+                    "Moving files to trash...",
+                    reqItem.resolvedCollection.id,
+                    reqItem
                 )
-            ).single()
+            )
         }
+    }
+
+    private suspend fun PosixTask.MoveToTrash.process() {
+        val expectedTrashLocation = pathConverter.ucloudToInternal(
+            UCloudFile.create("/${request.resolvedCollection.id}/Trash")
+        )
+
+        if (!fileExists(expectedTrashLocation.path)) {
+            mkdir(expectedTrashLocation.path, DEFAULT_DIR_MODE)
+        }
+
+        PosixTask.Move(
+            title,
+            collectionId,
+            FilesProviderMoveRequestItem(
+                request.resolvedCollection,
+                request.resolvedCollection,
+                request.id,
+                "/${request.resolvedCollection.id}/Trash/${request.id.fileName()}",
+                WriteConflictPolicy.RENAME
+            )
+        ).process()
     }
 
     override suspend fun PluginContext.emptyTrash(
         request: BulkRequest<FilesProviderEmptyTrashRequestItem>
     ): List<LongRunningTask?> {
         return request.items.map { reqItem ->
-            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-            val isTrash = reqItem.id.count { it == '/' } == 2 && reqItem.id.endsWith("/Trash")
-            if (!isTrash) {
-                // Nothing to do
-                LongRunningTask.Complete()
-            } else {
-                delete(internalFile, keepRoot = true)
-                LongRunningTask.Complete()
-            }
+            processTask(PosixTask.EmptyTrash("Emptying trash...", reqItem.resolvedCollection.id, reqItem))
+        }
+    }
+
+    private suspend fun PosixTask.EmptyTrash.process() {
+        val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(request.id))
+        val isTrash = request.id.count { it == '/' } == 2 && request.id.endsWith("/Trash")
+        if (!isTrash) {
+            // Nothing to do
+        } else {
+            delete(internalFile, keepRoot = true)
         }
     }
 
@@ -592,6 +568,35 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
+    override suspend fun PluginContext.createFolder(
+        req: BulkRequest<FilesProviderCreateFolderRequestItem>
+    ): List<LongRunningTask?> {
+        val result = req.items.map { reqItem ->
+            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
+
+            val err = mkdir(internalFile.path, DEFAULT_DIR_MODE)
+            if (err < 0) {
+                log.debug("Could not create directories at ${internalFile.path}")
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+            LongRunningTask.Complete()
+        }
+        return result
+    }
+
+    override suspend fun PluginContext.createUpload(
+        request: BulkRequest<FilesProviderCreateUploadRequestItem>
+    ): List<FileUploadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that we can open the file
+            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
+
+            FileUploadSession(secureToken(64), file.path)
+        }
+    }
+
     override suspend fun PluginContext.handleUpload(
         session: String,
         pluginData: String,
@@ -607,6 +612,66 @@ class PosixFilesPlugin : FilePlugin {
         } finally {
             fileHandle.close()
         }
+    }
+
+    override suspend fun PluginContext.createDownload(
+        request: BulkRequest<FilesProviderCreateDownloadRequestItem>
+    ): List<FileDownloadSession> {
+        return request.items.map {
+            val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
+
+            // Confirm that the file exists
+            val stat = nativeStat(file)
+            if (stat.status.type != FileType.FILE) {
+                throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+            }
+
+            FileDownloadSession(secureToken(64), file.path)
+        }
+    }
+
+    override suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String) {
+        val stat = nativeStat(InternalFile(pluginData))
+        if (stat.status.type != FileType.FILE) {
+            throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+        }
+
+        ctx.session.sendHttpResponseWithFile(
+            pluginData,
+            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
+        )
+    }
+
+
+    override suspend fun PluginContext.retrieveProducts(
+        knownProducts: List<ProductReference>
+    ): BulkResponse<FSSupport> {
+        return BulkResponse(knownProducts.map {
+            FSSupport(
+                it,
+                FSProductStatsSupport(
+                    sizeInBytes = true,
+                    sizeIncludingChildrenInBytes = false,
+                    modifiedAt = true,
+                    createdAt = false,
+                    accessedAt = false,
+                    unixPermissions = true,
+                    unixOwner = true,
+                    unixGroup = true,
+                ),
+                FSCollectionSupport(
+                    aclModifiable = false,
+                    usersCanCreate = false,
+                    usersCanDelete = false,
+                    usersCanRename = false,
+                ),
+                FSFileSupport(
+                    aclModifiable = false,
+                    trashSupported = true,
+                    isReadOnly = false,
+                )
+            )
+        })
     }
 
     companion object : Loggable {

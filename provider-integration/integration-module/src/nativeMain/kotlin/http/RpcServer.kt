@@ -186,6 +186,10 @@ class RpcServer(
                         }
                     } catch (ex: Throwable) {
                         if (ex is RPCException) {
+                            if (ex.httpStatusCode.value in 500..599) {
+                                log.warn(ex.stackTraceToString())
+                            }
+
                             sendHttpResponseWithData(
                                 ex.httpStatusCode.value,
                                 contentTypeJson,
@@ -302,7 +306,6 @@ class RpcServer(
                         sendResponse,
                         isOpen
                     )
-
 
                     log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
                     val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)

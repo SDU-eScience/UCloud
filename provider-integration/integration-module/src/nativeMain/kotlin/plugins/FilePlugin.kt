@@ -25,7 +25,7 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
     suspend fun PluginContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
     suspend fun PluginContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
     suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): BulkResponse<LongRunningTask?>
+    suspend fun PluginContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?>
 
     override suspend fun PluginContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")

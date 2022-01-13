@@ -100,8 +100,8 @@ class PluginLoader(private val pluginContext: PluginContext) {
     fun load(): LoadedPlugins {
         val config = pluginContext.config
 
-        val files = config.plugins.files?.let { loadProductBasedPlugin(filesPlugin, it) }
         val fileCollection = config.plugins.fileCollection?.let { loadProductBasedPlugin(fileCollectionsPlugin, it) }
+        val files = config.plugins.files?.let { loadProductBasedPlugin(filesPlugin, it) }
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
         val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
