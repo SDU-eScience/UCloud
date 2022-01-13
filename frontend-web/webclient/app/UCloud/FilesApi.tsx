@@ -5,7 +5,8 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate,
+    SupportByProvider
 } from "@/UCloud/ResourceApi";
 import {FileIconHint, FileType} from "@/Files";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud/index";
@@ -38,7 +39,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
-import {ProductStorage} from "@/Accounting";
+import {ProductStorage, ProductSyncFolder} from "@/Accounting";
 import {SynchronizationSettings} from "@/Files/Synchronization";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
@@ -52,6 +53,7 @@ import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import {useEffect, useState} from "react";
+import {SyncFolderSupport} from "./SyncFolderApi";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -127,6 +129,7 @@ interface FilesEmptyTrashRequestItem {
 interface ExtraCallbacks {
     collection?: FileCollection;
     directory?: UFile;
+    syncProducts?: SupportByProvider<ProductSyncFolder, SyncFolderSupport>;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -581,8 +584,12 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 text: "Synchronization",
                 enabled: (selected, cb) => {
                     const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if (!cb.syncProducts) return false;
+                    const provider = (support as FileCollectionSupport).product.provider;
                     return cb.embedded !== true &&
-                        support &&
+                        cb.syncProducts &&
+                        Object.keys(cb.syncProducts.productsByProvider).filter(it => it === provider).length > 0 &&
                         selected.length === 1 &&
                         selected[0].status.type === "DIRECTORY";
                 },

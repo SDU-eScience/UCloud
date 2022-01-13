@@ -14,7 +14,7 @@ import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollection
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
-import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {ResourceBrowseCallbacks, SupportByProvider} from "@/UCloud/ResourceApi";
 import {Box, Flex, Icon, List, Text} from "@/ui-components";
 import {PageV2} from "@/UCloud";
 import {ListV2, List as ListV1} from "@/Pagination";
@@ -24,6 +24,8 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {ProductSyncFolder} from "@/Accounting";
+import SyncFolderApi, {SyncFolderSupport} from "@/UCloud/SyncFolderApi";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -63,6 +65,9 @@ export const FilesBrowse: React.FunctionComponent<{
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
+    const [syncProducts, fetchSyncProducts] = useCloudAPI<
+        SupportByProvider<ProductSyncFolder, SyncFolderSupport> | undefined
+    >(SyncFolderApi.retrieveProducts(), undefined);
 
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
 
@@ -262,7 +267,8 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const callbacks = useMemo(() => ({
         collection: collection?.data ?? undefined,
-        directory: directory?.data ?? undefined
+        directory: directory?.data ?? undefined,
+        syncProducts: syncProducts?.data ?? undefined
     }), [collection.data, directory.data]);
 
     return <ResourceBrowse
