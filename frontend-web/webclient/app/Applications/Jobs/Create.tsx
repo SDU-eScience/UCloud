@@ -4,8 +4,8 @@ import * as UCloud from "@/UCloud";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useHistory} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {AppHeader} from "@/Applications/View";
-import {Box, Button, ContainerForText, Grid, Icon, OutlineButton, VerticalButtonGroup} from "@/ui-components";
+import {AppHeader, Information} from "@/Applications/View";
+import {Box, Button, ContainerForText, Grid, Icon, Markdown, VerticalButtonGroup} from "@/ui-components";
 import Link from "@/ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
@@ -23,7 +23,6 @@ import {displayErrorMessageOrDefault, extractErrorCode} from "@/UtilityFunctions
 import {addStandardDialog, WalletWarning} from "@/UtilityComponents";
 import {ImportParameters} from "@/Applications/Jobs/Widgets/ImportParameters";
 import LoadingIcon from "@/LoadingIcon/LoadingIcon";
-import {FavoriteToggle} from "@/Applications/FavoriteToggle";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -33,6 +32,7 @@ import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
 import {BulkResponse, FindByStringId} from "@/UCloud";
 import {Product, usageExplainer} from "@/Accounting";
+import styled from "styled-components";
 
 interface InsufficientFunds {
     why?: string;
@@ -293,80 +293,111 @@ export const Create: React.FunctionComponent = () => {
             </VerticalButtonGroup>
         }
         main={
-            <ContainerForText>
-                <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
-                    {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
-                    <ImportParameters application={application} onImport={onLoadParameters}
-                        importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
-                        onImportDialogClose={() => setImportDialogOpen(false)} />
-                    <ReservationParameter
-                        application={application}
-                        errors={reservationErrors}
-                        onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
-                    />
+            <>
+                <ContainerForText left>
+                    <b>Description</b>
+                    <Markdown
+                        unwrapDisallowed
+                        disallowedElements={[
+                            "image",
+                            "heading"
+                        ]}
+                    >
+                        {application.metadata.description}
+                    </Markdown>
+                    <Information simple application={application} />
+                </ContainerForText>
+                <ContainerForText>
+                    <Grid gridTemplateColumns={"1fr"} gridGap={"48px"} width={"100%"} mb={"48px"} mt={"16px"}>
+                        {insufficientFunds ? <WalletWarning errorCode={insufficientFunds.errorCode} /> : null}
+                        <ImportParameters application={application} onImport={onLoadParameters}
+                            importDialogOpen={importDialogOpen} setImportDialogOpen={setImportDialogOpen}
+                            onImportDialogClose={() => setImportDialogOpen(false)} />
+                        <ReservationParameter
+                            application={application}
+                            errors={reservationErrors}
+                            onEstimatedCostChange={(cost, balance, product) => setEstimatedCost({cost, balance, product})}
+                        />
 
-                    {/* Parameters */}
-                    {mandatoryParameters.length === 0 ? null : (
-                        <Box>
-                            <Heading.h4>Mandatory Parameters</Heading.h4>
-                            <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
-                                {mandatoryParameters.map(param => (
+                        {/* Parameters */}
+                        {mandatoryParameters.length === 0 ? null : (
+                            <Box>
+                                <Heading.h4>Mandatory Parameters</Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                    {mandatoryParameters.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            active />
+                                    ))}
+                                </Grid>
+                            </Box>
+                        )}
+                        {activeParameters.length === 0 ? null : (
+                            <Box>
+                                <Heading.h4>Additional Parameters</Heading.h4>
+                                <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
+                                    {activeParameters.map(param => (
+                                        <Widget key={param.name} parameter={param} errors={errors} provider={provider}
+                                            active
+                                            onRemove={() => {
+                                                setActiveOptParams(activeOptParams.filter(it => it !== param.name));
+                                            }}
+                                        />
+                                    ))}
+                                </Grid>
+                            </Box>
+                        )}
+                        {inactiveParameters.length === 0 ? null : (
+                            <GrayBox>
+                                <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
                                     <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        active />
-                                ))}
-                            </Grid>
-                        </Box>
-                    )}
-                    {activeParameters.length === 0 ? null : (
-                        <Box>
-                            <Heading.h4>Additional Parameters</Heading.h4>
-                            <Grid gridTemplateColumns={"1fr"} gridGap={"5px"}>
-                                {activeParameters.map(param => (
-                                    <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                        active
-                                        onRemove={() => {
-                                            setActiveOptParams(activeOptParams.filter(it => it !== param.name));
+                                        active={false}
+                                        onActivate={() => {
+                                            setActiveOptParams([...activeOptParams, param.name]);
                                         }}
                                     />
-                                ))}
-                            </Grid>
-                        </Box>
-                    )}
-                    {inactiveParameters.length === 0 ? null : (
-                        <OptionalWidgetSearch pool={inactiveParameters} mapper={param => (
-                            <Widget key={param.name} parameter={param} errors={errors} provider={provider}
-                                active={false}
-                                onActivate={() => {
-                                    setActiveOptParams([...activeOptParams, param.name]);
-                                }}
-                            />
-                        )} />
-                    )}
+                                )} />
+                            </GrayBox>
+                        )}
 
-                    {/* Resources */}
-                    <IngressResource
-                        {...ingress}
-                        application={application}
-                    />
+                        {/* Resources */}
+                        <IngressResource
+                            {...ingress}
+                            application={application}
+                        />
 
-                    <FolderResource
-                        {...folders}
-                        application={application}
-                    />
 
-                    <PeerResource
-                        {...peers}
-                        application={application}
-                    />
+                        <FolderResource
+                            {...folders}
+                            application={application}
+                        />
 
-                    <NetworkIPResource
-                        {...networks}
-                        application={application}
-                    />
-                </Grid>
-            </ContainerForText>
-        }
+
+                        <PeerResource
+                            {...peers}
+                            application={application}
+                        />
+
+
+                        <NetworkIPResource
+                            {...networks}
+                            application={application}
+                        />
+
+                    </Grid>
+                </ContainerForText>
+            </>}
     />;
 }
+
+export const GrayBox = styled.div`
+    padding: 12px 12px 12px 12px;
+    background-color: var(--lightGray);
+    border-radius: 15px;
+
+    & > div > div > button {
+        margin-top: auto;
+        margin-bottom: auto;
+    }
+`;
 
 export default Create;

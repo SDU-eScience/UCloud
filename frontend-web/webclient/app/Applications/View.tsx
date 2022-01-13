@@ -114,13 +114,15 @@ export const AppHeader: React.FunctionComponent<{
                                 {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => history.push(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
                             </ClickableDropdown>
                             {newest && newest.metadata.version !== props.application.metadata.version ?
-                                <Tooltip trigger={<TriggerDiv onClick={e => {
-                                    e.preventDefault();
-                                    history.push(Pages.runApplication(newest.metadata));
-                                }}>!</TriggerDiv>}>
-                                    <div onClick={e => {
-                                        e.stopPropagation();
+                                <Tooltip trigger={
+                                    <TriggerDiv onClick={e => {
+                                        e.preventDefault();
+                                        history.push(Pages.runApplication(newest.metadata));
                                     }}>
+                                        !
+                                    </TriggerDiv>
+                                }>
+                                    <div onClick={e => e.stopPropagation()}>
                                         You are not using the newest version of the app.<br />
                                         Click to use the newest version.
                                     </div>
@@ -244,7 +246,7 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-const Information: React.FunctionComponent<{application: Application}> = ({application}) => {
+export const Information: React.FunctionComponent<{application: Application; simple?: boolean;}> = ({application, simple}) => {
     const tool = application?.invocation?.tool?.tool;
     if (!tool) return null;
     const time = tool?.description?.defaultTimeAllocation;
@@ -259,15 +261,17 @@ const Information: React.FunctionComponent<{application: Application}> = ({appli
                     value={dateToString(tool.createdAt)}
                 />
 
-                <InfoAttribute
-                    name="Default Time Allocation"
-                    value={timeString}
-                />
+                {simple ? null : <>
+                    <InfoAttribute
+                        name="Default Time Allocation"
+                        value={timeString}
+                    />
 
-                <InfoAttribute
-                    name="Default Nodes"
-                    value={`${tool.description.defaultNumberOfNodes}`}
-                />
+                    <InfoAttribute
+                        name="Default Nodes"
+                        value={`${tool.description.defaultNumberOfNodes}`}
+                    />
+                </>}
 
                 <InfoAttribute
                     name="Container Type"
