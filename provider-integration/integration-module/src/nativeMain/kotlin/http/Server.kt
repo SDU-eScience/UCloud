@@ -27,10 +27,6 @@ class HttpClientSession<AppData>(
     private val outs: ByteBuffer,
     val appData: AppData,
 ) {
-    // An output buffer which can be used by application logic. The scratch should only be used from inside a
-    // request handler. Long-running responses should use a separate buffer.
-    val outputScratch = allocateDirect(1024 * 8)
-
     var closing: Boolean = false
 
     fun sendWebsocketFrame(

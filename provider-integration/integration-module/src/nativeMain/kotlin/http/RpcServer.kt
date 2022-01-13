@@ -209,6 +209,7 @@ class RpcServer(
             },
             webSocketRequestHandler = object : WebSocketRequestHandler<ConnectionData> {
                 override fun HttpClientSession<ConnectionData>.handleTextFrame(frame: String) {
+                    println("Received frame: $frame")
                     val request = runCatching {
                         defaultMapper.decodeFromString<WSRequest<JsonObject>>(frame)
                     }.getOrNull() ?: run {
@@ -222,13 +223,13 @@ class RpcServer(
                         as CallWithHandler<Any, Any, Any>?
 
                     if (foundCall == null) {
-                        outputScratch.clear()
-                        outputScratch.put(
+                        threadLocalBuffer1.clear()
+                        threadLocalBuffer1.put(
                             defaultMapper
                                 .encodeToString(WSMessage.Response(request.streamId, Unit, 404))
                                 .encodeToByteArray()
                         )
-                        sendWebsocketFrame(WebSocketOpCode.TEXT, outputScratch)
+                        sendWebsocketFrame(WebSocketOpCode.TEXT, threadLocalBuffer1)
                         log.debug("Call not found")
                         return
                     }
@@ -239,13 +240,13 @@ class RpcServer(
                     val parsedRequest = runCatching {
                         defaultMapper.decodeFromJsonElement(call.requestType, request.payload)
                     }.getOrNull() ?: run {
-                        outputScratch.clear()
-                        outputScratch.put(
+                        threadLocalBuffer1.clear()
+                        threadLocalBuffer1.put(
                             defaultMapper
                                 .encodeToString(WSMessage.Response(request.streamId, Unit, 400))
                                 .encodeToByteArray()
                         )
-                        sendWebsocketFrame(WebSocketOpCode.TEXT, outputScratch)
+                        sendWebsocketFrame(WebSocketOpCode.TEXT, threadLocalBuffer1)
                         log.debug("Invalid request message")
                         return
                     }

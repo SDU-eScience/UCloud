@@ -42,7 +42,6 @@ class ByteBuffer {
     }
 
     fun put(index: Int, bytes: ByteArray) {
-        check(index + bytes.size < capacity)
         bytes.copyInto(rawMemory, index)
     }
 
@@ -71,8 +70,8 @@ class ByteBuffer {
 
     fun putShort(index: Int, value: Short) {
         val toInt = value.toInt()
-        rawMemory[index] = (toInt and 0xFF).toByte()
-        rawMemory[index + 1] = ((toInt shr 8) and 0xFF).toByte()
+        rawMemory[index + 1] = (toInt and 0xFF).toByte()
+        rawMemory[index + 0] = ((toInt shr 8) and 0xFF).toByte()
     }
 
     fun putInt(value: Int) {
@@ -81,10 +80,10 @@ class ByteBuffer {
     }
 
     fun putInt(index: Int, value: Int) {
-        rawMemory[index] = (value and 0xFF).toByte()
-        rawMemory[index + 1] = ((value shr 8) and 0xFF).toByte()
-        rawMemory[index + 2] = ((value shr 16) and 0xFF).toByte()
-        rawMemory[index + 3] = ((value shr 24) and 0xFF).toByte()
+        rawMemory[index + 3] = (value and 0xFF).toByte()
+        rawMemory[index + 2] = ((value shr 8) and 0xFF).toByte()
+        rawMemory[index + 1] = ((value shr 16) and 0xFF).toByte()
+        rawMemory[index + 0] = ((value shr 24) and 0xFF).toByte()
     }
 
     fun putLong(value: Long) {
@@ -93,14 +92,14 @@ class ByteBuffer {
     }
 
     fun putLong(index: Int, value: Long) {
-        rawMemory[index] = (value and 0xFF).toByte()
-        rawMemory[index + 1] = ((value shr 8) and 0xFF).toByte()
-        rawMemory[index + 2] = ((value shr 16) and 0xFF).toByte()
-        rawMemory[index + 3] = ((value shr 24) and 0xFF).toByte()
-        rawMemory[index + 4] = ((value shr 32) and 0xFF).toByte()
-        rawMemory[index + 5] = ((value shr 40) and 0xFF).toByte()
-        rawMemory[index + 6] = ((value shr 48) and 0xFF).toByte()
-        rawMemory[index + 7] = ((value shr 56) and 0xFF).toByte()
+        rawMemory[index + 7] = (value and 0xFF).toByte()
+        rawMemory[index + 6] = ((value shr 8) and 0xFF).toByte()
+        rawMemory[index + 5] = ((value shr 16) and 0xFF).toByte()
+        rawMemory[index + 4] = ((value shr 24) and 0xFF).toByte()
+        rawMemory[index + 3] = ((value shr 32) and 0xFF).toByte()
+        rawMemory[index + 2] = ((value shr 40) and 0xFF).toByte()
+        rawMemory[index + 1] = ((value shr 48) and 0xFF).toByte()
+        rawMemory[index + 0] = ((value shr 56) and 0xFF).toByte()
     }
 
     fun putFloat(value: Float) {
@@ -126,26 +125,26 @@ class ByteBuffer {
     fun get(index: Int): Byte = rawMemory[index]
 
     fun getShort(index: Int): Short = (
-        (rawMemory[index].toInt()) or
-            (rawMemory[index + 1].toInt() shl 8)
+        (rawMemory[index + 1].toInt()) or
+            (rawMemory[index + 0].toInt() shl 8)
         ).toShort()
 
     fun getInt(index: Int): Int = (
-        (rawMemory[index].toInt()) or
-            (rawMemory[index + 1].toInt() shl 8) or
-            (rawMemory[index + 2].toInt() shl 16) or
-            (rawMemory[index + 3].toInt() shl 24)
+        (rawMemory[index + 3].toInt()) or
+            (rawMemory[index + 2].toInt() shl 8) or
+            (rawMemory[index + 1].toInt() shl 16) or
+            (rawMemory[index + 0].toInt() shl 24)
         )
 
     fun getLong(index: Int): Long = (
-        (rawMemory[index].toLong()) or
-            (rawMemory[index + 1].toLong() shl 8) or
-            (rawMemory[index + 2].toLong() shl 16) or
-            (rawMemory[index + 3].toLong() shl 24) or
-            (rawMemory[index + 4].toLong() shl 32) or
-            (rawMemory[index + 5].toLong() shl 40) or
-            (rawMemory[index + 6].toLong() shl 48) or
-            (rawMemory[index + 7].toLong() shl 56)
+        (rawMemory[index + 7].toLong()) or
+            (rawMemory[index + 6].toLong() shl 8) or
+            (rawMemory[index + 5].toLong() shl 16) or
+            (rawMemory[index + 4].toLong() shl 24) or
+            (rawMemory[index + 3].toLong() shl 32) or
+            (rawMemory[index + 2].toLong() shl 40) or
+            (rawMemory[index + 1].toLong() shl 48) or
+            (rawMemory[index + 0].toLong() shl 56)
         )
 
     fun getFloat(index: Int): Float = Float.fromBits(getInt(index))
