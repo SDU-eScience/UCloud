@@ -1,89 +1,19 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import styled from "styled-components";
-import {
-    Box,
-    Flex,
-    ExternalLink,
-    Link,
-    Markdown,
-    VerticalButtonGroup,
-    Button,
-    Icon,
-    Tooltip
-} from "@/ui-components";
-import ContainerForText from "@/ui-components/ContainerForText";
+import {Box, Flex, Link, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {EllipsedText, TextSpan} from "@/ui-components/Text";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {capitalized} from "@/UtilityFunctions";
-import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
+import {Tag} from "./Card";
 import * as Pages from "./Pages";
-import {useHistory, useRouteMatch} from "react-router";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useHistory} from "react-router";
 import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import {useEffect} from "react";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useResourceSearch} from "@/Resource/Search";
-import {ApiLike} from "./Overview";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-
-const View: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
-    useSidebarPage(SidebarPages.AppStore);
-    const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
-        {noop: true},
-        null
-    );
-    const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
-        {noop: true},
-        null
-    );
-
-    useEffect(() => {
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
-        fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion]);
-
-    useResourceSearch(ApiLike);
-
-    useTitle(applicationResp.data == null ?
-        `${appName}, ${appVersion}` :
-        `${applicationResp.data.metadata.title}, ${applicationResp.data.metadata.version}`);
-
-
-    const application = applicationResp.data;
-    const previous = previousResp.data;
-
-    if (application === null || previous === null) return <MainContainer main={<HexSpin size={36} />} />;
-
-    return (
-        <MainContainer
-            header={<AppHeader application={application!} allVersions={previous.items} />}
-            headerSize={160}
-            main={(
-                <ContainerForText left>
-                    <Content
-                        application={application!}
-                        previous={previous.items.filter(it => it.metadata.version !== application.metadata.version)}
-                    />
-                </ContainerForText>
-            )}
-
-            sidebar={(
-                <Sidebar
-                    application={application!}
-                />
-            )}
-        />
-    );
-}
 
 export const AppHeader: React.FunctionComponent<{
     application: UCloud.compute.ApplicationWithFavoriteAndTags;
@@ -151,62 +81,6 @@ const TriggerDiv = styled.div`
     width: 25px;
     cursor: pointer;
 `;
-
-const Sidebar: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags}> = props => (
-    <VerticalButtonGroup>
-        {!props.application.metadata.website ? null : (
-            <ExternalLink href={props.application.metadata.website}>
-                <Button fullWidth color={"blue"}>Documentation</Button>
-            </ExternalLink>
-        )}
-
-        <Link to={Pages.runApplication(props.application.metadata)}>
-            <Button fullWidth color={"blue"}>Run Application</Button>
-        </Link>
-    </VerticalButtonGroup>
-);
-
-const AppSection = styled(Box)`
-    margin-bottom: 16px;
-`;
-
-const Content: React.FunctionComponent<{
-    application: UCloud.compute.ApplicationWithFavoriteAndTags,
-    previous: UCloud.compute.ApplicationSummaryWithFavorite[]
-}> = props => (
-    <>
-        <AppSection>
-            <Markdown
-                unwrapDisallowed
-                disallowedElements={[
-                    "image",
-                    "heading"
-                ]}
-            >
-                {props.application.metadata.description}
-            </Markdown>
-        </AppSection>
-
-        <AppSection>
-            <Information application={props.application} />
-        </AppSection>
-
-        <AppSection>
-            {!props.previous ? null :
-                (!props.previous.length ? null : (
-                    <div>
-                        <Heading.h4>Other Versions</Heading.h4>
-                        <ApplicationCardContainer>
-                            {props.previous.map((it, idx) => (
-                                <SlimApplicationCard app={it} key={idx} tags={it.tags} />
-                            ))}
-                        </ApplicationCardContainer>
-                    </div>
-                ))
-            }
-        </AppSection>
-    </>
-);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
@@ -286,5 +160,3 @@ export const Information: React.FunctionComponent<{application: Application; sim
         </>
     );
 }
-
-export default View;
