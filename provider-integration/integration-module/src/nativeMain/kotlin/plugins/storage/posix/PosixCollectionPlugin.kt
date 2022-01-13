@@ -8,6 +8,7 @@ import dk.sdu.cloud.completeConfiguration
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.provider.api.ResourceOwner
 import kotlinx.cinterop.pointed
@@ -54,8 +55,11 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private lateinit var pluginConfig: ProductBasedConfiguration
     private var initializedProjects = HashSet<String?>()
     private val mutex = Mutex()
+    private val _localDrives = ArrayList<InternalFile>()
+    val localDrives: List<InternalFile> = _localDrives
 
     override suspend fun PluginContext.init(owner: ResourceOwner) {
+        instance = this@PosixCollectionPlugin
         pathConverter = PathConverter(this)
         val project = owner.project
         mutex.withLock {
@@ -92,6 +96,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             pathConverter.registerCollectionWithUCloud(
                 homes.map { (_, coll) ->
                     val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
+                    _localDrives.add(InternalFile(mappedPath))
                     PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
                 }
             )
@@ -99,6 +104,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             pathConverter.registerCollectionWithUCloud(
                 projects.map { (_, coll) ->
                     val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + owner.project
+                    _localDrives.add(InternalFile(mappedPath))
                     PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
                 }
             )
@@ -120,5 +126,11 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
         this@PosixCollectionPlugin.pluginConfig = pluginConfig
+    }
+
+    companion object {
+        // TODO(Dan): This is a hacky solution which is probably not something we want in the long run
+        var instance: PosixCollectionPlugin? = null
+            private set
     }
 }

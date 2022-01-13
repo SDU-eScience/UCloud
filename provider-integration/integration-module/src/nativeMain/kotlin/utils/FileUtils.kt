@@ -1,6 +1,10 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.plugins.storage.InternalFile
+import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
+import io.ktor.http.*
 import kotlinx.cinterop.*
 import platform.posix.*
 
@@ -123,6 +127,35 @@ fun homeDirectory(): String {
 fun fileExists(path: String): Boolean = memScoped {
     val st = alloc<stat>()
     return stat(path, st.ptr) == 0
+}
+
+fun listFiles(internalFile: InternalFile): List<InternalFile> {
+    val openedDirectory = try {
+        NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
+    } catch (ex: NativeFileException) {
+        PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
+        throw RPCException("File not found", HttpStatusCode.NotFound)
+    }
+    try {
+        val dir = fdopendir(openedDirectory.fd)
+            ?: throw RPCException("File is not a directory", HttpStatusCode.Conflict)
+
+        val result = ArrayList<InternalFile>()
+        while (true) {
+            val ent = readdir(dir) ?: break
+            val name = ent.pointed.d_name.toKString()
+            if (name == "." || name == "..") continue
+            runCatching {
+                // NOTE(Dan): Ignore errors, in case the file is being changed while we inspect it
+                result.add(InternalFile(internalFile.path + "/" + name))
+            }
+        }
+        closedir(dir)
+
+        return result
+    } finally {
+        openedDirectory.close()
+    }
 }
 
 fun fileIsDirectory(path: String): Boolean = memScoped {

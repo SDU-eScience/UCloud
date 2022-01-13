@@ -9,19 +9,21 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.http.OutgoingCallResponse
-import dk.sdu.cloud.ipc.IpcContainer
-import dk.sdu.cloud.ipc.IpcServer
-import dk.sdu.cloud.ipc.handler
-import dk.sdu.cloud.ipc.sendRequest
-import dk.sdu.cloud.plugins.FilePlugin
-import dk.sdu.cloud.plugins.ProductBasedPlugins
-import dk.sdu.cloud.plugins.ipcClient
+import dk.sdu.cloud.ipc.*
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withTransaction
+import dk.sdu.cloud.task.api.CreateRequest
+import dk.sdu.cloud.task.api.MarkAsCompleteRequest
+import dk.sdu.cloud.task.api.Tasks
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -42,6 +44,15 @@ object FilesUploadIpc : IpcContainer("files.upload") {
 }
 
 @Serializable
+data class TaskSpecification(val title: String)
+
+// TODO(Dan): Move this somewhere else
+object TaskIpc : IpcContainer("tasks") {
+    val register = createHandler<TaskSpecification, FindByStringId>()
+    val markAsComplete = updateHandler<FindByStringId, Unit>("markAsComplete")
+}
+
+@Serializable
 data class IMFileDownloadRequest(val token: String)
 
 class FileController(
@@ -56,16 +67,77 @@ class FileController(
         val idMapper = controllerContext.plugins.identityMapper ?: return
         val envoyConfig = envoyConfig ?: return
 
-        server.addHandler(FilesDownloadIpc.register.handler { user, request ->
-            val ucloudIdentity = with(controllerContext.pluginContext) {
-                with(idMapper) {
-                    runCatching {
-                        lookupUCloudIdentifyFromLocalIdentity(
-                            mapUidToLocalIdentity(user.uid.toInt())
-                        )
-                    }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
-                }
+        server.addHandler(TaskIpc.register.handler { user, request ->
+            val localIdentity = mapToLocalIdentity(idMapper, user)
+
+            dbConnection.withTransaction { session ->
+                var ucloudId: String? = null
+                session.prepareStatement(
+                    """
+                        select ucloud_id
+                        from user_mapping
+                        where local_identity = :local
+                    """
+                ).useAndInvoke(
+                    prepare = { bindString("local", localIdentity) },
+                    readRow = { row -> ucloudId = row.getString(0)!! }
+                )
+
+                val capturedUCloudId = ucloudId ?: error("Could not resolve UCloud user: $localIdentity")
+
+                val createdTask = Tasks.create.callBlocking(
+                    CreateRequest(request.title, capturedUCloudId),
+                    controllerContext.pluginContext.rpcClient
+                ).orThrow()
+
+                session.prepareStatement(
+                    """
+                        insert into tasks(title, ucloud_task_id, local_identity)
+                        values (:title, :task_id, :local)
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("title", request.title)
+                        bindString("task_id", createdTask.jobId)
+                        bindString("local", localIdentity)
+                    }
+                )
+
+                FindByStringId(createdTask.jobId)
             }
+        })
+
+        server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
+            val localIdentity = mapToLocalIdentity(idMapper, user)
+            var doesExist = false
+            dbConnection.withTransaction { session ->
+                session.prepareStatement(
+                    """
+                        select ucloud_task_id
+                        from tasks
+                        where
+                            ucloud_task_id = :task_id and
+                            local_identity = :local_id
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindString("task_id", request.id)
+                        bindString("local_id", localIdentity)
+                    },
+                    readRow = { doesExist = true }
+                )
+            }
+
+            if (!doesExist) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
+            Tasks.markAsComplete.callBlocking(
+                request,
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        })
+
+        server.addHandler(FilesDownloadIpc.register.handler { user, request ->
+            val ucloudIdentity = mapToLocalIdentity(idMapper, user)
 
             dbConnection.prepareStatement(
                 """
@@ -171,6 +243,22 @@ class FileController(
         })
     }
 
+    private fun mapToLocalIdentity(
+        idMapper: IdentityMapperPlugin,
+        user: IpcUser
+    ): String {
+        val ucloudIdentity = with(controllerContext.pluginContext) {
+            with(idMapper) {
+                runCatching {
+                    lookupUCloudIdentifyFromLocalIdentity(
+                        mapUidToLocalIdentity(user.uid.toInt())
+                    )
+                }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
+            }
+        }
+        return ucloudIdentity
+    }
+
     override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
         val pathConverter = PathConverter(controllerContext.pluginContext)
         val providerId = controllerContext.configuration.core.providerId
@@ -234,10 +322,9 @@ class FileController(
                 val plugin = plugins.lookup(collection.specification.product)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        createFolder(bulkRequestOf(createFolderRequest))
+                        createFolder(bulkRequestOf(createFolderRequest)).single()
                     }
                 }
-                LongRunningTask.Complete()
             }
             OutgoingCallResponse.Ok(BulkResponse(result))
         }
@@ -249,10 +336,9 @@ class FileController(
                 val plugin = plugins.lookup(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        move(bulkRequestOf(moveRequest))
+                        move(bulkRequestOf(moveRequest)).single()
                     }
                 }
-                LongRunningTask.Complete()
             }
             OutgoingCallResponse.Ok(BulkResponse(result))
         }
@@ -264,10 +350,9 @@ class FileController(
                 val plugin = plugins.lookup(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        moveToTrash(bulkRequestOf(request))
+                        moveToTrash(bulkRequestOf(request)).single()
                     }
                 }
-                LongRunningTask.Complete()
             }
             OutgoingCallResponse.Ok(BulkResponse(result))
         }
@@ -279,10 +364,9 @@ class FileController(
                 val plugin = plugins.lookup(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        emptyTrash(bulkRequestOf(request))
+                        emptyTrash(bulkRequestOf(request)).single()
                     }
                 }
-                LongRunningTask.Complete()
             }
             OutgoingCallResponse.Ok(BulkResponse(result))
         }

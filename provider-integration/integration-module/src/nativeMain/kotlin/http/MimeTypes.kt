@@ -1,6 +1,5 @@
 package dk.sdu.cloud.http
 
-
 val mimeTypes = mapOf(
     ".aac" to "audio/aac",
     ".abw" to "application/x-abiword",

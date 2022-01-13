@@ -2,7 +2,7 @@ package dk.sdu.cloud.http
 
 // Based on https://en.wikipedia.org/wiki/List_of_HTTP_status_codes
 val statusCodeReasons = run {
-    val arr = Array(599) { "S$it" }
+    val arr = Array(600) { "S$it" }
 
     arr[100] = "Continue"
     arr[101] = "Switching Protocols"

@@ -19,12 +19,12 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, Product
     suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
     suspend fun PluginContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession>
     suspend fun PluginContext.handleDownload(ctx: HttpContext, session: String, pluginData: String)
-    suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): BulkResponse<LongRunningTask?>
+    suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?>
     suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
     suspend fun PluginContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteBuffer)
     suspend fun PluginContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
     suspend fun PluginContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): BulkResponse<LongRunningTask?>
+    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
 
     override suspend fun PluginContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")

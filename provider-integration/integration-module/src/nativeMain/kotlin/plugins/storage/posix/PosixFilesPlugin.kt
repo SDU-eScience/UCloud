@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins.storage.posix
 
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -23,25 +24,63 @@ import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.SimpleCache
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.NativeFileException
-import dk.sdu.cloud.utils.fileExists
-import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.utils.*
 import io.ktor.http.*
 import kotlinx.cinterop.*
+import kotlinx.coroutines.launch
 import platform.posix.*
 import kotlin.math.min
 
 class PosixFilesPlugin : FilePlugin {
     private lateinit var pathConverter: PathConverter
+    private lateinit var taskSystem: PosixTaskSystem
 
     override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
         pathConverter = PathConverter(this)
+        taskSystem = PosixTaskSystem(this, pathConverter)
+
+        val posixCollectionPlugin = PosixCollectionPlugin.instance
+            ?: error("The posix files plugin also requires the companion collection plugin!")
+
+        posixCollectionPlugin.localDrives.forEach { drive ->
+            val ucloudCollection = pathConverter.internalToUCloud(drive)
+            val collectionId = ucloudCollection.path.components().getOrNull(0) ?: return@forEach
+            taskSystem.retrieveCurrentTasks(collectionId).forEach { processTask(it, doCreate = false) }
+        }
+    }
+
+    private suspend fun processTask(task: PosixTask, doCreate: Boolean) {
+        val shouldBackgroundProcess = if (!doCreate) {
+            true
+        } else when(task) {
+            else -> true
+        }
+
+        val processor: suspend () -> Unit = {
+
+        }
+
+        // Dispatch task related tasks and run the processor
+        if (shouldBackgroundProcess && doCreate) {
+            taskSystem.registerTask(task)
+        }
+
+        if (shouldBackgroundProcess) {
+            ProcessingScope.launch {
+                try {
+                    processor()
+                } finally {
+                    runCatching { taskSystem.markTaskAsComplete(task.collectionId, task.id) }
+                }
+            }
+        } else {
+            processor()
+        }
     }
 
     override suspend fun PluginContext.createFolder(
         req: BulkRequest<FilesProviderCreateFolderRequestItem>
-    ): BulkResponse<LongRunningTask?> {
+    ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
             val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
 
@@ -52,7 +91,7 @@ class PosixFilesPlugin : FilePlugin {
             }
             null
         }
-        return BulkResponse(result)
+        return result
     }
 
     private fun createAccordingToPolicy(
@@ -92,7 +131,7 @@ class PosixFilesPlugin : FilePlugin {
         if (!isDirectory) {
             if (desiredFd >= 0) return Pair(parent.path + "/" + desiredFileName, desiredFd)
         } else {
-            // If it exists and we allow overwrite then just return the open directory
+            // If it exists, and we allow overwrite then just return the open directory
             if (
                 (fixedConflictPolicy == WriteConflictPolicy.REPLACE || fixedConflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
                 desiredFd >= 0
@@ -189,7 +228,7 @@ class PosixFilesPlugin : FilePlugin {
 
     override suspend fun PluginContext.move(
         req: BulkRequest<FilesProviderMoveRequestItem>
-    ): BulkResponse<LongRunningTask?> {
+    ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
             val source = UCloudFile.create(reqItem.oldId)
             val destination = UCloudFile.create(reqItem.newId)
@@ -215,36 +254,7 @@ class PosixFilesPlugin : FilePlugin {
             null
         }
 
-        return BulkResponse(result)
-    }
-
-    private fun listFiles(internalFile: InternalFile): List<InternalFile> {
-        val openedDirectory = try {
-            NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
-        } catch (ex: NativeFileException) {
-            log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
-            throw RPCException("File not found", HttpStatusCode.NotFound)
-        }
-        try {
-            val dir = fdopendir(openedDirectory.fd)
-                ?: throw RPCException("File is not a directory", HttpStatusCode.Conflict)
-
-            val result = ArrayList<InternalFile>()
-            while (true) {
-                val ent = readdir(dir) ?: break
-                val name = ent.pointed.d_name.toKString()
-                if (name == "." || name == "..") continue
-                runCatching {
-                    // NOTE(Dan): Ignore errors, in case the file is being changed while we inspect it
-                    result.add(InternalFile(internalFile.path + "/" + name))
-                }
-            }
-            closedir(dir)
-
-            return result
-        } finally {
-            openedDirectory.close()
-        }
+        return result
     }
 
     private val browseCache = SimpleCache<String, List<PartialUFile>>(lookup = { null })
@@ -285,7 +295,9 @@ class PosixFilesPlugin : FilePlugin {
 
         val token = path.path
         val items = listFiles(pathConverter.ucloudToInternal(path)).filter {
-            !request.browse.flags.filterHiddenFiles || !it.path.fileName().startsWith(".")
+            val fileName = it.path.fileName()
+            (!request.browse.flags.filterHiddenFiles || !fileName.startsWith(".")) &&
+                fileName != PosixTaskSystem.TASK_FOLDER
         }
 
         val shouldSort = items.size <= 10_000
@@ -446,7 +458,7 @@ class PosixFilesPlugin : FilePlugin {
                         WriteConflictPolicy.RENAME
                     )
                 )
-            ).responses.single()
+            ).single()
         }
     }
 
