@@ -879,10 +879,13 @@ abstract class ResourceService<
                                 insert into provider.resource_acl_entry (username, permission, resource_id) 
                                 select created_by, unnest(array['READ', 'EDIT']), id
                                 from created_resources
+                                -- This no-op ensures that resource_id is returned in case on conflicts
+                                on conflict (coalesce(username, ''), coalesce(group_id, ''), resource_id, permission) do update set username = excluded.username
                                 returning resource_id
                             )
                         select distinct resource_id from acl_entries;
-                    """
+                    """,
+                    debug = true
                 ).rows.map { it.getLong(0)!! }
 
             check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )

@@ -64,6 +64,7 @@ class FileCollectionService(
             """
                 insert into file_orchestrator.file_collections (resource, title)
                 select unnest(:ids::bigint[]) id, unnest(:titles::text[]) title
+                on conflict do nothing
             """
         )
     }

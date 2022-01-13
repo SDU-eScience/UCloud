@@ -5,6 +5,7 @@ import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
 import io.ktor.http.*
+import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import platform.posix.*
 
@@ -181,6 +182,26 @@ fun renameFile(from: String, to: String, flags: UInt) {
         fromFd.close()
         if (toFd.fd != fromFd.fd) toFd.close()
     }
+}
+
+// TODO(Dan): We definitely need something more roboust than assuming that /tmp is usable.
+private val temporaryFilePrefix = secureToken(16).replace("/", "-")
+private val temporaryFileAcc = atomic(0)
+
+data class TemporaryFile(val internalFile: InternalFile, val fileHandle: NativeFile)
+
+fun createTemporaryFile(prefix: String? = null, suffix: String? = null): TemporaryFile {
+    val path = "/tmp/${prefix ?: ""}${temporaryFilePrefix}${temporaryFileAcc.getAndIncrement()}${suffix ?: ""}"
+    return TemporaryFile(
+        InternalFile(path),
+        NativeFile.open(
+            path,
+            readOnly = false,
+            truncateIfNeeded = true,
+            createIfNeeded = true,
+            mode = "600".toInt(8)
+        )
+    )
 }
 
 const val RENAME_EXCHANGE = 2u
