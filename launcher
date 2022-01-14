@@ -5,7 +5,7 @@ from time import sleep
 import sys, tty, subprocess, shutil, termios, signal, os
 
 print("UCloud Launcher v2022.1.0")
-print(
+print()
 
 if shutil.which("docker") == None:
 	print("Docker is required to run the quick launch script!")
