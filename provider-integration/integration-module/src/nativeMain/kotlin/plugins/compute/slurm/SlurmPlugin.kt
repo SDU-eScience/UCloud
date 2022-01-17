@@ -25,6 +25,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import platform.posix.ceil
 import platform.posix.mkdir
 import platform.posix.sleep
+import platform.posix.kill
 import kotlin.native.concurrent.AtomicReference
 
 
@@ -392,6 +393,8 @@ class SlurmPlugin : ComputePlugin {
             
             delay(15)
         }
+
+        if (! isActive() ) kill(process.pid, 2)
 
     
     }
