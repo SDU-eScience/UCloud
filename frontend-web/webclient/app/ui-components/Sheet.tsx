@@ -267,17 +267,17 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
         <div id={sheetId + "-templates"}>
             {requiredIcons.map(icon => (
                 <Template key={icon} className={"icon-" + icon}>
-                    <Icon name={icon} size={"20px"} color={"iconColor"} color2={"iconColor2"}/>
+                    <Icon name={icon} size={"20px"} color={"iconColor"} color2={"iconColor2"} />
                 </Template>
             ))}
 
             <Template className={"dropdown-row"}>
                 <ListRow
                     fontSize={"16px"}
-                    icon={<div className={"icon"}/>}
-                    left={<div className={"left"}/>}
+                    icon={<div className={"icon"} />}
+                    left={<div className={"left"} />}
                     leftSub={<ListRowStat>
-                        <div className={"help"}/>
+                        <div className={"help"} />
                     </ListRowStat>}
                     right={null}
                 />
@@ -297,15 +297,15 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
             </Template>
 
             <Template className={"validation-valid"}>
-                <Icon size={"20px"} color={"green"} name={"check"} className={"validation"}/>
+                <Icon size={"20px"} color={"green"} name={"check"} className={"validation"} />
             </Template>
 
             <Template className={"validation-invalid"}>
-                <Icon size={"20px"} color={"red"} name={"close"} className={"validation"}/>
+                <Icon size={"20px"} color={"red"} name={"close"} className={"validation"} />
             </Template>
 
             <Template className={"validation-warning"}>
-                <Icon size={"20px"} color={"orange"} name={"warning"} className={"validation"}/>
+                <Icon size={"20px"} color={"orange"} name={"warning"} className={"validation"} />
             </Template>
 
             <Template className={"validation-loading"}>
@@ -313,22 +313,22 @@ export const Sheet: React.FunctionComponent<SheetProps> = props => {
                     It makes a _very_ significant difference. Going from completely locking up the UI
                     (< 5 frames/minutes) to being actually usable (> 30 FPS)
                 */}
-                <img alt={"Loading..."} src={sdLoader} width={"20px"} height={"20px"} className={"spin validation"}/>
+                <img alt={"Loading..."} src={sdLoader} width={"20px"} height={"20px"} className={"spin validation"} />
             </Template>
         </div>
 
         <StyledSheet id={sheetId}>
             <thead>
-            <tr>
-                <th>#</th>
-                {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
-            </tr>
+                <tr>
+                    <th>#</th>
+                    {props.header.map((key, idx) => <th key={idx}>{key}</th>)}
+                </tr>
             </thead>
             <tbody>
             </tbody>
         </StyledSheet>
 
-        <div id={`${sheetId}-portal`}/>
+        <div id={`${sheetId}-portal`} />
 
         <Operations
             openFnRef={opRef}
@@ -929,7 +929,7 @@ export class SheetRenderer {
             case "static": {
                 const fnReturn = cell.textFn(this.sheetId, {column, row: initialRow});
                 const content: StaticCellContent = typeof fnReturn === "string" ?
-                    { contents: fnReturn } : fnReturn;
+                    {contents: fnReturn} : fnReturn;
 
                 let domElement: HTMLElement;
                 if (cell.iconMode === true) {
@@ -959,7 +959,12 @@ export class SheetRenderer {
             this.portal.appendChild(container);
             const boundingClientRect = anchor.getBoundingClientRect();
             this.portal.style.position = "fixed";
-            this.portal.style.top = (boundingClientRect.top + 30) + "px";
+            // Note(Jonas): Ensure the dropdown doesn't go outside of the view.
+            if (boundingClientRect.top + 300 > window.innerHeight) {
+                this.portal.style.top = (boundingClientRect.top - 280) + "px";
+            } else {
+                this.portal.style.top = (boundingClientRect.top + 30) + "px";
+            }
             this.portal.style.left = boundingClientRect.left + "px";
         }
 
