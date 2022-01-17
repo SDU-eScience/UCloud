@@ -27,6 +27,7 @@ import platform.posix.mkdir
 import platform.posix.sleep
 import kotlin.native.concurrent.AtomicReference
 
+
 @Serializable
 data class SlurmConfiguration(
     val partition: String,
@@ -320,7 +321,7 @@ class SlurmPlugin : ComputePlugin {
                 "/usr/bin/ssh",
                 "-oStrictHostKeyChecking=accept-new",
                 "-tt",
-                "c1",
+                "c1", 
                 "([ -x /bin/bash ] && exec /bin/bash) || " +
                 "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
                 "([ -x /bin/zsh ] && exec /bin/zsh) || " +
@@ -337,17 +338,19 @@ class SlurmPlugin : ComputePlugin {
             nonBlockingStderr = true
         )
 
-        //process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
-        
+        val pStatus:ProcessStatus = process.retrieveStatus(false)
 
-        while (isActive()) {
+        //process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
+        val buffer = ByteArray(4096)
+
+
+        readloop@ while (  isActive() && pStatus.isRunning ) {
             val userInput = receiveChannel.tryReceive().getOrNull()
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
                     println("USERINPUT: ${ userInput.data }")
-                    process!!.stdin!!.write( userInput.data.encodeToByteArray() )
-                    emitData(userInput.data)
+                    process!!.stdin!!.write(  userInput.data.encodeToByteArray()  )
                 }
 
                 is ShellRequest.Resize -> {
@@ -368,13 +371,24 @@ class SlurmPlugin : ComputePlugin {
             }
              */
 
-            val buffer = ByteArray(56 * 56)
 
-            process!!.stdout!!.read(buffer)
-            if ( !buffer.decodeToString().replace("\u0000","").isNullOrEmpty() ) {
-                emitData( buffer.decodeToString().replace("\u0000","")  ) 
+            val bytesRead:ReadResult = process.stdout!!.read(buffer)
+            if (bytesRead.isError )  {
+
+                when(bytesRead.getErrorOrThrow()) {
+                    platform.posix.EAGAIN -> {
+                        delay(15)
+                        continue@readloop
+                    }
+                    else -> break@readloop
+                }
+                
+            } 
+
+            if (! bytesRead.isEof) {
+                val decodedString = buffer.decodeToString(0, bytesRead.getOrThrow() )
+                emitData(decodedString)
             }
-
             
             delay(15)
         }
