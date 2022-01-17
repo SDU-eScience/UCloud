@@ -122,7 +122,7 @@ class Server(
                 configuration.useMachineSelector == true,
                 configuration.nodes,
             ))
-            register(ParameterPlugin(licenseService))
+            register(ParameterPlugin(licenseService, pathConverter))
             val fileMountPlugin = FileMountPlugin(
                 fs,
                 memberFiles,

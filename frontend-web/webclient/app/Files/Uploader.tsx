@@ -459,7 +459,7 @@ const renderer: ItemRenderer<Upload> = {
                 </ListRowStat>
             }
             {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
-                <ErrorSpan>Quota has been exceeded. Delete some files and try again later.</ErrorSpan>
+                <ErrorSpan>{resource.error}</ErrorSpan>
             </ListRowStat>}
         </>
     },
