@@ -116,7 +116,7 @@ class ComputeController(
                             defaultMapper.encodeToString(
                                 JsonObject(
                                     mapOf(
-                                        "request" to JsonPrimitive("creation"),
+                                        "request" to JsonPrimitive("deletion"),
                                         "job_id" to JsonPrimitive(req.id),
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),
