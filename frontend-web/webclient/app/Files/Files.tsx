@@ -33,6 +33,7 @@ export const FilesBrowse: React.FunctionComponent<{
     browseType?: BrowseType;
     pathRef?: React.MutableRefObject<string>;
     forceNavigationToPage?: boolean;
+    allowMoveCopyOverride?: boolean;
 }> = props => {
 
     const lightTheme = isLightThemeStored();
@@ -261,7 +262,8 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const callbacks = useMemo(() => ({
         collection: collection?.data ?? undefined,
-        directory: directory?.data ?? undefined
+        directory: directory?.data ?? undefined,
+        allowMoveCopyOverride: props.allowMoveCopyOverride
     }), [collection.data, directory.data]);
 
     return <ResourceBrowse
