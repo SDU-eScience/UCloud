@@ -2,16 +2,10 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.http.HttpContext
-import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.http.OutgoingCallResponse
+import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
@@ -19,10 +13,10 @@ import dk.sdu.cloud.plugins.storage.UCloudFile
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withTransaction
-import dk.sdu.cloud.task.api.CreateRequest
-import dk.sdu.cloud.task.api.Tasks
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
+import io.ktor.http.HttpMethod
+import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -226,11 +220,12 @@ class FileController(
     }
 
     data class UCloudAndLocalId(val ucloudId: String, val localId: String)
+
     private fun mapToUcloudIdentity(
         idMapper: IdentityMapperPlugin,
         user: IpcUser
     ): UCloudAndLocalId {
-       return with(controllerContext.pluginContext) {
+        return with(controllerContext.pluginContext) {
             with(idMapper) {
                 val localId = mapUidToLocalIdentity(user.uid.toInt())
                 UCloudAndLocalId(
@@ -376,9 +371,11 @@ class FileController(
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         createDownload(bulkRequestOf(downloadRequest)).forEach {
-                            sessions.add(FilesCreateDownloadResponseItem(
-                                downloadPath(providerId, it.session)
-                            ))
+                            sessions.add(
+                                FilesCreateDownloadResponseItem(
+                                    downloadPath(providerId, it.session)
+                                )
+                            )
 
                             ipcClient.sendRequest(
                                 FilesDownloadIpc.register,
@@ -394,6 +391,28 @@ class FileController(
         }
 
         implement(downloadApi.download) {
+            if (controllerContext.configuration.serverMode == ServerMode.Server) {
+                // NOTE(Dan): For some reason, it would appear that the configuration in Envoy is not yet active.
+                // Delay for a small while and ask the client to retry at almost the same address.
+                val sctx = (ctx.serverContext as? HttpContext)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                val parameters = ParsedQueryString.parse(sctx.path.substringAfter('?', ""))
+                val attempt = parameters.attributes["attempt"]?.firstOrNull()?.toIntOrNull() ?: 0
+                if (attempt > 5) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                delay(100)
+                sctx.session.sendHttpResponse(
+                    302,
+                    listOf(
+                        Header(
+                            "Location",
+                            downloadPath(controllerContext.configuration.core.providerId, request.token) +
+                                "&attempt=${attempt + 1}"
+                        )
+                    )
+                )
+                return@implement OutgoingCallResponse.AlreadyDelivered()
+            }
+
             val token = request.token
             with(controllerContext.pluginContext) {
                 val handler = ipcClient.sendRequest(FilesDownloadIpc.retrieve, FindByStringId(token))
@@ -417,11 +436,13 @@ class FileController(
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
-                            sessions.add(FilesCreateUploadResponseItem(
-                                uploadPath(providerId),
-                                UploadProtocol.CHUNKED,
-                                it.session
-                            ))
+                            sessions.add(
+                                FilesCreateUploadResponseItem(
+                                    uploadPath(providerId),
+                                    UploadProtocol.CHUNKED,
+                                    it.session
+                                )
+                            )
 
                             ipcClient.sendRequest(
                                 FilesUploadIpc.register,

@@ -76,7 +76,7 @@ class PathConverter(private val ctx: PluginContext) {
     }
 
     private fun lookupCollectionFromPath(internalFile: InternalFile): FileCollection {
-        val parents = internalFile.path.parents()
+        val parents = internalFile.path.parents() + listOf(internalFile.path)
         for (parent in parents) {
             val cached = cachedProviderIds[parent.removeSuffix("/")]
             if (cached != null) {
