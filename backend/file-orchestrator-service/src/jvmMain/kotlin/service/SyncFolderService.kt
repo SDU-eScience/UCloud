@@ -5,7 +5,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.ProviderSupport
@@ -15,6 +14,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -46,7 +46,6 @@ class SyncFolderService(
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
         fileCollectionService.addAclUpdateHandler(::onAclUpdated)
-
     }
 
     private suspend fun onAclUpdated(
@@ -58,23 +57,25 @@ class SyncFolderService(
                 setParameter("parentIds", batch.items.map { "/${it.resource.id}/%" })
             },
             """
-                select f.resource, f.path
+                select f.resource, f.path, m.role
                 from
-                    provider.resource r join 
-                    file_orchestrator.sync_folders f on f.resource = r.id join 
-                    accounting.product_categories c on r.product = c.id
+                    provider.resource r join
+                    file_orchestrator.sync_folders f on f.resource = r.id join
+                    accounting.product_categories c on r.product = c.id join
+                    project.project_members m on r.created_by = m.username
                 where
-                    type = 'sync_folder' and 
-                    f.path like any((select unnest(:parentIds::text[])))
+                    type = 'sync_folder' and
+                    f.path like any((select unnest(:parentIds::text[])));
             """
         ).rows.map { row ->
             val folderId = row.getLong("resource") ?: 0
             val folderPath = row.getString("path") !!
+            val role = ProjectRole.valueOf(row.getString("role") ?: "USER")
             val resource = batch.items.first {
                 it.resource.id == extractPathMetadata(folderPath).collection
             }.added;
 
-            val newSyncType = if (resource.any { it.permissions.contains(Permission.EDIT) }) {
+            val newSyncType = if (resource.any { it.permissions.contains(Permission.EDIT) } || ProjectRole.ADMINS.contains(role)) {
                 SynchronizationType.SEND_RECEIVE
             } else if (resource.any { it.permissions.contains(Permission.READ)}) {
                 SynchronizationType.SEND_ONLY
