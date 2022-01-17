@@ -8,7 +8,7 @@ import io.ktor.util.*
 
 @OptIn(KtorExperimentalAPI::class)
 actual fun createHttpClient(): HttpClient {
-    return HttpClient(CIO) {
+    return HttpClient(Curl) {
         expectSuccess = false
     }
 }

@@ -1,20 +1,18 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.http.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.MigrationHandler
-import dk.sdu.cloud.sql.Sqlite3Driver
+import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
@@ -76,36 +74,6 @@ object ProcessingScope : CoroutineScope {
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
-    /*
-    if (true) {
-        startServer(
-            8889,
-            {},
-            object : HttpRequestHandler<Unit> {
-                override fun HttpClientSession<Unit>.handleRequest(
-                    method: HttpMethod,
-                    path: String,
-                    payload: ByteBuffer
-                ) {
-                    val arr = ByteArray(payload.readerRemaining())
-                    val bytes = payload.get(arr)
-                    println(arr.decodeToString(endIndex = bytes))
-                    sendHttpResponse(200, defaultHeaders())
-                }
-            },
-            object : WebSocketRequestHandler<Unit> {
-                override fun HttpClientSession<Unit>.handleTextFrame(frame: String) {
-                    println("I have received: '$frame'")
-                    outputScratch.clear()
-                    outputScratch.put(frame.encodeToByteArray())
-                    sendWebsocketFrame(WebSocketOpCode.TEXT, outputScratch)
-                }
-            }
-        )
-        exitProcess(0)
-    }
-     */
-
     try {
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User

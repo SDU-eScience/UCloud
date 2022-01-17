@@ -277,6 +277,7 @@ fun <AppData> startServer(
         val clientLength = uintArrayOf(0U).pin()
         val clientAddress = alloc<sockaddr_in>()
         val clientHandle = accept(serverHandle, clientAddress.ptr.reinterpret(), clientLength.addressOf(0))
+        clientLength.unpin()
         if (clientHandle == -1) {
             error("Failed to accept connection")
         }
@@ -589,6 +590,7 @@ private fun dateHeader(): Header {
     memScoped {
         val time = longArrayOf(time(null)).pin()
         val st = gmtime(time.addressOf(0)) ?: error("Could not retrieve the time")
+        time.unpin()
         val tm = st.pointed
         return Header("Date", buildString {
             append(

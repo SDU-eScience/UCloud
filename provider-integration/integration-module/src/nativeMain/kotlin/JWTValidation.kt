@@ -4,7 +4,6 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.cinterop.*
 import libjwt.*
 import platform.posix.time
-import kotlin.native.concurrent.freeze
 
 class NativeJWTValidation(certificate: String) {
     private val arena = Arena()
@@ -13,26 +12,23 @@ class NativeJWTValidation(certificate: String) {
 
     @OptIn(ExperimentalUnsignedTypes::class)
     fun validateOrNull(token: String): SecurityPrincipalToken? = memScoped {
-        // TODO(Dan): Valgrind is reporting that we are definitely leaking in this function
-        val jwtRef = allocArrayOfPointersTo<jwt_t>(null)
-        if (jwt_new(jwtRef) != 0) error("Unable to create JWT")
-        defer { jwt_free(jwtRef[0]) }
+        val jwt = jwt_decode_kt_fix(token, frozenCertificate.reinterpret(), length) ?: return null
+        defer { jwt_free(jwt) }
 
-        val valid = allocArrayOfPointersTo<jwt_valid_t>(null)
-        if (jwt_valid_new(valid, JWT_ALG_RS256) != 0) error("Unable to create JWT validation")
-        defer { jwt_valid_free(valid[0]) }
+        val validation = jwt_valid_new_kt_fix(JWT_ALG_RS256) ?: error("Unable to create JWT validation")
+        defer { jwt_valid_free(validation) }
 
-        jwt_valid_set_headers(valid[0], 1)
-        jwt_valid_set_now(valid[0], time(null))
-        jwt_decode(jwtRef, token, frozenCertificate.reinterpret(), length)
-        if (jwt_validate(jwtRef[0], valid[0]) != 0U) {
+        jwt_valid_set_headers(validation, 1)
+        jwt_valid_set_now(validation, time(null))
+
+        if (jwt_validate(jwt, validation) != 0U) {
             return null
         }
 
         return SecurityPrincipalToken(
             SecurityPrincipal(
-                jwt_get_grant(jwtRef[0], "sub")?.toKStringFromUtf8() ?: return null,
-                jwt_get_grant(jwtRef[0], "role")
+                jwt_get_grant(jwt, "sub")?.toKStringFromUtf8() ?: return null,
+                jwt_get_grant(jwt, "role")
                     ?.toKStringFromUtf8()
                     ?.let { role -> Role.values().find { it.name == role } }
                     ?: return null,
@@ -41,8 +37,8 @@ class NativeJWTValidation(certificate: String) {
                 0L
             ),
             listOf(SecurityScope.ALL_WRITE),
-            jwt_get_grant_int(jwtRef[0], "iat"),
-            jwt_get_grant_int(jwtRef[0], "exp"),
+            jwt_get_grant_int(jwt, "iat"),
+            jwt_get_grant_int(jwt, "exp"),
             null,
         )
     }
