@@ -41,10 +41,6 @@ function Products(): JSX.Element {
             <MachineView provider={UCLOUD_PROVIDER} key={"INGRESS"} area={"INGRESS"} />
             <Box my="16px" />
             <MachineView provider={"aau"} key={"INGRESS"} area={"INGRESS"} />
-            <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={"LICENSE"} area={"LICENSE"} />
-            <Box my="16px" />
-            <MachineView provider={"aau"} key={"LICENSE"} area={"LICENSE"} />
         </ContainerForText>
     );
 
@@ -105,7 +101,7 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                         onLoadMore={() => refetch(UCloud.accounting.products.browse({
                             filterArea: area, filterProvider: provider, filterUsable: true, next: machines.data.next
                         }))}
-                        pageRenderer={() => (
+                        pageRenderer={items => (
                             <MachineTypesWrapper>
                                 <Table>
                                     <TableHeader>
@@ -119,7 +115,8 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                                         </TableRow>
                                     </TableHeader>
                                     <tbody>
-                                        {machines.data.items.map(machine => {
+                                        {items.map(machine => {
+                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") 
                                             if (machine === null) return null;
                                             const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
                                             return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
