@@ -49,7 +49,7 @@ export const AppHeader: React.FunctionComponent<{
                                         e.preventDefault();
                                         history.push(Pages.runApplication(newest.metadata));
                                     }}>
-                                        !
+                                        New version available.
                                     </TriggerDiv>
                                 }>
                                     <div onClick={e => e.stopPropagation()}>
@@ -73,12 +73,13 @@ export const AppHeader: React.FunctionComponent<{
 };
 
 const TriggerDiv = styled.div`
-    margin-left: 4px; 
+    margin-left: 4px;
+    padding-left: 12px;
+    padding-right: 12px;
     text-align: center;
     color: var(--white);
     background-color: var(--blue);
     border-radius: 20px;
-    width: 25px;
     cursor: pointer;
 `;
 

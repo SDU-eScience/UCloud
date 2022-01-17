@@ -6,7 +6,6 @@ import {useHistory} from "react-router";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {AppHeader, Information} from "@/Applications/View";
 import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Markdown, VerticalButtonGroup} from "@/ui-components";
-import Link from "@/ui-components/Link";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
 import {FolderResource} from "@/Applications/Jobs/Resources/Folders";
