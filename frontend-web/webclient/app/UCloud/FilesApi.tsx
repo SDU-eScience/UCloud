@@ -125,6 +125,9 @@ interface FilesEmptyTrashRequestItem {
 interface ExtraCallbacks {
     collection?: FileCollection;
     directory?: UFile;
+    // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
+    // special case.
+    allowMoveCopyOverride?: boolean;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -446,7 +449,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    cb.embedded !== true &&
+                    (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
@@ -485,7 +488,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return cb.embedded !== true &&
+                    return (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },
