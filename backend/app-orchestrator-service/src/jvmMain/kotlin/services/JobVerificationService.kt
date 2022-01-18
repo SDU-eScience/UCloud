@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import okhttp3.internal.notifyAll
 
 class JobException {
     class VerificationError(message: String) : RPCException(message, HttpStatusCode.BadRequest)
