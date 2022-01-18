@@ -19,6 +19,8 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.serializer
+import java.security.PermissionCollection
+import java.security.Permissions
 
 typealias FolderSvcSuper = ResourceService<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
     SyncFolder.Status, Product.Synchronization, SyncFolderSupport, SimpleProviderCommunication>
@@ -46,6 +48,7 @@ class SyncFolderService(
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
         fileCollectionService.addAclUpdateHandler(::onAclUpdated)
+        fileCollectionService.addDeleteHandler(::onFileCollectionDeleted)
     }
 
     private suspend fun onAclUpdated(
@@ -135,20 +138,34 @@ class SyncFolderService(
         removeSyncFolders(request.map { it.id })
     }
 
+    private suspend fun onFileCollectionDeleted(request: BulkRequest<FindByStringId>) {
+        removeSyncFolders(request.items.map { it.id })
+    }
+
+
     private suspend fun removeSyncFolders(paths: List<String>) {
         db.withSession { session ->
-            val affectedFolders: List<SyncFolder> = session.sendPreparedStatement(
+            val affectedFolderIds: List<String> = session.sendPreparedStatement(
                 {
                     setParameter("ids", paths)
                     setParameter("parentIds", paths.map { "$it/%" })
                 },
                 """
-                        select file_orchestrator.sync_folder_to_json(f) from file_orchestrator.sync_folders f 
+                        select f.resource
+                        from file_orchestrator.sync_folders f 
                         where 
                             f.path in (select unnest(:ids::text[])) or
                             f.path like any((select unnest(:parentIds::text[])))
                     """
-            ).rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+            ).rows.map {
+                it.getLong(0).toString()
+            }
+
+            val affectedFolders = retrieveBulk(
+                ActorAndProject(Actor.System, null),
+                affectedFolderIds,
+                setOf(Permission.EDIT)
+            )
 
             if (affectedFolders.length > 0) {
                 proxy.bulkProxy(
@@ -165,10 +182,10 @@ class SyncFolderService(
 
                 session.sendPreparedStatement(
                     {
-                        setParameter("ids", affectedFolders.map { it.id })
+                        setParameter("ids", affectedFolders.map { it.id.toLong() })
                     },
                     """
-                        select file_orchestrator.remove_sync_folders(unnest(:ids::bigint[]))  
+                        select file_orchestrator.remove_sync_folders(:ids::bigint[])
                     """
                 )
             }
