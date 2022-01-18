@@ -84,6 +84,27 @@ class JobVerificationService(
                 file.readOnly = !allowWrite
             }
         }
+        //Check parameters files
+        val parameters = specification.parameters!!.values
+        run {
+            val files = parameters.filterIsInstance<AppParameterValue.File>()
+            val requiredCollections = files.map { file ->
+                extractPathMetadata(file.path).collection
+            }.toSet()
+            val retrievedCollections = try {
+                fileCollections
+                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ))
+                    .associateBy { it.id }
+            } catch (ex: RPCException) {
+                throw JobException.VerificationError("You are not allowed to use one or more of your files")
+            }
+
+            for (file in files) {
+                val perms = retrievedCollections[extractPathMetadata(file.path).collection]!!.permissions!!.myself
+                val allowWrite = perms.any { it == Permission.EDIT || it == Permission.ADMIN }
+                file.readOnly = !allowWrite
+            }
+        }
     }
 
     private fun badValue(param: ApplicationParameter): Nothing {
