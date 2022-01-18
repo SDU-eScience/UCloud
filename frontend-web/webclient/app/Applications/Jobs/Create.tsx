@@ -358,17 +358,16 @@ export const Create: React.FunctionComponent = () => {
                         )}
 
                         {/* Resources */}
-                        <IngressResource
-                            {...ingress}
-                            application={application}
-                        />
-
 
                         <FolderResource
                             {...folders}
                             application={application}
                         />
 
+                        <IngressResource
+                            {...ingress}
+                            application={application}
+                        />
 
                         <PeerResource
                             {...peers}

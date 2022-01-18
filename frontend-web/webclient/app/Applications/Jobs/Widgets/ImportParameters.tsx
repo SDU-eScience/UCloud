@@ -120,10 +120,10 @@ export const ImportParameters: React.FunctionComponent<{
                 <>
                     <div>
                         <div style={{textAlign: "center", border: "1px solid var(--gray)", borderBottom: "0px"}}>
-                            Date
+                            <b>Date</b>
                         </div>
                         <div style={{textAlign: "center", border: "1px solid var(--gray)", width: "100px"}}>
-                            Job ID
+                            <b>Job ID</b>
                         </div>
                     </div>
                     {previousRunsValid.slice(0, 5).map((run, idx) => (

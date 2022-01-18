@@ -21,7 +21,7 @@ export const FolderResource: React.FunctionComponent<{
             <Box>
                 <Flex alignItems="center">
                     <Box flexGrow={1}>
-                        <Heading.h4>Select additional folders to use</Heading.h4>
+                        <Heading.h4>Select folders to use</Heading.h4>
                     </Box>
 
                     <Button type={"button"} ml={"5px"} lineHeight={"16px"} onClick={onAdd}>Add folder</Button>
