@@ -139,7 +139,7 @@ class SyncFolderService(
     }
 
     private suspend fun onFileCollectionDeleted(request: BulkRequest<FindByStringId>) {
-        removeSyncFolders(request.items.map { it.id })
+        removeSyncFolders(request.items.map { "/${it.id}" })
     }
 
 
