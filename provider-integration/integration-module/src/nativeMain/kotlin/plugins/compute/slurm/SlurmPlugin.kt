@@ -67,7 +67,7 @@ class SlurmPlugin : ComputePlugin {
         val mountpoint = config.mountpoint
         mkdir("${mountpoint}/${resource.id}", "0770".toUInt(8))
 
-        val sbatch = createSbatchFile(resource, config)
+        val sbatch = createSbatchFile(this, resource, config)
 
         val pathToScript = "${mountpoint}/${resource.id}/job.sbatch"
         NativeFile.open(path = pathToScript, readOnly = false).writeText(sbatch)
