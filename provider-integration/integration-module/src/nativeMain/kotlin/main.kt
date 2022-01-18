@@ -25,6 +25,7 @@ import kotlin.system.exitProcess
 sealed class ServerMode {
     object User : ServerMode()
     object Server : ServerMode()
+    object FrontendProxy : ServerMode()
     data class Plugin(val name: String) : ServerMode()
 }
 
@@ -78,6 +79,7 @@ fun main(args: Array<String>) {
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User
             args.getOrNull(0) == "server" || args.isEmpty() -> ServerMode.Server
+            args.getOrNull(0) == "proxy" -> ServerMode.FrontendProxy
             else -> ServerMode.Plugin(args[0])
         }
 
@@ -89,11 +91,64 @@ fun main(args: Array<String>) {
             val config = try {
                 IMConfiguration.load(serverMode)
             } catch (ex: ConfigurationException.IsBeingInstalled) {
+                if (getuid() == 0U) {
+                    throw IllegalStateException(
+                        "Refusing to start as root. The integration module needs to be " +
+                            "started as a dedicated 'ucloud' (service) user."
+                    )
+                }
+
                 runInstaller(ex.core, ex.server, ownExecutable)
                 exitProcess(0)
             } catch (ex: ConfigurationException.BadConfiguration) {
                 println(ex.message)
                 exitProcess(1)
+            }
+
+            // Verify that we didn't manage to read parts of the configuration we shouldn't be able to
+            val uid = getuid()
+            when (serverMode) {
+                ServerMode.FrontendProxy -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start the frontend proxy as root")
+
+                    if (config.server != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions! The frontend proxy should " +
+                                "not be able to read server.json"
+                        )
+                    }
+                    if (config.frontendProxy == null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions! The frontend proxy should " +
+                                "be able to read frontend_proxy.json"
+                        )
+                    }
+                }
+
+                is ServerMode.Plugin -> {
+                    // Do nothing (some plugins will run as root, which is fine)
+                }
+
+                ServerMode.Server -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start the server as root")
+                }
+
+                ServerMode.User -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start a user instance as root")
+
+                    if (config.server != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions. A user should not be able " +
+                                "to read server.json"
+                        )
+                    }
+                    if (config.frontendProxy != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions. A user should not be able " +
+                                "to read frontend_proxy.json"
+                        )
+                    }
+                }
             }
 
             val validation = NativeJWTValidation(config.core.certificate!!)
@@ -108,15 +163,21 @@ fun main(args: Array<String>) {
                 handler.migrate()
             }
 
-            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
-            val ipcServer = if (serverMode != ServerMode.Server) null else IpcServer(ipcSocketDirectory)
-            val ipcClient = if (serverMode == ServerMode.Server) null else IpcClient(ipcSocketDirectory)
-            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
-
             val rpcServerPort = when (serverMode) {
-                is ServerMode.Plugin -> null
+                is ServerMode.Plugin, ServerMode.FrontendProxy -> null
                 ServerMode.Server -> UCLOUD_IM_PORT
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
+            }
+
+            val rpcServer = when (serverMode) {
+                ServerMode.Server, ServerMode.User -> RpcServer(rpcServerPort!!)
+                else -> null
+            }
+
+            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
+            val ipcClient = when (serverMode) {
+                ServerMode.Server, ServerMode.FrontendProxy -> null
+                else -> IpcClient(ipcSocketDirectory)
             }
 
             val providerClient = run {
@@ -156,12 +217,44 @@ fun main(args: Array<String>) {
                         AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
                     }
 
+                    ServerMode.FrontendProxy -> {
+                        val cfg = config.frontendProxy!!
+                        val client = RpcClient().also { client ->
+                            OutgoingHttpRequestInterceptor()
+                                .install(
+                                    client,
+                                    FixedOutgoingHostResolver(
+                                        HostInfo(
+                                            cfg.remoteHost,
+                                            cfg.remoteScheme,
+                                            cfg.remotePort
+                                        )
+                                    )
+                                )
+                        }
+
+                        AuthenticatedClient(client, OutgoingHttpCall) {
+                            it.attributes.outgoingAuthToken = cfg.sharedSecret
+                        }
+                    }
+
                     is ServerMode.Plugin -> null
                 }
             }
 
+            val ipcServer = when (serverMode) {
+                ServerMode.Server, ServerMode.FrontendProxy -> IpcServer(
+                    ipcSocketDirectory,
+                    config.frontendProxy!!,
+                    providerClient!!,
+                    rpcServer
+                )
+                else -> null
+            }
+            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+
             if (ipcServer != null && providerClient != null) {
-                IpcProxyServer().init(ipcServer, providerClient)
+                IpcToUCloudProxyServer().init(ipcServer, providerClient)
             }
 
             val pluginContext = SimplePluginContext(
@@ -205,22 +298,28 @@ fun main(args: Array<String>) {
 
             when (serverMode) {
                 ServerMode.Server, ServerMode.User -> {
-                    val server = RpcServer(rpcServerPort!!)
-                    with(server) {
-                        configureControllers(
+                    if (rpcServer != null) {
+                        rpcServer.configureControllers(
                             controllerContext,
                             FileController(controllerContext, envoyConfig),
                             FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig)
                         )
-                    }
 
-                    server.start()
+                        rpcServer.start()
+                    }
                 }
 
                 is ServerMode.Plugin -> {
                     cli!!.execute(serverMode.name)
+                }
+
+                ServerMode.FrontendProxy -> {
+                    // Just spin, the IPC server is running in a separate thread
+                    while (isActive) {
+                        delay(50)
+                    }
                 }
             }
         }

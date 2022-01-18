@@ -48,7 +48,6 @@ class EnvoyConfigurationService(
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         startProcess(
-
             args = listOf(
                 "/usr/local/bin/getenvoy",
                 "run",

@@ -72,7 +72,6 @@ abstract class BaseResourceController<
     protected abstract fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
 
     override fun RpcServer.configure() {
-        println("Configuring ${this@BaseResourceController::class.simpleName}")
         val plugins = retrievePlugins()
         if (plugins == null) {
             println("No plugins active for ${this@BaseResourceController::class.simpleName}")

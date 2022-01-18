@@ -1,13 +1,20 @@
 package dk.sdu.cloud.ipc
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.IngoingCallResponse
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.http.HttpContext
+import dk.sdu.cloud.http.OutgoingCallResponse
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.service.Loggable
 import io.ktor.http.*
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -16,7 +23,7 @@ import kotlinx.serialization.serializer
 import platform.linux.sockaddr_un
 import platform.posix.*
 
-data class IpcUser(val uid: UInt, val gid: UInt, val pid: Int)
+data class IpcUser(val uid: UInt, val gid: UInt)
 
 data class TypedIpcHandler<Req, Resp>(
     val method: String,
@@ -68,6 +75,7 @@ abstract class IpcContainer(val namespace: String) {
 data class IpcHandler(
     val method: String,
     val methodIsPrefix: Boolean = false,
+    var allowProxyToRemoteIntegrationModule: Boolean = false,
     val handler: (user: IpcUser, request: JsonRpcRequest) -> JsonObject
 ) {
     fun matches(method: String): Boolean {
@@ -79,14 +87,32 @@ data class IpcHandler(
     }
 }
 
+@Serializable
+data class IpcToIntegrationModuleRequest(
+    val uid: UInt,
+    val gid: UInt,
+    val request: JsonRpcRequest
+)
+
+private object IpcToIntegrationModuleApi : CallDescriptionContainer("ipcproxy") {
+    val proxy = call<IpcToIntegrationModuleRequest, JsonObject, CommonErrorMessage>("proxy") {
+        httpUpdate("/ipc-proxy", "proxy", Roles.PUBLIC)
+    }
+}
+
 class IpcServer(
     private val ipcSocketDirectory: String,
+    private val frontendProxyConfig: IMConfiguration.FrontendProxy,
+    private val rpcClient: AuthenticatedClient,
+    private val rpcServer: RpcServer?,
 ) {
+    private val isProxy = rpcServer == null
     private val ipcHandlers = ArrayList<IpcHandler>()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
 
     fun runServer(): Unit = memScoped {
+        registerRpcHandler()
         val socketPath = "$ipcSocketDirectory/$ipcSocketName"
         unlink(socketPath)
         val serverSocket = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -117,7 +143,29 @@ class IpcServer(
         ipcHandlers.add(handler)
     }
 
-    private fun processIpcClient(clientSocket: Int) = memScoped {
+    private fun registerRpcHandler() {
+        // If the rpcServer is null, then we are in the frontend proxy, and we don't need to do anything
+        if (rpcServer == null) return
+
+        rpcServer.implement(IpcToIntegrationModuleApi.proxy) {
+            val sctx = (ctx.serverContext as? HttpContext) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val bearerToken = sctx.headers.find { it.header.equals("Authorization", ignoreCase = true) }
+                ?.value?.removePrefix("Bearer ")
+            if (bearerToken != frontendProxyConfig.sharedSecret) {
+                throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            }
+
+            for (ipcHandler in handlers) {
+                if (ipcHandler.matches(request.request.method) && ipcHandler.allowProxyToRemoteIntegrationModule) {
+                    val response = ipcHandler.handler(IpcUser(request.uid, request.gid), request.request)
+                    return@implement OutgoingCallResponse.Ok(response)
+                }
+            }
+            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+    }
+
+    private suspend fun processIpcClient(clientSocket: Int) = memScoped {
         val log = Log("IpcServer")
 
         val readPipe = UnixSocketPipe.create(this, 1024 * 32, 0)
@@ -136,7 +184,7 @@ class IpcServer(
             val credentials = getSocketCredentials(clientSocket, readPipe.messageHeader.ptr)
             credentials.useContents {
                 if (!valid) null
-                else IpcUser(uid, gid, pid)
+                else IpcUser(uid, gid)
             }
         } ?: return
 
@@ -144,38 +192,9 @@ class IpcServer(
             val request = runCatching { parseRequest() }.getOrNull() ?: break
             if (request.id == null) continue
 
-            val response: Result<JsonObject> = runCatching {
-                for (handler in handlers) {
-                    if (!handler.matches(request.method)) continue
-                    return@runCatching handler.handler(user, request)
-                }
+            val response = handleRequest(user, request)
 
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-
-            val unwrappedResponse: JsonRpcResponse = if (response.isFailure) {
-                val asRpcException = (response.exceptionOrNull() as? RPCException)
-                if (asRpcException != null) {
-                    JsonRpcResponse.Error(
-                        JsonRpcResponse.ErrorObject(
-                            asRpcException.httpStatusCode.value,
-                            asRpcException.why
-                        ),
-                        request.id
-                    )
-                } else {
-                    log.warn(response.exceptionOrNull()!!.stackTraceToString())
-                    JsonRpcResponse.Error(
-                        JsonRpcResponse.ErrorObject(500, "Internal error"),
-                        request.id
-                    )
-                }
-            } else {
-                val result = response.getOrThrow()
-                JsonRpcResponse.Success(result, request.id)
-            }
-
-            val serializer: KSerializer<*> = when (unwrappedResponse) {
+            val serializer: KSerializer<*> = when (response) {
                 is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
                 is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
             }
@@ -184,7 +203,7 @@ class IpcServer(
                 @Suppress("UNCHECKED_CAST")
                 writePipe.sendFully(
                     clientSocket,
-                    (defaultMapper.encodeToString(serializer as KSerializer<Any>, unwrappedResponse) + "\n").encodeToByteArray()
+                    (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n").encodeToByteArray()
                 )
             }.getOrNull() ?: break
         }
@@ -192,6 +211,68 @@ class IpcServer(
         if (clientSocket >= 0) close(clientSocket)
     }
 
+    private suspend fun handleRequest(user: IpcUser, request: JsonRpcRequest): JsonRpcResponse {
+        return if (!isProxy) handleLocalRequest(user, request)
+        else handleProxyRequest(user, request)
+    }
+
+    private fun handleLocalRequest(user: IpcUser, request: JsonRpcRequest): JsonRpcResponse {
+        check(!isProxy)
+        val id = request.id ?: error("request.id is null")
+
+        val response: Result<JsonObject> = runCatching {
+            for (handler in handlers) {
+                if (!handler.matches(request.method)) continue
+                return@runCatching handler.handler(user, request)
+            }
+
+            throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        }
+
+        return if (response.isFailure) {
+            val asRpcException = (response.exceptionOrNull() as? RPCException)
+            if (asRpcException != null) {
+                JsonRpcResponse.Error(
+                    JsonRpcResponse.ErrorObject(
+                        asRpcException.httpStatusCode.value,
+                        asRpcException.why
+                    ),
+                    id
+                )
+            } else {
+                log.warn(response.exceptionOrNull()!!.stackTraceToString())
+                JsonRpcResponse.Error(
+                    JsonRpcResponse.ErrorObject(500, "Internal error"),
+                    id
+                )
+            }
+        } else {
+            val result = response.getOrThrow()
+            JsonRpcResponse.Success(result, id)
+        }
+    }
+
+    private suspend fun handleProxyRequest(user: IpcUser, request: JsonRpcRequest): JsonRpcResponse {
+        check(isProxy)
+        val id = request.id ?: error("request.id is null")
+
+        val response = IpcToIntegrationModuleApi.proxy.call(
+            IpcToIntegrationModuleRequest(user.uid, user.gid, request),
+            rpcClient
+        )
+
+        return when (response) {
+            is IngoingCallResponse.Ok -> {
+                JsonRpcResponse.Success(response.result, id)
+            }
+            is IngoingCallResponse.Error -> {
+                JsonRpcResponse.Error(
+                    JsonRpcResponse.ErrorObject(response.statusCode.value, response.error?.why ?: "Error"),
+                    id
+                )
+            }
+        }
+    }
 
     companion object : Loggable {
         override val log = logger()

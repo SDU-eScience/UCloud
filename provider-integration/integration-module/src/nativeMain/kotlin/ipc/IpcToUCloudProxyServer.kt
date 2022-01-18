@@ -12,7 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-class IpcProxyServer {
+class IpcToUCloudProxyServer {
     fun init(server: IpcServer, client: AuthenticatedClient) {
         server.addHandler(IpcHandler(IpcProxyRequestInterceptor.IPC_PROXY_METHOD) { _, req ->
             val proxyRequest = defaultMapper.decodeFromJsonElement<IpcProxyRequest>(req.params)

@@ -95,6 +95,7 @@ class IMConfiguration(
     val core: Core,
     val plugins: Plugins,
     val server: Server?,
+    val frontendProxy: FrontendProxy?,
 ) {
     companion object {
         const val PLACEHOLDER_ID = "PLACEHOLDER"
@@ -128,7 +129,17 @@ class IMConfiguration(
                 NativeFile.open("$CONFIG_PATH/plugins.json", readOnly = true).readText()
             )
 
-            return IMConfiguration(CONFIG_PATH, serverMode, core, plugins, server)
+            // NOTE(Dan): Deployment notes. The configuration should be on both the frontend and the dedicated node.
+            // The frontend proxy needs to be in the same group as the ucloud user, but run as a separate user.
+            // The ucloud user should be able to read all the configuration files. The frontend proxy should not be
+            // able to read the server configuration.
+            val frontendProxy = runCatching {
+                Json.decodeFromString<FrontendProxy>(
+                    NativeFile.open("$CONFIG_PATH/frontend_proxy.json", readOnly = true).readText()
+                )
+            }.getOrNull()
+
+            return IMConfiguration(CONFIG_PATH, serverMode, core, plugins, server, frontendProxy)
         }
     }
 
@@ -203,4 +214,12 @@ class IMConfiguration(
         data class UCloud(val host: String, val scheme: String, val port: Int)
     }
 
+
+    @Serializable
+    data class FrontendProxy(
+        val remoteHost: String,
+        val remotePort: Int,
+        val remoteScheme: String,
+        val sharedSecret: String,
+    )
 }
