@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
+import dk.sdu.cloud.plugins.projects.DirectProjectMapperPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import io.ktor.http.*
@@ -35,6 +36,10 @@ class PluginLoader(private val pluginContext: PluginContext) {
 
     private val identityMapperPlugins = mapOf<String, () -> IdentityMapperPlugin>(
         "direct" to { DirectIdentityMapperPlugin() }
+    )
+
+    private val projectPlugins = mapOf<String, () -> ProjectMapperPlugin>(
+        "direct" to { DirectProjectMapperPlugin() }
     )
 
     private fun <T : Plugin<Unit>> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
@@ -105,8 +110,9 @@ class PluginLoader(private val pluginContext: PluginContext) {
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
         val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
+        val projects = config.plugins.projects?.let { loadPlugin(projectPlugins, it) }
 
-        return LoadedPlugins(files, fileCollection, compute, connection, identityMapper)
+        return LoadedPlugins(files, fileCollection, compute, connection, identityMapper, projects)
     }
 }
 
@@ -144,4 +150,5 @@ data class LoadedPlugins(
     val compute: ProductBasedPlugins<ComputePlugin>?,
     val connection: ConnectionPlugin?,
     val identityMapper: IdentityMapperPlugin?,
+    val projects: ProjectMapperPlugin?,
 )

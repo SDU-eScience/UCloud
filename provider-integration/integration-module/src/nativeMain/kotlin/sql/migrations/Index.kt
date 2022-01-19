@@ -9,4 +9,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V1__FileDownloadSessions())
     migrationHandler.addScript(V1__FileUploadSessions())
     migrationHandler.addScript(V1__Tasks())
+    migrationHandler.addScript(V1__ProjectMapping())
 }

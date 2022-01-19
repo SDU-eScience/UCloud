@@ -183,3 +183,17 @@ suspend inline fun <reified Req, reified Resp> IpcClient.sendRequest(
         )
     ).orThrow()
 }
+
+inline fun <reified Req, reified Resp> IpcClient.sendRequestBlocking(
+    call: TypedIpcHandler<Req, Resp>,
+    request: Req
+): Resp {
+    return runBlocking {
+        sendRequest(
+            JsonRpcRequest(
+                call.method,
+                defaultMapper.encodeToJsonElement(request) as JsonObject
+            )
+        ).orThrow()
+    }
+}

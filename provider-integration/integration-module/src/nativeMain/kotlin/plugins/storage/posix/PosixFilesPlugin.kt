@@ -289,7 +289,7 @@ class PosixFilesPlugin : FilePlugin {
         val result = req.items.map { reqItem ->
             processTask(
                 PosixTask.Copy(
-                    "Copy Files...",
+                    "Copying Files...",
                     reqItem.resolvedOldCollection.id,
                     reqItem
                 )
@@ -641,7 +641,6 @@ class PosixFilesPlugin : FilePlugin {
             listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
         )
     }
-
 
     override suspend fun PluginContext.retrieveProducts(
         knownProducts: List<ProductReference>

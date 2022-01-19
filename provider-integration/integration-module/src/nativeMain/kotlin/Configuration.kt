@@ -191,6 +191,7 @@ class IMConfiguration(
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
         val identityMapper: JsonObject? = null,
+        val projects: JsonObject? = null,
     )
 
     @Serializable
