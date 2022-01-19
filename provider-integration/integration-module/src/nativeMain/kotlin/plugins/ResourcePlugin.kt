@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.DepositNotification
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -9,6 +10,11 @@ import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.UpdatedAclWithResource
+
+sealed class OnResourceAllocationResult {
+    object ManageThroughUCloud : OnResourceAllocationResult()
+    data class ManageThroughProvider(val uniqueId: String) : OnResourceAllocationResult()
+}
 
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
     /**
@@ -60,4 +66,10 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
     }
 
     suspend fun PluginContext.runMonitoringLoop()
+
+    suspend fun PluginContext.onResourceAllocation(
+        notifications: BulkRequest<DepositNotification>
+    ): List<OnResourceAllocationResult> {
+        return notifications.items.map { OnResourceAllocationResult.ManageThroughUCloud }
+    }
 }

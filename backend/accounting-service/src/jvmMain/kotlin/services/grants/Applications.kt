@@ -1,8 +1,12 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
@@ -16,6 +20,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 class GrantApplicationService(
     private val db: DBContext,
     private val notifications: GrantNotificationService,
+    private val providers: Providers<SimpleProviderCommunication>
 ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
@@ -747,6 +752,24 @@ class GrantApplicationService(
             },
             """select "grant".approve_application(:approved_by, :id)"""
         )
+
+        val providerIds = session.sendPreparedStatement(
+            { setParameter("id", applicationId) },
+            """
+                select distinct pc.provider
+                from
+                    "grant".requested_resources r join
+                    accounting.product_categories pc on
+                        r.product_category = pc.id
+                where
+                    r.application_id = :id
+            """
+        ).rows.map { it.getString(0)!! }
+
+        providerIds.forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+        }
     }
 
     companion object : Loggable {

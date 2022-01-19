@@ -304,7 +304,8 @@ fun main(args: Array<String>) {
                             FileController(controllerContext, envoyConfig),
                             FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
-                            ConnectionController(controllerContext, envoyConfig)
+                            ConnectionController(controllerContext, envoyConfig),
+                            AccountingController(controllerContext)
                         )
 
                         rpcServer.start()

@@ -5,27 +5,10 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.Role
-import dk.sdu.cloud.accounting.api.ChargeWalletRequestItem
-import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
-import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
-import dk.sdu.cloud.accounting.api.RootDepositRequestItem
-import dk.sdu.cloud.accounting.api.SubAllocation
-import dk.sdu.cloud.accounting.api.SubAllocationQuery
-import dk.sdu.cloud.accounting.api.Transaction
-import dk.sdu.cloud.accounting.api.TransactionsBrowseRequest
-import dk.sdu.cloud.accounting.api.TransferToWalletRequestItem
-import dk.sdu.cloud.accounting.api.UpdateAllocationRequestItem
-import dk.sdu.cloud.accounting.api.VisualizationRetrieveBreakdownRequest
-import dk.sdu.cloud.accounting.api.VisualizationRetrieveBreakdownResponse
-import dk.sdu.cloud.accounting.api.VisualizationRetrieveUsageRequest
-import dk.sdu.cloud.accounting.api.VisualizationRetrieveUsageResponse
-import dk.sdu.cloud.accounting.api.Wallet
-import dk.sdu.cloud.accounting.api.WalletBrowseRequest
-import dk.sdu.cloud.accounting.api.WalletOwner
-import dk.sdu.cloud.accounting.api.WalletsRetrieveRecipientRequest
-import dk.sdu.cloud.accounting.api.WalletsRetrieveRecipientResponse
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -313,6 +296,7 @@ class AccountingService(
                 val descriptions by parameterList<String?>()
                 val transactionIds by parameterList<String>()
                 val applicationIds by parameterList<Long?>()
+                val providerGeneratedIds by parameterList<String?>()
                 setParameter("actor", actorAndProject.actor.safeUsername())
                 for (req in request.items) {
                     productCategories.add(req.categoryId.name)
@@ -325,6 +309,7 @@ class AccountingService(
                     descriptions.add(req.description)
                     transactionIds.add(req.transactionId)
                     applicationIds.add(null)
+                    providerGeneratedIds.add(req.providerGeneratedId)
                 }
             }
 
@@ -390,16 +375,17 @@ class AccountingService(
                                 unnest(:balances::bigint[]) balance,
                                 unnest(:descriptions::text[]) description,
                                 unnest(:transaction_ids::text[]) transaction_id,
+                                unnest(:provider_generated_ids::text[]) provider_generated_id,
                                 :actor actor
                         ),
                         new_allocations as (
                             insert into accounting.wallet_allocations
                                 (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
-                                allocation_path) 
+                                allocation_path, provider_generated_id) 
                             select
                                 req.alloc_id,
                                 w.id, req.balance, req.balance, req.balance, coalesce(req.start_date, now()),
-                                req.end_date, req.alloc_id::text::ltree
+                                req.end_date, req.alloc_id::text::ltree, req.provider_generated_id
                             from
                                 requests req join
                                 accounting.product_categories pc on
@@ -425,6 +411,83 @@ class AccountingService(
             if (rowsAffected != request.items.size.toLong()) {
                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
             }
+
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("amount") { it.amount }
+                        into("category") { it.categoryId.name }
+                        into("provider") { it.categoryId.provider }
+                        into("username") { (it.recipient as? WalletOwner.User)?.username }
+                        into("project") { (it.recipient as? WalletOwner.Project)?.projectId }
+                    }
+                },
+                """
+                    with
+                        request as (
+                            select
+                                unnest(:amount::bigint[]) amount,
+                                unnest(:category::text[]) category,
+                                unnest(:provider::text[]) provider,
+                                unnest(:username::text[]) username,
+                                unnest(:project::text[]) project
+                        ),
+                        request_and_category as (
+                            select r.amount, r.provider, r.username, r.project, pc.id as category_id
+                            from
+                                request r join
+                                accounting.product_categories pc on
+                                    r.category = pc.category and
+                                    r.provider = pc.provider
+                        )
+                    insert into accounting.deposit_notifications
+                        (created_at, username, project_id, category_id, balance) 
+                    select
+                        now(), username, project, category_id, amount
+                    from request_and_category
+                """
+            )
+
+            val providerIds = request.items.asSequence().map { it.categoryId.provider }.toSet()
+            providerIds.forEach { provider ->
+                val comms = providers.prepareCommunication(provider)
+                DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+            }
+        }
+    }
+
+    suspend fun register(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<RegisterWalletRequestItem>
+    ) {
+        val providerId = actorAndProject.actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
+
+        db.withSession { session ->
+            val duplicateTransactions = session.sendPreparedStatement(
+                {
+                    setParameter("transaction_ids", request.items.map { providerId + it.uniqueAllocationId })
+                },
+                """
+                    select transaction_id
+                    from accounting.transactions
+                    where transaction_id = some(:transaction_ids::text[])
+                """
+            ).rows.map { it.getString(0)!! }.toSet()
+
+            val requestsToFulfill = request.items.filter { (providerId + it.uniqueAllocationId) !in duplicateTransactions }
+            rootDeposit(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(requestsToFulfill.map { reqItem ->
+                    RootDepositRequestItem(
+                        ProductCategoryId(reqItem.categoryId, providerId),
+                        reqItem.owner,
+                        reqItem.balance,
+                        "Allocation registered outside of UCloud",
+                        transactionId = providerId + reqItem.uniqueAllocationId,
+                        providerGeneratedId = reqItem.providerGeneratedId
+                    )
+                })
+            )
         }
     }
 
@@ -1378,6 +1441,97 @@ class AccountingService(
                 "Accounting Retrieve Recipient"
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
                 ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
+        }
+    }
+
+    suspend fun pushWallets(
+        actorAndProject: ActorAndProject,
+        changes: BulkRequest<PushWalletChangeRequestItem>
+    ) {
+        val actor = actorAndProject.actor
+        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        if (actor.principal.role != Role.PROVIDER) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        val providerId = actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
+
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    changes.items.split {
+                        into("new_balance") { it.amount }
+                        into("ids") { providerId + it.allocationId }
+                    }
+                },
+                """
+                    with
+                        request as (
+                            select
+                                unnest(:new_balance::bigint[]) new_balance,
+                                unnest(:ids::text[]) id,
+                                gen_random_uuid()::text transaction_id
+                        ),
+                        changes as (
+                            select
+                                req.transaction_id,
+                                req.new_balance - local_balance as change,
+                                req.id as provider_id,
+                                alloc.id as alloc_id,
+                                alloc.associated_wallet
+                            from
+                                request req join
+                                accounting.wallet_allocations alloc on
+                                    req.id = alloc.provider_generated_id
+                        ),
+                        updates as (
+                            update accounting.wallet_allocations alloc
+                            set
+                                local_balance = local_balance + c.change,
+                                balance = balance + c.change
+                            from
+                                changes c
+                            where
+                                alloc.id = c.alloc_id
+                        ),
+                        products_and_changes as (
+                            select *
+                            from (
+                                select
+                                    c.*, p.id as product_id,
+                                    rank() over (partition by transaction_id order by p.id) as rank
+                                from
+                                    changes c join
+                                    accounting.wallets w on
+                                        c.associated_wallet = w.id join
+                                    accounting.product_categories pc on
+                                        w.category = pc.id join
+                                    accounting.products p on
+                                        p.category = pc.id
+                            ) t
+                            where rank = 1
+                        )
+                    insert into accounting.transactions
+                        (type, created_at, affected_allocation_id, action_performed_by, change, description, 
+                        source_allocation_id, product_id, periods, units, start_date, end_date, transaction_id, 
+                        initial_transaction_id)
+                    select
+                        'charge'::accounting.transaction_type,
+                        now(),
+                        c.alloc_id,
+                        '_ucloud',
+                        c.change,
+                        'Balance updated by provider',
+                        c.alloc_id,
+                        c.product_id,
+                        1,
+                        1,
+                        null,
+                        null,
+                        c.transaction_id,
+                        c.transaction_id
+                    from
+                        products_and_changes c
+                """,
+                "Accounting push wallets"
+            )
         }
     }
 

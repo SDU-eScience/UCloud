@@ -22,6 +22,12 @@ data class DepositNotification(
 
 typealias DepositNotificationsRetrieveResponse = BulkResponse<DepositNotification>
 
+@Serializable
+data class DepositNotificationsMarkAsReadRequestItem(
+    val id: String,
+    val providerGeneratedId: String? = null
+)
+
 object DepositNotifications : CallDescriptionContainer("accounting.depositnotifications") {
     const val baseContext = "/api/accounting/depositNotifications"
 
@@ -41,7 +47,7 @@ object DepositNotifications : CallDescriptionContainer("accounting.depositnotifi
         }
     }
 
-    val markAsRead = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("markAsRead") {
+    val markAsRead = call<BulkRequest<DepositNotificationsMarkAsReadRequestItem>, Unit, CommonErrorMessage>("markAsRead") {
         httpUpdate(baseContext, "markAsRead", roles = Roles.PROVIDER)
 
         documentation {
