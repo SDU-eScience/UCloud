@@ -1,5 +1,6 @@
 package dk.sdu.cloud.ipc
 
+import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -66,6 +67,20 @@ class IpcToUCloudProxyServer {
                     // TODO Verify the request
                     // TODO Verify the request
                     FileCollectionsControl.browse
+                }
+
+                Wallets.register.fullName -> {
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    // TODO Verify the request
+                    Wallets.register
                 }
 
                 else -> null

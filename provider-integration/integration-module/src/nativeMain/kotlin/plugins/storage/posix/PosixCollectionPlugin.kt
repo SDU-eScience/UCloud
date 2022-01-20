@@ -98,7 +98,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             val product = products.firstOrNull() ?: return@flatMap emptyList()
             val extension = config.extensions.additionalCollections ?: return@flatMap emptyList()
             retrieveCollections.invoke(extension, owner).map {
-                PathConverter.Collection(owner, it.title, it.path, product)
+                PathConverter.Collection(owner, it.title, it.path, product, it.balance)
             }
         }
 
@@ -147,4 +147,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 }
 
 @Serializable
-private data class PosixCollectionFromExtension(val path: String, val title: String)
+private data class PosixCollectionFromExtension(
+    val path: String,
+    val title: String,
+    val balance: Long? = null,
+)

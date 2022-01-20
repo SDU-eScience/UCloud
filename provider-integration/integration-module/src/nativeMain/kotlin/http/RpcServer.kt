@@ -81,7 +81,6 @@ class RpcServer(
                     headers: List<Header>,
                     payload: ByteBuffer
                 ) {
-                    println("$method $path")
                     var foundCall: CallWithHandler<Any, Any, Any>? = null
                     for (callWithHandler in handlers) {
                         val (call) = callWithHandler
