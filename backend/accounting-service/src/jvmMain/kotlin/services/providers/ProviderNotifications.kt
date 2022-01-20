@@ -15,17 +15,29 @@ enum class ProviderNotificationEvent {
 data class ProviderNotification(
     val id: Long,
     val time: LocalDateTime,
-    val event: ProviderNotificationEvent,
     val user: String,
-    val project: String? = null,
-    val group: String? = null,
-    val role: String? = null
+    val resource: Long,
+    val permission: NewResourcePermission
+)
+
+enum class NewResourcePermission {
+    NONE,
+    READ,
+    READ_WRITE
+}
+
+data class ResourceWithProviderAndPermission(
+    val resource: Long,
+    val provider: String,
+    val permission: NewResourcePermission
 )
 
 
 class ProviderNotifications(
     private val db: DBContext
 ) {
+    private val resourceTypes = listOf("sync_folder")
+
     suspend fun create(
         event: ProviderNotificationEvent,
         user: String,
@@ -33,24 +45,47 @@ class ProviderNotifications(
         group: String? = null,
         role: ProjectRole? = null
     ) {
-        // TODO(brian): How do we find the correct providers?
-        val providers = listOf("ucloud")
-
         db.withSession { session ->
+            // TODO Fetch resources
+            val resources: List<ResourceWithProviderAndPermission> = if (event == ProviderNotificationEvent.MEMBER_LEFT_PROJECT) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("user", user)
+                        setParameter("project", project)
+                        setParameter("types", resourceTypes)
+                    },
+                    """
+                        select provider, id
+                        from provider.resource
+                        where
+                            project = :project and
+                            created_by = :user and
+                            type in (select unnest(:types::text[]))
+                    """
+                ).rows.map {
+                    ResourceWithProviderAndPermission(
+                        it.getLong("id")!!,
+                        it.getString("provider")!!,
+                        NewResourcePermission.NONE
+                    )
+                }
+            } else {
+                emptyList()
+            }
+
+
             session.sendPreparedStatement(
                 {
                     setParameter("time", LocalDateTime.now())
-                    setParameter("event", event.name)
                     setParameter("user", user)
-                    setParameter("providers", providers)
-                    setParameter("project", project)
-                    setParameter("group", group)
-                    setParameter("role", role?.name)
+                    setParameter("providers", resources.map { it.provider })
+                    setParameter("resources", resources.map { it.resource })
+                    setParameter("permission", resources.map { it.permission.name } )
                 },
                 """
                     insert into provider.notifications
-                        (time, event, user_id, provider, project_id, group_id, user_role)
-                    select :time, :event, :user, unnest(:providers::text[]), :project, :group, :role
+                        (time, user_id, provider, resource, permission)
+                    select :time, :event, :user, unnest(:providers::text[]), unnest(:resources::bigint[]), unnest(:permission::text[])
                 """
             )
         }
@@ -63,18 +98,17 @@ class ProviderNotifications(
                     setParameter("provider", provider)
                 },
                 """
-                    select id, time, event, user_id, project_id, group_id, user_role
+                    select id, time, user_id, resource, permission
                     from provider.notifications
+                    where provider = :provider
                 """
             ).rows.map {
                 ProviderNotification(
                     it.getLong("id")!!,
                     it.getDate("time")!!,
-                    ProviderNotificationEvent.valueOf(it.getString("event")!!),
-                    it.getString("user")!!,
-                    it.getString("project"),
-                    it.getString("group"),
-                    it.getString("role")
+                    it.getString("user_id")!!,
+                    it.getLong("resource")!!,
+                    NewResourcePermission.valueOf(it.getString("permission")!!)
                 )
             }
         }
