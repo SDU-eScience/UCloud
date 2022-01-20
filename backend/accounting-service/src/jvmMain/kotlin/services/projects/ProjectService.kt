@@ -5,8 +5,8 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.services.providers.ProviderNotificationEvent
-import dk.sdu.cloud.accounting.services.providers.ProviderNotifications
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationEvent
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.RPCException
@@ -14,7 +14,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
@@ -78,7 +77,7 @@ suspend fun RowData.toProject(): Project {
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
     private val eventProducer: EventProducer<ProjectEvent>,
-    private val providerNotifications: ProviderNotifications
+    private val providerNotifications: ResourceNotificationService
 ) {
     suspend fun create(
         ctx: DBContext,
@@ -364,7 +363,7 @@ class ProjectService(
         }
 
         providerNotifications.create(
-            event = ProviderNotificationEvent.MEMBER_LEFT_PROJECT,
+            event = ResourceNotificationEvent.MEMBER_LEFT_PROJECT,
             user = initiatedBy,
             project = projectId
         )

@@ -21,8 +21,8 @@ import dk.sdu.cloud.accounting.services.projects.ProjectGroupService
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
-import dk.sdu.cloud.accounting.services.providers.ProviderNotifications
 import dk.sdu.cloud.accounting.services.providers.ProviderService
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
@@ -38,8 +38,6 @@ import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import kotlinx.coroutines.runBlocking
-import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
@@ -55,11 +53,11 @@ class Server(
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
-        val providerNotifications = ProviderNotifications(db)
+        val resourceNotifications = ResourceNotificationService(db)
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer, providerNotifications)
+        val projectService = ProjectService(client, eventProducer, resourceNotifications)
         val projectGroups = ProjectGroupService(projectService, eventProducer)
         val projectQueryService = ProjectQueryService(projectService)
 
@@ -98,7 +96,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(accountingService, depositNotifications),
+                AccountingController(accountingService, depositNotifications, resourceNotifications),
                 ProductController(productService),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),

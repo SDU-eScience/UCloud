@@ -1,21 +1,18 @@
 package dk.sdu.cloud.accounting.rpc
 
-import dk.sdu.cloud.accounting.api.Accounting
-import dk.sdu.cloud.accounting.api.DepositNotifications
-import dk.sdu.cloud.accounting.api.Transactions
-import dk.sdu.cloud.accounting.api.Visualization
-import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
-import org.elasticsearch.action.bulk.BulkRequest
 
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
+    private val resourceNotifications: ResourceNotificationService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Accounting.charge) {
@@ -92,6 +89,15 @@ class AccountingController(
 
         implement(DepositNotifications.markAsRead) {
             notifications.markAsRead(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(ResourceNotifications.retrieve) {
+            resourceNotifications.retrieve(actorAndProject)
+        }
+
+        implement(ResourceNotifications.markAsRead)  {
+            resourceNotifications.markAsRead(actorAndProject, request)
             ok(Unit)
         }
         return@with
