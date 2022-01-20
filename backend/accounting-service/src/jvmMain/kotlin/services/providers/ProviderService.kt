@@ -268,7 +268,7 @@ class ProviderService(
                                 provider.port
                             )
                         )
-                    ).orRethrowAs { throw RPCException("Could not connect to provider", HttpStatusCode.BadRequest) }
+                    )//.orRethrowAs { throw RPCException("Could not connect to provider", HttpStatusCode.BadRequest) }
                 }
 
                 FindByStringId(provider.resource.toString())

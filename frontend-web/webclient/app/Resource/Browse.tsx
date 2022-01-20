@@ -11,11 +11,10 @@ import {
     ResourceSpecification,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
-import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useToggleSet} from "@/Utilities/ToggleSet";
-import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {PageRenderer} from "@/Pagination/PaginationV2";
 import {Box, Checkbox, Flex, Icon, Label, List, Truncate} from "@/ui-components";
 import {Spacer} from "@/ui-components/Spacer";
@@ -23,7 +22,6 @@ import {ListRowStat} from "@/ui-components/List";
 import {Operations} from "@/ui-components/Operation";
 import {dateToString} from "@/Utilities/DateUtilities";
 import MainContainer from "@/MainContainer/MainContainer";
-import {StickyBox} from "@/ui-components/StickyBox";
 import {NamingField} from "@/UtilityComponents";
 import {ProductSelector} from "@/Resource/ProductSelector";
 import {doNothing, preventDefault, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
@@ -125,7 +123,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const reloadRef = useRef<() => void>(doNothing);
     const toggleSet = useToggleSet<Res>([]);
     const scrollingContainerRef = useRef<HTMLDivElement>(null);
-    const scrollStatus = useScrollStatus(scrollingContainerRef, true);
+    // Bug(Jonas): Causing rerenders on scrolling for modal showing properties.
+    // const scrollStatus = useScrollStatus(scrollingContainerRef, true);
     const [isCreating, setIsCreating] = useState(false);
     const dispatch = useDispatch();
     const projectId = useProjectId();
@@ -510,7 +509,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     if (isEmbedded) {
         return <Box minWidth="700px" ref={scrollingContainerRef}>
-            <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}>
+            {/* Sticky box causes rerender. See "Bug"-tag above. */}
+            {/* <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}> */}
                 {inlineInspecting ?
                     <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
                     <>
@@ -525,7 +525,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             readOnlyProperties={props.additionalFilters} />
                     </>
                 }
-            </StickyBox>
+            {/* </StickyBox> */}
             {main}
         </Box>;
     } else {
