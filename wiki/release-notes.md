@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 21-01-22
+Fixed last_updated time
+```
+✅  Deployment(app-orchestrator, 2022.1.1-patch.8) (UP-TO-DATE)
+```
+
 ## 20-01-22
 Updated last_scan to not be in the far future
 ```
