@@ -69,7 +69,7 @@ class RpcServer(
             })
         }
 
-        var idGenerator = atomic(0)
+        val idGenerator = atomic(0)
         val contentTypeJson = listOf(Header("Content-Type", "application/json"))
         startServer(
             port,

@@ -151,6 +151,7 @@ class ProviderService(
             "_app-orchestrator",
             "_file-orchestrator",
             "_storage",
+            "_accounting",
         )
     }
 }

@@ -1,4 +1,4 @@
-version = "2022.1.1-patch.9"
+version = "2022.1.1-patch.10"
 
 application {
     mainClassName = "dk.sdu.cloud.accounting.MainKt"
