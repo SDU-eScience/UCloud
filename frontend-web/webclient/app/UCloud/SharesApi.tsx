@@ -231,6 +231,13 @@ class ShareApi extends ResourceApi<Share, Product, ShareSpecification, ShareUpda
                 if (isEnabled !== true) return isEnabled;
                 return selected.every(share => share.owner.createdBy === Client.username);
             };
+            /* Note(Jonas): 
+                As Shares currently don't have a properties page, why remove the context redirection on delete.
+             */
+            deleteOp.onClick = async (selected, cb) => {
+                await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
+                cb.reload();
+            }
         }
 
         return [
