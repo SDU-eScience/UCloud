@@ -7,19 +7,25 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
-## 18-01-21
+## 20-01-22
+Updated last_scan to not be in the far future
+```
+✅  Deployment(app-orchestrator, 2022.1.1-patch.7) (UP-TO-DATE)
+```
+
+## 18-01-22
 
 ```
 ✅  Deployment(app-orchestrator, 2022.1.1-patch.6) (UP-TO-DATE)
 ```
 
-## 17-01-21
+## 17-01-22
 
 ```
 ✅  Deployment(webclient, 2022.1.2-patch.5) (UP-TO-DATE)
 ```
 
-## 13-01-21
+## 13-01-22
 
 ```
 ✅  Deployment(app-kubernetes, 2022.1.1-patch.7) (UP-TO-DATE)
@@ -31,7 +37,7 @@ For details look in the `k8.kts` folders of each microservice.
 ✅  Deployment(app-kubernetes, 2022.1.1-patch.6) (UP-TO-DATE)
 ```
 
-## 06-01-21
+## 06-01-22
 
 Post-launch patches.
 
@@ -39,7 +45,7 @@ Post-launch patches.
 ✅  Deployment(accounting, 2022.1.1-patch.7) (UP-TO-DATE)
 ```
 
-## 05-01-21
+## 05-01-22
 
 Post-launch patches.
 
@@ -66,7 +72,7 @@ Post-launch patches.
 ✅  Deployment(webclient, 2022.1.2-patch.4) (UP-TO-DATE)
 ```
 
-## 04-01-21
+## 04-01-22
 
 Upgrade UCloud to release 2022.1.0. Note: This deletes all other deployments.
 
