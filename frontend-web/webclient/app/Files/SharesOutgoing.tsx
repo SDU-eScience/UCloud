@@ -1,7 +1,6 @@
 import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
-import {useResourceSearch} from "@/Resource/Search";
 import SharesApi, {OutgoingShareGroup, OutgoingShareGroupPreview, Share} from "@/UCloud/SharesApi";
 import {useCallback, useMemo, useRef, useState} from "react";
 import {ItemRow, StandardBrowse} from "@/ui-components/Browse";
@@ -21,7 +20,7 @@ import {
     Tooltip
 } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {displayErrorMessageOrDefault, doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, stopPropagation, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf, placeholderProduct} from "@/DefaultObjects";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -37,7 +36,6 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {api as FilesApi} from "@/UCloud/FilesApi";
-import {Operation} from "@/ui-components/Operation";
 
 function fakeShare(path: string, preview: OutgoingShareGroupPreview): Share {
     return {
