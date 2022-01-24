@@ -49,6 +49,12 @@ class ByteBuffer {
         writerIndex += put(writerIndex, buffer)
     }
 
+    fun putAscii(buffer: String) {
+        for (char in buffer) {
+            rawMemory[writerIndex++] = char.code.toByte()
+        }
+    }
+
     fun put(index: Int, buffer: ByteBuffer): Int {
         val readerRemaining = buffer.readerRemaining()
         buffer.rawMemory.copyInto(rawMemory, index, buffer.readerIndex, buffer.writerIndex)

@@ -179,6 +179,7 @@ class ConnectionController(
             }
 
             if (devInstance?.userId != uid) {
+                println("Running sudo process now!")
                 startProcess(
                     listOf(
                         "/usr/bin/sudo",

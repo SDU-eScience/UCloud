@@ -1,25 +1,37 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.calls.client.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.http.RpcServer
-import dk.sdu.cloud.http.loadMiddleware
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
+import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.sql.DBContext
+import dk.sdu.cloud.sql.MigrationHandler
+import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
+import io.ktor.http.HttpMethod
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.*
+import kotlinx.serialization.descriptors.StructureKind
+import kotlinx.serialization.descriptors.elementNames
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.serializer
 import platform.posix.*
 import kotlin.coroutines.CoroutineContext
+import kotlin.reflect.typeOf
 import kotlin.system.exitProcess
 
 sealed class ServerMode {
@@ -75,6 +87,47 @@ object ProcessingScope : CoroutineScope {
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
+    if (false) {
+//        httpsTest("/etc/ssl/certs/ca-certificates.crt", "dev.cloud.sdu.dk", 443)
+
+        val client = RpcClient()
+        val interceptor = dk.sdu.cloud.http.OutgoingHttpRequestInterceptor()
+        interceptor.install(
+            client,
+            FixedOutgoingHostResolver(
+                HostInfo(
+                    "dev.cloud.sdu.dk",
+                    "https"
+                )
+            )
+        )
+
+        val rpcClient = AuthenticatedClient(
+            client,
+            dk.sdu.cloud.http.OutgoingHttpCall,
+            authenticator = { it.attributes.outgoingAuthToken = args[0] }
+        )
+
+        val message = Files.browse.callBlocking(
+            ResourceBrowseRequest(UFileIncludeFlags(path = "/9")),
+            rpcClient
+        )
+
+        println("Done!")
+
+        when (message) {
+            is IngoingCallResponse.Ok -> {
+                println("Went OK")
+                println(message.result)
+            }
+            is IngoingCallResponse.Error -> {
+                println("error: ${message.statusCode}")
+                println("message: ${message.error}")
+            }
+        }
+
+        exitProcess(0)
+    }
     try {
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User

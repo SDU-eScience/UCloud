@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.0")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.3")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             api("io.ktor:ktor-client-curl:1.6.2-test")
             api("io.ktor:ktor-client-websockets:1.6.2-test")
@@ -76,6 +76,11 @@ kotlin {
 
             val libucloud by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
+            }
+
+
+            val libmbedtls by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
             }
         }
     }
