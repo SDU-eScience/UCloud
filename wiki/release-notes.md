@@ -7,6 +7,17 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 24-01-22
+User creation form added from old master. 
+Init problem solved.
+Mail now supports non ascii characters
+
+```
+✅  Deployment(webclient, 2022.1.2-patch.8) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.1-patch.3) (UP-TO-DATE)
+
+```
+
 ## 21-01-22
 Fixed last_updated time
 ```
