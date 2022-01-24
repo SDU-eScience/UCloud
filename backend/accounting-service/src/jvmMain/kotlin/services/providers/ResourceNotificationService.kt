@@ -3,9 +3,13 @@ package dk.sdu.cloud.accounting.services.providers
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ResourceNotification
+import dk.sdu.cloud.accounting.api.ResourceNotificationsProvider
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.safeUsername
@@ -22,7 +26,8 @@ enum class ResourceNotificationEvent{
 }
 
 class ResourceNotificationService(
-    private val db: DBContext
+    private val db: DBContext,
+    private val providers: Providers<SimpleProviderCommunication>
 ) {
     private val resourceTypes = listOf("sync_folder")
 
@@ -35,7 +40,7 @@ class ResourceNotificationService(
     ) {
         db.withSession { session ->
             // TODO Fetch resources
-            val resources: List<Long> = if (event == ResourceNotificationEvent.MEMBER_LEFT_PROJECT) {
+            val resources: List<Pair<Long, String>> = if (event == ResourceNotificationEvent.MEMBER_LEFT_PROJECT) {
                 session.sendPreparedStatement(
                     {
                         setParameter("user", user)
@@ -51,7 +56,7 @@ class ResourceNotificationService(
                             type in (select unnest(:types::text[]))
                     """
                 ).rows.map {
-                    it.getLong("id")!!
+                    Pair(it.getLong("id")!!, it.getString("provider")!!)
                 }
             } else {
                 emptyList()
@@ -61,7 +66,7 @@ class ResourceNotificationService(
                 {
                     setParameter("created_at", LocalDateTime.now())
                     setParameter("user", user)
-                    setParameter("resources", resources)
+                    setParameter("resources", resources.map { it.first })
                 },
                 """
                     insert into provider.notifications
@@ -69,6 +74,11 @@ class ResourceNotificationService(
                     select :created_at, :user, unnest(:resources::bigint[])
                 """
             )
+
+            resources.map { it.second }.toSet().forEach { provider ->
+                val comms = providers.prepareCommunication(provider)
+                ResourceNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+            }
         }
     }
 

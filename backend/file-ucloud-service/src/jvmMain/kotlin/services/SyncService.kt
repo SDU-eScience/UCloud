@@ -214,7 +214,7 @@ class SyncService(
         return BulkResponse(emptyList())
     }
 
-    suspend fun removeFolders(request: BulkRequest<SyncFolder>) {
+    suspend fun removeFolders(ids: List<Long>) {
         data class DeletedFolder(
             val id: Long,
             val path: String,
@@ -226,7 +226,7 @@ class SyncService(
         val deleted = db.withSession { session ->
             val deleted = session.sendPreparedStatement(
                 {
-                    setParameter("ids", request.items.map { it.id.toLong() })
+                    setParameter("ids", ids)
                 },
                 """
                     delete from file_ucloud.sync_folders
@@ -406,8 +406,6 @@ class SyncService(
             try {
                 syncthing.writeConfig()
             } catch (ex: Throwable) {
-                println("ids: ")
-                println(deleted.map { it.id })
                 db.withSession { session ->
                     session.sendPreparedStatement(
                         {

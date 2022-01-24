@@ -93,7 +93,7 @@ class AccountingController(
         }
 
         implement(ResourceNotifications.retrieve) {
-            resourceNotifications.retrieve(actorAndProject)
+            ok(resourceNotifications.retrieve(actorAndProject))
         }
 
         implement(ResourceNotifications.markAsRead)  {

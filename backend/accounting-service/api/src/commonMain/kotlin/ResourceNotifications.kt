@@ -22,7 +22,7 @@ data class ResourceNotification(
 
 typealias ResourceNotificationsRetrieveResponse = BulkResponse<ResourceNotification>
 
-object ResourceNotifications: CallDescriptionContainer("accounting.resourcenotifications") {
+object ResourceNotifications : CallDescriptionContainer("accounting.resourcenotifications") {
     const val baseContext = "/api/accounting/resourceNotifications"
 
     val retrieve = call<Unit, ResourceNotificationsRetrieveResponse, CommonErrorMessage>("retrieve") {

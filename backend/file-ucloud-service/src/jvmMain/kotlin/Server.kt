@@ -17,8 +17,10 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.TokenValidationChain
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.api.ResourceNotifications
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.file.orchestrator.api.SyncFolder
 import dk.sdu.cloud.sync.mounter.api.Mounts
 import io.ktor.http.*
 import java.io.File
@@ -103,8 +105,7 @@ class Server(
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
-        val syncService =
-            SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
+        val syncService = SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient,
@@ -198,9 +199,22 @@ class Server(
 
     override fun onKtorReady() {
         runBlocking {
+            val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+            val db = AsyncDBSessionFactory(micro.databaseConfig)
+            val distributedLocks = DistributedLockBestEffortFactory(micro)
+            val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
+
+            val fsRootFile =
+                File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
+                    ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+
+            val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), client)
+            val nativeFs = NativeFS(pathConverter, micro)
+            val cephStats = CephFsFastDirectoryStats(nativeFs)
+            val syncService = SyncService(syncthingClient, db, client, cephStats, pathConverter)
+
             try {
                 val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
-                    val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
                     var foldersMounted = false
                     var retryCount = 0
 
@@ -228,15 +242,22 @@ class Server(
                     }
                 }
 
-                val db = AsyncDBSessionFactory(micro.databaseConfig)
-                val distributedLocks = DistributedLockBestEffortFactory(micro)
-                val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
+
                 syncthingClient.writeConfig(running)
                 syncthingClient.rescan(running)
             } catch (ex: Throwable) {
                 log.warn("Caught exception while trying to configure sync-thing (is it running?)")
                 log.warn(ex.stackTraceToString())
             }
+
+            val resourceNotifications = ResourceNotifications.retrieve.call(
+                Unit,
+                client
+            ).orThrow()
+
+            syncService.removeFolders(resourceNotifications.responses.map { it.resource }.toSet().toList())
+
+
         }
     }
 }

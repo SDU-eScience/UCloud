@@ -53,7 +53,7 @@ class Server(
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
-        val resourceNotifications = ResourceNotificationService(db)
+        val resourceNotifications = ResourceNotificationService(db, simpleProviders)
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
