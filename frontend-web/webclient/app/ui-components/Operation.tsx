@@ -224,7 +224,7 @@ export const Operations: OperationsType = props => {
         openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
-                props.selected.length === 0 || props.location === "TOPBAR" ?
+                props.location === "IN_ROW" || props.location === "TOPBAR" ?
                     <Icon
                         onClick={preventDefault}
                         ml={"5px"}
