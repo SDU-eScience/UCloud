@@ -19,6 +19,34 @@ class MetadataService(
     private val collections: FileCollectionService,
     private val templates: MetadataTemplateNamespaces,
 ) {
+
+    suspend fun onFileMovedToTrash(batch: List<FindByPath>) {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    val fileCollections by parameterList<String>()
+                    for (item in batch) {
+                        oldPaths.add(item.id.normalize())
+                        fileCollections.add("/"+extractPathMetadata(item.id.normalize()).collection)
+                    }
+                },
+                """
+                    with entries as (
+                        SELECT unnest(:old_paths::text[]) old_path, unnest(:file_collections::text[]) file_collection
+                    )
+                    UPDATE file_orchestrator.metadata_documents
+                    SET
+                        path = CONCAT(e.file_collection || '/Trash/' || substring(path, length(e.file_collection) + 2)),
+                        parent_path = file_orchestrator.parent_file(CONCAT(e.file_collection || '/Trash/' || substring(path, length(e.file_collection) + 2))  )
+                    FROM entries e
+                    WHERE
+                        (path = e.old_path or path like e.old_path || '/%');
+                """
+            )
+        }
+    }
+
     suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
         db.withSession { session ->
             session.sendPreparedStatement(

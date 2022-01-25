@@ -67,6 +67,7 @@ class Server(override val micro: Micro) : CommonServer {
             fileCollections
         )
         filesService.addMoveHandler(metadataService::onFilesMoved)
+        filesService.addTrashHandler(metadataService::onFileMovedToTrash)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)
 
         configureControllers(
