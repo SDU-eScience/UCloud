@@ -1,18 +1,34 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
+import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.accounting.api.ResourceNotifications
+import dk.sdu.cloud.accounting.api.ResourceNotificationsProvider
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.OutgoingCallResponse
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.file.ucloud.services.SyncService
 import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 import io.ktor.http.*
+import java.awt.SystemColor.control
 
 class SyncController(
-    private val syncService: SyncService
+    private val syncService: SyncService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        val api = ResourceNotificationsProvider("ucloud")
+
+        implement(api.pullRequest) {
+            pullAndNotify()
+            ok(Unit)
+        }
+
         implement(UCloudSyncDevices.create) {
             ok(syncService.addDevices(request))
         }
@@ -39,7 +55,7 @@ class SyncController(
         }
 
         implement(UCloudSyncFolders.delete) {
-            syncService.removeFolders(request)
+            syncService.removeFolders(request.items.map { it.id.toLong() })
             ok(BulkResponse(request.items.map { }))
         }
 
@@ -62,5 +78,21 @@ class SyncController(
         implement(UCloudSyncFolders.onFilePermissionsUpdated) {
             ok(syncService.updatePermissions(request))
         }
+    }
+
+    private suspend fun pullAndNotify() {
+        val notifications = ResourceNotifications.retrieve.call(
+            Unit,
+            syncService.authenticatedClient
+        ).orThrow()
+
+        if (notifications.responses.isEmpty()) return
+
+        syncService.removeFolders(notifications.responses.map { it.id })
+
+        ResourceNotifications.markAsRead.call(
+            bulkRequestOf( notifications.responses.map { FindByStringId( it.id.toString() ) }),
+            syncService.authenticatedClient
+        ).orThrow()
     }
 }

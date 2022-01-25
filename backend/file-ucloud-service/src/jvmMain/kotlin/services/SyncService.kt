@@ -41,7 +41,7 @@ object SyncDevicesTable : SQLTable("sync_devices") {
 class SyncService(
     private val syncthing: SyncthingClient,
     private val db: AsyncDBSessionFactory,
-    private val authenticatedClient: AuthenticatedClient,
+    val authenticatedClient: AuthenticatedClient,
     private val cephStats: CephFsFastDirectoryStats,
     private val pathConverter: PathConverter
 ) {
