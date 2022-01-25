@@ -6,16 +6,18 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.tcp.TcpConnection
-import dk.sdu.cloud.tcp.TransportSecurity
-import dk.sdu.cloud.tcp.tcpConnect
+import dk.sdu.cloud.tcp.*
+import dk.sdu.cloud.utils.ObjectPool
 import io.ktor.http.*
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlin.random.Random
 
 class OutgoingHttpCall(
-    val debugCall: CallDescription<*, *, *>
+    private val debugCall: CallDescription<*, *, *>
 ) : OutgoingCall {
+    var attempts: Int = 0
     override val attributes: AttributeContainer = AttributeContainer()
 
     override fun toString(): String = "OutgoingHttpCall($debugCall)"
@@ -35,20 +37,60 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         val tcp: TcpConnection,
     )
 
-    private fun fetchConnection(target: HostInfo): HttpConnection {
-        return HttpConnection(
-            allocateDirect(1024 * 32),
-            allocateDirect(1024 * 32),
-            tcpConnect(
-                if (target.scheme == "https" || target.port == 443) TransportSecurity.TLS
-                else TransportSecurity.NONE,
-                target.host,
-                target.port ?: when (target.scheme) {
-                    "https" -> 443
-                    else -> 80
-                }
+    private class HttpConnectionPool(private val target: HostInfo) : ObjectPool<HttpConnection>(10) {
+        override fun produceItem(): HttpConnection {
+            return HttpConnection(
+                allocateDirect(1024 * 32),
+                allocateDirect(1024 * 32),
+                tcpConnect(
+                    if (target.scheme == "https" || target.port == 443) TransportSecurity.TLS
+                    else TransportSecurity.PLAIN,
+                    target.host,
+                    target.port ?: when (target.scheme) {
+                        "https" -> 443
+                        else -> 80
+                    }
+                )
             )
-        )
+        }
+
+        override fun isValid(item: HttpConnection): Boolean {
+            return item.tcp.isOpen()
+        }
+
+        override fun reset(item: HttpConnection) {
+            // Do nothing
+        }
+
+        override fun onDelete(item: HttpConnection) {
+            item.tcp.close()
+        }
+    }
+
+    private val connectionPoolMutex = Mutex()
+    private val connectionPool = HashMap<HostInfo, HttpConnectionPool>()
+
+    private suspend inline fun <R> useConnection(
+        target: HostInfo,
+        block: (HttpConnection) -> R
+    ): R {
+        val pool = connectionPoolMutex.withLock {
+            val cachedPool = connectionPool[target]
+            if (cachedPool == null) {
+                val newPool = HttpConnectionPool(target)
+                connectionPool[target] = newPool
+                newPool
+            } else {
+                cachedPool
+            }
+        }
+
+        val (ticket, conn) = pool.borrow()
+        try {
+            return block(conn)
+        } finally {
+            pool.recycleInstance(ticket)
+        }
     }
 
     fun install(
@@ -73,186 +115,191 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
         val http = call.http
         val endpoint = http.resolveEndpoint(request, call).removeSuffix("/")
-        val connection = fetchConnection(ctx.attributes.outgoingTargetHost)
+        try {
+            useConnection(ctx.attributes.outgoingTargetHost) { connection ->
+                log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
 
-        log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
-
-        val output = if (http.body is HttpBody.BoundToEntireRequest<*>) {
-            defaultMapper.encodeToString(call.requestType, request).encodeToByteArray()
-        } else {
-            null
-        }
-
-        connection.write.clear()
-        connection.read.clear()
-
-        run {
-            // Write request line
-            connection.write.putAscii(http.method.value)
-            connection.write.putAscii(" ")
-            connection.write.put(endpoint.encodeToByteArray())
-            connection.write.putAscii(" HTTP/1.1\r\n")
-        }
-
-        run {
-            // Write headers to buffer
-            run {
-                // Request headers
-                val headers = http.serializeHeaders(request)
-                for (header in headers) {
-                    connection.write.putAscii(header.header)
-                    connection.write.putAscii(": ")
-                    connection.write.putAscii(header.value)
-                    connection.write.putAscii("\r\n")
-                }
-            }
-
-            run {
-                // Hard-coded headers
-                connection.write.putAscii("Connection: close\r\n")
-                connection.write.putAscii("User-Agent: UCloud-Integration-Module\r\n")
-                connection.write.putAscii("Host: ")
-                connection.write.putAscii(ctx.attributes.outgoingTargetHost.host)
-                connection.write.putAscii("\r\n")
-                connection.write.putAscii("Accept: */*\r\n")
-            }
-
-            run {
-                // Payload headers
-                if (output != null) {
-                    connection.write.putAscii("Content-Type: application/json\r\n")
-                    connection.write.putAscii("Content-Length: ${output.size}\r\n")
-                }
-            }
-
-            run {
-                // Authorization headers
-                val authToken = ctx.attributes.outgoingAuthToken
-                if (authToken != null) {
-                    connection.write.putAscii("Authorization: Bearer ")
-                    connection.write.putAscii(authToken)
-                    connection.write.putAscii("\r\n")
-                }
-            }
-
-            connection.write.putAscii("\r\n")
-        }
-
-        /*
-        val debug = ByteArray(connection.write.readerRemaining())
-        connection.write.get(0, debug)
-        println(debug.decodeToString())
-         */
-
-        run {
-            // Write payload
-            if (output != null && output.size > connection.write.writerSpaceRemaining()) {
-                if (output.size > connection.write.capacity()) {
-                    throw IllegalStateException("Output payload is too big and this isn't handled yet! ${output.size}")
+                val output = if (http.body is HttpBody.BoundToEntireRequest<*>) {
+                    defaultMapper.encodeToString(call.requestType, request).encodeToByteArray()
+                } else {
+                    null
                 }
 
-                connection.tcp.write(connection.write)
                 connection.write.clear()
+
+                run {
+                    // Write request line
+                    connection.write.putAscii(http.method.value)
+                    connection.write.putAscii(" ")
+                    connection.write.put(endpoint.encodeToByteArray())
+                    connection.write.putAscii(" HTTP/1.1\r\n")
+                }
+
+                run {
+                    // Write headers to buffer
+                    run {
+                        // Request headers
+                        val headers = http.serializeHeaders(request)
+                        for (header in headers) {
+                            connection.write.putAscii(header.header)
+                            connection.write.putAscii(": ")
+                            connection.write.putAscii(header.value)
+                            connection.write.putAscii("\r\n")
+                        }
+                    }
+
+                    run {
+                        // Hard-coded headers
+                        connection.write.putAscii("Connection: keep-alive\r\n")
+                        connection.write.putAscii("User-Agent: UCloud-Integration-Module\r\n")
+                        connection.write.putAscii("Host: ")
+                        connection.write.putAscii(ctx.attributes.outgoingTargetHost.host)
+                        connection.write.putAscii("\r\n")
+                        connection.write.putAscii("Accept: */*\r\n")
+                    }
+
+                    run {
+                        // Payload headers
+                        if (output != null) {
+                            connection.write.putAscii("Content-Type: application/json\r\n")
+                            connection.write.putAscii("Content-Length: ${output.size}\r\n")
+                        }
+                    }
+
+                    run {
+                        // Authorization headers
+                        val authToken = ctx.attributes.outgoingAuthToken
+                        if (authToken != null) {
+                            connection.write.putAscii("Authorization: Bearer ")
+                            connection.write.putAscii(authToken)
+                            connection.write.putAscii("\r\n")
+                        }
+                    }
+
+                    connection.write.putAscii("\r\n")
+                }
+
+                /*
+                println(connection.write.rawMemory.decodeToString(connection.write.readerIndex, connection.write.writerIndex))
+                 */
+
+                run {
+                    // Write payload
+                    if (output != null && output.size > connection.write.writerSpaceRemaining()) {
+                        if (output.size > connection.write.capacity()) {
+                            throw IllegalStateException("Output payload is too big and this isn't handled yet! ${output.size}")
+                        }
+
+                        connection.tcp.write(connection.write)
+                        connection.write.clear()
+                    }
+
+                    if (output != null) {
+                        connection.write.put(output)
+                    }
+                }
+
+                // Flush request
+                connection.tcp.write(connection.write)
+
+                // Await response line
+                val responseLine = connection.tcp.readUntilDelimiter('\n'.code.toByte(), connection.read)
+                val responseCode = responseLine.removePrefix("HTTP/1.1 ").substringBefore(' ').toIntOrNull()
+                val responseStatus = responseLine.removePrefix("HTTP/1.1 ").substringAfter(' ')
+
+                if (responseCode == null || !responseLine.startsWith("HTTP/1.1")) {
+                    connection.tcp.close()
+                    throw RPCException("Bad request received from server: $responseLine", HttpStatusCode.BadGateway)
+                }
+
+                // Await headers
+                val responseHeaders = ArrayList<Header>()
+                while (true) {
+                    if (responseHeaders.size > 1000) {
+                        connection.tcp.close()
+                        throw RPCException(
+                            "Received too many headers from server (is state corrupt?)",
+                            HttpStatusCode.BadGateway
+                        )
+                    }
+
+                    val headerLine = connection.tcp.readUntilDelimiter('\n'.code.toByte(), connection.read)
+                    if (headerLine == "\r") break
+
+                    if (!headerLine.contains(":")) {
+                        connection.tcp.close()
+                        throw RPCException("Bad header received from server: '$headerLine'", HttpStatusCode.BadGateway)
+                    }
+
+                    val headerName = headerLine.substringBefore(':')
+                    val headerValue = headerLine.substringAfter(':').trim()
+                    responseHeaders.add(Header(headerName, headerValue))
+                }
+
+                // Figure out if we should expect a payload
+                val contentLength = responseHeaders.find { it.header.equals("Content-Length", ignoreCase = true) }
+                val transferEncoding = responseHeaders.find { it.header.equals("Transfer-Encoding", ignoreCase = true) }
+
+                if (transferEncoding != null && !transferEncoding.equals("identity")) {
+                    connection.tcp.close()
+                    throw RPCException("Unable to handle response encoding", HttpStatusCode.BadGateway)
+                }
+
+                val parsedContentLength = contentLength?.value?.toLongOrNull()
+                if (parsedContentLength == null) {
+                    connection.tcp.close()
+                    throw RPCException("Unable to handle response length: $contentLength", HttpStatusCode.BadGateway)
+                }
+
+                if (parsedContentLength > connection.read.capacity() || parsedContentLength < 0) {
+                    throw RPCException(
+                        "Payload is too large for the client to handle: $parsedContentLength",
+                        HttpStatusCode.BadGateway
+                    )
+                }
+
+                if (parsedContentLength > 0) {
+                    connection.tcp.readAtLeast(parsedContentLength.toInt(), connection.read)
+                }
+                val payloadAsString = if (parsedContentLength <= 0) {
+                    ""
+                } else {
+                    connection.read.rawMemory.decodeToString(
+                        connection.read.readerIndex,
+                        connection.read.readerIndex + parsedContentLength.toInt()
+                    )
+                }
+                connection.read.readerIndex += parsedContentLength.toInt()
+
+                val result: IngoingCallResponse<S, E> = if (responseCode in 200..299) {
+                    IngoingCallResponse.Ok(
+                        parseResponseToType(payloadAsString, call.successType),
+                        HttpStatusCode(responseCode, responseStatus),
+                        ctx,
+                    )
+                } else {
+                    IngoingCallResponse.Error(
+                        runCatching { parseResponseToType(payloadAsString, call.errorType) }.getOrNull(),
+                        HttpStatusCode(responseCode, responseStatus),
+                        ctx,
+                    )
+                }
+
+                val end = Time.now()
+                log.debug("[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms")
+
+                return result
             }
-
-            if (output != null) {
-                connection.write.put(output)
+        } catch (ex: MbedTlsException) {
+            if (ex.message?.contains("Connection is closed") == true) {
+                ctx.attempts++
+                if (ctx.attempts < 10) {
+                    println("Retrying")
+                    return finalizeCall(call, request, ctx)
+                }
             }
+            throw ex
         }
-
-        // Flush request
-        connection.tcp.write(connection.write)
-
-        // Await response line
-        val responseLine = connection.tcp.readUntilDelimiter('\n'.code.toByte(), connection.read)
-        val responseCode = responseLine.removePrefix("HTTP/1.1 ").substringBefore(' ').toIntOrNull()
-        val responseStatus = responseLine.removePrefix("HTTP/1.1 ").substringAfter(' ')
-
-        if (responseCode == null || !responseLine.startsWith("HTTP/1.1")) {
-            connection.tcp.close()
-            throw RPCException("Bad request received from server: $responseLine", HttpStatusCode.BadGateway)
-        }
-
-        // Await headers
-        val responseHeaders = ArrayList<Header>()
-        while (true) {
-            if (responseHeaders.size > 1000) {
-                connection.tcp.close()
-                throw RPCException(
-                    "Received too many headers from server (is state corrupt?)",
-                    HttpStatusCode.BadGateway
-                )
-            }
-
-            val headerLine = connection.tcp.readUntilDelimiter('\n'.code.toByte(), connection.read)
-            if (headerLine == "\r") break
-
-            if (!headerLine.contains(":")) {
-                connection.tcp.close()
-                throw RPCException("Bad header received from server: '$headerLine'", HttpStatusCode.BadGateway)
-            }
-
-            val headerName = headerLine.substringBefore(':')
-            val headerValue = headerLine.substringAfter(':').trim()
-            responseHeaders.add(Header(headerName, headerValue))
-        }
-
-        // Figure out if we should expect a payload
-        val contentLength = responseHeaders.find { it.header.equals("Content-Length", ignoreCase = true) }
-        val transferEncoding = responseHeaders.find { it.header.equals("Transfer-Encoding", ignoreCase = true) }
-
-        if (transferEncoding != null && !transferEncoding.equals("identity")) {
-            connection.tcp.close()
-            throw RPCException("Unable to handle response encoding", HttpStatusCode.BadGateway)
-        }
-
-        val parsedContentLength = contentLength?.value?.toLongOrNull()
-        if (parsedContentLength == null) {
-            connection.tcp.close()
-            throw RPCException("Unable to handle response length: $contentLength", HttpStatusCode.BadGateway)
-        }
-
-        if (parsedContentLength > connection.read.capacity() || parsedContentLength < 0) {
-            throw RPCException(
-                "Payload is too large for the client to handle: $parsedContentLength",
-                HttpStatusCode.BadGateway
-            )
-        }
-
-        if (parsedContentLength > 0) {
-            connection.tcp.readAtLeast(parsedContentLength.toInt(), connection.read)
-        }
-        val payloadAsString = if (parsedContentLength <= 0) {
-            ""
-        } else {
-            connection.read.rawMemory.decodeToString(
-                connection.read.readerIndex,
-                connection.read.readerIndex + parsedContentLength.toInt()
-            )
-        }
-        connection.read.readerIndex += parsedContentLength.toInt()
-
-        // Temporary
-        connection.tcp.close()
-
-        val result: IngoingCallResponse<S, E> = if (responseCode in 200..299) {
-            IngoingCallResponse.Ok(
-                parseResponseToType(payloadAsString, call.successType),
-                HttpStatusCode(responseCode, responseStatus),
-                ctx,
-            )
-        } else {
-            IngoingCallResponse.Error(
-                runCatching { parseResponseToType(payloadAsString, call.errorType) }.getOrNull(),
-                HttpStatusCode(responseCode, responseStatus),
-                ctx,
-            )
-        }
-
-        val end = Time.now()
-        log.debug("[$callId] name=${call.fullName} status=${result.statusCode.value} time=${end - start}ms")
-
-        return result
     }
 
     private fun <S : Any> parseResponseToType(
@@ -281,6 +328,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     it.header,
                     base64Encode(it.value.encodeToByteArray()),
                 )
+
                 is HttpHeaderParameter.Present -> Header(
                     it.header,
                     base64Encode("true".encodeToByteArray()),
@@ -316,7 +364,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     private fun <R : Any> HttpRequest<R, *, *>.serializePathSegments(
         request: R,
     ): String {
-        return path.segments.asSequence().mapNotNull {
+        return path.segments.asSequence().map {
             when (it) {
                 is HttpPathSegment.Simple -> it.text
             }
@@ -345,30 +393,5 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     companion object : Loggable {
         override val log = logger()
-    }
-}
-
-fun TcpConnection.readUntilDelimiter(delim: Byte, buffer: ByteBuffer): String {
-    val inBuffer = buffer.readUntilDelimiter(delim)
-    if (inBuffer != null) {
-        return inBuffer
-    }
-
-    while (true) {
-        val writerSpaceRemaining = buffer.writerSpaceRemaining()
-        if (writerSpaceRemaining == 0) buffer.compact()
-
-        read(buffer)
-
-        val maybeLine = buffer.readUntilDelimiter(delim)
-        if (maybeLine != null) return maybeLine
-    }
-}
-
-inline fun TcpConnection.readAtLeast(minimumBytes: Int, buffer: ByteBuffer) {
-    while (buffer.readerRemaining() < minimumBytes) {
-        val writerSpaceRemaining = buffer.writerSpaceRemaining()
-        if (writerSpaceRemaining == 0) buffer.compact()
-        read(buffer)
     }
 }

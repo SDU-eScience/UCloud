@@ -34,6 +34,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.CachingOptions
 import io.ktor.request.header
 import io.ktor.response.header
+import io.ktor.util.*
 import org.slf4j.LoggerFactory
 import java.net.MalformedURLException
 import java.net.URL

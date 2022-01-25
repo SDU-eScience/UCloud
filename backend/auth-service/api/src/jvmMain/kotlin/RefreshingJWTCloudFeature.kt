@@ -29,7 +29,7 @@ class AuthenticatorFeature : MicroFeature {
         val tokenValidation = ctx.tokenValidation as? InternalTokenValidationJWT
             ?: throw IllegalStateException("Token validation needs to use JWTs!")
 
-        val authenticator = RefreshingJWTAuthenticator(clientContext, JwtRefresher.Normal(refreshToken))
+        val authenticator = RefreshingJWTAuthenticator(clientContext, JwtRefresher.Normal(refreshToken, OutgoingHttpCall))
         ctx.authenticator = authenticator
 
         @Suppress("UNCHECKED_CAST")

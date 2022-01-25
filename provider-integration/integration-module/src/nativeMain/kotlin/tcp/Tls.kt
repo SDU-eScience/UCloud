@@ -124,9 +124,6 @@ class TlsTcpConnection(
 
             mbedtls_ssl_get_verify_result(ssl.ptr).mbedtlsErrorUnwrap("mbedtls_ssl_get_verify_result")
             isOpen = true
-
-            // Connection is now ready to be used
-            println("we have connected!")
         } catch (ex: Throwable) {
             close()
             throw ex

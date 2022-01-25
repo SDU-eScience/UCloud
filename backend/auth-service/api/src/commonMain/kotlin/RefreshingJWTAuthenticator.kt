@@ -11,21 +11,21 @@ import kotlinx.coroutines.delay
 sealed class JwtRefresher {
     abstract suspend fun fetchToken(client: RpcClient): String
 
-    class Normal(private val refreshToken: String) : JwtRefresher() {
+    class Normal(private val refreshToken: String, val callCompanion: OutgoingCallCompanion<*>) : JwtRefresher() {
         override suspend fun fetchToken(client: RpcClient): String {
-            return client.call(AuthDescriptions.refresh, Unit, OutgoingHttpCall) {
-                it.builder.header(HttpHeaders.Authorization, "Bearer $refreshToken")
-            }.orThrow().accessToken
+            return client.call(AuthDescriptions.refresh, Unit, callCompanion, beforeHook = {
+                it.attributes.outgoingAuthToken = refreshToken
+            }).orThrow().accessToken
         }
     }
 
-    class Provider(private val refreshToken: String) : JwtRefresher() {
+    class Provider(private val refreshToken: String, val callCompanion: OutgoingCallCompanion<*>) : JwtRefresher() {
         override suspend fun fetchToken(client: RpcClient): String {
             return client
                 .call(
                     AuthProviders.refresh,
                     bulkRequestOf(RefreshToken(refreshToken)),
-                    OutgoingHttpCall
+                    callCompanion
                 )
                 .orThrow().responses
                 .single().accessToken
