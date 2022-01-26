@@ -224,7 +224,8 @@ export const Operations: OperationsType = props => {
         openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
-                props.selected.length === 0 || props.location === "TOPBAR" ?
+                (props.location === "IN_ROW" && [0, 1].includes(props.selected.length))
+                    || props.location === "TOPBAR" ?
                     <Icon
                         onClick={preventDefault}
                         ml={"5px"}
@@ -233,7 +234,7 @@ export const Operations: OperationsType = props => {
                         size={"1em"}
                         rotation={90}
                         data-tag={props.dropdownTag}
-                    /> : <Box ml={"33px"} />
+                    /> : null
         )
     };
 

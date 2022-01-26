@@ -51,6 +51,8 @@ class MailService(
         val properties = System.getProperties()
         properties.setProperty("mail.smtp.host", "localhost")
         properties.setProperty("mail.smtp.port", "25")
+        properties.setProperty("mail.smtp.allow8bitmime", "true");
+        properties.setProperty("mail.smtps.allow8bitmime", "true");
 
         session = Session.getInstance(properties)
     }
@@ -143,7 +145,6 @@ class MailService(
             message.setFrom("ticketsystem@escience.sdu.dk")
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
             message.subject = "$userEmail-|-$subject"
-
             val multipart = MimeMultipart()
 
             // style paragraphs (not a good solution, but with best support)

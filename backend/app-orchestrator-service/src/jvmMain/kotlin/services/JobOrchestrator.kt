@@ -279,6 +279,7 @@ class JobOrchestrator(
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
                                 end,
+                                last_update = now(),
                                 output_folder = coalesce(:output_folder::text, output_folder),
                                 time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id

@@ -62,7 +62,7 @@ class JobMonitoringService(
         var nextScan = 0L
 
         while (isActive) {
-            val now = Time.now()
+            val now = Time.now() / 1000
             if (now >= nextScan) {
                 db.withSession { session ->
                     val jobs = session

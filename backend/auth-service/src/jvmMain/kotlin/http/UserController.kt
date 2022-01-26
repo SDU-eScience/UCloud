@@ -46,22 +46,32 @@ class UserController(
                         null, Role.ADMIN, Role.USER -> {
                             val email = user.email
                             if (!email.isNullOrBlank() && email.contains("@")) {
-                                personService.createUserByPassword(
-                                    firstNames = user.username,
-                                    lastName = "N/A",
-                                    username = user.username,
-                                    role = user.role ?: Role.USER,
-                                    password = user.password
-                                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                    email = email,
-                                    organization = user.organization,
-                                )
+                                if (user.firstnames.isNullOrBlank() || user.lastname.isNullOrBlank()) {
+                                    personService.createUserByPassword(
+                                        firstNames = user.username,
+                                        lastName = "N/A",
+                                        username = user.username,
+                                        role = user.role ?: Role.USER,
+                                        password = user.password
+                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                        email = email
+                                    )
+                                } else {
+                                    personService.createUserByPassword(
+                                        firstNames = user.firstnames!!,
+                                        lastName = user.lastname!!,
+                                        username = user.username,
+                                        role = user.role ?: Role.USER,
+                                        password = user.password
+                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                        email = email
+                                    )
+                                }
                             }
                             else {
                                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Valid email required")
                             }
                         }
-
                         else -> {
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }
