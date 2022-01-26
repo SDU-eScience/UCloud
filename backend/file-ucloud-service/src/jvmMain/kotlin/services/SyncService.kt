@@ -327,6 +327,12 @@ class SyncService(
     }
 
     suspend fun addDevices(devices: BulkRequest<SyncDevice>): BulkResponse<FindByStringId?> {
+        for (item in devices.items) {
+            if (!item.specification.deviceId.matches(deviceIdRegex)) {
+                throw RPCException("Invalid device ID: ${item.specification.deviceId}", HttpStatusCode.BadRequest)
+            }
+        }
+
         val affectedRows = db.withSession { session ->
             devices.items.sumOf { device ->
                 if (syncthing.config.devices.any { it.id == device.id }) {
@@ -487,6 +493,12 @@ class SyncService(
             syncthing.writeConfig()
         }
         return BulkResponse(emptyList())
+    }
+
+    companion object {
+        // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
+        // reason).
+        private val deviceIdRegex = Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
     }
 }
 
