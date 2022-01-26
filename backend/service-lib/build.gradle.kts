@@ -73,9 +73,6 @@ kotlin {
 
         val linuxX64Main by getting {
             dependencies {
-//                api("io.ktor:ktor-client-curl:$ktorVersion")
-//                api("io.ktor:ktor-client-websockets:$ktorVersion")
-//                api("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         val linuxX64Test by getting {}
