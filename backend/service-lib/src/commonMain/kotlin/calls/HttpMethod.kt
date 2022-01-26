@@ -7,7 +7,7 @@ data class HttpMethod(val value: String) {
         val Head = HttpMethod("HEAD")
         val Put = HttpMethod("PUT")
         val Patch = HttpMethod("PATCH")
-        val Delete = HttpMethod("Delete")
+        val Delete = HttpMethod("DELETE")
         val Options = HttpMethod("OPTIONS")
     }
 }
