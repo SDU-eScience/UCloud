@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
@@ -18,12 +19,32 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
 import org.joda.time.LocalDateTime
+import kotlin.reflect.typeOf
 
-enum class ResourceNotificationEvent{
-    MEMBER_LEFT_PROJECT,
-    MEMBER_LEFT_GROUP,
-    MEMBER_ROLE_CHANGED
+sealed class ResourceNotificationEvent {
+    abstract val user: String
+    abstract val project: String
+
+    data class LeftProject(
+        override val user: String,
+        override val project: String
+    ): ResourceNotificationEvent()
+
+    data class LeftGroup(
+        override val user: String,
+        override val project: String,
+        val group: String
+    ): ResourceNotificationEvent()
+
+    data class ChangedRole(
+        override val user: String,
+        override val project: String,
+        val role: ProjectRole
+    ): ResourceNotificationEvent()
 }
+
+
+
 
 class ResourceNotificationService(
     private val db: DBContext,
@@ -32,40 +53,44 @@ class ResourceNotificationService(
     private val resourceTypes = listOf("sync_folder")
 
     suspend fun create(
-        event: ResourceNotificationEvent,
-        user: String,
-        project: String? = null,
-        group: String? = null,
-        role: ProjectRole? = null
+        event: ResourceNotificationEvent
     ) {
         val resources: List<Pair<Long, String>> = db.withSession { session ->
             // TODO Fetch resources
-            val resources = if (event == ResourceNotificationEvent.MEMBER_LEFT_PROJECT) {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("user", user)
-                        setParameter("project", project)
-                        setParameter("types", resourceTypes)
-                    },
-                    """
-                        select provider, id
-                        from provider.resource
-                        where
-                            project = :project and
-                            created_by = :user and
-                            type in (select unnest(:types::text[]))
-                    """
-                ).rows.map {
-                    Pair(it.getLong("id")!!, it.getString("provider")!!)
+            val resources = when(event) {
+                is ResourceNotificationEvent.LeftProject -> {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("user", event.user)
+                            setParameter("project", event.project)
+                            setParameter("types", resourceTypes)
+                        },
+                        """
+                            select provider, id
+                            from provider.resource
+                            where
+                                project = :project and
+                                created_by = :user and
+                                type in (select unnest(:types::text[]))
+                        """
+                    ).rows.map {
+                        Pair(it.getLong("id")!!, it.getString("provider")!!)
+                    }
                 }
-            } else {
-                emptyList()
+                is ResourceNotificationEvent.ChangedRole -> {
+                    // TODO
+                    emptyList()
+                }
+                is ResourceNotificationEvent.LeftGroup -> {
+                    // TODO
+                    emptyList()
+                }
             }
 
             session.sendPreparedStatement(
                 {
                     setParameter("created_at", LocalDateTime.now())
-                    setParameter("user", user)
+                    setParameter("user", event.user)
                     setParameter("resources", resources.map { it.first })
                 },
                 """

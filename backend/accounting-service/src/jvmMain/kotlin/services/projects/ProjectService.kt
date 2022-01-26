@@ -363,9 +363,7 @@ class ProjectService(
         }
 
         providerNotifications.create(
-            event = ResourceNotificationEvent.MEMBER_LEFT_PROJECT,
-            user = initiatedBy,
-            project = projectId
+            ResourceNotificationEvent.LeftProject(initiatedBy, projectId)
         )
     }
 
@@ -466,6 +464,10 @@ class ProjectService(
                 serviceClient
             )
         }
+
+        providerNotifications.create(
+            ResourceNotificationEvent.LeftProject(userToDelete, projectId)
+        )
     }
 
     suspend fun changeRoleOfMember(
