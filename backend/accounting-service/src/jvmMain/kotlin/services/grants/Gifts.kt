@@ -2,11 +2,11 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import java.util.*
 
 class GiftService(

@@ -10,12 +10,12 @@ import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.receiveOrNull
@@ -112,7 +112,7 @@ class AppKubernetesController(
                         sendWSMessage(JobsProviderFollowResponse(streamId, -1, null, null))
 
                         while (!logWatch.isClosedForReceive) {
-                            val nextMessage = logWatch.receiveOrNull() ?: break
+                            val nextMessage = logWatch.receiveCatching().getOrNull() ?: break
                             sendWSMessage(JobsProviderFollowResponse(streamId, nextMessage.rank, nextMessage.message, null))
                         }
 

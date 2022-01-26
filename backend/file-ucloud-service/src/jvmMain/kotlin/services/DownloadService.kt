@@ -74,7 +74,7 @@ class DownloadService(
                         now() - last_update < '24 hours'::interval
                 """
             ).rows.map { it.getString(0)!! }.singleOrNull()
-                ?: throw RPCException("Invalid download link. Try again later.", HttpStatusCode.NotFound)
+                ?: throw RPCException("Invalid download link. Try again later.", dk.sdu.cloud.calls.HttpStatusCode.NotFound)
         })
 
         val internalFile = pathConverter.relativeToInternal(relativeFile)
@@ -84,7 +84,7 @@ class DownloadService(
             throw RPCException(
                 "UCloud/Storage does not support download of anything but normal files. " +
                     "Try zipping your folders if needed.",
-                HttpStatusCode.BadRequest
+                dk.sdu.cloud.calls.HttpStatusCode.BadRequest
             )
         }
 

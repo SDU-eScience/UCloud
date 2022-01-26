@@ -1,19 +1,15 @@
 package dk.sdu.cloud.micro
 
 import com.fasterxml.jackson.core.JsonParser
-import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.DeserializationFeature
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.node.ArrayNode
 import com.fasterxml.jackson.databind.node.ObjectNode
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory
-import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.ServiceDescription
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 import java.io.File
 
 class ConfigurationFeature : MicroFeature {

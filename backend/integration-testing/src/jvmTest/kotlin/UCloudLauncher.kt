@@ -553,7 +553,7 @@ object UCloudLauncher : Loggable {
             val m = micro.createScope()
             m.install(AuthenticatorFeature)
             serviceClient = m.authenticator.authenticateClient(OutgoingHttpCall)
-            adminClient = RefreshingJWTAuthenticator(m.client, JwtRefresher.Normal(adminRefreshToken))
+            adminClient = RefreshingJWTAuthenticator(m.client, JwtRefresher.Normal(adminRefreshToken, OutgoingHttpCall))
                 .authenticateClient(OutgoingHttpCall)
 
             val blacklist = setOf(

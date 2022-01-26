@@ -10,7 +10,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestDB
-import io.ktor.http.HttpStatusCode
 import io.mockk.every
 import io.mockk.mockk
 import io.zonky.test.db.postgres.embedded.EmbeddedPostgres

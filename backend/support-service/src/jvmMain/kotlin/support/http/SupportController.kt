@@ -12,7 +12,7 @@ import dk.sdu.cloud.support.api.SupportDescriptions
 import dk.sdu.cloud.support.services.TicketService
 import dk.sdu.cloud.support.util.LocalRateLimiter
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
+import io.ktor.http.*
 import io.ktor.request.userAgent
 
 class SupportController(

@@ -20,7 +20,6 @@ import dk.sdu.cloud.micro.install
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.test.*
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationRequest
 import io.mockk.coEvery
 import io.mockk.mockk

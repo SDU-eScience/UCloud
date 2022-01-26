@@ -2,7 +2,6 @@ package dk.sdu.cloud.accounting.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import io.ktor.http.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlin.native.concurrent.ThreadLocal

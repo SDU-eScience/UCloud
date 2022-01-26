@@ -1,9 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.api
 
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.HttpStatusCode
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     val basePath = components.joinToString("/") + (if (isDirectory) "/" else "").normalize()

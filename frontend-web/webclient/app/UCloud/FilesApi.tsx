@@ -77,6 +77,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeSizes?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
+    allowUnsupportedInclude?: boolean;
     path?: string;
 }
 
@@ -254,7 +255,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         includeMetadata: true,
         includeSizes: true,
         includeTimestamps: true,
-        includeUnixInfo: true
+        includeUnixInfo: true,
+        allowUnsupportedInclude: true,
     };
 
     public Properties = (props) => {
@@ -439,7 +441,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(endpoint);
+                        downloadFile(endpoint.replace("integration-module:8889", "localhost:8889"));
                     }
                 }
             },

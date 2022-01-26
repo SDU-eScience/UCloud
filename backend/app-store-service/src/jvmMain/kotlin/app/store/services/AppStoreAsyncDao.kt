@@ -7,12 +7,12 @@ import dk.sdu.cloud.NormalizedPaginationRequestV2
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.joda.time.DateTimeZone

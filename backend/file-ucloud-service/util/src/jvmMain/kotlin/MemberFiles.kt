@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -9,7 +10,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsControl
 import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PERSONAL_REPOSITORY
-import io.ktor.http.*
 
 class MemberFiles(
     private val fs: NativeFS,

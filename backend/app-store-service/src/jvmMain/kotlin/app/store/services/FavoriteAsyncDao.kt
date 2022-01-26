@@ -5,6 +5,7 @@ import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationSummaryWithFavorite
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.offset
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -15,7 +16,6 @@ import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 
 class FavoriteAsyncDao(
     private val publicDao: ApplicationPublicAsyncDao,

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.rpc
 
 import dk.sdu.cloud.accounting.util.asController
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.RpcServer
@@ -8,7 +9,6 @@ import dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaces
 import dk.sdu.cloud.file.orchestrator.service.MetadataTemplateNamespaces
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
-import io.ktor.http.*
 
 class FileMetadataTemplateController(
     private val namespaces: MetadataTemplateNamespaces,

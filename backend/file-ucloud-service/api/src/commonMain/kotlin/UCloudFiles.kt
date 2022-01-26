@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.file.orchestrator.api.FilesProvider
 import dk.sdu.cloud.file.orchestrator.api.SharesProvider
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 @TSNamespace("file.ucloud.files")

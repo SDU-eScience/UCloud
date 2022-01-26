@@ -1,11 +1,11 @@
 package dk.sdu.cloud.mail.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.mail.api.EmailSettings
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.encodeToJsonElement
 

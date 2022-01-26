@@ -37,9 +37,8 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(kotlin("stdlib-common"))
-                api("io.ktor:ktor-client-core:$ktorVersion")
                 api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
+                api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
             }
         }
 
@@ -56,6 +55,7 @@ kotlin {
                 api("io.ktor:ktor-client-okhttp:$ktorVersion")
                 api("io.ktor:ktor-client-websockets:$ktorVersion")
                 api("io.ktor:ktor-client-cio:$ktorVersion")
+                api("io.ktor:ktor-client-core:$ktorVersion")
 
                 api("org.apache.logging.log4j:log4j-api:2.17.1")
                 api("org.apache.logging.log4j:log4j-core:2.17.1")
@@ -73,18 +73,12 @@ kotlin {
 
         val linuxX64Main by getting {
             dependencies {
-                api("io.ktor:ktor-client-curl:$ktorVersion")
-                api("io.ktor:ktor-client-websockets:$ktorVersion")
-                api("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         val linuxX64Test by getting {}
 
         val macosX64Main by getting {
             dependencies {
-                api("io.ktor:ktor-client-curl:$ktorVersion")
-                api("io.ktor:ktor-client-websockets:$ktorVersion")
-                api("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         val macosX64Test by getting {}

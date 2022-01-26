@@ -3,11 +3,11 @@ package alerting.services
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.alerting.api.ScriptInfo
 import dk.sdu.cloud.alerting.api.Scripts
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.server.OutgoingCallResponse
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.developmentModeEnabled
@@ -15,7 +15,6 @@ import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
-import io.ktor.http.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 

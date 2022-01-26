@@ -47,7 +47,6 @@ class EnvoyConfigurationService(
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         startProcess(
-
             args = listOf(
                 "/usr/local/bin/getenvoy",
                 "run",
@@ -134,7 +133,6 @@ static_resources:
     }
 
     fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster?) {
-        println("Requesting configuration $route $cluster")
         runBlocking {
             channel.send(ConfigurationMessage.NewCluster(route, cluster))
         }
@@ -189,6 +187,18 @@ sealed class EnvoyRoute {
         val providerId: String,
         override val cluster: String
     ) : EnvoyRoute()
+
+    data class DownloadSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String
+    ) : EnvoyRoute()
+
+    data class UploadSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String
+    ) : EnvoyRoute()
 }
 
 @Serializable
@@ -202,9 +212,11 @@ class EnvoyRouteConfiguration(
     companion object {
         fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
             val sortedRoutes = routes.sortedBy {
-                // NOTE(Dan): We must ensure that shell sessions are routed with a higher priority, otherwise the
+                // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
                 when (it) {
+                    is EnvoyRoute.UploadSession -> 1
+                    is EnvoyRoute.DownloadSession -> 1
                     is EnvoyRoute.ShellSession -> 1
                     is EnvoyRoute.Standard -> 2
                 }
@@ -264,6 +276,40 @@ class EnvoyRouteConfiguration(
                                                 "query_parameters" to JsonArray(
                                                     JsonObject(
                                                         "name" to JsonPrimitive("session"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                        )
+                                    }
+
+                                    is EnvoyRoute.DownloadSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive(FileController.downloadPath(route.providerId)),
+                                                "query_parameters" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("token"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                        )
+                                    }
+
+                                    is EnvoyRoute.UploadSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive(FileController.uploadPath(route.providerId)),
+                                                "headers" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("Chunked-Upload-Token"),
                                                         "string_match" to JsonObject(
                                                             "exact" to JsonPrimitive(route.identifier)
                                                         )

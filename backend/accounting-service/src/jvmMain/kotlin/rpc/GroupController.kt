@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.rpc
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.services.projects.ProjectGroupService
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -11,7 +12,6 @@ import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.normalizeWithFullReadEnabled
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.toActor
 

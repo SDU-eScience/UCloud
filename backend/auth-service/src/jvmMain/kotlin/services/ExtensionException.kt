@@ -1,7 +1,7 @@
 package dk.sdu.cloud.auth.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.HttpStatusCode
 
 sealed class ExtensionException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
     class BadRequest(why: String) : ExtensionException(

@@ -1,6 +1,11 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.plugins.storage.InternalFile
+import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
+import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import platform.posix.*
 
@@ -72,12 +77,18 @@ fun NativeFile.writeText(
     text: String,
     autoClose: Boolean = true,
 ) {
+    writeData(text.encodeToByteArray(), autoClose)
+}
+
+fun NativeFile.writeData(
+    data: ByteArray,
+    autoClose: Boolean = false,
+) {
     try {
-        val encoded = text.encodeToByteArray()
         var ptr = 0
-        encoded.usePinned { pinned ->
-            while (ptr < encoded.size) {
-                val written = platform.posix.write(fd, pinned.addressOf(ptr), encoded.size.toULong() - ptr.toULong())
+        data.usePinned { pinned ->
+            while (ptr < data.size) {
+                val written = platform.posix.write(fd, pinned.addressOf(ptr), data.size.toULong() - ptr.toULong())
                 if (written < 0) {
                     throw NativeFileException(getNativeErrorMessage(errno))
                 }
@@ -119,6 +130,35 @@ fun fileExists(path: String): Boolean = memScoped {
     return stat(path, st.ptr) == 0
 }
 
+fun listFiles(internalFile: InternalFile): List<InternalFile> {
+    val openedDirectory = try {
+        NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
+    } catch (ex: NativeFileException) {
+        PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
+        throw RPCException("File not found", HttpStatusCode.NotFound)
+    }
+    try {
+        val dir = fdopendir(openedDirectory.fd)
+            ?: throw RPCException("File is not a directory", HttpStatusCode.Conflict)
+
+        val result = ArrayList<InternalFile>()
+        while (true) {
+            val ent = readdir(dir) ?: break
+            val name = ent.pointed.d_name.toKString()
+            if (name == "." || name == "..") continue
+            runCatching {
+                // NOTE(Dan): Ignore errors, in case the file is being changed while we inspect it
+                result.add(InternalFile(internalFile.path + "/" + name))
+            }
+        }
+        closedir(dir)
+
+        return result
+    } finally {
+        openedDirectory.close()
+    }
+}
+
 fun fileIsDirectory(path: String): Boolean = memScoped {
     val st = alloc<stat>()
     return stat(path, st.ptr) == 0 && st.st_mode and S_IFDIR.toUInt() != 0u
@@ -142,6 +182,26 @@ fun renameFile(from: String, to: String, flags: UInt) {
         fromFd.close()
         if (toFd.fd != fromFd.fd) toFd.close()
     }
+}
+
+// TODO(Dan): We definitely need something more roboust than assuming that /tmp is usable.
+private val temporaryFilePrefix = secureToken(16).replace("/", "-")
+private val temporaryFileAcc = atomic(0)
+
+data class TemporaryFile(val internalFile: InternalFile, val fileHandle: NativeFile)
+
+fun createTemporaryFile(prefix: String? = null, suffix: String? = null): TemporaryFile {
+    val path = "/tmp/${prefix ?: ""}${temporaryFilePrefix}${temporaryFileAcc.getAndIncrement()}${suffix ?: ""}"
+    return TemporaryFile(
+        InternalFile(path),
+        NativeFile.open(
+            path,
+            readOnly = false,
+            truncateIfNeeded = true,
+            createIfNeeded = true,
+            mode = "600".toInt(8)
+        )
+    )
 }
 
 const val RENAME_EXCHANGE = 2u

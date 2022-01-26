@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.IngoingCallResponse
@@ -16,7 +17,6 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.utils.*
-import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
@@ -25,6 +25,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import platform.posix.ceil
 import platform.posix.mkdir
 import platform.posix.sleep
+import platform.posix.usleep
 import kotlin.native.concurrent.AtomicReference
 
 @Serializable
@@ -67,7 +68,7 @@ class SlurmPlugin : ComputePlugin {
         val mountpoint = config.mountpoint
         mkdir("${mountpoint}/${resource.id}", "0770".toUInt(8))
 
-        val sbatch = createSbatchFile(resource, config)
+        val sbatch = createSbatchFile(this, resource, config)
 
         val pathToScript = "${mountpoint}/${resource.id}/job.sbatch"
         NativeFile.open(path = pathToScript, readOnly = false).writeText(sbatch)

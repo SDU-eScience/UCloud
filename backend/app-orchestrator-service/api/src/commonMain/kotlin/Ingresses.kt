@@ -10,7 +10,6 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
 

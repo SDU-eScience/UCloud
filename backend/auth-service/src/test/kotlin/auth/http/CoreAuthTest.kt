@@ -32,7 +32,6 @@ import dk.sdu.cloud.service.test.*
 import io.ktor.http.Cookie
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import io.ktor.http.isSuccess
 import io.ktor.http.renderCookieHeader
 import io.ktor.server.testing.TestApplicationCall
