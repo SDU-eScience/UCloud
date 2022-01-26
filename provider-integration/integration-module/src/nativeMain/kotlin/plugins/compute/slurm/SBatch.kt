@@ -53,7 +53,7 @@ suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
         appendLine("#SBATCH --mem $memoryAllocation")
         appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
         appendLine("#SBATCH --time $formattedTime")
-        appendLine("#SBATCH --nodes ${job.specification.replicas}")
+        appendLine("#SBATCH --nodes ${job.specification.replicas}")  //TODO: check if correct
         appendLine("#SBATCH --job-name ${job.id}")
         appendLine("#SBATCH --partition ${config.partition}")
         appendLine("#SBATCH --parsable")

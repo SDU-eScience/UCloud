@@ -28,6 +28,8 @@ import platform.posix.sleep
 import platform.posix.kill
 import kotlin.native.concurrent.AtomicReference
 
+import platform.posix.*
+
 
 @Serializable
 data class SlurmConfiguration(
@@ -329,7 +331,7 @@ class SlurmPlugin : ComputePlugin {
                 "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
                 "([ -x /bin/fish ] && exec /bin/fish) || " +
                 "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                "exec /bin/sh "
+                "exec /bin/sh"
             ),
             envs = listOf("TERM=xterm-256color"),
             attachStdin = true,
@@ -338,6 +340,28 @@ class SlurmPlugin : ComputePlugin {
             nonBlockingStdout = true,
             nonBlockingStderr = true
         )
+
+        // val process2 = startProcess(
+        //     args = listOf(
+        //         "/usr/bin/ssh",
+        //         "-oStrictHostKeyChecking=accept-new",
+        //         "-t",
+        //         "c2", 
+        //         "([ -x /bin/bash ] && exec /bin/bash) || " +
+        //         "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+        //         "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+        //         "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+        //         "([ -x /bin/fish ] && exec /bin/fish) || " +
+        //         "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+        //         "exec /bin/bash "
+        //     ),
+        //     envs = listOf("TERM=xterm-256color"),
+        //     attachStdin = true,
+        //     attachStdout = true,
+        //     attachStderr = true,
+        //     nonBlockingStdout = true,
+        //     nonBlockingStderr = true
+        // )
 
         val pStatus:ProcessStatus = process.retrieveStatus(false)
 
@@ -357,6 +381,22 @@ class SlurmPlugin : ComputePlugin {
                 is ShellRequest.Resize -> {
                     // Send resize event to SSH session
                     println("RESIZE EVENT: ${ userInput } ")
+                    //ps -q 5458 -o tty=
+                     val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
+                        addArg("-q", "${process.pid}")
+                        addArg("-o", "tty=")
+                    }
+
+                    println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
+
+                    //stty rows 50 cols 50 --file /dev/pts/0
+                     val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
+                        addArg("rows", "700")
+                        addArg("cols", "700")
+                        addArg("--file", "/dev/${device.trim()}")
+                    }
+
+
                 }
 
                 else -> {
@@ -394,7 +434,11 @@ class SlurmPlugin : ComputePlugin {
             delay(15)
         }
 
-        if (! isActive() ) kill(process.pid, 2)
+        if (! isActive() ) kill(process.pid, SIGINT) 
+        //TODO: investigate
+        // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
+        // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
+        // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
 
     
     }
