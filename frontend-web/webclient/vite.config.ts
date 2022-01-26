@@ -1,5 +1,6 @@
 import {defineConfig, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
+//@ts-ignore
 import path from "path";
 import {DEV_SITE} from "./site.config.json";
 
@@ -46,6 +47,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
         plugins: [reactRefresh()],
         resolve: {
             alias: {
+                //@ts-ignore
                 "@": path.resolve(__dirname, "./app")
             }
         },
