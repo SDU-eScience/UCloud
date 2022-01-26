@@ -3,6 +3,8 @@ package dk.sdu.cloud.accounting.services.projects
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationEvent
+import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.ProjectEvent
@@ -25,7 +27,8 @@ object GroupMembershipTable : SQLTable("project.group_members") {
 
 class ProjectGroupService(
     private val projects: ProjectService,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
+    private val resourceNotifications: ResourceNotificationService
 ) {
     suspend fun createGroup(
         ctx: DBContext,
@@ -174,6 +177,10 @@ class ProjectGroupService(
                 )
             )
         }
+
+        resourceNotifications.create(
+            ResourceNotificationEvent.LeftGroup(memberToRemove, projectId, groupId)
+        )
     }
 
 

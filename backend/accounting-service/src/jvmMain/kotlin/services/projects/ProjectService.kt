@@ -77,7 +77,7 @@ suspend fun RowData.toProject(): Project {
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
     private val eventProducer: EventProducer<ProjectEvent>,
-    private val providerNotifications: ResourceNotificationService
+    private val resourceNotifications: ResourceNotificationService
 ) {
     suspend fun create(
         ctx: DBContext,
@@ -362,7 +362,7 @@ class ProjectService(
             )
         }
 
-        providerNotifications.create(
+        resourceNotifications.create(
             ResourceNotificationEvent.LeftProject(initiatedBy, projectId)
         )
     }
@@ -465,7 +465,7 @@ class ProjectService(
             )
         }
 
-        providerNotifications.create(
+        resourceNotifications.create(
             ResourceNotificationEvent.LeftProject(userToDelete, projectId)
         )
     }
@@ -549,6 +549,10 @@ class ProjectService(
                 serviceClient
             )
         }
+
+        resourceNotifications.create(
+            ResourceNotificationEvent.ChangedRole(memberToUpdate, projectId, newRole)
+        )
     }
 
     suspend fun transferPrincipalInvestigatorRole(

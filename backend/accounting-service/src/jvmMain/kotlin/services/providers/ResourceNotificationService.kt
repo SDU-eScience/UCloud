@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.DBContext
@@ -19,7 +18,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
 import org.joda.time.LocalDateTime
-import kotlin.reflect.typeOf
 
 sealed class ResourceNotificationEvent {
     abstract val user: String
@@ -56,7 +54,6 @@ class ResourceNotificationService(
         event: ResourceNotificationEvent
     ) {
         val resources: List<Pair<Long, String>> = db.withSession { session ->
-            // TODO Fetch resources
             val resources = when(event) {
                 is ResourceNotificationEvent.LeftProject -> {
                     session.sendPreparedStatement(
@@ -87,25 +84,29 @@ class ResourceNotificationService(
                 }
             }
 
-            session.sendPreparedStatement(
-                {
-                    setParameter("created_at", LocalDateTime.now())
-                    setParameter("user", event.user)
-                    setParameter("resources", resources.map { it.first })
-                },
-                """
-                    insert into provider.notifications
-                        (created_at, username, resource)
-                    select :created_at, :user, unnest(:resources::bigint[])
-                """
-            )
+            if (resources.isNotEmpty()) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("created_at", LocalDateTime.now())
+                        setParameter("user", event.user)
+                        setParameter("resources", resources.map { it.first })
+                    },
+                    """
+                        insert into provider.notifications
+                            (created_at, username, resource)
+                        select :created_at, :user, unnest(:resources::bigint[])
+                    """
+                )
+            }
 
             resources
         }
 
-        resources.map { it.second }.toSet().forEach { provider ->
-            val comms = providers.prepareCommunication(provider)
-            ResourceNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+        if (resources.isNotEmpty()) {
+            resources.map { it.second }.toSet().forEach { provider ->
+                val comms = providers.prepareCommunication(provider)
+                ResourceNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+            }
         }
     }
 

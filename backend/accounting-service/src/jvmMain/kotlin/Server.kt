@@ -58,7 +58,7 @@ class Server(
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
         val projectService = ProjectService(client, eventProducer, resourceNotifications)
-        val projectGroups = ProjectGroupService(projectService, eventProducer)
+        val projectGroups = ProjectGroupService(projectService, eventProducer, resourceNotifications)
         val projectQueryService = ProjectQueryService(projectService)
 
         val giftService = GiftService(db)
