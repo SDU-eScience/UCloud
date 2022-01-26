@@ -1,8 +1,6 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.http.HttpMethod
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 import kotlin.reflect.KProperty1
 
 class HttpDSLException(why: String) : RuntimeException(why)

@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.application.*
 import io.ktor.content.*
 import io.ktor.http.*
+import io.ktor.http.HttpMethod
 import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
@@ -33,7 +34,7 @@ class IngoingHttpInterceptor(
             // toKtorTemplate performs a plain one-to-one mapping of the http/path block semantics to Ktor routing
             // template
 
-            route(httpDescription.path.toKtorTemplate(fullyQualified = true), httpDescription.method) {
+            route(httpDescription.path.toPath(fullyQualified = true), HttpMethod(httpDescription.method.value)) {
                 handle {
                     call.fullName
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
@@ -49,7 +50,7 @@ class IngoingHttpInterceptor(
                         } catch (ex: IOException) {
                             log.debug("Caught IOException:")
                             log.debug(ex.stackTraceToString())
-                            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                            throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                         }
                     }
                 }
@@ -73,7 +74,7 @@ class IngoingHttpInterceptor(
                     return (
                         if (receiveOrNull != null) defaultMapper.decodeFromString(call.requestType, receiveOrNull)
                         else null
-                        ) ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        ) ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
 
                 http.params != null -> {
@@ -86,7 +87,7 @@ class IngoingHttpInterceptor(
 
                 else -> throw RPCException(
                     "Unable to deserialize request. No source of input!",
-                    HttpStatusCode.InternalServerError
+                    dk.sdu.cloud.calls.HttpStatusCode.InternalServerError
                 )
             }
         } catch (ex: Throwable) {
@@ -99,7 +100,7 @@ class IngoingHttpInterceptor(
                 }
                 else -> {
                     log.debug(ex.stackTraceToString())
-                    throw RPCException("Bad request", HttpStatusCode.BadRequest)
+                    throw RPCException("Bad request", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
             }
         }

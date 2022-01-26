@@ -81,6 +81,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeSizes?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
+    allowUnsupportedInclude?: boolean;
     includeSyncStatus?: boolean;
     path?: string;
 }
@@ -129,6 +130,9 @@ interface FilesEmptyTrashRequestItem {
 interface ExtraCallbacks {
     collection?: FileCollection;
     directory?: UFile;
+    // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
+    // special case.
+    allowMoveCopyOverride?: boolean;
     syncProducts?: SupportByProvider<ProductSyncFolder, SyncFolderSupport>;
 }
 
@@ -264,7 +268,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         includeMetadata: true,
         includeSizes: true,
         includeTimestamps: true,
-        includeUnixInfo: true
+        includeUnixInfo: true,
+        allowUnsupportedInclude: true,
     };
 
     public Properties = (props) => {
@@ -449,7 +454,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(endpoint);
+                        downloadFile(endpoint.replace("integration-module:8889", "localhost:8889"));
                     }
                 }
             },
@@ -457,7 +462,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "copy",
                 text: "Copy to...",
                 enabled: (selected, cb) =>
-                    cb.embedded !== true &&
+                    (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
                     selected.length > 0 &&
                     selected.every(it => it.permissions.myself.some(p => p === "READ" || p === "ADMIN")),
                 onClick: (selected, cb) => {
@@ -496,7 +501,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     if ((support as FileCollectionSupport).files.isReadOnly) {
                         return "File system is read-only";
                     }
-                    return cb.embedded !== true &&
+                    return (cb.embedded !== true || !!cb.allowMoveCopyOverride) &&
                         selected.length > 0 &&
                         selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"));
                 },

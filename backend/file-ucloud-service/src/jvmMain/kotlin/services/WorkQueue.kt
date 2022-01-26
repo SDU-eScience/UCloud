@@ -18,7 +18,7 @@ class WorkQueue<T>(
                 launch(dispatcher) {
                     var didReportIdle = false
                     while (isActive) {
-                        val nextItem = channel.poll()
+                        val nextItem = channel.tryReceive().getOrNull()
                         if (nextItem == null) {
                             // NOTE(Dan): We don't know if we have run out of work or if there are simply no more work
                             // right now. To deal with this, we keep a count of idle workers. If all workers report that

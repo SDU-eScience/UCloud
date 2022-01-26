@@ -1,25 +1,7 @@
 package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.ApiConventions
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.InternalLevel
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.UCloudApiInternal
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.basicUser
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.documentation
-import dk.sdu.cloud.calls.http
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.useCase
-import io.ktor.http.HttpMethod
-
+import dk.sdu.cloud.calls.*
 
 typealias UploadToolLogoRequest = UploadApplicationLogoRequest
 typealias UploadToolLogoResponse = Unit
@@ -295,7 +277,7 @@ ${ApiConventions.nonConformingApiWarning}
 
         documentation {
             summary = "Retrieves a logo associated with a Tool"
-            description = "This endpoint might return ${io.ktor.http.HttpStatusCode.NotFound} if the Tool has no logo"
+            description = "This endpoint might return ${HttpStatusCode.NotFound} if the Tool has no logo"
         }
     }
 }

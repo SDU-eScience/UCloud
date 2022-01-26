@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.projects
 import com.github.jasync.sql.db.ResultSet
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.Loggable
@@ -10,7 +11,6 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow

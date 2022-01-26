@@ -211,7 +211,7 @@ interface JobUpdateListener {
 }
 
 export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
-const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
+    const {id} = props.id ? {id: props.id} : useParams<{id: string}>();
     const history = useHistory();
 
     // Note: This might not match the real app name
@@ -1023,7 +1023,7 @@ const RunningJobRank: React.FunctionComponent<{
 
                 {job.specification.replicas === 1 ? null : (
                     <RunningButtonGroup job={job} rank={rank} expanded={expanded}
-    toggleExpand={toggleExpand}/>
+                        toggleExpand={toggleExpand} />
                 )}
             </RunningJobRankWrapper>
         </HighlightedCard>
@@ -1072,20 +1072,20 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
 };
 
 const OutputFilesWrapper = styled.div`
-  display: flex;
-  flex-direction: column;
-  width: 100%;
+    display: flex;
+    flex-direction: column;
+    width: 100%;
 
-  h1, h2, h3, h4 {
-    margin-top: 15px;
-    margin-bottom: 15px;
-  }
+    h1, h2, h3, h4 {
+        margin-top: 15px;
+        margin-bottom: 15px;
+    }
 `;
 
 const OutputFiles: React.FunctionComponent<{job: Job}> = ({job}) => {
     const pathRef = React.useRef(job.output?.outputFolder ?? "");
     return <OutputFilesWrapper>
-        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true} />
+        <FilesBrowse browseType={BrowseType.Embedded} pathRef={pathRef} forceNavigationToPage={true} allowMoveCopyOverride />
     </OutputFilesWrapper>;
 };
 

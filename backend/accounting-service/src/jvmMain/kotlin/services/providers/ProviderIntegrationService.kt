@@ -6,6 +6,7 @@ import dk.sdu.cloud.NormalizedPaginationRequestV2
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.IntegrationBrowseResponseItem
@@ -18,7 +19,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 
 class ProviderIntegrationService(
     private val db: DBContext,

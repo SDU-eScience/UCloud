@@ -1,8 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.joinPath
-import io.ktor.http.*
 
 class TrashService(
     private val pathConverter: PathConverter,

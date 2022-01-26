@@ -123,7 +123,7 @@ fun TestApplicationCall.assertSuccess() {
     val status = this.response.status()
     assertNotNull(status)
     if (!status.isSuccess()) {
-        throw RPCException.fromStatusCode(status)
+        throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode(status.value, status.description))
     }
 }
 

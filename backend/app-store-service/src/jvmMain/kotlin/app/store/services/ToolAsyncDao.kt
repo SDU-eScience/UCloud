@@ -5,6 +5,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.Tool
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.NormalizedPaginationRequest
@@ -12,7 +13,6 @@ import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.joda.time.DateTimeZone
@@ -194,15 +194,6 @@ class ToolAsyncDao {
     }
 
     suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
-        val tool =
-            ctx.withSession { session ->
-                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-
-        if (user != null && tool != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         val logo = ctx.withSession { session ->
             fetchLogo(session, name)
         }
@@ -231,14 +222,6 @@ class ToolAsyncDao {
     }
 
     suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
-        val application =
-            ctx.withSession { session ->
-                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        if (application != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

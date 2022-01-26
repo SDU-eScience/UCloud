@@ -71,6 +71,14 @@ class AccountingController(
             ok(accounting.retrieveRecipient(actorAndProject, request))
         }
 
+        implement(Wallets.push) {
+            ok(accounting.pushWallets(actorAndProject, request))
+        }
+
+        implement(Wallets.register) {
+            ok(accounting.register(actorAndProject, request))
+        }
+
         implement(Visualization.retrieveUsage) {
             ok(accounting.retrieveUsage(actorAndProject, request))
         }

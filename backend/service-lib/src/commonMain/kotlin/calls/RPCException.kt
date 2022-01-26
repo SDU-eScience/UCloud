@@ -1,7 +1,5 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.http.*
-
 open class RPCException(val why: String, val httpStatusCode: HttpStatusCode, val errorCode: String? = null) :
     RuntimeException(why) {
     companion object {

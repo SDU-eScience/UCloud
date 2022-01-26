@@ -2,7 +2,6 @@ package dk.sdu.cloud.calls.client
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpStatusCode
 
 object FakeOutgoingCall : OutgoingCall {
     override val attributes: AttributeContainer = AttributeContainer()

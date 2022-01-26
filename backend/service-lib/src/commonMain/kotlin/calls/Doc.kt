@@ -2,7 +2,6 @@ package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
-import io.ktor.http.*
 import kotlin.native.concurrent.SharedImmutable
 import kotlin.reflect.KClass
 import kotlin.reflect.KProperty

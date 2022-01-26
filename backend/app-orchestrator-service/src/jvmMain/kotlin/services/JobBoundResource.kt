@@ -10,11 +10,11 @@ import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 
 abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support, Comms, Val>(
     db: AsyncDBSessionFactory,

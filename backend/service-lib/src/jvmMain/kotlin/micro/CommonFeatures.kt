@@ -4,10 +4,10 @@ import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.service.TokenValidation
-import io.ktor.http.*
 import java.io.File
 
 // Common features which are needed only as a hack to make existing code work

@@ -1,6 +1,6 @@
 package dk.sdu.cloud.utils
 
-import h2o.h2o_base64_encode
+import dk.sdu.cloud.base64Encode
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
 
@@ -21,6 +21,19 @@ fun secureRandomLong(): Long {
         (buf[7].toLong() shl 7)
 }
 
+fun secureRandomInt(): Int {
+    val urandomFile = NativeFile.open("/dev/urandom", readOnly = true)
+    val buf = ByteArray(4)
+    buf.usePinned { pinnedBuf ->
+        platform.posix.read(urandomFile.fd, pinnedBuf.addressOf(0), 4)
+    }
+    urandomFile.close()
+    return buf[0].toInt() or
+        (buf[1].toInt() shl 1) or
+        (buf[2].toInt() shl 2) or
+        (buf[3].toInt() shl 3)
+}
+
 fun secureToken(size: Int): String {
     val urandomFile = NativeFile.open("/dev/urandom", readOnly = true)
     val buf = ByteArray(size)
@@ -32,12 +45,6 @@ fun secureToken(size: Int): String {
             if (read == 0L) error("unexpected")
         }
 
-        // Bad estimation but it is always large enough
-        val output = ByteArray(size * 4)
-        val outputSize = output.usePinned { pin ->
-            h2o_base64_encode(pin.addressOf(0), pinnedBuf.addressOf(0), size.toULong(), 0)
-        }
-
-        return output.decodeToString(0, outputSize.toInt())
+        return base64Encode(buf)
     }
 }

@@ -1,10 +1,10 @@
 package dk.sdu.cloud.contact.book.services
 
 import com.fasterxml.jackson.module.kotlin.readValue
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
 import dk.sdu.cloud.defaultMapper
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 
 class ContactBookService(private val elasticDao: ContactBookElasticDao) {

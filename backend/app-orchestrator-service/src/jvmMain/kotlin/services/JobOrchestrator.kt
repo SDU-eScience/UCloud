@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
@@ -27,7 +28,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.KSerializer
@@ -279,6 +279,7 @@ class JobOrchestrator(
                                     when :new_state = 'RUNNING' then coalesce(started_at, now())
                                     else started_at
                                 end,
+                                last_update = now(),
                                 output_folder = coalesce(:output_folder::text, output_folder),
                                 time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
                             where resource = :job_id

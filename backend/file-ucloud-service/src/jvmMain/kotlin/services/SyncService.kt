@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -20,7 +21,6 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
-import io.ktor.http.*
 import java.io.File
 
 object SyncFoldersTable : SQLTable("sync_folders") {
@@ -327,6 +327,12 @@ class SyncService(
     }
 
     suspend fun addDevices(devices: BulkRequest<SyncDevice>): BulkResponse<FindByStringId?> {
+        for (item in devices.items) {
+            if (!item.specification.deviceId.matches(deviceIdRegex)) {
+                throw RPCException("Invalid device ID: ${item.specification.deviceId}", HttpStatusCode.BadRequest)
+            }
+        }
+
         val affectedRows = db.withSession { session ->
             devices.items.sumOf { device ->
                 if (syncthing.config.devices.any { it.id == device.id }) {
@@ -487,6 +493,12 @@ class SyncService(
             syncthing.writeConfig()
         }
         return BulkResponse(emptyList())
+    }
+
+    companion object {
+        // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
+        // reason).
+        private val deviceIdRegex = Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
     }
 }
 

@@ -4,9 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.UFile
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
-
 
 /**
  * @see AllOf

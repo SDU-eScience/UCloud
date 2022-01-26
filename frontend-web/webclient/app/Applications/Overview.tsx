@@ -104,7 +104,6 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 rows={3}
                 favoriteStatus={favoriteStatus}
                 onFavorite={onFavorite}
-                linkToRun
                 refreshId={refreshId}
             />
 
@@ -204,12 +203,11 @@ interface TagGridProps {
     rows: number;
     favoriteStatus: FavoriteStatus;
     onFavorite: (app: ApplicationSummaryWithFavorite) => void;
-    linkToRun?: boolean;
     refreshId: number;
 }
 
 const TagGrid: React.FunctionComponent<TagGridProps> = (
-    {tag, rows, tagBanList = [], favoriteStatus, onFavorite, linkToRun, refreshId}: TagGridProps
+    {tag, rows, tagBanList = [], favoriteStatus, onFavorite, refreshId}: TagGridProps
 ) => {
     const showFavorites = tag == SPECIAL_FAVORITE_TAG;
     const [appResp, fetchApplications] = useCloudAPI<UCloud.Page<ApplicationSummaryWithFavorite>>(
@@ -290,7 +288,6 @@ const TagGrid: React.FunctionComponent<TagGridProps> = (
                             app={app}
                             isFavorite={showFavorites}
                             tags={app.tags}
-                            linkToRun={linkToRun}
                         />
                     ))}
                 </Grid>
@@ -351,7 +348,7 @@ const ToolGroup: React.FunctionComponent<{tag: string, refreshId: number}> = ({t
                                             color1={first}
                                             color2={second}
                                             color3={third}
-                                            to={Pages.viewApplication(application.metadata)}
+                                            to={Pages.runApplication(application.metadata)}
                                             color="white"
                                         >
                                             <EllipsedText>{withoutTag}</EllipsedText>

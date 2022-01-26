@@ -167,11 +167,11 @@ const ListStyle = styled.div<{fontSize?: string;}>`
       }
     }
 
-  ${deviceBreakpoint({maxWidth: "767px"})} {
-    .row-left{
-      max-width: calc(100vw - 210px);
+    ${deviceBreakpoint({maxWidth: "767px"})} {
+        .row-left {
+            max-width: calc(100vw - 210px);
+        }
     }
-  }
 
     .row-left-wrapper {
         display: flex;

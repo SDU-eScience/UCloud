@@ -9,6 +9,7 @@ import dk.sdu.cloud.accounting.services.providers.ResourceNotificationEvent
 import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -27,7 +28,6 @@ import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.joda.time.LocalDateTime

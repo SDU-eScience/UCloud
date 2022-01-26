@@ -4,7 +4,9 @@ import ReactDOM from "react-dom";
 
 ReactDOM.render(
     (
-        <MainApp />
+        <React.StrictMode>
+            <MainApp />
+        </React.StrictMode>
     ),
     document.getElementById("app")
 );

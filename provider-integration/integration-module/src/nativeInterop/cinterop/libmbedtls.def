@@ -1,0 +1,22 @@
+package = mbed
+headers = mbedtls/aes.h mbedtls/aria.h mbedtls/asn1.h mbedtls/asn1write.h mbedtls/base64.h mbedtls/bignum.h mbedtls/build_info.h mbedtls/camellia.h mbedtls/ccm.h mbedtls/chacha20.h mbedtls/chachapoly.h mbedtls/check_config.h mbedtls/cipher.h mbedtls/cmac.h mbedtls/compat-2.x.h mbedtls/config_psa.h mbedtls/constant_time.h mbedtls/ctr_drbg.h mbedtls/debug.h mbedtls/des.h mbedtls/dhm.h mbedtls/ecdh.h mbedtls/ecdsa.h mbedtls/ecjpake.h mbedtls/ecp.h mbedtls/entropy.h mbedtls/error.h mbedtls/gcm.h mbedtls/hkdf.h mbedtls/hmac_drbg.h mbedtls/mbedtls_config.h mbedtls/md5.h mbedtls/md.h mbedtls/memory_buffer_alloc.h mbedtls/net_sockets.h mbedtls/nist_kw.h mbedtls/oid.h mbedtls/pem.h mbedtls/pkcs12.h mbedtls/pkcs5.h mbedtls/pk.h mbedtls/platform.h mbedtls/platform_time.h mbedtls/platform_util.h mbedtls/poly1305.h mbedtls/private_access.h mbedtls/psa_util.h mbedtls/ripemd160.h mbedtls/rsa.h mbedtls/sha1.h mbedtls/sha256.h mbedtls/sha512.h mbedtls/ssl_cache.h mbedtls/ssl_ciphersuites.h mbedtls/ssl_cookie.h mbedtls/ssl.h mbedtls/ssl_ticket.h mbedtls/threading.h mbedtls/timing.h mbedtls/version.h mbedtls/x509_crl.h mbedtls/x509_crt.h mbedtls/x509_csr.h mbedtls/x509.h
+
+# NOTE(Dan): The limbedtls_combined.a file has been created from the source libraries of a stack compilation:
+# `libmbedcrypto.a`, `libmbedtls.a` and `libmbedx509.a`. Each archive is extracted with:
+#
+# ```
+# ar -x libmbedcrypto.a
+# ar -x libmbedtls.a
+# ar -x libmbedx509.a
+# ```
+#
+# And then combined with
+#
+# ```
+# ar -qcs libmbedtls_combined.a *.o
+# ```
+#
+# For some weird reason, this makes the difference between Kotlin/Native correctly linking and not at all correctly
+# linking the binary.
+staticLibraries = libmbedtls_combined.a
+libraryPaths = vendor/libmbedtls/linux

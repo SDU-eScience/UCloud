@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.store.api.ProjectGroup
 import dk.sdu.cloud.app.store.services.acl.*
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -19,7 +20,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.http.HttpStatusCode
 
 class AppStoreService(
     private val db: AsyncDBSessionFactory,

@@ -1,6 +1,14 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.AppParameterValue
+import dk.sdu.cloud.app.store.api.ApplicationParameter
+import dk.sdu.cloud.app.store.api.ArgumentBuilder
+import dk.sdu.cloud.file.orchestrator.api.components
+import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.plugins.storage.UCloudFile
 
 private fun escapeBash(value: String): String {
     return buildString {
@@ -19,7 +27,7 @@ private fun escapeBash(value: String): String {
     }
 }
 
-suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
+suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfiguration): String {
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
         ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
 
@@ -34,7 +42,7 @@ suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
             app.parameters.find { it.name == paramName }!! to value
         }.toMap()
     val cliInvocation = app.invocation.flatMap { parameter ->
-        parameter.buildInvocationList(givenParameters)
+        parameter.buildInvocationList(givenParameters, builder = OurArgBuilder(PathConverter(ctx)))
     }.joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
 
     val memoryAllocation = if (config.useFakeMemoryAllocations) {
@@ -64,5 +72,20 @@ suspend fun createSbatchFile(job: Job, config: SlurmConfiguration): String {
         appendLine("#")
         appendLine(cliInvocation)
         appendLine("#EOF")
+    }
+}
+
+private class OurArgBuilder(
+    private val pathConverter: PathConverter,
+) : ArgumentBuilder {
+    override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
+        return when (parameter) {
+            is ApplicationParameter.InputFile, is ApplicationParameter.InputDirectory -> {
+                val file = (value as AppParameterValue.File)
+                pathConverter.ucloudToInternal(UCloudFile.create(file.path)).path
+            }
+
+            else -> ArgumentBuilder.Default.build(parameter, value)
+        }
     }
 }

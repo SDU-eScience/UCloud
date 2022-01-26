@@ -38,12 +38,9 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2021.3.0-alpha13")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.4")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
-            api("io.ktor:ktor-client-curl:1.6.2-test")
-            api("io.ktor:ktor-client-websockets:1.6.2-test")
-            api("io.ktor:ktor-client-cio:1.6.2-test")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }
 
         compilations["main"].cinterops {
@@ -70,25 +67,17 @@ kotlin {
                 }
             }
 
-            val libh2o by creating {
-                // openssl and libuv
-                includeDirs.allHeaders(File(projectDir, "vendor/libh2o"))
-                includeDirs.allHeaders(File("/usr/include"))
-                includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
-            }
-
-            val libuv by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libuv"))
-                includeDirs.allHeaders(File("/usr/include"))
-                includeDirs.allHeaders(File("/usr/include/x86_64-linux-gnu"))
-            }
-
             val libsqlite3 by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
             }
 
             val libucloud by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
+            }
+
+
+            val libmbedtls by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
             }
         }
     }
@@ -99,14 +88,12 @@ kotlin {
 
         all {
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalUnsignedTypes")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
         }
-
-
     }
 }
 
@@ -115,4 +102,12 @@ kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarge
         @Suppress("SuspiciousCollectionReassignment")
         freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
     }
+}
+
+task("buildDebug") {
+    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkDebugExecutableNative" } })
+}
+
+task("buildRelease") {
+    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkReleaseExecutableNative" } })
 }

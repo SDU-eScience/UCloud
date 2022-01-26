@@ -345,14 +345,14 @@ class SyncthingClient(
                                 if (resp.status != HttpStatusCode.OK) {
                                     throw RPCException(
                                         resp.content.toByteArray().toString(Charsets.UTF_8),
-                                        HttpStatusCode.BadRequest
+                                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
                                     )
                                 } else {
                                     pendingDevices = pendingDevices.filter { it.id != device.id }
                                 }
 
                             } catch (ex: RPCException) {
-                                throw RPCException("Invalid Syncthing Configuration", HttpStatusCode.BadRequest)
+                                throw RPCException("Invalid Syncthing Configuration", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                             } catch (ex: Throwable) {
                                 // Do nothing
                             }
@@ -363,7 +363,7 @@ class SyncthingClient(
                     if (Time.now() > timeout) {
                         throw RPCException(
                             "Unable to contact one or more syncthing clients",
-                            HttpStatusCode.ServiceUnavailable
+                            dk.sdu.cloud.calls.HttpStatusCode.ServiceUnavailable
                         )
                     }
                 }
@@ -404,13 +404,13 @@ class SyncthingClient(
                         if (resp.status != HttpStatusCode.OK) {
                             throw RPCException(
                                 resp.content.toByteArray().toString(Charsets.UTF_8),
-                                HttpStatusCode.BadRequest
+                                dk.sdu.cloud.calls.HttpStatusCode.BadRequest
                             )
                         }
                     } catch (e: ConnectException) {
                         throw RPCException(
                             "The synchronization feature is offline. Please try again later.",
-                            HttpStatusCode.ServiceUnavailable,
+                            dk.sdu.cloud.calls.HttpStatusCode.ServiceUnavailable,
                         )
                     } finally {
                         lock.release()

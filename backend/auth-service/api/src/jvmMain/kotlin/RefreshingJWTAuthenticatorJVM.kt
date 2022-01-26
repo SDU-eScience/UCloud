@@ -2,6 +2,8 @@ package dk.sdu.cloud.auth.api
 
 import com.auth0.jwt.JWT
 import com.auth0.jwt.interfaces.DecodedJWT
+import dk.sdu.cloud.calls.client.OutgoingCall
+import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
@@ -24,7 +26,7 @@ fun RefreshingJWTAuthenticator(
     refreshToken: String,
     @Suppress("UNUSED_PARAMETER") tokenValidation: TokenValidation<DecodedJWT>,
 ): RefreshingJWTAuthenticator {
-    return RefreshingJWTAuthenticator(client, JwtRefresher.Normal(refreshToken))
+    return RefreshingJWTAuthenticator(client, JwtRefresher.Normal(refreshToken, OutgoingHttpCall))
 }
 
 fun RefreshingJWTAuthenticator(

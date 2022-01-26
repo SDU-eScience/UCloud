@@ -8,6 +8,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Button, Markdown} from "@/ui-components";
 import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
+import {initializeResources} from "@/Services/ResourceInit";
 
 function fetchSla(): APICallParameters {
     return {
@@ -44,6 +45,7 @@ const ServiceLicenseAgreement: React.FunctionComponent<RouteComponentProps> = pr
         try {
             await invokeCommand(acceptSla(sla.data.version));
             await Client.invalidateAccessToken();
+            initializeResources()
             props.history.push("/");
         } catch (res) {
             const response = res.response;

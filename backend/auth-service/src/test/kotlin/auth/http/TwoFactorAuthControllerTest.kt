@@ -25,7 +25,6 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.test.TestDB
 import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.handleRequest
 import io.ktor.server.testing.setBody

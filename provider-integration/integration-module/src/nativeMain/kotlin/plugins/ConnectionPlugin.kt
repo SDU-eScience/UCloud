@@ -1,7 +1,7 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.*
 
 sealed class ConnectionResponse {
     class Redirect(val redirectTo: String) : ConnectionResponse()

@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -56,7 +57,7 @@ class VncService(
                             CommonErrorMessage("Unable to connect to remote desktop. Try to reload the page.")
                         ),
                         ContentType.Application.Json,
-                        HttpStatusCode.BadRequest
+                        io.ktor.http.HttpStatusCode.BadRequest
                     )
                     return@webSocket
                 }

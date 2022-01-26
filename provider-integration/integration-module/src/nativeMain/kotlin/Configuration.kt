@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.readText
@@ -7,6 +8,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.decodeFromJsonElement
 
 @Serializable
 data class ProductReferenceWithoutProvider(
@@ -51,6 +53,33 @@ data class ProductBasedConfiguration(
     )
 }
 
+inline fun <reified Config> ProductBasedConfiguration.completeConfiguration(): Map<Config, List<ProductReferenceWithoutProvider>> {
+    return plugins.mapNotNull { plugin ->
+        val cfg = plugin.configuration ?: return@mapNotNull null
+        val activeFor = products.filter { product ->
+            plugin.activeFor.any { it.matches(product) }
+        }
+
+        try {
+            defaultMapper.decodeFromJsonElement<Config>(cfg) to activeFor
+        } catch (ex: Throwable) {
+            throw IllegalStateException("Invalid configuration found", ex)
+        }
+    }.toMap()
+}
+
+inline fun <reified Config> ProductBasedConfiguration.config(product: ProductReference): Config {
+    val ref = ProductReferenceWithoutProvider(product.id, product.category)
+    val relevantConfig = plugins.find { config -> config.activeFor.any { it.matches(ref) } }
+        ?.configuration ?: error("No configuration found for product: $ref")
+
+    return try {
+        defaultMapper.decodeFromJsonElement(relevantConfig)
+    } catch (ex: Throwable) {
+        throw IllegalStateException("Invalid configuration found for $ref", ex)
+    }
+}
+
 sealed class ConfigurationException(message: String) : RuntimeException(message) {
     class IsBeingInstalled(
         val core: IMConfiguration.Core,
@@ -66,6 +95,7 @@ class IMConfiguration(
     val core: Core,
     val plugins: Plugins,
     val server: Server?,
+    val frontendProxy: FrontendProxy?,
 ) {
     companion object {
         const val PLACEHOLDER_ID = "PLACEHOLDER"
@@ -99,7 +129,17 @@ class IMConfiguration(
                 NativeFile.open("$CONFIG_PATH/plugins.json", readOnly = true).readText()
             )
 
-            return IMConfiguration(CONFIG_PATH, serverMode, core, plugins, server)
+            // NOTE(Dan): Deployment notes. The configuration should be on both the frontend and the dedicated node.
+            // The frontend proxy needs to be in the same group as the ucloud user, but run as a separate user.
+            // The ucloud user should be able to read all the configuration files. The frontend proxy should not be
+            // able to read the server configuration.
+            val frontendProxy = runCatching {
+                Json.decodeFromString<FrontendProxy>(
+                    NativeFile.open("$CONFIG_PATH/frontend_proxy.json", readOnly = true).readText()
+                )
+            }.getOrNull()
+
+            return IMConfiguration(CONFIG_PATH, serverMode, core, plugins, server, frontendProxy)
         }
     }
 
@@ -146,9 +186,12 @@ class IMConfiguration(
 
     @Serializable
     data class Plugins(
+        val files: ProductBasedConfiguration? = null,
+        val fileCollection: ProductBasedConfiguration? = null,
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
         val identityMapper: JsonObject? = null,
+        val projects: JsonObject? = null,
     )
 
     @Serializable
@@ -172,4 +215,12 @@ class IMConfiguration(
         data class UCloud(val host: String, val scheme: String, val port: Int)
     }
 
+
+    @Serializable
+    data class FrontendProxy(
+        val remoteHost: String,
+        val remotePort: Int,
+        val remoteScheme: String,
+        val sharedSecret: String,
+    )
 }

@@ -4,6 +4,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.app.kubernetes.api.IsPausedResponse
 import dk.sdu.cloud.app.kubernetes.api.Maintenance
 import dk.sdu.cloud.app.kubernetes.services.MaintenanceService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.HttpCall

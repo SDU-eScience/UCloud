@@ -14,7 +14,6 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.task.api.*
-import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
@@ -136,17 +135,6 @@ class FilesService(
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<UFile> {
-        (ctx ?: db).withSession { session ->
-            session.sendPreparedStatement(
-                {
-
-                },
-                """
-                    select pg_sleep(3)
-                """,
-                "Sleep"
-            )
-        }
         val path = request.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val resolvedCollection = collectionFromPath(actorAndProject, path, Permission.READ)
         verifyReadRequest(request.flags, resolvedCollection.status.resolvedSupport!!.support)
@@ -587,7 +575,9 @@ class FilesService(
                         }
                     }
 
-                    moveHandlers.forEach { handler -> handler(batch) }
+                    if (batch.isNotEmpty()) {
+                        moveHandlers.forEach { handler -> handler(batch) }
+                    }
 
                     registerTasks(
                         findTasksInBackgroundFromResponse(response)

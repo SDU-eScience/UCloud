@@ -14,10 +14,7 @@ import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.ResourceService
 import dk.sdu.cloud.accounting.util.SqlObject
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
@@ -31,7 +28,6 @@ import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.serializer

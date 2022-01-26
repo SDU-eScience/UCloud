@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PaginationRequestV2Consistency
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
 import org.imgscalr.Scalr

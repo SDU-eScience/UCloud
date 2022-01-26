@@ -463,7 +463,7 @@ class KubernetesClient(
             try {
                 return httpClient.request {
                     this.method = method
-                    url(buildUrl(locator, queryParameters, operation).also { log.debug("${method.value} $it") })
+                    url(buildUrl(locator, queryParameters, operation).also { log.trace("${method.value} $it") })
                     header(HttpHeaders.Accept, ContentType.Application.Json)
                     if (content != null) body = content
                     configureRequest(this)

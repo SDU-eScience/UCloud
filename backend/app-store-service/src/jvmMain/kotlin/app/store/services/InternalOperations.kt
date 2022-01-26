@@ -5,6 +5,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.ApplicationAccessRight
 import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -17,7 +18,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 
 /*
 * Avoid using if possible, especially in loops
@@ -143,8 +143,8 @@ internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: Str
             },
             """
                 SELECT *
-                FROM applications
-                WHERE name = ?appname
+                FROM app_store.applications
+                WHERE name = :appname
                 LIMIT 1
             """.trimIndent()
         ).rows.singleOrNull()?.getField(ApplicationTable.owner)

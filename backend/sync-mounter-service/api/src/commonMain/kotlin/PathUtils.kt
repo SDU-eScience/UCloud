@@ -1,7 +1,7 @@
 package dk.sdu.cloud.sync.mounter.api
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.HttpStatusCode
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
     val basePath = components.joinToString("/") + (if (isDirectory) "/" else "").normalize()

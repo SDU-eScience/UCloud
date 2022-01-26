@@ -201,9 +201,17 @@ data class WalletAllocation(
 
 @Serializable
 data class PushWalletChangeRequestItem(
-    val owner: WalletOwner,
+    val allocationId: String,
     val amount: Long,
-    val productId: ProductReference,
+)
+
+@Serializable
+data class RegisterWalletRequestItem(
+    val owner: WalletOwner,
+    val uniqueAllocationId: String,
+    val categoryId: String,
+    val balance: Long,
+    val providerGeneratedId: String? = null,
 )
 
 @Serializable
@@ -325,13 +333,22 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         """.trimIndent()
     }
 
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
     val push = call<BulkRequest<PushWalletChangeRequestItem>, PushWalletChangeResponse, CommonErrorMessage>(
         "push"
     ) {
-        httpUpdate(baseContext, "push", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "push", roles = Roles.PROVIDER)
 
         documentation {
-            summary = "Pushes a Wallet to the catalog (Not yet implemented)"
+            summary = "Pushes a Wallet to the catalog"
+        }
+    }
+
+    val register = call<BulkRequest<RegisterWalletRequestItem>, Unit, CommonErrorMessage>("register") {
+        httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
+
+        documentation {
+            summary = "Registers an allocation created outside of UCloud"
         }
     }
 
@@ -368,6 +385,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
+    @UCloudApiExperimental(ExperimentalLevel.BETA)
     val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
         CommonErrorMessage>("retrieveRecipient") {
         httpRetrieve(baseContext, "recipient")
@@ -527,7 +545,8 @@ data class RootDepositRequestItem(
     val description: String,
     val startDate: Long? = null,
     val endDate: Long? = null,
-    var transactionId: String = Random.nextLong().toString() + Time.now()
+    var transactionId: String = Random.nextLong().toString() + Time.now(),
+    val providerGeneratedId: String? = null
 )
 
 object Accounting : CallDescriptionContainer("accounting") {

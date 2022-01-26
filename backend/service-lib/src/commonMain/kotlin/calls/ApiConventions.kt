@@ -3,7 +3,6 @@
 package dk.sdu.cloud.calls
 
 import dk.sdu.cloud.*
-import io.ktor.http.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable

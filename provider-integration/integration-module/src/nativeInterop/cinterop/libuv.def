@@ -1,5 +1,0 @@
-package = uv
-headers = uv.h
-staticLibraries = libuv.a
-libraryPaths = vendor/libuv/linux
-headerFilter = uv.h
