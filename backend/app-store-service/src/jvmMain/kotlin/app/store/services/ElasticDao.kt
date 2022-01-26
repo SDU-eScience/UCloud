@@ -1,10 +1,10 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.app.store.api.Application
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import org.elasticsearch.action.admin.indices.flush.FlushRequest

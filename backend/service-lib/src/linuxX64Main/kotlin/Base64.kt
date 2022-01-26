@@ -1,9 +1,9 @@
 package dk.sdu.cloud
 
 actual fun base64Encode(value: ByteArray): String {
-    TODO()
+    return base64EncodeCommon(value)
 }
 
 actual fun base64Decode(value: String): ByteArray {
-    TODO()
+    return base64DecodeCommon(value)
 }

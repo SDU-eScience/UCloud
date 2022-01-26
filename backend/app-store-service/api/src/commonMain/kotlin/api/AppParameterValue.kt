@@ -2,7 +2,7 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.WithStringId
 import dk.sdu.cloud.calls.*
-import io.ktor.http.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

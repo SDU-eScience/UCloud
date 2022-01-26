@@ -7,11 +7,11 @@ import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
-import io.ktor.http.*
 
 class ProviderSupport<Communication : ProviderComms, P : Product, Support : ProductSupport>(
     private val providers: Providers<Communication>,

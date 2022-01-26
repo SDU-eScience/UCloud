@@ -346,7 +346,7 @@ class RpcServer {
         try {
             val handler = handlers[call] ?: run {
                 log.error("Was asked to handle incoming call: $call but no such handler was found!")
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.InternalServerError)
             }
 
             log.trace("Running BeforeParsing filters")
@@ -365,7 +365,7 @@ class RpcServer {
                     else -> {
                         log.debug("Suppressed parsing exception follows $call:")
                         log.debug(ex.stackTraceToString())
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                     }
                 }
             }
@@ -383,7 +383,7 @@ class RpcServer {
             response = responseResult
             if (responseResult == null) {
                 log.error("Did not receive a response from call handler: $call")
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.InternalServerError)
             }
 
             log.trace("Running BeforeResponse filters")
@@ -407,10 +407,10 @@ class RpcServer {
                 }
             }
 
-            val statusCode = (ex as? RPCException)?.httpStatusCode ?: HttpStatusCode.InternalServerError
+            val statusCode = (ex as? RPCException)?.httpStatusCode ?: dk.sdu.cloud.calls.HttpStatusCode.InternalServerError
             val callResult =
                 if (call.errorType.descriptor.serialName.endsWith("CommonErrorMessage") && ex is RPCException) {
-                    val errorMessage = if (statusCode != HttpStatusCode.InternalServerError) {
+                    val errorMessage = if (statusCode != dk.sdu.cloud.calls.HttpStatusCode.InternalServerError) {
                         CommonErrorMessage(ex.why, ex.errorCode)
                     } else {
                         log.warn("${call.fullName} $request Internal server error:\n${ex.stackTraceToString()}")
@@ -418,11 +418,11 @@ class RpcServer {
                     }
 
                     @Suppress("UNCHECKED_CAST")
-                    OutgoingCallResponse.Error(errorMessage as E, statusCode)
+                    OutgoingCallResponse.Error(errorMessage as E, HttpStatusCode(statusCode.value, statusCode.description))
                 } else if (isEarlyClose) {
                     OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(499, "Connection closed early by client"))
                 } else {
-                    OutgoingCallResponse.Error<S, E>(null, statusCode)
+                    OutgoingCallResponse.Error<S, E>(null, HttpStatusCode(statusCode.value, statusCode.description))
                 }
             log.debug("   Responding [${ctx.jobIdOrNull?.take(4)}]: ${call.fullName} ($callResult)")
 

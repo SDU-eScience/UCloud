@@ -2,10 +2,10 @@ package dk.sdu.cloud.app.kubernetes.services.proxy
 
 import dk.sdu.cloud.app.kubernetes.services.ResourceCache
 import dk.sdu.cloud.app.kubernetes.services.VerifiedJobCache
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.BroadcastingStream
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex

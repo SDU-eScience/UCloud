@@ -2,11 +2,11 @@ package dk.sdu.cloud.auth.services
 
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.auth.api.ServiceAgreementText
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.http.HttpStatusCode
 
 class SLAService(
     private val serviceLicenseAgreement: ServiceAgreementText,

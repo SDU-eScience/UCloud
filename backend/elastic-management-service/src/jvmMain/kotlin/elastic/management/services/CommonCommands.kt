@@ -1,10 +1,9 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.*
 import org.apache.http.util.EntityUtils
 import org.elasticsearch.ElasticsearchStatusException
-import org.elasticsearch.action.admin.indices.create.CreateIndexRequest
 import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.admin.indices.forcemerge.ForceMergeRequest
@@ -17,7 +16,6 @@ import org.elasticsearch.client.core.CountRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
 import org.elasticsearch.index.query.QueryBuilders
-import java.net.SocketTimeoutException
 
 internal fun deleteIndex(index: String, elastic: RestHighLevelClient) {
     elastic.indices().delete(DeleteIndexRequest(index), RequestOptions.DEFAULT)

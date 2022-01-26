@@ -3,10 +3,9 @@ package dk.sdu.cloud.service.db.async
 import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
-import io.ktor.http.*
-import java.util.*
 
 data class InjectedSQLStringBeCareful(val text: String)
 

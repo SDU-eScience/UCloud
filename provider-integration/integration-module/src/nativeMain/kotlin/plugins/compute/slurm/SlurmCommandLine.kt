@@ -1,8 +1,8 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.utils.executeCommandToText
-import io.ktor.http.*
 
 object SlurmCommandLine {
     const val SBATCH_EXE = "/usr/bin/sbatch"

@@ -1,17 +1,21 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.http.H2OServer
+import dk.sdu.cloud.file.orchestrator.api.Files
+import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
+import dk.sdu.cloud.http.OutgoingHttpCall
+import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
-import dk.sdu.cloud.plugins.compute.slurm.SlurmJobMapper
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
@@ -19,10 +23,14 @@ import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import platform.posix.*
 import kotlin.coroutines.CoroutineContext
+import kotlin.native.concurrent.TransferMode
+import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
 import dk.sdu.cloud.utils.*
@@ -30,6 +38,7 @@ import dk.sdu.cloud.utils.*
 sealed class ServerMode {
     object User : ServerMode()
     object Server : ServerMode()
+    object FrontendProxy : ServerMode()
     data class Plugin(val name: String) : ServerMode()
 }
 
@@ -120,6 +129,7 @@ fun main(args: Array<String>) {
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User
             args.getOrNull(0) == "server" || args.isEmpty() -> ServerMode.Server
+            args.getOrNull(0) == "proxy" -> ServerMode.FrontendProxy
             else -> ServerMode.Plugin(args[0])
         }
 
@@ -131,11 +141,64 @@ fun main(args: Array<String>) {
             val config = try {
                 IMConfiguration.load(serverMode)
             } catch (ex: ConfigurationException.IsBeingInstalled) {
+                if (getuid() == 0U) {
+                    throw IllegalStateException(
+                        "Refusing to start as root. The integration module needs to be " +
+                            "started as a dedicated 'ucloud' (service) user."
+                    )
+                }
+
                 runInstaller(ex.core, ex.server, ownExecutable)
                 exitProcess(0)
             } catch (ex: ConfigurationException.BadConfiguration) {
                 println(ex.message)
                 exitProcess(1)
+            }
+
+            // Verify that we didn't manage to read parts of the configuration we shouldn't be able to
+            val uid = getuid()
+            when (serverMode) {
+                ServerMode.FrontendProxy -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start the frontend proxy as root")
+
+                    if (config.server != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions! The frontend proxy should " +
+                                "not be able to read server.json"
+                        )
+                    }
+                    if (config.frontendProxy == null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions! The frontend proxy should " +
+                                "be able to read frontend_proxy.json"
+                        )
+                    }
+                }
+
+                is ServerMode.Plugin -> {
+                    // Do nothing (some plugins will run as root, which is fine)
+                }
+
+                ServerMode.Server -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start the server as root")
+                }
+
+                ServerMode.User -> {
+                    if (uid == 0U) throw IllegalStateException("Refusing the start a user instance as root")
+
+                    if (config.server != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions. A user should not be able " +
+                                "to read server.json"
+                        )
+                    }
+                    if (config.frontendProxy != null) {
+                        throw IllegalStateException(
+                            "Misconfiguration of file permissions. A user should not be able " +
+                                "to read frontend_proxy.json"
+                        )
+                    }
+                }
             }
 
             val validation = NativeJWTValidation(config.core.certificate!!)
@@ -150,15 +213,21 @@ fun main(args: Array<String>) {
                 handler.migrate()
             }
 
-            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
-            val ipcServer = if (serverMode != ServerMode.Server) null else IpcServer(ipcSocketDirectory)
-            val ipcClient = if (serverMode == ServerMode.Server) null else IpcClient(ipcSocketDirectory)
-            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
-
             val rpcServerPort = when (serverMode) {
-                is ServerMode.Plugin -> null
+                is ServerMode.Plugin, ServerMode.FrontendProxy -> null
                 ServerMode.Server -> UCLOUD_IM_PORT
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
+            }
+
+            val rpcServer = when (serverMode) {
+                ServerMode.Server, ServerMode.User -> RpcServer(rpcServerPort!!)
+                else -> null
+            }
+
+            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
+            val ipcClient = when (serverMode) {
+                ServerMode.Server, ServerMode.FrontendProxy -> null
+                else -> IpcClient(ipcSocketDirectory)
             }
 
             val providerClient = run {
@@ -181,7 +250,7 @@ fun main(args: Array<String>) {
 
                         val authenticator = RefreshingJWTAuthenticator(
                             client,
-                            JwtRefresher.Provider(serverConfig.refreshToken),
+                            JwtRefresher.Provider(serverConfig.refreshToken, OutgoingHttpCall),
                             becomesInvalidSoon = { accessToken ->
                                 val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
                                 (expiresAt ?: return@RefreshingJWTAuthenticator true) +
@@ -198,12 +267,44 @@ fun main(args: Array<String>) {
                         AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
                     }
 
+                    ServerMode.FrontendProxy -> {
+                        val cfg = config.frontendProxy!!
+                        val client = RpcClient().also { client ->
+                            OutgoingHttpRequestInterceptor()
+                                .install(
+                                    client,
+                                    FixedOutgoingHostResolver(
+                                        HostInfo(
+                                            cfg.remoteHost,
+                                            cfg.remoteScheme,
+                                            cfg.remotePort
+                                        )
+                                    )
+                                )
+                        }
+
+                        AuthenticatedClient(client, OutgoingHttpCall) {
+                            it.attributes.outgoingAuthToken = cfg.sharedSecret
+                        }
+                    }
+
                     is ServerMode.Plugin -> null
                 }
             }
 
+            val ipcServer = when (serverMode) {
+                ServerMode.Server, ServerMode.FrontendProxy -> IpcServer(
+                    ipcSocketDirectory,
+                    config.frontendProxy!!,
+                    providerClient!!,
+                    rpcServer
+                )
+                else -> null
+            }
+            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+
             if (ipcServer != null && providerClient != null) {
-                IpcProxyServer().init(ipcServer, providerClient)
+                IpcToUCloudProxyServer().init(ipcServer, providerClient)
             }
 
             val pluginContext = SimplePluginContext(
@@ -247,20 +348,29 @@ fun main(args: Array<String>) {
 
             when (serverMode) {
                 ServerMode.Server, ServerMode.User -> {
-                    val server = H2OServer(rpcServerPort!!)
-                    with(server) {
-                        configureControllers(
+                    if (rpcServer != null) {
+                        rpcServer.configureControllers(
                             controllerContext,
+                            FileController(controllerContext, envoyConfig),
+                            FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
-                            ConnectionController(controllerContext, envoyConfig)
+                            ConnectionController(controllerContext, envoyConfig),
+                            AccountingController(controllerContext)
                         )
-                    }
 
-                    server.start()
+                        rpcServer.start()
+                    }
                 }
 
                 is ServerMode.Plugin -> {
                     cli!!.execute(serverMode.name)
+                }
+
+                ServerMode.FrontendProxy -> {
+                    // Just spin, the IPC server is running in a separate thread
+                    while (isActive) {
+                        delay(50)
+                    }
                 }
             }
         }
@@ -270,7 +380,7 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun H2OServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
+private fun RpcServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
     controllers.forEach { with(it) { configure() } }
 
     val ipcServer = ctx.pluginContext.ipcServerOptional

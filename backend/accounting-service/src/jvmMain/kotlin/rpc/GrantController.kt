@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
 import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
 import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*

@@ -34,6 +34,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.CachingOptions
 import io.ktor.request.header
 import io.ktor.response.header
+import io.ktor.util.*
 import org.slf4j.LoggerFactory
 import java.net.MalformedURLException
 import java.net.URL
@@ -64,12 +65,12 @@ class CoreAuthController(
                 } else {
                     // Block request (OWASP recommendation)
                     log.info("Missing referer and origin header")
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
             } catch (ex: MalformedURLException) {
                 // Block request (OWASP recommendation)
                 log.info("Bad URL from header: $referer $origin")
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
             }
 
             if (!isValidHostname(hostnameFromHeaders)) {
@@ -77,7 +78,7 @@ class CoreAuthController(
                     "Origin from headers (referer=$referer, origin=$origin, " +
                             "hostnameFromHeaders=$hostnameFromHeaders) is not trusted."
                 )
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
             }
         }
     }
@@ -100,7 +101,7 @@ class CoreAuthController(
         implement(AuthDescriptions.refresh) {
             withContext<HttpCall> {
                 @Suppress("DEPRECATION") // We need to use the bearer token from the header
-                val refreshToken = ctx.call.request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                val refreshToken = ctx.call.request.bearer ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.Unauthorized)
 
                 val token = tokenService.refresh(refreshToken)
                 ok(AccessToken(token.accessToken))
@@ -117,10 +118,10 @@ class CoreAuthController(
             with(ctx as HttpCall) {
                 // Then validate CSRF and refresh token
                 val csrfToken = call.request.header(REFRESH_WEB_CSRF_TOKEN)
-                    ?: throw RPCException("Missing CSRF token", HttpStatusCode.BadRequest)
+                    ?: throw RPCException("Missing CSRF token", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
 
                 val refreshToken = call.request.cookies[REFRESH_WEB_REFRESH_TOKEN_COOKIE]
-                    ?: throw RPCException("Missing refresh token", HttpStatusCode.BadRequest)
+                    ?: throw RPCException("Missing refresh token", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
 
                 ok(tokenService.refresh(refreshToken, csrfToken))
             }
@@ -142,11 +143,11 @@ class CoreAuthController(
                 log.debug("Validating input token")
                 log.debug("Principal: $securityPrincipal")
                 val token = tokenValidation.validateOrNull(request.validJWT)?.toSecurityToken()
-                    ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                    ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.Unauthorized)
 
                 log.debug("Validating extender role versus input token")
                 if (securityPrincipal.role !in Roles.PRIVILEGED) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                    throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.Unauthorized)
                 }
 
                 audit(auditMessage.copy(username = token.principal.username, role = token.principal.role))
@@ -165,7 +166,7 @@ class CoreAuthController(
         }
 
         implement(AuthDescriptions.requestOneTimeTokenWithAudience) {
-            val bearerToken = ctx.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+            val bearerToken = ctx.bearer ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.Unauthorized)
 
             val audiences = request.audience.split(",")
                 .asSequence()
@@ -192,7 +193,7 @@ class CoreAuthController(
             withContext<HttpCall> {
                 @Suppress("DEPRECATION") // We need to use the bearer token from the request
                 val refreshToken =
-                    ctx.call.request.bearer ?: throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                    ctx.call.request.bearer ?: throw RPCException.fromStatusCode(dk.sdu.cloud.calls.HttpStatusCode.Unauthorized)
 
                 tokenService.logout(refreshToken)
                 ok(Unit)

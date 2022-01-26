@@ -1,7 +1,7 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
 @Serializable

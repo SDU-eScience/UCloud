@@ -6,16 +6,16 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
+import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.http.H2OServer
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 
 abstract class BaseResourceController<
@@ -69,10 +69,9 @@ abstract class BaseResourceController<
         return result
     }
 
-    protected abstract fun H2OServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
+    protected abstract fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
 
-    override fun H2OServer.configure() {
-        println("Configuring ${this@BaseResourceController::class.simpleName}")
+    override fun RpcServer.configure() {
         val plugins = retrievePlugins()
         if (plugins == null) {
             println("No plugins active for ${this@BaseResourceController::class.simpleName}")
@@ -144,9 +143,19 @@ abstract class BaseResourceController<
             OutgoingCallResponse.Ok(Unit)
         }
 
-        configureCustomEndpoints(plugins, api)
+        implement(api.init) {
+            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            plugins.plugins.forEach { (_, plugin) ->
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        init(request.principal)
+                    }
+                }
+            }
 
-        /*
-        */
+            OutgoingCallResponse.Ok(Unit)
+        }
+
+        configureCustomEndpoints(plugins, api)
     }
 }

@@ -1,14 +1,13 @@
 package dk.sdu.cloud.news.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.news.api.NewsPost
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
-import org.joda.time.LocalDate
 import org.joda.time.LocalDateTime
 
 object NewsTable : SQLTable("news") {

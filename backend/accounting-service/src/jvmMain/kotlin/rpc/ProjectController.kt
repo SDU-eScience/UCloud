@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectException
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.service.*

@@ -1,9 +1,9 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Logger
-import io.ktor.http.*
 import kotlin.math.absoluteValue
 
 private const val OPERATION_NOT_PERMITED = 1

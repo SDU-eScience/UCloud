@@ -2,13 +2,10 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PaginationRequest
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 
 class ApplicationLogoAsyncDao(
     private val appStoreAsyncDao: AppStoreAsyncDao

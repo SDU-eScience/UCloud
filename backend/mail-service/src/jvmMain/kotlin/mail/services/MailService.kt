@@ -2,9 +2,7 @@ package dk.sdu.cloud.mail.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.auth.api.LookupEmailRequest
-import dk.sdu.cloud.auth.api.LookupEmailResponse
-import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -22,7 +20,6 @@ import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
-import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.mail.utils.*
 import dk.sdu.cloud.service.escapeHtml
 import org.joda.time.DateTimeZone
