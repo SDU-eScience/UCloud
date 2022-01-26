@@ -79,9 +79,6 @@ kotlin {
 
         val macosX64Main by getting {
             dependencies {
-//                api("io.ktor:ktor-client-curl:$ktorVersion")
-//                api("io.ktor:ktor-client-websockets:$ktorVersion")
-//                api("io.ktor:ktor-client-cio:$ktorVersion")
             }
         }
         val macosX64Test by getting {}
