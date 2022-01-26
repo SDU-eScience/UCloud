@@ -8,8 +8,8 @@ import dk.sdu.cloud.auth.services.PersonService
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.UserAsyncDAO
 import dk.sdu.cloud.auth.services.UserCreationService
-import dk.sdu.cloud.auth.services.UserException
 import dk.sdu.cloud.auth.services.UserIterationService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -19,11 +19,9 @@ import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.application.call
 import io.ktor.features.origin
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.userAgent
 
 class UserController(
@@ -48,22 +46,32 @@ class UserController(
                         null, Role.ADMIN, Role.USER -> {
                             val email = user.email
                             if (!email.isNullOrBlank() && email.contains("@")) {
-                                personService.createUserByPassword(
-                                    firstNames = user.username,
-                                    lastName = "N/A",
-                                    username = user.username,
-                                    role = user.role ?: Role.USER,
-                                    password = user.password
-                                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                    email = email,
-                                    organization = user.organization,
-                                )
+                                if (user.firstnames.isNullOrBlank() || user.lastname.isNullOrBlank()) {
+                                    personService.createUserByPassword(
+                                        firstNames = user.username,
+                                        lastName = "N/A",
+                                        username = user.username,
+                                        role = user.role ?: Role.USER,
+                                        password = user.password
+                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                        email = email
+                                    )
+                                } else {
+                                    personService.createUserByPassword(
+                                        firstNames = user.firstnames!!,
+                                        lastName = user.lastname!!,
+                                        username = user.username,
+                                        role = user.role ?: Role.USER,
+                                        password = user.password
+                                            ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
+                                        email = email
+                                    )
+                                }
                             }
                             else {
                                 throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Valid email required")
                             }
                         }
-
                         else -> {
                             throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                         }

@@ -1,6 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer

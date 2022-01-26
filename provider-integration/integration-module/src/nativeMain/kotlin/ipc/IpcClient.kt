@@ -1,10 +1,10 @@
 package dk.sdu.cloud.ipc
 
 import dk.sdu.cloud.ProcessingScope
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import kotlinx.coroutines.GlobalScope
@@ -60,7 +60,7 @@ sealed class JsonRpcResponse {
         override val jsonrpc: String = "2.0"
     ) : JsonRpcResponse() {
         fun rethrow(): Nothing {
-            throw RPCException(error.message, HttpStatusCode.fromValue(error.code))
+            throw RPCException(error.message, HttpStatusCode.parse(error.code))
         }
     }
 
@@ -142,7 +142,8 @@ class IpcClient(
                 sendRequest(JsonRpcNotification("ping", JsonObject(emptyMap())))
 
                 while (!writeChannel.isClosedForReceive) {
-                    val next = writeChannel.receiveOrNull() ?: break
+                    val next = writeChannel.receiveCatching().getOrNull() ?: break
+
                     try {
                         sendRequest(next.payload)
                         val value = parseResponse()
@@ -182,4 +183,18 @@ suspend inline fun <reified Req, reified Resp> IpcClient.sendRequest(
             defaultMapper.encodeToJsonElement(request) as JsonObject
         )
     ).orThrow()
+}
+
+inline fun <reified Req, reified Resp> IpcClient.sendRequestBlocking(
+    call: TypedIpcHandler<Req, Resp>,
+    request: Req
+): Resp {
+    return runBlocking {
+        sendRequest(
+            JsonRpcRequest(
+                call.method,
+                defaultMapper.encodeToJsonElement(request) as JsonObject
+            )
+        ).orThrow()
+    }
 }

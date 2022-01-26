@@ -10,7 +10,7 @@ import {PropsWithChildren, useCallback, useEffect, useMemo, useRef, useState} fr
 export interface ClickableDropdownProps<T> {
     trigger: React.ReactNode;
     children?: any;
-    options?: { text: string; value: T }[];
+    options?: {text: string; value: T}[];
 
     keepOpenOnClick?: boolean;
     keepOpenOnOutsideClick?: boolean;
@@ -114,7 +114,7 @@ const ClickableDropdown: ClickableDropdownType =
         }, [props.keepOpenOnOutsideClick, open]);
 
         const handleEscPress: (ev: KeyboardEvent) => void = useCallback((event): void => {
-            if (event.keyCode === KeyCode.ESC && open) {
+            if (event.key === "Escape" && open) {
                 close();
             } else {
                 props.onKeyDown?.(event);
@@ -123,13 +123,18 @@ const ClickableDropdown: ClickableDropdownType =
 
 
         useEffect(() => {
-            document.addEventListener("mousedown", handleClickOutside);
-            document.addEventListener("keydown", handleEscPress);
+            if (open) {
+                document.addEventListener("mousedown", handleClickOutside);
+                document.addEventListener("keydown", handleEscPress);
+            } else {
+                document.removeEventListener("mousedown", handleClickOutside);
+                document.removeEventListener("keydown", handleEscPress);
+            }
             return () => {
                 document.removeEventListener("mousedown", handleClickOutside);
                 document.removeEventListener("keydown", handleEscPress);
             };
-        }, [handleClickOutside, handleEscPress]);
+        }, [handleClickOutside, handleEscPress, open]);
 
         let children: React.ReactNode[] = [];
         if (props.options !== undefined && onChange) {
@@ -197,10 +202,10 @@ const ClickableDropdown: ClickableDropdownType =
                 </Text.TextSpan>
                 {emptyChildren || !open ? null : (
                     props.useMousePositioning ?
-                    ReactDOM.createPortal(
-                        dropdownContent,
-                        portal
-                    ) : dropdownContent
+                        ReactDOM.createPortal(
+                            dropdownContent,
+                            portal
+                        ) : dropdownContent
                 )}
             </Dropdown>
         );

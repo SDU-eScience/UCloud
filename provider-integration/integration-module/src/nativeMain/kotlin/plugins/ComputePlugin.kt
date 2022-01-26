@@ -5,8 +5,8 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.*
 import kotlinx.coroutines.channels.ReceiveChannel
 
 interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ProductBasedConfiguration> {

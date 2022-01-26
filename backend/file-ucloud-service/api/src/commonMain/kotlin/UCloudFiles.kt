@@ -6,7 +6,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.file.orchestrator.api.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 @TSNamespace("file.ucloud.files")

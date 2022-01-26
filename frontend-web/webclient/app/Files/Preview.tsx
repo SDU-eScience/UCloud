@@ -32,7 +32,7 @@ export const FilePreview: React.FunctionComponent<{file: UFile}> = ({file}) => {
                     FilesApi.createDownload(bulkRequestOf({id: file.id})),
                     {defaultErrorHandler: false}
                 );
-                const downloadEndpoint = download?.responses[0]?.endpoint;
+                const downloadEndpoint = download?.responses[0]?.endpoint.replace("integration-module:8889", "localhost:9000");
                 if (!downloadEndpoint) {
                     setError("Unable to display preview. Try again later or with a different file.");
                     return;

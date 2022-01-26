@@ -6,9 +6,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.*
-import org.slf4j.LoggerFactory
 
 sealed class JWTException(why: String, httpStatusCode: HttpStatusCode) : RPCException(why, httpStatusCode) {
     class InternalError(why: String) : JWTException(why, HttpStatusCode.InternalServerError)

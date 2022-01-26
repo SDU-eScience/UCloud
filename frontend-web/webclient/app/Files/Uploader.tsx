@@ -121,7 +121,7 @@ function createResumeable(
             const progressStart = upload.progressInBytes;
             const request = new XMLHttpRequest();
 
-            request.open("POST", strategy!.endpoint);
+            request.open("POST", strategy!.endpoint.replace("integration-module:8889", "localhost:9000"));
             request.setRequestHeader("Chunked-Upload-Token", strategy!.token);
             request.setRequestHeader("Chunked-Upload-Offset", (reader.offset - chunk.byteLength).toString(10));
             request.setRequestHeader("Content-Type", "application/octet-stream");
@@ -459,7 +459,7 @@ const renderer: ItemRenderer<Upload> = {
                 </ListRowStat>
             }
             {!resource.error ? null : <ListRowStat icon={"close"} color={"red"}>
-                <ErrorSpan>Quota has been exceeded. Delete some files and try again later.</ErrorSpan>
+                <ErrorSpan>{resource.error}</ErrorSpan>
             </ListRowStat>}
         </>
     },

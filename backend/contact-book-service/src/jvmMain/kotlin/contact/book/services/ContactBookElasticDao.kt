@@ -1,9 +1,9 @@
 package dk.sdu.cloud.contact.book.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import io.ktor.http.HttpStatusCode
 import org.elasticsearch.action.admin.indices.flush.FlushRequest
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest

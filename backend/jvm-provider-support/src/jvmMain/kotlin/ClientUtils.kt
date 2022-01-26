@@ -25,7 +25,7 @@ fun UCloudClient(
 
     val authenticator = RefreshingJWTAuthenticator(
         client,
-        JwtRefresher.Provider(refreshToken)
+        JwtRefresher.Provider(refreshToken, OutgoingHttpCall)
     )
 
     return runBlocking { UCloudClient(authenticator.authenticateClient(OutgoingHttpCall)) }

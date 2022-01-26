@@ -1,14 +1,11 @@
 package dk.sdu.cloud.contact.book.rpc
 
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.contact.book.api.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.contact.book.services.ContactBookService
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.HttpStatusCode
-import java.lang.IllegalArgumentException
 
 class ContactBookController(
     private val contactBookService: ContactBookService

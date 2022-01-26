@@ -3,6 +3,7 @@ package dk.sdu.cloud.task.services
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.mapItems
 import dk.sdu.cloud.paginate
@@ -17,7 +18,6 @@ import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.task.api.Task
-import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*

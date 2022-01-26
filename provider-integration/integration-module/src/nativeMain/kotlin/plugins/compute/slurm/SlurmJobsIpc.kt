@@ -4,6 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.app.orchestrator.api.JobUpdate
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
@@ -18,7 +19,6 @@ import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.withTransaction
-import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.decodeFromJsonElement

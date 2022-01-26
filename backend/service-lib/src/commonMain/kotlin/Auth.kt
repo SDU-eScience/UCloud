@@ -298,3 +298,113 @@ data class SecurityScope internal constructor(
 
 expect fun base64Encode(value: ByteArray): String
 expect fun base64Decode(value: String): ByteArray
+
+private val encodingTable: CharArray = charArrayOf(
+    'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W',
+    'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+    'u', 'v', 'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '+', '/',
+)
+
+fun base64EncodeCommon(value: ByteArray): String {
+    val size = value.size
+    val mod = size % 3
+    val padding = ((mod and 1) shl 1) + ((mod and 2) shr 1)
+    val output = StringBuilder(4 * (size + padding) / 3)
+
+    var ptr = 0
+    while (ptr <= size - 3) {
+        val b0 = (value[ptr].toInt() and 0xFF)
+        val b1 = (value[ptr + 1].toInt() and 0xFF)
+        val b2 = (value[ptr + 2].toInt() and 0xFF)
+        output.append(encodingTable[b0 shr 2])
+        output.append(encodingTable[(((0x3 and b0) shl 4) + (b1 shr 4))])
+        output.append(encodingTable[(((0x0F and b1) shl 2) + (b2 shr 6))])
+        output.append(encodingTable[(0x3F and b2)])
+        ptr += 3
+    }
+
+    if (padding == 2) {
+        val lastByte = (value[ptr].toInt() and 0xFF)
+        output.append(encodingTable[(lastByte shr 2)])
+        output.append(encodingTable[((0x3 and lastByte) shl 4)])
+        output.append('=')
+        output.append('=')
+    } else if (padding == 1) {
+        val b0 = value[ptr].toInt() and 0xFF
+        val b1 = value[ptr + 1].toInt() and 0xFF
+        output.append(encodingTable[(b0 shr 2)])
+        output.append(encodingTable[(((0x3 and b0) shl 4) + (b1 shr 4))])
+        output.append(encodingTable[(((0x0F and b1) shl 2))])
+        output.append('=')
+    }
+
+    return output.toString()
+}
+
+private val decodingTable: IntArray = intArrayOf(
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 62, 0, 0, 0, 63, 52, 53,
+    54, 55, 56, 57, 58, 59, 60, 61, 0, 0,
+    0, 0, 0, 0, 0, 0, 1, 2, 3, 4,
+    5, 6, 7, 8, 9, 10, 11, 12, 13, 14,
+    15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
+    25, 0, 0, 0, 0, 0, 0, 26, 27, 28,
+    29, 30, 31, 32, 33, 34, 35, 36, 37, 38,
+    39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+    49, 50, 51, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0
+)
+
+@Suppress("DuplicatedCode", "UNUSED_CHANGED_VALUE")
+fun base64DecodeCommon(value: String): ByteArray {
+    val length = value.length
+    if (length < 2) return ByteArray(0)
+    val padding = run {
+        if (value.endsWith("==")) 2
+        else if (value.endsWith("=")) 1
+        else 0
+    }
+
+    val output = ByteArray(3 * length / 4 - padding)
+    var outputPtr = 0
+    var ptr = 0
+    while (ptr <= length - 4 - padding) {
+        // NOTE(Dan): If the string is actually base64, then we shouldn't go out-of-bounds
+        val in0 = decodingTable.getOrElse(value[ptr + 0].code) { 0 }
+        val in1 = decodingTable.getOrElse(value[ptr + 1].code) { 0 }
+        val in2 = decodingTable.getOrElse(value[ptr + 2].code) { 0 }
+        val in3 = decodingTable.getOrElse(value[ptr + 3].code) { 0 }
+        output[outputPtr++] = ((in0 shl 2) or (in1 shr 4)).toByte()
+        output[outputPtr++] = ((in1 shl 4) or (in2 shr 2)).toByte()
+        output[outputPtr++] = ((in2 shl 6) or in3).toByte()
+        ptr += 4
+    }
+
+    if (padding == 2) {
+        val in0 = decodingTable.getOrElse(value[ptr + 0].code) { 0 }
+        val in1 = decodingTable.getOrElse(value[ptr + 1].code) { 0 }
+        output[outputPtr++] = ((in0 shl 2) or (in1 shr 4)).toByte()
+    } else if (padding == 1) {
+        val in0 = decodingTable.getOrElse(value[ptr + 0].code) { 0 }
+        val in1 = decodingTable.getOrElse(value[ptr + 1].code) { 0 }
+        val in2 = decodingTable.getOrElse(value[ptr + 2].code) { 0 }
+        output[outputPtr++] = ((in0 shl 2) or (in1 shr 4)).toByte()
+        output[outputPtr++] = ((in1 shl 4) or (in2 shr 2)).toByte()
+    }
+    return output
+}

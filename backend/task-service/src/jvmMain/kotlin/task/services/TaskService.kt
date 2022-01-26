@@ -2,6 +2,7 @@ package dk.sdu.cloud.task.services
 
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.SecurityPrincipal
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
@@ -11,7 +12,6 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.task.api.Task
 import dk.sdu.cloud.task.api.TaskUpdate
-import io.ktor.http.HttpStatusCode
 
 class TaskService(
     private val db: DBContext,

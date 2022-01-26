@@ -3,3 +3,27 @@ staticLibraries = libjwt.a
 libraryPaths = vendor/libjwt/linux
 linkerOpts = -L/usr/lib/x86_64-linux-gnu -lssl -lcrypto -ljansson
 
+---
+
+jwt_t *jwt_new_kt_fix() {
+    jwt_t *result = NULL;
+    if (jwt_new(&result) != 0) {
+        return NULL;
+    }
+    return result;
+}
+
+jwt_valid_t *jwt_valid_new_kt_fix(jwt_alg_t alg) {
+    jwt_valid_t *result = NULL;
+    if (jwt_valid_new(&result, alg) != 0) {
+        return NULL;
+    }
+    return result;
+}
+
+jwt_t *jwt_decode_kt_fix(const char *token, const unsigned char *key, int key_len) {
+    jwt_t *result = NULL;
+    int res = jwt_decode(&result, token, key, key_len);
+    if (res != 0) return NULL;
+    return result;
+}

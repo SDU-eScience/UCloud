@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.serializer
 
 typealias AclUpdateHandler = suspend (session: AsyncDBConnection, batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
@@ -69,6 +68,7 @@ class FileCollectionService(
             """
                 insert into file_orchestrator.file_collections (resource, title)
                 select unnest(:ids::bigint[]) id, unnest(:titles::text[]) title
+                on conflict do nothing
             """
         )
     }

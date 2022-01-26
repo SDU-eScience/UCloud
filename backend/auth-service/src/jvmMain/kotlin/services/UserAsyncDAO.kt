@@ -5,11 +5,11 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
 import dk.sdu.cloud.auth.api.ServicePrincipal
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.SQLTable
-import dk.sdu.cloud.service.db.async.bool
 import dk.sdu.cloud.service.db.async.byteArray
 import dk.sdu.cloud.service.db.async.getField
 import dk.sdu.cloud.service.db.async.insert
@@ -19,7 +19,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 

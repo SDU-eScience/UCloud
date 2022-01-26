@@ -6,6 +6,7 @@ import com.github.jasync.sql.db.asSuspending
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnection
 import com.github.jasync.sql.db.postgresql.PostgreSQLConnectionBuilder
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AtomicInteger
 import dk.sdu.cloud.calls.server.jobIdOrNull
@@ -13,12 +14,10 @@ import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.databaseConfig
-import dk.sdu.cloud.micro.feature
 import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.DBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.future.await
 import java.util.concurrent.atomic.AtomicBoolean

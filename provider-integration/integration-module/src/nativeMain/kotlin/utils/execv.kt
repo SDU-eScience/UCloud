@@ -1,5 +1,7 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.forkAndReplace
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.wexitstatus
 import dk.sdu.cloud.wifexited
 import kotlinx.cinterop.*
@@ -21,7 +23,7 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: Lis
     }
     nativeArgs[args.size] = null
 
-    var nativeEnv =  nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size)
+    var nativeEnv = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size + 1)
     for (i in envs.indices) {
         nativeEnv[i] = strdup(envs[i])
     }
@@ -32,16 +34,19 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: Lis
     if (newStreams.stdin != null) {
         close(0)
         dup2(newStreams.stdin, 0)
+        close(newStreams.stdin)
     }
 
     if (newStreams.stdout != null) {
         close(1)
         dup2(newStreams.stdout, 1)
+        close(newStreams.stdout)
     }
 
     if (newStreams.stderr != null) {
         close(2)
         dup2(newStreams.stderr, 2)
+        close(newStreams.stderr)
     }
 
 
@@ -57,7 +62,6 @@ fun startProcess(
     createStreams: () -> ProcessStreams
 ): Int {
     val forkResult = fork()
-
 
     if (forkResult == -1) {
         throw IllegalStateException("Could not start new process")
@@ -107,7 +111,7 @@ fun startProcess(
     nonBlockingStdout: Boolean = false,
     nonBlockingStderr: Boolean = false,
 ): Process {
-    memScoped {
+    run {
         var stdinForChild: Int? = null
         var stdoutForChild: Int? = null
         var stderrForChild: Int? = null
@@ -117,9 +121,12 @@ fun startProcess(
         var stderrForParent: NativeInputStream? = null
 
         if (attachStdin) {
-            val pipes = allocArray<IntVar>(2)
-            if (pipe(pipes) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
+            val pipes = IntArray(2).also {
+                it.usePinned { pipes ->
+                    if (pipe(pipes.addressOf(0)) != 0) {
+                        throw IllegalStateException("Failed to create stderr stdin: " + getNativeErrorMessage(errno))
+                    }
+                }
             }
 
             stdinForChild = pipes[0]
@@ -127,38 +134,61 @@ fun startProcess(
         }
 
         if (attachStdout) {
-            val pipes = allocArray<IntVar>(2)
-            if (pipe(pipes) != 0) {
+            val pipes = IntArray(2).also {
+                it.usePinned { pipes ->
+                    if (pipe(pipes.addressOf(0)) != 0) {
+                        throw IllegalStateException("Failed to create stdout pipe: " + getNativeErrorMessage(errno))
+                    }
+
+                }
+            }
+
+            if (nonBlockingStdout && fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
                 throw IllegalStateException(getNativeErrorMessage(errno))
             }
 
-            if (!nonBlockingStdout || fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
-            }
             stdoutForParent = NativeInputStream(pipes[0])
             stdoutForChild = pipes[1]
         }
 
         if (attachStderr) {
-            val pipes = allocArray<IntVar>(2)
-            if (pipe(pipes) != 0) {
-                throw IllegalStateException(getNativeErrorMessage(errno))
+            val pipes = IntArray(2).also {
+                it.usePinned { pipes ->
+                    if (pipe(pipes.addressOf(0)) != 0) {
+                        throw IllegalStateException("Failed to create stderr pipe: " + getNativeErrorMessage(errno))
+                    }
+                }
             }
 
-            if (!nonBlockingStderr || fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
+            if (nonBlockingStderr && fcntl(pipes[0], F_SETFL, fcntl(pipes[0], F_GETFL) or O_NONBLOCK) != 0) {
                 throw IllegalStateException(getNativeErrorMessage(errno))
             }
             stderrForParent = NativeInputStream(pipes[0])
             stderrForChild = pipes[1]
         }
 
-        
+        val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
+        for (i in args.indices) {
+            nativeArgs[i] = strdup(args[i])
+        }
+        nativeArgs[args.size] = null
 
-        val pid = startProcess(args, envs = envs) {
-            ProcessStreams(stdinForChild, stdoutForChild, stderrForChild)
+        var nativeEnv = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(envs.size + 1)
+        for (i in envs.indices) {
+            nativeEnv[i] = strdup(envs[i])
         }
 
-        return Process(stdinForParent, stdoutForParent, stderrForParent, pid)
+        try {
+            val pid =
+                forkAndReplace(nativeArgs, nativeEnv, stdinForChild ?: 0, stdoutForChild ?: 0, stderrForChild ?: 0)
+            if (pid < 0) {
+                throw IllegalStateException(getNativeErrorMessage(errno))
+            }
+            return Process(stdinForParent, stdoutForParent, stderrForParent, pid)
+        } finally {
+            nativeHeap.free(nativeArgs)
+            nativeHeap.free(nativeEnv)
+        }
     }
 }
 
@@ -198,7 +228,6 @@ fun startProcessAndCollectToMemory(
     val stderrBuffer = ByteArray(stderrMaxSizeIntBytes)
 
     var status: ProcessStatus = ProcessStatus(-1)
-
     var breakOnNextIteration = false
     while (breakOnNextIteration || ((isStdoutOpen || isStderrOpen) && status.isRunning)) {
         if (process.stdout != null) {
@@ -246,6 +275,11 @@ fun startProcessAndCollectToMemory(
     if (status.isRunning) {
         status = process.retrieveStatus(waitForExit = true)
     }
+
+    process.stderr?.close()
+    process.stdout?.close()
+    process.stdin?.close()
+
     return ProcessResult(status.getExitCode(), stdoutBuffer.copyOf(stdoutPtr), stderrBuffer.copyOf(stderrPtr))
 }
 

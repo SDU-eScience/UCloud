@@ -2,14 +2,8 @@ package dk.sdu.cloud.provider.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.OutgoingWSCall
-import dk.sdu.cloud.calls.client.withHooks
-import io.ktor.client.request.*
 import kotlinx.serialization.Serializable
 
 typealias IntegrationProviderRetrieveManifestRequest = Unit
@@ -61,29 +55,4 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
     companion object {
         const val UCLOUD_USERNAME_HEADER = "UCloud-Username"
     }
-}
-
-fun AuthenticatedClient.withProxyInfo(username: String?): AuthenticatedClient {
-    return withHooks(
-        beforeHook = {
-            if (username != null) {
-                when (it) {
-                    is OutgoingHttpCall -> {
-                        it.builder.header(
-                            IntegrationProvider.UCLOUD_USERNAME_HEADER,
-                            base64Encode(username.encodeToByteArray())
-                        )
-                    }
-
-                    is OutgoingWSCall -> {
-                        it.attributes[OutgoingWSCall.proxyAttribute] = username
-                    }
-
-                    else -> {
-                        throw IllegalArgumentException("Cannot attach proxy info to this client $it")
-                    }
-                }
-            }
-        }
-    )
 }

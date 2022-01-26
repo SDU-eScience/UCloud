@@ -7,13 +7,13 @@ import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.app.orchestrator.api.ShellResponse
 import dk.sdu.cloud.calls.AttributeKey
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.k8.*
-import io.ktor.http.*
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch

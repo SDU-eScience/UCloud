@@ -4,6 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -16,7 +17,6 @@ import dk.sdu.cloud.file.orchestrator.api.SharesControl
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Time
-import io.ktor.http.*
 
 class ShareService(
     private val fs: NativeFS,

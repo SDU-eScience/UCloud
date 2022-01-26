@@ -1,6 +1,7 @@
 package dk.sdu.cloud.auth.services
 
 import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -15,7 +16,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.text
 import dk.sdu.cloud.service.db.async.timestamp
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import java.util.*

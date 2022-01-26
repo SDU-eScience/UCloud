@@ -4,7 +4,7 @@
 from time import sleep
 import sys, tty, subprocess, shutil, termios, signal, os
 
-print("UCloud Launcher v2021.2.0")
+print("UCloud Launcher v2022.1.0")
 print()
 
 if shutil.which("docker") == None:
@@ -161,7 +161,7 @@ if slurm:
 	print()
 	print()
 	print("register and restart cluster with below command")
-	code("sudo docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld ")
+	print(code("sudo docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld"))
 	print()
 	print(header("Instructions:"))
 	print("Interact with " + code("docker-compose exec slurmctld bash") )

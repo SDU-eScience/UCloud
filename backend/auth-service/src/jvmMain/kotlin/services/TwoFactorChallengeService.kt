@@ -3,12 +3,12 @@ package dk.sdu.cloud.auth.services
 import dk.sdu.cloud.auth.api.Create2FACredentialsResponse
 import dk.sdu.cloud.auth.api.Person
 import dk.sdu.cloud.auth.api.Principal
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import java.util.*
 
 /**

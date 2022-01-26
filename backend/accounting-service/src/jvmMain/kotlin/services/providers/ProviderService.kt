@@ -10,13 +10,13 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRenewRequestItem
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.serializer
 import java.util.*
 
@@ -268,7 +268,7 @@ class ProviderService(
                                 provider.port
                             )
                         )
-                    ).orRethrowAs { throw RPCException("Could not connect to provider", HttpStatusCode.BadRequest) }
+                    )//.orRethrowAs { throw RPCException("Could not connect to provider", HttpStatusCode.BadRequest) }
                 }
 
                 FindByStringId(provider.resource.toString())

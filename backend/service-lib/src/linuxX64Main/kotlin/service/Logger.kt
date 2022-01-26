@@ -72,7 +72,7 @@ object LogManager {
 fun printlnWithLogColor(level: LogLevel, message: String) {
     val color = when (level) {
         LogLevel.TRACE -> ANSI_WHITE
-        LogLevel.DEBUG -> ANSI_WHITE
+        LogLevel.DEBUG -> ANSI_BLUE
         LogLevel.INFO -> ANSI_GREEN
         LogLevel.WARN -> ANSI_YELLOW
         LogLevel.ERROR -> ANSI_RED
@@ -82,6 +82,7 @@ fun printlnWithLogColor(level: LogLevel, message: String) {
 }
 private val ANSI_RESET = "\u001B[0m"
 private val ANSI_RED = "\u001B[31m"
+private val ANSI_BLUE = "\u001B[34m"
 private val ANSI_GREEN = "\u001B[32m"
 private val ANSI_YELLOW = "\u001B[33m"
 private val ANSI_WHITE = "\u001B[37m"

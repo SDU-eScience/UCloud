@@ -1,5 +1,6 @@
 package dk.sdu.cloud.notification.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.notification.api.FindByNotificationId
 import dk.sdu.cloud.notification.api.Notification
@@ -7,7 +8,6 @@ import dk.sdu.cloud.service.NormalizedPaginationRequest
 import dk.sdu.cloud.service.Page
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 

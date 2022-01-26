@@ -12,6 +12,7 @@ import dk.sdu.cloud.app.kubernetes.api.AauComputeMaintenance
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -116,7 +117,7 @@ class ComputeController(
                             defaultMapper.encodeToString(
                                 JsonObject(
                                     mapOf(
-                                        "request" to JsonPrimitive("creation"),
+                                        "request" to JsonPrimitive("deletion"),
                                         "job_id" to JsonPrimitive(req.id),
                                         "owner_username" to JsonPrimitive(req.owner.createdBy),
                                         "owner_project" to JsonPrimitive(req.owner.project),

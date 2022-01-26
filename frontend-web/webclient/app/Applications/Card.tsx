@@ -77,7 +77,7 @@ export const ApplicationCardContainer = styled.div`
 export const SlimApplicationCard: React.FunctionComponent<ApplicationCardProps> = (props) => {
     const {metadata} = props.app;
     return (
-        <AppCardBase to={props.linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
+        <AppCardBase to={Pages.runApplication(metadata)}>
             <Box mr={16}>
                 <AppToolLogo name={metadata.name} type={"APPLICATION"} size={"32px"} />
             </Box>
@@ -287,14 +287,13 @@ export const ApplicationCard: React.FunctionComponent<ApplicationCardProps> = ({
     app,
     onFavorite,
     isFavorite,
-    colorBySpecificTag,
-    linkToRun
+    colorBySpecificTag
 }: ApplicationCardProps) => {
     const hash = hashF(colorBySpecificTag ?? app.metadata.title ?? "fallback");
     const {metadata} = app;
     const appC = appColor(hash);
     return (
-        <AppCard data-component={"app-card"} to={linkToRun ? Pages.runApplication(metadata) : Pages.viewApplication(metadata)}>
+        <AppCard data-component={"app-card"} to={Pages.runApplication(metadata)}>
             <AbsoluteNoPointerEvents right={0} top={0}
                 cursor="inherit"
                 height="100%"

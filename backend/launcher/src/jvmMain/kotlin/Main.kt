@@ -157,7 +157,7 @@ suspend fun main(args: Array<String>) {
 
             val userClient = RefreshingJWTAuthenticator(
                 reg.rootMicro.client,
-                JwtRefresher.Normal(newUser[0].refreshToken)
+                JwtRefresher.Normal(newUser[0].refreshToken, OutgoingHttpCall)
             ).authenticateClient(OutgoingHttpCall)
 
             val project = Projects.create.call(

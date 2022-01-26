@@ -168,7 +168,8 @@ const Resources: React.FunctionComponent = () => {
                                     loadMore={loadMoreAllocations}
                                     filterByAllocation={filterByAllocation}
                                     filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                    onQuery={onSubAllocationQuery} /> : null}
+                                    onQuery={onSubAllocationQuery} />
+                                : null}
                         </>
                     }
                 </Grid>

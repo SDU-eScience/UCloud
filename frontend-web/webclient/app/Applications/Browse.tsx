@@ -88,7 +88,6 @@ export const Applications: React.FunctionComponent = () => {
                                     onFavorite={toggleFavorite}
                                     app={it}
                                     key={idx}
-                                    linkToRun
                                     isFavorite={it.favorite}
                                     tags={it.tags}
                                 />

@@ -2,27 +2,16 @@ package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.PaginationRequest
-import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 
 class ApplicationLogoAsyncDao(
     private val appStoreAsyncDao: AppStoreAsyncDao
 ) {
 
     suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
-        val applicationOwner = ctx.withSession { session ->
-            findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
-
-        if (user != null && applicationOwner != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         val exists = fetchLogo(ctx, name)
         if (exists != null) {
             ctx.withSession { session ->
@@ -49,14 +38,6 @@ class ApplicationLogoAsyncDao(
     }
 
     suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
-        val application =
-            ctx.withSession { session ->
-                findOwnerOfApplication(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        if (application != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

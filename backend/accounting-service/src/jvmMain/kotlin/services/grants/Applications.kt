@@ -1,13 +1,17 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -16,6 +20,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 class GrantApplicationService(
     private val db: DBContext,
     private val notifications: GrantNotificationService,
+    private val providers: Providers<SimpleProviderCommunication>
 ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
@@ -30,17 +35,37 @@ class GrantApplicationService(
                     setParameter("grant_recipient_type", request.recipientType)
                 },
                 """
-                    with can_submit_application as (
-                        select "grant".can_submit_application(:username, :source, :grant_recipient,
-                            :grant_recipient_type) can_submit
-                    )
+                    with
+                        can_submit_application as (
+                            select "grant".can_submit_application(:username, :source, :grant_recipient,
+                                :grant_recipient_type) can_submit
+                        ),
+                        approver_permission_check as (
+                            select true can_submit
+                            from
+                                project.project_members pm
+                            where
+                                pm.project_id = :source and
+                                (pm.role = 'ADMIN' or pm.role = 'PI') and
+                                pm.username = :username
+                        ),
+                        permission_check as (
+                            select bool_or(can_submit) can_submit
+                            from (
+                                select can_submit
+                                from can_submit_application
+                                union
+                                select can_submit
+                                from approver_permission_check
+                            ) t
+                        )
                     select accounting.product_to_json(p, pc, null)
                     from
-                        can_submit_application join
+                        permission_check join
                         accounting.products p on can_submit join
                         accounting.product_categories pc on p.category = pc.id join
                         accounting.wallet_owner wo on wo.project_id = :source join
-                        accounting.wallets w on 
+                        accounting.wallets w on
                             wo.id = w.owned_by and
                             pc.id = w.category join
                         accounting.wallet_allocations alloc on
@@ -727,6 +752,24 @@ class GrantApplicationService(
             },
             """select "grant".approve_application(:approved_by, :id)"""
         )
+
+        val providerIds = session.sendPreparedStatement(
+            { setParameter("id", applicationId) },
+            """
+                select distinct pc.provider
+                from
+                    "grant".requested_resources r join
+                    accounting.product_categories pc on
+                        r.product_category = pc.id
+                where
+                    r.application_id = :id
+            """
+        ).rows.map { it.getString(0)!! }
+
+        providerIds.forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
+        }
     }
 
     companion object : Loggable {

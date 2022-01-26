@@ -11,7 +11,7 @@ import java.net.ConnectException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
-internal actual fun createHttpClient() = HttpClient(OkHttp) {
+internal fun createHttpClient() = HttpClient(OkHttp) {
     expectSuccess = false
 
     engine {
@@ -31,7 +31,7 @@ internal actual fun createHttpClient() = HttpClient(OkHttp) {
 }
 
 @OptIn(KtorExperimentalAPI::class)
-actual fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
+fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     install(WebSockets)
     expectSuccess = false
 }
