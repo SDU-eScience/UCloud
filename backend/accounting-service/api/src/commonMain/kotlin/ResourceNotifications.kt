@@ -56,7 +56,7 @@ open class ResourceNotificationsProvider(
     val baseContext = "/ucloud/$provider/resourceNotifications"
 
     val pullRequest = call<Unit, Unit, CommonErrorMessage>("pullRequest") {
-        httpUpdate(baseContext, "pullRequest")
+        httpUpdate(baseContext, "pullRequest", roles = Roles.SERVICE)
 
         documentation {
             summary = "Request from UCloud that the provider pulls for more notifications"

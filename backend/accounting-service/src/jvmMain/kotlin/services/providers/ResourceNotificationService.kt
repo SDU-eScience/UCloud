@@ -38,9 +38,9 @@ class ResourceNotificationService(
         group: String? = null,
         role: ProjectRole? = null
     ) {
-        db.withSession { session ->
+        val resources: List<Pair<Long, String>> = db.withSession { session ->
             // TODO Fetch resources
-            val resources: List<Pair<Long, String>> = if (event == ResourceNotificationEvent.MEMBER_LEFT_PROJECT) {
+            val resources = if (event == ResourceNotificationEvent.MEMBER_LEFT_PROJECT) {
                 session.sendPreparedStatement(
                     {
                         setParameter("user", user)
@@ -75,10 +75,12 @@ class ResourceNotificationService(
                 """
             )
 
-            resources.map { it.second }.toSet().forEach { provider ->
-                val comms = providers.prepareCommunication(provider)
-                ResourceNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
-            }
+            resources
+        }
+
+        resources.map { it.second }.toSet().forEach { provider ->
+            val comms = providers.prepareCommunication(provider)
+            ResourceNotificationsProvider(provider).pullRequest.call(Unit, comms.client)
         }
     }
 
@@ -93,7 +95,7 @@ class ResourceNotificationService(
                     select jsonb_build_object(
                         'id', n.id,
                         'createdAt', n.created_at,
-                        'user', n.username,
+                        'username', n.username,
                         'resource', n.resource
                     )
                     from provider.notifications n
@@ -111,10 +113,10 @@ class ResourceNotificationService(
         db.withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("ids", ids.items)
+                    setParameter("ids", ids.items.map { it.id.toLong() })
                 },
                 """
-                    delete from provider.notifications where id in (select unnest(:ids::bigserial[]))
+                    delete from provider.notifications where id in (select unnest(:ids::bigint[]))
                 """
             )
         }

@@ -4,3 +4,6 @@ create table provider.notifications(
     username varchar(255) not null,
     resource bigint not null
 );
+
+alter table provider.notifications add constraint resource_fkey foreign key (resource) references provider.resource(id);
+alter table provider.notifications add constraint username_fkey foreign key (username) references auth.principals(id);

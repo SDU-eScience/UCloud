@@ -88,7 +88,7 @@ class SyncController(
 
         if (notifications.responses.isEmpty()) return
 
-        syncService.removeFolders(notifications.responses.map { it.id })
+        syncService.removeFolders(notifications.responses.map { it.resource })
 
         ResourceNotifications.markAsRead.call(
             bulkRequestOf( notifications.responses.map { FindByStringId( it.id.toString() ) }),
