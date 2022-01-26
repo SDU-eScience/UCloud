@@ -18,6 +18,7 @@ export const LicenseBrowse: React.FunctionComponent<{
         api={LicenseApi}
         onSelect={props.onSelect}
         browseType={props.browseType ?? BrowseType.MainContent}
+        disableSearch
         header={
             browseType === BrowseType.MainContent ? (
                 <ResourceTab active={ResourceTabOptions.LICENSES} />) : undefined

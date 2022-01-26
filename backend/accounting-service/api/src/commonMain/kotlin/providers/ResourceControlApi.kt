@@ -132,6 +132,26 @@ abstract class ResourceControlApi<
             errorClass = typeOf<CommonErrorMessage>(),
         )
 
+    val checkCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
+            CommonErrorMessage>
+        get() = call(
+            name = "checkCredits",
+            handler = {
+                httpUpdate(
+                    BulkRequest.serializer(ResourceChargeCredits.serializer()),
+                    baseContext,
+                    "checkCredits",
+                    roles = Roles.PROVIDER
+                )
+            },
+            requestType = BulkRequest.serializer(ResourceChargeCredits.serializer()),
+            successType = ResourceChargeCreditsResponse.serializer(),
+            errorType = CommonErrorMessage.serializer(),
+            requestClass = typeOf<BulkRequest<ResourceChargeCredits>>(),
+            successClass = typeOf<ResourceChargeCreditsResponse>(),
+            errorClass = typeOf<CommonErrorMessage>()
+        )
+
     val chargeCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
         CommonErrorMessage>
         get() = call(

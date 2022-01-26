@@ -45,6 +45,8 @@ import {ArchiveProject, LeaveProject} from "./ProjectSettings";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 import {useProjectStatus} from "./cache";
 import styled from "styled-components";
+import {CheckboxFilter, CheckboxFilterWidget, FilterWidgetProps, ResourceFilter} from "@/Resource/Filter";
+import {BrowseType} from "@/Resource/BrowseType";
 
 const BorderedFlex = styled(Flex)`
   border-radius: 6px 6px 0 0;
@@ -74,7 +76,6 @@ const ShareCardBase: React.FunctionComponent<{
 
 // eslint-disable-next-line no-underscore-dangle
 const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props => {
-    const [archived, setArchived] = useState<boolean>(false);
     const [response, setFetchParams] = useCloudAPI<Page<UserInProject>, ListProjectsRequest>(
         {noop: true},
         emptyPage
@@ -106,6 +107,10 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
 
     const history = useHistory();
 
+    const [filters, setFilters] = useState<Record<string, string>>({});
+    
+    const archived = filters.archived === "true" ?? false;
+
     const reload = (): void => {
         setFavoriteParams(listFavoriteProjects({
             page: favorites.data.pageNumber,
@@ -120,6 +125,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             noFavorites: true,
             showAncestorPath: true
         }));
+        // TODO(Jonas): This seems excessive to do on `archived` property change. Move to an `onMount` useEffect?
         fetchIngoingInvites(listIngoingInvites({page: 0, itemsPerPage: 10}));
     };
 
@@ -202,6 +208,13 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
         }
     ];
 
+
+    const [widget, pill] = CheckboxFilter("tags", "archived", "Archived");
+    const filterPills = [pill];
+    const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
+    const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => {
+    }, []);
+
     return (
         <MainContainer
             headerSize={58}
@@ -275,8 +288,8 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
                             />
                         </>
                     ) : (
-                            <></>
-                        )}
+                        <></>
+                    )}
                     {favorites.data.items.length === 0 ? null : (<>
                         <Heading.h3>Favorites</Heading.h3>
                         <List mb="10px">
@@ -322,11 +335,18 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
             sidebar={(<>
                 <VerticalButtonGroup>
                     <Box height={58} />
-                    <Link to={`/projects/browser/new`}><Button>Create Project Application</Button></Link>
-                    <Label fontSize={"100%"}>
-                        <Checkbox size={24} checked={archived} onChange={() => setArchived(!archived)} />
-                        Show archived
-                    </Label>
+                    <Link to={`/projects/browser/new`}><Button>New Project Application</Button></Link>
+                    <ResourceFilter
+                        browseType={BrowseType.MainContent}
+                        pills={filterPills}
+                        sortEntries={[]}
+                        sortDirection={"ascending"}
+                        filterWidgets={filterWidgets}
+                        onSortUpdated={onSortUpdated}
+                        readOnlyProperties={{}}
+                        properties={filters}
+                        setProperties={setFilters}
+                    />
                     {selectedProjects.size > 0 ? `${selectedProjects.size} project${selectedProjects.size > 1 ? "s" : ""} selected` : null}
                     <ProjectOperations
                         selectedProjects={[...response.data.items, ...favorites.data.items].filter(it => selectedProjects.has(it.projectId))}

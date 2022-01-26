@@ -15,6 +15,8 @@ import dk.sdu.cloud.service.db.async.*
 import io.ktor.http.*
 import kotlinx.serialization.serializer
 
+typealias DeleteHandler = suspend (batch: BulkRequest<FindByStringId>) -> Unit
+
 private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
 
@@ -30,13 +32,19 @@ class FileCollectionService(
         "title" to SqlObject.Column(table, "title")
     )
 
+    private val deleteHandlers = ArrayList<DeleteHandler>()
     override val serializer = serializer<FileCollection>()
     override val updateSerializer = serializer<FileCollection.Update>()
     override val productArea = ProductArea.STORAGE
+    override val requireAdminForCreate: Boolean = true
 
     override fun userApi() = FileCollections
     override fun controlApi() = FileCollectionsControl
     override fun providerApi(comms: ProviderComms) = FileCollectionsProvider(comms.provider.id)
+
+    fun addDeleteHandler(handler: DeleteHandler) {
+        deleteHandlers.add(handler)
+    }
 
     override suspend fun createSpecifications(
         actorAndProject: ActorAndProject,
@@ -206,5 +214,13 @@ class FileCollectionService(
                 }
             }
         )
+    }
+
+    override suspend fun delete(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ): BulkResponse<Unit?> {
+        deleteHandlers.forEach { handler -> handler(request) }
+        return super.delete(actorAndProject, request)
     }
 }

@@ -134,12 +134,13 @@ export function ResourcePermissionEditor<T extends Resource>(
                     )?.permissions ?? [];
 
                     return (
-                        <Flex key={g} alignItems={"center"} mb={16}>
+                        <Flex key={g} alignItems={"center"} mb={16} data-component={"permission-row"}
+                              data-group={summary.groupTitle} data-group-id={summary.groupId}>
                             <Truncate width={"300px"} mr={16} title={summary.groupTitle}>
                                 {summary.groupTitle}
                             </Truncate>
 
-                            <RadioTilesContainer>
+                            <RadioTilesContainer data-component={"permission-container"}>
                                 <RadioTile
                                     label={"None"}
                                     onChange={() => updateAcl(g, null)}

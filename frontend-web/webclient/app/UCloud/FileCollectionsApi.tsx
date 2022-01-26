@@ -1,4 +1,5 @@
 import {
+    CREATE_TAG,
     DELETE_TAG, findSupport, PERMISSIONS_TAG,
     ProductSupport, Resource,
     ResourceApi, ResourceBrowseCallbacks,
@@ -8,7 +9,7 @@ import {
     ResourceUpdate, SortFlags
 } from "./ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
-import {Icon} from "@/ui-components";
+import {Box, Button, Divider, Flex, Icon, Input} from "@/ui-components";
 import * as React from "react";
 import * as H from "history";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -19,6 +20,11 @@ import {apiUpdate} from "@/Authentication/DataHook";
 import {Operation} from "@/ui-components/Operation";
 import {CheckboxFilter, ConditionalFilter} from "@/Resource/Filter";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {dialogStore} from "@/Dialog/DialogStore";
+import * as Heading from "@/ui-components/Heading";
+import Warning from "@/ui-components/Warning";
+import {doNothing} from "@/UtilityFunctions";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export type FileCollection = Resource<FileCollectionUpdate, FileCollectionStatus, FileCollectionSpecification>;
 
@@ -127,19 +133,71 @@ class FileCollectionsApi extends ResourceApi<FileCollection, ProductStorage, Fil
                 return true;
             };
         }
+
+        const createOperation = baseOperations.find(it => it.tag === CREATE_TAG);
+        if (createOperation) {
+            const enabled = createOperation.enabled;
+            createOperation.enabled = (selected, cb, all) => {
+                const isEnabled = enabled(selected, cb, all);
+                if (isEnabled !== true) return isEnabled;
+                if (!cb.isWorkspaceAdmin) {
+                    return "Only workspace administrators can create a new drive!";
+                }
+                return true;
+            };
+        }
+
         const deleteOperation = baseOperations.find(it => it.tag === DELETE_TAG);
         if (deleteOperation) {
             const enabled = deleteOperation.enabled;
             deleteOperation.enabled = (selected, cb, all) => {
-                if (selected.find(it => it.specification.product.id === "share")) return false
+                if (selected.find(it => it.specification.product.id === "share")) return false;
                 const isEnabled = enabled(selected, cb, all);
                 if (isEnabled !== true) return isEnabled;
+                if (selected.length > 1) return false;
                 const support = findSupport(cb.supportByProvider, selected[0])?.support as FileCollectionSupport;
                 if (!support) return false;
                 if (support.collection.usersCanDelete !== true) {
                     return "The provider does not allow you to delete this drive";
                 }
                 return true;
+            };
+            const defaultOnClick = deleteOperation.onClick;
+            deleteOperation.onClick = (selected, cb, all) => {
+                dialogStore.addDialog((
+                    <div>
+                        <div>
+                            <Heading.h3>Are you absolutely sure?</Heading.h3>
+                            <Divider />
+                            <Warning>This is a dangerous operation, please read this!</Warning>
+                            <Box mb={"8px"} mt={"16px"}>
+                                This will <i>PERMANENTLY</i> delete your data in the{" "}
+                                <b>{selected[0].specification.title}</b> drive! This action <i>CANNOT BE UNDONE</i>.
+                                We cannot recover your data if you delete your drive.
+                            </Box>
+                            <Box mb={"16px"}>
+                                Please type <b>{selected[0].specification.title}</b> to confirm.
+                            </Box>
+                            <Box mb={"16px"}>
+                                <form onSubmit={(ev) => {
+                                    ev.preventDefault();
+                                    const writtenName = (document.querySelector("#collectionName") as HTMLInputElement).value;
+                                    if (writtenName !== selected[0].specification.title) {
+                                        snackbarStore.addFailure(`Please type '${selected[0].specification.title}' to confirm.`, false);
+                                    } else {
+                                        defaultOnClick(selected, cb, all);
+                                        dialogStore.success();
+                                    }
+                                }}>
+                                    <Input id={"collectionName"} mb={"8px"} />
+                                    <Button color={"red"} type={"submit"} fullWidth>
+                                        I understand what I am doing, delete my data permanently
+                                    </Button>
+                                </form>
+                            </Box>
+                        </div>
+                    </div>
+                ), doNothing, true);
             };
         }
         return [

@@ -1,8 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingKubernetesFilePath
 import dk.sdu.cloud.app.kubernetes.rpc.*
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.kubernetes.services.proxy.ApplicationProxyService
@@ -32,17 +30,16 @@ class Server(
     private val cephConfig: CephConfiguration,
 ) : CommonServer {
     override val log = logger()
-    lateinit var tunnelManager: TunnelManager
-    lateinit var vncService: VncService
-    lateinit var webService: WebService
-    lateinit var k8Dependencies: K8Dependencies
-    private var requireTokenInit = false
+    private lateinit var tunnelManager: TunnelManager
+    private lateinit var vncService: VncService
+    private lateinit var webService: WebService
+    private lateinit var k8Dependencies: K8Dependencies
 
     override fun start() {
         if (!configuration.enabled) return
         val (refreshToken, validation) =
             if (configuration.providerRefreshToken == null || configuration.ucloudCertificate == null) {
-                if (!micro.developmentModeEnabled && integrationTestingIsKubernetesReady) {
+                if (!micro.developmentModeEnabled) {
                     throw IllegalStateException("Missing configuration at app.kubernetes.providerRefreshToken")
                 }
                 Pair("REPLACED_LATER", InternalTokenValidationJWT.withSharedSecret(UUID.randomUUID().toString()))
@@ -65,8 +62,13 @@ class Server(
         val debug = micro.featureOrNull(DebugSystem)
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         k8Dependencies = K8Dependencies(
-            if (integrationTestingIsKubernetesReady) KubernetesClient()
-            else KubernetesClient(KubernetesConfigurationSource.Placeholder),
+            KubernetesClient(
+                if (configuration.kubernetesConfig != null) {
+                    KubernetesConfigurationSource.KubeConfigFile(configuration.kubernetesConfig, null)
+                } else {
+                    KubernetesConfigurationSource.Auto
+                }
+            ),
 
             micro.backgroundScope,
             serviceClient,
@@ -76,20 +78,6 @@ class Server(
         )
 
         val jobCache = VerifiedJobCache(k8Dependencies)
-        if (!integrationTestingIsKubernetesReady) {
-            GlobalScope.launch {
-                while (isActive && !integrationTestingIsKubernetesReady) {
-                    delay(100)
-                }
-
-                if (integrationTestingIsKubernetesReady) {
-                    k8Dependencies.client = KubernetesClient(
-                        KubernetesConfigurationSource.KubeConfigFile(integrationTestingKubernetesFilePath, null)
-                    )
-                }
-            }
-        }
-
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
         val utilizationService = UtilizationService(k8Dependencies)
@@ -106,7 +94,11 @@ class Server(
         )
         val licenseService = LicenseService(k8Dependencies, db)
         val networkIpService = NetworkIPService(db, k8Dependencies, configuration.networkInterface ?: "")
-        val pathConverter = PathConverter(InternalFile("/mnt/cephfs"), serviceClient)
+
+        val fsRootFile =
+            File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
+                ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), serviceClient)
         val fs = NativeFS(pathConverter)
         val memberFiles = MemberFiles(fs, pathConverter, serviceClient)
 
@@ -122,13 +114,15 @@ class Server(
             // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
             // instance) In that case we can disable it via configuration. Note that this config will only be used if
             // we are in development mode.
-            true.also { repeat(10) { println("MASTER ELECTION DISABLED") } } || (configuration.disableMasterElection && micro.developmentModeEnabled),
+            (configuration.disableMasterElection && micro.developmentModeEnabled),
         ).apply {
             register(TaskPlugin(
                 configuration.toleration,
-                configuration.useSmallReservation && micro.developmentModeEnabled
+                configuration.useSmallReservation && micro.developmentModeEnabled,
+                configuration.useMachineSelector == true,
+                configuration.nodes,
             ))
-            register(ParameterPlugin(licenseService))
+            register(ParameterPlugin(licenseService, pathConverter))
             val fileMountPlugin = FileMountPlugin(
                 fs,
                 memberFiles,
@@ -145,9 +139,9 @@ class Server(
             register(NetworkLimitPlugin)
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
-            register(ConnectToJobPlugin)
             register(ingressService)
             register(networkIpService)
+            register(FirewallPlugin(db, configuration.networkGatewayCidr))
             register(ProxyPlugin(broadcastingStream, ingressService))
             register(FileOutputPlugin(pathConverter, fs, logService, fileMountPlugin))
 
@@ -201,22 +195,20 @@ class Server(
             ingressService = ingressService
         )
 
-        with(micro.server) {
-            configureControllers(
-                AppKubernetesController(
-                    jobManagement,
-                    logService,
-                    webService,
-                    vncService,
-                    utilizationService
-                ),
-                MaintenanceController(maintenance, micro.tokenValidation),
-                ShellController(k8Dependencies, db, sessions),
-                IngressController(ingressService),
-                LicenseController(licenseService),
-                NetworkIPController(networkIpService),
-            )
-        }
+        configureControllers(
+            AppKubernetesController(
+                jobManagement,
+                logService,
+                webService,
+                vncService,
+                utilizationService
+            ),
+            MaintenanceController(maintenance, micro.tokenValidation),
+            ShellController(k8Dependencies, db, sessions),
+            IngressController(ingressService),
+            LicenseController(licenseService),
+            NetworkIPController(networkIpService),
+        )
 
         runBlocking {
             applicationProxyService.initializeListener()

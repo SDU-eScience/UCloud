@@ -1,6 +1,7 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ProcessingScope
+import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
@@ -244,7 +245,9 @@ class EnvoyRouteConfiguration(
                                                                 put("invert_match", JsonPrimitive(true))
                                                                 put("present_match", JsonPrimitive(true))
                                                             } else {
-                                                                put("exact_match", JsonPrimitive(ucloudIdentity))
+                                                                put("exact_match", JsonPrimitive(
+                                                                    base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                ))
                                                             }
                                                         }
                                                     )

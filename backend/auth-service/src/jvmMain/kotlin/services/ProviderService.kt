@@ -150,6 +150,7 @@ class ProviderService(
         val whitelistedProviders = listOf(
             "_app-orchestrator",
             "_file-orchestrator",
+            "_storage",
         )
     }
 }

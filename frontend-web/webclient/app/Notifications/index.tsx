@@ -113,6 +113,7 @@ function Notifications(props: Notifications): JSX.Element {
     ) : null;
     return (
         <ClickableDropdown
+            data-component={"notifications"}
             colorOnHover={false}
             top="37px"
             width="380px"
@@ -131,7 +132,7 @@ function Notifications(props: Notifications): JSX.Element {
                         {unreadLength > 0 ? (
                             <ThemeProvider theme={theme}>
                                 <Absolute top="-12px" left="28px">
-                                    <Badge bg="red">{unreadLength}</Badge>
+                                    <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
                                 </Absolute>
                             </ThemeProvider>
                         ) : null}

@@ -107,7 +107,6 @@ class GiftService(
                         resources_to_be_gifted.gift_id = gifts_claimed.gift_id
                     where alloc_idx = 1
                 """,
-                debug = true
             ).rows.singleOrNull()?.getLong(1)
 
             if (giftsClaimed != 1L) {

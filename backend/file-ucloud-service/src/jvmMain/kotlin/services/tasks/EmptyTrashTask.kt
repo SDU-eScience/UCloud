@@ -1,12 +1,8 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.debug.implementationDetail
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.service.Loggable
 import kotlinx.serialization.Serializable
@@ -33,8 +29,7 @@ class EmptyTrashTask: TaskHandler {
     ): TaskRequirements {
         val realRequest = defaultMapper.decodeFromJsonElement<BulkRequest<EmptyTrashRequestItem>>(request)
 
-        return if (realRequest.items.size >= 20) TaskRequirements(true, JsonObject(emptyMap()))
-        else TaskRequirements(false, JsonObject(emptyMap()))
+        return TaskRequirements(true, JsonObject(emptyMap()))
     }
 
     override suspend fun TaskContext.execute(task: StorageTask) {

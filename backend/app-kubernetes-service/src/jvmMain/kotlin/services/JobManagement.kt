@@ -6,7 +6,6 @@ import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.app.kubernetes.api.integrationTestingIsKubernetesReady
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
@@ -220,9 +219,6 @@ class JobManagement(
             val lock = distributedLocks.create("app-k8-watcher", duration = 60_000)
             while (isActive) {
                 try {
-                    if (!integrationTestingIsKubernetesReady) {
-                        delay(100)
-                    }
                     becomeMasterAndListen(lock)
                 } catch (ex: Throwable) {
                     log.warn("An exception occurred while processing Kubernetes events")

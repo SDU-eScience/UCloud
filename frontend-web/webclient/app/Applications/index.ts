@@ -1,1 +1,1 @@
-export {SearchWidget, SearchResults} from "@/Applications/Search";
+export {SearchResults} from "@/Applications/Search";

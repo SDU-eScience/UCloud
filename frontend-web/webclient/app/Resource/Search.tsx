@@ -12,7 +12,12 @@ export function useResourceSearch(api: ReducedApiInterface) {
     const history = useHistory();
     const onSearch = useCallback((q) => {
         if (q === "") {
-            history.push(`/${api.routingNamespace}`);
+            // NOTE(Dan): Workaround for #3064
+            if (api.routingNamespace === "applications") {
+                history.push(`/${api.routingNamespace}/overview`);
+            } else {
+                history.push(`/${api.routingNamespace}`);
+            }
         } else {
             history.push(buildQueryString(`/${api.routingNamespace}/search`, {q}));
         }

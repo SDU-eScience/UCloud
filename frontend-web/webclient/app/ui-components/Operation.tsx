@@ -1,11 +1,11 @@
 import {IconName} from "@/ui-components/Icon";
-import {Box, Button, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
+import {Box, Button, Divider, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
 import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
-import {StyledComponent} from "styled-components";
+import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
 import ClickableDropdown, {ClickableDropdownProps} from "@/ui-components/ClickableDropdown";
-import {doNothing, preventDefault} from "@/UtilityFunctions";
+import {doNothing, preventDefault, stopPropagation} from "@/UtilityFunctions";
 import Grid from "@/ui-components/Grid";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import theme, {ThemeColor} from "@/ui-components/theme";
@@ -102,7 +102,7 @@ const OperationComponent: React.FunctionComponent<{
         color={reasonDisabled === undefined ? op.color : "gray"}
         alignItems="center"
         onClick={onClick}
-        data-tag={`${op.text}-action`}
+        data-tag={`${op.text.replace(/\./g, "").replace(/ /g, "_")}-action`}
         disabled={reasonDisabled !== undefined}
         fullWidth={!op.primary || location !== "TOPBAR"}
         height={"38px"}
@@ -115,7 +115,10 @@ const OperationComponent: React.FunctionComponent<{
         </>}
     </As>;
 
-    if (reasonDisabled === undefined) return component;
+    if (reasonDisabled === undefined) {
+        return component;
+    }
+
     return <Tooltip trigger={component}>{reasonDisabled}</Tooltip>;
 };
 
@@ -155,11 +158,14 @@ export const Operations: OperationsType = props => {
     }, []);
     if (props.openFnRef) props.openFnRef.current = open;
 
-    // Don't render anything if we are in row and we have selected something
-    // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
-    if (props.location === "IN_ROW" && !props.row) return null;
+    if (props.location === "IN_ROW") {
+        // Don't render anything if we are in row and we have selected something
+        // if (props.selected.length > 0 && props.location === "IN_ROW") return null;
+        if (!props.row) return null;
+        if (props.selected.length > 0 && !props.selected.includes(props.row)) return null;
+    }
 
-    const selected = props.location === "IN_ROW" ? [props.row!] : props.selected;
+    const selected = props.location === "IN_ROW" && props.selected.length === 0 ? [props.row!] : props.selected;
 
     const entityNamePlural = props.entityNamePlural ?? props.entityNameSingular + "s";
 
@@ -218,16 +224,17 @@ export const Operations: OperationsType = props => {
         openFnRef: dropdownOpenFn,
         trigger: (
             props.hidden ? null :
-            props.selected.length === 0 || props.location === "TOPBAR" ?
-                <Icon
-                    onClick={preventDefault}
-                    ml={"5px"}
-                    mr={"10px"}
-                    name={"ellipsis"}
-                    size={"1em"}
-                    rotation={90}
-                    data-tag={props.dropdownTag}
-                /> : <Box ml={"33px"} />
+                (props.location === "IN_ROW" && [0, 1].includes(props.selected.length))
+                    || props.location === "TOPBAR" ?
+                    <Icon
+                        onClick={preventDefault}
+                        ml={"5px"}
+                        mr={"10px"}
+                        name={"ellipsis"}
+                        size={"1em"}
+                        rotation={90}
+                        data-tag={props.dropdownTag}
+                    /> : null
         )
     };
 
@@ -239,9 +246,9 @@ export const Operations: OperationsType = props => {
         switch (props.location) {
             case "IN_ROW":
                 return <>
-                    <Box mt="6px">{primaryContent}</Box>
-                    <Box mr={"10px"}/>
-                    {content.length === 0 ? <Box ml={"30px"}/> :
+                    <InRowPrimaryButtons onClick={stopPropagation}>{primaryContent}</InRowPrimaryButtons>
+                    <Box mr={"10px"} />
+                    {content.length === 0 ? <Box ml={"30px"} /> :
                         <Flex alignItems={"center"} justifyContent={"center"}>
                             <ClickableDropdown {...dropdownProps}>
                                 {content}
@@ -278,25 +285,33 @@ export const Operations: OperationsType = props => {
                                 {" "}
                                 {props.selected.length === 0 ? null :
                                     <TextSpan color={"gray"}
-                                              fontSize={"80%"}>{props.selected.length} selected</TextSpan>
+                                        fontSize={"80%"}>{props.selected.length} selected</TextSpan>
                                 }
                             </Heading.h3>
                         }
                         {primaryContent}
-                        <Box mr={"10px"}/>
-                        {content.length === 0 ? <Box ml={"30px"}/> :
+                        <Box mr={"10px"} />
+                        {content.length === 0 ? <Box ml={"30px"} /> :
                             <Flex alignItems={"center"} justifyContent={"center"}>
                                 <ClickableDropdown {...dropdownProps}>
                                     {content}
                                 </ClickableDropdown>
                             </Flex>
                         }
-                        <Box mr={"8px"}/>
+                        <Box mr={"8px"} />
                     </Flex>
                 </>;
         }
     }
 };
+
+const InRowPrimaryButtons = styled.div`
+    & > button {
+        max-width: 150px;
+    }
+
+    margin-top: 4px;
+`;
 
 export function useOperationOpener(): [React.MutableRefObject<(left: number, top: number) => void>, EventHandler<MouseEvent<never>>] {
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);

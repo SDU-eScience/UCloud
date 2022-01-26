@@ -10,6 +10,8 @@ import * as Heading from "@/ui-components/Heading";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {History} from "history";
 import {BrowseType} from "@/Resource/BrowseType";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const ShareBrowse: React.FunctionComponent<{
     onSelect?: (selection: Share) => void;
@@ -40,9 +42,13 @@ export const ShareBrowse: React.FunctionComponent<{
         avatars.updateCache(items.map(it => it.specification.sharedWith));
     }, []);
 
-    const navigateToEntry = React.useCallback((history: History, share: Share) => {
+    const navigateToEntry = React.useCallback((history: History, share: Share): void => {
         if (browseType === BrowseType.MainContent) {
-            history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+            if (share.status.state === "APPROVED" || share.specification.sharedWith !== Client.username) {
+                history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));
+            } else {
+                snackbarStore.addFailure("Share must be accepted to access.", false);
+            }
         } else {
             // Should we handle this differently for other browseTypes?
             history.push(buildQueryString("/files", {path: share.status.shareAvailableAt}));

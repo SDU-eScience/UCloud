@@ -104,7 +104,7 @@ class Server(
                 IntegrationController(providerIntegrationService),
                 MembershipController(db, projectQueryService),
                 ProjectController(db, projectService, projectQueryService),
-                ProviderController(providerService, micro.developmentModeEnabled),
+                ProviderController(providerService, micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")),
             )
         }
 

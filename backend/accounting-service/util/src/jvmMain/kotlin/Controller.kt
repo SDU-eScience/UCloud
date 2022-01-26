@@ -53,6 +53,10 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
                 ok(updateAcl(actorAndProject, request))
             }
 
+            implement(userApi.init) {
+                ok(init(actorAndProject))
+            }
+
             if (controlApi != null) {
                 implement(controlApi.browse) {
                     ok(browse(actorAndProject, request, useProject = false))
@@ -68,6 +72,10 @@ fun <Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : Resou
 
                 implement(controlApi.chargeCredits) {
                     ok(chargeCredits(actorAndProject, request))
+                }
+
+                implement(controlApi.checkCredits) {
+                    ok(chargeCredits(actorAndProject, request, checkOnly = true))
                 }
 
                 implement(controlApi.register) {

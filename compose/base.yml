@@ -12,6 +12,8 @@ services:
       - discovery.type=single-node
     volumes:
       - elasticData:/usr/share/elasticsearch/data
+    ports:
+    - ${ELASTIC_PORT:-9200}:9200
     hostname: elasticsearch
 
   postgres:
@@ -35,12 +37,15 @@ services:
       - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
       - K3S_KUBECONFIG_MODE=666
     volumes:
-    - ucloudFiles:/mnt/cephfs
+    - /mnt/ceph:/mnt/cephfs
+    - /tmp:/tmp
     - k3sConfig:/output
     - k3sData:/var/lib/rancher/k3s
     - k3sCni:/var/lib/cni
-    - k3sKubelet:/var/lib/kubeley
+    - k3sKubelet:/var/lib/kubelet
     - k3sEtc:/etc/rancher
+    ports:
+    - ${K3S_PORT:-6443}:6443
     command:
       - server
     hostname: k3s
@@ -55,7 +60,7 @@ services:
       - /etc/ucloud
     volumes:
       - ucloudData:/etc/ucloud
-      - ucloudFiles:/mnt/cephfs
+      - /mnt/ceph:/mnt/cephfs
       - k3sConfig:/mnt/k3s
     ports:
       - ${BACKEND_PORT:-8080}:8080

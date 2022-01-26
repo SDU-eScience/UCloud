@@ -40,14 +40,14 @@ export const ProductSelector: React.FunctionComponent<{
             colorOnHover={false}
             useMousePositioning
             trigger={(
-                <ProductDropdown height={slim === true ? "36px" : undefined}>
+                <ProductDropdown height={slim === true ? "36px" : undefined}  data-component={"product-selector"}>
                     <ProductBox product={selected} />
 
                     <Icon name="chevronDown" />
                 </ProductDropdown>
             )}
         >
-            <Wrapper>
+            <Wrapper data-component={"product-selector-dropdown"}>
                 {products.length === 0 ? null :
                     <Table>
                         <TableHeader>

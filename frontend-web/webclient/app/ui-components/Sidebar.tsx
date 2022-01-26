@@ -265,7 +265,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             <SidebarPushToBottom />
             {/* Screen size indicator */}
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
-            {inDevEnvironment() || onDevSite() ? <>
+            {window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? <>
                 <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
                     <Box
                         cursor={"pointer"}

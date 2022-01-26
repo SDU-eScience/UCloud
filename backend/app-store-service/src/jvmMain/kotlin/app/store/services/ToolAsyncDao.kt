@@ -194,15 +194,6 @@ class ToolAsyncDao {
     }
 
     suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
-        val tool =
-            ctx.withSession { session ->
-                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-
-        if (user != null && tool != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         val logo = ctx.withSession { session ->
             fetchLogo(session, name)
         }
@@ -231,14 +222,6 @@ class ToolAsyncDao {
     }
 
     suspend fun clearLogo(ctx: DBContext, user: SecurityPrincipal, name: String) {
-        val application =
-            ctx.withSession { session ->
-                findOwner(session, name) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-        if (application != user.username && user.role != Role.ADMIN) {
-            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        }
-
         ctx.withSession { session ->
             session.sendPreparedStatement(
                 {

@@ -43,7 +43,7 @@ kotlin {
                 api("org.jetbrains:annotations:16.0.2")
                 api("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
-                api("org.apache.logging.log4j:log4j-slf4j-impl:2.12.0")
+                api("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
                 api("com.auth0:java-jwt:3.8.3")
 
                 api("org.postgresql:postgresql:42.2.5")
@@ -52,7 +52,7 @@ kotlin {
                 api("com.github.jasync-sql:jasync-common:$jasyncVersion")
                 api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
                 api("io.lettuce:lettuce-core:5.1.6.RELEASE")
-                api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.11.1")
+                api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.15.0")
                 api("com.google.guava:guava:27.0.1-jre")
             }
         }
@@ -66,10 +66,10 @@ kotlin {
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
-            languageSettings.useExperimentalAnnotation("kotlin.RequiresOptIn")
-            languageSettings.useExperimentalAnnotation("kotlin.time.ExperimentalTime")
-            languageSettings.useExperimentalAnnotation("kotlin.ExperimentalStdlibApi")
-            languageSettings.useExperimentalAnnotation("kotlinx.coroutines.ExperimentalCoroutinesApi")
+            languageSettings.optIn("kotlin.RequiresOptIn")
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
+            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
 }

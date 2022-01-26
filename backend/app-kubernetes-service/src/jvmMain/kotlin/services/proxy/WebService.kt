@@ -20,6 +20,7 @@ import io.ktor.request.*
 import io.ktor.response.*
 import io.ktor.routing.*
 import io.ktor.util.date.*
+import io.ktor.util.pipeline.*
 
 const val cookieName = "ucloud-compute-session-"
 
@@ -138,18 +139,18 @@ class WebService(
         route: Route,
         webService: WebService,
     ) {
-        route.handle {
+        val handler: PipelineInterceptor<Unit, ApplicationCall> = handler@{
             val host = call.request.host()
             log.info("Authorizing request: $host")
 
             if (ingressCache.get(host) != null) {
                 call.respondText("", status = HttpStatusCode.OK)
-                return@handle
+                return@handler
             }
 
             if (!host.startsWith(prefix) || !host.endsWith(domain)) {
                 call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
-                return@handle
+                return@handler
             }
 
             val jobId = host.removePrefix(prefix).removeSuffix(".$domain").substringBeforeLast('-')
@@ -165,6 +166,10 @@ class WebService(
 
                 call.respondText("", status = HttpStatusCode.OK)
             }
+        }
+        route.handle(handler)
+        route.route("/") {
+            handle(handler)
         }
     }
 

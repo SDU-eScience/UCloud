@@ -15,16 +15,32 @@ data class Configuration(
     val domain: String = "cloud.sdu.dk",
     val performAuthentication: Boolean = true,
     val toleration: TolerationKeyAndValue? = null,
-    val reloadableK8Config: String? = null,
+    val kubernetesConfig: String? = null,
     val disableMasterElection: Boolean = false,
     val useSmallReservation: Boolean = false,
     val networkInterface: String? = null,
+    val networkGatewayCidr: String? = null,
     val providerRefreshToken: String? = null,
     val ucloudCertificate: String? = null,
-    val enabled: Boolean = true
+    val enabled: Boolean = true,
+    val useMachineSelector: Boolean? = null,
+    val nodes: NodeConfiguration? = null,
+)
+
+data class NodeConfiguration(
+    val systemReservedCpuMillis: Int,
+    val systemReservedMemMegabytes: Int,
+    val types: Map<String, NodeType>
+)
+
+data class NodeType(
+    val cpuMillis: Int,
+    val memMegabytes: Int,
+    val gpus: Int,
 )
 
 data class CephConfiguration(
+    val cephfsBaseMount: String? = null,
     val subfolder: String = ""
 )
 

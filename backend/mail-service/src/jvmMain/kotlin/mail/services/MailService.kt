@@ -54,6 +54,8 @@ class MailService(
         val properties = System.getProperties()
         properties.setProperty("mail.smtp.host", "localhost")
         properties.setProperty("mail.smtp.port", "25")
+        properties.setProperty("mail.smtp.allow8bitmime", "true");
+        properties.setProperty("mail.smtps.allow8bitmime", "true");
 
         session = Session.getInstance(properties)
     }
@@ -135,7 +137,7 @@ class MailService(
     }
 
     suspend fun sendSupportTicket(
-        fromEmail: String,
+        userEmail: String,
         subject: String,
         text: String
     ) {
@@ -143,10 +145,9 @@ class MailService(
 
         try {
             val message = MimeMessage(session)
-            message.setFrom(InternetAddress(fromEmail))
+            message.setFrom("ticketsystem@escience.sdu.dk")
             message.addRecipient(Message.RecipientType.TO, recipientAddress)
-            message.subject = subject
-
+            message.subject = "$userEmail-|-$subject"
             val multipart = MimeMultipart()
 
             // style paragraphs (not a good solution, but with best support)

@@ -53,6 +53,7 @@ interface ListRowProps {
     highlight?: boolean;
     stopPropagation?: boolean;
     onContextMenu?: EventHandler<MouseEvent<never>>;
+    disableSelection?: boolean;
 }
 
 export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
@@ -63,11 +64,12 @@ export const ListRow: React.FunctionComponent<ListRowProps> = (props) => {
     }, [props.navigate, props.select, stopPropagation]);
 
     const doSelect = useCallback((e: React.SyntheticEvent) => {
-        props.select?.();
+        if (!props.disableSelection) props.select?.();
         if (stopPropagation) e.stopPropagation();
     }, [props.select, stopPropagation]);
 
     return <ListStyle
+        data-component={"list-row"}
         data-highlighted={props.highlight === true}
         data-selected={props.isSelected === true}
         data-navigate={props.navigate !== undefined}
@@ -165,11 +167,11 @@ const ListStyle = styled.div<{fontSize?: string;}>`
       }
     }
 
-  ${deviceBreakpoint({maxWidth: "767px"})} {
-    .row-left{
-      max-width: calc(100vw - 210px);
+    ${deviceBreakpoint({maxWidth: "767px"})} {
+        .row-left {
+            max-width: calc(100vw - 210px);
+        }
     }
-  }
 
     .row-left-wrapper {
         display: flex;

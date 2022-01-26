@@ -508,7 +508,7 @@ function LoginWrapper(props: React.PropsWithChildren<{selection?: boolean}>): JS
             {!props.selection ? <div>
                 {!SUPPORT_EMAIL ? null : (
                     <ClickableDropdown
-                        width="224px"
+                        width="238px"
                         top="36px"
                         right="5px"
                         colorOnHover={false}

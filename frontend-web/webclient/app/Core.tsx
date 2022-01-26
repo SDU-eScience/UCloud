@@ -2,7 +2,6 @@ import * as React from "react";
 
 const Applications = React.lazy(() => import("@/Applications/Browse"));
 const ApplicationsOverview = React.lazy(() => import("@/Applications/Overview"));
-const ApplicationView = React.lazy(() => import("@/Applications/View"));
 const AdminOverview = React.lazy(() => import("@/Admin/Overview"));
 const App = React.lazy(() => import("@/Applications/Studio/Applications"));
 const AvataaarModification = React.lazy(() => import("@/UserSettings/Avataaar"));
@@ -51,6 +50,7 @@ const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router")
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
+const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -100,19 +100,16 @@ const Core = (): JSX.Element => (
                     <Route path={"/drives"} component={requireAuth(FileCollectionsRouter)} />
                     <Route path={"/files"} component={requireAuth(FilesRouter)} />
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
-                    <Route path={"/shares"}>
-                        <ShareRouter/>
-                        <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
-                    </Route>
+                    <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
+                    <Route path={"/shares"} component={requireAuth(ShareRouter)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
                     <Route exact path="/applications/search" component={requireAuth(Search)} />
-                    <Route
-                        exact
-                        path="/applications/details/:appName/:appVersion"
-                        component={requireAuth(ApplicationView)}
-                    />
+
+                    {!inDevEnvironment() ? null :
+                        <Route exact path="/MANUAL-TESTING-OVERVIEW" component={ManualTestingOverview} />
+                    }
 
                     <Route exact path="/applications/shell/:jobId/:rank" component={requireAuth(JobShell)} />
                     <Route exact path="/applications/web/:jobId/:rank" component={requireAuth(JobWeb)} />
@@ -288,9 +285,11 @@ function MainApp({children}: {children?: React.ReactNode}): JSX.Element {
 injectFonts();
 
 export default function UCloudApp(): JSX.Element {
-    return (<Provider store={store}>
-        <MainApp>
-            <Core />
-        </MainApp>
-    </Provider>);
+    return (
+        <Provider store={store}>
+            <MainApp>
+                <Core />
+            </MainApp>
+        </Provider>
+    );
 }

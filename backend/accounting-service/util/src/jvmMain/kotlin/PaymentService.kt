@@ -54,6 +54,26 @@ class PaymentService(
         }
     }
 
+    suspend fun creditCheckForPayments(payments: List<Payment>): List<ChargeResult> {
+        return Accounting.check.call(
+            BulkRequest(payments.map {
+                ChargeWalletRequestItem(
+                    it.owner,
+                    it.units,
+                    it.periods,
+                    it.product,
+                    it.performedBy,
+                    it.description ?: "Payment",
+                    "${it.product.provider}-${it.chargeId}"
+                )
+            }),
+            serviceClient
+        ).orThrow().responses.map { success ->
+            if (success) ChargeResult.Charged
+            else ChargeResult.InsufficientFunds
+        }
+    }
+
     suspend fun creditCheck(
         owner: WalletOwner,
         products: List<ProductReference>

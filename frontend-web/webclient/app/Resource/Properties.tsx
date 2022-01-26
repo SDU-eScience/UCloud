@@ -13,7 +13,7 @@ import {PropsWithChildren, ReactElement, useCallback, useEffect, useLayoutEffect
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useSidebarPage} from "@/ui-components/Sidebar";
-import {useProjectId} from "@/Project";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
@@ -28,8 +28,8 @@ import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
 import {useHistory, useParams} from "react-router";
 import {useResourceSearch} from "@/Resource/Search";
 import {useDispatch} from "react-redux";
-import {Product} from "@/Accounting";
 import {BrowseType} from "./BrowseType";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
 const enterAnimation = keyframes`
   from {
@@ -189,6 +189,12 @@ export function ResourceProperties<Res extends Resource>(
     const {id} = useParams<{id?: string}>();
     const dispatch = useDispatch();
     const history = useHistory();
+    const projectManagement = useProjectManagementStatus({
+        isRootComponent: false,
+        allowPersonalProject: true
+    });
+    const isWorkspaceAdmin = projectId === undefined ? true : isAdminOrPI(projectManagement.projectRole);
+
     const requestedId = props.resource === undefined ?
         (id === undefined ? undefined : (api.idIsUriEncoded ? decodeURIComponent(id) : id)) :
         typeof props.resource === "string" ? props.resource : props.resource.id;
@@ -245,6 +251,7 @@ export function ResourceProperties<Res extends Resource>(
         invokeCommand,
         commandLoading,
         reload,
+        isWorkspaceAdmin,
         embedded: props.embedded == true,
         closeProperties: props.closeProperties,
         dispatch,
@@ -314,7 +321,9 @@ export function ResourceProperties<Res extends Resource>(
                                     </Box>
                                     <Box><b>Provider: </b> {resource.specification.product.provider}</Box>
                                 </>}
-                                <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                                {resource.owner.createdBy.indexOf("_") === 0 ? null :
+                                    <Box><b>Created by: </b> {resource.owner.createdBy}</Box>
+                                }
                             </Flex>
                         </HighlightedCard>
                     }
@@ -330,7 +339,7 @@ export function ResourceProperties<Res extends Resource>(
                     {props.showPermissions === false || resource.permissions.myself.find(it => it === "ADMIN") === undefined || resource.owner.project == null ? null :
                         <HighlightedCard color={"purple"} isLoading={false} title={"Permissions"} icon={"share"}>
                             <ResourcePermissionEditor reload={reload} entity={resource} api={api}
-                                                      noPermissionsWarning={props.noPermissionsWarning}/>
+                                noPermissionsWarning={props.noPermissionsWarning} />
                             <Box mb={16} />
                         </HighlightedCard>
                     }

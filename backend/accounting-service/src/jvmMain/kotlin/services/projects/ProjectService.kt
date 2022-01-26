@@ -390,7 +390,9 @@ class ProjectService(
         // TODO Performance: This method is running way more queries than is actually needed
         ctx.withSession { session ->
             requireRole(ctx, deletedBy, projectId, ProjectRole.ADMINS)
-
+            if (deletedBy == userToDelete) {
+                throw ProjectException.CantDeleteUserFromProject()
+            }
             val userToDeleteRole = findRoleOfMember(ctx, projectId, userToDelete)
             if (userToDeleteRole == ProjectRole.PI) {
                 throw ProjectException.CantDeleteUserFromProject()
@@ -454,7 +456,7 @@ class ProjectService(
             MailDescriptions.sendToUser.call(
                 bulkRequestOf(adminMessages + userMessage),
                 serviceClient
-            ).orThrow()
+            )
         }
     }
 

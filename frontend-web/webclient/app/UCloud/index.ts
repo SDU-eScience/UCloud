@@ -1585,6 +1585,7 @@ export interface ApplicationInvocationDescription {
     allowAdditionalMounts?: boolean,
     allowAdditionalPeers?: boolean,
     allowMultiNode: boolean,
+    allowPublicIp: boolean,
     fileExtensions: string[],
     licenseServers: string[],
     // shouldAllowAdditionalMounts: boolean,

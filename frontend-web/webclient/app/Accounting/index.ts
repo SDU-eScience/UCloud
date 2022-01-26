@@ -324,15 +324,15 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
         case "PER_UNIT": {
             switch (type) {
                 case "INGRESS":
-                    return "Public links";
+                    return "Public link(s)";
                 case "NETWORK_IP":
-                    return "Public IPs";
+                    return "Public IP(s)";
                 case "LICENSE":
-                    return "Licenses";
+                    return "License(s)";
                 case "STORAGE":
                     return "GB";
                 case "COMPUTE":
-                    return "Jobs";
+                    return "Job(s)";
             }
         }
 
@@ -375,15 +375,15 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
         case "PER_UNIT": {
             switch (type) {
                 case "INGRESS":
-                    return "Public links";
+                    return "Public link(s)";
                 case "NETWORK_IP":
-                    return "Public IPs";
+                    return "Public IP(s)";
                 case "LICENSE":
-                    return "Licenses";
+                    return "License(s)";
                 case "STORAGE":
                     return "GB";
                 case "COMPUTE":
-                    return "Jobs";
+                    return "Job(s)";
             }
         }
 
@@ -421,7 +421,7 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     //  bill like this, but I also don't know what to call it.
                     return "Days of GB";
                 case "COMPUTE":
-                    return "Core hours";
+                    return "Core hour(s)";
             }
         }
     }

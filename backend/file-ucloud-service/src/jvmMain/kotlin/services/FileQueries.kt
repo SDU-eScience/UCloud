@@ -60,6 +60,16 @@ class FileQueries(
         }
     }
 
+    suspend fun fileExists(file: UCloudFile): Boolean {
+        return try {
+            val internalFile = pathConverter.ucloudToInternal(file)
+            nativeFs.stat(internalFile)
+            true
+        } catch (ex: RPCException) {
+            false
+        }
+    }
+
     private suspend fun convertNativeStatToUFile(
         file: InternalFile,
         nativeStat: NativeStat,

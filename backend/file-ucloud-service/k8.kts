@@ -3,8 +3,8 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-ucloud"
-    version = "2021.3.0-alpha43"
-    
+    version = "2022.1.0-patch.4"
+
     withAmbassador(null) {
         addSimpleMapping("/ucloud/ucloud/chunked")
         addSimpleMapping("/ucloud/ucloud/files")
@@ -14,6 +14,7 @@ bundle {
     
     val deployment = withDeployment {
         deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
+        injectSecret("elasticsearch-credentials")
         injectSecret("ucloud-provider-tokens")
 
         val cephfsVolume = "cephfs"

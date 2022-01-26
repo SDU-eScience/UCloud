@@ -448,6 +448,14 @@ export function DateRangeFilter(
     ];
 }
 
+export const StaticPill: React.FunctionComponent<{
+    value: string
+} & PillProps & BaseFilterWidgetProps> = (props) => {
+    return <FilterPill icon={props.icon} onRemove={doNothing} canRemove={false}>
+        {props.value}
+    </FilterPill>
+};
+
 export const ValuePill: React.FunctionComponent<{
     propertyName: string;
     showValue: boolean;

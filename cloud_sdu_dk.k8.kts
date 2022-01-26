@@ -154,6 +154,33 @@ config("app-kubernetes") { ctx ->
             configure("prefix", "app-")
             configure("domain", "cloud.sdu.dk")
             configure("networkInterface", "bond0.20")
+            configure("networkGatewayCidr", "172.20.0.254/32")
+            configure("useMachineSelector", true)
+            configure(
+                "additionalConfig",
+                //language=yaml
+                """
+                    app:
+                        kubernetes:
+                            nodes:
+                                systemReservedCpuMillis: 1000
+                                systemReservedMemMegabytes: 4096
+                                types:
+                                    u1-standard:
+                                        cpuMillis: 64000
+                                        memMegabytes: 385584
+                                        gpus: 0
+                                    u1-gpu:
+                                        cpuMillis: 80000
+                                        memMegabytes: 1920429
+                                    u2-gpu:
+                                        cpuMillis: 96000
+                                        memMegabytes: 2064007
+                                    u1-fat:
+                                        cpuMillis: 80000
+                                        memMegabytes: 772656
+                """.trimIndent()
+            )
         }
     }
 

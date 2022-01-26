@@ -28,10 +28,15 @@ import kotlin.reflect.KClass
 
 typealias KtorHttpRequestBuilder = io.ktor.client.request.HttpRequestBuilder
 
-class OutgoingHttpCall(val builder: KtorHttpRequestBuilder) : OutgoingCall {
+class OutgoingHttpCall(
+    val debugCall: CallDescription<*, *, *>,
+    val builder: KtorHttpRequestBuilder
+) : OutgoingCall {
     override val attributes: AttributeContainer = AttributeContainer()
     var response: HttpResponse? = null
         internal set
+
+    override fun toString(): String = "OutgoingHttpCall(${debugCall.fullName})"
 
     companion object : OutgoingCallCompanion<OutgoingHttpCall> {
         override val klass: KClass<OutgoingHttpCall> = OutgoingHttpCall::class
@@ -59,7 +64,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         call: CallDescription<R, S, E>,
         request: R,
     ): OutgoingHttpCall {
-        return OutgoingHttpCall(KtorHttpRequestBuilder())
+        return OutgoingHttpCall(call, KtorHttpRequestBuilder())
     }
 
     @Suppress("NestedBlockDepth", "BlockingMethodInNonBlockingContext")

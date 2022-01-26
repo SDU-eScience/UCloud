@@ -29,11 +29,12 @@ import {
 import CONF from "../../site.config.json";
 import {ContextSwitcher} from "@/Project/ContextSwitcher";
 import {NewsPost} from "@/Dashboard/Dashboard";
-import {AutomaticGiftClaim} from "@/Gifts/AutomaticGiftClaim";
+import {AutomaticGiftClaim} from "@/Services/Gifts/AutomaticGiftClaim";
 import {VersionManager} from "@/VersionManager/VersionManager";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import BackgroundTasks from "@/BackgroundTasks/BackgroundTask";
+import BackgroundTasks from "@/Services/BackgroundTasks/BackgroundTask";
 import {useEffect, useRef} from "react";
+import {ResourceInit} from "@/Services/ResourceInit";
 
 interface HeaderProps extends HeaderStateToProps, HeaderOperations {
     toggleTheme(): void;
@@ -109,10 +110,15 @@ function Header(props: HeaderProps): JSX.Element | null {
             <ui.Support />
             <Notification />
             <AutomaticGiftClaim />
+            <ResourceInit/>
             <ClickableDropdown
                 width="200px"
                 left="-180%"
-                trigger={<ui.Flex>{Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}</ui.Flex>}
+                trigger={
+                    <ui.Flex data-component={"avatar"}>
+                        {Client.isLoggedIn ? <UserAvatar avatar={props.avatar} mx={"8px"} /> : null}
+                    </ui.Flex>
+                }
             >
                 {!CONF.STATUS_PAGE ? null : (
                     <>
@@ -143,7 +149,7 @@ function Header(props: HeaderProps): JSX.Element | null {
                         </ui.Flex>
                     </Link>
                 </ui.Flex>
-                <ui.Flex onClick={() => Client.logout()}>
+                <ui.Flex onClick={() => Client.logout()} data-component={"logout-button"}>
                     <ui.Icon name="logout" color2="gray" mr="0.5em" my="0.2em" size="1.3em" />
                     Logout
                 </ui.Flex>
@@ -182,7 +188,8 @@ export const Refresh = ({
     headerLoading
 }: {onClick?: () => void; spin: boolean; headerLoading?: boolean}): JSX.Element => !!onClick || headerLoading ? (
     <RefreshIcon
-        data-tag="refreshButton"
+        data-component="refresh"
+        data-loading={spin}
         name="refresh"
         spin={spin || headerLoading}
         onClick={onClick}
@@ -210,6 +217,7 @@ const LogoText = styled(ui.Text)`
 
 const Logo = (): JSX.Element => (
     <Link
+        data-component={"logo"}
         to="/"
         width={[null, null, null, null, null, "190px"]}
     >
@@ -352,7 +360,7 @@ export function SmallScreenSearchField(): JSX.Element {
     const ref = React.useRef<HTMLInputElement>(null);
     const history = useHistory();
 
-    return <ui.Hide lg xl xxl>
+    return <ui.Hide xl xxl>
         <form onSubmit={e => (e.preventDefault(), onSearch(ref.current?.value ?? "", history))}>
             <ui.Text fontSize="20px" mt="4px">Search</ui.Text>
             <ui.Input

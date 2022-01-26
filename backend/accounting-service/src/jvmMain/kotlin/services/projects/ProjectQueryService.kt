@@ -1194,7 +1194,8 @@ class ProjectQueryService(
                 p.copy(
                     ancestorPath = viewAncestors(
                         session,
-                        actor,
+                        // NOTE(Dan): we always allow viewing the title of an ancestor project (fixes #3138)
+                        Actor.System,
                         p.projectId
                     ).dropLast(1).joinToString("/") { it.title }
                 )

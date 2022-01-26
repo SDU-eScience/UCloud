@@ -1,90 +1,31 @@
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import styled from "styled-components";
-import {
-    Box,
-    Flex,
-    ExternalLink,
-    Link,
-    Markdown,
-    OutlineButton,
-    VerticalButtonGroup
-} from "@/ui-components";
-import ContainerForText from "@/ui-components/ContainerForText";
+import {Box, Flex, Link, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {EllipsedText, TextSpan} from "@/ui-components/Text";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {capitalized} from "@/UtilityFunctions";
-import {ApplicationCardContainer, SlimApplicationCard, Tag} from "./Card";
+import {Tag} from "./Card";
 import * as Pages from "./Pages";
-import {useRouteMatch} from "react-router";
-import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useHistory} from "react-router";
 import * as UCloud from "@/UCloud";
 import {FavoriteToggle} from "@/Applications/FavoriteToggle";
-import {useEffect} from "react";
-import {useCloudAPI} from "@/Authentication/DataHook";
-import HexSpin from "@/LoadingIcon/LoadingIcon";
 import {compute} from "@/UCloud";
 import Application = compute.Application;
-import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {useResourceSearch} from "@/Resource/Search";
-import {ApiLike} from "./Overview";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
 
-const View: React.FunctionComponent = () => {
-    const {appName, appVersion} = useRouteMatch<{appName: string, appVersion: string}>().params;
-    useSidebarPage(SidebarPages.AppStore);
-    const [applicationResp, fetchApplication] = useCloudAPI<UCloud.compute.ApplicationWithFavoriteAndTags | null>(
-        {noop: true},
-        null
-    );
-    const [previousResp, fetchPrevious] = useCloudAPI<UCloud.Page<UCloud.compute.ApplicationSummaryWithFavorite> | null>(
-        {noop: true},
-        null
-    );
-
-    useEffect(() => {
-        fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
-        fetchPrevious(UCloud.compute.apps.findByName({appName}));
-    }, [appName, appVersion]);
-
-    useResourceSearch(ApiLike);
-
-    useTitle(applicationResp.data == null ?
-        `${appName}, ${appVersion}` :
-        `${applicationResp.data.metadata.title}, ${applicationResp.data.metadata.version}`);
-
-
-    const application = applicationResp.data;
-    const previous = previousResp.data;
-
-    if (application === null || previous === null) return <MainContainer main={<HexSpin size={36} />} />;
-
-    return (
-        <MainContainer
-            header={<AppHeader application={application!} />}
-            headerSize={160}
-            main={(
-                <ContainerForText left>
-                    <Content
-                        application={application!}
-                        previous={previous.items.filter(it => it.metadata.version !== application.metadata.version)}
-                    />
-                </ContainerForText>
-            )}
-
-            sidebar={(
-                <Sidebar
-                    application={application!}
-                />
-            )}
-        />
-    );
-}
-
-export const AppHeader: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags} & {slim?: boolean}> = props => {
+export const AppHeader: React.FunctionComponent<{
+    application: UCloud.compute.ApplicationWithFavoriteAndTags;
+    slim?: boolean;
+    allVersions: UCloud.compute.ApplicationSummaryWithFavorite[];
+}> = props => {
     const isSlim = props.slim === true;
     const size = isSlim ? "64px" : "128px";
+    /* Results of `findByName` are ordered by apps `createdAt` field in descending order, so this should be correct. */
+    const newest: UCloud.compute.ApplicationSummaryWithFavorite | undefined = props.allVersions[0];
+    const history = useHistory();
+
     return (
         <Flex flexDirection={"row"} ml={["0px", "0px", "0px", "0px", "0px", "50px"]}  >
             <Box mr={16}>
@@ -94,12 +35,33 @@ export const AppHeader: React.FunctionComponent<{application: UCloud.compute.App
             <Flex flexDirection={"column"} minWidth={0}>
                 {isSlim ? (
                     <>
-                        <Heading.h3>{props.application.metadata.title}</Heading.h3>
-                        <TextSpan>v{props.application.metadata.version}</TextSpan>
+                        <Heading.h3>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h3>
+                        <Flex>
+                            <ClickableDropdown
+                                trigger={<TextSpan>v{props.application.metadata.version}</TextSpan>}
+                                chevron
+                            >
+                                {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => history.push(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
+                            </ClickableDropdown>
+                            {newest && newest.metadata.version !== props.application.metadata.version ?
+                                <Tooltip trigger={
+                                    <TriggerDiv onClick={e => {
+                                        e.preventDefault();
+                                        history.push(Pages.runApplication(newest.metadata));
+                                    }}>
+                                        New version available.
+                                    </TriggerDiv>
+                                }>
+                                    <div onClick={e => e.stopPropagation()}>
+                                        You are not using the newest version of the app.<br />
+                                        Click to use the newest version.
+                                    </div>
+                                </Tooltip> : null}
+                        </Flex>
                     </>
                 ) : (
                     <>
-                        <Heading.h2>{props.application.metadata.title}</Heading.h2>
+                        <Heading.h2>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h2>
                         <Heading.h3>v{props.application.metadata.version}</Heading.h3>
                         <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
                         <Tags tags={props.application.tags} />
@@ -110,63 +72,16 @@ export const AppHeader: React.FunctionComponent<{application: UCloud.compute.App
     );
 };
 
-const Sidebar: React.FunctionComponent<{application: UCloud.compute.ApplicationWithFavoriteAndTags}> = props => (
-    <VerticalButtonGroup>
-        <FavoriteToggle application={props.application} />
-
-        {!props.application.metadata.website ? null : (
-            <ExternalLink href={props.application.metadata.website}>
-                <OutlineButton fullWidth color={"blue"}>Documentation</OutlineButton>
-            </ExternalLink>
-        )}
-
-        <Link to={Pages.runApplication(props.application.metadata)}>
-            <OutlineButton fullWidth color={"blue"}>Run Application</OutlineButton>
-        </Link>
-    </VerticalButtonGroup>
-);
-
-const AppSection = styled(Box)`
-    margin-bottom: 16px;
+const TriggerDiv = styled.div`
+    margin-left: 4px;
+    padding-left: 12px;
+    padding-right: 12px;
+    text-align: center;
+    color: var(--white);
+    background-color: var(--blue);
+    border-radius: 20px;
+    cursor: pointer;
 `;
-
-const Content: React.FunctionComponent<{
-    application: UCloud.compute.ApplicationWithFavoriteAndTags,
-    previous: UCloud.compute.ApplicationSummaryWithFavorite[]
-}> = props => (
-    <>
-        <AppSection>
-            <Markdown
-                unwrapDisallowed
-                disallowedElements={[
-                    "image",
-                    "heading"
-                ]}
-            >
-                {props.application.metadata.description}
-            </Markdown>
-        </AppSection>
-
-        <AppSection>
-            <Information application={props.application} />
-        </AppSection>
-
-        <AppSection>
-            {!props.previous ? null :
-                (!props.previous.length ? null : (
-                    <div>
-                        <Heading.h4>Other Versions</Heading.h4>
-                        <ApplicationCardContainer>
-                            {props.previous.map((it, idx) => (
-                                <SlimApplicationCard app={it} key={idx} tags={it.tags} />
-                            ))}
-                        </ApplicationCardContainer>
-                    </div>
-                ))
-            }
-        </AppSection>
-    </>
-);
 
 function Tags({tags}: {tags: string[]}): JSX.Element | null {
     if (!tags) return null;
@@ -206,7 +121,7 @@ const InfoAttributes = styled.div`
     flex-direction: row;
 `;
 
-const Information: React.FunctionComponent<{application: Application}> = ({application}) => {
+export const Information: React.FunctionComponent<{application: Application; simple?: boolean;}> = ({application, simple}) => {
     const tool = application?.invocation?.tool?.tool;
     if (!tool) return null;
     const time = tool?.description?.defaultTimeAllocation;
@@ -221,15 +136,17 @@ const Information: React.FunctionComponent<{application: Application}> = ({appli
                     value={dateToString(tool.createdAt)}
                 />
 
-                <InfoAttribute
-                    name="Default Time Allocation"
-                    value={timeString}
-                />
+                {simple ? null : <>
+                    <InfoAttribute
+                        name="Default Time Allocation"
+                        value={timeString}
+                    />
 
-                <InfoAttribute
-                    name="Default Nodes"
-                    value={`${tool.description.defaultNumberOfNodes}`}
-                />
+                    <InfoAttribute
+                        name="Default Nodes"
+                        value={`${tool.description.defaultNumberOfNodes}`}
+                    />
+                </>}
 
                 <InfoAttribute
                     name="Container Type"
@@ -244,5 +161,3 @@ const Information: React.FunctionComponent<{application: Application}> = ({appli
         </>
     );
 }
-
-export default View;

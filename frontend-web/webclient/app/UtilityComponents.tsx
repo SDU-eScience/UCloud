@@ -16,6 +16,7 @@ import {ErrorWrapper} from "@/ui-components/Error";
 import {ThemeColor} from "@/ui-components/theme";
 import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 
 interface StandardDialog {
     title?: string;
@@ -129,6 +130,7 @@ interface ConfirmCancelButtonsProps {
     cancelText?: string;
     height?: number | string;
     showCancelButton?: boolean;
+    disabled?: boolean;
 
     onConfirm(e: React.SyntheticEvent<HTMLButtonElement>): void;
 
@@ -141,12 +143,13 @@ export const ConfirmCancelButtons = ({
     onConfirm,
     onCancel,
     height,
-    showCancelButton
+    showCancelButton,
+    disabled
 }: ConfirmCancelButtonsProps): JSX.Element => (
     <ButtonGroup width="175px" height={height}>
-        <Button onClick={onConfirm} type="button" color="green">{confirmText}</Button>
+        <Button disabled={disabled} onClick={onConfirm} type="button" color="green">{confirmText}</Button>
         {showCancelButton === false ? null :
-            <Button onClick={onCancel} type="button" color="red">{cancelText}</Button>}
+            <Button disabled={disabled} onClick={onCancel} type="button" color="red">{cancelText}</Button>}
     </ButtonGroup>
 );
 
@@ -157,6 +160,7 @@ export const NamingField: React.FunctionComponent<{
     suffix?: string | null;
     inputRef: React.MutableRefObject<HTMLInputElement | null>;
     onSubmit: (e: React.SyntheticEvent) => void;
+    disabled?: boolean;
     defaultValue?: string;
 }> = props => {
     const submit = React.useCallback((e) => {
@@ -176,7 +180,7 @@ export const NamingField: React.FunctionComponent<{
     }, [props.onCancel]);
 
     return (
-        <form onSubmit={submit}>
+        props.disabled ? <LoadingIcon /> : <form onSubmit={submit}>
             <Flex onClick={stopPropagationAndPreventDefault}>
                 <div style={{transform: "translateY(2px)", marginBottom: "2px"}}>
                     <ConfirmCancelButtons

@@ -309,19 +309,26 @@ class ProviderProxy<
         isUserRequest: Boolean,
         requestForProvider: R,
         provider: String,
+        useHttpClient: Boolean = true,
         call: (comms: Comms) -> CallDescription<R, S, E>,
     ): S {
         val comms = providers.prepareCommunication(provider)
         val im = IntegrationProvider(provider)
         val actualCall = call(comms)
 
+        val baseClient = if (useHttpClient) {
+            comms.client
+        } else {
+            comms.wsClient
+        }
+
         for (attempt in 0 until 5) {
             val response = actualCall.call(
                 requestForProvider,
                 if (isUserRequest) {
-                    comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
+                    baseClient.withProxyInfo(actorAndProject.actor.safeUsername())
                 } else {
-                    comms.client
+                    baseClient
                 }
             )
 
@@ -350,7 +357,8 @@ class ProviderProxy<
     suspend fun <R : Any, S : Any, R2 : Any> proxy(
         actorAndProject: ActorAndProject,
         request: R,
-        instructions: ProxyInstructions<Comms, Support, Res, R, R2, S>
+        instructions: ProxyInstructions<Comms, Support, Res, R, R2, S>,
+        useHttpClient: Boolean = true,
     ): S {
         var mappedRequest: R2? = null
         with(instructions) {
@@ -368,7 +376,7 @@ class ProviderProxy<
                 if (provider == Provider.UCLOUD_CORE_PROVIDER) {
                     afterCall(provider, reqWithResource, null)
                 } else {
-                    val resp = invokeCall(actorAndProject, isUserRequest, requestForProvider, provider) {
+                    val resp = invokeCall(actorAndProject, isUserRequest, requestForProvider, provider, useHttpClient) {
                         retrieveCall(it)
                     }
                     afterCall(provider, reqWithResource, resp)

@@ -485,9 +485,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
 
+        const [submitLoading, setSubmissionsLoading] = React.useState(false);
+
         const submitRequest = useCallback(async () => {
+            setSubmissionsLoading(true);
             if (state.targetProject === undefined) {
                 snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
+                setSubmissionsLoading(false);
                 return;
             }
 
@@ -541,11 +545,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 state.reload();
                 setIsLocked(true);
             }
+            setSubmissionsLoading(false);
         }, [state.targetProject, state.documentRef, state.recipient, state.productCategories, projectTitleRef,
         state.editingApplication?.id, state.reload]);
 
         const updateReferenceID = useCallback(async () => {
             await runWork(editReferenceId({id: state.editingApplication!.id, newReferenceId: projectReferenceIdRef.current?.value}))
+            setIsEditingProjectReference(false);
+            state.reload();
+        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+
+        const cancelEditOfRefId = useCallback(async () => {
             setIsEditingProjectReference(false);
             state.reload();
         }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
@@ -771,39 +781,45 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    { state.approver ?
+                                                    {state.approver ?
                                                         <TableCell>
                                                             <table>
                                                                 <tbody>
-                                                                <tr>
-                                                                    {isEditingProjectReferenceId ? (
-                                                                        <>
-                                                                            <td>
-                                                                                <Input
-                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
-                                                                                    ref={projectReferenceIdRef}
-                                                                                />
-                                                                            </td>
-                                                                            <td>
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={updateReferenceID}
-                                                                                >
-                                                                                    Update Reference ID
-                                                                                </Button>
-                                                                            </td>
-                                                                        </>) : (
-                                                                        <>
-                                                                            <td>
-                                                                                {state.editingApplication?.referenceId ?? "No ID given"}
-                                                                            </td>
-                                                                            <td>
-                                                                                <Button
-                                                                                    onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
-                                                                            </td>
-                                                                        </>)
-                                                                    }
-                                                                </tr>
+                                                                    <tr>
+                                                                        {isEditingProjectReferenceId ? (
+                                                                            <>
+                                                                                <td>
+                                                                                    <Input
+                                                                                        placeholder={state.editingApplication?.referenceId != null ? state.editingApplication?.referenceId : "e.g. DeiC-SDU-L1-000001"}
+                                                                                        ref={projectReferenceIdRef}
+                                                                                    />
+                                                                                </td>
+                                                                                <td>
+                                                                                    <Button
+                                                                                        color="blue"
+                                                                                        onClick={updateReferenceID}
+                                                                                        mx="6px"
+                                                                                    >
+                                                                                        Update Reference ID
+                                                                                    </Button>
+                                                                                    <Button
+                                                                                        color="red"
+                                                                                        onClick={cancelEditOfRefId}
+                                                                                    >
+                                                                                        Cancel
+                                                                                    </Button>
+                                                                                </td>
+                                                                            </>) : (
+                                                                            <>
+                                                                                <td>
+                                                                                    {state.editingApplication?.referenceId ?? "No ID given"}
+                                                                                </td>
+                                                                                <td>
+                                                                                    <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                                </td>
+                                                                            </>)
+                                                                        }
+                                                                    </tr>
                                                                 </tbody>
                                                             </table>
                                                         </TableCell> :
@@ -942,7 +958,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
                                 {target !== RequestTarget.VIEW_APPLICATION ? (
-                                    <Button disabled={grantFinalized} fullWidth onClick={submitRequest}>
+                                    <Button disabled={grantFinalized || submitLoading} fullWidth onClick={submitRequest}>
                                         Submit Application
                                     </Button>
                                 ) : null

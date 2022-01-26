@@ -68,7 +68,9 @@ class AmbassadorService(
             metadata = ObjectMeta().apply {
                 this.name = this@AmbassadorService.name
                 this.annotations = mapOf(
-                    "nginx.ingress.kubernetes.io/proxy-body-size" to "0"
+                    "nginx.ingress.kubernetes.io/proxy-body-size" to "0",
+                    "nginx.ingress.kubernetes.io/proxy-read-timeout" to "3600",
+                    "nginx.ingress.kubernetes.io/proxy-send-timeout" to "3600"
                 )
             }
 

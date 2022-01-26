@@ -3,6 +3,7 @@ import * as UCloud from "@/UCloud";
 import {Box, Flex, Input, Label} from "@/ui-components";
 import {TextP} from "@/ui-components/Text";
 import {
+    findRelevantMachinesForApplication,
     Machines,
     setMachineReservationFromRef,
     validateMachineReservation
@@ -11,7 +12,7 @@ import {useCallback, useEffect, useState} from "react";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useProjectId} from "@/Project";
 import {MandatoryField} from "@/Applications/Jobs/Widgets/index";
-import {costOfDuration, Product, productCategoryEquals, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, Product, productCategoryEquals, ProductCompute} from "@/Accounting";
 import {emptyPageV2} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 
@@ -58,30 +59,7 @@ export const ReservationParameter: React.FunctionComponent<{
         }
     }, [wallet]);
 
-    const allMachines = ([] as ProductCompute[]).concat.apply(
-        [],
-        Object.values(machineSupport.data.productsByProvider).map(products => {
-            return products
-                .filter(it => {
-                    const tool = application.invocation.tool.tool!;
-                    const backend = tool.description.backend;
-                    switch (backend) {
-                        case "DOCKER":
-                            return it.support.docker.enabled;
-                        case "SINGULARITY":
-                            return false;
-                        case "VIRTUAL_MACHINE":
-                            return it.support.virtualMachine.enabled &&
-                                (tool.description.supportedProviders ?? [])
-                                    .some(p => p === it.product.category.provider);
-                    }
-                })
-                .filter(product =>
-                    wallet.data.items.some(wallet => productCategoryEquals(product.product.category, wallet.category))
-                )
-                .map(it => it.product);
-        })
-    );
+    const allMachines = findRelevantMachinesForApplication(application, machineSupport.data, wallet.data);
 
     const recalculateCost = useCallback(() => {
         const {options} = validateReservation();
@@ -102,41 +80,35 @@ export const ReservationParameter: React.FunctionComponent<{
     const toolBackend = application.invocation.tool.tool?.description?.backend ?? "DOCKER";
 
     return <Box>
-        <Label mb={"4px"}>
-            Job name
-            <Input
-                id={reservationName}
-                placeholder={"Example: Run with parameters XYZ"}
-            />
-            {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
-        </Label>
+        <Flex>
+            <Label mb={"4px"}>
+                Job name
+                <Input
+                    id={reservationName}
+                    placeholder={"Example: Run with parameters XYZ"}
+                />
+                {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
+            </Label>
+            {toolBackend === "DOCKER" ?
+                <>
+                    <Box ml="4px" />
 
-        {toolBackend === "DOCKER" ?
-            <Flex mb={"1em"}>
-                <Label>
-                    Hours <MandatoryField/>
-                    <Input
-                        id={reservationHours}
-                        onBlur={recalculateCost}
-                        defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
-                    />
-                </Label>
-                <Box ml="4px"/>
-                <Label>
-                    Minutes <MandatoryField/>
-                    <Input
-                        id={reservationMinutes}
-                        onBlur={recalculateCost}
-                        defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.minutes ?? 0}
-                    />
-                </Label>
-            </Flex>
-            : null}
+                    <Label>
+                        Hours <MandatoryField />
+                        <Input
+                            id={reservationHours}
+                            type="number"
+                            step={1}
+                            min={1}
+                            onBlur={recalculateCost}
+                            defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
+                        />
+                    </Label>
+                </>
+                : null}
+        </Flex>
         {toolBackend === "VIRTUAL_MACHINE" ?
-            <>
-                <input type={"hidden"} id={reservationHours} value={"1"}/>
-                <input type={"hidden"} id={reservationMinutes} value={"0"}/>
-            </>
+            <input type={"hidden"} id={reservationHours} value={"1"} />
             : null}
         {errors["timeAllocation"] ? <TextP color={"red"}>{errors["timeAllocation"]}</TextP> : null}
 
@@ -145,7 +117,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 <Flex mb={"1em"}>
                     <Label>
                         Number of nodes
-                        <Input id={reservationReplicas} onBlur={recalculateCost} defaultValue={"1"}/>
+                        <Input id={reservationReplicas} onBlur={recalculateCost} defaultValue={"1"} />
                     </Label>
                 </Flex>
                 {errors["replicas"] ? <TextP color={"red"}>{errors["replicas"]}</TextP> : null}
@@ -153,8 +125,8 @@ export const ReservationParameter: React.FunctionComponent<{
         )}
 
         <div>
-            <Label>Machine type <MandatoryField/></Label>
-            <Machines machines={allMachines} onMachineChange={setSelectedMachine}/>
+            <Label>Machine type <MandatoryField /></Label>
+            <Machines machines={allMachines} onMachineChange={setSelectedMachine} />
             {errors["product"] ? <TextP color={"red"}>{errors["product"]}</TextP> : null}
         </div>
     </Box>
@@ -174,36 +146,26 @@ export type ReservationErrors = {
 export function validateReservation(): ValidationAnswer {
     const name = document.getElementById(reservationName) as HTMLInputElement | null;
     const hours = document.getElementById(reservationHours) as HTMLInputElement | null;
-    const minutes = document.getElementById(reservationMinutes) as HTMLInputElement | null;
     const replicas = document.getElementById(reservationReplicas) as HTMLInputElement | null;
 
-    if (name === null || hours === null || minutes === null) throw "Reservation component not mounted";
+    if (name === null || hours === null) throw "Reservation component not mounted";
 
     const values: Partial<ReservationValues> = {};
     const errors: ReservationErrors = {};
     if (hours.value === "") {
         errors["timeAllocation"] = "Missing value supplied for hours";
-    } else if (minutes.value === "") {
-        errors["timeAllocation"] = "Missing value supplied for minutes";
     } else if (!/^\d+$/.test(hours.value)) {
         errors["timeAllocation"] = "Invalid value supplied for hours. Example: 1";
-    } else if (!/^\d+$/.test(minutes.value)) {
-        errors["timeAllocation"] = "Invalid value supplied for minutes. Example: 0";
     }
 
     if (!errors["timeAllocation"]) {
         const parsedHours = parseInt(hours.value, 10);
-        const parsedMinutes = parseInt(minutes.value, 10);
 
-        if (parsedMinutes < 0 || parsedMinutes > 59) {
-            errors["timeAllocation"] = "Minutes must be between 0 and 59"
-        } else {
-            values["timeAllocation"] = {
-                hours: parsedHours,
-                minutes: parsedMinutes,
-                seconds: 0
-            };
-        }
+        values["timeAllocation"] = {
+            hours: parsedHours,
+            minutes: 0,
+            seconds: 0
+        };
     }
 
     values["name"] = name.value === "" ? undefined : name.value;

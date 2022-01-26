@@ -6,6 +6,7 @@ import BaseLink from "@/ui-components/BaseLink";
 import {Widget} from "@/Applications/Jobs/Widgets";
 import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
+import {GrayBox} from "../Create";
 
 export const PeerResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -18,55 +19,56 @@ export const PeerResource: React.FunctionComponent<{
     const tool = invocation.tool.tool!.description;
     const shouldShow = invocation.allowAdditionalPeers !== false && tool.backend !== "VIRTUAL_MACHINE";
     return !shouldShow ? null : (
-        <Box>
-            <Flex alignItems={"center"}>
-                <Box flexGrow={1}>
-                    <Heading.h4>Connect to other jobs</Heading.h4>
-                </Box>
-                <Button
-                    type="button"
-                    lineHeight="16px"
-                    onClick={onAdd}
-                >
-                    Connect to job
-                </Button>
-            </Flex>
-            <Box mb={8} mt={8}>
-                {params.length !== 0 ? (
-                    <>
-                        You will be able contact the <b>job</b> using its <b>hostname</b>.
-                    </>
-                ) : (
-                    <>
-                        If you need to use the services of another job click{" "}
-                        <BaseLink
-                            href="#"
-                            onClick={e => {
-                                e.preventDefault();
-                                onAdd();
-                            }}
-                        >
-                            &quot;Connect to job&quot;.
-                        </BaseLink>
-                        {" "}
-                        This includes networking.
-                    </>
-                )}
-            </Box>
-
-            {
-                params.map(entry => (
-                    <Box key={entry.name} mb={"7px"}>
-                        <Widget
-                            parameter={entry}
-                            errors={errors}
-                            onRemove={() => {
-                                onRemove(entry.name);
-                            }}
-                        />
+        <GrayBox>
+            <Box>
+                <Flex alignItems={"center"}>
+                    <Box flexGrow={1}>
+                        <Heading.h4>Connect to other jobs</Heading.h4>
                     </Box>
-                ))
-            }
-        </Box>
-    );
+                    <Button
+                        type="button"
+                        lineHeight="16px"
+                        onClick={onAdd}
+                    >
+                        Connect to job
+                    </Button>
+                </Flex>
+                <Box mb={8} mt={8}>
+                    {params.length !== 0 ? (
+                        <>
+                            You will be able contact the <b>job</b> using its <b>hostname</b>.
+                        </>
+                    ) : (
+                        <>
+                            If you need to use the services of another job click{" "}
+                            <BaseLink
+                                href="#"
+                                onClick={e => {
+                                    e.preventDefault();
+                                    onAdd();
+                                }}
+                            >
+                                &quot;Connect to job&quot;.
+                            </BaseLink>
+                            {" "}
+                            This includes networking.
+                        </>
+                    )}
+                </Box>
+
+                {
+                    params.map(entry => (
+                        <Box key={entry.name} mb={"7px"}>
+                            <Widget
+                                parameter={entry}
+                                errors={errors}
+                                onRemove={() => {
+                                    onRemove(entry.name);
+                                }}
+                            />
+                        </Box>
+                    ))
+                }
+            </Box>
+        </GrayBox>);
 };
