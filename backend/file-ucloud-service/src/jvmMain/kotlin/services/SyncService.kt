@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
@@ -20,7 +21,6 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
-import io.ktor.http.*
 import java.io.File
 
 object SyncFoldersTable : SQLTable("sync_folders") {

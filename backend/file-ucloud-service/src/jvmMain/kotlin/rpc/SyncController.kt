@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ResourceNotifications
 import dk.sdu.cloud.accounting.api.ResourceNotificationsProvider
@@ -15,8 +16,6 @@ import dk.sdu.cloud.file.ucloud.services.SyncService
 import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
-import io.ktor.http.*
-import java.awt.SystemColor.control
 
 class SyncController(
     private val syncService: SyncService,

@@ -23,6 +23,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.SyncFolder
 import dk.sdu.cloud.sync.mounter.api.Mounts
 import io.ktor.http.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import java.io.File
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -64,7 +65,7 @@ class Server(
                 )
             }
 
-        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken))
+        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
         val internalAuthenticator = RefreshingJWTAuthenticator(
             micro.client,
             JwtRefresherSharedSecret(syncMounterSharedSecret ?: "this_will_fail")

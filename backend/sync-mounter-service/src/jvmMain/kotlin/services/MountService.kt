@@ -3,7 +3,7 @@ package dk.sdu.cloud.sync.mounter.services
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
-import io.ktor.http.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import java.io.File
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
