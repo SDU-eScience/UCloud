@@ -17,8 +17,6 @@ import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
 import dk.sdu.cloud.utils.startProcess
-import io.ktor.http.*
-import io.ktor.http.HttpMethod
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -179,7 +177,6 @@ class ConnectionController(
             }
 
             if (devInstance?.userId != uid) {
-                println("Running sudo process now!")
                 startProcess(
                     listOf(
                         "/usr/bin/sudo",

@@ -17,10 +17,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobUpdate
 import dk.sdu.cloud.app.orchestrator.api.JobsControl
 import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
 import dk.sdu.cloud.app.store.api.SimpleDuration
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.debug.tellMeEverything
@@ -41,7 +38,6 @@ import dk.sdu.cloud.service.k8.createResource
 import dk.sdu.cloud.service.k8.deleteResource
 import dk.sdu.cloud.service.k8.getResource
 import dk.sdu.cloud.service.k8.listResources
-import io.ktor.http.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
@@ -168,7 +164,7 @@ class JobManagement(
                 )
             )
         } catch (ex: KubernetesException) {
-            if (ex.statusCode == HttpStatusCode.NotFound || ex.statusCode == HttpStatusCode.BadRequest) {
+            if (ex.statusCode == io.ktor.http.HttpStatusCode.NotFound || ex.statusCode == io.ktor.http.HttpStatusCode.BadRequest) {
                 // NOTE(Dan): We ignore this status code as it simply indicates that the job has already been
                 // cleaned up. If we have more than one resource we should wrap that in a new try/catch block.
             } else {
@@ -446,7 +442,7 @@ class JobManagement(
             try {
                 k8.client.getResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
             } catch (ex: KubernetesException) {
-                if (ex.statusCode == HttpStatusCode.NotFound) {
+                if (ex.statusCode == io.ktor.http.HttpStatusCode.NotFound) {
                     log.info("Job no longer exists: $jobId")
                     return false
                 }

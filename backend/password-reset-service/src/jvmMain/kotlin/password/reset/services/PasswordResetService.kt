@@ -2,6 +2,7 @@ package dk.sdu.cloud.password.reset.services
 
 import dk.sdu.cloud.auth.api.ChangePasswordWithResetRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -15,7 +16,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.HttpStatusCode
 import org.joda.time.DateTimeZone
 import org.joda.time.LocalDateTime
 import org.slf4j.Logger

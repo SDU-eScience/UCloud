@@ -11,6 +11,7 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
@@ -27,7 +28,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.selects.select
 import kotlinx.serialization.KSerializer

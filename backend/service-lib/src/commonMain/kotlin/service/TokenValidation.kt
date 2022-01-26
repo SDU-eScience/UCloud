@@ -2,8 +2,8 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import io.ktor.http.HttpStatusCode
 
 sealed class TokenValidationException(why: String, statusCode: HttpStatusCode) : RPCException(why, statusCode) {
     class Invalid : TokenValidationException("Invalid token", HttpStatusCode.Forbidden)

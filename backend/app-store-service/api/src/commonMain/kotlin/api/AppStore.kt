@@ -2,9 +2,7 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable

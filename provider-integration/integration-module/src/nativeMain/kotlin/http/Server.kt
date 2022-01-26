@@ -2,6 +2,7 @@ package dk.sdu.cloud.http
 
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.base64Encode
+import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.utils.*
@@ -138,11 +139,6 @@ class HttpClientSession<AppData>(
         channel.write(outs)
     }
 }
-
-// NOTE(Dan): Generally, it doesn't make sense to have a dependency on ktor. But we make an exception here since the
-// entire API system currently does depend on it. It makes it a lot easier to use the same object for passing around.
-// If this were to change in the core of UCloud, then this code will probably be unified somehow.
-typealias HttpMethod = io.ktor.http.HttpMethod
 
 interface HttpRequestHandler<AppData> {
     fun HttpClientSession<AppData>.handleRequest(
@@ -306,7 +302,7 @@ fun <AppData> startServer(
                     }
 
                     val method = tokens.first().uppercase()
-                    val parsedMethod = HttpMethod.parse(method)
+                    val parsedMethod = HttpMethod(method)
                     val path = tokens.getOrNull(1) ?: break
 
                     val requestHeaders = ArrayList<Header>()

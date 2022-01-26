@@ -10,7 +10,6 @@ import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.*
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
@@ -134,7 +133,12 @@ class IpcServer(
             val clientSocket = accept(serverSocket, null, null)
 
             ProcessingScope.launch {
-                processIpcClient(clientSocket)
+                try {
+                    processIpcClient(clientSocket)
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    throw ex
+                }
             }
         }
     }

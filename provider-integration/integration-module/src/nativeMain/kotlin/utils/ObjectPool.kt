@@ -4,7 +4,9 @@ import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import platform.posix.usleep
 import kotlin.random.Random
+import kotlin.random.nextUInt
 
 abstract class ObjectPool<T>(private val maxCapacity: Int) {
     private val mutex = Mutex()

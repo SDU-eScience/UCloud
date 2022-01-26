@@ -7,7 +7,6 @@ import dk.sdu.cloud.micro.providerTokenValidation
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 
 private val microImplementedByKey = AttributeKey<Micro>("call-implemented-by")
 var CallDescription<*, *, *>.microImplementedBy: Micro

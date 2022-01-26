@@ -9,6 +9,7 @@ import dk.sdu.cloud.accounting.api.providers.ProviderRegisteredResource
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -18,7 +19,6 @@ import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.SimpleCache
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock

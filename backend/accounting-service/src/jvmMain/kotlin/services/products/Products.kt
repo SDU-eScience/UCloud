@@ -5,10 +5,10 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 

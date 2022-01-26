@@ -7,6 +7,7 @@ import com.auth0.jwt.exceptions.JWTDecodeException
 import com.auth0.jwt.exceptions.JWTVerificationException
 import com.auth0.jwt.interfaces.DecodedJWT
 import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
@@ -14,9 +15,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
-import java.security.interfaces.RSAPublicKey
 
 @Deprecated("Replace with AuthenticatorFeature", ReplaceWith("AuthenticatorFeature"), DeprecationLevel.WARNING)
 typealias RefreshingJWTCloudFeature = AuthenticatorFeature

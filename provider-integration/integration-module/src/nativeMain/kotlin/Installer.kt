@@ -5,6 +5,8 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.UCLOUD_IM_PORT
 import dk.sdu.cloud.http.OutgoingCallResponse
+import dk.sdu.cloud.http.OutgoingHttpCall
+import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.LogLevel
 import dk.sdu.cloud.service.currentLogLevel

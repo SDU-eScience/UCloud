@@ -6,11 +6,11 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import java.security.KeyPairGenerator
 import java.security.SecureRandom
 import java.security.interfaces.RSAPrivateKey

@@ -26,7 +26,6 @@ import dk.sdu.cloud.service.test.withKtorTest
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import io.ktor.server.testing.setBody
 import io.mockk.Runs
 import io.mockk.coEvery

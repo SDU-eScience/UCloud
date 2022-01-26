@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.store.api
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.TYPE_REF
 import dk.sdu.cloud.calls.UCloudApiDoc
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.Serializable
 
 sealed class ApplicationVerificationException(why: String, httpStatusCode: HttpStatusCode) :

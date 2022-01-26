@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.http
 import dk.sdu.cloud.auth.api.AuthDescriptions
 import dk.sdu.cloud.auth.api.LoginRequest
 import dk.sdu.cloud.auth.services.LoginService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -10,7 +11,6 @@ import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.receiveParameters
 import io.ktor.util.toMap
 

@@ -176,7 +176,6 @@ class ByteBuffer {
         rawMemory.copyInto(rawMemory, 0, readerIndex, writerIndex)
         readerIndex = 0
         writerIndex = bytesToMove
-        println("Moved $bytesToMove bytes")
     }
 
     fun clear() {

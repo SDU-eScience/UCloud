@@ -17,23 +17,8 @@ import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CALL_REF
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.UCloudApiExampleValue
-import dk.sdu.cloud.calls.actor
-import dk.sdu.cloud.calls.basicUser
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.bulkResponseOf
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.failure
-import dk.sdu.cloud.calls.provider
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.ucloudCore
-import dk.sdu.cloud.calls.useCase
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.singlePageOf
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
 

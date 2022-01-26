@@ -4,7 +4,6 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
@@ -143,7 +142,7 @@ class RpcServer(
                             return
                         }
 
-                        log.debug("Incoming call: ${call.fullName} [$requestMessage]")
+                        log.debug("Incoming call: ${call.fullName}")
                         val context = CallHandler(
                             IngoingCall(AttributeContainer(), HttpContext(path, payload, headers, this)),
                             requestMessage,
@@ -209,7 +208,6 @@ class RpcServer(
             },
             webSocketRequestHandler = object : WebSocketRequestHandler<ConnectionData> {
                 override fun HttpClientSession<ConnectionData>.handleTextFrame(frame: String) {
-                    println("Received frame: $frame")
                     val request = runCatching {
                         defaultMapper.decodeFromString<WSRequest<JsonObject>>(frame)
                     }.getOrNull() ?: run {
@@ -308,7 +306,7 @@ class RpcServer(
                         isOpen
                     )
 
-                    log.debug("Incoming call: ${foundCall.call.fullName} (${request.toString().take(240)})")
+                    log.debug("Incoming call: ${foundCall.call.fullName}")
                     val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)
                     middlewares.value.forEach { it.beforeRequest(context) }
 

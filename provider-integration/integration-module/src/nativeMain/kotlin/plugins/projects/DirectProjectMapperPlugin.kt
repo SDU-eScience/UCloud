@@ -2,11 +2,11 @@ package dk.sdu.cloud.plugins.projects
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import platform.posix.getuid
 import kotlin.system.exitProcess

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -23,7 +24,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString

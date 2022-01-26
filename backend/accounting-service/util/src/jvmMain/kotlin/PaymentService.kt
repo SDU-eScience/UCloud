@@ -2,12 +2,11 @@ package dk.sdu.cloud.accounting.util
 
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.http.*
 import java.util.*
 
 data class Payment(

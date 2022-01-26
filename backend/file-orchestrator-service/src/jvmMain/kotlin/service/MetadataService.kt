@@ -6,11 +6,11 @@ import com.github.fge.jsonschema.main.JsonSchemaFactory
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 

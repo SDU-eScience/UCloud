@@ -3,13 +3,13 @@ package dk.sdu.cloud.accounting.services.projects
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
 import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.HttpStatusCode
 import java.util.*
 
 object GroupTable : SQLTable("project.groups") {

@@ -9,9 +9,9 @@ import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Time
-import io.ktor.http.*
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

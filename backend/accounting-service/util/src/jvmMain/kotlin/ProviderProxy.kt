@@ -5,14 +5,10 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
-import io.ktor.http.*
 import kotlinx.coroutines.delay
 
 sealed class ProductRefOrResource<Res : Resource<*, *>> {

@@ -1,9 +1,7 @@
 package dk.sdu.cloud
 
 import dk.sdu.cloud.calls.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Transient
 import kotlin.math.ceil
 import kotlin.math.min
 

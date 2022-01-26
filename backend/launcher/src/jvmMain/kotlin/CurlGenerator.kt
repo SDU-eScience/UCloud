@@ -4,7 +4,7 @@ import dk.sdu.cloud.calls.UseCase
 import dk.sdu.cloud.calls.UseCaseNode
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.httpOrNull
-import dk.sdu.cloud.calls.toKtorTemplate
+import dk.sdu.cloud.calls.toPath
 import io.ktor.http.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.*
@@ -52,7 +52,7 @@ fun UseCase.curl(): String {
 
                     append('"')
                     append("\$host")
-                    append(http.path.toKtorTemplate(fullyQualified = true))
+                    append(http.path.toPath(fullyQualified = true))
                     if (http.params != null) {
                         fun encodeElement(name: String, element: JsonElement): Map<String, String> {
                             return when (element) {

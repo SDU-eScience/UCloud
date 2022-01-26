@@ -7,8 +7,8 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.http.ByteBuffer
 import dk.sdu.cloud.http.Header
@@ -26,7 +26,6 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
-import io.ktor.http.*
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
@@ -438,7 +437,9 @@ class PosixFilesPlugin : FilePlugin {
             if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
             val sortedFiles = files.sortedWith(comparator)
             browseCache.insert(token, sortedFiles)
-            return paginateFiles(sortedFiles, offset, token)
+            return paginateFiles(sortedFiles, offset, token).also {
+
+            }
         } else {
             val files = items.subList(offset, min(items.size, offset + itemsPerPage)).map { nativeStat(it) }
             return PageV2(

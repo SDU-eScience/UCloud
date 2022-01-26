@@ -2,6 +2,7 @@ package dk.sdu.cloud.calls.client
 
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.WSMessage
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -34,18 +35,6 @@ class OutgoingWSCall : OutgoingCall {
         internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
         val proxyAttribute = AttributeKey<String>("ucloud-username")
     }
-}
-
-expect fun atomicString(initialValue: String): AtomicString
-expect class AtomicString{
-    fun compareAndSet(expected: String, newValue: String): Boolean
-    fun getAndSet(newValue: String): String
-    fun getValue(): String
-}
-expect fun atomicInt(initialValue: Int): AtomicInteger
-expect class AtomicInteger {
-    fun incrementAndGet(): Int
-    fun getAndIncrement(): Int
 }
 
 @OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
@@ -151,8 +140,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
 
         @Suppress("UNCHECKED_CAST")
         return when (response.status) {
-            in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.fromValue(response.status), ctx)
-            else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.fromValue(response.status), ctx)
+            in 100..399 -> IngoingCallResponse.Ok(response.payload as S, HttpStatusCode.parse(response.status), ctx)
+            else -> IngoingCallResponse.Error(response.payload as E?, HttpStatusCode.parse(response.status), ctx)
         }
     }
 
@@ -285,8 +274,6 @@ internal data class WSRawMessage(
     val streamId: String,
     val payload: JsonObject
 )
-
-expect fun createWebsocketClient(): HttpClient
 
 @OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {

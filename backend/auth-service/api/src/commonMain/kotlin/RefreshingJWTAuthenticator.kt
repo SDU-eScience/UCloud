@@ -1,11 +1,10 @@
 package dk.sdu.cloud.auth.api
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
-import io.ktor.client.request.*
-import io.ktor.http.*
 import kotlinx.coroutines.delay
 
 sealed class JwtRefresher {

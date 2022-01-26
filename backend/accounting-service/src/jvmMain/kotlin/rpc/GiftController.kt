@@ -2,17 +2,10 @@ package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.accounting.services.grants.GiftService
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.project
-import dk.sdu.cloud.calls.server.securityPrincipal
-import dk.sdu.cloud.grant.api.AvailableGiftsResponse
 import dk.sdu.cloud.grant.api.Gifts
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.toActor
-import io.ktor.http.HttpStatusCode
 
 class GiftController(
     private val gifts: GiftService,

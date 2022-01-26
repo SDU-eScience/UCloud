@@ -5,13 +5,13 @@ import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive

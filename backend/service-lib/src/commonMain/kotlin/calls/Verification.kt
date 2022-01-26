@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.http.*
 import kotlin.reflect.KProperty
 
 fun checkSingleLine(

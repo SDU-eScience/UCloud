@@ -2,7 +2,6 @@ package dk.sdu.cloud.notification.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 @Serializable

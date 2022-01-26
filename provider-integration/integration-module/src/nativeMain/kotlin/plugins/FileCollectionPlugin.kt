@@ -5,10 +5,10 @@ import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
-import io.ktor.http.*
 
 interface FileCollectionPlugin : ResourcePlugin<Product.Storage, FSSupport, FileCollection, ProductBasedConfiguration> {
     override suspend fun PluginContext.create(resource: FileCollection): FindByStringId? {

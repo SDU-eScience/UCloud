@@ -6,6 +6,7 @@ import dk.sdu.cloud.auth.services.ServiceDAO
 import dk.sdu.cloud.auth.services.ServiceMode
 import dk.sdu.cloud.auth.services.TokenService
 import dk.sdu.cloud.auth.services.TwoFactorChallengeService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -16,7 +17,6 @@ import io.ktor.content.TextContent
 import io.ktor.features.origin
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.http.HttpStatusCode
 import io.ktor.request.accept
 import io.ktor.request.userAgent
 import io.ktor.response.*
@@ -128,7 +128,7 @@ class LoginResponder(
 
             // Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
             // Using a redirect via HTML works.
-            call.respondText(ContentType.Text.Html, HttpStatusCode.OK) {
+            call.respondText(ContentType.Text.Html, io.ktor.http.HttpStatusCode.OK) {
                 //language=html
                 """
                 <!DOCTYPE html>

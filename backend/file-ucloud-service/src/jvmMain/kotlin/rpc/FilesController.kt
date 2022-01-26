@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.ucloud.rpc
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.*
@@ -15,9 +16,6 @@ import dk.sdu.cloud.file.ucloud.services.tasks.EmptyTrashRequestItem
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.PageV2
-import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.actorAndProject
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.request.*

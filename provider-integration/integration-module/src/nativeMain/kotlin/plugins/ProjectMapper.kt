@@ -1,12 +1,12 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
-import io.ktor.http.*
 
 object ProjectMapper {
     fun registerProjectMapping(

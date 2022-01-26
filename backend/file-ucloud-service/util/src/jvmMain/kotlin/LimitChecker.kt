@@ -1,10 +1,10 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 
 class LimitChecker(
     private val db: DBContext,

@@ -38,12 +38,13 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.3")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.4")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
-            api("io.ktor:ktor-client-curl:1.6.2-test")
-            api("io.ktor:ktor-client-websockets:1.6.2-test")
-            api("io.ktor:ktor-client-cio:1.6.2-test")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
+//            api("io.ktor:ktor-client-curl:1.6.2-test")
+//            api("io.ktor:ktor-client-websockets:1.6.2-test")
+//            api("io.ktor:ktor-client-cio:1.6.2-test")
+//            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.5.1-new-mm-dev1")
+            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }
 
         compilations["main"].cinterops {

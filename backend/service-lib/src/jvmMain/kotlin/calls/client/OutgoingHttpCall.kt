@@ -44,8 +44,6 @@ class OutgoingHttpCall(
     }
 }
 
-expect internal fun createHttpClient(): HttpClient
-
 class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCall, OutgoingHttpCall.Companion> {
     override val companion: OutgoingHttpCall.Companion = OutgoingHttpCall.Companion
     fun install(
@@ -88,7 +86,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             val url = "$scheme://$host:$port/$endpoint"
 
             url(url)
-            method = http.method
+            method = io.ktor.http.HttpMethod(http.method.value)
             if (body == EmptyContent) {
                 // If a beforeHook has attached a body, don't change it
                 body = http.serializeBody(request, call)
@@ -125,7 +123,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                         log.debug("[$callId] ConnectException: ${ex.message}")
                         throw RPCException(
                             "[$callId] ${call.fullName} Could not connect to backend server",
-                            HttpStatusCode.BadGateway
+                            dk.sdu.cloud.calls.HttpStatusCode.BadGateway
                         )
                     }
 
@@ -174,7 +172,11 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         callId: Int,
     ): IngoingCallResponse<S, E> {
         return if (resp.status.isSuccess()) {
-            IngoingCallResponse.Ok(parseResponseToType(resp, call.successType), resp.status, ctx)
+            IngoingCallResponse.Ok(
+                parseResponseToType(resp, call.successType),
+                dk.sdu.cloud.calls.HttpStatusCode(resp.status.value, resp.status.description),
+                ctx
+            )
         } else {
             IngoingCallResponse.Error(
                 runCatching {
@@ -184,7 +186,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                     log.trace(it.stackTraceToString())
                     null
                 },
-                resp.status,
+                dk.sdu.cloud.calls.HttpStatusCode(resp.status.value, resp.status.description),
                 ctx,
             )
         }
@@ -287,5 +289,3 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         private const val SAMPLE_FREQUENCY = 100
     }
 }
-
-expect fun urlEncode(value: String): String

@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.util
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.Provider
@@ -11,7 +12,6 @@ import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.provider.api.ProvidersRetrieveSpecificationRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.SimpleCache
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 
 interface ProviderComms {

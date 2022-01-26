@@ -10,9 +10,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 
 object BoundIngressTable : SQLTable("bound_ingress") {
     val ingressId = text("ingress_id")

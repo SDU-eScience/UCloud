@@ -1,9 +1,9 @@
 package dk.sdu.cloud.slack.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.Ticket
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope

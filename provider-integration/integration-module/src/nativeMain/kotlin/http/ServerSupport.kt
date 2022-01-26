@@ -5,7 +5,7 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
-import io.ktor.http.*
+import dk.sdu.cloud.calls.HttpStatusCode
 import kotlin.native.concurrent.AtomicReference
 import kotlin.native.concurrent.freeze
 

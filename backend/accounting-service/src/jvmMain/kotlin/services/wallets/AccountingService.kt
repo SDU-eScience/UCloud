@@ -11,6 +11,7 @@ import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.defaultMapper
@@ -26,7 +27,6 @@ import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import okhttp3.internal.toLongOrDefault
 

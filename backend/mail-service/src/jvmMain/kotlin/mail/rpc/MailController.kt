@@ -1,6 +1,7 @@
 package dk.sdu.cloud.mail.rpc
 
 import dk.sdu.cloud.Role
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.service.Controller
@@ -11,7 +12,6 @@ import dk.sdu.cloud.mail.services.SettingsService
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.withSession
-import io.ktor.http.*
 
 class MailController(
     private val mailService: MailService,

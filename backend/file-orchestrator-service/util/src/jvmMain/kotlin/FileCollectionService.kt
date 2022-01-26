@@ -12,7 +12,6 @@ import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
 import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.service.db.async.*
-import io.ktor.http.*
 import kotlinx.serialization.serializer
 
 typealias DeleteHandler = suspend (batch: BulkRequest<FindByStringId>) -> Unit

@@ -3,10 +3,10 @@ package dk.sdu.cloud.http
 import dk.sdu.cloud.IMConfiguration
 import dk.sdu.cloud.NativeJWTValidation
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.authDescription
 import dk.sdu.cloud.service.Log
-import io.ktor.http.*
 
 fun loadMiddleware(config: IMConfiguration, validation: NativeJWTValidation): Unit = with(config) {
     addMiddleware(object : Middleware {

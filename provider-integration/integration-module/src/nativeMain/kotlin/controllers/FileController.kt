@@ -14,10 +14,9 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.secureToken
-import io.ktor.http.*
-import io.ktor.http.HttpMethod
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
+import platform.posix.usleep
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -279,7 +278,7 @@ class FileController(
             val plugin = plugins.lookup(request.resolvedCollection.specification.product)
             with(controllerContext.pluginContext) {
                 with(plugin) {
-                    OutgoingCallResponse.Ok(browse(UCloudFile.create(path), request))
+                    OutgoingCallResponse.Ok<FilesProviderBrowseResponse, CommonErrorMessage>(browse(UCloudFile.create(path), request))
                 }
             }
         }

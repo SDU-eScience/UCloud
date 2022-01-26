@@ -9,13 +9,13 @@ import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 
 abstract class BaseResourceController<

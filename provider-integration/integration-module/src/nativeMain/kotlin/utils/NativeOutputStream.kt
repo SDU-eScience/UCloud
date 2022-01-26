@@ -40,7 +40,6 @@ class NativeOutputStream(val fd: Int) {
 
     fun close() {
         platform.posix.close(fd)
-        println("Closing $fd")
     }
 }
 

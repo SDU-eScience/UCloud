@@ -4,8 +4,6 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 

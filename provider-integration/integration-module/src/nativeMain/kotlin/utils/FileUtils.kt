@@ -1,10 +1,10 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
-import io.ktor.http.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import platform.posix.*

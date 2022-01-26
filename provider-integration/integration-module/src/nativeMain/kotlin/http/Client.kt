@@ -8,7 +8,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.tcp.*
 import dk.sdu.cloud.utils.ObjectPool
-import io.ktor.http.*
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
@@ -99,7 +98,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
     ) {
         with(client) {
             attachFilter(OutgoingHostResolverInterceptor(targetHostResolver))
-            attachFilter(OutgoingAuthFilter())
             attachRequestInterceptor(this@OutgoingHttpRequestInterceptor)
         }
     }
@@ -109,7 +107,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         request: R,
         ctx: OutgoingHttpCall
     ): IngoingCallResponse<S, E> {
-        val callId = Random.nextInt(10000) // A non unique call ID for logging purposes only
+        val callId = Random.nextInt(10000) // A non-unique call ID for logging purposes only
         val start = Time.now()
         val shortRequestMessage = request.toString().take(100)
 
@@ -294,7 +292,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             if (ex.message?.contains("Connection is closed") == true) {
                 ctx.attempts++
                 if (ctx.attempts < 10) {
-                    println("Retrying")
                     return finalizeCall(call, request, ctx)
                 }
             }

@@ -1,5 +1,6 @@
 package dk.sdu.cloud.slack.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
@@ -12,10 +13,7 @@ import io.ktor.client.request.request
 import io.ktor.client.statement.HttpResponse
 import io.ktor.client.statement.response
 import io.ktor.content.TextContent
-import io.ktor.http.ContentType
-import io.ktor.http.HttpMethod
-import io.ktor.http.HttpStatusCode
-import io.ktor.http.isSuccess
+import io.ktor.http.*
 import io.ktor.util.KtorExperimentalAPI
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString

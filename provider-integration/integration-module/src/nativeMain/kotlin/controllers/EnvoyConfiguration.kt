@@ -3,7 +3,6 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.file.orchestrator.api.FilesControl
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
@@ -134,7 +133,6 @@ static_resources:
     }
 
     fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster?) {
-        println("Requesting configuration $route $cluster")
         runBlocking {
             channel.send(ConfigurationMessage.NewCluster(route, cluster))
         }
