@@ -1,5 +1,6 @@
 package dk.sdu.cloud.sync.mounter.services
 
+import com.sun.jna.Native
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
@@ -11,12 +12,9 @@ import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
 
 class MountService(
-    val config: SyncMounterConfiguration,
-    val ready: AtomicBoolean
+    private val config: SyncMounterConfiguration,
+    private val ready: AtomicBoolean
 ) {
-    private val MS_BIND: Long = 4096
-    private val O_NOFOLLOW = 0x20000
-
     @OptIn(ExperimentalPathApi::class)
     fun mount(request: MountRequest) {
         request.items.forEach { item ->
@@ -102,7 +100,10 @@ class MountService(
             }
 
             if (CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
+                if (Native.getLastError() != EINVAL) {
+                    // We assume EINVAL to mean that it is not a valid mount-point, which can happen at start up.
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
+                }
             }
 
             if (!target.delete()) {
@@ -131,5 +132,11 @@ class MountService(
                 CLibrary.INSTANCE.close(descriptor)
             }
         }
+    }
+
+    companion object {
+        private const val EINVAL = 22
+        private const val MS_BIND = 4096L
+        private const val O_NOFOLLOW = 0x20000
     }
 }
