@@ -29,6 +29,8 @@ import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import {FileCollection} from "@/UCloud/FileCollectionsApi";
+import {pathComponents} from "@/Utilities/FileUtilities";
 
 const Tab: React.FunctionComponent<{
     selected: boolean;
@@ -49,10 +51,11 @@ const Tab: React.FunctionComponent<{
 
 export const SynchronizationSettings: React.FunctionComponent<{
     file: UFile;
+    collection: FileCollection | undefined;
     provider: string;
     onSuccess: () => void;
     onDeviceSelect?: (selection: SyncDevice) => void;
-}> = ({file, provider, onSuccess, onDeviceSelect}) => {
+}> = ({file, collection, provider, onSuccess, onDeviceSelect}) => {
     const [manageDevices, setManageDevices] = useState(false);
     const [folders, fetchFolders] = useCloudAPI<PageV2<SyncFolder>>(
         SyncFolderApi.browse({
@@ -61,6 +64,9 @@ export const SynchronizationSettings: React.FunctionComponent<{
         }),
         emptyPageV2
     );
+
+    const subPathComponents = pathComponents(file.id);
+    const fullPath = collection?.specification.title + "/" + subPathComponents.slice(1).join('/');
 
     const [folderProducts, fetchFolderProducts] = useCloudAPI<
         SupportByProvider<ProductSyncFolder, SyncFolderSupport> | undefined
@@ -168,7 +174,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                         device and add your device ID in Manage devices.
                     </Box>
                     <Box mt="30px" mb="30px">
-                        <Label>
+                        <Label fontWeight={"normal"}>
                             <Flex>
                                 <Box width={50} height={25} padding={0}>
                                     { loading ? (
@@ -185,7 +191,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                                     )}
                                 </Box>
                                 <TextSpan ml={20} fontSize={2}>
-                                    Add {file.id} to synchronization
+                                    Add <b>{fullPath}</b> to synchronization
                                 </TextSpan>
                             </Flex>
                         </Label>

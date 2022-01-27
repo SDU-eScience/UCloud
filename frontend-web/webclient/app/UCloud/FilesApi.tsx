@@ -914,7 +914,7 @@ async function addSynchronizationDialog(file: UFile, cb: ResourceBrowseCallbacks
 
     if (provider) {
         dialogStore.addDialog(
-            <SynchronizationSettings file={file} provider={provider} onSuccess={() => cb.reload()} />,
+            <SynchronizationSettings file={file} collection={cb.collection} provider={provider} onSuccess={() => cb.reload()} />,
             () => undefined,
             true
             //this.fileSelectorModalStyle
