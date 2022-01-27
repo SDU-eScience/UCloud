@@ -112,7 +112,7 @@ class SyncService(
 
                 Mounts.mount.call(
                     MountRequest(
-                        listOf(MountFolder(folder.id.toLong(), folder.specification.path))
+                        listOf(MountFolder(folder.id.toLong(), internalFile.path))
                     ),
                     authenticatedClient //.withMounterInfo(device)
                 ).orRethrowAs {
@@ -268,7 +268,10 @@ class SyncService(
             deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
                 Mounts.mount.call(
                     MountRequest(
-                        deviceFolders.value.map { MountFolder(it.id, it.path) }
+                        deviceFolders.value.map {
+                            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(it.path))
+                            MountFolder(it.id, internalFile.path)
+                        }
                     ),
                     authenticatedClient //.withMounterInfo(device)
                 )

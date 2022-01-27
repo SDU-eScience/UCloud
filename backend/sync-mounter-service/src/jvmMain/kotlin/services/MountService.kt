@@ -20,7 +20,12 @@ class MountService(
     @OptIn(ExperimentalPathApi::class)
     fun mount(request: MountRequest) {
         request.items.forEach { item ->
-            val source = File(joinPath(config.cephfsBaseMount, item.path))
+            if (!item.path.startsWith(config.cephfsBaseMount)) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
+            }
+
+            val source = File(item.path)
+
             if (!source.exists() || !source.isDirectory) {
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }

@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.sync.mounter.api.SyncMounterServiceDescription
 
 data class SyncMounterConfiguration(
-    val cephfsBaseMount: String = "/mnt/cephfs/collections",
+    val cephfsBaseMount: String = "/mnt/cephfs",
     val syncBaseMount: String = "/mnt/sync",
     val deviceId: String
 )
