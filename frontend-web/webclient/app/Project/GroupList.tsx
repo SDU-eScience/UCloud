@@ -1,23 +1,22 @@
 import * as React from "react";
 import * as Pagination from "@/Pagination";
-import {Button, Text, List, Icon, Flex, Box} from "@/ui-components";
+import {Button, List, Icon, Flex} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {Operation} from "@/Types";
 import {useHistory} from "react-router";
 import GroupView from "./GroupView";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {errorMessageOrDefault, preventDefault} from "@/UtilityFunctions";
+import {errorMessageOrDefault} from "@/UtilityFunctions";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {addStandardDialog, NamingField} from "@/UtilityComponents";
+import {NamingField} from "@/UtilityComponents";
 import {ListRow} from "@/ui-components/List";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {useProjectManagementStatus} from "@/Project/index";
 import {deleteGroup, groupSummaryRequest, updateGroupName} from "@/Project";
 import {useRef, useState} from "react";
-import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import {Spacer} from "@/ui-components/Spacer";
+import {Operation, Operations} from "@/ui-components/Operation";
 
 export interface GroupWithSummary {
     groupId: string;
@@ -39,27 +38,27 @@ const GroupList: React.FunctionComponent = () => {
     const promises = usePromiseKeeper();
     const [renamingGroup, setRenamingGroup] = useState<string | null>(null);
     const renameRef = useRef<HTMLInputElement>(null);
-    const [, runCommand] = useAsyncCommand();
+    const [, runCommand] = useCloudCommand();
 
     const operations: GroupOperation[] = [
         {
-            disabled: groups => groups.length !== 1 || !allowManagement,
+            enabled: groups => groups.length === 1 && allowManagement,
             onClick: ([group]) => setRenamingGroup(group.groupId),
             icon: "rename",
             text: "Rename"
         },
         {
-            disabled: groups => groups.length === 0 || !allowManagement,
-            onClick: (groups) => promptDeleteGroups(groups),
+            enabled: groups => groups.length > 0 && allowManagement,
+            onClick: (groups) => deleteSelectedGroups(groups),
             icon: "trash",
             text: "Delete",
-            color: "red"
+            color: "red",
+            confirm: true
         }
     ];
 
 
     if (groupId) return <GroupView />;
-    const [trashOp] = operations;
     const content = (
         <>
             {groupList.data.items.length !== 0 || creatingGroup ? null : (
@@ -115,33 +114,16 @@ const GroupList: React.FunctionComponent = () => {
                                         <Icon mt="4px" mr="4px" size="18" name="user" /> {g.numberOfMembers}
                                     </Flex>
                                 }
-                                {operations.length === 0 || !allowManagement ? null :
-                                    operations.length > 1 ? <ClickableDropdown
-                                        width="125px"
-                                        left="-105px"
-                                        trigger={(
-                                            <Icon
-                                                onClick={preventDefault}
-                                                mr="10px"
-                                                ml="12px"
-                                                name="ellipsis"
-                                                size="1em"
-                                                rotation={90}
-                                            />
-                                        )}
-                                    >
-                                        <GroupOperations groupOperations={operations} selectedGroups={[g]} />
-                                    </ClickableDropdown> :
-                                        <Icon
-                                            cursor="pointer"
-                                            onClick={() => trashOp.onClick([g], Client)}
-                                            size={20}
-                                            mr="1em"
-                                            ml="0.5em"
-                                            color={trashOp.color}
-                                            name={trashOp.icon}
-                                        />
-                                }
+
+                                <Operations
+                                    location={"IN_ROW"}
+                                    operations={operations}
+                                    entityNameSingular="Group"
+                                    entityNamePlural="Groups"
+                                    extra={{}}
+                                    selected={[g]}
+                                    row={g}
+                                />
                             </>
                         }
                         isSelected={false}
@@ -175,23 +157,9 @@ const GroupList: React.FunctionComponent = () => {
         />
     </>;
 
-    async function promptDeleteGroups(groups: GroupWithSummary[]): Promise<void> {
-        if (groups.length === 0) {
-            snackbarStore.addFailure("You haven't selected any groups.", false);
-            return;
-        }
-        addStandardDialog({
-            title: "Delete groups?",
-            message: <>
-                <Text mb="5px">Selected groups:</Text>
-                {groups.map(g => <Text key={g.groupId} fontSize="12px">{g.groupTitle}</Text>)}
-            </>,
-            onConfirm: async () => {
-                await runCommand(deleteGroup({groups: groups.map(it => it.groupId)}));
-                fetchGroupList(groupListParams);
-            },
-            confirmText: "Delete"
-        });
+    async function deleteSelectedGroups(groups: GroupWithSummary[]): Promise<void> {
+        await runCommand(deleteGroup({groups: groups.map(it => it.groupId)}));
+        fetchGroupList(groupListParams);
     }
 
     async function createGroup(e: React.SyntheticEvent): Promise<void> {
@@ -235,31 +203,5 @@ const GroupList: React.FunctionComponent = () => {
 };
 
 type GroupOperation = Operation<GroupWithSummary>;
-
-interface GroupOperationsProps {
-    selectedGroups: GroupWithSummary[];
-    groupOperations: GroupOperation[];
-}
-
-function GroupOperations(props: GroupOperationsProps): JSX.Element | null {
-    if (props.groupOperations.length === 0) return null;
-
-    function GroupOp(op: GroupOperation): JSX.Element | null {
-        if (op.disabled(props.selectedGroups, Client)) return null;
-        return (
-            <Box
-                onClick={() => op.onClick(props.selectedGroups, Client)}
-                key={op.text}
-                cursor="pointer"
-            >
-                <span>
-                    <Icon size={16} mr="1em" color={op.color} name={op.icon} />{op.text}
-                </span>
-            </Box>
-        );
-    }
-
-    return <>{props.groupOperations.map(GroupOp)}</>;
-}
 
 export default GroupList;
