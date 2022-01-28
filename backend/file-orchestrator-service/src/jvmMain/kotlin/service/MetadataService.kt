@@ -289,13 +289,28 @@ class MetadataService(
             val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
             val templates = HashMap<String, FileMetadataTemplate>()
 
+            val id = extractPathMetadata(normalizedParentPath).collection
+            val rows = session.sendPreparedStatement(
+                {
+                    setParameter("collectionPath", "/$id")
+                },
+                """
+                    Select original_file_path
+                    from provider.resource r
+                    join file_orchestrator.shares s on r.id = s.resource
+                    where s.available_at = :collectionPath;
+                """.trimIndent()
+            ).rows
+            val pathToUse = rows.singleOrNull()?.getString(0)?.normalize() ?: normalizedParentPath
+            val isShare = rows.isNotEmpty()
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("paths", fileNames?.map { normalizedParentPath + it })
-                        setParameter("parents", parent.parents() + parent)
+                        setParameter("paths", fileNames?.map { pathToUse + "/" + it })
+                        setParameter("parents", pathToUse.parents() + parent)
                         setParameter("username", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
+                        setParameter("isShare", isShare)
                     },
                     """
                         select 
@@ -321,11 +336,12 @@ class MetadataService(
                                     :project::text is not null and
                                     d.workspace = :project and
                                     d.is_workspace_project = true
-                                )
+                                ) or 
+                                ( :isShare )
                             )
                             
                         order by d.path, d.latest desc, d.created_at desc
-                    """
+                    """, debug = true
                 )
                 .rows
                 .forEach { row ->
