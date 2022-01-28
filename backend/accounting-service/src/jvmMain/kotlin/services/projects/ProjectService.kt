@@ -5,8 +5,6 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.services.providers.ResourceNotificationEvent
-import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -64,7 +62,6 @@ object ProjectInvite : SQLTable("project.invites") {
     val createdAt = timestamp("created_at", notNull = true)
 }
 
-
 suspend fun RowData.toProject(): Project {
     return Project(
         id = getField(ProjectTable.id),
@@ -77,7 +74,6 @@ suspend fun RowData.toProject(): Project {
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
     private val eventProducer: EventProducer<ProjectEvent>,
-    private val resourceNotifications: ResourceNotificationService
 ) {
     suspend fun create(
         ctx: DBContext,
@@ -361,10 +357,6 @@ class ProjectService(
                 serviceClient
             )
         }
-
-        resourceNotifications.create(
-            ResourceNotificationEvent.LeftProject(initiatedBy, projectId)
-        )
     }
 
     private suspend fun notify(
@@ -464,10 +456,6 @@ class ProjectService(
                 serviceClient
             )
         }
-
-        resourceNotifications.create(
-            ResourceNotificationEvent.LeftProject(userToDelete, projectId)
-        )
     }
 
     suspend fun changeRoleOfMember(
@@ -549,10 +537,6 @@ class ProjectService(
                 serviceClient
             )
         }
-
-        resourceNotifications.create(
-            ResourceNotificationEvent.ChangedRole(memberToUpdate, projectId, newRole)
-        )
     }
 
     suspend fun transferPrincipalInvestigatorRole(

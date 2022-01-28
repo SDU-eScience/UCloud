@@ -24,6 +24,7 @@ class SyncDeviceService(
     override val serializer = serializer<SyncDevice>()
     override val updateSerializer = serializer<SyncDevice.Update>()
     override val productArea = ProductType.SYNCHRONIZATION
+    override val personalResource: Boolean = true
 
     override fun userApi() = SyncDevices
     override fun controlApi() = SyncDeviceControl

@@ -90,6 +90,7 @@ class MountService(
 
     fun unmount(request: UnmountRequest) {
         request.items.forEach { item ->
+            println(item.id.toString())
             val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")

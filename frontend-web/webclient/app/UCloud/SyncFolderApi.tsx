@@ -23,8 +23,7 @@ export interface SyncFolderSpecification extends ResourceSpecification {
 }
 
 export interface SyncFolderStatus extends ResourceStatus {
-    deviceId: string;
-    syncType: SynchronizationType;
+    remoteDevice: string;
 }
 
 export interface SyncFolderSupport extends ProductSupport {}

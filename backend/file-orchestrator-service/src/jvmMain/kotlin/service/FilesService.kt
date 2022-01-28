@@ -165,12 +165,12 @@ class FilesService(
                                 setParameter("filter_parent", request.flags.path)
                             },
                             """
-                                select f.path
+                                select ('/' || f.collection || f.sub_path) as path
                                 from file_orchestrator.sync_folders f
                                 join provider.resource r on f.resource = r.id
                                 where
-                                    f.path like (:filter_parent || '/%') and
-                                    f.path not like (:filter_parent || '/%/%') and
+                                    ('/' || f.collection || f.sub_path) like (:filter_parent || '/%') and
+                                    ('/' || f.collection || f.sub_path) not like (:filter_parent || '/%/%') and
                                     :filter_user = r.created_by
                             """
                         )

@@ -1,8 +1,5 @@
-drop function if exists file_orchestrator.sync_device_to_json(device_in file_orchestrator.sync_devices);
-drop function if exists file_orchestrator.sync_folder_to_json(folder_in file_orchestrator.sync_folders);
-drop function if exists file_orchestrator.remove_sync_folders(ids bigint[]);
-drop table if exists file_orchestrator.sync_devices;
-drop table if exists file_orchestrator.sync_folders;
+drop table if exists file_orchestrator.sync_devices cascade;
+drop table if exists file_orchestrator.sync_folders cascade;
 
 create table file_orchestrator.sync_devices(
     resource bigint references provider.resource(id) primary key,
@@ -22,22 +19,28 @@ $$;
 create table file_orchestrator.sync_folders (
     resource bigint references provider.resource(id) primary key,
     collection bigint not null references provider.resource(id),
-    sub_path text not null
+    sub_path text not null,
+    status_permission text not null,
+    remote_device_id text default null
+);
+
+drop type if exists file_orchestrator.sync_with_dependencies cascade ;
+create type file_orchestrator.sync_with_dependencies as
+(
+    resource bigint,
+    folder file_orchestrator.sync_folders
 );
 
 create or replace function file_orchestrator.sync_folder_to_json(
-    folder_in file_orchestrator.sync_folders,
-    devices_in text[]
+    sync_in file_orchestrator.sync_with_dependencies
 ) returns jsonb language sql as $$
 select jsonb_build_object(
     'specification', jsonb_build_object(
-        'path', '/' || folder_in.collection || folder_in.sub_path
+        'path', '/' || (sync_in.folder).collection || (sync_in.folder).sub_path
     ),
     'status', jsonb_build_object(
-        'devices', (
-            select jsonb_agg(obj)
-            from (select jsonb_build_object('id', unnest(devices_in)) obj) tt
-        )
+        'remoteDevice', (sync_in.folder).remote_device_id,
+        'permission', (sync_in.folder).status_permission
     )
 );
 $$;
