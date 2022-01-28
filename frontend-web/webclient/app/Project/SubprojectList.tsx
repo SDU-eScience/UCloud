@@ -120,6 +120,10 @@ export default function SubprojectList(): JSX.Element | null {
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const history = useHistory();
 
+    const projectId = useProjectId();
+
+    React.useEffect(() => history.push(`/subprojects?subproject=${projectId}`), [projectId]);
+
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
         dispatchSetProjectAction(dispatch, id);
