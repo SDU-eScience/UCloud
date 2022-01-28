@@ -1,12 +1,12 @@
 package dk.sdu.cloud.elastic.management.services
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.SendAlertRequest
 import dk.sdu.cloud.slack.api.SlackDescriptions
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.runBlocking
 import org.elasticsearch.ElasticsearchStatusException
 import org.elasticsearch.client.RequestOptions

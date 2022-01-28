@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.connection
 
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.callBlocking
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
@@ -14,7 +15,6 @@ import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -98,8 +98,6 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                                 defaultMapper.encodeToJsonElement(TicketApprovalRequest(ticket, localId)) as JsonObject
                             )
                         ).orThrow<Unit>()
-
-                        println("Success!")
                     }
 
                     else -> {

@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.providers.SortDirection
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FileIconHint
 import dk.sdu.cloud.file.orchestrator.api.FileType
@@ -14,7 +15,6 @@ import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.create
-import io.ktor.http.*
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 

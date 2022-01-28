@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.rpc
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
@@ -12,7 +13,6 @@ import dk.sdu.cloud.project.api.LookupAdminsResponse
 import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.http.HttpStatusCode
 import dk.sdu.cloud.toActor
 
 class MembershipController(

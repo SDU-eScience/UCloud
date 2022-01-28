@@ -1,6 +1,5 @@
 package dk.sdu.cloud.calls
 
-import io.ktor.http.HttpMethod
 import kotlinx.serialization.KSerializer
 import kotlin.reflect.KProperty1
 
@@ -47,8 +46,8 @@ sealed class HttpPathSegment<Request : Any> {
     ) : HttpPathSegment<Request>()
 }
 
-fun HttpPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
-    val primaryPart = segments.joinToString("/") { it.toKtorTemplateString() }
+fun HttpPath<*>.toPath(fullyQualified: Boolean = false): String {
+    val primaryPart = segments.joinToString("/") { it.toPath() }
     return if (fullyQualified) {
         (basePath.removeSuffix("/") + "/" + primaryPart).removeSuffix("/")
     } else {
@@ -56,7 +55,7 @@ fun HttpPath<*>.toKtorTemplate(fullyQualified: Boolean = false): String {
     }
 }
 
-private fun <R : Any> HttpPathSegment<R>.toKtorTemplateString(): String = when (this) {
+private fun <R : Any> HttpPathSegment<R>.toPath(): String = when (this) {
     is HttpPathSegment.Simple -> text
 }
 

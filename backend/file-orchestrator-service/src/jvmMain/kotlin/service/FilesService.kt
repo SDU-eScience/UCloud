@@ -14,7 +14,6 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.task.api.*
-import io.ktor.http.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
@@ -546,7 +545,9 @@ class FilesService(
                         }
                     }
 
-                    moveHandlers.forEach { handler -> handler(batch) }
+                    if (batch.isNotEmpty()) {
+                        moveHandlers.forEach { handler -> handler(batch) }
+                    }
 
                     registerTasks(
                         findTasksInBackgroundFromResponse(response)

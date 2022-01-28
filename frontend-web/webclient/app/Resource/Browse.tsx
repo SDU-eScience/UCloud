@@ -511,20 +511,20 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         return <Box minWidth="700px" ref={scrollingContainerRef}>
             {/* Sticky box causes rerender. See "Bug"-tag above. */}
             {/* <StickyBox shadow={!scrollStatus.isAtTheTop} normalMarginX={"20px"}> */}
-                {inlineInspecting ?
-                    <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
-                    <>
-                        <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
-                        {props.header}
-                        <ResourceFilter
-                            pills={allPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
-                            sortEntries={api.sortEntries} sortDirection={sortDirection}
-                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            readOnlyProperties={props.additionalFilters} />
-                    </>
-                }
+            {inlineInspecting ?
+                <Heading.h3 flexGrow={1}>{api.titlePlural}</Heading.h3> :
+                <>
+                    <Operations selected={toggleSet.checked.items} location={"TOPBAR"}
+                        entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                        extra={callbacks} operations={operations} />
+                    {props.header}
+                    <ResourceFilter
+                        pills={allPills} filterWidgets={api.filterWidgets} browseType={props.browseType}
+                        sortEntries={api.sortEntries} sortDirection={sortDirection}
+                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                        readOnlyProperties={props.additionalFilters} />
+                </>
+            }
             {/* </StickyBox> */}
             {main}
         </Box>;

@@ -2,7 +2,6 @@ package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
 @Serializable

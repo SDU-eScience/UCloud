@@ -5,12 +5,12 @@ import dk.sdu.cloud.app.orchestrator.api.JobSpecification
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.file.orchestrator.service.FileCollectionService
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.service.Loggable
-import io.ktor.http.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 

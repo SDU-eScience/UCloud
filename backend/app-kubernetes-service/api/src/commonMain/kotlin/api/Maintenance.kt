@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
 @Serializable

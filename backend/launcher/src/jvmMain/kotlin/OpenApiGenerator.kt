@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.server.OutgoingCallResponse
 import dk.sdu.cloud.micro.PlaceholderServiceDescription
 import dk.sdu.cloud.micro.ServiceRegistry
 import dk.sdu.cloud.micro.server
-import io.ktor.http.*
 import org.slf4j.LoggerFactory
 import java.io.File
 import java.lang.reflect.*
@@ -87,7 +86,7 @@ private fun writeSpecification(
 ) {
     val typeRegistry = LinkedHashMap<String, ComputedType>()
     knownCalls
-        .groupBy { it.httpOrNull?.path?.toKtorTemplate(true) ?: "" }
+        .groupBy { it.httpOrNull?.path?.toPath(true) ?: "" }
         .forEach { (path, calls) ->
             if (path == "") return@forEach
 

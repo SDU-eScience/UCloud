@@ -77,6 +77,7 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeSizes?: boolean;
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
+    allowUnsupportedInclude?: boolean;
     path?: string;
 }
 
@@ -254,7 +255,8 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
         includeMetadata: true,
         includeSizes: true,
         includeTimestamps: true,
-        includeUnixInfo: true
+        includeUnixInfo: true,
+        allowUnsupportedInclude: true,
     };
 
     public Properties = (props) => {
@@ -439,7 +441,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
                     const responses = result?.responses ?? [];
                     for (const {endpoint} of responses) {
-                        downloadFile(endpoint);
+                        downloadFile(endpoint.replace("integration-module:8889", "localhost:8889"));
                     }
                 }
             },
@@ -770,7 +772,7 @@ async function queryTemplateName(name: string, invokeCommand: InvokeCommand, nex
 }
 
 function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCommand: InvokeCommand; reload: () => void;}): JSX.Element {
-    const originalSensitivity = useSensitivity(file) ?? "INHERIT";
+    const originalSensitivity = useSensitivity(file) ?? "INHERIT" as SensitivityLevel;
     const selection = React.useRef<HTMLSelectElement>(null);
     const reason = React.useRef<HTMLTextAreaElement>(null);
 
@@ -830,10 +832,9 @@ function SensitivityDialog({file, invokeCommand, reload}: {file: UFile; invokeCo
 
     return (<form id={"sensitivityDialog"} onSubmit={onUpdate} style={{width: "600px", height: "270px"}}>
         <Text fontSize={24} mb="12px">Change sensitivity</Text>
-        <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}
-            defaultValue={originalSensitivity ?? SensitivityLevelMap.INHERIT}>
+        <Select my="8px" id={"sensitivityDialogValue"} selectRef={selection}>
             {Object.keys(SensitivityLevelMap).map(it =>
-                <option key={it} value={it}>{prettierString(it)}</option>
+                <option key={it} value={it} selected={it === originalSensitivity}>{prettierString(it)}</option>
             )}
         </Select>
         <TextArea

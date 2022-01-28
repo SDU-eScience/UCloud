@@ -6,12 +6,12 @@ import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.Jobs
 import dk.sdu.cloud.app.orchestrator.api.JobsFollowResponse
 import dk.sdu.cloud.app.orchestrator.services.JobOrchestrator
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.actorAndProject
-import io.ktor.http.*
 
 class JobController(
     private val orchestrator: JobOrchestrator,

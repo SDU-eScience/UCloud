@@ -32,7 +32,7 @@ class Server(override val micro: Micro, private val configuration: Configuration
                 )
             }
 
-        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken))
+        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
         client = ClientHolder(authenticator.authenticateClient(OutgoingHttpCall))
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = validation as TokenValidation<Any>

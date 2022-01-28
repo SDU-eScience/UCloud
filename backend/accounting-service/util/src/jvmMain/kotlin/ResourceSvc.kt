@@ -7,10 +7,10 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.http.*
 
 interface ResourceSvc<
     R : Resource<Prod, Support>,

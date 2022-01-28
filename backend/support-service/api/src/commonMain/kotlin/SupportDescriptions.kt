@@ -3,7 +3,6 @@ package dk.sdu.cloud.support.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
-import io.ktor.http.HttpMethod
 import kotlinx.serialization.Serializable
 
 @Serializable

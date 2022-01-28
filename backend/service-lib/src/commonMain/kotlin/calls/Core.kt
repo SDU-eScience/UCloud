@@ -41,6 +41,8 @@ class AttributeContainer {
             return null
         }
     }
+
+    override fun toString(): String = internalContainer.toString()
 }
 
 class CallDescription<Request : Any, Success : Any, Error : Any> internal constructor(

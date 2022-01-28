@@ -3,6 +3,7 @@ package dk.sdu.cloud.app.kubernetes.services.proxy
 import dk.sdu.cloud.app.kubernetes.services.JobIdAndRank
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
 import dk.sdu.cloud.app.kubernetes.services.volcano.VOLCANO_JOB_NAME_LABEL
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -10,7 +11,6 @@ import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.Pod
 import dk.sdu.cloud.service.k8.getResource
 import dk.sdu.cloud.service.k8.listResources
-import io.ktor.http.HttpStatusCode
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex

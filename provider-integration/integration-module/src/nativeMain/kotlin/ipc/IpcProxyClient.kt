@@ -2,13 +2,13 @@ package dk.sdu.cloud.ipc
 
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.OutgoingCall
 import dk.sdu.cloud.calls.client.OutgoingCallCompanion
 import dk.sdu.cloud.calls.client.OutgoingRequestInterceptor
 import dk.sdu.cloud.defaultMapper
-import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -77,7 +77,7 @@ class IpcProxyRequestInterceptor(
                             defaultMapper.decodeFromJsonElement(call.errorType, it)
                         }
                     }.getOrNull(),
-                    HttpStatusCode.fromValue(response.error.code),
+                    HttpStatusCode.parse(response.error.code),
                     ctx,
                 )
             }

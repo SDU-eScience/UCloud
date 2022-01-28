@@ -80,7 +80,7 @@ suspend fun KubernetesClient.exec(
                         // NOTE(Dan): I have no clue where this is documented.
                         // I found this through a combination of Wireshark and this comment:
                         // https://github.com/fabric8io/kubernetes-client/issues/1374#issuecomment-492884783
-                        val nextMessage = resizeChannel.receiveOrNull() ?: break
+                        val nextMessage = resizeChannel.receiveCatching().getOrNull() ?: break
                         outgoing.send(
                             Frame.Binary(
                                 true,
@@ -94,14 +94,14 @@ suspend fun KubernetesClient.exec(
 
                 val outgoingJob = launch {
                     while (isActive) {
-                        val nextMessage = outgoingChannel.receiveOrNull() ?: break
+                        val nextMessage = outgoingChannel.receiveCatching().getOrNull() ?: break
                         outgoing.send(Frame.Binary(true, byteArrayOf(0) + nextMessage))
                     }
                 }
 
                 val ingoingJob = launch {
                     while (isActive) {
-                        val f = incoming.receiveOrNull() ?: break
+                        val f = incoming.receiveCatching().getOrNull() ?: break
                         if (f !is Frame.Binary) continue
                         val stream = ExecStream.allValues.getOrNull(f.buffer.get().toInt()) ?: continue
                         val array = ByteArray(f.buffer.remaining())

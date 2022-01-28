@@ -1,14 +1,7 @@
 package dk.sdu.cloud.project.api
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.calls.ApiConventions
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bindEntireRequestFromBody
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.http
-import io.ktor.http.HttpMethod
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
 @Serializable

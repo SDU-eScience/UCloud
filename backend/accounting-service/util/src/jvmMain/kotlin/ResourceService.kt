@@ -5,17 +5,15 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.Language
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
@@ -877,10 +875,13 @@ abstract class ResourceService<
                                 insert into provider.resource_acl_entry (username, permission, resource_id) 
                                 select created_by, unnest(array['READ', 'EDIT']), id
                                 from created_resources
+                                -- This no-op ensures that resource_id is returned in case on conflicts
+                                on conflict (coalesce(username, ''), coalesce(group_id, ''), resource_id, permission) do update set username = excluded.username
                                 returning resource_id
                             )
                         select distinct resource_id from acl_entries;
-                    """
+                    """,
+                    debug = true
                 ).rows.map { it.getLong(0)!! }
 
             check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )
@@ -904,7 +905,19 @@ abstract class ResourceService<
             val api = providerApi(comms)
 
             // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
-            api.init.call(ResourceInitializationRequest(owner), comms.client)
+            for (attempt in 0 until 5) {
+                val resp =
+                    api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
+
+                if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
+                    val im = IntegrationProvider(provider)
+                    im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
+                    delay(200L + (attempt * 500))
+                    continue
+                } else {
+                    break
+                }
+            }
         }
     }
 

@@ -63,7 +63,7 @@ class AppStoreController(
 
         implement(AppStore.create) {
             val length = (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
-                ?: throw RPCException("Content-Length required", HttpStatusCode.BadRequest)
+                ?: throw RPCException("Content-Length required", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
             val channel = (ctx as HttpCall).call.request.receiveChannel()
             val content = ByteArray(length.toInt())
                 .also { arr -> channel.readFully(arr) }
