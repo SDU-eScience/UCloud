@@ -1,3 +1,9 @@
+drop function if exists file_orchestrator.sync_device_to_json(device_in file_orchestrator.sync_devices);
+drop function if exists file_orchestrator.sync_folder_to_json(folder_in file_orchestrator.sync_folders);
+drop function if exists file_orchestrator.remove_sync_folders(ids bigint[]);
+drop table if exists file_orchestrator.sync_devices;
+drop table if exists file_orchestrator.sync_folders;
+
 create table file_orchestrator.sync_devices(
     resource bigint references provider.resource(id) primary key,
     device_id varchar(64) not null
@@ -15,21 +21,23 @@ $$;
 
 create table file_orchestrator.sync_folders (
     resource bigint references provider.resource(id) primary key,
-    device_id   varchar(64) null default null,
-    path        text        not null,
-    sync_type varchar(20) not null default 'SEND_ONLY'
+    collection bigint not null references provider.resource(id),
+    sub_path text not null
 );
 
 create or replace function file_orchestrator.sync_folder_to_json(
-    folder_in file_orchestrator.sync_folders
+    folder_in file_orchestrator.sync_folders,
+    devices_in text[]
 ) returns jsonb language sql as $$
 select jsonb_build_object(
     'specification', jsonb_build_object(
-        'path', folder_in.path
+        'path', '/' || folder_in.collection || folder_in.sub_path
     ),
     'status', jsonb_build_object(
-        'deviceId', folder_in.device_id,
-        'syncType', folder_in.sync_type
+        'devices', (
+            select jsonb_agg(obj)
+            from (select jsonb_build_object('id', unnest(devices_in)) obj) tt
+        )
     )
 );
 $$;
