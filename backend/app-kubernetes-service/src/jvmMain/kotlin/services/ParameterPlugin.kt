@@ -55,7 +55,7 @@ class ParameterPlugin(
 
                     val openedFile = job.specification.openedFile
                     if (openedFile != null) {
-                        val lastComponents = openedFile.normalize().components().takeLast(2)
+                        val lastComponents = pathConverter.ucloudToInternal(UCloudFile.create(openedFile)).components().takeLast(2)
                         envVars.add(Pod.EnvVar(
                             "UCLOUD_OPEN_WITH_FILE",
                             joinPath("/work", *lastComponents.toTypedArray()).removeSuffix("/")
