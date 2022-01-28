@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 28-01-22
+
+```
+✅  Deployment(app-kubernetes, 2022.1.3-patch.2) (UP-TO-DATE)
+```
+
 ## 24-01-22
 User creation form added from old master. 
 Init problem solved.
