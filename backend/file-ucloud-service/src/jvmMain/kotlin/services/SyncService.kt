@@ -1,6 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.*
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.*
@@ -54,13 +54,13 @@ class SyncService(
                     """
                 ).rows.map { it.getField(SyncFoldersTable.path) }
             }.filter { it.value.size < 1000 }
-             .minByOrNull { (_, folders) ->
-                folders.sumOf { folder ->
-                    cephStats.getRecursiveSize(
-                        pathConverter.ucloudToInternal(UCloudFile.create(folder))
-                    ) ?: 0
-                }
-            }?.key
+                .minByOrNull { (_, folders) ->
+                    folders.sumOf { folder ->
+                        cephStats.getRecursiveSize(
+                            pathConverter.ucloudToInternal(UCloudFile.create(folder))
+                        ) ?: 0
+                    }
+                }?.key
         }
     }
 
@@ -69,7 +69,7 @@ class SyncService(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
-    suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
+    suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val remoteDevices: MutableList<LocalSyncthingDevice> = mutableListOf()
 
@@ -112,7 +112,10 @@ class SyncService(
                     ),
                     authenticatedClient //.withMounterInfo(device)
                 ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
+                    throw RPCException.fromStatusCode(
+                        HttpStatusCode.InternalServerError,
+                        "Failed to prepare folder for synchronization"
+                    )
                 }
 
                 remoteDevices.add(device)
@@ -315,7 +318,7 @@ class SyncService(
             ).rows.map { folder ->
                 SyncFolderBrowseItem(
                     folder.getField(SyncFoldersTable.id),
-                    folder.getField(SyncFoldersTable.path),
+                    pathConverter.ucloudToInternal(UCloudFile.create(folder.getField(SyncFoldersTable.path))).path,
                     SynchronizationType.valueOf(folder.getField(SyncFoldersTable.syncType))
                 )
             }
@@ -432,69 +435,58 @@ class SyncService(
         }
     }
 
-//    suspend fun updatePermissions(folders: BulkRequest<SyncFolder>): BulkResponse<Unit?> {
-//        db.withSession { session ->
-//            if (folders.items.any { it.status.syncType == null }) {
-//                val devices = session.sendPreparedStatement(
-//                    {
-//                        setParameter("ids", folders.items.filter { it.status.syncType == null }.map { it.id.toLong() })
-//                    },
-//                    """
-//                    delete from file_ucloud.sync_folders
-//                    where id in (select unnest(:ids::bigint[]))
-//                    returning id, device_id
-//                """
-//                ).rows.mapNotNull {
-//                    val id = it.getLong(0)!!
-//                    val deviceId = it.getString(1)!!
-//                    val device = syncthing.config.devices.find { it.id == deviceId }
-//                    if (device != null) {
-//                        id to device
-//                    } else {
-//                        null
-//                    }
-//                }
-//
-//                devices.groupBy { it.second.id }.forEach { (_, requests) ->
-//                    Mounts.unmount.call(
-//                        UnmountRequest(
-//                            requests.map { MountFolderId(it.first) }
-//                        ),
-//                        authenticatedClient//.withMounterInfo(requests[0].second)
-//                    ).orRethrowAs {
-//                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-//                    }
-//                }
-//            }
-//
-//            if (folders.items.any { it.status.syncType != null }) {
-//                session.sendPreparedStatement(
-//                    {
-//                        setParameter("ids", folders.items.filter { it.status.syncType != null }.map { it.id })
-//                        setParameter(
-//                            "new_sync_types",
-//                            folders.items.filter { it.status.syncType != null }.map { it.status.syncType })
-//                    },
-//                    """
-//                        update file_ucloud.sync_folders f set
-//                            sync_type = updates.sync_type
-//                        from (select unnest(:ids::bigint[]), unnest(:new_sync_types::text[])) updates(id, sync_type)
-//                        where f.id = updates.id
-//                    """
-//                )
-//            }
-//        }
-//
-//        if (folders.items.isNotEmpty()) {
-//            syncthing.writeConfig()
-//        }
-//        return BulkResponse(emptyList())
-//    }
+    suspend fun updatePermissions(folders: BulkRequest<SyncFolderPermissionsUpdatedRequestItem>): BulkResponse<Unit?> {
+        db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    folders.items.split {
+                        into("ids") { it.resourceId.toLong() }
+                        into("permissions") {
+                            when (it.newPermission) {
+                                Permission.READ -> SynchronizationType.SEND_ONLY.name
+                                Permission.EDIT -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.ADMIN -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.PROVIDER -> SynchronizationType.SEND_ONLY.name
+                            }
+                        }
+                    }
+                },
+                """
+                    update file_ucloud.sync_folders f
+                    set sync_type = updates.sync_type
+                    from (
+                        select
+                            unnest(:ids::bigint[]) id, 
+                            unnest(:permissions::text[]) sync_type
+                    ) updates
+                    where
+                        f.id = updates.id
+                """
+            )
+        }
+
+        if (folders.items.isNotEmpty()) syncthing.writeConfig()
+
+        SyncFolderControl.update.call(
+            BulkRequest(folders.items.map {
+                ResourceUpdateAndId(
+                    it.resourceId,
+                    SyncFolder.Update(
+                        permission = it.newPermission
+                    )
+                )
+            }),
+            authenticatedClient
+        )
+
+        return BulkResponse(folders.items.map { })
+    }
 
     companion object {
         // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
         // reason).
-        private val deviceIdRegex = Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
+        private val deviceIdRegex =
+            Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
     }
 }
 

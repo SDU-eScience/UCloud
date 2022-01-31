@@ -25,6 +25,11 @@ class SyncController(
             ok(BulkResponse(request.items.map {}))
         }
 
+        implement(UCloudSyncFolders.onPermissionsUpdated) {
+            syncService.updatePermissions(request)
+            ok(BulkResponse(request.items.map {}))
+        }
+
         implement(UCloudSyncDevices.updateAcl) {
             throw RPCException("Not supported", HttpStatusCode.BadRequest)
         }

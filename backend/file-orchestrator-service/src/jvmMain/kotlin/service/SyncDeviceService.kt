@@ -4,8 +4,13 @@ import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.provider.api.UpdatedAcl
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
@@ -72,5 +77,12 @@ class SyncDeviceService(
                     
             """
         )
+    }
+
+    override suspend fun updateAcl(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>
+    ): BulkResponse<Unit?> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
     }
 }

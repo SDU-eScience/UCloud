@@ -7,17 +7,23 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.util.*
-import dk.sdu.cloud.accounting.util.ProviderSupport
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.micro.BackgroundScope
+import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.UpdatedAcl
+import dk.sdu.cloud.service.DistributedLock
+import dk.sdu.cloud.service.DistributedLockFactory
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.AsyncDBConnection
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.*
 import kotlinx.serialization.serializer
+import kotlin.random.Random
 
 typealias FolderSvcSuper = ResourceService<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
     SyncFolder.Status, Product.Synchronization, SyncFolderSupport, SimpleProviderCommunication>
@@ -29,6 +35,8 @@ class SyncFolderService(
     serviceClient: AuthenticatedClient,
     files: FilesService,
     private val fileCollectionService: FileCollectionService,
+    private val distributedLocks: DistributedLockFactory,
+    private val scope: BackgroundScope,
 ) : FolderSvcSuper(db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.sync_folders")
     override val defaultSortColumn = SqlObject.Column(table, "resource")
@@ -132,13 +140,13 @@ class SyncFolderService(
                     val permissions = ArrayList<String>().also { setParameter("permissions", it) }
 
                     for ((id, spec) in idWithSpec) {
-                        val collectionId = extractPathMetadata(spec.path).collection.toLongOrNull() ?:
-                            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                        val collectionId = extractPathMetadata(spec.path).collection.toLongOrNull()
+                            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                         val subPath = spec.path.normalize().removePrefix("/${collectionId}")
 
-                        val perms = fileCollections.find { it.id == collectionId.toString() }?.permissions?.myself ?:
-                            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                        val perms = fileCollections.find { it.id == collectionId.toString() }?.permissions?.myself
+                            ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
 
                         val myPermission = if (perms.contains(Permission.EDIT) || perms.contains(Permission.ADMIN)) {
                             "EDIT"
@@ -207,14 +215,160 @@ class SyncFolderService(
                     )
                     update file_orchestrator.sync_folders f
                     set
-                        remote_device_id = new_remote_device,
-                        status_permission = new_permission
+                        remote_device_id = coalesce(new_remote_device, remote_device_id),
+                        status_permission = coalesce(new_permission, status_permission)
                     from
                         update_table t
                     where
                         t.id = f.resource
                 """
             )
+        }
+    }
+
+    override suspend fun updateAcl(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<UpdatedAcl>
+    ): BulkResponse<Unit?> {
+        throw RPCException("Operation not supported", HttpStatusCode.NotFound)
+    }
+
+    fun initialize() {
+        scope.launch {
+            val lock = distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
+            while (isActive) {
+                val didAcquire = lock.acquire()
+                if (didAcquire) {
+                    try {
+                        runMonitoringLoop(lock)
+                    } catch (ex: Throwable) {
+                        log.warn("Caught exception while monitoring jobs")
+                        log.warn(ex.stackTraceToString())
+                    }
+                } else {
+                    delay(15000 + Random.nextLong(5000))
+                }
+            }
+        }
+    }
+
+    private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock) {
+        var nextScan = 0L
+
+        data class MonitoringRow(
+            val createdBy: String,
+            val path: String,
+            val permission: Permission,
+            val resource: Long,
+            val provider: String,
+        )
+
+        while (isActive) {
+            val now = Time.now()
+            if (now >= nextScan) {
+                val rowsByUser = db.withSession { session ->
+                    session.sendPreparedStatement(
+                        {},
+                        """
+                            with relevant_resources as (
+                                select r.created_by, s.resource, '/' || s.collection || s.sub_path as path,
+                                       s.status_permission, r.provider
+                                from
+                                    file_orchestrator.sync_folders s join
+                                    provider.resource r on s.resource = r.id
+                                where
+                                    now() - s.last_scan >= '15 minutes'::interval
+                                limit 500
+                            )
+                            update file_orchestrator.sync_folders s
+                            set last_scan = now()
+                            from relevant_resources r
+                            where s.resource = r.resource
+                            returning r.created_by, r.path, r.status_permission, r.resource, r.provider
+                        """
+                    ).rows.map { row ->
+                        MonitoringRow(
+                            row.getString(0)!!, row.getString(1)!!, Permission.valueOf(row.getString(2)!!),
+                            row.getLong(3)!!, row.getString(4)!!
+                        )
+                    }
+                }.groupBy { it.createdBy }
+
+                for ((user, rows) in rowsByUser) {
+                    val ap = ActorAndProject(Actor.SystemOnBehalfOfUser(user), null)
+                    val collections = rows.map { extractPathMetadata(it.path).collection }.toSet()
+                    val retrievedCollections = fileCollectionService.retrieveBulk(
+                        ap, collections,
+                        listOf(Permission.READ), requireAll = false
+                    )
+
+                    val missingByProvider = HashMap<String, ArrayList<FindByStringId>>()
+                    val updatedByProvider = HashMap<String, ArrayList<SyncFolderPermissionsUpdatedRequestItem>>()
+
+                    for (row in rows) {
+                        val coll = extractPathMetadata(row.path).collection
+                        val findById = FindByStringId(row.resource.toString())
+                        val matching = retrievedCollections.find { it.id == coll }
+                        val permissions = matching?.permissions?.myself
+                        if (matching == null || permissions == null) {
+                            missingByProvider.getOrPut(row.provider) { ArrayList() }.add(findById)
+                        } else {
+                            val newPermission = when {
+                                permissions.contains(Permission.EDIT) || permissions.contains(Permission.ADMIN) ->
+                                    Permission.EDIT
+                                permissions.contains(Permission.READ) -> Permission.READ
+                                else -> null
+                            }
+
+                            if (newPermission != row.permission && newPermission != null) {
+                                updatedByProvider.getOrPut(row.provider) { ArrayList() }.add(
+                                    SyncFolderPermissionsUpdatedRequestItem(row.resource.toString(), newPermission)
+                                )
+                            } else if (newPermission != row.permission && newPermission == null) {
+                                missingByProvider.getOrPut(row.provider) { ArrayList() }.add(findById)
+                            }
+                        }
+                    }
+
+                    for ((provider, missing) in missingByProvider) {
+                        coroutineScope {
+                            runCatching {
+                                delete(ActorAndProject(Actor.System, null), BulkRequest(missing))
+                            }
+                        }
+                    }
+
+                    for ((provider, updated) in updatedByProvider) {
+                        val folders = retrieveBulk(
+                            ap,
+                            updated.map { it.resourceId },
+                            listOf(Permission.READ),
+                            includeUnconfirmed = false,
+                            requireAll = false
+                        )
+
+                        if (folders.isEmpty()) continue
+
+                        coroutineScope {
+                            runCatching {
+                                proxy.pureProxy(
+                                    ap,
+                                    folders.first().specification.product,
+                                    { providerApi(it).onPermissionsUpdated },
+                                    BulkRequest(updated)
+                                )
+                            }.exceptionOrNull()?.printStackTrace()
+                        }
+                    }
+                }
+
+                nextScan = Time.now() + 30_000
+            }
+
+            if (!lock.renew(90_000)) {
+                log.warn("Lock was lost. We are no longer the master. Did update take too long?")
+                break
+            }
         }
     }
 }

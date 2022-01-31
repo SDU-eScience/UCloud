@@ -49,10 +49,10 @@ data class SyncFolder(
     @Serializable
     @UCloudApiInternal(InternalLevel.BETA)
     data class Update(
-        override val timestamp: Long,
-        override val status: String?,
-        val remoteDeviceId: String,
-        val permission: Permission
+        override val timestamp: Long = 0,
+        override val status: String? = null,
+        val remoteDeviceId: String? = null,
+        val permission: Permission? = null
     ) : ResourceUpdate
 }
 
@@ -133,6 +133,13 @@ object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncF
     )
 }
 
+@Serializable
+@UCloudApiInternal(InternalLevel.BETA)
+data class SyncFolderPermissionsUpdatedRequestItem(
+    val resourceId: String,
+    val newPermission: Permission
+)
+
 @UCloudApiInternal(InternalLevel.BETA)
 open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
     SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders", provider) {
@@ -156,4 +163,11 @@ open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder
     )
 
     override val delete get() = super.delete!!
+
+    val onPermissionsUpdated = call<
+        BulkRequest<SyncFolderPermissionsUpdatedRequestItem>,
+        BulkResponse<Unit?>,
+        CommonErrorMessage>("onPermissionsUpdated") {
+        httpUpdate(baseContext, "permissionsUpdated", roles = Roles.PROVIDER)
+    }
 }

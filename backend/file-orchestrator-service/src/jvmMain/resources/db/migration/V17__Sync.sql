@@ -21,7 +21,8 @@ create table file_orchestrator.sync_folders (
     collection bigint not null references provider.resource(id),
     sub_path text not null,
     status_permission text not null,
-    remote_device_id text default null
+    remote_device_id text default null,
+    last_scan timestamp not null default now()
 );
 
 drop type if exists file_orchestrator.sync_with_dependencies cascade ;
