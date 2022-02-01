@@ -54,6 +54,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import {useEffect, useState} from "react";
 import {SyncFolderSupport} from "./SyncFolderApi";
+import {getCookie} from "@/Login/Wayf";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -243,7 +244,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             const sensitivity = useSensitivity(resource);
 
             return <Flex>
-                {resource.status.synced ?
+                {resource.status.synced && getCookie("synchronization") ?
                     <div style={{cursor: "pointer"}} onClick={() => addSynchronizationDialog(resource, callbacks)}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
@@ -588,6 +589,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 icon: "refresh",
                 text: "Synchronization",
                 enabled: (selected, cb) => {
+                    if (!getCookie("synchronization")) return false;
                     const support = cb.collection?.status.resolvedSupport?.support;
                     if (!support) return false;
                     if (!cb.syncProducts) return false;
