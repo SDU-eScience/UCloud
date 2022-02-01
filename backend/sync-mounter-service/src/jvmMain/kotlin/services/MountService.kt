@@ -19,12 +19,14 @@ class MountService(
     fun mount(request: MountRequest) {
         request.items.forEach { item ->
             if (!item.path.startsWith(config.cephfsBaseMount)) {
+                println(item.path)
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 
             val source = File(item.path)
 
             if (!source.exists() || !source.isDirectory) {
+                println(source.absolutePath)
                 throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
             }
 
@@ -50,6 +52,7 @@ class MountService(
                 for (i in 1 until fileDescriptors.size) {
                     val previousFd = fileDescriptors[i - 1]
                     if (previousFd < 0) {
+                        println("Nope")
                         throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid source")
                     }
 
@@ -90,6 +93,7 @@ class MountService(
 
     fun unmount(request: UnmountRequest) {
         request.items.forEach { item ->
+            println(item.id.toString())
             val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
@@ -106,8 +110,11 @@ class MountService(
                 }
             }
 
-            if (!target.delete()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to delete target")
+            if (target.exists() && !target.delete()) {
+                throw RPCException.fromStatusCode(
+                    HttpStatusCode.InternalServerError,
+                    "Failed to delete target: ${target.absolutePath}"
+                )
             }
         }
 

@@ -7,7 +7,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowse
 import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseRequest
+import dk.sdu.cloud.file.ucloud.services.InternalFile
 import dk.sdu.cloud.file.ucloud.services.JwtRefresherSharedSecret
+import dk.sdu.cloud.file.ucloud.services.PathConverter
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.providerTokenValidation

@@ -17,10 +17,8 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.TokenValidationChain
 import dk.sdu.cloud.Roles
-import dk.sdu.cloud.accounting.api.ResourceNotifications
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.file.orchestrator.api.SyncFolder
 import dk.sdu.cloud.sync.mounter.api.Mounts
 import io.ktor.http.*
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -250,15 +248,6 @@ class Server(
                 log.warn("Caught exception while trying to configure sync-thing (is it running?)")
                 log.warn(ex.stackTraceToString())
             }
-
-            val resourceNotifications = ResourceNotifications.retrieve.call(
-                Unit,
-                client
-            ).orThrow()
-
-            syncService.removeFolders(resourceNotifications.responses.map { it.resource }.toSet().toList())
-
-
         }
     }
 }

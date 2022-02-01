@@ -1,3 +1,6 @@
+drop table if exists file_orchestrator.sync_devices cascade;
+drop table if exists file_orchestrator.sync_folders cascade;
+
 create table file_orchestrator.sync_devices(
     resource bigint references provider.resource(id) primary key,
     device_id varchar(64) not null
@@ -15,21 +18,30 @@ $$;
 
 create table file_orchestrator.sync_folders (
     resource bigint references provider.resource(id) primary key,
-    device_id   varchar(64) null default null,
-    path        text        not null,
-    sync_type varchar(20) not null default 'SEND_ONLY'
+    collection bigint not null references provider.resource(id),
+    sub_path text not null,
+    status_permission text not null,
+    remote_device_id text default null,
+    last_scan timestamp not null default now()
+);
+
+drop type if exists file_orchestrator.sync_with_dependencies cascade ;
+create type file_orchestrator.sync_with_dependencies as
+(
+    resource bigint,
+    folder file_orchestrator.sync_folders
 );
 
 create or replace function file_orchestrator.sync_folder_to_json(
-    folder_in file_orchestrator.sync_folders
+    sync_in file_orchestrator.sync_with_dependencies
 ) returns jsonb language sql as $$
 select jsonb_build_object(
     'specification', jsonb_build_object(
-        'path', folder_in.path
+        'path', '/' || (sync_in.folder).collection || (sync_in.folder).sub_path
     ),
     'status', jsonb_build_object(
-        'deviceId', folder_in.device_id,
-        'syncType', folder_in.sync_type
+        'remoteDevice', (sync_in.folder).remote_device_id,
+        'permission', (sync_in.folder).status_permission
     )
 );
 $$;

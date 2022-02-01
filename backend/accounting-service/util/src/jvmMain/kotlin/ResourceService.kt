@@ -47,6 +47,7 @@ abstract class ResourceService<
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
     protected open val requireAdminForCreate: Boolean = false
+    protected open val personalResource: Boolean = false
 
     private val resourceTable = SqlObject.Table("provider.resource")
     private val defaultSortColumns = mapOf(
@@ -314,6 +315,8 @@ abstract class ResourceService<
         request: BulkRequest<Spec>,
         ctx: DBContext?
     ): BulkResponse<FindByStringId?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         var lastBatchOfIds: List<Long>? = null
         val adjustedResponse = ArrayList<FindByStringId?>()
 
@@ -323,7 +326,7 @@ abstract class ResourceService<
         }
 
         proxy.bulkProxy(
-            actorAndProject,
+            resolvedActorAndProject,
             request,
             object : BulkProxyInstructions<Comms, Support, Res, Spec, BulkRequest<Res>, FindByStringId>() {
                 override val isUserRequest: Boolean = true
@@ -351,25 +354,25 @@ abstract class ResourceService<
                 ): BulkRequest<Res> {
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
                         if (!isCoreResource) {
-                            val project = actorAndProject.project
+                            val project = resolvedActorAndProject.project
                             payment.creditCheck(
                                 if (project != null) {
                                     WalletOwner.Project(project)
                                 } else {
-                                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                                    WalletOwner.User(resolvedActorAndProject.actor.safeUsername())
                                 },
                                 resources.map { it.second.reference }
                             )
                         }
 
-                        val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
+                        val isPublicRead = isResourcePublicRead(resolvedActorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(
                                 {
                                     setParameter("type", resourceType)
                                     setParameter("provider", provider.takeIf { it != Provider.UCLOUD_CORE_PROVIDER })
-                                    setParameter("created_by", actorAndProject.actor.safeUsername())
-                                    setParameter("project", actorAndProject.project)
+                                    setParameter("created_by", resolvedActorAndProject.actor.safeUsername())
+                                    setParameter("project", resolvedActorAndProject.project)
                                     setParameter("product_ids", resources.map { it.second.reference.id })
                                     setParameter("product_categories", resources.map { it.second.reference.category })
                                     setParameter("is_public_read", isPublicRead)
@@ -411,7 +414,7 @@ abstract class ResourceService<
                         check(generatedIds.size == resources.size)
 
                         createSpecifications(
-                            actorAndProject,
+                            resolvedActorAndProject,
                             generatedIds.zip(resources.map { it.first }),
                             session,
                             false
@@ -422,7 +425,7 @@ abstract class ResourceService<
 
                         BulkRequest(
                             retrieveBulk(
-                                actorAndProject,
+                                resolvedActorAndProject,
                                 generatedIds.map { it.toString() },
                                 if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
@@ -512,10 +515,12 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdatedAcl>
     ): BulkResponse<Unit?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                actorAndProject,
+                resolvedActorAndProject,
                 request,
                 object : BulkProxyInstructions<Comms, Support, Res, UpdatedAcl,
                     BulkRequest<UpdatedAclWithResource<Res>>, Unit>() {
@@ -689,13 +694,15 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val hasDelete = providerApi(providers.placeholderCommunication).delete != null
         if (!hasDelete) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                actorAndProject,
+                resolvedActorAndProject,
                 request,
                 object : BulkProxyInstructions<Comms, Support, Res, FindByStringId, BulkRequest<Res>, Unit>() {
                     override val isUserRequest: Boolean = true
@@ -773,10 +780,12 @@ abstract class ResourceService<
         updates: BulkRequest<ResourceUpdateAndId<Update>>,
         requireAll: Boolean,
     ) {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
             val resources = retrieveBulk(
-                actorAndProject,
+                resolvedActorAndProject,
                 ids,
                 listOf(Permission.PROVIDER),
                 includeUnconfirmed = true,
@@ -907,7 +916,10 @@ abstract class ResourceService<
     }
 
     override suspend fun init(actorAndProject: ActorAndProject) {
-        val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+        val owner = ResourceOwner(
+            actorAndProject.actor.safeUsername(),
+            if (personalResource) null else actorAndProject.project
+        )
         val relevantProviders = findRelevantProviders(actorAndProject)
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
@@ -981,10 +993,12 @@ abstract class ResourceService<
         request: BulkRequest<ResourceChargeCredits>,
         checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val ids = request.items.asSequence().map { it.id }.toSet()
 
         val allResources = retrieveBulk(
-            actorAndProject,
+            resolvedActorAndProject,
             ids,
             listOf(Permission.PROVIDER),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = true),
@@ -1034,9 +1048,11 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(actorAndProject, request.flags, request.query)
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
+        val search = browseQuery(resolvedActorAndProject, request.flags, request.query)
         return paginatedQuery(
-            search, actorAndProject, listOf(Permission.READ), request.flags,
+            search, resolvedActorAndProject, listOf(Permission.READ), request.flags,
             request, request.normalize(), true, ctx
         )
     }
@@ -1218,6 +1234,8 @@ abstract class ResourceService<
         useProject: Boolean,
         ctx: DBContext?
     ): PageV2<Res> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val (params, query) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
@@ -1234,15 +1252,15 @@ abstract class ResourceService<
         }
 
         val (resourceParams, resourceQuery) = accessibleResources(
-            actorAndProject.actor,
+            resolvedActorAndProject.actor,
             permissionsOneOf,
-            projectFilter = if (useProject) actorAndProject.project else "",
+            projectFilter = if (useProject) resolvedActorAndProject.project else "",
             flags = flags,
         )
 
         @Suppress("SqlResolve")
         return (ctx ?: db).paginateV2(
-            actorAndProject.actor,
+            resolvedActorAndProject.actor,
             pagination,
             create = { session ->
                 session.sendPreparedStatement(

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -11,12 +12,14 @@ import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 enum class SynchronizationType(val syncthingValue: String) {
     SEND_RECEIVE("sendreceive"),
     SEND_ONLY("sendonly")
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class SyncFolder(
     override val id: String,
     override val specification: Spec,
@@ -28,32 +31,37 @@ data class SyncFolder(
 ) : Resource<Product.Synchronization, SyncFolderSupport> {
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Spec(
         val path: String,
         override val product: ProductReference,
     ) : ResourceSpecification
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Status(
-        val deviceId: String? = null,
-        val syncType: SynchronizationType? = null,
+        val permission: Permission,
+        val remoteDevice: String?,
         override var resolvedSupport: ResolvedSupport<Product.Synchronization, SyncFolderSupport>? = null,
         override var resolvedProduct: Product.Synchronization? = null
     ) : ResourceStatus<Product.Synchronization, SyncFolderSupport>
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Update(
-        override val timestamp: Long,
-        override val status: String?,
-        val deviceId: String? = null,
-        val syncType: SynchronizationType? = null,
+        override val timestamp: Long = 0,
+        override val status: String? = null,
+        val remoteDeviceId: String? = null,
+        val permission: Permission? = null
     ) : ResourceUpdate
 }
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class SyncFolderSupport(override val product: ProductReference) : ProductSupport
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class SyncFolderIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -67,14 +75,15 @@ data class SyncFolderIncludeFlags(
     override val filterProductCategory: String? = null,
     override val filterProviderIds: String? = null,
     override val filterIds: String? = null,
+    val includeDevices: Boolean = false,
     override val hideProvider: String? = null,
     override val hideProductCategory: String? = null,
     override val hideProductId: String? = null,
     val filterByPath: String? = null,
-    val filterDeviceId: List<String>? = null,
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags, SyncFolder.Status,
     Product.Synchronization, SyncFolderSupport>("sync.folders") {
 
@@ -101,6 +110,7 @@ object SyncFolders : ResourceApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
     override val search get() = super.search!!
 }
 
+@UCloudApiInternal(InternalLevel.BETA)
 object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update, SyncFolderIncludeFlags,
     SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders") {
 
@@ -123,6 +133,14 @@ object SyncFolderControl : ResourceControlApi<SyncFolder, SyncFolder.Spec, SyncF
     )
 }
 
+@Serializable
+@UCloudApiInternal(InternalLevel.BETA)
+data class SyncFolderPermissionsUpdatedRequestItem(
+    val resourceId: String,
+    val newPermission: Permission
+)
+
+@UCloudApiInternal(InternalLevel.BETA)
 open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder, SyncFolder.Spec, SyncFolder.Update,
     SyncFolderIncludeFlags, SyncFolder.Status, Product.Synchronization, SyncFolderSupport>("sync.folders", provider) {
 
@@ -146,7 +164,10 @@ open class SyncFolderProvider(provider: String) : ResourceProviderApi<SyncFolder
 
     override val delete get() = super.delete!!
 
-    val onFilePermissionsUpdated = call<BulkRequest<SyncFolder>, BulkResponse<Unit?>, CommonErrorMessage>("onFilePermissionsUpdated") {
-        httpUpdate(baseContext, "filePermissionsUpdated", Roles.PROVIDER)
+    val onPermissionsUpdated = call<
+        BulkRequest<SyncFolderPermissionsUpdatedRequestItem>,
+        BulkResponse<Unit?>,
+        CommonErrorMessage>("onPermissionsUpdated") {
+        httpUpdate(baseContext, "permissionsUpdated", roles = Roles.PROVIDER)
     }
 }

@@ -3,14 +3,13 @@ package dk.sdu.cloud.file.orchestrator.api
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.TSNamespace
-import dk.sdu.cloud.calls.UCloudApiExperimental
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
 import kotlin.reflect.typeOf
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class SyncDevice(
     override val id: String,
     override val specification: Spec,
@@ -22,18 +21,21 @@ data class SyncDevice(
 ) : Resource<Product.Synchronization, SyncDeviceSupport> {
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Spec(
         val deviceId: String,
         override val product: ProductReference,
     ) : ResourceSpecification
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Status(
         override var resolvedSupport: ResolvedSupport<Product.Synchronization, SyncDeviceSupport>? = null,
         override var resolvedProduct: Product.Synchronization? = null
     ) : ResourceStatus<Product.Synchronization, SyncDeviceSupport>
 
     @Serializable
+    @UCloudApiInternal(InternalLevel.BETA)
     data class Update(
         override val timestamp: Long,
         override val status: String?
@@ -43,6 +45,7 @@ data class SyncDevice(
 typealias SyncDeviceSupport = SyncFolderSupport
 
 @Serializable
+@UCloudApiInternal(InternalLevel.BETA)
 data class SyncDeviceIncludeFlags(
     override val includeOthers: Boolean = false,
     override val includeUpdates: Boolean = false,
@@ -62,6 +65,7 @@ data class SyncDeviceIncludeFlags(
 ) : ResourceIncludeFlags
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+@UCloudApiInternal(InternalLevel.BETA)
 object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags, SyncDevice.Status,
     Product.Synchronization, SyncDeviceSupport>("sync.devices") {
 
@@ -88,6 +92,7 @@ object SyncDevices : ResourceApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
     override val search get() = super.search!!
 }
 
+@UCloudApiInternal(InternalLevel.BETA)
 object SyncDeviceControl : ResourceControlApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update, SyncDeviceIncludeFlags,
     SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices") {
 
@@ -110,6 +115,7 @@ object SyncDeviceControl : ResourceControlApi<SyncDevice, SyncDevice.Spec, SyncD
     )
 }
 
+@UCloudApiInternal(InternalLevel.BETA)
 open class SyncDeviceProvider(provider: String) : ResourceProviderApi<SyncDevice, SyncDevice.Spec, SyncDevice.Update,
     SyncDeviceIncludeFlags, SyncDevice.Status, Product.Synchronization, SyncDeviceSupport>("sync.devices", provider) {
 

@@ -1,7 +1,6 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
@@ -12,7 +11,6 @@ import dk.sdu.cloud.service.actorAndProject
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
-    private val resourceNotifications: ResourceNotificationService
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Accounting.charge) {
@@ -100,14 +98,6 @@ class AccountingController(
             ok(Unit)
         }
 
-        implement(ResourceNotifications.retrieve) {
-            ok(resourceNotifications.retrieve(actorAndProject))
-        }
-
-        implement(ResourceNotifications.markAsRead)  {
-            resourceNotifications.markAsRead(actorAndProject, request)
-            ok(Unit)
-        }
         return@with
     }
 }

@@ -1,13 +1,9 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.*
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
@@ -15,7 +11,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
-import dk.sdu.cloud.file.ucloud.withMounterInfo
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
@@ -36,7 +32,6 @@ object SyncDevicesTable : SQLTable("sync_devices") {
     val device = varchar("device_id", 64, notNull = true)
     val user = text("user_id", notNull = true)
 }
-
 
 class SyncService(
     private val syncthing: SyncthingClient,
@@ -59,13 +54,13 @@ class SyncService(
                     """
                 ).rows.map { it.getField(SyncFoldersTable.path) }
             }.filter { it.value.size < 1000 }
-             .minByOrNull { (_, folders) ->
-                folders.sumOf { folder ->
-                    cephStats.getRecursiveSize(
-                        pathConverter.ucloudToInternal(UCloudFile.create(folder))
-                    ) ?: 0
-                }
-            }?.key
+                .minByOrNull { (_, folders) ->
+                    folders.sumOf { folder ->
+                        cephStats.getRecursiveSize(
+                            pathConverter.ucloudToInternal(UCloudFile.create(folder))
+                        ) ?: 0
+                    }
+                }?.key
         }
     }
 
@@ -74,9 +69,9 @@ class SyncService(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
-    suspend fun addFolders(request: BulkRequest<SyncFolder>) : BulkResponse<FindByStringId?> {
+    suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
-        val devices: MutableList<LocalSyncthingDevice> = mutableListOf()
+        val remoteDevices: MutableList<LocalSyncthingDevice> = mutableListOf()
 
         val affectedRows: Long = db.withSession { session ->
             request.items.forEach { folder ->
@@ -103,8 +98,9 @@ class SyncService(
                             SyncFolder.Update(
                                 Time.now(),
                                 "Updated synchronized folder",
-                                deviceId = device.id,
-                                syncType = folder.status.syncType)
+                                remoteDeviceId = device.id,
+                                permission = folder.status.permission
+                            )
                         )
                     ),
                     authenticatedClient
@@ -116,39 +112,39 @@ class SyncService(
                     ),
                     authenticatedClient //.withMounterInfo(device)
                 ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to prepare folder for synchronization")
+                    throw RPCException.fromStatusCode(
+                        HttpStatusCode.InternalServerError,
+                        "Failed to prepare folder for synchronization"
+                    )
                 }
 
-                devices.add(device)
+                remoteDevices.add(device)
             }
 
             val affectedRows = session.sendPreparedStatement(
                 {
                     setParameter("ids", request.items.map { folder -> folder.id.toLong() })
-                    setParameter("devices", devices.map { it.id })
+                    setParameter("remote_devices", remoteDevices.map { it.id })
                     setParameter("paths", request.items.map { folder -> folder.specification.path })
                     setParameter("users", request.items.map { folder -> folder.owner.createdBy })
-                    setParameter("type", request.items.map { folder -> folder.status.syncType})
+                    setParameter("type", request.items.map { folder ->
+                        when (folder.status.permission) {
+                            Permission.READ -> SynchronizationType.SEND_ONLY.name
+                            Permission.EDIT -> SynchronizationType.SEND_RECEIVE.name
+                            Permission.ADMIN -> SynchronizationType.SEND_RECEIVE.name
+                            Permission.PROVIDER -> SynchronizationType.SEND_ONLY.name
+                        }
+                    })
                 },
                 """
-                    insert into file_ucloud.sync_folders(
-                        id, 
-                        device_id, 
-                        path,
-                        user_id,
-                        sync_type
-                    ) values (
-                        unnest(:ids::bigint[]),
-                        unnest(:devices::text[]),
-                        unnest(:paths::text[]),
-                        unnest(:users::text[]),
-                        unnest(:type::text[])
-                    ) on conflict do nothing
-            """
+                    insert into file_ucloud.sync_folders(id, device_id, path, user_id, sync_type)
+                    values (unnest(:ids::bigint[]), unnest(:remote_devices::text[]), unnest(:paths::text[]), 
+                            unnest(:users::text[]), unnest(:type::text[])) 
+                    on conflict do nothing
+                """
             ).rowsAffected
 
             affectedDevices.forEach { device ->
-
                 // Mounter is ready when all folders added to syncthing on that device is mounted.
                 // Syncthing is ready when it's accessible.
 
@@ -322,7 +318,7 @@ class SyncService(
             ).rows.map { folder ->
                 SyncFolderBrowseItem(
                     folder.getField(SyncFoldersTable.id),
-                    folder.getField(SyncFoldersTable.path),
+                    pathConverter.ucloudToInternal(UCloudFile.create(folder.getField(SyncFoldersTable.path))).path,
                     SynchronizationType.valueOf(folder.getField(SyncFoldersTable.syncType))
                 )
             }
@@ -439,69 +435,58 @@ class SyncService(
         }
     }
 
-    suspend fun updatePermissions(folders: BulkRequest<SyncFolder>): BulkResponse<Unit?> {
+    suspend fun updatePermissions(folders: BulkRequest<SyncFolderPermissionsUpdatedRequestItem>): BulkResponse<Unit?> {
         db.withSession { session ->
-            if (folders.items.any { it.status.syncType == null }) {
-                val devices = session.sendPreparedStatement(
-                    {
-                        setParameter("ids", folders.items.filter { it.status.syncType == null }.map { it.id.toLong() })
-                    },
-                    """
-                    delete from file_ucloud.sync_folders
-                    where id in (select unnest(:ids::bigint[]))
-                    returning id, device_id
+            session.sendPreparedStatement(
+                {
+                    folders.items.split {
+                        into("ids") { it.resourceId.toLong() }
+                        into("permissions") {
+                            when (it.newPermission) {
+                                Permission.READ -> SynchronizationType.SEND_ONLY.name
+                                Permission.EDIT -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.ADMIN -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.PROVIDER -> SynchronizationType.SEND_ONLY.name
+                            }
+                        }
+                    }
+                },
                 """
-                ).rows.mapNotNull {
-                    val id = it.getLong(0)!!
-                    val deviceId = it.getString(1)!!
-                    val device = syncthing.config.devices.find { it.id == deviceId }
-                    if (device != null) {
-                        id to device
-                    } else {
-                        null
-                    }
-                }
+                    update file_ucloud.sync_folders f
+                    set sync_type = updates.sync_type
+                    from (
+                        select
+                            unnest(:ids::bigint[]) id, 
+                            unnest(:permissions::text[]) sync_type
+                    ) updates
+                    where
+                        f.id = updates.id
+                """
+            )
+        }
 
-                devices.groupBy { it.second.id }.forEach { (_, requests) ->
-                    Mounts.unmount.call(
-                        UnmountRequest(
-                            requests.map { MountFolderId(it.first) }
-                        ),
-                        authenticatedClient//.withMounterInfo(requests[0].second)
-                    ).orRethrowAs {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                    }
-                }
-            }
+        if (folders.items.isNotEmpty()) syncthing.writeConfig()
 
-            if (folders.items.any { it.status.syncType != null }) {
-                session.sendPreparedStatement(
-                    {
-                        setParameter("ids", folders.items.filter { it.status.syncType != null }.map { it.id })
-                        setParameter(
-                            "new_sync_types",
-                            folders.items.filter { it.status.syncType != null }.map { it.status.syncType })
-                    },
-                    """
-                        update file_ucloud.sync_folders f set
-                            sync_type = updates.sync_type
-                        from (select unnest(:ids::bigint[]), unnest(:new_sync_types::text[])) updates(id, sync_type)
-                        where f.id = updates.id
-                    """
+        SyncFolderControl.update.call(
+            BulkRequest(folders.items.map {
+                ResourceUpdateAndId(
+                    it.resourceId,
+                    SyncFolder.Update(
+                        permission = it.newPermission
+                    )
                 )
-            }
-        }
+            }),
+            authenticatedClient
+        )
 
-        if (folders.items.isNotEmpty()) {
-            syncthing.writeConfig()
-        }
-        return BulkResponse(emptyList())
+        return BulkResponse(folders.items.map { })
     }
 
     companion object {
         // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
         // reason).
-        private val deviceIdRegex = Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
+        private val deviceIdRegex =
+            Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
     }
 }
 

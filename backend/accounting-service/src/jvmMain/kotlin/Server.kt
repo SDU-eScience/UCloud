@@ -22,7 +22,6 @@ import dk.sdu.cloud.accounting.services.projects.ProjectQueryService
 import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
-import dk.sdu.cloud.accounting.services.providers.ResourceNotificationService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
@@ -53,12 +52,11 @@ class Server(
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
-        val resourceNotifications = ResourceNotificationService(db, simpleProviders)
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer, resourceNotifications)
-        val projectGroups = ProjectGroupService(projectService, eventProducer, resourceNotifications)
+        val projectService = ProjectService(client, eventProducer)
+        val projectGroups = ProjectGroupService(projectService, eventProducer)
         val projectQueryService = ProjectQueryService(projectService)
 
         val giftService = GiftService(db)
@@ -96,7 +94,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(accountingService, depositNotifications, resourceNotifications),
+                AccountingController(accountingService, depositNotifications),
                 ProductController(productService),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),

@@ -13,7 +13,10 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.backgroundScope
+import dk.sdu.cloud.micro.redisConnectionManager
 import dk.sdu.cloud.service.CommonServer
+import dk.sdu.cloud.service.DistributedLockBestEffortFactory
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
@@ -71,10 +74,11 @@ class Server(override val micro: Micro) : CommonServer {
         }
         val syncDeviceService = SyncDeviceService(db, syncProviders, syncSupport, serviceClient)
         val syncFolderService = SyncFolderService(db, syncProviders, syncSupport, serviceClient,
-            filesService, fileCollections)
+            filesService, fileCollections, DistributedLockBestEffortFactory(micro), micro.backgroundScope)
 
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addDeleteHandler(metadataService::onFilesDeleted)
+        syncFolderService.initialize()
 
         configureControllers(
             FileMetadataController(metadataService),
