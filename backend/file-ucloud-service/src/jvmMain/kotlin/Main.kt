@@ -41,7 +41,8 @@ fun AuthenticatedClient.withMounterInfo(device: LocalSyncthingDevice): Authentic
 }
 
 data class SyncConfiguration(
-    val devices: List<LocalSyncthingDevice> = emptyList()
+    val devices: List<LocalSyncthingDevice> = emptyList(),
+    val userWhiteList: List<String> = emptyList()
 )
 
 object FileUcloudService : Service {

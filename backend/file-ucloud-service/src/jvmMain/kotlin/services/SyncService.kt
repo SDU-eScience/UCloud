@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
@@ -70,6 +71,10 @@ class SyncService(
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
+        if (!syncthing.config.userWhiteList.containsAll(request.items.map { it.owner.createdBy })) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+        }
+
         val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
         val remoteDevices: MutableList<LocalSyncthingDevice> = mutableListOf()
 

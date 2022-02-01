@@ -11,6 +11,7 @@ import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.file.ucloud.services.SyncService
 import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 
 class SyncController(
     private val syncService: SyncService,
