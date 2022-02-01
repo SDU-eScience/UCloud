@@ -10,13 +10,13 @@ import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.project.api.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.test.UCloudTestSuiteBuilder
-import io.ktor.http.*
 
 enum class UserType(val usuallyHasPermissions: Boolean) {
     PI(true),

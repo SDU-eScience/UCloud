@@ -18,6 +18,7 @@ import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
@@ -39,7 +40,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
-import io.ktor.http.*
 import kotlinx.serialization.decodeFromString
 import java.util.*
 import kotlin.math.max
@@ -487,6 +487,7 @@ class AccountingTest : IntegrationTest() {
 
             test<In, Out>("Free to use products") {
                 execute {
+
                     input.providers.forEach {
                         createProvider(it)
                     }
@@ -706,7 +707,9 @@ class AccountingTest : IntegrationTest() {
             }
 
         }
-
+      /*  testFilter = { title, subtitle ->
+            title == "Deposit and check" && subtitle == "Charge missing payer"
+        }*/
         run {
             class In(
                 val sourceIsProject: Boolean,
@@ -1703,7 +1706,7 @@ class AccountingTest : IntegrationTest() {
                         )
                     )
 
-                    expectStatusCode(HttpStatusCode.BadRequest)
+                    expectStatusCode(HttpStatusCode.PaymentRequired)
                 }
 
                 case("Missing payment in a non-leaf") {
