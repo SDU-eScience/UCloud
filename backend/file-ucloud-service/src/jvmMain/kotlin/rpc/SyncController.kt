@@ -1,20 +1,20 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.ucloud.api.*
 import dk.sdu.cloud.file.ucloud.services.SyncService
 import dk.sdu.cloud.file.ucloud.services.syncProducts
 import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.actorAndProject
+import dk.sdu.cloud.service.InternalTokenValidationJWT
+import io.ktor.http.*
 
 class SyncController(
     private val syncService: SyncService,
+    private val syncMounterSharedSecret: String?,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(UCloudSyncDevices.create) {
@@ -65,6 +65,11 @@ class SyncController(
         }
 
         implement(UCloudSyncFoldersBrowse.browse) {
+            if (syncMounterSharedSecret == null) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            val validator = InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
+            val bearer = ((ctx as HttpCall).context.request.headers[HttpHeaders.Authorization] ?: "").removePrefix("Bearer ")
+            validator.validateOrNull(bearer) ?: throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
             ok(syncService.browseFolders(request.device))
         }
     }

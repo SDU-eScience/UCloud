@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "redis-cleaner"
-    version = "2022.1.3"
+    version = "2022.1.4"
 
     val deployment = withDeployment {
         deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)

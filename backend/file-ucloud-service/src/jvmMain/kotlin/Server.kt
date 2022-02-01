@@ -20,8 +20,8 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.sync.mounter.api.Mounts
-import io.ktor.http.*
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import java.io.File
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
@@ -50,6 +50,7 @@ class Server(
     override val log = logger()
     private val lastWrite = AtomicLong(Time.now())
     private lateinit var elastic: RestHighLevelClient
+    private lateinit var mounterClient: AuthenticatedClient
 
     @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
@@ -64,10 +65,10 @@ class Server(
             }
 
         val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
-        val internalAuthenticator = RefreshingJWTAuthenticator(
+        mounterClient = RefreshingJWTAuthenticator(
             micro.client,
             JwtRefresherSharedSecret(syncMounterSharedSecret ?: "this_will_fail")
-        )
+        ).authenticateClient(OutgoingHttpCall)
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = TokenValidationChain(
             buildList {
@@ -104,7 +105,7 @@ class Server(
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
         val distributedLocks = DistributedLockBestEffortFactory(micro)
         val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
-        val syncService = SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter)
+        val syncService = SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter, mounterClient)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient,
@@ -171,7 +172,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService, memberFiles),
             FileCollectionsController(fileCollectionService),
-            SyncController(syncService),
+            SyncController(syncService, syncMounterSharedSecret),
             ShareController(shareService),
             object : Controller {
                 override fun configure(rpcServer: RpcServer) {
@@ -210,7 +211,6 @@ class Server(
             val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), client)
             val nativeFs = NativeFS(pathConverter, micro)
             val cephStats = CephFsFastDirectoryStats(nativeFs)
-            val syncService = SyncService(syncthingClient, db, client, cephStats, pathConverter)
 
             try {
                 val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
@@ -221,11 +221,7 @@ class Server(
                         delay(1000L)
                         retryCount += 1
 
-                        val ready = Mounts.ready.call(
-                            Unit,
-                            client
-                            //client.withMounterInfo(device)
-                        )
+                        val ready = Mounts.ready.call(Unit, mounterClient)
 
                         if (ready.statusCode == HttpStatusCode.OK) {
                             if (ready.orThrow().ready) {

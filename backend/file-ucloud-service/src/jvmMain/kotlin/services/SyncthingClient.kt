@@ -408,6 +408,7 @@ class SyncthingClient(
                             )
                         }
                     } catch (e: ConnectException) {
+                        e.printStackTrace()
                         throw RPCException(
                             "The synchronization feature is offline. Please try again later.",
                             dk.sdu.cloud.calls.HttpStatusCode.ServiceUnavailable,

@@ -146,6 +146,9 @@ data class ApplicationInvocationDescription(
     @UCloudApiDoc("Flag to enable/disable support for public IP (default false)")
     val allowPublicIp: Boolean? = false,
 
+    @UCloudApiDoc("Flag to enable/disable support for public link (default: true for web apps)")
+    val allowPublicLink: Boolean? = null,
+
     @UCloudApiDoc("""
         The file extensions which this Application can handle
         

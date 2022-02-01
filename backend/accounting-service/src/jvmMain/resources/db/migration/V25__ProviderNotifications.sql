@@ -52,5 +52,5 @@ begin
     end if;
 
     return builder;
-end
+end;
 $$;
