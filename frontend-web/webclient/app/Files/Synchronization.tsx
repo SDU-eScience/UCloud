@@ -10,24 +10,21 @@ import SyncFolderApi, {
 import {
     Box,
     Button,
-    ExternalLink,
     Flex,
     Image,
     Input,
     Label,
-    Link,
     SelectableText,
     SelectableTextWrapper,
 } from "@/ui-components";
 import {TextSpan} from "@/ui-components/Text";
 import {copyToClipboard} from "@/UtilityFunctions";
 import {useEffect} from "react";
-import SyncDeviceApi, {SyncDevice, SyncDeviceSupport} from "@/UCloud/SyncDeviceApi";
+import SyncDeviceApi, {SyncDevice} from "@/UCloud/SyncDeviceApi";
 import {PageV2} from "@/UCloud";
 import {ResourceBrowse} from "@/Resource/Browse";
 import {Toggle} from "@/ui-components/Toggle";
-import {Client} from "@/Authentication/HttpClientInstance";
-import {ProductSyncDevice, ProductSyncFolder} from "@/Accounting";
+import {ProductSyncFolder} from "@/Accounting";
 import {SupportByProvider} from "@/UCloud/ResourceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {BrowseType} from "@/Resource/BrowseType";
