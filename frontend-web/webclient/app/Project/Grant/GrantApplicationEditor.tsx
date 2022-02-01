@@ -317,7 +317,7 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
                     break;
             }
         }
-    }, [templates, documentRef.current]);
+    }, [templates, documentRef.current, grantApplication]);
 
     useEffect(() => {
         const usernames = comments.map(it => it.postedBy);

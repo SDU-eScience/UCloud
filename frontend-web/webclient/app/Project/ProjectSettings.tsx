@@ -90,7 +90,7 @@ const PageTab: React.FunctionComponent<{
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
         useProjectManagementStatus({isRootComponent: true});
-    const params = useParams<{ page?: SettingsPage }>();
+    const params = useParams<{page?: SettingsPage}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
 
     useTitle("Project Settings");
@@ -107,15 +107,15 @@ export const ProjectSettings: React.FunctionComponent = () => {
     const history = useHistory();
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]}/>}
+            header={<ProjectBreadcrumbs crumbs={[{title: "Settings"}]} />}
             main={
                 <ActionContainer>
                     <SelectableTextWrapper>
-                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"}/>
-                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"}/>
-                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"}/>
+                        <PageTab activePage={page} page={SettingsPage.AVAILABILITY} title={"Project Availability"} />
+                        <PageTab activePage={page} page={SettingsPage.INFO} title={"Project Information"} />
+                        <PageTab activePage={page} page={SettingsPage.SUBPROJECTS} title={"Subprojects"} />
                         {!enabled.data.enabled ? null :
-                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"}/>
+                            <PageTab activePage={page} page={SettingsPage.GRANT_SETTINGS} title={"Grant Settings"} />
                         }
                     </SelectableTextWrapper>
 
@@ -128,7 +128,7 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                 title={projectDetails.data.title}
                                 onSuccess={() => history.push("/projects")}
                             />
-                            <Divider/>
+                            <Divider />
                             <LeaveProject
                                 onSuccess={() => history.push("/")}
                                 projectDetails={projectDetails.data}
@@ -147,12 +147,12 @@ export const ProjectSettings: React.FunctionComponent = () => {
                                     reloadProjectStatus();
                                 }}
                             />
-                            {enabled.data.enabled ? <Divider/> : null}
-                            <LogoAndDescriptionSettings/>
+                            {enabled.data.enabled ? <Divider /> : null}
+                            <LogoAndDescriptionSettings />
                         </>
                     )}
                     {page !== SettingsPage.GRANT_SETTINGS ? null : (
-                        <GrantProjectSettings/>
+                        <GrantProjectSettings />
                     )}
                     {page !== SettingsPage.SUBPROJECTS ? null : (
                         <>
@@ -188,63 +188,65 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
     useEffect(() => {
         setAllowRenaming(getRenamingStatus({projectId: props.projectId}))
-    }, [props.projectId]);
+        if (newProjectTitle.current)
+            newProjectTitle.current.value = props.projectDetails.title;
+    }, [props.projectId, props.projectDetails]);
+
     return (
-            <Box flexGrow={1}>
-                <form onSubmit={async e => {
-                    e.preventDefault();
+        <Box flexGrow={1}>
+            <form onSubmit={async e => {
+                e.preventDefault();
 
-                    const titleField = newProjectTitle.current;
-                    if (titleField === null) return;
+                const titleField = newProjectTitle.current;
+                if (titleField === null) return;
 
-                    const titleValue = titleField.value;
+                const titleValue = titleField.value;
 
-                    if (titleValue === "") return;
+                if (titleValue === "") return;
 
-                    const success = await invokeCommand(renameProject(
-                        {
-                            id: props.projectId,
-                            newTitle: titleValue
-                        }
-                    )) !== null;
-
-                    if(success) {
-                        props.onSuccess();
-                        snackbarStore.addSuccess("Project renamed successfully", true);
-                    } else {
-                        snackbarStore.addFailure("Renaming of project failed", true);
+                const success = await invokeCommand(renameProject(
+                    {
+                        id: props.projectId,
+                        newTitle: titleValue
                     }
-                }}>
-                    <Heading.h4>Project Title</Heading.h4>
-                    <Flex flexGrow={1}>
-                        <Box minWidth={500}>
-                            <Input
-                                rightLabel
-                                required
-                                type="text"
-                                ref={newProjectTitle}
-                                placeholder="New project title"
-                                autoComplete="off"
-                                onChange={() => {
-                                    if(newProjectTitle.current?.value !== props.projectDetails.title) {
-                                        setSaveDisabled(false);
-                                    } else {
-                                        setSaveDisabled(true);
-                                    }
-                                }}
-                                defaultValue={props.projectDetails.title}
-                                disabled={!allowRenaming.data.allowed}
-                            />
-                        </Box>
-                        <Button
-                            attached
-                            disabled={saveDisabled}
-                        >
-                            Save
-                        </Button>
-                    </Flex>
-                </form>
-            </Box>
+                )) !== null;
+
+                if (success) {
+                    props.onSuccess();
+                    snackbarStore.addSuccess("Project renamed successfully", true);
+                } else {
+                    snackbarStore.addFailure("Renaming of project failed", true);
+                }
+            }}>
+                <Heading.h4>Project Title</Heading.h4>
+                <Flex flexGrow={1}>
+                    <Box minWidth={500}>
+                        <Input
+                            rightLabel
+                            required
+                            type="text"
+                            ref={newProjectTitle}
+                            placeholder="New project title"
+                            autoComplete="off"
+                            onChange={() => {
+                                if (newProjectTitle.current?.value !== props.projectDetails.title) {
+                                    setSaveDisabled(false);
+                                } else {
+                                    setSaveDisabled(true);
+                                }
+                            }}
+                            disabled={!allowRenaming.data.allowed}
+                        />
+                    </Box>
+                    <Button
+                        attached
+                        disabled={saveDisabled}
+                    >
+                        Save
+                    </Button>
+                </Flex>
+            </form>
+        </Box>
     );
 };
 
@@ -328,7 +330,7 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
                 </Box>
             </ActionBox>
         )}
-        </>
+    </>
 }
 
 

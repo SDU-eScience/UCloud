@@ -108,7 +108,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     const history = useHistory();
 
     const [filters, setFilters] = useState<Record<string, string>>({});
-    
+
     const archived = filters.archived === "true" ?? false;
 
     const reload = (): void => {
@@ -212,8 +212,7 @@ const _List: React.FunctionComponent<DispatchProps & {project?: string}> = props
     const [widget, pill] = CheckboxFilter("tags", "archived", "Archived");
     const filterPills = [pill];
     const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
-    const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => {
-    }, []);
+    const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => { }, []);
 
     return (
         <MainContainer
