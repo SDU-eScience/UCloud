@@ -29,7 +29,7 @@ data class ReadyResponse(
 )
 
 object Mounts: CallDescriptionContainer("sync.mounter") {
-    private const val baseContext = "/api/sync/mount"
+    private const val baseContext = "/ucloud/ucloud/sync/mount"
 
     val mount = call<MountRequest, MountResponse, CommonErrorMessage>("mount") {
         httpCreate(baseContext, roles = Roles.PROVIDER)

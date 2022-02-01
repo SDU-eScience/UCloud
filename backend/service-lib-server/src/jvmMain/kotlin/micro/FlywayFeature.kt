@@ -143,6 +143,7 @@ fun DatabaseConfig.migrateAll() {
         .toSortedMap(Comparator.comparingInt { schemaPriority[it] ?: priorityDontCareCounter++ })
         .forEach { (schema, migrations) ->
             val flyway = Flyway.configure().apply {
+                mixed(true)
                 validateOnMigrate(validateMigrations)
                 resolvers(object : MigrationResolver {
                     override fun resolveMigrations(context: Context?): MutableCollection<ResolvedMigration> {

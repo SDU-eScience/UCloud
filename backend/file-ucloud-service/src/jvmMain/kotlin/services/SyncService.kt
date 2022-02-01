@@ -4,10 +4,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
@@ -36,9 +33,10 @@ object SyncDevicesTable : SQLTable("sync_devices") {
 class SyncService(
     private val syncthing: SyncthingClient,
     private val db: AsyncDBSessionFactory,
-    val authenticatedClient: AuthenticatedClient,
+    private val authenticatedClient: AuthenticatedClient,
     private val cephStats: CephFsFastDirectoryStats,
-    private val pathConverter: PathConverter
+    private val pathConverter: PathConverter,
+    private val mounterClient: AuthenticatedClient,
 ) {
     private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
         db.withSession { session ->
@@ -107,10 +105,8 @@ class SyncService(
                 )
 
                 Mounts.mount.call(
-                    MountRequest(
-                        listOf(MountFolder(folder.id.toLong(), internalFile.path))
-                    ),
-                    authenticatedClient //.withMounterInfo(device)
+                    MountRequest(listOf(MountFolder(folder.id.toLong(), internalFile.path))),
+                    mounterClient,
                 ).orRethrowAs {
                     throw RPCException.fromStatusCode(
                         HttpStatusCode.InternalServerError,
@@ -158,7 +154,7 @@ class SyncService(
                     }
 
                     try {
-                        val mounter = Mounts.ready.call(Unit, authenticatedClient) //.withMounterInfo(device))
+                        val mounter = Mounts.ready.call(Unit, mounterClient)
                         val syncthingReady = syncthing.isReady(device)
 
                         if (
@@ -186,10 +182,8 @@ class SyncService(
             } catch (ex: Throwable) {
                 request.items.forEach { folder ->
                     Mounts.unmount.call(
-                        UnmountRequest(
-                            listOf(MountFolderId(folder.id.toLong()))
-                        ),
-                        authenticatedClient //.withMounterInfo(device)
+                        UnmountRequest(listOf(MountFolderId(folder.id.toLong()))),
+                        mounterClient
                     )
                 }
 
@@ -246,13 +240,9 @@ class SyncService(
 
             deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
                 Mounts.unmount.call(
-                    UnmountRequest(
-                        deviceFolders.value.map { MountFolderId(it.id) }
-                    ),
-                    authenticatedClient//.withMounterInfo(requests[0].second)
-                ).orRethrowAs {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-                }
+                    UnmountRequest(deviceFolders.value.map { MountFolderId(it.id) }),
+                    mounterClient
+                ).orRethrowAs { throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError) }
             }
 
             deleted
@@ -269,7 +259,7 @@ class SyncService(
                             MountFolder(it.id, internalFile.path)
                         }
                     ),
-                    authenticatedClient //.withMounterInfo(device)
+                    mounterClient
                 )
             }
 

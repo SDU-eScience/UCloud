@@ -1,4 +1,4 @@
-version = "0.1.5"
+version = "2022.1.4-patch.2"
 
 application {
     mainClassName = "dk.sdu.cloud.sync.mounter.MainKt"
