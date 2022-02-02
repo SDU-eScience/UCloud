@@ -435,6 +435,7 @@ export interface FilesBrowseRequest {
     includeSizes?: boolean,
     includeUnixInfo?: boolean,
     includeMetadata?: boolean,
+    includeSyncStatus?: boolean,
     /**
      * Determines if the request should succeed if the underlying system does not support this data.
      *
@@ -947,7 +948,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/files" + "/browse", {path: request.path, includePermissions: request.includePermissions, includeTimestamps: request.includeTimestamps, includeSizes: request.includeSizes, includeUnixInfo: request.includeUnixInfo, includeMetadata: request.includeMetadata, allowUnsupportedInclude: request.allowUnsupportedInclude, itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, sortBy: request.sortBy, sortOrder: request.sortOrder}),
+        path: buildQueryString("/api/files" + "/browse", request),
         parameters: request,
         reloadId: Math.random(),
     };
@@ -6883,7 +6884,7 @@ export interface RetrieveWalletsForProjectsRequest {
 export interface WalletsGrantProviderCreditsRequest {
     provider: string,
 }
-export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP
+export type Product = ProductNS.Storage | ProductNS.Compute | ProductNS.Ingress | ProductNS.License | ProductNS.NetworkIP | ProductNS.Synchronization
 export type ProductAvailability = ProductAvailabilityNS.Available | ProductAvailabilityNS.Unavailable
 export interface FindProductRequest {
     provider: string,
@@ -7315,6 +7316,21 @@ export interface NetworkIP {
      */
     balance?: number /* int64 */,
     type: ("network_ip"),
+}
+export interface Synchronization {
+    id: string,
+    pricePerUnit: number /* int64 */,
+    category: ProductCategoryId,
+    description: string,
+    hiddenInGrantApplications: boolean,
+    availability: ProductAvailability,
+    priority: number /* int32 */,
+    area: ("STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "SYNCHRONIZATION"),
+    /**
+     * Included only with certain endpoints which support `includeBalance`
+     */
+    balance?: number /* int64 */,
+    type: ("synchronization"),
 }
 }
 }

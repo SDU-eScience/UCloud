@@ -22,7 +22,7 @@ export const IngressResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (application.invocation.applicationType !== "WEB") return null;
+    if (application.invocation.allowPublicLink === false || application.invocation.applicationType !== "WEB") return null;
 
     return <GrayBox>
         <Box>

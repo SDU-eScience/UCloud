@@ -1,10 +1,12 @@
 def initialize() {
   try {
     stage('build and backend') {
-      sh '''cd backend
-      ./gradlew clean
-      ./gradlew generateBuildConfig
-      ./gradlew build'''
+      container('test') {
+        // TODO Call init.sh
+//         sh 'ls'
+//         sh 'pwd'
+//         sh 'sleep infinity'
+      }
     }
   } catch (e) {
     echo "Build Failed"

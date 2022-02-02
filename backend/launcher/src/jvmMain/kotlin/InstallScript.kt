@@ -17,6 +17,9 @@ import io.ktor.server.netty.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.w3c.dom.Document
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 import java.io.*
 import java.nio.file.Files
 import kotlin.system.exitProcess
@@ -96,6 +99,33 @@ fun runInstaller(configDir: File) {
 
             """.trimIndent()
         )
+
+        val syncthingConfig = File("/mnt/syncthing/config/config.xml")
+        if (syncthingConfig.exists()) {
+            val configDoc: Document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(syncthingConfig)
+            val guiElement = configDoc.getElementsByTagName("gui").item(0) as Element
+            val apiKeyElement = guiElement.getElementsByTagName("apikey")
+            val apiKey = apiKeyElement.item(0).textContent
+            val deviceElement = configDoc.getElementsByTagName("device").item(0) as Element
+            val deviceId = deviceElement.getAttribute("id")
+
+            File(configDir, "syncthing.yaml").writeText(
+                """
+                    syncthing:
+                      devices:
+                        - hostname: syncthing
+                          apiKey: $apiKey
+                          id: $deviceId
+                          port: 8384
+                          username: syncthinguser
+                          password: syncthingpassword
+                      sharedSecret: someSecret
+                          
+                    syncMount:
+                      deviceId: $deviceId
+                """.trimIndent()
+            )
+        }
 
         val cephFs = File("/mnt/cephfs")
         if (cephFs.exists()) {

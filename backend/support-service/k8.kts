@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "support"
-    version = "2022.1.3"
+    version = "2022.1.5"
 
     withAmbassador {}
 

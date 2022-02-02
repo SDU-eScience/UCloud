@@ -37,8 +37,6 @@ import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import kotlinx.coroutines.runBlocking
-import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
@@ -67,6 +65,7 @@ class Server(
         val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
+
 
         val providerProviders =
             dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }

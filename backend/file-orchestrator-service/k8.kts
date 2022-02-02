@@ -3,11 +3,13 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-orchestrator"
-    version = "2022.1.3"
+    version = "2022.1.5"
     
     withAmbassador(null) {
         addSimpleMapping("/api/files")
         addSimpleMapping("/api/shares")
+        addSimpleMapping("/api/sync/folders")
+        addSimpleMapping("/api/sync/devices")
     }
     
     val deployment = withDeployment {

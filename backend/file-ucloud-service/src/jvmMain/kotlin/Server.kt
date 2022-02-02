@@ -1,11 +1,11 @@
 package dk.sdu.cloud.file.ucloud
 
-import dk.sdu.cloud.auth.api.JwtRefresher
-import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
+import dk.sdu.cloud.file.ucloud.rpc.SyncController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
@@ -15,12 +15,19 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.TokenValidationChain
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.sync.mounter.api.Mounts
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import java.io.File
-import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 import org.elasticsearch.client.RestHighLevelClient
 import dk.sdu.cloud.file.ucloud.services.FileScanner
 
@@ -37,10 +44,15 @@ class Server(
     override val micro: Micro,
     private val configuration: Configuration,
     private val cephConfig: CephConfiguration,
+    private val syncConfig: SyncConfiguration,
+    private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
+    private val lastWrite = AtomicLong(Time.now())
     private lateinit var elastic: RestHighLevelClient
+    private lateinit var mounterClient: AuthenticatedClient
 
+    @OptIn(ExperimentalStdlibApi::class)
     override fun start() {
         val (refreshToken, validation) =
             if (configuration.providerRefreshToken == null || configuration.ucloudCertificate == null) {
@@ -53,8 +65,21 @@ class Server(
             }
 
         val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
+        mounterClient = RefreshingJWTAuthenticator(
+            micro.client,
+            JwtRefresherSharedSecret(syncMounterSharedSecret ?: "this_will_fail")
+        ).authenticateClient(OutgoingHttpCall)
         @Suppress("UNCHECKED_CAST")
-        micro.providerTokenValidation = validation as TokenValidation<Any>
+        micro.providerTokenValidation = TokenValidationChain(
+            buildList {
+                add(validation as TokenValidation<Any>)
+                if (syncMounterSharedSecret != null) {
+                    InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
+                } else {
+                    log.warn("Missing shared secret for file-ucloud-service and sync-mounter. Sync will not work")
+                }
+            }
+        )
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro)
 
@@ -78,6 +103,10 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
+        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
+        val syncService = SyncService(syncthingClient, db, authenticatedClient, cephStats, pathConverter, mounterClient)
+
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(db, pathConverter, nativeFs, micro.backgroundScope, authenticatedClient,
             micro.feature(DebugSystem)).apply {
@@ -143,6 +172,7 @@ class Server(
         configureControllers(
             FilesController(fileQueries, taskSystem, chunkedUploadService, downloadService, limitChecker, elasticQueryService, memberFiles),
             FileCollectionsController(fileCollectionService),
+            SyncController(syncService, syncMounterSharedSecret),
             ShareController(shareService),
             object : Controller {
                 override fun configure(rpcServer: RpcServer) {
@@ -158,7 +188,63 @@ class Server(
             }
         )
 
+        Runtime.getRuntime().addShutdownHook(Thread {
+            runBlocking {
+                syncthingClient.drainConfig()
+            }
+        })
+
         startServices()
+    }
+
+    override fun onKtorReady() {
+        runBlocking {
+            val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+            val db = AsyncDBSessionFactory(micro.databaseConfig)
+            val distributedLocks = DistributedLockBestEffortFactory(micro)
+            val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
+
+            val fsRootFile =
+                File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
+                    ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
+
+            val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), client)
+            val nativeFs = NativeFS(pathConverter, micro)
+            val cephStats = CephFsFastDirectoryStats(nativeFs)
+
+            try {
+                val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
+                    var foldersMounted = false
+                    var retryCount = 0
+
+                    while (!foldersMounted && retryCount < 5) {
+                        delay(1000L)
+                        retryCount += 1
+
+                        val ready = Mounts.ready.call(Unit, mounterClient)
+
+                        if (ready.statusCode == HttpStatusCode.OK) {
+                            if (ready.orThrow().ready) {
+                                foldersMounted = true
+                            }
+                        }
+                    }
+
+                    if (foldersMounted) {
+                        device
+                    } else {
+                        null
+                    }
+                }
+
+
+                syncthingClient.writeConfig(running)
+                syncthingClient.rescan(running)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while trying to configure sync-thing (is it running?)")
+                log.warn(ex.stackTraceToString())
+            }
+        }
     }
 }
 

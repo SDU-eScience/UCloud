@@ -3,19 +3,71 @@ properties([
 ])
 
 def label = "worker-${UUID.randomUUID().toString()}"
+def postgresPassword = UUID.randomUUID().toString()
 
-podTemplate(label: label, containers: [
-containerTemplate(name: 'jnlp', image: 'jenkins/jnlp-slave:latest-jdk11', args: '${computer.jnlpmac} ${computer.name}'),
-containerTemplate(name: 'docker', image: 'docker', command: 'cat', ttyEnabled: true),
-containerTemplate(name: 'node', image: 'node:11-alpine', command: 'cat', ttyEnabled: true),
-containerTemplate(name: 'centos', image: 'ubuntu', command: 'cat', ttyEnabled: true)
-],
-volumes: [
-  hostPathVolume(mountPath: '/var/run/docker.sock', hostPath: '/var/run/docker.sock')
-]) {
+// NOTE(Dan): We should definitely not attempt to run these builds on untrusted builds. The Kubernetes cluster we start
+// is capable of doing quite a lot of damage. We should at the very least not run Kubernetes based tests on untrusted
+// builds.
+
+podTemplate(
+    label: label, 
+    containers: [
+        containerTemplate(
+            name: 'jnlp', 
+            image: 'jenkins/jnlp-slave:latest-jdk11', 
+            args: '${computer.jnlpmac} ${computer.name}'
+        ),
+        
+        containerTemplate(
+            name: 'test', 
+            image: 'dreg.cloud.sdu.dk/ucloud/test-runner:2022.1.0', 
+            command: 'cat', 
+            ttyEnabled: true,
+            envVars: [
+                containerEnvVar(key: 'POSTGRES_PASSWORD', value: postgresPassword)
+            ]
+        ),
+
+        containerTemplate(
+            name: 'k3s',
+            image: 'rancher/k3s:v1.21.6-rc2-k3s1',
+            args: 'server --cluster-cidr 10.44.0.0/16 --service-cidr 10.45.0.0/16 --cluster-dns 10.45.0.10 --cluster-domain cluster2.local',
+            privileged: true,
+            envVars: [
+                containerEnvVar(key: 'K3S_KUBECONFIG_OUTPUT', value: '/output/kubeconfig.yaml'),
+                containerEnvVar(key: 'K3s_KUBECONFIG_MODE', value: '666'),
+            ]
+        ),
+
+        containerTemplate(
+            name: 'redis',
+            image: 'redis:5.0.9'
+        ),
+
+        containerTemplate(
+            name: 'elastic',
+            image: 'docker.elastic.co/elasticsearch/elasticsearch:7.10.2',
+            envVars: [
+                containerEnvVar(key: 'discovery.type', value: 'single-node')
+            ]
+        ),
+
+        containerTemplate(
+            name: 'postgres',
+            image: 'postgres:13.3',
+            envVars: [
+                containerEnvVar(key: 'POSTGRES_PASSWORD', value: postgresPassword)
+            ]
+        )
+    ],
+    volumes: [
+      emptyDirVolume(mountPath: '/tmp', memory: false),
+      emptyDirVolume(mountPath: '/output', memory: false)
+    ]
+) {
     node (label) {
         sh label: '', script: 'java -version'
-        if (env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'JenkinsSetup' || env.BRANCH_NAME == 'accounting') {
+        if (env.BRANCH_NAME == 'master') {
             stage('Checkout') {
                 checkout(
                     [

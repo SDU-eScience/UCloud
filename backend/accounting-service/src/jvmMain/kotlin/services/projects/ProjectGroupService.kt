@@ -25,7 +25,7 @@ object GroupMembershipTable : SQLTable("project.group_members") {
 
 class ProjectGroupService(
     private val projects: ProjectService,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
 ) {
     suspend fun createGroup(
         ctx: DBContext,

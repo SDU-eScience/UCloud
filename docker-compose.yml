@@ -10,6 +10,8 @@ services:
     image: alpine:latest
   postgres:
     image: alpine:latest
+  syncthing:
+    image: alpine:latest
   backend:
     image: alpine:latest
     depends_on:
@@ -17,6 +19,7 @@ services:
       - k3s
       - elasticsearch
       - postgres
+      - syncthing
   gateway:
     image: alpine:latest
   frontend:
@@ -43,6 +46,7 @@ volumes:
   postgresData: {}
   redisData: {}
   elasticData: {}
+  syncthingConfig: {}
   ucloudData: {}
   ucloudFiles: {}
   k3sConfig: {}

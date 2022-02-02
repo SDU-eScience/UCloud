@@ -4,16 +4,16 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
 import dk.sdu.cloud.accounting.util.*
+import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
-import dk.sdu.cloud.provider.api.Permission
-import dk.sdu.cloud.provider.api.SimpleResourceIncludeFlags
-import dk.sdu.cloud.provider.api.UpdatedAcl
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.serializer
 
+typealias AclUpdateHandler = suspend (session: AsyncDBConnection, batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
 typealias DeleteHandler = suspend (batch: BulkRequest<FindByStringId>) -> Unit
 
 private typealias Super = ResourceService<FileCollection, FileCollection.Spec, FileCollection.Update,
@@ -25,6 +25,7 @@ class FileCollectionService(
     support: ProviderSupport<StorageCommunication, Product.Storage, FSSupport>,
     serviceClient: AuthenticatedClient,
 ) : Super(db, providers, support, serviceClient) {
+    private val aclUpdateHandlers = ArrayList<AclUpdateHandler>()
     override val table = SqlObject.Table("file_orchestrator.file_collections")
     override val defaultSortColumn = SqlObject.Column(table, "title")
     override val sortColumns = mapOf(
@@ -40,6 +41,10 @@ class FileCollectionService(
     override fun userApi() = FileCollections
     override fun controlApi() = FileCollectionsControl
     override fun providerApi(comms: ProviderComms) = FileCollectionsProvider(comms.provider.id)
+
+    fun addAclUpdateHandler(handler: AclUpdateHandler) {
+        aclUpdateHandlers.add(handler)
+    }
 
     fun addDeleteHandler(handler: DeleteHandler) {
         deleteHandlers.add(handler)
@@ -214,6 +219,13 @@ class FileCollectionService(
                 }
             }
         )
+    }
+
+    override suspend fun onUpdateAcl(
+        session: AsyncDBConnection,
+        request: BulkRequest<UpdatedAclWithResource<FileCollection>>
+    ) {
+        aclUpdateHandlers.forEach { it(session, request) }
     }
 
     override suspend fun delete(

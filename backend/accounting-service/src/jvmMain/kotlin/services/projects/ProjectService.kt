@@ -13,7 +13,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
@@ -63,7 +62,6 @@ object ProjectInvite : SQLTable("project.invites") {
     val createdAt = timestamp("created_at", notNull = true)
 }
 
-
 suspend fun RowData.toProject(): Project {
     return Project(
         id = getField(ProjectTable.id),
@@ -75,7 +73,7 @@ suspend fun RowData.toProject(): Project {
 
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
 ) {
     suspend fun create(
         ctx: DBContext,
