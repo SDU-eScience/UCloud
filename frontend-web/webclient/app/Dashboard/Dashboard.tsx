@@ -416,8 +416,10 @@ function DashboardResources({products}: {
             balance: product.balance!
         };
 
-        if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
-            wallets.push(metadata);
+        if (!product.freeToUse) {
+            if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+                wallets.push(metadata);
+            }
         }
     }
 
@@ -434,7 +436,7 @@ function DashboardResources({products}: {
             icon={"grant"}
             error={products.error?.why}
         >
-            {products.data.items.length === 0 ? (
+            {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
