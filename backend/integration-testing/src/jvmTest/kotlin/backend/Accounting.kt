@@ -707,9 +707,7 @@ class AccountingTest : IntegrationTest() {
             }
 
         }
-      /*  testFilter = { title, subtitle ->
-            title == "Deposit and check" && subtitle == "Charge missing payer"
-        }*/
+
         run {
             class In(
                 val sourceIsProject: Boolean,
