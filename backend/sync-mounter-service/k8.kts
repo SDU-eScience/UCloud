@@ -7,7 +7,7 @@ import io.fabric8.kubernetes.api.model.SecurityContext
 
 bundle {
     name = "sync-mounter"
-    version = "2022.1.4-patch.2"
+    version = "2022.1.5"
 
     val deployment = withDeployment() {
         val cephfsVolume = "cephfs"
@@ -91,5 +91,4 @@ bundle {
         addSimpleMapping("/ucloud/ucloud/sync/mount")
     }
 }
-
 

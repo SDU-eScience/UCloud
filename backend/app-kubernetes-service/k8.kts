@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "2022.1.4"
+    version = "2022.1.5"
 
     val additionalConfig = config("additionalConfig", "Additional configuration (YAML)", "")
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")

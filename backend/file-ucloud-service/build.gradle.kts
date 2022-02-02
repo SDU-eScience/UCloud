@@ -1,4 +1,4 @@
-version = "2022.1.4-patch.11"
+version = "2022.1.5"
 
 application {
     mainClassName = "dk.sdu.cloud.file.ucloud.MainKt"
