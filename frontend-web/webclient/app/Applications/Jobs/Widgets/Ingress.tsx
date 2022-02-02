@@ -9,10 +9,11 @@ import {useCallback, useLayoutEffect, useState} from "react";
 import {compute} from "@/UCloud";
 import ApplicationParameterNS = compute.ApplicationParameterNS;
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {callAPI} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import IngressBrowse from "@/Applications/Ingresses/Browse";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 import {BrowseType} from "@/Resource/BrowseType";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 interface IngressProps extends WidgetProps {
     parameter: UCloud.compute.ApplicationParameterNS.Ingress;
@@ -40,15 +41,22 @@ export const IngressParameter: React.FunctionComponent<IngressProps> = props => 
         return document.getElementById(widgetId(props.parameter) + "visual") as HTMLInputElement | null
     };
 
+    const [, invokeCommand] = useCloudCommand();
+
     useLayoutEffect(() => {
         const listener = async () => {
             const value = valueInput();
             if (value) {
                 const id = value!.value;
-                const ingress = await callAPI<Ingress>(IngressApi.retrieve({id: id}));
                 const visual = visualInput();
                 if (visual) {
-                    visual.value = ingress.specification.domain ?? "No address";
+                    try {
+                        const ingress = await invokeCommand<Ingress>(IngressApi.retrieve({id: id}), {defaultErrorHandler: false});
+                        visual.value = ingress?.specification.domain ?? "Address not found";
+                    } catch (e) {
+                        snackbarStore.addFailure("Failed to import custom links.", false);
+                        visual.value = "Address not found";
+                    }
                 }
             }
         };
