@@ -1,7 +1,6 @@
 package dk.sdu.cloud.utils
 
 import dk.sdu.cloud.forkAndReplace
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.wexitstatus
 import dk.sdu.cloud.wifexited
 import kotlinx.cinterop.*
@@ -15,7 +14,8 @@ data class ProcessStreams(
     val stderr: Int? = null,
 )
 
-fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf() ): Nothing {
+fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf()): Nothing {
+    setsid()
 
     val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
     for (i in args.indices) {
@@ -29,28 +29,20 @@ fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: Lis
     }
     nativeEnv[envs.size] = null
 
-
-
     if (newStreams.stdin != null) {
-        close(0)
         dup2(newStreams.stdin, 0)
         close(newStreams.stdin)
     }
 
     if (newStreams.stdout != null) {
-        close(1)
         dup2(newStreams.stdout, 1)
         close(newStreams.stdout)
     }
 
     if (newStreams.stderr != null) {
-        close(2)
         dup2(newStreams.stderr, 2)
         close(newStreams.stderr)
     }
-
-
-
 
     execve(args[0], nativeArgs, nativeEnv)
     exitProcess(255)

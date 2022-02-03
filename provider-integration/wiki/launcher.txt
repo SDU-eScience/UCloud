@@ -10,11 +10,11 @@ end
 
 participantgroup #lightblue **Provider\nNetwork**
 participantgroup #lightyellow **New components**
-participant "http-balancer" as http
-participant "im-srv" as imsrv
-database "im-db" as imdb
-participant "im-usr-launcher" as imusrlauncher
-participant "im-usr (1100)" as imusr
+participant "L7 Ingress" as http
+participant "IM/Server" as imsrv
+database "IM Database" as imdb
+participant "sudo" as imusrlauncher
+participant "IM/User (1100)" as imusr
 end
 participantgroup #pink **Existing components**
 participant "                                 HPC                                 " as HPC
@@ -23,20 +23,16 @@ end
 
 User->UCloud: List files
 UCloud->http: List files
-http-->UCloud: Bad gateway\n(No existing im-usr\nsession exists)
+http-->UCloud: Bad gateway\n(No existing IM/User\nsession exists)
 UCloud->http: Launch session for\nAlice#1234
 http->imsrv: Launch session for\nAlice#1234
-imsrv->imdb: Is im-usr for Alice#1234 running?
-imdb-->imsrv: No
 imsrv->imdb: Who is Alice#1234
 imdb-->imsrv: Alice#1234 is UID 1100
-imsrv->imusrlauncher: Launch im-usr for 1100 and\nlisten on port 42100
+imsrv->imusrlauncher: Launch IM/User for 1100 and\nlisten on port 42100
 imusrlauncher->*imusr: Start(1100, 42100)
 imusr-->imusrlauncher: OK
 imusrlauncher-->imsrv: OK
-imsrv->imdb: im-usr for Alice#1234 is on 42100
-imdb-->imsrv: OK
-imsrv->http: Configure load balancing\nfor im-usr(Alice#1234) to \nport 42100
+imsrv->http: Configure load balancing\nfor IM/User (Alice#1234) to \nport 42100
 http-->imsrv: OK
 imsrv-->http: OK
 http-->UCloud: OK
@@ -47,5 +43,3 @@ HPC-->imusr: Files
 imusr-->http: Files
 http-->UCloud: Files
 UCloud-->User: Files
-
-
