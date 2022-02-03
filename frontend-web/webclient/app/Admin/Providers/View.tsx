@@ -17,13 +17,15 @@ import {
     productTypeToJsonType, normalizeBalanceForBackend
 } from "@/Accounting";
 
-const productTypes: { value: ProductType, title: string }[] =
-    allProductTypes.map(value => ({value, title: productTypeToTitle(value)}));
+const productTypesWithoutSync: {value: ProductType, title: string}[] =
+    allProductTypes.filter(it => it !== "SYNCHRONIZATION").map(value => ({value, title: productTypeToTitle(value)}));
 
-export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, onComplete: () => void }> = props => {
-    const [type, setType] = useState<ProductType>("COMPUTE");
-    const typeHolder = useRef<ProductType>(type);
-    const onTypeChange = useCallback(e => setType(e.target.value as ProductType), [setType]);
+type ProductTypeWithoutSync = Exclude<ProductType, "SYNCHRONIZATION">;
+
+export const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
+    const [type, setType] = useState<ProductTypeWithoutSync>("COMPUTE");
+    const typeHolder = useRef<ProductTypeWithoutSync>(type);
+    const onTypeChange = useCallback(e => setType(e.target.value as ProductTypeWithoutSync), [setType]);
     const [licenseTagCount, setTagCount] = useState(1);
     const [, invokeCommand] = useCloudCommand();
     useEffect(() => {
@@ -45,7 +47,7 @@ export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, 
         <Label>
             Type
             <Select id={"type"} value={type} onChange={onTypeChange}>
-                {productTypes.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
+                {productTypesWithoutSync.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
             </Select>
         </Label>
 
@@ -123,21 +125,21 @@ export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, 
             <Grid gridTemplateColumns={"1fr"} gridGap={"32px"}>
                 <div>
                     <ResourceForm.Text required id="name" placeholder="Name..." label="Name (e.g. u1-standard-1)"
-                                       styling={{}}/>
+                        styling={{}} />
                     <ResourceForm.Text required id="category" placeholder="Name..." label="Category (e.g. u1-standard)"
-                                       styling={{}}/>
+                        styling={{}} />
                     <ResourceForm.Text required id="description" placeholder="Description..." label="Description"
-                                       styling={{}}/>
+                        styling={{}} />
                     <ResourceForm.Number required id="priority" placeholder="Priority..." label="Priority"
-                                         styling={{}}/>
+                        styling={{}} />
                     <ResourceForm.Checkbox id="hiddenInGrantApplications" label="Hidden in Grant Applications"
-                                           defaultChecked={false} styling={{}}/>
+                        defaultChecked={false} styling={{}} />
                 </div>
                 <div>
                     <ResourceForm.Select id="chargeType" label="Payment Model" required options={[
                         {value: "ABSOLUTE", text: "Absolute"},
                         {value: "DIFFERENTIAL_QUOTA", text: "Differential (Quota)"}
-                    ]} styling={{}}/>
+                    ]} styling={{}} />
 
                     <ResourceForm.Select id="unitOfPrice" label="Unit of Price" required options={[
                         {value: "CREDITS_PER_MINUTE", text: "Credits Per Minute"},
@@ -147,29 +149,29 @@ export const ProductCreationForm: React.FunctionComponent<{ provider: Provider, 
                         {value: "UNITS_PER_MINUTE", text: "Units Per Minute"},
                         {value: "UNITS_PER_HOUR", text: "Units Per Hour"},
                         {value: "UNITS_PER_DAY", text: "Units Per Day"}
-                    ]} styling={{}}/>
+                    ]} styling={{}} />
 
                     <ResourceForm.Number required id="pricePerUnit" placeholder="Price..." rightLabel={unitEvaluator}
-                                         label={`Price`} step="0.01" min={0} styling={{}}
-                                         dependencies={priceDependencies}/>
+                        label={`Price`} step="0.01" min={0} styling={{}}
+                        dependencies={priceDependencies} />
 
-                    <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}}/>
+                    <ResourceForm.Checkbox id="freeToUse" defaultChecked={false} label="Free to use" styling={{}} />
 
                 </div>
 
                 {type !== "COMPUTE" ? null : (
                     <div>
-                        <ResourceForm.Number id="cpu" placeholder="vCPU..." label="vCPU" required styling={{}}/>
+                        <ResourceForm.Number id="cpu" placeholder="vCPU..." label="vCPU" required styling={{}} />
                         <ResourceForm.Number id="memory" placeholder="Memory..." label="Memory in GB" required
-                                             styling={{}}/>
+                            styling={{}} />
                         <ResourceForm.Number id="gpus" placeholder="GPUs..." label="Number of GPUs" required
-                                             styling={{}}/>
+                            styling={{}} />
                     </div>
                 )}
                 {type !== "LICENSE" ? null : (
                     <div>
                         {[...Array(licenseTagCount).keys()].map(id =>
-                            <ResourceForm.Text key={id} id={`tag-${id}`} label={`Tag ${id + 1}`} styling={{}}/>
+                            <ResourceForm.Text key={id} id={`tag-${id}`} label={`Tag ${id + 1}`} styling={{}} />
                         )}
                         <div>
                             <Button fullWidth type="button" onClick={() => setTagCount(t => t + 1)} mt="6px">Add
