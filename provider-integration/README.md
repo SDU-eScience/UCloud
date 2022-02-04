@@ -14,7 +14,7 @@ Below, we summarize the components, their role and their special privileges.
 | Component    | Run as (User)        | Notes                                                               | Extra privileges                                           |
 |:-------------|:---------------------|:--------------------------------------------------------------------|:-----------------------------------------------------------|
 | `L7 Ingress` | `ucloud`             | Load balancer of HTTP traffic                                       | None (Certain configs will require `CAP_NET_BIND_SERVICE`) |
-| `IM/Server`  | `ucloud`             | The integration module server                                       | Able to launch IM/User instances (through `sudo`)          |
+| `IM/Server`  | `ucloud`             | The integration module server                                       | Able to launch IM/User instances (through limited `sudo`)  |
 | `IM/User`    | End-user (see notes) | Accepts requests that need to run in the context of a specific user | None                                                       |
 
 
@@ -29,9 +29,9 @@ https://docs.cloud.sdu.dk/dev/index.html.
 
 UCloud requires TLS from all providers running in a production environment. The certificate must be valid and signed by
 a recognized Certificate Authority (CA). We encourage providers to follow best practices. For inspiration, Mozilla
-hosts an online [SSL configuration generator](https://ssl-config.mozilla.org). Additionally, [this document
-(https://github.com/ssllabs/research/wiki/SSL-and-TLS Deployment-Best-Practices) from SSL Labs can provide a good
-starting point.
+hosts an online [SSL configuration generator](https://ssl-config.mozilla.org). Additionally,
+[this document](https://github.com/ssllabs/research/wiki/SSL-and-TLS%20Deployment-Best-Practices) from SSL Labs can 
+provide a good starting point.
 
 Most communication received by the provider is coming directly from UCloud. In some cases the integration module will
 receive communication directly from the end-user. This is the case for uploads, downloads and other interactive
@@ -42,7 +42,8 @@ UCloud uses three different mechanisms for authenticating communication:
 1. Through TLS certificates. This applies to outgoing communication in both directions between UCloud and the provider.
 
 2. Through JSON Web Tokens (JWT). This applies to incoming communication in both directions between UCloud and the
-provider. More information can be found [here](../backend/auth-service/README.md).
+provider. More information can be found [here](../backend/auth-service/README.md) and
+[here](https://docs.cloud.sdu.dk/dev/docs/developer-guide/core/users/authentication/providers.html#authentication-and-authorization).
 
 3. Through short-lived one-time tokens. This applies only to communication between the end-user and provider. An
 example can be found [here](https://docs.cloud.sdu.dk/dev/docs/developer-guide/orchestration/compute/jobs.html#example-starting-an-interactive-terminal-session).
@@ -65,51 +66,53 @@ The integration module re-uses the authorization mechanisms already in place at 
 handle user-generated traffic. The instances which receives the traffic of a user, always runs as their own user on the
 system. As a result, the IM/User instance is only capable of performing operations which the user can perform.
 
-On top of this, UCloud also performs authorization before forwarding requests. You can read more about this step [here]
-(https://docs.cloud.sdu.dk/dev/docs/developer-guide/accounting-and-projects/providers.html).
+On top of this, UCloud also performs authorization before forwarding requests. You can read more about this step
+[here](https://docs.cloud.sdu.dk/dev/docs/developer-guide/accounting-and-projects/providers.html).
 
 ## Launching IM/User instances
 
-![](./wiki/launcher.svg)
+In the diagramt below, we show how UCloud receives a request from the user and forwards it to the integration module.
+It takes us through a number of important steps, such as mapping users and launching a new IM/User instance.
 
-NOTE: To limit the scope we recommend only granting limited access to sudo from the `ucloud` service user.
+This process depends on a generic "user mapper" function. It takes as input the UCloud user and returns the local user
+identity. How this function is defined depends entirely on the configuration of the system, the only important part of
+this procedure is that the function exists.
+
+__NOTE:__ To limit the scope we recommend only granting limited access to sudo from the `ucloud` service user.
+
+![](./wiki/launcher.svg)
 
 ## Creating a mapping between UCloud users and local users
 
-TODO
+A "user mapping" function is critical for the integration module. It does not work without it. At the moment we
+implement only a single mapping function, and it is rather simple in its design.
+
+![](./wiki/ticket-based-connections.svg)
 
 ## Independant verification of user requests
 
----
+Pending issue #3273, the integration module will be able to verify independently that the request was made by the real
+user. This protects against the case of a malicious takeover of the UCloud service affecting other providers of the
+system. The concrete design is yet to be designed, but we believe that the following steps should take place:
 
-__📝 NOTE:__ Very informal draft.
+1. During the connection the end-user will generate a public-private key pair. 
+   - The private key will be transferred to the provider. It will remain accessible to the user's IM/User instance. 
+   - The public key will be stored in the user's browser and be available during communication with UCloud. 
+   - The key pair must be generated in such a way that the private key is never seen by the UCloud backend.
 
----
+2. When the end-user communicates they must sign the request.
+   - This will involve creating a message which describes the request they are making.
+   - This message is then digitally signed with the public key.
+   - As part of the message, the user must include a timestamp.
 
-Some quick thoughts about how we can extend the protocol to support verification of the client sending the message. This
-is extremely useful as it would make UCloud incapable of impersonating a user at a different provider.
+3. When UCloud receives the communication... 
+   - UCloud cannot verify that this signature is valid. They do not know the private or public key.
+   - Instead, UCloud will forward this as part of the request to the provider.
 
-1. Extend client-side RPC to include a signature of their message
-   - This message should use public-private keypairs
-   - Keypairs are generated in the browser
-   - The public key is transferred to the provider _by_ the user
-   - This will happen when the user connects to the provider
-   - Possible library: https://github.com/kjur/jsrsasign
-   - This will support keygen and signature we need
-   - The signature should be passed in a header
-2. UCloud receives this message, and extends it with additional information
-3. UCloud includes, verbatim, the original request along with the signature
-   - How do we make this developer friendly?
-4. Provider verifies that the JWT is valid (by UCloud)   
-5. Provider verifies that the original request has been signed
-5. Provider verifies that the original request _also_ matches the additional context that UCloud provided
+4. When the provider receives the communication...
+   - The provider knows the private key of the user and begins verification.
+   - Both the message and the signature must match the actual request.
+   - If any parts do not match, then the request must be rejected by the provider.
 
-A possible alternative to signing the entire message is to sign a JWT (or any other document, we don't really need the
-header). This JWT would provide similar security, the document should contain:
-
-- `iat`: Issued at
-- `exp`: Expires at
-- `sub`: Username (UCloud)
-- `project`: Project (UCloud)
-- `callName`: Potentially, this could contain the name of the call we are performing. This would allow the provider to
-   verify that the correct call is also being made.
+This "cryptographic" parts of the procedure is essentially just describing how JWTs with one of the `RSXXX` algorithms
+work. The critical part of the procedure is creation and distribution of the keys during the connection process.
