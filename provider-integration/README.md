@@ -89,7 +89,7 @@ implement only a single mapping function, and it is rather simple in its design.
 
 ![](./wiki/ticket-based-connections.svg)
 
-## Independant verification of user requests
+## Independent verification of user requests
 
 Pending issue #3273, the integration module will be able to verify independently that the request was made by the real
 user. This protects against the case of a malicious takeover of the UCloud service affecting other providers of the
