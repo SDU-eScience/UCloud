@@ -14,6 +14,10 @@ import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
 import {GrayBox} from "../Create";
 
+export function ingressResourceAllowed(app: UCloud.compute.Application): boolean {
+    return !(app.invocation.allowPublicLink === false || app.invocation.applicationType !== "WEB")
+}
+
 export const IngressResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
@@ -22,7 +26,7 @@ export const IngressResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (application.invocation.allowPublicLink === false || application.invocation.applicationType !== "WEB") return null;
+    if (!ingressResourceAllowed(application)) return null;
 
     return <GrayBox>
         <Box>
