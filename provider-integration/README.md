@@ -57,7 +57,7 @@ selves.
 
 An IM/User instance can communicate with an IM/Server instance through IPC. The integration module implements
 inter-process communication through a unix socket. The IM/Server creates the socket at `/var/run/ucloud/ucloud.sock`.
-The socket is set to be usable by all users and communication. The server uses the authentication mechanisms of the
+The socket is set to be usable by all users. The server uses the authentication mechanisms of the
 kernel (i.e. UID, GID and PID through `SO_PEERCRED`). 
 
 ## Authorization
