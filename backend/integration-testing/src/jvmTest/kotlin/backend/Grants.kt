@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.base64Encode
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull

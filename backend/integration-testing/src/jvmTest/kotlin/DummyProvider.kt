@@ -10,10 +10,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CallDescription
-import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
@@ -24,8 +21,6 @@ import dk.sdu.cloud.integration.backend.toReference
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.*
-import io.ktor.http.*
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -124,7 +119,7 @@ object DummyProvider : CommonServer {
             configuration.providerRefreshToken,
             InternalTokenValidationJWT.withPublicCertificate(configuration.ucloudCertificate)
         )
-        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken))
+        val authenticator = RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         micro.providerTokenValidation = validation as TokenValidation<Any>
 

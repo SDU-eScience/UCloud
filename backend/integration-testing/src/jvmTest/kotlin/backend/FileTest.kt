@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.*
@@ -14,7 +15,6 @@ import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.*
 
 
 suspend fun initializeCollection(
