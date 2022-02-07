@@ -6,13 +6,12 @@ import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
-@TSNamespace("compute.ucloud.networkip")
-object KubernetesNetworkIP : NetworkIPProvider(UCLOUD_PROVIDER)
-
 @Serializable
 data class K8NetworkStatus(val capacity: Long, val used: Long)
+
 @Serializable
 data class K8Subnet(val externalCidr: String, val internalCidr: String)
+
 typealias KubernetesIPMaintenanceCreateRequest = BulkRequest<K8Subnet>
 typealias KubernetesIPMaintenanceCreateResponse = Unit
 
@@ -29,8 +28,8 @@ typealias KubernetesIPMaintenanceRetrieveStatusRequest = Unit
 typealias KubernetesIPMaintenanceRetrieveStatusResponse = K8NetworkStatus
 
 @TSNamespace("compute.ucloud.networkip.maintenance")
-object KubernetesNetworkIPMaintenance : CallDescriptionContainer("compute.networkip.ucloud.maintenance") {
-    val baseContext = KubernetesNetworkIP.baseContext + "/maintenance"
+class KubernetesNetworkIPMaintenance(providerId: String) : CallDescriptionContainer("compute.networkip.ucloud.maintenance") {
+    val baseContext = NetworkIPProvider(providerId).baseContext + "/maintenance"
 
     val create = call<KubernetesIPMaintenanceCreateRequest, KubernetesIPMaintenanceCreateResponse,
         CommonErrorMessage>("create") {

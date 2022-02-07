@@ -5,13 +5,6 @@ import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.Visualization
 import dk.sdu.cloud.accounting.api.Wallets
 import dk.sdu.cloud.alerting.api.Alerting
-import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
-import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
-import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenseMaintenance
-import dk.sdu.cloud.app.kubernetes.api.KubernetesLicenses
-import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
-import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
-import dk.sdu.cloud.app.kubernetes.api.Maintenance
 import dk.sdu.cloud.app.orchestrator.api.IngressControl
 import dk.sdu.cloud.app.orchestrator.api.IngressProvider
 import dk.sdu.cloud.app.orchestrator.api.Ingresses
@@ -412,31 +405,31 @@ fun generateCode() {
                             Chapter.Feature("shares", "Shares", UCloudShares)
                         )
                     ),
-                    Chapter.Node(
-                        "compute",
-                        "UCloud/Compute",
-                        listOf(
-                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
-                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
-                            Chapter.Node(
-                                "ips",
-                                "Public IPs (NetworkIP)",
-                                listOf(
-                                    Chapter.Feature("feature", "Feature", KubernetesNetworkIP),
-                                    Chapter.Feature("maintenance", "Maintenance", KubernetesNetworkIPMaintenance)
-                                )
-                            ),
-                            Chapter.Node(
-                                "licenses",
-                                "Software Licenses",
-                                listOf(
-                                    Chapter.Feature("feature", "Feature", KubernetesLicenses),
-                                    Chapter.Feature("maintenance", "Maintenance", KubernetesLicenseMaintenance)
-                                )
-                            ),
-                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
-                        )
-                    )
+//                    Chapter.Node(
+//                        "compute",
+//                        "UCloud/Compute",
+//                        listOf(
+//                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
+//                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
+//                            Chapter.Node(
+//                                "ips",
+//                                "Public IPs (NetworkIP)",
+//                                listOf(
+//                                    Chapter.Feature("feature", "Feature", KubernetesNetworkIP),
+//                                    Chapter.Feature("maintenance", "Maintenance", KubernetesNetworkIPMaintenance)
+//                                )
+//                            ),
+//                            Chapter.Node(
+//                                "licenses",
+//                                "Software Licenses",
+//                                listOf(
+//                                    Chapter.Feature("feature", "Feature", KubernetesLicenses),
+//                                    Chapter.Feature("maintenance", "Maintenance", KubernetesLicenseMaintenance)
+//                                )
+//                            ),
+//                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
+//                        )
+//                    )
                 )
             )
         )

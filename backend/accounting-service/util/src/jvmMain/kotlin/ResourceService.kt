@@ -19,6 +19,9 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
 data class PartialQuery(
     val arguments: EnhancedPreparedStatement.() -> Unit,
@@ -1258,41 +1261,54 @@ abstract class ResourceService<
             flags = flags,
         )
 
-        @Suppress("SqlResolve")
-        return (ctx ?: db).paginateV2(
-            resolvedActorAndProject.actor,
-            pagination,
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
-                        resourceParams()
-                        params()
-                    },
-                    """
-                        declare c cursor for
-                        with
-                            accessible_resources as ($resourceQuery),
-                            spec as ($query)
-                        select provider.resource_to_json(resc, $converter(spec))
-                        from
-                            accessible_resources resc join
-                            spec on (resc.r).id = spec.resource
-                        order by
-                            $sortBy $sortDirection, resc.category, resc.name 
-                    """,
-                )
-            },
-            mapper = { _, rows ->
-                rows.mapNotNull {
-                    try {
-                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
-                    } catch (ex: Throwable) {
-                        log.warn("Caught exception while browsing resource: ${it.getString(0)}")
-                        log.warn(ex.stackTraceToString())
-                        null
-                    }
-                }.attachExtra(flags)
-            },
+        val offset = (pagination.itemsToSkip ?: 0L) + ((pagination.next ?: "").toIntOrNull() ?: 0)
+        val next = (offset + pagination.itemsPerPage).toString()
+        val shouldDebug = actorAndProject.actor.safeUsername().startsWith("EmilianoMolinaro")
+        if (shouldDebug) {
+            println("Starting query")
+        }
+
+        val rows = (ctx ?: db).withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    resourceParams()
+                    params()
+                },
+                """
+                    with
+                        accessible_resources as ($resourceQuery),
+                        spec as ($query)
+                    select provider.resource_to_json(resc, $converter(spec))
+                    from
+                        accessible_resources resc join
+                        spec on (resc.r).id = spec.resource
+                    order by
+                        $sortBy $sortDirection, resc.category, resc.name 
+                    limit ${pagination.itemsPerPage}
+                    offset $offset
+                """,
+                debug = true,
+            ).rows
+        }
+
+        if (shouldDebug) {
+            println("End of query")
+        }
+
+        val items = rows.mapNotNull {
+            try {
+                defaultMapper.decodeFromString(serializer, it.getString(0)!!)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while browsing resource: ${it.getString(0)}")
+                log.warn(ex.stackTraceToString())
+                null
+            }
+        }.attachExtra(flags)
+
+        return PageV2(
+            pagination.itemsPerPage,
+            items,
+            if (items.size < pagination.itemsPerPage) null else next
         )
     }
 

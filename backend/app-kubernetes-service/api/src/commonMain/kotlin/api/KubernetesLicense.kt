@@ -7,9 +7,6 @@ import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
 
-@TSNamespace("compute.ucloud.licenses")
-object KubernetesLicenses : LicenseProvider(UCLOUD_PROVIDER)
-
 @Serializable
 data class KubernetesLicense(
     val id: String,
@@ -48,8 +45,8 @@ typealias KubernetesLicenseUpdateRequest = BulkRequest<KubernetesLicense>
 typealias KubernetesLicenseUpdateResponse = Unit
 
 @TSNamespace("compute.ucloud.licenses.maintenance")
-object KubernetesLicenseMaintenance : CallDescriptionContainer("compute.licenses.ucloud.maintenance") {
-    val baseContext = KubernetesLicenses.baseContext + "/maintenance"
+class KubernetesLicenseMaintenance(providerId: String) : CallDescriptionContainer("compute.licenses.ucloud.maintenance") {
+    val baseContext = LicenseProvider(providerId).baseContext + "/maintenance"
 
     val create = call<KubernetesLicenseCreateRequest, KubernetesLicenseCreateResponse, CommonErrorMessage>("create") {
         httpCreate(baseContext, roles = Roles.ADMIN)

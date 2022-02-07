@@ -1,11 +1,11 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.app.kubernetes.api.AppKubernetesShell
 import dk.sdu.cloud.app.kubernetes.services.K8Dependencies
 import dk.sdu.cloud.app.kubernetes.services.SessionDao
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.app.orchestrator.api.ShellResponse
+import dk.sdu.cloud.app.orchestrator.api.Shells
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -22,6 +22,7 @@ import org.slf4j.Logger
 private typealias ShellSession = ExecContext
 
 class ShellController(
+    private val providerId: String,
     private val k8: K8Dependencies,
     private val db: DBContext,
     private val sessions: SessionDao,
@@ -29,7 +30,8 @@ class ShellController(
     private val shellSessionKey = AttributeKey<ShellSession>("shell-session")
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(AppKubernetesShell.open) {
+        val shellApi = Shells(providerId)
+        implement(shellApi.open) {
             try {
                 withContext<WSCall> {
                     when (val cRequest = request) {
