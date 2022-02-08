@@ -1,9 +1,9 @@
 package dk.sdu.cloud.service
 
-import com.fasterxml.jackson.module.kotlin.readValue
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.RedisConnectionManager
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.RedisFeature
+import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.micro.redisConnectionManager
 import io.lettuce.core.RedisFuture
 import io.lettuce.core.ScriptOutputType
@@ -20,6 +20,14 @@ interface DistributedLockFactory {
     fun create(name: String, duration: Long = 60_000): DistributedLock
 }
 
+fun DistributedLockFactory(micro: Micro): DistributedLockFactory {
+    return if (micro.featureOrNull(RedisFeature) != null) {
+        DistributedLockBestEffortFactory(micro)
+    } else {
+        NonDistributedLockFactory()
+    }
+}
+
 class DistributedLockBestEffortFactory(private val micro: Micro) : DistributedLockFactory {
     override fun create(name: String, duration: Long): DistributedLock {
         return DistributedLockBestEffort(name, duration, micro.redisConnectionManager)
@@ -30,6 +38,28 @@ interface DistributedLock {
     suspend fun acquire(): Boolean
     suspend fun release()
     suspend fun renew(durationMs: Long): Boolean
+}
+
+class NonDistributedLockFactory : DistributedLockFactory {
+    override fun create(name: String, duration: Long): DistributedLock {
+        return NonDistributedLock()
+    }
+}
+
+class NonDistributedLock : DistributedLock {
+    private val mutex = Mutex()
+    override suspend fun acquire(): Boolean {
+        return mutex.tryLock()
+    }
+
+    override suspend fun release() {
+        mutex.unlock()
+    }
+
+    override suspend fun renew(durationMs: Long): Boolean {
+        // No-op
+        return true
+    }
 }
 
 /**

@@ -81,7 +81,7 @@ class Server(
         // ===========================================================================================================
         val authenticatedClient = authenticator.authenticateClient(OutgoingHttpCall)
         val db = AsyncDBSessionFactory(micro)
-        val distributedStateFactory = RedisDistributedStateFactory(micro)
+        val distributedStateFactory = DistributedStateFactory(micro)
         val scriptManager = micro.feature(ScriptManager)
 
         val fsRootFile =
@@ -105,7 +105,7 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(configuration.providerId, db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val distributedLocks = DistributedLockFactory(micro)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(
@@ -199,7 +199,7 @@ class Server(
         // 4b. Optional indexing feature
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
-        if (configuration.indexing.enabled) {
+        if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
             FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
             elasticQueryService = ElasticQueryService(
                 micro.elasticHighLevelClient,

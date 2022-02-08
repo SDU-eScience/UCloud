@@ -16,11 +16,14 @@ class ServerFeature : MicroFeature {
         this.ctx = ctx
         log.debug("Installing server...")
 
+        val eventStreamService = ctx.eventStreamServiceOrNull
         ClientInfoInterceptor().register(server)
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
-        AuditToEventStream(ctx.serviceInstance, ctx.eventStreamService, ctx.tokenValidation).register(server)
         AuthInterceptor(ctx.developmentModeEnabled).register(server)
         ProjectInterceptor().register(server)
+        if (eventStreamService != null) {
+            AuditToEventStream(ctx.serviceInstance, eventStreamService, ctx.tokenValidation).register(server)
+        }
 
         val serverConfig = ctx.rpcConfiguration?.server
         val installHttp = serverConfig?.http != false

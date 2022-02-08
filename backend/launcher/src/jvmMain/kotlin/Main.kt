@@ -119,6 +119,14 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
 }
 
 suspend fun main(args: Array<String>) {
+    val loadedConfig = Micro().apply {
+        commandLineArguments = args.toList()
+        isEmbeddedService = false
+        serviceDescription = PlaceholderServiceDescription
+
+        install(ConfigurationFeature)
+    }.configuration
+
     if (args.contains("--run-script") && args.contains("spring-gen")) {
         generateSpringMvcCode()
         exitProcess(0)
@@ -130,14 +138,10 @@ suspend fun main(args: Array<String>) {
     }
 
     if (args.contains("--run-script") && args.contains("migrate-db")) {
-        val micro = Micro().apply {
-            initWithDefaultFeatures(object : ServiceDescription {
-                override val name: String = "launcher"
-                override val version: String = "1"
-            }, args)
-        }
-
-        micro.databaseConfig.migrateAll()
+        val reg = ServiceRegistry(args, PlaceholderServiceDescription)
+        reg.rootMicro.install(DatabaseConfigurationFeature)
+        reg.rootMicro.install(FlywayFeature)
+        reg.rootMicro.databaseConfig.migrateAll()
         exitProcess(0)
     }
 
@@ -151,14 +155,6 @@ suspend fun main(args: Array<String>) {
                     LauncherPreset.values().joinToString(", ") { it.flag }
                 })")
     }
-
-    val loadedConfig = Micro().apply {
-        commandLineArguments = args.toList()
-        isEmbeddedService = false
-        serviceDescription = PlaceholderServiceDescription
-
-        install(ConfigurationFeature)
-    }.configuration
 
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
         loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true && preset == LauncherPreset.Full

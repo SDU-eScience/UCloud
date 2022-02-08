@@ -520,7 +520,6 @@ object UCloudLauncher : Loggable {
             runCatching {
                 // TODO Deal with elasticsearch
                 val me = micro.createScope()
-                me.install(ElasticFeature)
                 ContactBookElasticDao(me.elasticHighLevelClient).createIndex()
             }
 

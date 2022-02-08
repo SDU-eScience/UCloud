@@ -54,8 +54,8 @@ class Server(
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = validation as TokenValidation<Any>
 
-        val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val broadcastingStream = BroadcastingStream(micro)
+        val distributedLocks = DistributedLockFactory(micro)
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro)
 

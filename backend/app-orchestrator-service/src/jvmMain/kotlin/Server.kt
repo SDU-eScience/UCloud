@@ -33,7 +33,7 @@ class Server(override val micro: Micro) : CommonServer {
         val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val streams = micro.eventStreamService
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val distributedLocks = DistributedLockFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
         val exporter = ParameterExportService(db)
 

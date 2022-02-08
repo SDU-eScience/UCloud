@@ -10,7 +10,6 @@ object AppStoreService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
-        micro.install(ElasticFeature)
         return Server(micro)
     }
 }
