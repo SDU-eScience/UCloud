@@ -902,7 +902,6 @@ abstract class ResourceService<
                             )
                         select distinct resource_id from acl_entries;
                     """,
-                    debug = true
                 ).rows.map { it.getLong(0)!! }
 
             check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )
@@ -1263,10 +1262,6 @@ abstract class ResourceService<
 
         val offset = (pagination.itemsToSkip ?: 0L) + ((pagination.next ?: "").toIntOrNull() ?: 0)
         val next = (offset + pagination.itemsPerPage).toString()
-        val shouldDebug = actorAndProject.actor.safeUsername().startsWith("EmilianoMolinaro")
-        if (shouldDebug) {
-            println("Starting query")
-        }
 
         val rows = (ctx ?: db).withSession { session ->
             session.sendPreparedStatement(
@@ -1287,12 +1282,7 @@ abstract class ResourceService<
                     limit ${pagination.itemsPerPage}
                     offset $offset
                 """,
-                debug = true,
             ).rows
-        }
-
-        if (shouldDebug) {
-            println("End of query")
         }
 
         val items = rows.mapNotNull {

@@ -26,7 +26,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 class Server(
     override val micro: Micro,
     private val config: SyncMounterConfiguration,
-    private val syncMounterSharedSecret: String?
+    private val syncMounterSharedSecret: String?,
+    private val providerId: String,
 ) : CommonServer {
     override val log = logger()
     private val ready: AtomicBoolean = AtomicBoolean(false)
@@ -101,7 +102,7 @@ class Server(
 
                 val mountService = MountService(config, ready)
 
-                val folders = UCloudSyncFoldersBrowse.browse.call(
+                val folders = UCloudSyncFoldersBrowse(providerId).browse.call(
                     UCloudSyncFoldersBrowseRequest(config.deviceId),
                     client
                 ).orThrow()

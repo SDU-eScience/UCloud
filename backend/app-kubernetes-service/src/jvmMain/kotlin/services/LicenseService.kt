@@ -45,6 +45,7 @@ object LicenseInstancesTable : SQLTable("license_instances") {
 }
 
 class LicenseService(
+    private val providerId: String,
     private val k8: K8Dependencies,
     private val db: DBContext,
 ) {
@@ -176,7 +177,7 @@ class LicenseService(
         return Product.License(
             id,
             pricePerUnit,
-            ProductCategoryId(id, UCLOUD_PROVIDER),
+            ProductCategoryId(id, providerId),
             description = "Software license",
             hiddenInGrantApplications = hiddenInGrantApplications,
             tags = tags,
@@ -197,12 +198,12 @@ class LicenseService(
                 it.getField(LicenseServerTable.port),
                 defaultMapper.decodeFromString(it.getField(LicenseServerTable.tags)),
                 it.getFieldNullable(LicenseServerTable.license),
-                ProductCategoryId(it.getField(LicenseServerTable.id), UCLOUD_PROVIDER),
+                ProductCategoryId(it.getField(LicenseServerTable.id), providerId),
                 it.getField(LicenseServerTable.pricePerUnit),
                 it.getField(LicenseServerTable.description),
                 Products.retrieve.call(
                     ProductsRetrieveRequest(
-                        filterProvider = UCLOUD_PROVIDER,
+                        filterProvider = providerId,
                         filterCategory = it.getField(LicenseServerTable.id),
                         filterName = it.getField(LicenseServerTable.id)
                     ),

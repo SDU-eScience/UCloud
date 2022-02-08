@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.kubernetes.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.ProductCategoryId
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
