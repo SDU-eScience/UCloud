@@ -22,7 +22,7 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useHistory} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {IconName} from "@/ui-components/Icon";
+import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
@@ -151,9 +151,9 @@ export const GrantApplicationList: React.FunctionComponent<{
                     truncateWidth="230px"
                     left={
                         <Flex width={1}>
-                            <Text title={app.grantRecipientTitle} mr={16}>
+                            <Truncate title={app.grantRecipientTitle}>
                                 {app.grantRecipientTitle}
-                            </Text>
+                            </Truncate>
                             {slim ? null : (
                                 <Truncate>
                                     {/*
@@ -166,7 +166,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             )}
                         </Flex>
                     }
-                    right={null}
+                    right={<Icon ml="4px" name={icon} color={iconColor} />}
                     leftSub={
                         <>
                             {slim ? null : (
@@ -185,7 +185,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             </ListRowStat>
                         </>
                     }
-                />;
+                />
             })}
         </List>
     );
