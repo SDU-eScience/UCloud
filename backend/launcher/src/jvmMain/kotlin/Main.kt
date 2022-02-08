@@ -73,6 +73,51 @@ val services = setOf<Service>(
     AlertingService
 )
 
+enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
+    Full("full", { true }),
+
+    Core("core", { svc ->
+        when (svc) {
+            AuditIngestionService,
+            AuthService,
+            AvatarService,
+            ContactBookService,
+            ElasticManagementService,
+            MailService,
+            NewsService,
+            NotificationService,
+            AlertingService,
+            PasswordResetService,
+            SupportService,
+            TaskService -> true
+            else -> false
+        }
+    }),
+
+    AccountingAndProjectManagement("apm", { svc ->
+        when (svc) {
+            AccountingService -> true
+            else -> false
+        }
+    }),
+
+    Orchestrators("orchestrators", { svc ->
+        when (svc) {
+            AppOrchestratorService,
+            FileOrchestratorService -> true
+            else -> false
+        }
+    }),
+
+    Providers("providers", { svc ->
+        when (svc) {
+            AppKubernetesService,
+            FileUcloudService -> true
+            else -> false
+        }
+    }),
+}
+
 suspend fun main(args: Array<String>) {
     if (args.contains("--run-script") && args.contains("spring-gen")) {
         generateSpringMvcCode()
@@ -96,6 +141,17 @@ suspend fun main(args: Array<String>) {
         exitProcess(0)
     }
 
+    val presetArg = args.getOrNull(0)?.takeIf { !it.startsWith("--") }
+    val preset = if (presetArg == null) {
+        LauncherPreset.Full
+    } else {
+        LauncherPreset.values().find { it.flag == presetArg }
+            ?: error(
+                "Unknown preset: $presetArg (available options: ${
+                    LauncherPreset.values().joinToString(", ") { it.flag }
+                })")
+    }
+
     val loadedConfig = Micro().apply {
         commandLineArguments = args.toList()
         isEmbeddedService = false
@@ -105,7 +161,7 @@ suspend fun main(args: Array<String>) {
     }.configuration
 
     if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
+        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true && preset == LauncherPreset.Full
     ) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
@@ -115,9 +171,7 @@ suspend fun main(args: Array<String>) {
 
     val reg = ServiceRegistry(args, PlaceholderServiceDescription)
 
-    val loader = Launcher::class.java.classLoader
-
-    services.forEach { objectInstance ->
+    services.filter { preset.serviceFilter(it) }.forEach { objectInstance ->
         try {
             Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
             reg.register(objectInstance)
