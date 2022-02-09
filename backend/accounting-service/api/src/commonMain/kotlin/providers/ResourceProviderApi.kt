@@ -19,6 +19,7 @@ data class ProviderProducts<Support : ProductSupport>(
 )
 
 @Serializable
+@UCloudApiOwnedBy(Resources::class)
 data class ResourceInitializationRequest(
     val principal: ResourceOwner,
 )

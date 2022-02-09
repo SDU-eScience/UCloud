@@ -26,6 +26,7 @@ Files.retrieve.call(
     ResourceRetrieveRequest(
         flags = UFileIncludeFlags(
             allowUnsupportedInclude = null, 
+            filterByFileExtension = null, 
             filterCreatedAfter = null, 
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
@@ -44,6 +45,7 @@ Files.retrieve.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
+            includeSyncStatus = null, 
             includeTimestamps = true, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -80,6 +82,7 @@ UFile(
         resolvedSupport = null, 
         sizeInBytes = null, 
         sizeIncludingChildrenInBytes = null, 
+        synced = null, 
         type = FileType.DIRECTORY, 
         unixGroup = null, 
         unixMode = null, 
@@ -113,6 +116,7 @@ await callAPI(FilesApi.retrieve(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": null,
+            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -120,6 +124,7 @@ await callAPI(FilesApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
+            "filterByFileExtension": null,
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
@@ -155,6 +160,7 @@ await callAPI(FilesApi.retrieve(
         "unixOwner": null,
         "unixGroup": null,
         "metadata": null,
+        "synced": null,
         "resolvedSupport": null,
         "resolvedProduct": null
     },
@@ -208,6 +214,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #         "unixOwner": null,
 #         "unixGroup": null,
 #         "metadata": null,
+#         "synced": null,
 #         "resolvedSupport": null,
 #         "resolvedProduct": null
 #     },

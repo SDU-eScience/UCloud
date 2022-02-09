@@ -22,6 +22,8 @@ data class ApplicationInvocationDescription(
     val allowAdditionalMounts: Boolean?,
     val allowAdditionalPeers: Boolean?,
     val allowMultiNode: Boolean?,
+    val allowPublicIp: Boolean?,
+    val allowPublicLink: Boolean?,
     val fileExtensions: List<String>?,
     val licenseServers: List<String>?,
     val shouldAllowAdditionalMounts: Boolean,
@@ -181,6 +183,28 @@ IP addresses and files. The [`Application`](/docs/reference/dk.sdu.cloud.app.sto
 <details>
 <summary>
 <code>allowMultiNode</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable multiple replicas of this Application (default: false)
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowPublicIp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable support for public IP (default false)
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowPublicLink</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable support for public link (default: true for web apps)
 </summary>
 
 

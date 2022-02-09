@@ -19,8 +19,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 

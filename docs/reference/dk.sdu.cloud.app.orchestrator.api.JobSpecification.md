@@ -18,6 +18,7 @@ data class JobSpecification(
     val parameters: JsonObject?,
     val resources: List<AppParameterValue>?,
     val timeAllocation: SimpleDuration?,
+    val openedFile: String?,
 )
 ```
 
@@ -122,6 +123,22 @@ This attribute is not included by default unless `includeParameters` is specifie
 
 
 This value can be `null` which signifies that the job should not (automatically) expire. Note that some providers do not support `null`. When this value is not `null` it means that the job will be terminated, regardless of result, after the duration has expired. Some providers support extended this duration via the `extend` operation.
+
+
+</details>
+
+<details>
+<summary>
+<code>openedFile</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> An optional path to the file which the user selected with the "Open with..." feature.
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+This value is null if the application is not launched using the "Open with..." feature. The value of this
+is passed to the compute environment in a provider specific way. We encourage providers to expose this as
+an environment variable named `UCLOUD_OPEN_WITH_FILE` containing the absolute path of the file (in the
+current environment). Remember that this path is the _UCloud_ path to the file and not the provider's path.
 
 
 </details>

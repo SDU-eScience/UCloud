@@ -82,6 +82,7 @@ JobsProvider.create.call(
                 version = "1.0.0", 
             ), 
             name = null, 
+            openedFile = null, 
             parameters = mapOf("debug" to AppParameterValue.Bool(
                 value = true, 
             ), "value" to AppParameterValue.Text(
@@ -108,6 +109,8 @@ JobsProvider.create.call(
                     allowAdditionalMounts = null, 
                     allowAdditionalPeers = null, 
                     allowMultiNode = false, 
+                    allowPublicIp = false, 
+                    allowPublicLink = null, 
                     applicationType = ApplicationType.BATCH, 
                     container = null, 
                     environment = null, 
@@ -428,7 +431,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "hours": 1,
                         "minutes": 0,
                         "seconds": 0
-                    }
+                    },
+                    "openedFile": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -542,6 +546,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                             "allowAdditionalMounts": null,
                             "allowAdditionalPeers": null,
                             "allowMultiNode": false,
+                            "allowPublicIp": false,
+                            "allowPublicLink": null,
                             "fileExtensions": [
                             ],
                             "licenseServers": [
@@ -791,7 +797,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "hours": 1,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -905,6 +912,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "allowAdditionalMounts": null,
                         "allowAdditionalPeers": null,
                         "allowMultiNode": false,
+                        "allowPublicIp": false,
+                        "allowPublicLink": null,
                         "fileExtensions": [
                         ],
                         "licenseServers": [

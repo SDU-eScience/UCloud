@@ -1387,7 +1387,9 @@ data class CreateSingleUserRequest(
     val password: String?,
     val email: String?,
     val role: Role?,
-    val organization: String?,
+    val firstnames: String?,
+    val lastname: String?,
+    val orgId: String?,
 )
 ```
 
@@ -1442,7 +1444,29 @@ data class CreateSingleUserRequest(
 
 <details>
 <summary>
-<code>organization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>firstnames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>lastname</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>orgId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

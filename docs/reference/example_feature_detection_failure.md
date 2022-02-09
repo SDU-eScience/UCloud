@@ -82,7 +82,7 @@ Resources.create.call(
 ).orThrow()
 
 /*
-400 Bad Request
+HttpStatusCode(value=400, description=Bad Request)
 */
 ```
 
@@ -167,7 +167,7 @@ await callAPI(ExampleApi.create(
 );
 
 /*
-400 Bad Request
+HttpStatusCode(value=400, description=Bad Request)
 */
 ```
 
@@ -248,7 +248,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# 400 Bad Request
+# HttpStatusCode(value=400, description=Bad Request)
 
 ```
 

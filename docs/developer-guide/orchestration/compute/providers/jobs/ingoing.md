@@ -138,6 +138,10 @@ fit.
 <td>Extend the duration of one or more jobs</td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request from the user to (potentially) initialize any resources</td>
+</tr>
+<tr>
 <td><a href='#openinteractivesession'><code>openInteractiveSession</code></a></td>
 <td>Opens an interactive session (e.g. terminal, web or VNC)</td>
 </tr>
@@ -862,6 +866,7 @@ JobsProvider.create.call(
                 version = "1.0.0", 
             ), 
             name = null, 
+            openedFile = null, 
             parameters = mapOf("debug" to AppParameterValue.Bool(
                 value = true, 
             ), "value" to AppParameterValue.Text(
@@ -888,6 +893,8 @@ JobsProvider.create.call(
                     allowAdditionalMounts = null, 
                     allowAdditionalPeers = null, 
                     allowMultiNode = false, 
+                    allowPublicIp = false, 
+                    allowPublicLink = null, 
                     applicationType = ApplicationType.BATCH, 
                     container = null, 
                     environment = null, 
@@ -1208,7 +1215,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "hours": 1,
                         "minutes": 0,
                         "seconds": 0
-                    }
+                    },
+                    "openedFile": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -1322,6 +1330,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                             "allowAdditionalMounts": null,
                             "allowAdditionalPeers": null,
                             "allowMultiNode": false,
+                            "allowPublicIp": false,
+                            "allowPublicLink": null,
                             "fileExtensions": [
                             ],
                             "licenseServers": [
@@ -1571,7 +1581,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "hours": 1,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -1685,6 +1696,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "allowAdditionalMounts": null,
                         "allowAdditionalPeers": null,
                         "allowMultiNode": false,
+                        "allowPublicIp": false,
+                        "allowPublicLink": null,
                         "fileExtensions": [
                         ],
                         "licenseServers": [
@@ -2299,6 +2312,7 @@ JobsProvider.verify.call(
                 version = "1.0.0", 
             ), 
             name = null, 
+            openedFile = null, 
             parameters = mapOf("debug" to AppParameterValue.Bool(
                 value = true, 
             ), "value" to AppParameterValue.Text(
@@ -2417,7 +2431,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "hours": 1,
                         "minutes": 0,
                         "seconds": 0
-                    }
+                    },
+                    "openedFile": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -2529,7 +2544,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "hours": 1,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             },
             "status": {
                 "state": "RUNNING",
@@ -2688,6 +2704,24 @@ __Implementation requirements:__
 
 For more information, see the end-user API ([`jobs.extend`](/docs/reference/jobs.extend.md))
 
+
+
+### `init`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request from the user to (potentially) initialize any resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceInitializationRequest.md'>ResourceInitializationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
 
 
 ### `openInteractiveSession`
