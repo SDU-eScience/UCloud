@@ -76,7 +76,11 @@ __Figure:__ Allocations create a natural _allocation hierarchy_.
 </tr>
 <tr>
 <td><a href='#push'><code>push</code></a></td>
-<td>Pushes a Wallet to the catalog (Not yet implemented)</td>
+<td>Pushes a Wallet to the catalog</td>
+</tr>
+<tr>
+<td><a href='#register'><code>register</code></a></td>
+<td>Registers an allocation created outside of UCloud</td>
 </tr>
 </tbody></table>
 
@@ -123,6 +127,10 @@ __Figure:__ Allocations create a natural _allocation hierarchy_.
 </tr>
 <tr>
 <td><a href='#pushwalletchangerequestitem'><code>PushWalletChangeRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#registerwalletrequestitem'><code>RegisterWalletRequestItem</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -185,7 +193,7 @@ accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.Wall
 
 ### `retrieveRecipient`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
@@ -217,15 +225,29 @@ accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.Wall
 
 ### `push`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
-_Pushes a Wallet to the catalog (Not yet implemented)_
+_Pushes a Wallet to the catalog_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#pushwalletchangerequestitem'>PushWalletChangeRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `register`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Registers an allocation created outside of UCloud_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#registerwalletrequestitem'>RegisterWalletRequestItem</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -796,9 +818,59 @@ data class User(
 
 ```kotlin
 data class PushWalletChangeRequestItem(
-    val owner: WalletOwner,
+    val allocationId: String,
     val amount: Long,
-    val productId: ProductReference,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>amount</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `RegisterWalletRequestItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class RegisterWalletRequestItem(
+    val owner: WalletOwner,
+    val uniqueAllocationId: String,
+    val categoryId: String,
+    val balance: Long,
+    val providerGeneratedId: String?,
 )
 ```
 
@@ -820,7 +892,7 @@ data class PushWalletChangeRequestItem(
 
 <details>
 <summary>
-<code>amount</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>uniqueAllocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -831,7 +903,29 @@ data class PushWalletChangeRequestItem(
 
 <details>
 <summary>
-<code>productId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+<code>categoryId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>balance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

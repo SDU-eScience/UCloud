@@ -103,7 +103,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -222,7 +222,7 @@ await callAPI(ExampleProviderPROVIDERIDApi.create(
 );
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -343,7 +343,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# 500 Internal Server Error
+# HttpStatusCode(value=500, description=Internal Server Error)
 
 # In this case, imagine that the provider failed to create the second resource. This should
 # immediately trigger cleanup on the provider, if the first resource was already created. The provider

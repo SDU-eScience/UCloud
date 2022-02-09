@@ -124,6 +124,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Permanently deletes all files from the selected trash folder thereby emptying it</td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request (potential) initialization of resources</td>
+</tr>
+<tr>
 <td><a href='#move'><code>move</code></a></td>
 <td>Move a file from one path to another</td>
 </tr>
@@ -1148,6 +1152,7 @@ Files.browse.call(
         consistency = null, 
         flags = UFileIncludeFlags(
             allowUnsupportedInclude = null, 
+            filterByFileExtension = null, 
             filterCreatedAfter = null, 
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
@@ -1166,6 +1171,7 @@ Files.browse.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
+            includeSyncStatus = null, 
             includeTimestamps = true, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -1207,6 +1213,7 @@ PageV2(
             resolvedSupport = null, 
             sizeInBytes = null, 
             sizeIncludingChildrenInBytes = null, 
+            synced = null, 
             type = FileType.FILE, 
             unixGroup = null, 
             unixMode = null, 
@@ -1243,6 +1250,7 @@ await callAPI(FilesApi.browse(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": null,
+            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -1250,6 +1258,7 @@ await callAPI(FilesApi.browse(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
+            "filterByFileExtension": null,
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
@@ -1293,6 +1302,7 @@ await callAPI(FilesApi.browse(
                 "unixOwner": null,
                 "unixGroup": null,
                 "metadata": null,
+                "synced": null,
                 "resolvedSupport": null,
                 "resolvedProduct": null
             },
@@ -1352,6 +1362,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #                 "unixOwner": null,
 #                 "unixGroup": null,
 #                 "metadata": null,
+#                 "synced": null,
 #                 "resolvedSupport": null,
 #                 "resolvedProduct": null
 #             },
@@ -1407,6 +1418,7 @@ Files.retrieve.call(
     ResourceRetrieveRequest(
         flags = UFileIncludeFlags(
             allowUnsupportedInclude = null, 
+            filterByFileExtension = null, 
             filterCreatedAfter = null, 
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
@@ -1425,6 +1437,7 @@ Files.retrieve.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
+            includeSyncStatus = null, 
             includeTimestamps = true, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -1461,6 +1474,7 @@ UFile(
         resolvedSupport = null, 
         sizeInBytes = null, 
         sizeIncludingChildrenInBytes = null, 
+        synced = null, 
         type = FileType.DIRECTORY, 
         unixGroup = null, 
         unixMode = null, 
@@ -1494,6 +1508,7 @@ await callAPI(FilesApi.retrieve(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": null,
+            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -1501,6 +1516,7 @@ await callAPI(FilesApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
+            "filterByFileExtension": null,
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
@@ -1536,6 +1552,7 @@ await callAPI(FilesApi.retrieve(
         "unixOwner": null,
         "unixGroup": null,
         "metadata": null,
+        "synced": null,
         "resolvedSupport": null,
         "resolvedProduct": null
     },
@@ -1589,6 +1606,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #         "unixOwner": null,
 #         "unixGroup": null,
 #         "metadata": null,
+#         "synced": null,
 #         "resolvedSupport": null,
 #         "resolvedProduct": null
 #     },
@@ -2071,9 +2089,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | The operation couldn't be completed because of the write conflict policy |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2100,8 +2118,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2129,8 +2147,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2158,8 +2176,8 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2212,15 +2230,33 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
-| `400 Bad Request` | This operation is not supported by the provider |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | This operation is not supported by the provider |
 
 __Examples:__
 
 | Example |
 |---------|
 | [Moving files to trash](/docs/reference/files_empty_trash_folder.md) |
+
+
+### `init`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request (potential) initialization of resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
 
 
 ### `move`
@@ -2246,9 +2282,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | The operation couldn't be completed because of the write conflict policy |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 
@@ -2283,9 +2319,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
-| `400 Bad Request` | This operation is not supported by the provider |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | This operation is not supported by the provider |
 
 __Examples:__
 
@@ -2576,6 +2612,7 @@ data class UFileStatus(
     val unixOwner: Int?,
     val unixGroup: Int?,
     val metadata: FileMetadataHistory?,
+    val synced: Boolean?,
     val resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>?,
     val resolvedProduct: Product.Storage?,
 )
@@ -2688,6 +2725,17 @@ data class UFileStatus(
 <details>
 <summary>
 <code>metadata</code>: <code><code><a href='#filemetadatahistory'>FileMetadataHistory</a>?</code></code> User-defined metadata for this file. See `FileMetadataTemplate` for details.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>synced</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> If the file is added to synchronization or not
 </summary>
 
 
@@ -3299,6 +3347,7 @@ data class UFileIncludeFlags(
     val includeSizes: Boolean?,
     val includeUnixInfo: Boolean?,
     val includeMetadata: Boolean?,
+    val includeSyncStatus: Boolean?,
     val filterCreatedBy: String?,
     val filterCreatedAfter: Long?,
     val filterCreatedBefore: Long?,
@@ -3306,6 +3355,7 @@ data class UFileIncludeFlags(
     val filterProductId: String?,
     val filterProductCategory: String?,
     val filterProviderIds: String?,
+    val filterByFileExtension: String?,
     val path: String?,
     val allowUnsupportedInclude: Boolean?,
     val filterHiddenFiles: Boolean?,
@@ -3422,6 +3472,17 @@ data class UFileIncludeFlags(
 
 <details>
 <summary>
+<code>includeSyncStatus</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>filterCreatedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
@@ -3489,6 +3550,17 @@ data class UFileIncludeFlags(
 <details>
 <summary>
 <code>filterProviderIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the provider ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterByFileExtension</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

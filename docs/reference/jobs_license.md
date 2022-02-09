@@ -55,6 +55,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = mapOf("license" to AppParameterValue.License(
             id = "56231", 
         )), 
@@ -144,7 +145,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -225,7 +227,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'

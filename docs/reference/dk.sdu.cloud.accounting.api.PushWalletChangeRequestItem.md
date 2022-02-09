@@ -9,9 +9,8 @@
 
 ```kotlin
 data class PushWalletChangeRequestItem(
-    val owner: WalletOwner,
+    val allocationId: String,
     val amount: Long,
-    val productId: ProductReference,
 )
 ```
 
@@ -22,7 +21,7 @@ data class PushWalletChangeRequestItem(
 
 <details>
 <summary>
-<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
+<code>allocationId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 
@@ -34,17 +33,6 @@ data class PushWalletChangeRequestItem(
 <details>
 <summary>
 <code>amount</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>productId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
 </summary>
 
 

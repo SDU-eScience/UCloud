@@ -28,6 +28,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -106,7 +107,8 @@ await callAPI(JobsApi.create(
                 "allowDuplicateJob": false,
                 "parameters": null,
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -188,7 +190,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "allowDuplicateJob": false,
             "parameters": null,
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'

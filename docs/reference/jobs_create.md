@@ -77,6 +77,8 @@ application = ApplicationWithFavoriteAndTags(
         allowAdditionalMounts = null, 
         allowAdditionalPeers = null, 
         allowMultiNode = false, 
+        allowPublicIp = false, 
+        allowPublicLink = null, 
         applicationType = ApplicationType.BATCH, 
         container = null, 
         environment = null, 
@@ -208,6 +210,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = mapOf("var" to AppParameterValue.Text(
             value = "Example", 
         )), 
@@ -377,6 +380,8 @@ application = {
         "allowAdditionalMounts": null,
         "allowAdditionalPeers": null,
         "allowMultiNode": false,
+        "allowPublicIp": false,
+        "allowPublicLink": null,
         "fileExtensions": [
         ],
         "licenseServers": [
@@ -462,7 +467,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -616,6 +622,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "allowAdditionalMounts": null,
 #         "allowAdditionalPeers": null,
 #         "allowMultiNode": false,
+#         "allowPublicIp": false,
+#         "allowPublicLink": null,
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
@@ -684,7 +692,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
