@@ -28,6 +28,7 @@ import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.ApiConventions
+import dk.sdu.cloud.calls.ApiStability
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
@@ -80,6 +81,14 @@ sealed class Chapter {
         override val id: String,
         override val title: String,
         val container: CallDescriptionContainer
+    ) : Chapter() {
+        override var path: List<Chapter.Node> = emptyList()
+    }
+
+    data class ExternalMarkdown(
+        override val id: String,
+        override val title: String,
+        val externalFile: String,
     ) : Chapter() {
         override var path: List<Chapter.Node> = emptyList()
     }
@@ -335,11 +344,21 @@ fun generateCode() {
                 )
             ),
             Chapter.Node(
+                "development",
+                "Developing on the UCloud/Core",
+                listOf(
+                    Chapter.ExternalMarkdown("getting-started", "Getting Started", "../service-lib/wiki/getting_started.md"),
+                    Chapter.ExternalMarkdown("first-service", "Your first service", "../service-lib/wiki/first_service.md"),
+                    Chapter.ExternalMarkdown("architecture", "High-Level Architecture", "../service-lib/wiki/microservice_structure.md"),
+                )
+            ),
+            Chapter.Node(
                 "core",
                 "Core",
                 listOf(
                     Chapter.Feature("types", "Core Types", CoreTypes),
                     Chapter.Feature("api-conventions", "API Conventions", ApiConventions),
+                    Chapter.Feature("api-stability", "API Stability", ApiStability),
                     Chapter.Node(
                         "users",
                         "Users",
@@ -361,18 +380,29 @@ fun generateCode() {
                     ),
                     Chapter.Node(
                         "monitoring",
-                        "Monitoring and Alerting",
+                        "Monitoring, Alerting and Procedures",
                         listOf(
                             Chapter.Feature("auditing", "Auditing", Auditing),
                             Chapter.Feature("alerting", "Alerting", Alerting),
+                            Chapter.ExternalMarkdown("dependencies", "Third-Party Dependencies (Risk Assessment)", "../service-lib/wiki/third_party_dependencies.md"),
+                            Chapter.Node(
+                                "procedures",
+                                "Procedures",
+                                listOf(
+                                    Chapter.ExternalMarkdown("auditing-scenario", "Auditing Scenario", "../service-lib/wiki/auditing-scenario.md"),
+                                    Chapter.ExternalMarkdown("deployment", "Deployment", "../service-lib/wiki/deployment.md"),
+                                    Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
+                                    Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
+                                )
+                            ),
                             Chapter.Node(
                                 "scripts",
-                                "Scripts",
+                                "Management Scripts",
                                 listOf(
                                     Chapter.Feature("redis", "Redis Cleanup", RedisCleaner),
                                     Chapter.Feature("elastic", "Elastic Cleanup", ElasticManagement)
                                 )
-                            )
+                            ),
                         )
                     ),
                     Chapter.Node(
@@ -479,6 +509,18 @@ fun generateCode() {
 
                     generateTypeScriptCode(types, calls, chapter.title, chapter.container)
                     generateSerializerCode(types, calls, chapter.container)
+                }
+            }
+
+            is Chapter.ExternalMarkdown -> {
+                if (!firstPass) {
+                    val nextSection = stack.peek()
+                    generateExternalMarkdown(
+                        actualPreviousSection,
+                        nextSection,
+                        chapter.path,
+                        chapter
+                    )
                 }
             }
 
