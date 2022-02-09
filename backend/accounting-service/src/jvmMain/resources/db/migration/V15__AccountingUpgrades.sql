@@ -1,7 +1,7 @@
 drop extension if exists "uuid-ossp";
 create extension "uuid-ossp" schema public;
 create extension if not exists ltree schema public;
-create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP', 'SYNCHRONIZATION');
+create type accounting.product_type as enum ('COMPUTE', 'STORAGE', 'INGRESS', 'LICENSE', 'NETWORK_IP');
 create type accounting.charge_type as enum ('ABSOLUTE', 'DIFFERENTIAL_QUOTA');
 create type accounting.product_price_unit as enum (
     'PER_UNIT',
@@ -1386,9 +1386,6 @@ begin
     end if;
     if category_in.product_type = 'NETWORK_IP' then
         builder := builder || jsonb_build_object('type', 'network_ip');
-    end if;
-    if category_in.product_type = 'SYNCHRONIZATION' then
-        builder := builder || jsonb_build_object('type', 'synchronization');
     end if;
 
     return builder;
