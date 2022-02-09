@@ -5,9 +5,6 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_PM_REFERENCE
-import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_REFERENCE
-import dk.sdu.cloud.file.ucloud.services.PathConverter.Companion.PRODUCT_SHARE_REFERENCE
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.DBContext
@@ -51,91 +48,91 @@ class FileCollectionsService(
         // Do nothing
     }
 
+    val productSupport = listOf(
+        FSSupport(
+            pathConverter.productReference,
+
+            FSProductStatsSupport(
+                sizeInBytes = true,
+                sizeIncludingChildrenInBytes = false,
+                modifiedAt = true,
+                createdAt = false,
+                accessedAt = true,
+                unixPermissions = true,
+                unixOwner = true,
+                unixGroup = true
+            ),
+
+            FSCollectionSupport(
+                aclModifiable = true,
+                usersCanCreate = true,
+                usersCanDelete = true,
+                usersCanRename = true,
+            ),
+
+            FSFileSupport(
+                aclModifiable = true,
+                trashSupported = true,
+                isReadOnly = false
+            )
+        ),
+        FSSupport(
+            pathConverter.projectHomeProductReference,
+
+            FSProductStatsSupport(
+                sizeInBytes = true,
+                sizeIncludingChildrenInBytes = false,
+                modifiedAt = true,
+                createdAt = false,
+                accessedAt = true,
+                unixPermissions = true,
+                unixOwner = true,
+                unixGroup = true
+            ),
+
+            FSCollectionSupport(
+                aclModifiable = false,
+                usersCanCreate = false,
+                usersCanDelete = true,
+                usersCanRename = false,
+            ),
+
+            FSFileSupport(
+                aclModifiable = false,
+                trashSupported = true,
+                isReadOnly = false
+            )
+        ),
+        FSSupport(
+            pathConverter.shareProductReference,
+
+            FSProductStatsSupport(
+                sizeInBytes = true,
+                sizeIncludingChildrenInBytes = false,
+                modifiedAt = true,
+                createdAt = false,
+                accessedAt = true,
+                unixPermissions = true,
+                unixOwner = true,
+                unixGroup = true
+            ),
+
+            FSCollectionSupport(
+                aclModifiable = false,
+                usersCanCreate = false,
+                usersCanDelete = true,
+                usersCanRename = false,
+            ),
+
+            FSFileSupport(
+                aclModifiable = false,
+                trashSupported = true,
+                isReadOnly = false
+            )
+        )
+    )
+
     companion object : Loggable {
         override val log = logger()
     }
 }
-
-val productSupport = listOf(
-    FSSupport(
-        PRODUCT_REFERENCE,
-
-        FSProductStatsSupport(
-            sizeInBytes = true,
-            sizeIncludingChildrenInBytes = false,
-            modifiedAt = true,
-            createdAt = false,
-            accessedAt = true,
-            unixPermissions = true,
-            unixOwner = true,
-            unixGroup = true
-        ),
-
-        FSCollectionSupport(
-            aclModifiable = true,
-            usersCanCreate = true,
-            usersCanDelete = true,
-            usersCanRename = true,
-        ),
-
-        FSFileSupport(
-            aclModifiable = true,
-            trashSupported = true,
-            isReadOnly = false
-        )
-    ),
-    FSSupport(
-        PRODUCT_PM_REFERENCE,
-
-        FSProductStatsSupport(
-            sizeInBytes = true,
-            sizeIncludingChildrenInBytes = false,
-            modifiedAt = true,
-            createdAt = false,
-            accessedAt = true,
-            unixPermissions = true,
-            unixOwner = true,
-            unixGroup = true
-        ),
-
-        FSCollectionSupport(
-            aclModifiable = false,
-            usersCanCreate = false,
-            usersCanDelete = true,
-            usersCanRename = false,
-        ),
-
-        FSFileSupport(
-            aclModifiable = false,
-            trashSupported = true,
-            isReadOnly = false
-        )
-    ),
-    FSSupport(
-        PRODUCT_SHARE_REFERENCE,
-
-        FSProductStatsSupport(
-            sizeInBytes = true,
-            sizeIncludingChildrenInBytes = false,
-            modifiedAt = true,
-            createdAt = false,
-            accessedAt = true,
-            unixPermissions = true,
-            unixOwner = true,
-            unixGroup = true
-        ),
-
-        FSCollectionSupport(
-            aclModifiable = false,
-            usersCanCreate = false,
-            usersCanDelete = true,
-            usersCanRename = false,
-        ),
-
-        FSFileSupport(
-            aclModifiable = false,
-            trashSupported = true,
-            isReadOnly = false
-        )
-    )
-)

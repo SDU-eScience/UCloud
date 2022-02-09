@@ -5,7 +5,7 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.SyncConfiguration
-import dk.sdu.cloud.service.DistributedLockBestEffortFactory
+import dk.sdu.cloud.service.DistributedLockFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
@@ -16,7 +16,6 @@ import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.util.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
@@ -226,7 +225,7 @@ data class SyncthingFolderDevice(
 class SyncthingClient(
     val config: SyncConfiguration,
     val db: DBContext,
-    val distributedLocks: DistributedLockBestEffortFactory,
+    val distributedLocks: DistributedLockFactory,
     val lastWrite: AtomicLong
 ) {
     private val httpClient = HttpClient(OkHttp) {

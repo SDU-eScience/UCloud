@@ -1,6 +1,5 @@
 package dk.sdu.cloud.file.ucloud.rpc
 
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -10,10 +9,10 @@ import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.api.UCloudFileDownload
-import dk.sdu.cloud.file.ucloud.api.UCloudFiles
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.EmptyTrashRequestItem
 import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
+import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
 import io.ktor.application.*
@@ -38,23 +37,26 @@ val CallHandler<*, *, *>.ucloudUsername: String?
     }
 
 class FilesController(
+    private val providerId: String,
     private val fileQueries: FileQueries,
     private val taskSystem: TaskSystem,
     private val chunkedUploadService: ChunkedUploadService,
     private val downloadService: DownloadService,
     private val limitChecker: LimitChecker,
-    private val elasticQueryService: ElasticQueryService,
+    private val elasticQueryService: ElasticQueryService?,
     private val memberFiles: MemberFiles,
 ) : Controller {
-    private val chunkedProtocol = ChunkedUploadProtocol(UCLOUD_PROVIDER, "/ucloud/ucloud/chunked")
+    private val chunkedProtocol = ChunkedUploadProtocol(providerId, "/ucloud/$providerId/chunked")
 
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(UCloudFiles.init) {
+        val filesApi = FilesProvider(providerId)
+
+        implement(filesApi.init) {
             memberFiles.initializeMemberFiles(request.principal.createdBy, request.principal.project)
             ok(Unit)
         }
 
-        implement(UCloudFiles.retrieve) {
+        implement(filesApi.retrieve) {
             ok(
                 fileQueries.retrieve(
                     UCloudFile.create(request.retrieve.id),
@@ -63,7 +65,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.browse) {
+        implement(filesApi.browse) {
             val path = request.browse.flags.path ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
@@ -77,13 +79,19 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.search) {
-            ok(
-                elasticQueryService.query(request)
-            )
+        implement(filesApi.search) {
+            if (elasticQueryService == null) {
+                throw RPCException(
+                    "Search is not supported by this provider",
+                    HttpStatusCode.BadRequest,
+                    FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                )
+            }
+
+            ok(elasticQueryService.query(request))
         }
 
-        implement(UCloudFiles.copy) {
+        implement(filesApi.copy) {
             request.items.forEach { req ->
                 limitChecker.checkLimit(req.resolvedNewCollection)
             }
@@ -100,7 +108,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.createUpload) {
+        implement(filesApi.createUpload) {
             for (reqItem in request.items) {
                 if (UploadProtocol.CHUNKED !in reqItem.supportedProtocols) {
                     throw RPCException("No protocols supported", HttpStatusCode.BadRequest)
@@ -122,7 +130,7 @@ class FilesController(
             ok(BulkResponse(responses))
         }
 
-        implement(UCloudFiles.move) {
+        implement(filesApi.move) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedNewCollection)
             }
@@ -148,7 +156,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.delete) {
+        implement(filesApi.delete) {
             ok(
                 BulkResponse(
                     request.items.map { reqItem ->
@@ -163,7 +171,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.trash) {
+        implement(filesApi.trash) {
             val username = ucloudUsername ?: throw RPCException("No username supplied", HttpStatusCode.BadRequest)
             ok(
                 BulkResponse(
@@ -179,7 +187,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.emptyTrash) {
+        implement(filesApi.emptyTrash) {
             val username = ucloudUsername ?: throw  RPCException("No username supplied", HttpStatusCode.BadRequest)
             ok(
                 BulkResponse(
@@ -195,7 +203,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.createFolder) {
+        implement(filesApi.createFolder) {
             for (reqItem in request.items) {
                 limitChecker.checkLimit(reqItem.resolvedCollection)
             }
@@ -219,7 +227,7 @@ class FilesController(
             )
         }
 
-        implement(UCloudFiles.updateAcl) {
+        implement(filesApi.updateAcl) {
             ok(BulkResponse(request.items.map { Unit }))
         }
 
@@ -234,11 +242,11 @@ class FilesController(
             }
         }
 
-        implement(UCloudFiles.createDownload) {
+        implement(filesApi.createDownload) {
             ok(downloadService.createSessions(request))
         }
 
-        implement(UCloudFileDownload.download) {
+        implement(UCloudFileDownload(providerId).download) {
             withContext<HttpCall> {
                 audit(Unit)
                 downloadService.download(request.token, ctx)

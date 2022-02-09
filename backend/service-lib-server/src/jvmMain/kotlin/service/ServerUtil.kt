@@ -56,7 +56,7 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
 
     @Suppress("TooGenericExceptionCaught")
     try {
-        micro.eventStreamService.start()
+        micro.eventStreamServiceOrNull?.start()
     } catch (ex: Exception) {
         log.error("Caught fatal exception in Event Stream Services")
         log.error(ex.stackTraceToString())

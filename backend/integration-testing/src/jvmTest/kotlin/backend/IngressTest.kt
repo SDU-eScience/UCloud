@@ -3,7 +3,6 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.IngressIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.IngressSpecification

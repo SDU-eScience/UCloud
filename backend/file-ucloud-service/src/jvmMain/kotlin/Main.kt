@@ -10,9 +10,21 @@ import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.EmptyServer
 
 data class Configuration(
+    val providerId: String = "ucloud",
     val providerRefreshToken: String? = null,
     val ucloudCertificate: String? = null,
-)
+    val productCategory: String = "u1-cephfs",
+    val accounting: Accounting = Accounting(),
+    val indexing: Indexing = Indexing(),
+) {
+    data class Accounting(
+        val enabled: Boolean = true
+    )
+
+    data class Indexing(
+        val enabled: Boolean = true
+    )
+}
 
 data class CephConfiguration(
     val cephfsBaseMount: String? = null,
@@ -51,7 +63,6 @@ object FileUcloudService : Service {
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
         micro.install(BackgroundScopeFeature)
-        micro.install(ElasticFeature)
 
         val sharedSecret = micro.configuration.requestChunkAtOrNull<String>("syncthing", "sharedSecret")
         val configuration = micro.configuration.requestChunkAtOrNull("files", "ucloud") ?: Configuration()

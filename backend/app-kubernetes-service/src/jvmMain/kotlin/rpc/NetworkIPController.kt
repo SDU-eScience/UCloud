@@ -1,11 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
-import dk.sdu.cloud.app.kubernetes.api.KubernetesIngresses
-import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIPMaintenance
 import dk.sdu.cloud.app.kubernetes.services.NetworkIPService
+import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
 import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.bulkResponseOf
@@ -13,31 +10,33 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.service.Controller
 
 class NetworkIPController(
+    private val providerId: String,
     private val service: NetworkIPService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(KubernetesNetworkIP.create) {
+        val networkApi = NetworkIPProvider(providerId)
+        implement(networkApi.create) {
             service.create(request)
             ok(BulkResponse(request.items.map { null }))
         }
 
-        implement(KubernetesNetworkIP.delete) {
+        implement(networkApi.delete) {
             service.delete(request)
             ok(BulkResponse(request.items.map { }))
         }
 
-        implement(KubernetesNetworkIP.verify) {
+        implement(networkApi.verify) {
             ok(Unit)
         }
 
-        implement(KubernetesNetworkIP.updateAcl) {
+        implement(networkApi.updateAcl) {
             ok(BulkResponse(request.items.map {  }))
         }
 
-        implement(KubernetesNetworkIP.retrieveProducts) {
+        implement(networkApi.retrieveProducts) {
             ok(bulkResponseOf(
                 NetworkIPSupport(
-                    ProductReference("public-ip", "public-ip", UCLOUD_PROVIDER),
+                    service.product,
                     NetworkIPSupport.Firewall(
                         enabled = true
                     )
@@ -45,19 +44,20 @@ class NetworkIPController(
             ))
         }
 
-        implement(KubernetesNetworkIP.updateFirewall) {
+        implement(networkApi.updateFirewall) {
             ok(BulkResponse(request.items.map { }))
         }
 
-        implement(KubernetesNetworkIPMaintenance.create) {
+        val maintenanceApi = KubernetesNetworkIPMaintenance(providerId)
+        implement(maintenanceApi.create) {
             ok(service.addToPool(request))
         }
 
-        implement(KubernetesNetworkIPMaintenance.browse) {
+        implement(maintenanceApi.browse) {
             ok(service.browsePool(request.normalize()))
         }
 
-        implement(KubernetesNetworkIPMaintenance.retrieveStatus) {
+        implement(maintenanceApi.retrieveStatus) {
             ok(service.retrieveStatus())
         }
         return@with

@@ -1,8 +1,8 @@
 package dk.sdu.cloud.app.kubernetes.services.proxy
 
-import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
 import dk.sdu.cloud.app.kubernetes.services.*
 import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.app.orchestrator.api.ingressPoints
 import dk.sdu.cloud.service.Loggable
@@ -25,32 +25,36 @@ import io.ktor.util.pipeline.*
 const val cookieName = "ucloud-compute-session-"
 
 class WebService(
+    private val providerId: String,
     private val k8: K8Dependencies,
     private val db: DBContext,
     private val sessions: SessionDao,
     private val prefix: String,
     private val domain: String,
-    private val ingressService: IngressService,
+    private val ingressService: IngressService?,
     private val devMode: Boolean = false
 ) {
+    private val api = JobsProvider(providerId)
     // Relatively low maxAge to make sure that we renew the session id regularly
     private val sessionCache = SimpleCache<String, JobIdAndRank>(maxAge = 60_000 * 15L) { sessionId ->
         sessions.findSessionOrNull(db, sessionId, InteractiveSessionType.WEB)
     }
 
     private val ingressCache = SimpleCache<String, JobIdAndRank>(maxAge = 60_000 * 15L) { domain ->
-        ingressService.retrieveJobIdByDomainOrNull(domain)?.let { JobIdAndRank(it, 0) }
+        ingressService?.retrieveJobIdByDomainOrNull(domain)?.let { JobIdAndRank(it, 0) }
     }
 
     suspend fun createSession(jobAndRank: JobAndRank): OpenSession.Web {
-        if (jobAndRank.job.ingressPoints.isNotEmpty()) {
-            val domain = ingressService.retrieveDomainsByJobId(jobAndRank.job.id).firstOrNull()
-            if (domain != null) {
-                return OpenSession.Web(
-                    jobAndRank.job.id,
-                    jobAndRank.rank,
-                    "http://$domain"
-                )
+        if (ingressService != null) {
+            if (jobAndRank.job.ingressPoints.isNotEmpty()) {
+                val domain = ingressService.retrieveDomainsByJobId(jobAndRank.job.id).firstOrNull()
+                if (domain != null) {
+                    return OpenSession.Web(
+                        jobAndRank.job.id,
+                        jobAndRank.rank,
+                        "http://$domain"
+                    )
+                }
             }
         }
 
@@ -62,13 +66,13 @@ class WebService(
         return OpenSession.Web(
             jobAndRank.job.id,
             jobAndRank.rank,
-            "${KubernetesCompute.baseContext}/authorize-app/$webSessionId"
+            "${api.baseContext}/authorize-app/$webSessionId"
         )
     }
 
     fun install(routing: Route): Unit = with(routing) {
         // Called when entering the application. This sets the cookie containing the refresh token.
-        get("${KubernetesCompute.baseContext}/authorize-app/{id}") {
+        get("${api.baseContext}/authorize-app/{id}") {
             val sessionId = call.parameters["id"] ?: run {
                 call.respond(HttpStatusCode.BadRequest)
                 return@get
@@ -123,13 +127,13 @@ class WebService(
         }
 
         // One of these are called. It does not seem obvious which one.
-        route("${KubernetesCompute.baseContext}/app-authorization") {
+        route("${api.baseContext}/app-authorization") {
             handleAppAuthorization(this, this@WebService)
         }
-        route("${KubernetesCompute.baseContext}/app-authorization/{...}") {
+        route("${api.baseContext}/app-authorization/{...}") {
             handleAppAuthorization(this, this@WebService)
         }
-        route("${KubernetesCompute.baseContext}/app-authorization/") {
+        route("${api.baseContext}/app-authorization/") {
             handleAppAuthorization(this, this@WebService)
         }
     }

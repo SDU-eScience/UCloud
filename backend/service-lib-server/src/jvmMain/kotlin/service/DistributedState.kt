@@ -3,8 +3,12 @@ package dk.sdu.cloud.service
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.RedisConnectionManager
 import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.RedisFeature
+import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.micro.redisConnectionManager
 import io.lettuce.core.SetArgs
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
@@ -20,6 +24,32 @@ interface DistributedStateFactory {
      * @see DistributedState
      */
     fun <T> create(reader: KSerializer<T>, name: String, expiry: Long? = null): DistributedState<T>
+}
+
+fun DistributedStateFactory(micro: Micro): DistributedStateFactory {
+    return if (micro.featureOrNull(RedisFeature) != null) {
+        RedisDistributedStateFactory(micro)
+    } else {
+        NonDistributedStateFactory()
+    }
+}
+
+class NonDistributedStateFactory : DistributedStateFactory {
+    override fun <T> create(reader: KSerializer<T>, name: String, expiry: Long?): DistributedState<T> {
+        return NonDistributedState(name, expiry)
+    }
+}
+
+class NonDistributedState<T>(override val name: String, override val expiry: Long?) : DistributedState<T> {
+    private var value: T? = null
+    private val mutex = Mutex()
+    override suspend fun get(): T? = mutex.withLock { value }
+
+    override suspend fun set(value: T) {
+        mutex.withLock {
+            this.value = value
+        }
+    }
 }
 
 /**

@@ -45,6 +45,8 @@ class ServiceRegistry(
 
         override val log: Logger = logger()
     }
+    private var redisEnabled: Boolean
+    private var elasticEnabled: Boolean
 
     init {
         rootMicro.isEmbeddedService = false
@@ -52,6 +54,7 @@ class ServiceRegistry(
         rootMicro.serviceDescription = serviceDescription
 
         with(rootMicro) {
+            // Mandatory features
             install(DeinitFeature)
             install(ScriptFeature)
             install(ConfigurationFeature)
@@ -60,16 +63,25 @@ class ServiceRegistry(
             install(DevelopmentOverrides)
             install(LogFeature)
             install(KtorServerProviderFeature)
-            install(RedisFeature)
             install(ClientFeature)
             install(TokenValidationFeature)
+
+            // Optional features
+            run {
+                val loadedConfig = rootMicro.configuration
+                redisEnabled = loadedConfig.requestChunkAtOrNull("redisEnabled") ?: true
+                elasticEnabled = loadedConfig.requestChunkAtOrNull("elasticEnabled") ?: true
+
+                if (redisEnabled) install(RedisFeature)
+                if (elasticEnabled) install(ElasticFeature)
+            }
+
+            // Mandatory features (which has optional dependencies)
             install(ServerFeature)
             install(HealthCheckFeature)
             install(BackgroundScopeFeature)
             install(DebugSystem)
             install(ScriptManager)
-            //install(DatabaseConfigurationFeature)
-            //install(FlywayFeature)
         }
     }
 
@@ -79,7 +91,7 @@ class ServiceRegistry(
         scopedMicro.isEmbeddedService = true
         scopedMicro.install(DatabaseConfigurationFeature)
         scopedMicro.install(FlywayFeature)
-        scopedMicro.install(RedisFeature)
+        if (redisEnabled) scopedMicro.install(RedisFeature)
         val server = service.initializeServer(scopedMicro)
         services.add(ConfiguredService(service.description, service, scopedMicro, server))
     }

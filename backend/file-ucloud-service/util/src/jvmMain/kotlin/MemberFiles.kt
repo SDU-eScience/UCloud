@@ -43,7 +43,7 @@ class MemberFiles(
                 FileCollectionsControl.register.call(
                     bulkRequestOf(
                         ProviderRegisteredResource(
-                            FileCollection.Spec("Member Files: ${username}", PathConverter.PRODUCT_PM_REFERENCE),
+                            FileCollection.Spec("Member Files: ${username}", paths.projectHomeProductReference),
                             "${PathConverter.COLLECTION_PROJECT_MEMBER_PREFIX}${project}/${username}",
                             createdBy = username,
                             project = project
@@ -90,7 +90,7 @@ class MemberFiles(
                 FileCollectionsControl.register.call(
                     bulkRequestOf(
                         ProviderRegisteredResource(
-                            FileCollection.Spec("Home", PathConverter.PRODUCT_REFERENCE),
+                            FileCollection.Spec("Home", paths.productReference),
                             "${PathConverter.COLLECTION_HOME_PREFIX}${username}",
                             createdBy = username
                         )

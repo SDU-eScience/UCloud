@@ -7,8 +7,6 @@ import kotlinx.serialization.Serializable
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.reflect.typeOf
 
-const val UCLOUD_PROVIDER = "ucloud"
-
 @Deprecated("Replace with ProductType", ReplaceWith("ProductType"))
 typealias ProductArea = ProductType
 

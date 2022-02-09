@@ -68,6 +68,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
                     target: "http://integration-module:8889",
                     ws: true,
                     changeOrigin: true,
+
                     headers: {
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",

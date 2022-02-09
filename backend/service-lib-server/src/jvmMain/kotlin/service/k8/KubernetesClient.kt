@@ -186,11 +186,11 @@ sealed class KubernetesConfigurationSource {
 
     object Auto : KubernetesConfigurationSource() {
         override fun retrieveConnection(): KubernetesConnection? {
-            val inCluster = InClusterConfiguration.retrieveConnection()
-            if (inCluster != null) return inCluster
-
             val defaultKubeConfig = KubeConfigFile(null, null).retrieveConnection()
             if (defaultKubeConfig != null) return defaultKubeConfig
+
+            val inCluster = InClusterConfiguration.retrieveConnection()
+            if (inCluster != null) return inCluster
 
             val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")
             if (composeKubeConfigFile.exists()) {

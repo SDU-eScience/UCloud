@@ -1,9 +1,7 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.file.orchestrator.api.*
@@ -32,6 +30,7 @@ object SyncDevicesTable : SQLTable("sync_devices") {
 }
 
 class SyncService(
+    private val providerId: String,
     private val syncthing: SyncthingClient,
     private val db: AsyncDBSessionFactory,
     private val authenticatedClient: AuthenticatedClient,
@@ -477,6 +476,10 @@ class SyncService(
         return BulkResponse(folders.items.map { })
     }
 
+    val syncProducts = listOf(
+        SyncFolderSupport(ProductReference("u1-sync", "u1-sync", providerId)),
+    )
+
     companion object {
         // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
         // reason).
@@ -484,7 +487,3 @@ class SyncService(
             Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
     }
 }
-
-val syncProducts = listOf(
-    SyncFolderSupport(ProductReference("u1-sync", "u1-sync", UCLOUD_PROVIDER)),
-)

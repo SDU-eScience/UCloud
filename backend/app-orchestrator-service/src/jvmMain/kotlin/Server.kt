@@ -1,6 +1,9 @@
 package dk.sdu.cloud.app.orchestrator
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -19,6 +22,8 @@ import dk.sdu.cloud.file.orchestrator.service.StorageProviders
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.runBlocking
 
 class Server(override val micro: Micro) : CommonServer {
@@ -28,7 +33,7 @@ class Server(override val micro: Micro) : CommonServer {
         val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val streams = micro.eventStreamService
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val distributedLocks = DistributedLockFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
         val exporter = ParameterExportService(db)
 

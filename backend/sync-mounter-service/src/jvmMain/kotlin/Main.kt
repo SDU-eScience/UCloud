@@ -16,6 +16,8 @@ object SyncMounterService : Service {
     
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
+        val providerId = micro.configuration.requestChunkAtOrNull<String>("files", "ucloud", "providerId")
+            ?: "ucloud"
         val sharedSecret = micro.configuration.requestChunkAtOrNull<String>("syncthing", "sharedSecret")
         val config = micro.configuration.requestChunkAt<SyncMounterConfiguration>("syncMount")
         val normalizedConfig = config.copy(
@@ -31,7 +33,7 @@ object SyncMounterService : Service {
             }
         )
 
-        return Server(micro, normalizedConfig, sharedSecret)
+        return Server(micro, normalizedConfig, sharedSecret, providerId)
     }
 }
 
