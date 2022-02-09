@@ -76,6 +76,8 @@ val services = setOf<Service>(
 enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
     Full("full", { true }),
 
+    FullNoProviders("no-providers", { it != AppKubernetesService && it != FileUcloudService && it != AppAauService }),
+
     Core("core", { svc ->
         when (svc) {
             AuditIngestionService,
@@ -156,9 +158,10 @@ suspend fun main(args: Array<String>) {
                 })")
     }
 
-    if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true && preset == LauncherPreset.Full
-    ) {
+    val shouldInstall = loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
+            loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
+
+    if (args.contains("--dev") && shouldInstall && preset == LauncherPreset.Full) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
