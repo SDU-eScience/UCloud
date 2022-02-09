@@ -325,7 +325,7 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             setParameter("projectid", projectId)
                         },
                         """
-                            SELECT wo.project_id, sum(walloc.local_balance::bigint), pc.category
+                            SELECT wo.project_id, sum(walloc.local_balance::bigint)::bigint, pc.category
                             FROM accounting.wallets wa join
                                 accounting.product_categories pc on pc.id = wa.category join
                                 accounting.wallet_owner wo on wo.id = wa.owned_by join
@@ -354,13 +354,9 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             setParameter("projectid", projectId)
                         },
                         """
-                            SELECT  sum(walloc.local_balance::bigint) * 1000000000
-                            FROM accounting.wallets wa join
-                                accounting.product_categories pc on pc.id = wa.category join
-                                accounting.wallet_owner wo on wo.id = wa.owned_by join
-                                accounting.wallet_allocations walloc on walloc.associated_wallet = wa.id
-                            WHERE wo.project_id = :projectid and pc.id = 4
-                            group by wo.project_id, pc.category;
+                            SELECT quota_in_bytes
+                            FROM storage.quotas
+                            WHERE path LIKE '%' || :projectid;
                         """
                     ).rows
                     .singleOrNull()
