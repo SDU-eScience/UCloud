@@ -451,10 +451,12 @@ fun generateCode() {
 //                            Chapter.Feature("shares", "Shares", UCloudShares)
 //                        )
 //                    ),
-//                    Chapter.Node(
-//                        "compute",
-//                        "UCloud/Compute",
-//                        listOf(
+                    Chapter.Node(
+                        "compute",
+                        "UCloud/Compute",
+                        listOf(
+                            Chapter.ExternalMarkdown("intro", "Introduction", "../app-kubernetes-service/README.md"),
+                            Chapter.ExternalMarkdown("compute", "Docker Backend", "../app-kubernetes-service/wiki/docker.md"),
 //                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
 //                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
 //                            Chapter.Node(
@@ -474,8 +476,8 @@ fun generateCode() {
 //                                )
 //                            ),
 //                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
-//                        )
-//                    )
+                        )
+                    )
                 )
             )
         )

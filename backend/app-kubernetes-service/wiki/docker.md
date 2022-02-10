@@ -1,5 +1,3 @@
-# UCloud/Compute: Docker backend
-
 UCloud/Compute provides full coverage of the `docker` feature-set. This implementation is powered by the
 [Volcano](https://volcano.sh) scheduler for [Kubernetes](https://kubernetes.io).
 
@@ -212,8 +210,8 @@ the `ServiceAccount`, or using the `~/.kube/config` file. The Kubernetes client 
 ## Transferring Files
 
 Files are, for performance reasons, never transferred. All input files used in a job _must_ already be present in
-[UCloud/Storage](/backend/storage-service/README.md). Output files will, similarly, be placed in a folder already
-present on [UCloud/Storage](/backend/storage-service/README.md).
+UCloud/Storage. Output files will, similarly, be placed in a folder already
+present on UCloud/Storage.
 
 ## Interactive Applications
 
