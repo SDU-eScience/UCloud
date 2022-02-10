@@ -27,7 +27,7 @@ The topic `http.logs` contains the audit log of all services. These audit logs a
 Elasticsearch for storage. If breaking changes are made to the underlying audit messages then the Elasticsearch indexes
 may break. This can potentially cause messages to no longer reach Elasticsearch (and get stuck at the Logstash step).
 Because of this, it is important that breaking changes are not made without manual migration. This is also mention in
-the [deployment checklist](./procedures/deployment.md).
+the [deployment checklist](./deployment.md).
 
 Additionally, there is an audit topic for each namespace. Services may consume
 from this topic to build services for advanced monitoring. The topics are named
@@ -84,7 +84,7 @@ data class HttpCallLogEntry(
 
 ## Dealing With Sensitive Request Data
 
-In this section, "sensitive data" is any kind of data which shouldn't be accible through the audit logs. It may include
+In this section, "sensitive data" is any kind of data which shouldn't be accessible through the audit logs. It may include
 any kind of data that would by law be classified as sensitive, but it may also contain other types of data.
 
 We don't want sensitive data in our logs. The audit log should allow us to clearly audit the actions of a user, but it
