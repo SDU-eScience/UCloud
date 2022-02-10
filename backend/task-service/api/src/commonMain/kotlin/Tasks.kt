@@ -2,6 +2,8 @@ package dk.sdu.cloud.task.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.FakeOutgoingCall
+import dk.sdu.cloud.calls.client.IngoingCallResponse
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -30,7 +32,85 @@ typealias MarkAsCompleteResponse = Unit
 
 @TSTopLevel
 object Tasks : CallDescriptionContainer("task") {
-    private val baseContext = "/api/tasks"
+    private const val baseContext = "/api/tasks"
+
+    init {
+        description = """Tasks give services a way to communicate progress to end-users.
+
+A task in UCloud displays the progress of any long-running process. Both services and providers use this functionality.
+Each task is uniquely identified by a key. Each task belongs to a specific end-user. Services/providers communicate 
+progress updates regularly. If the end-user is online when an update occurs, then the end-user is notified.
+
+Providers use this functionality through one of the Control interfaces. They do not invoke the interface directly.
+        """
+    }
+
+    override fun documentation() {
+        val id = "b06f51d2-88af-487c-bb4c-4cc156cf24fd"
+        val username = "User#1234"
+        val title = "We are counting to 3"
+
+        useCase("counting-task", "Counting to 3 (Produced by the service)") {
+            val service = ucloudCore()
+            success(
+                create,
+                CreateRequest(title, username),
+                CreateResponse(id, username, "_ucloud", title, complete = false, startedAt = 0L, modifiedAt = 0L),
+                service
+            )
+            repeat(3) {
+                success(
+                    postStatus,
+                    PostStatusRequest(TaskUpdate(id, messageToAppend = "Count is now ${it + 1}")),
+                    PostStatusResponse,
+                    service
+                )
+            }
+            success(
+                markAsComplete,
+                MarkAsCompleteRequest(id),
+                PostStatusResponse,
+                service
+            )
+        }
+
+        useCase("counting-task-2", "Counting to 3 (Received by end-user)") {
+            val user = basicUser()
+            subscription(
+                listen,
+                ListenRequest,
+                user,
+                protocol = {
+                    repeat(3) {
+                        add(
+                            UseCaseNode.RequestOrResponse.Response(
+                                IngoingCallResponse.Ok(
+                                    ListenResponse(
+                                        id,
+                                        messageToAppend = "Count is now ${it + 1}"
+                                    ),
+                                    HttpStatusCode.OK,
+                                    FakeOutgoingCall
+                                )
+                            )
+                        )
+                    }
+                    add(
+                        UseCaseNode.RequestOrResponse.Response(
+                            IngoingCallResponse.Ok(
+                                ListenResponse(
+                                    id,
+                                    complete = true
+                                ),
+                                HttpStatusCode.OK,
+                                FakeOutgoingCall
+                            )
+                        )
+                    )
+                }
+            )
+        }
+    }
 
     val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
         auth {
