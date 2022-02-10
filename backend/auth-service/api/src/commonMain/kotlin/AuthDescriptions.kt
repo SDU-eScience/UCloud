@@ -121,7 +121,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             Currently no password policy is implemented.
 
             Login attempts are logged through normal
-            [auditing](../service-lib/wiki/auditing.md). We limit
+            [auditing](backend/service-lib/wiki/auditing.md). We limit
             number of incorrect login attempts according to the following [recommendations](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html#account-lockout).
 
             Passwords are stored following recommendations by
@@ -255,8 +255,8 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             ### Authorization in UCloud
 
             These properties are related to the authorization mechanisms of UCloud.  This is tightly related to how the RPC layer is
-            defined. This is described further in [Auditing](../service-lib/wiki/auditing.md) and [Writing Service
-            Interface](../../backend/service-lib/wiki/writing_service_interfaces.md).
+            defined. This is described further in [Auditing](backend/service-lib/wiki/auditing.md) and [Writing Service
+            Interface](/backend/service-lib/wiki/writing_service_interfaces.md).
 
             | **Property** | **Description**                                             |
             | -------- | ------------------------------------------------------- |
