@@ -11,3 +11,4 @@ accepts the share a contact is created the other way around.
 
 When typing the username of the upcoming recipient of the share, a search-while-typing is 
 performed to suggest potential recipients based on previous shares.
+

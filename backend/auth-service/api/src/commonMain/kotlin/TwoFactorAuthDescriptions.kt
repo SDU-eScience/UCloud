@@ -35,6 +35,9 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
             two-factor authentication.
 
             https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
+            
+             ${ApiConventions.nonConformingApiWarning}
+
         """.trimIndent()
     }
 

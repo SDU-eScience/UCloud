@@ -60,7 +60,9 @@ object AvatarDescriptions : CallDescriptionContainer("avatar") {
             not need to listen for user created events.
             
             The avatar are mainly used as a way for users to easier distinguish between different users when sharing or
-            working in projects
+            working in projects.
+            
+             ${ApiConventions.nonConformingApiWarning}
         """.trimIndent()
     }
 
