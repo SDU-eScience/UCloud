@@ -47,7 +47,39 @@ data class RetrieveEmailSettingsResponse(
 
 @TSTopLevel
 object MailDescriptions : CallDescriptionContainer("mail") {
-    val baseContext = "/api/mail"
+    private const val baseContext = "/api/mail"
+
+    init {
+        description = """
+            Internal service for sending mails to end-users.
+            
+            Currently only one end-point is exposed for sending a single email to one user at a time, and only
+            `SERVICE` principals is authorized to do so.
+
+            Email templates are pre-defined and are not controllable by clients.
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase("sendToUser", "Sending an email") {
+            val ucloud = ucloudCore()
+            success(
+                sendToUser,
+                bulkRequestOf(
+                    SendRequestItem(
+                        "User#1234",
+                        Mail.LowFundsMail(
+                            listOf("u1-standard"),
+                            listOf("ucloud"),
+                            listOf("Science Project"),
+                        ),
+                    )
+                ),
+                Unit,
+                ucloud
+            )
+        }
+    }
 
     val sendSupport = call<SendSupportEmailRequest, SendSupportEmailResponse, CommonErrorMessage>("sendSupport") {
         auth {
