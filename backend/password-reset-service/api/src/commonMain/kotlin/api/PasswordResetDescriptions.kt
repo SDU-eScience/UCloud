@@ -32,6 +32,9 @@ object PasswordResetDescriptions : CallDescriptionContainer("password.reset") {
             valid (i.e. if it exists in the database table) and not expired (`now < expiresAt`). If so, a
             request with be sent to the `auth-service` to change the password through an end-point only
             accessible to password-reset-service.
+            
+            ${ApiConventions.nonConformingApiWarning}
+
         """.trimIndent()
     }
     val baseContext = "/api/password/reset"
