@@ -104,7 +104,7 @@ additional useful information is attached to the audit message.
 ## Verification Procedure
 
 The following document describes how to verify that auditing works as intended:
-[./procedures/auditing-scenario.md](auditing-scenario.md).
+[Auditing Scenario](auditing-scenario.md).
            
         """
     }

@@ -1,20 +1,10 @@
-# Procedures and Rules
-
-.. toctree::
-  :titlesonly:
-  :maxdepth: 1
-  :hidden:
-
-  CI/CD <./Jenkins.md>
-  UCloud Release Notes <../../wiki/release-notes.md>
-
 This document is created to link relevant documentation so it can be referred to from within the ISMS.
 
 The eScience Center Steering committee authorises new Projects. The Project are then split into activities.
 
-Activities is allocated to a team an activity has one or more repositories on GitHub.
+Activities are allocated to a team an activity has one or more repositories on GitHub.
 
-1. [UCloud](index.html)
+1. [UCloud](https://docs.cloud.sdu.dk)
    - This activity has a development system
 2. Infrastructure (hardware, network, and storage configuration)
    - [Main repository](https://github.com/SDU-eScience/Infrastructure/blob/master/README.md)
@@ -99,7 +89,7 @@ internal alpha testing, it is deployed to the production environment.
 In-depth deployment procedures: Click [here](./deployment.md).
 
 The UCloud software is deployed using Kubernetes. Kubernetes is a very flexible container orchestrator system which
-is configured using Kubernetes “resources”. These resources define the desired state of the cluster and it is the job
+is configured using Kubernetes “resources”. These resources define the desired state of the cluster, and it is the job
 of Kubernetes to always match this state on the available hardware. The code of each microservice contains the code
 needed for deploying itself to a Kubernetes. As a result, this code goes through the same development and review
 process as all other code. New big features are introduced in production as “beta” and a testing phase by the users
@@ -110,7 +100,7 @@ testing is complete, the feature is promoted to _stable_.
 
 As UCloud, this project will be hosted on GitHub as a public repository under an open-source license. We use the GitHub
 issue system to create and close issues. We use ZenHub as a project management tool, which integrates seamlessly with
-Github, to track the various stages of the lifecycle of an issue and to manage both epics and the project roadmap.
+GitHub, to track the various stages of the lifecycle of an issue and to manage both epics and the project roadmap.
 
 ### Documentation
 
@@ -120,8 +110,8 @@ it will be provided in collaboration with the back-offices at the national HPC c
 
 ### Internal Artifact Repositories
 
-We use a number of internal repositories for storing software artifacts.  Details of this is discussed `here
-<./deployment.md>`__.
+We use a number of internal repositories for storing software artifacts. The details are discussed 
+[here](./deployment.md).
 
 ### External Libraries
 
@@ -138,7 +128,7 @@ The NPM `update` and `audit` commands are used to fix outdated or broken depende
 Creation of automatic unit and integration tests is a part of the development cycle. The project leader is ensures that
 the tests covers relevant scenarios.
 
-Automatic testing is performed by our Continuous Integration (CI) system, [Jenkins](./Jenkins.md).
+Automatic testing is performed by our Continuous Integration (CI) system, [Jenkins](./jenkins.md).
 The director grants access to the CI system.
 
 ## Support
@@ -160,7 +150,7 @@ initialised by a user.
 
 The Project Leader confirms the classification when the issue is being assigned to a developer.
 
-In case of a bug the severity must be evaluated by the Project Leader and he can decide whether a system lock down is
+In case of a bug the severity must be evaluated by the Project Leader, and he can decide whether a system lock down is
 necessary.
 
 When escalating an incident a ticket have to be created within the help-desk system which will hold the documentation.
@@ -172,8 +162,7 @@ Project Leaders and ISMS admin regularly meets and evaluates the incidents and u
 
 All relevant logs are consumed using the ELK stack and presented in real time.
 The output is mainly presented as Kibana and Grafana views using a number of
-thresholds for the system events. The auditing system is described
-`here <../../backend/service-common/wiki/auditing.md>`__.
+thresholds for the system events. The auditing system is described [here](../auditing.md).
 
 The support team monitors the output.
 
@@ -194,11 +183,9 @@ If the messages from the alerting/monitoring services contains alerts/notificati
 project leaders and the rest of the support team by the user of the Security Slack Channel.  In the case that this is
 unknown behavior and a potential risk is seen, an issue is created.
 
-.. figure:: /infrastructure/wiki/securityFlow.png
-   :width: 90%
-   :align: center
+![](/backend/service-lib/wiki/securityFlow.png)
 
-Our GitHub issue tracker is not used for security incidents, given that it is public. Instead our Jira incident service
+Our GitHub issue tracker is not used for security incidents, given that it is public. Instead, our Jira incident service
 desk is used for this purpose.
 
 ## Internal Audits

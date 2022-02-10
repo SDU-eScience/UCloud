@@ -1,5 +1,4 @@
-In this document we will describe the procedures and technologies involved in
-the deployment of UCloud services.
+In this document we will describe the procedures and technologies involved in the deployment of UCloud services.
 
 ## Docker
 

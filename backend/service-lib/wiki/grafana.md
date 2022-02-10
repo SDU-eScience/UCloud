@@ -1,9 +1,7 @@
-#Grafana
-
 To display information from our systems we use [Grafana](https://grafana.com/) to construct dashboards with user 
 defined queries. 
 
-##Datasources
+## Datasources
 To be able to create dashboards, Grafana needs to have access to different datasources.
 - Elasticsearch  
   Keeps logs from the system and also the audit trail of the users allowing us to generate metrics on request time, 
@@ -11,15 +9,15 @@ To be able to create dashboards, Grafana needs to have access to different datas
 - Prometheus  
   [Prometheus](https://prometheus.io/) has a node exporter installed on all the nodes in the Kubernetes cluster. 
   These exporters ships metrics from these nodes. These are used for showing RAM, Disk and CPU usage of individual 
-  pods along side the Kubernetes plugin.
+  pods alongside the Kubernetes plugin.
 - Kubernetes Plugin  
   Gathers information of the Kubernetes cluster available through [kubectl](https://kubernetes.io/docs/reference/kubectl/overview/) 
-  along side Prometheus.
+  alongside Prometheus.
 - Postgres  
   Grants access to our database and gives us the possibility to query it for things like: number of applications,
-  number of users etc..
+  number of users etc.
 
-##Dashboards
+## Dashboards
 We have 9 dashboards that can be divided into the following categories: 
 - Requests:  
   Here we have 2 different dashboards. One for a general overview of the requests being sent on the cloud 
@@ -32,7 +30,7 @@ a specific request type.
 - Memory, disk and CPU usage:  
   A single dashboard that shows the RAM, CPU, Swap and disk usage of all pods.
 - Postgres Stats:
-  A single dashboard showing stats from the PostgreSQL database (Querys Per Sec., Row stats, number of connections etc.)
+  A single dashboard showing stats from the PostgreSQL database (Queries Per Sec., Row stats, number of connections etc.)
 - UCloud dashboard:  
   A single dashboard that shows key numbers of the cloud platform: Number of request, user activity, data stored, jobs
-  information, etc..
+  information, etc.

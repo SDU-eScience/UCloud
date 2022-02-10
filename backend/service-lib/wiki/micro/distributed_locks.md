@@ -1,5 +1,3 @@
-# Distributed Locks
-
 `service-lib` supports distributed locks using [Redis](https://redis.io). They provide an interface and 
 functionality similar to a `Mutex` but guarantees that only one instance in UCloud can hold the lock at the same time.
 This is useful in a production environment where multiple instance of every micro-service runs.

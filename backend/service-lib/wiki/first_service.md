@@ -6,7 +6,7 @@ We assume that you are already familiar with the
 
 ---
 
-__WARNING:__ This document is not fully up-to-date. 
+__⚠️ WARNING:__ This document is not fully up-to-date. 
 
 Items to be updated:
 

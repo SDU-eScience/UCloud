@@ -4,7 +4,7 @@
 </p>
 
 
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Developing on the UCloud/Core](/docs/developer-guide/development/README.md) / Your first service
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Developing UCloud](/docs/developer-guide/development/README.md) / Your first service
 # Your first service
 
 In this guide we will go through creating your first micro-service for UCloud. At the end of this guide you will have 
@@ -15,7 +15,7 @@ We assume that you are already familiar with the
 
 ---
 
-__WARNING:__ This document is not fully up-to-date. 
+__⚠️ WARNING:__ This document is not fully up-to-date. 
 
 Items to be updated:
 

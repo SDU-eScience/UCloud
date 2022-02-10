@@ -1,7 +1,4 @@
-# Continuous Integration
-
-For our CI (Continuous Integration), we are using
-[Jenkins](https://jenkins.io/).
+For our CI (Continuous Integration), we are using [Jenkins](https://jenkins.io/).
 
 ## Automated Building and Testing
 
@@ -33,16 +30,7 @@ been marked as FAILURE or UNSTABLE, then the job is marked as FAILED and a
 message is sent to our Slack channel `#devalerts` specifying which services
 are to blame.
 
-![Jenkins Flow Chart](./wiki/JenkinsFlowChart.png)
-
-Most of the services run their build and tests straight out of the box.
-However some services require additional work to be able to run.
-
-- `storage-service` requires to be run in a linux environment containing
-certain packages before some of the tests will work. Therefore it is run from
-within a Docker container based on a Ubuntu image. 
-- `frontend-web` requires `npm` to be able to run its tests. It is therefore
-run within a Docker container based on the Node11-Alpine image.
+![Jenkins Flow Chart](/backend/service-lib/wiki/JenkinsFlowChart.png)
 
 ### "Automated" Build of Docker Images
 

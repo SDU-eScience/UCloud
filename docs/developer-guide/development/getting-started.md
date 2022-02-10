@@ -4,7 +4,7 @@
 </p>
 
 
-[UCloud Developer Guide](/docs/developer-guide/README.md) / [Developing on the UCloud/Core](/docs/developer-guide/development/README.md) / Getting Started
+[UCloud Developer Guide](/docs/developer-guide/README.md) / [Developing UCloud](/docs/developer-guide/development/README.md) / Getting Started
 # Getting Started
 
 This document describes how to run services locally, and only how to run them locally. __This is not a guide for running

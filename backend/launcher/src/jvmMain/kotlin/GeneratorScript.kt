@@ -345,11 +345,32 @@ fun generateCode() {
             ),
             Chapter.Node(
                 "development",
-                "Developing on the UCloud/Core",
+                "Developing UCloud",
                 listOf(
                     Chapter.ExternalMarkdown("getting-started", "Getting Started", "../service-lib/wiki/getting_started.md"),
                     Chapter.ExternalMarkdown("first-service", "Your first service", "../service-lib/wiki/first_service.md"),
                     Chapter.ExternalMarkdown("architecture", "High-Level Architecture", "../service-lib/wiki/microservice_structure.md"),
+                    Chapter.Node("micro", "Micro Library Reference", listOf(
+                        Chapter.ExternalMarkdown("features", "Features", "../service-lib/wiki/micro/features.md"),
+                        Chapter.ExternalMarkdown("events", "Events", "../service-lib/wiki/micro/events.md"),
+                        Chapter.ExternalMarkdown("distributed_locks", "Distributed Locks", "../service-lib/wiki/micro/distributed_locks.md"),
+                        Chapter.Node("rpc", "RPC", listOf(
+                            Chapter.ExternalMarkdown("intro", "Introduction", "../service-lib/wiki/micro/rpc.md"),
+                            Chapter.ExternalMarkdown("rpc_client", "RPC Client", "../service-lib/wiki/micro/rpc_client.md"),
+                            Chapter.ExternalMarkdown("rpc_server", "RPC Server", "../service-lib/wiki/micro/rpc_server.md"),
+                            Chapter.ExternalMarkdown("rpc_audit", "RPC Audit", "../service-lib/wiki/micro/rpc_audit.md"),
+                            Chapter.ExternalMarkdown("rpc_auth", "RPC Auth", "../service-lib/wiki/micro/rpc_auth.md"),
+                            Chapter.ExternalMarkdown("rpc_http", "RPC HTTP", "../service-lib/wiki/micro/rpc_http.md"),
+                            Chapter.ExternalMarkdown("rpc_websocket", "RPC WebSocket", "../service-lib/wiki/micro/rpc_websocket.md"),
+                        )),
+                        Chapter.ExternalMarkdown("http", "HTTP", "../service-lib/wiki/micro/http.md"),
+                        Chapter.ExternalMarkdown("websockets", "WebSockets", "../service-lib/wiki/micro/websockets.md"),
+                        Chapter.ExternalMarkdown("serialization", "Serialization", "../service-lib/wiki/micro/serialization.md"),
+                        Chapter.ExternalMarkdown("pagination", "Pagination", "../service-lib/wiki/micro/pagination.md"),
+                        Chapter.ExternalMarkdown("postgres", "Postgres", "../service-lib/wiki/micro/postgres.md"),
+                        Chapter.ExternalMarkdown("cache", "Cache", "../service-lib/wiki/micro/cache.md"),
+                        Chapter.ExternalMarkdown("time", "Time", "../service-lib/wiki/micro/time.md"),
+                    )),
                 )
             ),
             Chapter.Node(
@@ -382,19 +403,17 @@ fun generateCode() {
                         "monitoring",
                         "Monitoring, Alerting and Procedures",
                         listOf(
+                            Chapter.ExternalMarkdown("introduction", "Introduction to Procedures", "../service-lib/wiki/procedures_intro.md"),
                             Chapter.Feature("auditing", "Auditing", Auditing),
-                            Chapter.Feature("alerting", "Alerting", Alerting),
+                            Chapter.ExternalMarkdown("auditing-scenario", "Auditing Scenario", "../service-lib/wiki/auditing-scenario.md"),
                             Chapter.ExternalMarkdown("dependencies", "Third-Party Dependencies (Risk Assessment)", "../service-lib/wiki/third_party_dependencies.md"),
-                            Chapter.Node(
-                                "procedures",
-                                "Procedures",
-                                listOf(
-                                    Chapter.ExternalMarkdown("auditing-scenario", "Auditing Scenario", "../service-lib/wiki/auditing-scenario.md"),
-                                    Chapter.ExternalMarkdown("deployment", "Deployment", "../service-lib/wiki/deployment.md"),
-                                    Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
-                                    Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
-                                )
-                            ),
+                            Chapter.ExternalMarkdown("deployment", "Deployment", "../service-lib/wiki/deployment.md"),
+                            Chapter.ExternalMarkdown("jenkins", "Jenkins", "../service-lib/wiki/jenkins.md"),
+                            Chapter.ExternalMarkdown("elastic", "ElasticSearch", "../service-lib/wiki/elastic.md"),
+                            Chapter.ExternalMarkdown("grafana", "Grafana", "../service-lib/wiki/grafana.md"),
+                            Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
+                            Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
+                            Chapter.Feature("alerting", "Alerting", Alerting),
                             Chapter.Node(
                                 "scripts",
                                 "Management Scripts",

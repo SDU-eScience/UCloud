@@ -1,14 +1,12 @@
-# Event Streams
-
 UCloud supports event streams, an event stream provides a message pipe. Producers send messages into the pipe and
 consumers read and process the messages. We support two types of event streams: `EventStream`s and 
 `BroadcastingStream`s. UCloud implements both types using [Redis](https://redis.io).
 
-![](generic_stream.png)
+![](/backend/service-lib/wiki/micro/generic_stream.png)
 
 ## Ordinary Event Streams
 
-![](normal_stream.png)
+![](/backend/service-lib/wiki/micro/normal_stream.png)
 
 An ordinary `EventStream` provides a way for services to load-balance events between instances of a given micro-service.
 As shown in the figure, the example system contains to micro-services A and B. Both of these micro-services are running
@@ -18,8 +16,7 @@ means that both service A and service B receives all the messages but the indivi
 the instances of a micro-service.
 
 A consumer does not need to be live when the message is sent for it to be received. Instead, the messages are kept in
-a persistent list which lives for some time. This list is pruned every once in a while, see
-[redis-cleaner](../../../redis-cleaner-service/README.md) for more details.
+a persistent list which lives for some time. This list is pruned every once in a while.
 
 __Example:__ Consuming a message
 
@@ -56,7 +53,7 @@ eventProducer.produce(ProjectEvent.Created("foobar"))
 
 ## Broadcasting Streams
 
-![](broadcasting_stream.png)
+![](/backend/service-lib/wiki/micro/broadcasting_stream.png)
 
 The `BroadcastingStream` works differently from the `EventStream`. In this case _all_ consumers receive every message
 which is produced.

@@ -1,4 +1,8 @@
-# Pagination
+---
+
+__⚠️ WARNING:__ This article is out-dated and doesn't describe the current pagination API (`PageV2`).
+
+---
 
 UCloud supports a common pagination model, the library of which is exported from `service-lib`. The pagination system
 allows for two types of pagination:

@@ -872,8 +872,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
 <!--<editor-fold desc="Generated documentation">-->
 Used for RPCs which requests a set of resources from UCloud defined by some criteria.
 
-Browse RPCs are typically used for pagination of a resource, defined by some criteria. You can read more about
-pagination [here](/backend/service-lib/wiki/api_conventions.md#pagination).
+Browse RPCs are typically used for pagination of a resource, defined by some criteria. 
 
 All data returned by this API must be returned in a predictable and deterministic way. In particular, this means
 that implementors need to take care and implement a _consistent sort order_ of the items. This is unlike the
@@ -932,7 +931,7 @@ If a machine needs to consume a set of resources in a predictable fashion then i
 [httpBrowse] category.
 
 This type of call typically exposes its results via the
-[pagination](/backend/service-lib/wiki/api_conventions.md#pagination) API.
+pagination API.
 
 Search criteria, unlike browse criterion, can also with great benefit choose to search in multiple fields at the
 same time. For example, if a user is searching for a file with a simple free-text query. Then it would be beneficial
@@ -994,8 +993,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
 <!--<editor-fold desc="Generated documentation">-->
 Used for RPCs which request the creation of one or more resources in UCloud.
 
-RPCs in this category must accept request payloads in the form of a
-[bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
+RPCs in this category must accept request payloads in the form of a bulk request.
 
 Calls in this category should respond back with a list of newly created IDs for every resource that has been
 created. A client can choose to use these to display information about the newly created resources.
@@ -1047,8 +1045,7 @@ private fun CallDescriptionContainer.httpCreateExample() {
 <!--<editor-fold desc="Generated documentation">-->
 Used for RPCs which request the deletion of one or more resources in UCloud.
 
-RPCs in this category must accept request payloads in the form of a
-[bulk request](/backend/service-lib/wiki/api_conventions.md#bulk-request).
+RPCs in this category must accept request payloads in the form of a bulk request.
 
 Calls in this category should choose to accept as little information about the resources, while still uniquely
 identifying them.
@@ -1408,11 +1405,6 @@ Examples:
 - Incorrect: `JobDescriptions.kt` containing `Jobs`
 
 ---
-
-## Suggested Reading
-
-- [API Stability and Maturity in UCloud](/backend/service-lib/wiki/api_stability.md)
-- [Providers and Resources](/backend/app-orchestrator-service/wiki/provider_api.md)
 
         """.trimIndent()
     }
