@@ -27,6 +27,17 @@ data class TwoFactorStatusResponse(val connected: Boolean)
 object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
     const val baseContext = "/auth/2fa"
 
+    init {
+        title = "Two Factor Authentication (2FA)"
+        description = """
+            UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
+            require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
+            two-factor authentication.
+
+            https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
+        """.trimIndent()
+    }
+
     val createCredentials = call<Unit, Create2FACredentialsResponse, CommonErrorMessage>("createCredentials") {
         auth {
             access = AccessRight.READ_WRITE

@@ -145,14 +145,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             The SAML library is configured according to [WAYF's own
             recommendations](https://wayf.dk/da/s%C3%A5dan-f%C3%A5r-du-din-webtjeneste-p%C3%A5-wayf).
 
-            ## Two Factor Authentication (2FA)
-
-            UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
-            require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
-            two-factor authentication.
-
-            https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
-
+          
             ## Sessions and Tokens
 
             Once a user has been successfully authenticated with UCloud a number of tokens are issued for the user. These tokens are
