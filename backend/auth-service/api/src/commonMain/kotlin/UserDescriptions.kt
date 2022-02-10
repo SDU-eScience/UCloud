@@ -93,6 +93,38 @@ data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
+    init {
+        title = "Users"
+        description = """
+            There are two different kind of users:
+            1. WAYF: The user is created on first login by using their login credentials from WAYF (Where Are You From) 
+            which is a identity federation allowing the reuse of logins from most danish and north atlantic 
+            research and education centers on external sites. 
+            2. PASSWORD: The users is created by an ADMIN of the system. This is mainly used to give access to people 
+            outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
+            first login.
+            
+            Each user can have one of seven roles defining their privileges on the UCloud system:
+             1. GUEST: The security principal is an unauthenticated guest
+             2. USER: The security principal is a normal end-user. Normal end users can also 
+             have "admin-like" privileges in certain parts of the application e.g. in projects.
+             3. ADMIN: The security principal is an administrator of the system.
+             Very few users should have this role.
+             4. SERVICE: The security principal is a first party, __trusted__, service.
+             5. THIRD_PARTY_APP: The security principal is some third party application.
+             These can be created for OAuth or similar purposes.
+             6. PROVIDER: This is only given to external providers of resources to the UCloud system. Mostly only
+             used for accounting an app purposes.
+             7. UNKNOWN: The user role is unknown. If the action is somewhat low-sensitivity it should be 
+             fairly safe to assume [USER]/[THIRD_PARTY_APP] privileges. This means no special 
+             privileges should be granted to the user. This will only happen if we are sent a
+             token of a newer version that what we cannot parse.
+             
+             ${ApiConventions.nonConformingApiWarning}
+
+        """.trimIndent()
+    }
+
     val createNewUser = call<CreateUserRequest, CreateUserResponse, CommonErrorMessage>("createNewUser") {
         audit<CreateUserAudit>()
 

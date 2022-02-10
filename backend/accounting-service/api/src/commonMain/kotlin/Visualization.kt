@@ -101,8 +101,6 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
             Breakdown of different products usage in product type COMPUTE
             ![](/backend/accounting-service/wiki/BreakdownChart.png)
             
-            ${ApiConventions.nonConformingApiWarning}
-
         """.trimIndent()
     }
 
