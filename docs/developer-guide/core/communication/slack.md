@@ -23,11 +23,11 @@
 <tbody>
 <tr>
 <td><a href='#sendalert'><code>sendAlert</code></a></td>
-<td><i>No description</i></td>
+<td>Sends an alert</td>
 </tr>
 <tr>
 <td><a href='#sendsupport'><code>sendSupport</code></a></td>
-<td><i>No description</i></td>
+<td>Sends a support message</td>
 </tr>
 </tbody></table>
 
@@ -66,6 +66,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Sends an alert_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -79,6 +80,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Sends a support message_
 
 | Request | Response | Error |
 |---------|----------|-------|
