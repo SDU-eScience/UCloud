@@ -1,7 +1,5 @@
-# UCloud/Compute
-
-UCloud's own implementation of the [UCloud Compute Provider API](/backend/app-orchestrator-service/wiki/provider.md).
-UCloud/Compute works in tandem with [UCloud/Storage](/backend/storage-service/README.md) to provide a complete
+UCloud's own implementation of the [UCloud Compute Provider API](/docs/developer-guide/orchestration/compute/README.md).
+UCloud/Compute works in tandem with [UCloud/Storage](../storage/README.md) to provide a complete
 experience. 
 
 ## API Support
@@ -17,7 +15,7 @@ __Table:__ Support for general compute features
 
 ### Docker
 
-You can read more about the `docker` implementation [here](./wiki/docker.md).
+You can read more about the `docker` implementation [here](./compute.md).
 
 | Feature | Status | Notes |
 |---------|--------|-------|

@@ -1,6 +1,6 @@
 <p align='center'>
 <a href='/docs/developer-guide/core/communication/slack.md'>« Previous section</a>
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/built-in-provider/README.md'>Next section »</a>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/built-in-provider/compute/README.md'>Next section »</a>
 </p>
 
 
@@ -9,7 +9,7 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_Internal service for sending mails to end-users._
+_Internal service for sending e-mails._
 
 ## Rationale
 
@@ -29,6 +29,8 @@ Email templates are pre-defined and are not controllable by clients.
 </tr></thread>
 <tbody>
 <tr><td><a href='#example-sending-an-email'>Sending an email</a></td></tr>
+<tr><td><a href='#example-forwarding-a-support-ticket-to-jira'>Forwarding a support ticket to Jira</a></td></tr>
+<tr><td><a href='#example-changing-e-mail-settings'>Changing e-mail settings</a></td></tr>
 </tbody></table>
 
 
@@ -46,19 +48,19 @@ Email templates are pre-defined and are not controllable by clients.
 <tbody>
 <tr>
 <td><a href='#retrieveemailsettings'><code>retrieveEmailSettings</code></a></td>
-<td><i>No description</i></td>
+<td>Changes an end-user's e-mail preferences</td>
 </tr>
 <tr>
 <td><a href='#sendsupport'><code>sendSupport</code></a></td>
-<td><i>No description</i></td>
+<td>Forwards a support ticket into Jira</td>
 </tr>
 <tr>
 <td><a href='#sendtouser'><code>sendToUser</code></a></td>
-<td><i>No description</i></td>
+<td>Sends an email to an end-user based on a pre-defined template</td>
 </tr>
 <tr>
 <td><a href='#toggleemailsettings'><code>toggleEmailSettings</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves an end-user's e-mail preferences</td>
 </tr>
 </tbody></table>
 
@@ -325,6 +327,401 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 </details>
 
 
+## Example: Forwarding a support ticket to Jira
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>The UCloud/Core service user (<code>ucloud</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+MailDescriptions.sendSupport.call(
+    SendSupportEmailRequest(
+        fromEmail = "foo@bar", 
+        message = "Message", 
+        subject = "Subject", 
+    ),
+    ucloud
+).orThrow()
+
+/*
+Unit
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as ucloud
+await callAPI(MailApi.sendSupport(
+    {
+        "fromEmail": "foo@bar",
+        "subject": "Subject",
+        "message": "Message"
+    }
+);
+
+/*
+{
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as ucloud
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/mail/support" -d '{
+    "fromEmail": "foo@bar",
+    "subject": "Subject",
+    "message": "Message"
+}'
+
+
+# {
+# }
+
+```
+
+
+</details>
+
+<details open>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/mail_support.png)
+
+</details>
+
+
+## Example: Changing e-mail settings
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+MailDescriptions.retrieveEmailSettings.call(
+    RetrieveEmailSettingsRequest(
+        username = null, 
+    ),
+    user
+).orThrow()
+
+/*
+RetrieveEmailSettingsResponse(
+    settings = EmailSettings(
+        applicationStatusChange = true, 
+        applicationTransfer = true, 
+        grantApplicationApproved = true, 
+        grantApplicationRejected = true, 
+        grantApplicationUpdated = true, 
+        grantApplicationWithdrawn = true, 
+        grantAutoApprove = true, 
+        lowFunds = true, 
+        newCommentOnApplication = true, 
+        newGrantApplication = true, 
+        projectUserInvite = true, 
+        projectUserRemoved = true, 
+        userLeft = true, 
+        userRoleChange = true, 
+        verificationReminder = true, 
+    ), 
+)
+*/
+MailDescriptions.toggleEmailSettings.call(
+    bulkRequestOf(EmailSettingsItem(
+        settings = EmailSettings(
+            applicationStatusChange = true, 
+            applicationTransfer = true, 
+            grantApplicationApproved = true, 
+            grantApplicationRejected = true, 
+            grantApplicationUpdated = true, 
+            grantApplicationWithdrawn = true, 
+            grantAutoApprove = true, 
+            lowFunds = true, 
+            newCommentOnApplication = true, 
+            newGrantApplication = true, 
+            projectUserInvite = true, 
+            projectUserRemoved = true, 
+            userLeft = true, 
+            userRoleChange = true, 
+            verificationReminder = false, 
+        ), 
+        username = null, 
+    )),
+    user
+).orThrow()
+
+/*
+Unit
+*/
+MailDescriptions.retrieveEmailSettings.call(
+    RetrieveEmailSettingsRequest(
+        username = null, 
+    ),
+    user
+).orThrow()
+
+/*
+RetrieveEmailSettingsResponse(
+    settings = EmailSettings(
+        applicationStatusChange = true, 
+        applicationTransfer = true, 
+        grantApplicationApproved = true, 
+        grantApplicationRejected = true, 
+        grantApplicationUpdated = true, 
+        grantApplicationWithdrawn = true, 
+        grantAutoApprove = true, 
+        lowFunds = true, 
+        newCommentOnApplication = true, 
+        newGrantApplication = true, 
+        projectUserInvite = true, 
+        projectUserRemoved = true, 
+        userLeft = true, 
+        userRoleChange = true, 
+        verificationReminder = false, 
+    ), 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(MailApi.retrieveEmailSettings(
+    {
+        "username": null
+    }
+);
+
+/*
+{
+    "settings": {
+        "newGrantApplication": true,
+        "grantAutoApprove": true,
+        "grantApplicationUpdated": true,
+        "grantApplicationApproved": true,
+        "grantApplicationRejected": true,
+        "grantApplicationWithdrawn": true,
+        "newCommentOnApplication": true,
+        "applicationTransfer": true,
+        "applicationStatusChange": true,
+        "projectUserInvite": true,
+        "projectUserRemoved": true,
+        "verificationReminder": true,
+        "userRoleChange": true,
+        "userLeft": true,
+        "lowFunds": true
+    }
+}
+*/
+await callAPI(MailApi.toggleEmailSettings(
+    {
+        "items": [
+            {
+                "username": null,
+                "settings": {
+                    "newGrantApplication": true,
+                    "grantAutoApprove": true,
+                    "grantApplicationUpdated": true,
+                    "grantApplicationApproved": true,
+                    "grantApplicationRejected": true,
+                    "grantApplicationWithdrawn": true,
+                    "newCommentOnApplication": true,
+                    "applicationTransfer": true,
+                    "applicationStatusChange": true,
+                    "projectUserInvite": true,
+                    "projectUserRemoved": true,
+                    "verificationReminder": false,
+                    "userRoleChange": true,
+                    "userLeft": true,
+                    "lowFunds": true
+                }
+            }
+        ]
+    }
+);
+
+/*
+{
+}
+*/
+await callAPI(MailApi.retrieveEmailSettings(
+    {
+        "username": null
+    }
+);
+
+/*
+{
+    "settings": {
+        "newGrantApplication": true,
+        "grantAutoApprove": true,
+        "grantApplicationUpdated": true,
+        "grantApplicationApproved": true,
+        "grantApplicationRejected": true,
+        "grantApplicationWithdrawn": true,
+        "newCommentOnApplication": true,
+        "applicationTransfer": true,
+        "applicationStatusChange": true,
+        "projectUserInvite": true,
+        "projectUserRemoved": true,
+        "verificationReminder": false,
+        "userRoleChange": true,
+        "userLeft": true,
+        "lowFunds": true
+    }
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmailSettings?" 
+
+# {
+#     "settings": {
+#         "newGrantApplication": true,
+#         "grantAutoApprove": true,
+#         "grantApplicationUpdated": true,
+#         "grantApplicationApproved": true,
+#         "grantApplicationRejected": true,
+#         "grantApplicationWithdrawn": true,
+#         "newCommentOnApplication": true,
+#         "applicationTransfer": true,
+#         "applicationStatusChange": true,
+#         "projectUserInvite": true,
+#         "projectUserRemoved": true,
+#         "verificationReminder": true,
+#         "userRoleChange": true,
+#         "userLeft": true,
+#         "lowFunds": true
+#     }
+# }
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/api/mail/toggleEmailSettings" -d '{
+    "items": [
+        {
+            "username": null,
+            "settings": {
+                "newGrantApplication": true,
+                "grantAutoApprove": true,
+                "grantApplicationUpdated": true,
+                "grantApplicationApproved": true,
+                "grantApplicationRejected": true,
+                "grantApplicationWithdrawn": true,
+                "newCommentOnApplication": true,
+                "applicationTransfer": true,
+                "applicationStatusChange": true,
+                "projectUserInvite": true,
+                "projectUserRemoved": true,
+                "verificationReminder": false,
+                "userRoleChange": true,
+                "userLeft": true,
+                "lowFunds": true
+            }
+        }
+    ]
+}'
+
+
+# {
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/mail/retrieveEmailSettings?" 
+
+# {
+#     "settings": {
+#         "newGrantApplication": true,
+#         "grantAutoApprove": true,
+#         "grantApplicationUpdated": true,
+#         "grantApplicationApproved": true,
+#         "grantApplicationRejected": true,
+#         "grantApplicationWithdrawn": true,
+#         "newCommentOnApplication": true,
+#         "applicationTransfer": true,
+#         "applicationStatusChange": true,
+#         "projectUserInvite": true,
+#         "projectUserRemoved": true,
+#         "verificationReminder": false,
+#         "userRoleChange": true,
+#         "userLeft": true,
+#         "lowFunds": true
+#     }
+# }
+
+```
+
+
+</details>
+
+<details open>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/mail_emailSettings.png)
+
+</details>
+
+
 
 ## Remote Procedure Calls
 
@@ -334,6 +731,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Changes an end-user's e-mail preferences_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -347,11 +745,13 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Forwards a support ticket into Jira_
 
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#sendsupportemailrequest'>SendSupportEmailRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+NOTE: This endpoint is meant only for use by SDU and might not work well with other deployments.
 
 
 ### `sendToUser`
@@ -360,6 +760,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Sends an email to an end-user based on a pre-defined template_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -373,6 +774,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves an end-user's e-mail preferences_
 
 | Request | Response | Error |
 |---------|----------|-------|
