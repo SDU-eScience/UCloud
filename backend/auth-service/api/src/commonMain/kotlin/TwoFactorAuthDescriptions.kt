@@ -30,15 +30,56 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
     init {
         title = "Two Factor Authentication (2FA)"
         description = """
-            UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
-            require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
-            two-factor authentication.
-
-            https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
+UCloud supports 2FA for all users using a TOTP backend.
             
-             ${ApiConventions.nonConformingApiWarning}
+UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
+require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
+two-factor authentication.
+
+https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
 
         """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase("creating-2fa-credentials", "Creating 2FA credentials") {
+            val user = basicUser()
+            success(
+                twoFactorStatus,
+                Unit,
+                TwoFactorStatusResponse(connected = false),
+                user
+            )
+
+            success(
+                createCredentials,
+                Unit,
+                Create2FACredentialsResponse(
+                    "OTP URI",
+                    "QR CODE BASE64 ENCODED",
+                    "SECRET",
+                    "CHALLENGE ID"
+                ),
+                user
+            )
+
+            success(
+                answerChallenge,
+                AnswerChallengeRequest(
+                    "CHALLENGE ID",
+                    999999
+                ),
+                Unit,
+                user
+            )
+
+            success(
+                twoFactorStatus,
+                Unit,
+                TwoFactorStatusResponse(connected = true),
+                user
+            )
+        }
     }
 
     val createCredentials = call<Unit, Create2FACredentialsResponse, CommonErrorMessage>("createCredentials") {
@@ -51,6 +92,10 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
             path {
                 using(baseContext)
             }
+        }
+
+        documentation {
+            summary = "Creates initial 2FA credentials and bootstraps a challenge for those credentials"
         }
     }
 
@@ -69,6 +114,10 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Answers a challenge previously issued by createCredentials"
+        }
     }
 
     val twoFactorStatus = call<Unit, TwoFactorStatusResponse, CommonErrorMessage>("twoFactorStatus") {
@@ -82,6 +131,10 @@ object TwoFactorAuthDescriptions : CallDescriptionContainer("auth.twofactor") {
                 using(baseContext)
                 +"status"
             }
+        }
+
+        documentation {
+            summary = "Retrieves the 2FA status of the currently authenticated user"
         }
     }
 }

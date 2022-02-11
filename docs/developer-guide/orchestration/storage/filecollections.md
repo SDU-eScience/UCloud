@@ -166,7 +166,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#memberfilesfilter'><code>MemberFilesFilter</code></a></td>
-<td>Filter for member files. </td>
+<td>Filter for member files.</td>
 </tr>
 <tr>
 <td><a href='#filecollectionsrenamerequestitem'><code>FileCollectionsRenameRequestItem</code></a></td>
@@ -2023,7 +2023,7 @@ data class FileCollectionIncludeFlags(
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Filter for member files. _
+_Filter for member files._
 
 ```kotlin
 enum class MemberFilesFilter {

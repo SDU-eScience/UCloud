@@ -9,7 +9,7 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_# Authentication_
+_User authentication is done using one of several different backends._
 
 ## Authenticating with UCloud
 

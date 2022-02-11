@@ -1,17 +1,18 @@
 package dk.sdu.cloud.elastic.management.api
 
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.title
+import dk.sdu.cloud.calls.*
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object ElasticManagement : CallDescriptionContainer("elasticmanagement") {
     init {
         title = "" +
             "Elastic Management Service"
         description = """
+            Management script.
+            
             Elastic-management uses different arguments to handle different jobs:
 
-            - *"--setup"*  
+            - `--setup`
                Automates setup of [watermarks](https://www.elastic.co/guide/en/elasticsearch/reference/6.4/disk-allocator.html) 
                and [index templates](https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-templates.html) 
                for a Elasticsearch cluster.
@@ -21,32 +22,32 @@ object ElasticManagement : CallDescriptionContainer("elasticmanagement") {
                * **High:** Elasticsearch tries to reallocate shards to other nodes if the node with low space has 
                `less than 25GB` of available space left.
                * **Flood:** When a node has `less than 10GB` Elasticsearch changes all indices that have a shard on the flooded node into a 
-               read/delete only state. At this point manual interventions is needed(see --removeFlod). 
+               read/delete only state. At this point manual interventions is needed(see `--removeFlood`). 
                This requires the owner of the cluster to clean up the node and manually remove the flood limitation.
-            - *"--cleanup"*  
+            - `--cleanup`
                Meant to run as a daily cron job. Goes through all indices to find expired [auditing](../service-lib/wiki/auditing.md) 
                information given by the `expiry` field in the entries. Also takes all audit entries from the day before and 
                [shrinks](https://www.elastic.co/guide/en/elasticsearch/reference/master/indices-shrink-index.html)
                the indices to only contain 1 shard. We are lowering the number of shards to 1
                since we will no longer write to this index and only rarely read from it. By doing this we reduce 
                overhead and also the storage used by the index.
-            - *"--reindex"*  
+            - `--reindex`
                Meant to run as a weekly cron job. Takes the audit entries from the week before and 
                [reindex](https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-reindex.html)
                them into weekly indices for each audit type.
-            - *"--backup"*  
+            - `--backup`
                Intended to be a cronjob creating a incremental 
                [snapshot](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-snapshots.html).
-            - *"--removeFlood"*  
+            - `--removeFlood`
               Can be used to quickly remove the read/delete only state enforced by the Watermark when reaching flood
               level once the cluster have been cleaned up or given more storage. 
-            - *"--monthlyReduce"*  
+            - `--monthlyReduce`
               Meant to run as a monthly cron job. Takes all audit logs for the past month and reindex them 
               into a single index for the month using the template: http_logs_AUDITNAME-monthly-01.mm.yyyy-LastDayOfMonth.mm.yyyy 
-            - *"--reduceLastQuarter"*  
+            - `--reduceLastQuarter`
               Intended to be a cron job run each 3rd month. This has a dependency on the --monthlyReduce, since 
               it requires the indices it reduces to contain the "monthly" keyword. 
-            - *"--deleteEmptyIndices"*  
+            - `--deleteEmptyIndices`
               Used for deleting all empty indices in the cluster.
               
             ## Shrinking

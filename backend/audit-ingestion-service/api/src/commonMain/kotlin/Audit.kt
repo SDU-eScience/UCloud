@@ -1,8 +1,8 @@
 package dk.sdu.cloud.audit.ingestion.api
 
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.description
+import dk.sdu.cloud.calls.*
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object Auditing : CallDescriptionContainer("auditing") {
     init {
         description = """

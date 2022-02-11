@@ -5230,8 +5230,7 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 - Messages from the provider. For example an update describing state changes or future maintenance.
 - State changes from UCloud. For example transition from [`IN_QUEUE`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md) to
   [`RUNNING`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
-- If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
-
+- If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)
 
 
 ### `retrieve`
@@ -5825,7 +5824,7 @@ state, typically the `SUCCESS` state.
 
 <details>
 <summary>
-<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error  
+<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error
 </summary>
 
 

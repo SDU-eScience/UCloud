@@ -1,9 +1,8 @@
 package dk.sdu.cloud.alerting.api
 
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.title
+import dk.sdu.cloud.calls.*
 
+@UCloudApiInternal(InternalLevel.STABLE)
 object Alerting : CallDescriptionContainer("alerting") {
     init {
         title = "Alerting Service"

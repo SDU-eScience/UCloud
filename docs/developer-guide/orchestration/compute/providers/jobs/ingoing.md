@@ -2628,7 +2628,6 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.follow`](/docs/reference/jobs.follow.md))
 
 
-
 ### `retrieveProducts`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2664,7 +2663,6 @@ __Implementation requirements:__
  - [`virtualMachine.utilization = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine.md)
 
 For more information, see the end-user API ([`jobs.retrieveUtilization`](/docs/reference/jobs.retrieveUtilization.md))
-
 
 
 ### `create`
@@ -2703,7 +2701,6 @@ __Implementation requirements:__
  - [`virtualMachine.timeExtension = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine.md)
 
 For more information, see the end-user API ([`jobs.extend`](/docs/reference/jobs.extend.md))
-
 
 
 ### `init`
@@ -2746,7 +2743,6 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.openInteractiveSession`](/docs/reference/jobs.openInteractiveSession.md))
 
 
-
 ### `suspend`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2765,7 +2761,6 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.suspend`](/docs/reference/jobs.suspend.md))
 
 
-
 ### `terminate`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2781,7 +2776,6 @@ _Request job cancellation and destruction_
 __Implementation requirements:__ Mandatory
 
 For more information, see the end-user API ([`jobs.terminate`](/docs/reference/jobs.terminate.md))
-
 
 
 ### `updateAcl`

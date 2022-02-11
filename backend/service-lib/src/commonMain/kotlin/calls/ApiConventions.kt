@@ -602,6 +602,7 @@ verification API to cleanup these resources later.
 )
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 data class BulkRequest<out T : Any>(val items: List<T>) {
     init {
         if (items.size > 1_000 || items.isEmpty()) throw RPCException("BulkRequest must not be empty", HttpStatusCode.BadRequest)
@@ -622,6 +623,7 @@ fun <T> bulkResponseOf(vararg items: T): BulkResponse<T> {
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 data class BulkResponse<T>(val responses: List<T>)
 
 @UCloudApiExperimental(ExperimentalLevel.BETA)
@@ -1410,6 +1412,7 @@ Examples:
     }
 }
 
+@UCloudApiExperimental(ExperimentalLevel.BETA)
 object ApiStability : CallDescriptionContainer("api_stability") {
     init {
         description = """

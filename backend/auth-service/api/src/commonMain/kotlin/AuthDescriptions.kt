@@ -92,8 +92,8 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
     const val baseContext = "/auth"
     init {
         description = """
-            # Authentication
-
+            User authentication is done using one of several different backends.
+            
             ## Authenticating with UCloud
 
             UCloud provides various backends for authentication. These are all implemented in the authentication service. As of
