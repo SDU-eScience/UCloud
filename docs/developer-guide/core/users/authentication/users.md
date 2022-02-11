@@ -62,13 +62,6 @@ different webserver (ktor). These changes are implemented in `dk.sdu.cloud.auth.
 The SAML library is configured according to [WAYF's own
 recommendations](https://wayf.dk/da/s%C3%A5dan-f%C3%A5r-du-din-webtjeneste-p%C3%A5-wayf).
 
-## Two Factor Authentication (2FA)
-
-UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
-require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
-two-factor authentication.
-
-https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
 
 ## Sessions and Tokens
 

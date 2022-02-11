@@ -9,6 +9,29 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_            Provides user avatars. User avatars are provided by the [avataaars](https://avataaars.com/) library._
+
+## Rationale
+
+All users have an avatar associated with them. A default avatar will be
+            returned if one is not found in the database. As a result, this service does
+            not need to listen for user created events.
+            
+            The avatar are mainly used as a way for users to easier distinguish between different users when sharing or
+            working in projects.
+            
+             ---
+    
+__⚠️ WARNING:__ The API listed on this page will likely change to conform with our
+[API conventions](/docs/developer-guide/core/api-conventions.md). Be careful when building integrations. The following
+changes are expected:
+
+- RPC names will change to conform with the conventions
+- RPC request and response types will change to conform with the conventions
+- RPCs which return a page will be collapsed into a single `browse` endpoint
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
+
+---
 
 ## Table of Contents
 <details>

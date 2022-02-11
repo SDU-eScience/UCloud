@@ -442,15 +442,7 @@ fun generateCode() {
                 "built-in-provider",
                 "Built-in Provider",
                 listOf(
-//                    Chapter.Node(
-//                        "storage",
-//                        "UCloud/Storage",
-//                        listOf(
-//                            Chapter.Feature("file-collections", "File Collections", UCloudFileCollections),
-//                            Chapter.Feature("files", "Files", UCloudFiles),
-//                            Chapter.Feature("shares", "Shares", UCloudShares)
-//                        )
-//                    ),
+                    Chapter.ExternalMarkdown("storage", "UCloud/Storage", "../file-ucloud-service/README.md"),
                     Chapter.Node(
                         "compute",
                         "UCloud/Compute",
