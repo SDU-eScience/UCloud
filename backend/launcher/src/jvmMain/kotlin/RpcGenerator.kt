@@ -210,8 +210,8 @@ private fun generateCall(
         Documentation(
             fieldDocs?.deprecated ?: false,
             fieldDocs?.maturity ?: defaultMaturity,
-            overriddenDocs?.synopsis ?: synopsis ?: fieldDocs?.synopsis,
-            overriddenDocs?.description ?: description ?: fieldDocs?.description,
+            (overriddenDocs?.synopsis ?: synopsis ?: fieldDocs?.synopsis)?.trim(),
+            (overriddenDocs?.description ?: description ?: fieldDocs?.description)?.trim(),
             overriddenDocs?.importance ?: fieldDocs?.importance ?: 0,
         ),
         call,
