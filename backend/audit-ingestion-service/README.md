@@ -1,9 +1,3 @@
-# audit-ingestion-service
+# Audit Ingestion
 
-A service ingesting [audit](../service-lib/wiki/auditing.md) information
-from event streams and storing it in elasticsearch. This is required for
-[alerts](../alerting-service/README.md) to function correctly. Indexes are
-further managed over time by [elastic management](../elastic-management).
-
-We create an elastic index for each message type daily. The index uses the
-following format: `http_logs_$requestName-YYYY.MM.dd`.
+You can read more about auditing [here](/docs/developer-guide/core/monitoring/auditing.md).

@@ -1,3 +1,3 @@
 # Redis Cleaner
 
-Removes data from Redis which is older than 5 days.
+You can read more about this service [here](/docs/developer-guide/core/monitoring/scripts/redis.md).
