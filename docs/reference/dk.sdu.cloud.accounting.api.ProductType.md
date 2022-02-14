@@ -15,6 +15,7 @@ enum class ProductType {
     INGRESS,
     LICENSE,
     NETWORK_IP,
+    SYNCHRONIZATION,
 }
 ```
 For more information, see the individual [`Product`](/docs/reference/dk.sdu.cloud.accounting.api.Product.md)s:
@@ -77,6 +78,17 @@ For more information, see the individual [`Product`](/docs/reference/dk.sdu.clou
 <details>
 <summary>
 <code>NETWORK_IP</code> See Product.NetworkIP
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>SYNCHRONIZATION</code> See Product.Synchronization
 </summary>
 
 

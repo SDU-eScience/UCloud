@@ -28,6 +28,7 @@ import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
 import dk.sdu.cloud.calls.ApiConventions
+import dk.sdu.cloud.calls.ApiStability
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.UCloudApiExampleValue
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
@@ -80,6 +81,14 @@ sealed class Chapter {
         override val id: String,
         override val title: String,
         val container: CallDescriptionContainer
+    ) : Chapter() {
+        override var path: List<Chapter.Node> = emptyList()
+    }
+
+    data class ExternalMarkdown(
+        override val id: String,
+        override val title: String,
+        val externalFile: String,
     ) : Chapter() {
         override var path: List<Chapter.Node> = emptyList()
     }
@@ -335,11 +344,42 @@ fun generateCode() {
                 )
             ),
             Chapter.Node(
+                "development",
+                "Developing UCloud",
+                listOf(
+                    Chapter.ExternalMarkdown("getting-started", "Getting Started", "../service-lib/wiki/getting_started.md"),
+                    Chapter.ExternalMarkdown("first-service", "Your first service", "../service-lib/wiki/first_service.md"),
+                    Chapter.ExternalMarkdown("architecture", "High-Level Architecture", "../service-lib/wiki/microservice_structure.md"),
+                    Chapter.Node("micro", "Micro Library Reference", listOf(
+                        Chapter.ExternalMarkdown("features", "Features", "../service-lib/wiki/micro/features.md"),
+                        Chapter.ExternalMarkdown("events", "Events", "../service-lib/wiki/micro/events.md"),
+                        Chapter.ExternalMarkdown("distributed_locks", "Distributed Locks", "../service-lib/wiki/micro/distributed_locks.md"),
+                        Chapter.Node("rpc", "RPC", listOf(
+                            Chapter.ExternalMarkdown("intro", "Introduction", "../service-lib/wiki/micro/rpc.md"),
+                            Chapter.ExternalMarkdown("rpc_client", "RPC Client", "../service-lib/wiki/micro/rpc_client.md"),
+                            Chapter.ExternalMarkdown("rpc_server", "RPC Server", "../service-lib/wiki/micro/rpc_server.md"),
+                            Chapter.ExternalMarkdown("rpc_audit", "RPC Audit", "../service-lib/wiki/micro/rpc_audit.md"),
+                            Chapter.ExternalMarkdown("rpc_auth", "RPC Auth", "../service-lib/wiki/micro/rpc_auth.md"),
+                            Chapter.ExternalMarkdown("rpc_http", "RPC HTTP", "../service-lib/wiki/micro/rpc_http.md"),
+                            Chapter.ExternalMarkdown("rpc_websocket", "RPC WebSocket", "../service-lib/wiki/micro/rpc_websocket.md"),
+                        )),
+                        Chapter.ExternalMarkdown("http", "HTTP", "../service-lib/wiki/micro/http.md"),
+                        Chapter.ExternalMarkdown("websockets", "WebSockets", "../service-lib/wiki/micro/websockets.md"),
+                        Chapter.ExternalMarkdown("serialization", "Serialization", "../service-lib/wiki/micro/serialization.md"),
+                        Chapter.ExternalMarkdown("pagination", "Pagination", "../service-lib/wiki/micro/pagination.md"),
+                        Chapter.ExternalMarkdown("postgres", "Postgres", "../service-lib/wiki/micro/postgres.md"),
+                        Chapter.ExternalMarkdown("cache", "Cache", "../service-lib/wiki/micro/cache.md"),
+                        Chapter.ExternalMarkdown("time", "Time", "../service-lib/wiki/micro/time.md"),
+                    )),
+                )
+            ),
+            Chapter.Node(
                 "core",
                 "Core",
                 listOf(
                     Chapter.Feature("types", "Core Types", CoreTypes),
                     Chapter.Feature("api-conventions", "API Conventions", ApiConventions),
+                    Chapter.Feature("api-stability", "API Stability", ApiStability),
                     Chapter.Node(
                         "users",
                         "Users",
@@ -361,18 +401,27 @@ fun generateCode() {
                     ),
                     Chapter.Node(
                         "monitoring",
-                        "Monitoring and Alerting",
+                        "Monitoring, Alerting and Procedures",
                         listOf(
+                            Chapter.ExternalMarkdown("introduction", "Introduction to Procedures", "../service-lib/wiki/procedures_intro.md"),
                             Chapter.Feature("auditing", "Auditing", Auditing),
+                            Chapter.ExternalMarkdown("auditing-scenario", "Auditing Scenario", "../service-lib/wiki/auditing-scenario.md"),
+                            Chapter.ExternalMarkdown("dependencies", "Third-Party Dependencies (Risk Assessment)", "../service-lib/wiki/third_party_dependencies.md"),
+                            Chapter.ExternalMarkdown("deployment", "Deployment", "../service-lib/wiki/deployment.md"),
+                            Chapter.ExternalMarkdown("jenkins", "Jenkins", "../service-lib/wiki/jenkins.md"),
+                            Chapter.ExternalMarkdown("elastic", "ElasticSearch", "../service-lib/wiki/elastic.md"),
+                            Chapter.ExternalMarkdown("grafana", "Grafana", "../service-lib/wiki/grafana.md"),
+                            Chapter.ExternalMarkdown("k8-recovery", "Kubernetes Recovery", "../service-lib/wiki/kubernetes_recovery.md"),
+                            Chapter.ExternalMarkdown("stolon-recovery", "Stolon Recovery", "../service-lib/wiki/stolon.md"),
                             Chapter.Feature("alerting", "Alerting", Alerting),
                             Chapter.Node(
                                 "scripts",
-                                "Scripts",
+                                "Management Scripts",
                                 listOf(
                                     Chapter.Feature("redis", "Redis Cleanup", RedisCleaner),
                                     Chapter.Feature("elastic", "Elastic Cleanup", ElasticManagement)
                                 )
-                            )
+                            ),
                         )
                     ),
                     Chapter.Node(
@@ -393,19 +442,13 @@ fun generateCode() {
                 "built-in-provider",
                 "Built-in Provider",
                 listOf(
-//                    Chapter.Node(
-//                        "storage",
-//                        "UCloud/Storage",
-//                        listOf(
-//                            Chapter.Feature("file-collections", "File Collections", UCloudFileCollections),
-//                            Chapter.Feature("files", "Files", UCloudFiles),
-//                            Chapter.Feature("shares", "Shares", UCloudShares)
-//                        )
-//                    ),
-//                    Chapter.Node(
-//                        "compute",
-//                        "UCloud/Compute",
-//                        listOf(
+                    Chapter.ExternalMarkdown("storage", "UCloud/Storage", "../file-ucloud-service/README.md"),
+                    Chapter.Node(
+                        "compute",
+                        "UCloud/Compute",
+                        listOf(
+                            Chapter.ExternalMarkdown("intro", "Introduction", "../app-kubernetes-service/README.md"),
+                            Chapter.ExternalMarkdown("compute", "Docker Backend", "../app-kubernetes-service/wiki/docker.md"),
 //                            Chapter.Feature("jobs", "Jobs", KubernetesCompute),
 //                            Chapter.Feature("ingress", "Public Links (Ingress)", KubernetesIngresses),
 //                            Chapter.Node(
@@ -425,8 +468,8 @@ fun generateCode() {
 //                                )
 //                            ),
 //                            Chapter.Feature("maintenance", "Maintenance", Maintenance)
-//                        )
-//                    )
+                        )
+                    )
                 )
             )
         )
@@ -479,6 +522,18 @@ fun generateCode() {
 
                     generateTypeScriptCode(types, calls, chapter.title, chapter.container)
                     generateSerializerCode(types, calls, chapter.container)
+                }
+            }
+
+            is Chapter.ExternalMarkdown -> {
+                if (!firstPass) {
+                    val nextSection = stack.peek()
+                    generateExternalMarkdown(
+                        actualPreviousSection,
+                        nextSection,
+                        chapter.path,
+                        chapter
+                    )
                 }
             }
 

@@ -1,5 +1,3 @@
-# Cache
-
 The `service-lib` library provides a simple key-value cache. The cache is thread-safe and uses a non-blocking 
 `Mutex`. The data stored in the cache is local to the micro-service instance. The primary use-case for this cache
 is to save data from other micro-services locally, which is useful for a small amount of time.

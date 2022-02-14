@@ -155,15 +155,15 @@ This tutorial assumes that you have set up a local Postgres database and have ru
 
 Open the database pane in IntelliJ (`Cmd` + `Shift` + `A` and write 'database' or select it in the right toolbar).
 
-![](database-pane.png)
+![](/backend/service-lib/wiki/micro/database-pane.png)
 
 Click the '+' to add a new datasource.
 
-![](add-datasource.png)
+![](/backend/service-lib/wiki/micro/add-datasource.png)
 
 Configure the datasource to match your local setup and apply the configuration.
 
-![](configure-datasource.png)
+![](/backend/service-lib/wiki/micro/configure-datasource.png)
 
 ### Step 2: Configure SQL Resolution Scopes
 
@@ -171,12 +171,12 @@ SQL resolution scopes allow you to get correct auto-completion by automatically 
 
 Start by opening the settings for sql resolution scopes (`Cmd` + `Shift` + `A` and search for sql resolution scopes).
 
-![](sql-resolution.png)
+![](/backend/service-lib/wiki/micro/sql-resolution.png)
 
 Click '+' and select the repository root folder. For the resolution scope uncheck 'All datasources' and select the 
 correct database + 'All schemas'.
 
-![](select-resolution.png)
+![](/backend/service-lib/wiki/micro/select-resolution.png)
 
 ### Step 3: Write SQL Code
 

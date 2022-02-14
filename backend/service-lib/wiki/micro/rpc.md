@@ -1,18 +1,7 @@
-# RPC Interfaces
-
-.. toctree::
-  :hidden:
-  :maxdepth: 0
-  
-  ./rpc_audit.md
-  ./rpc_auth.md
-  ./rpc_http.md
-  ./rpc_websocket.md
-
 Remote Procedure Call (RPC) interfaces define the interface a given micro-service exposes via the network. The
 interface describes how each call should be made on a concrete RPC backend. Each micro-service define the interfaces
 in the `api` package. You can read more about the overall structure of a micro-service
-[here](../microservice_structure.md).
+[here](../architecture.md).
 
 The interfaces themselves are defined using a 
 [Kotlin DSL](https://kotlinlang.org/docs/reference/type-safe-builders.html). If you are unfamiliar with the syntax it
@@ -94,7 +83,7 @@ A remote procedure calls consists of two parts:
 In the header we define the calls types. The system uses the types in [serialization](./serialization.md) of the data
 as well as type-safety. The types themselves _must_ also be stored in the `api` component.
 
-![](rpc_header.png)
+![](/backend/service-lib/wiki/micro/rpc_header.png)
 
 __Figure:__ The remote procedure call header contains a name and three types associated with it
 (request, success, error).
@@ -104,7 +93,7 @@ both the RPC client and the server. For example, the server uses this informatio
 implementation (e.g. [Ktor](https://ktor.io)) to listen on the correct endpoint. Similarly, the client uses this
 information to make the correct call on the network.
 
-![](rpc_auth.png)
+![](/backend/service-lib/wiki/micro/rpc_auth.png)
 
 __Figure:__ The body of an RPC contains several 'blocks'. Each block helps define how the client _and_ server should
 treat these calls.

@@ -47,6 +47,7 @@ JobsProvider.verify.call(
                 version = "1.0.0", 
             ), 
             name = null, 
+            openedFile = null, 
             parameters = mapOf("debug" to AppParameterValue.Bool(
                 value = true, 
             ), "value" to AppParameterValue.Text(
@@ -165,7 +166,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "hours": 1,
                         "minutes": 0,
                         "seconds": 0
-                    }
+                    },
+                    "openedFile": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -277,7 +279,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "hours": 1,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             },
             "status": {
                 "state": "RUNNING",

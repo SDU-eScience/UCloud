@@ -232,7 +232,7 @@ changes are expected:
 </tr>
 <tr>
 <td><a href='#usercriteria.wayforganization'><code>UserCriteria.WayfOrganization</code></a></td>
-<td>Matches any user with an organization matching [org] </td>
+<td>Matches any user with an organization matching [org]</td>
 </tr>
 <tr>
 <td><a href='#approveapplicationrequest'><code>ApproveApplicationRequest</code></a></td>
@@ -1689,7 +1689,7 @@ data class EmailDomain(
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Matches any user with an organization matching [org] _
+_Matches any user with an organization matching [org]_
 
 ```kotlin
 data class WayfOrganization(

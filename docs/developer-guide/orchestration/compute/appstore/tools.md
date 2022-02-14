@@ -529,7 +529,7 @@ _Retrieves a logo associated with a Tool_
 |---------|----------|-------|
 |<code><a href='#fetchlogorequest'>FetchLogoRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
-This endpoint might return 404 Not Found if the Tool has no logo
+This endpoint might return HttpStatusCode(value=404, description=Not Found) if the Tool has no logo
 
 
 ### `findByName`

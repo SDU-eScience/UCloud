@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.utils.addToStdlib.sumByLong
 import java.awt.Color
 import java.awt.Font
 import java.awt.Graphics2D
+import java.awt.GraphicsEnvironment
 import java.awt.RenderingHints
 import java.awt.image.BufferedImage
 import java.io.File
@@ -27,15 +28,29 @@ private val ucloudIcon by lazy {
     ImageIO.read(File("./doc-assets/ucloud_recipient.png"))
 }
 
+private fun registerFont(path: String) {
+    Font.createFont(
+        Font.TRUETYPE_FONT,
+        UseCase::class.java.getResourceAsStream(path)
+    ).also { font ->
+        GraphicsEnvironment.getLocalGraphicsEnvironment().registerFont(font)
+    }
+}
+
 private val primaryFont by lazy {
-    Font.decode("Inter-16") ?: Font.decode("${Font.SANS_SERIF}-16") ?: error("No font?")
+    registerFont("/fonts/inter/Inter-Regular.ttf")
+    registerFont("/fonts/inter/Inter-Bold.ttf")
+
+    Font("Inter", Font.PLAIN, 16)
 }
 
 private val monospaceFont by lazy {
+    registerFont("/fonts/jetbrains-mono/JetBrainsMono-Regular.ttf")
     Font("Jetbrains Mono", Font.PLAIN, 16)
 }
 
 private val monospaceFontBold by lazy {
+    registerFont("/fonts/jetbrains-mono/JetBrainsMono-Bold.ttf")
     Font("Jetbrains Mono", Font.BOLD, 16)
 }
 

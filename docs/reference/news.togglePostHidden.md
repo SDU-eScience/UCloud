@@ -6,6 +6,7 @@
 [![Auth: Admin](https://img.shields.io/static/v1?label=Auth&message=Admin&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Swaps the visibility state of an existing post_
 
 | Request | Response | Error |
 |---------|----------|-------|

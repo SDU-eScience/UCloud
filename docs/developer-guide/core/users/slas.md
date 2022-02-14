@@ -9,6 +9,26 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_The service-license-agreement API enforces that the SLA is accepted before using the service._
+
+## Rationale
+
+Our SLA API allows for multiple SLA version to be stored and retrieved.
+A user has to accept the newest SLA to be allowed to access UCloud. This ensures that all users of UCloud 
+are informed on what is legal usage of UCloud and what is not. 
+
+---
+    
+__⚠️ WARNING:__ The API listed on this page will likely change to conform with our
+[API conventions](/docs/developer-guide/core/api-conventions.md). Be careful when building integrations. The following
+changes are expected:
+
+- RPC names will change to conform with the conventions
+- RPC request and response types will change to conform with the conventions
+- RPCs which return a page will be collapsed into a single `browse` endpoint
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
+
+---
 
 ## Table of Contents
 <details>

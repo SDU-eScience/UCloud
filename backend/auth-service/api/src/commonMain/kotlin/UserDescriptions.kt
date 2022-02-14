@@ -93,6 +93,28 @@ data class LookupUIDResponse(val users: Map<Long, UserLookup?>)
 object UserDescriptions : CallDescriptionContainer("auth.users") {
     const val baseContext = "/auth/users"
 
+    init {
+        title = "Users"
+        description = """
+Users form the basis of all authentication in UCloud.
+
+Users in UCloud are authenticated in one of two ways:
+
+1. `WAYF`: The user is created on first login by using their login credentials from WAYF (Where Are You From) 
+which is a identity federation allowing the reuse of logins from most danish and north atlantic 
+research and education centers on external sites. 
+
+2. `PASSWORD`: The users is created by an ADMIN of the system. This is mainly used to give access to people 
+outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
+first login.
+
+Each user can have one of seven roles defining their privileges on the UCloud system. See $TYPE_REF dk.sdu.cloud.Role for more details.
+
+${ApiConventions.nonConformingApiWarning}
+            
+        """.trimIndent()
+    }
+
     val createNewUser = call<CreateUserRequest, CreateUserResponse, CommonErrorMessage>("createNewUser") {
         audit<CreateUserAudit>()
 

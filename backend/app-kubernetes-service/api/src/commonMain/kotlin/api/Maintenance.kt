@@ -30,6 +30,26 @@ data class IsPausedResponse(val paused: Boolean)
 object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenance") {
     const val baseContext = "/api/app/compute/kubernetes/maintenance"
 
+    init {
+        title = "Maintenance of K8 cluster"
+        description = """
+            By using the K8 API we are able to manipulate jobs on the kubernetes cluster through our own code by 
+            pausing or killing them. The owner of the jobs should always (if possible) be informed prior. 
+            
+            This API also allows to drain single nodes or the entire cluster if needed. Users should always have the 
+            possibility to shutdown their jobs gracefully before a drain of a node and a warning should be issued as soon 
+            as possible before the drain is initiated.
+            
+            Even though the endpoints related to these actions are available to all, it is in fact only possible for 
+            ADMINs and SERVICEs to invoke them fully.
+            It is mainly only used prior to maintenance of the UCloud system. Jobs should never be killed unless it is 
+            last resort.
+            
+            ${ApiConventions.nonConformingApiWarning}
+
+        """.trimIndent()
+    }
+
     val killJob = call<KillJobRequest, KillJobResponse, CommonErrorMessage>("killJob") {
         auth {
             access = AccessRight.READ_WRITE

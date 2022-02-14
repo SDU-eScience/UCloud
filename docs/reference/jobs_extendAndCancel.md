@@ -32,6 +32,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -104,6 +105,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -215,6 +217,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -321,6 +324,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -410,7 +414,8 @@ await callAPI(JobsApi.create(
                     "hours": 5,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             }
         ]
     }
@@ -501,7 +506,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "RUNNING",
@@ -619,7 +625,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "RUNNING",
@@ -741,7 +748,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "SUCCESS",
@@ -798,7 +806,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "hours": 5,
                 "minutes": 0,
                 "seconds": 0
-            }
+            },
+            "openedFile": null
         }
     ]
 }'
@@ -861,7 +870,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -949,7 +959,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -1041,7 +1052,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",

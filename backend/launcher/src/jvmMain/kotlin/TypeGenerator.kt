@@ -389,7 +389,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     properties.add(GeneratedType.Property(
                         propName,
-                        Documentation(deprecated, maturity, synopsis, description, importance),
+                        Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
                         propType.also {
                             it.nullable = nullable
                             it.originalIsNullable = prop.type.isMarkedNullable
@@ -443,7 +443,7 @@ fun traverseType(type: Type, visitedTypes: LinkedHashMap<String, GeneratedType>)
 
                     properties.add(GeneratedType.Property(
                         propName,
-                        Documentation(deprecated, maturity, synopsis, description, importance),
+                        Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance),
                         propType.also { it.nullable = nullable }
                     ))
                 }
@@ -524,7 +524,7 @@ fun Class<*>.documentation(): Documentation {
         }
     }
 
-    return Documentation(deprecated, maturity, synopsis, description, importance)
+    return Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance)
 }
 
 fun Field.documentation(currentPackage: String, defaultMaturity: UCloudApiMaturity): Documentation {
@@ -544,7 +544,7 @@ fun Field.documentation(currentPackage: String, defaultMaturity: UCloudApiMaturi
         }
     }
 
-    return Documentation(deprecated, maturity, synopsis, description, importance)
+    return Documentation(deprecated, maturity, synopsis?.trim(), description?.trim(), importance)
 }
 
 data class SynopsisAndDescription(val synopsis: String?, val description: String?, val importance: Int)

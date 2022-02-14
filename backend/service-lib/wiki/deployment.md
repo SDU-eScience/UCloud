@@ -1,7 +1,4 @@
-# Deployment Procedure
-
-In this document we will describe the procedures and technologies involved in
-the deployment of UCloud services.
+In this document we will describe the procedures and technologies involved in the deployment of UCloud services.
 
 ## Docker
 
@@ -32,28 +29,14 @@ cluster. Visit their [webpage](https://rancher.com) for more information.
 
 ## Jenkins
 
-Jenkins is our CI system and is responsible for building and testing code. This
-includes the automatic building of Docker containers.
+Jenkins is our CI system and is responsible for building and testing code.
 
 ## Procedure and Backwards Compatibility
-
-Containers are built and tested by our CI/CD pipeline.
 
 Under normal conditions, before deploying a new version you must ensure that
 the software checks every mark in the following list:
 
-|uncheck_| The software has been built and tested by Jenkins. Tests must pass and the build must be stable.
-
-|uncheck_| Migrations must occur before the deployment of the new software.
-
-|uncheck_| Migrations must not break the existing build. The old and new version must be able to co-exist.
-
-|uncheck_| Breaking changes in the external interface can only occur in major releases (Semantic versioning).
-
-|uncheck_| When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](./auditing.md) for more information.
-
-.. |uncheck_| raw:: html
-
-    <input disabled="" type="checkbox">
-
-<br>
+- [ ] The software be built and tested. This process should make use of the development system and integration tests.
+- [ ] Migrations must occur before the deployment of the new software.
+- [ ] Migrations should not break the existing build. The old and new version must be able to co-exist.
+- [ ] When introducing breaking changes to a call, the Elasticsearch auditing index for that call must be updated. See [Auditing](../auditing.md) for more information.

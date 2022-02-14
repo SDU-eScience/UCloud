@@ -81,7 +81,7 @@ state, typically the `SUCCESS` state.
 
 <details>
 <summary>
-<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error  
+<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error
 </summary>
 
 

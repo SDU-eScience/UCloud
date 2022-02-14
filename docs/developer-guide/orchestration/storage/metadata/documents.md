@@ -293,6 +293,7 @@ Files.retrieve.call(
     ResourceRetrieveRequest(
         flags = UFileIncludeFlags(
             allowUnsupportedInclude = null, 
+            filterByFileExtension = null, 
             filterCreatedAfter = null, 
             filterCreatedBefore = null, 
             filterCreatedBy = null, 
@@ -311,6 +312,7 @@ Files.retrieve.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
+            includeSyncStatus = null, 
             includeTimestamps = null, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -420,6 +422,7 @@ UFile(
         resolvedSupport = null, 
         sizeInBytes = null, 
         sizeIncludingChildrenInBytes = null, 
+        synced = null, 
         type = FileType.FILE, 
         unixGroup = null, 
         unixMode = null, 
@@ -559,6 +562,7 @@ await callAPI(FilesApi.retrieve(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": true,
+            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -566,6 +570,7 @@ await callAPI(FilesApi.retrieve(
             "filterProductId": null,
             "filterProductCategory": null,
             "filterProviderIds": null,
+            "filterByFileExtension": null,
             "path": null,
             "allowUnsupportedInclude": null,
             "filterHiddenFiles": false,
@@ -670,6 +675,7 @@ await callAPI(FilesApi.retrieve(
                 ]
             }
         },
+        "synced": null,
         "resolvedSupport": null,
         "resolvedProduct": null
     },
@@ -890,6 +896,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #                 ]
 #             }
 #         },
+#         "synced": null,
 #         "resolvedSupport": null,
 #         "resolvedProduct": null
 #     },

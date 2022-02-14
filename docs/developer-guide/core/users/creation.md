@@ -1,5 +1,5 @@
 <p align='center'>
-<a href='/docs/developer-guide/core/api-conventions.md'>« Previous section</a>
+<a href='/docs/developer-guide/core/api-stability.md'>« Previous section</a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/core/users/authentication/users.md'>Next section »</a>
 </p>
 
@@ -9,6 +9,34 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Users form the basis of all authentication in UCloud._
+
+## Rationale
+
+Users in UCloud are authenticated in one of two ways:
+
+1. `WAYF`: The user is created on first login by using their login credentials from WAYF (Where Are You From) 
+which is a identity federation allowing the reuse of logins from most danish and north atlantic 
+research and education centers on external sites. 
+
+2. `PASSWORD`: The users is created by an ADMIN of the system. This is mainly used to give access to people 
+outside WAYF. When a user is a PASSWORD user then there is also a requirement of 2FA. The 2FA is setup after 
+first login.
+
+Each user can have one of seven roles defining their privileges on the UCloud system. See [`Role`](/docs/reference/dk.sdu.cloud.Role.md)  for more details.
+
+---
+    
+__⚠️ WARNING:__ The API listed on this page will likely change to conform with our
+[API conventions](/docs/developer-guide/core/api-conventions.md). Be careful when building integrations. The following
+changes are expected:
+
+- RPC names will change to conform with the conventions
+- RPC request and response types will change to conform with the conventions
+- RPCs which return a page will be collapsed into a single `browse` endpoint
+- Some property names will change to be consistent with [`Resource`](/docs/reference/dk.sdu.cloud.provider.api.Resource.md)s
+
+---
 
 ## Table of Contents
 <details>
@@ -1387,7 +1415,9 @@ data class CreateSingleUserRequest(
     val password: String?,
     val email: String?,
     val role: Role?,
-    val organization: String?,
+    val firstnames: String?,
+    val lastname: String?,
+    val orgId: String?,
 )
 ```
 
@@ -1442,7 +1472,29 @@ data class CreateSingleUserRequest(
 
 <details>
 <summary>
-<code>organization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>firstnames</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>lastname</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>orgId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

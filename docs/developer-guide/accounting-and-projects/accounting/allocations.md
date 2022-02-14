@@ -5795,7 +5795,7 @@ Accounting.deposit.call(
         ), 
         sourceAllocation = "42", 
         startDate = null, 
-        transactionId = "-36645552794302851731638363217707", 
+        transactionId = "76338118795262807801644582491457", 
     )),
     piRoot
 ).orThrow()
@@ -6012,7 +6012,7 @@ await callAPI(AccountingApi.deposit(
                 "description": "Create sub-allocation",
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "-36645552794302851731638363217707",
+                "transactionId": "76338118795262807801644582491457",
                 "dry": false
             }
         ]
@@ -6227,7 +6227,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "description": "Create sub-allocation",
             "startDate": null,
             "endDate": null,
-            "transactionId": "-36645552794302851731638363217707",
+            "transactionId": "76338118795262807801644582491457",
             "dry": false
         }
     ]
@@ -6454,7 +6454,7 @@ Accounting.transfer.call(
         target = WalletOwner.Project(
             projectId = "second-root-project", 
         ), 
-        transactionId = "7420453800457635291638363217708", 
+        transactionId = "12082116089810024041644582491460", 
     )),
     piRoot
 ).orThrow()
@@ -6677,7 +6677,7 @@ await callAPI(AccountingApi.transfer(
                 "amount": 100,
                 "startDate": null,
                 "endDate": null,
-                "transactionId": "7420453800457635291638363217708",
+                "transactionId": "12082116089810024041644582491460",
                 "dry": false
             }
         ]
@@ -6897,7 +6897,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "amount": 100,
             "startDate": null,
             "endDate": null,
-            "transactionId": "7420453800457635291638363217708",
+            "transactionId": "12082116089810024041644582491460",
             "dry": false
         }
     ]
@@ -7430,6 +7430,7 @@ data class RootDepositRequestItem(
     val startDate: Long?,
     val endDate: Long?,
     val transactionId: String?,
+    val providerGeneratedId: String?,
 )
 ```
 
@@ -7507,6 +7508,17 @@ data class RootDepositRequestItem(
 <details>
 <summary>
 <code>transactionId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

@@ -29,6 +29,8 @@ data class CommonErrorMessage(
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc("A request message to find a resource by a unique identifier.")
 data class FindByStringId(override val id: String) : WithStringId
 
 interface WithStringId {
@@ -37,12 +39,18 @@ interface WithStringId {
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc("A request message to find a resource by a numeric unique identifier.")
 data class FindByLongId(val id: Long)
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc("A request message to find a resource by a numeric unique identifier.")
 data class FindByIntId(val id: Int)
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc("A request message to find a resource by a numeric unique identifier.")
 data class FindByDoubleId(val id: Double)

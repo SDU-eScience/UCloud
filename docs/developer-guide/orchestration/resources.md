@@ -153,6 +153,10 @@ this, then UCloud/Core will reject all requests counting backwards.
 <td>Deletes one or more resources</td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request (potential) initialization of resources</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Updates the ACL attached to a resource</td>
 </tr>
@@ -254,6 +258,10 @@ this, then UCloud/Core will reject all requests counting backwards.
 <tr>
 <td><a href='#resourcebrowserequest'><code>ResourceBrowseRequest</code></a></td>
 <td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#resourceinitializationrequest'><code>ResourceInitializationRequest</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#resourceretrieverequest'><code>ResourceRetrieveRequest</code></a></td>
@@ -2223,7 +2231,7 @@ Resources.create.call(
 ).orThrow()
 
 /*
-400 Bad Request
+HttpStatusCode(value=400, description=Bad Request)
 */
 ```
 
@@ -2308,7 +2316,7 @@ await callAPI(ExampleApi.create(
 );
 
 /*
-400 Bad Request
+HttpStatusCode(value=400, description=Bad Request)
 */
 ```
 
@@ -2389,7 +2397,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# 400 Bad Request
+# HttpStatusCode(value=400, description=Bad Request)
 
 ```
 
@@ -2479,7 +2487,7 @@ Resources.retrieve.call(
 ).orThrow()
 
 /*
-404 Not Found
+HttpStatusCode(value=404, description=Not Found)
 */
 
 /* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
@@ -2646,7 +2654,7 @@ await callAPI(ExampleApi.retrieve(
 );
 
 /*
-404 Not Found
+HttpStatusCode(value=404, description=Not Found)
 */
 
 /* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
@@ -2808,7 +2816,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # Authenticated as bob
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=1234" 
 
-# 404 Not Found
+# HttpStatusCode(value=404, description=Not Found)
 
 # Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions.
 
@@ -3001,6 +3009,24 @@ _Deletes one or more resources_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+
+
+### `init`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request (potential) initialization of resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
 
 
 ### `updateAcl`
@@ -4515,6 +4541,42 @@ paginate through the results.
 <details>
 <summary>
 <code>sortDirection</code>: <code><code><a href='#sortdirection'>SortDirection</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ResourceInitializationRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ResourceInitializationRequest(
+    val principal: ResourceOwner,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>principal</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code>
 </summary>
 
 

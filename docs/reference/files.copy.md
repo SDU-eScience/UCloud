@@ -29,9 +29,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `400 Bad Request` | The operation couldn't be completed because of the write conflict policy |
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | The operation couldn't be completed because of the write conflict policy |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
 
 __Examples:__
 

@@ -1,5 +1,3 @@
-# `auth`
-
 Configures the authentication feature. The authentication feature is only relevant for the server and defines how
 each call should be checked.
 

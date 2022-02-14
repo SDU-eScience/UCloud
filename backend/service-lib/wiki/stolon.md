@@ -1,5 +1,3 @@
-# Using Stolon
-
 ## Using `stolonctl`
 
 Connect to one of the proxy pods and use the following alias to correctly connect to the current cluster:

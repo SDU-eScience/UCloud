@@ -69,7 +69,125 @@ typealias DeleteNewsPostResponse = Unit;
 
 @TSTopLevel
 object News : CallDescriptionContainer("news") {
-    val baseContext = "/api/news"
+    private const val baseContext = "/api/news"
+    init {
+        description = """
+            News communicates to users about new features, bug fixes and upcoming maintenance.
+            
+            Only administrators of UCloud can create news posts. All posts are publicly readable. 
+            
+            Administrators can view hidden posts using `withHidden = true`. This flag is not usable by normal users.
+        """.trimIndent()
+    }
+
+    override fun documentation() {
+        useCase("create-read-update-delete", "News CRUD") {
+            val user = actor("admin", "UCloud Admin")
+            success(
+                newPost,
+                NewPostRequest(
+                    "This is a news post",
+                    "Short summary of the post",
+                    "Et ipsam ex explicabo quis aut sit voluptates.",
+                    0L,
+                    "News"
+                ),
+                NewPostResponse,
+                user
+            )
+
+            success(
+                listPosts,
+                ListPostsRequest(withHidden = false, page = 0, itemsPerPage = 50),
+                Page(
+                    1, 50, 0, listOf(
+                        NewsPost(
+                            4512,
+                            "This is a news post",
+                            "Short summary of the post",
+                            "Et ipsam ex explicabo quis aut sit voluptates.",
+                            "UCloud Admin",
+                            0L,
+                            hidden = false,
+                            category = "News"
+                        )
+                    )
+                ),
+                user
+            )
+
+            success(
+                updatePost,
+                UpdatePostRequest(
+                    4512,
+                    "Updated title",
+                    "Short summary of the post",
+                    "Et ipsam ex explicabo quis aut sit voluptates.",
+                    0L,
+                    category = "News"
+                ),
+                UpdatePostResponse,
+                user
+            )
+
+            success(
+                deletePost,
+                DeleteNewsPostRequest(4512),
+                DeleteNewsPostResponse,
+                user
+            )
+        }
+
+        useCase("invisible-news", "Making a news post as hidden") {
+            val user = actor("admin", "UCloud Admin")
+            success(
+                newPost,
+                NewPostRequest(
+                    "This is a news post",
+                    "Short summary of the post",
+                    "Et ipsam ex explicabo quis aut sit voluptates.",
+                    0L,
+                    "News"
+                ),
+                NewPostResponse,
+                user
+            )
+
+            success(
+                listPosts,
+                ListPostsRequest(withHidden = false, page = 0, itemsPerPage = 50),
+                Page(
+                    1, 50, 0, listOf(
+                        NewsPost(
+                            4512,
+                            "This is a news post",
+                            "Short summary of the post",
+                            "Et ipsam ex explicabo quis aut sit voluptates.",
+                            "UCloud Admin",
+                            0L,
+                            hidden = false,
+                            category = "News"
+                        )
+                    )
+                ),
+                user
+            )
+
+            success(
+                togglePostHidden,
+                TogglePostHiddenRequest(4512),
+                TogglePostHiddenResponse,
+                user
+            )
+
+            success(
+                listPosts,
+                ListPostsRequest(withHidden = false, page = 0, itemsPerPage = 50),
+                Page(0, 50, 0, emptyList()),
+                user
+            )
+        }
+    }
 
     val newPost = call<NewPostRequest, NewPostResponse, CommonErrorMessage>("newPost") {
         auth {
@@ -86,6 +204,10 @@ object News : CallDescriptionContainer("news") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Creates a new post"
         }
     }
 
@@ -105,6 +227,10 @@ object News : CallDescriptionContainer("news") {
 
             body { bindEntireRequestFromBody() }
         }
+
+        documentation {
+            summary = "Updates an existing post"
+        }
     }
 
     val deletePost = call<DeleteNewsPostRequest, DeleteNewsPostResponse, CommonErrorMessage>("deletePost") {
@@ -122,6 +248,10 @@ object News : CallDescriptionContainer("news") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Deletes an existing post"
         }
     }
 
@@ -142,6 +272,10 @@ object News : CallDescriptionContainer("news") {
                     body { bindEntireRequestFromBody() }
                 }
             }
+
+            documentation {
+                summary = "Swaps the visibility state of an existing post"
+            }
         }
 
     val listCategories = call<ListCategoriesRequest, ListCategoriesResponse, CommonErrorMessage>("listCategories") {
@@ -157,6 +291,10 @@ object News : CallDescriptionContainer("news") {
                 using(baseContext)
                 +"listCategories"
             }
+        }
+
+        documentation {
+            summary = "Lists all news categories in UCloud"
         }
     }
 
@@ -181,6 +319,10 @@ object News : CallDescriptionContainer("news") {
                 +boundTo(ListPostsRequest::page)
             }
         }
+
+        documentation {
+            summary = "Retrieves a page of news"
+        }
     }
 
     val listDowntimes = call<ListDownTimesRequest, ListDownTimesResponse, CommonErrorMessage>("listDowntimes") {
@@ -196,6 +338,10 @@ object News : CallDescriptionContainer("news") {
                 using(baseContext)
                 +"listDowntimes"
             }
+        }
+
+        documentation {
+            summary = "Retrieves a page of news related to upcoming downtime"
         }
     }
 
@@ -216,6 +362,10 @@ object News : CallDescriptionContainer("news") {
             params {
                 +boundTo(GetPostByIdRequest::id)
             }
+        }
+
+        documentation {
+            summary = "Retrieves a concrete post by ID"
         }
     }
 }
