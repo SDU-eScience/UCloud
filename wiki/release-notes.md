@@ -7,6 +7,34 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 14-02-22
+
+```
+✅  Deployment(accounting, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(password-reset, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(sync-mounter, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(alerting, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(contact-book, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(slack, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(auth, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(task, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(notification, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.7) (UP-TO-DATE)
+✅  Volcano Deployment (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(news, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(app-aau, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(app-store, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(avatar, 2022.1.7) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.1.6) (UP-TO-DATE)
+```
+
+
 ## 28-01-22
 
 ```

@@ -27,10 +27,7 @@ import dk.sdu.cloud.auth.api.ServiceLicenseAgreement
 import dk.sdu.cloud.auth.api.TwoFactorAuthDescriptions
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.avatar.api.AvatarDescriptions
-import dk.sdu.cloud.calls.ApiConventions
-import dk.sdu.cloud.calls.ApiStability
-import dk.sdu.cloud.calls.CallDescriptionContainer
-import dk.sdu.cloud.calls.UCloudApiExampleValue
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.elastic.management.api.ElasticManagement
 import dk.sdu.cloud.file.orchestrator.api.ChunkedUploadProtocol
 import dk.sdu.cloud.file.orchestrator.api.FileCollections
@@ -479,6 +476,7 @@ fun generateCode() {
     val stack = LinkedList<Chapter?>(listOf(structure))
     val types = LinkedHashMap<String, GeneratedType>()
     val callsByFeature = HashMap<Chapter.Feature, List<GeneratedRemoteProcedureCall>>()
+    val useCases = ArrayList<UseCase>()
     var firstPass = true
 
     while (true) {
@@ -522,6 +520,7 @@ fun generateCode() {
 
                     generateTypeScriptCode(types, calls, chapter.title, chapter.container)
                     generateSerializerCode(types, calls, chapter.container)
+                    useCases.addAll(chapter.container.useCases)
                 }
             }
 
@@ -548,8 +547,12 @@ fun generateCode() {
                     nextSection = next
                 }
                 generateMarkdownChapterTableOfContents(actualPreviousSection, nextSection, chapter.path, chapter)
+                generateSphinxTableOfContents(chapter)
             }
         }
     }
     writeSerializer()
+    generateSphinxCalls(callsByFeature.values)
+    generateSphinxTypes(types.values)
+    generateSphinxExamples(useCases)
 }
