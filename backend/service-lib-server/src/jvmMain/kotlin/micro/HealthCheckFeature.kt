@@ -98,6 +98,7 @@ class HealthCheckFeature : MicroFeature {
                     }
                 }
 
+                /*
                 if (elasticFeature != null) {
                     log.debug("Testing Elastic")
                     val client = ctx.elasticHighLevelClient
@@ -110,6 +111,7 @@ class HealthCheckFeature : MicroFeature {
                         throw RPCException("Elastic is not working", HttpStatusCode.InternalServerError)
                     }
                 }
+                 */
                 ok(Unit)
             }
         }
