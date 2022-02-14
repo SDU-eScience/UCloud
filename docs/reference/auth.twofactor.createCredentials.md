@@ -6,6 +6,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Creates initial 2FA credentials and bootstraps a challenge for those credentials_
 
 | Request | Response | Error |
 |---------|----------|-------|

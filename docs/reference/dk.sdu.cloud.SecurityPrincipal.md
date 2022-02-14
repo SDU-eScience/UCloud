@@ -3,9 +3,10 @@
 # `SecurityPrincipal`
 
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A minimal representation of a security principal._
 
 ```kotlin
 data class SecurityPrincipal(
@@ -21,6 +22,7 @@ data class SecurityPrincipal(
     val organization: String?,
 )
 ```
+More information can be gathered from an auth service, using the username as a key.
 
 <details>
 <summary>
@@ -29,7 +31,19 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The unique username of this security principal.
+</summary>
+
+
+
+This is usually suitable for display in UIs.
+
+
+</details>
+
+<details>
+<summary>
+<code>role</code>: <code><code><a href='#role'>Role</a></code></code> The role of the security principal
 </summary>
 
 
@@ -40,7 +54,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>role</code>: <code><code><a href='#role'>Role</a></code></code>
+<code>firstName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The first name of the security principal. Can be empty.
 </summary>
 
 
@@ -51,7 +65,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>firstName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The last name of the security principal. Can be empty.
 </summary>
 
 
@@ -62,7 +76,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A numeric unique identifier for this principal. The username is the preferred unique identifier.
 </summary>
 
 
@@ -73,7 +87,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> The email of the user
 </summary>
 
 
@@ -84,22 +98,16 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A boolean flag indicating if the user has 2FA enabled for their user.
 </summary>
 
 
 
+If the token does not contain this information (old tokens generated before field's introduction) then this will
+be set to `true`. This is done to avoid breaking extended tokens. This behavior will should change in a
+future update.
 
-
-</details>
-
-<details>
-<summary>
-<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+All new tokens _should_ contain this information explicitly.
 
 
 </details>
@@ -117,7 +125,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>serviceAgreementAccepted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>serviceAgreementAccepted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A boolean indicating if the service agreement has been accepted
 </summary>
 
 

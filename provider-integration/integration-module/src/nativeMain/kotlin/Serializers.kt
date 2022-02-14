@@ -2360,6 +2360,138 @@ return dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest(
 projectId = projectId ?: throw ParsingException("Missing key 'projectId'"),
 )
 }
+inline fun `dk_sdu_cloud_provider_api_ProviderSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderSpecification {
+var id: String? = null
+var domain: String? = null
+var https: Boolean? = null
+var port: Int? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"domain" -> {
+if (prop.element is JsonStreamElement.Text) {
+domain = prop.element.value
+} else { throw ParsingException("Wrong type for domain") }
+}
+"https" -> {
+if (prop.element is JsonStreamElement.Bool) {
+https = prop.element.value
+} else { throw ParsingException("Wrong type for https") }
+}
+"port" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+port = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for port") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ProviderSpecification(
+id = id ?: throw ParsingException("Missing key 'id'"),
+domain = domain ?: throw ParsingException("Missing key 'domain'"),
+https = https ?: throw ParsingException("Missing key 'https'"),
+port = port,
+)
+}
+inline fun `dk_sdu_cloud_accounting_api_ProductReference_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.accounting.api.ProductReference {
+var id: String? = null
+var category: String? = null
+var provider: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"category" -> {
+if (prop.element is JsonStreamElement.Text) {
+category = prop.element.value
+} else { throw ParsingException("Wrong type for category") }
+}
+"provider" -> {
+if (prop.element is JsonStreamElement.Text) {
+provider = prop.element.value
+} else { throw ParsingException("Wrong type for provider") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.accounting.api.ProductReference(
+id = id ?: throw ParsingException("Missing key 'id'"),
+category = category ?: throw ParsingException("Missing key 'category'"),
+provider = provider ?: throw ParsingException("Missing key 'provider'"),
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ProviderUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderUpdate {
+var timestamp: Long? = null
+var status: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ProviderUpdate(
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+status = status,
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ProviderSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ProviderSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
 inline fun `dk_sdu_cloud_accounting_api_ProductCategoryId_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.accounting.api.ProductCategoryId {
 var name: String? = null
 var provider: String? = null
@@ -2943,293 +3075,6 @@ chargeType = chargeType ?: throw ParsingException("Missing key 'chargeType'"),
 hiddenInGrantApplications = hiddenInGrantApplications ?: throw ParsingException("Missing key 'hiddenInGrantApplications'"),
 )
 }
-inline fun `dk_sdu_cloud_provider_api_ProviderStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderStatus {
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ProviderSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ProviderSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ProviderStatus(
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
-)
-}
-inline fun <reified P, reified Support> `dk_sdu_cloud_accounting_api_providers_ResolvedSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.accounting.api.providers.ResolvedSupport<P, Support> {
-var product: P? = null
-var support: Support? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<P>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-"support" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-support = parseJson<Support>(parser)
-} else { throw ParsingException("Wrong type for support") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.accounting.api.providers.ResolvedSupport(
-product = product ?: throw ParsingException("Missing key 'product'"),
-support = support ?: throw ParsingException("Missing key 'support'"),
-)
-}
-inline fun `dk_sdu_cloud_provider_api_ProviderSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderSupport {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ProviderSupport(
-product = product ?: throw ParsingException("Missing key 'product'"),
-)
-}
-inline fun `dk_sdu_cloud_accounting_api_ProductReference_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.accounting.api.ProductReference {
-var id: String? = null
-var category: String? = null
-var provider: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"category" -> {
-if (prop.element is JsonStreamElement.Text) {
-category = prop.element.value
-} else { throw ParsingException("Wrong type for category") }
-}
-"provider" -> {
-if (prop.element is JsonStreamElement.Text) {
-provider = prop.element.value
-} else { throw ParsingException("Wrong type for provider") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.accounting.api.ProductReference(
-id = id ?: throw ParsingException("Missing key 'id'"),
-category = category ?: throw ParsingException("Missing key 'category'"),
-provider = provider ?: throw ParsingException("Missing key 'provider'"),
-)
-}
-inline fun `dk_sdu_cloud_provider_api_ProviderUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderUpdate {
-var timestamp: Long? = null
-var status: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ProviderUpdate(
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-status = status,
-)
-}
-inline fun `dk_sdu_cloud_provider_api_ProviderIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderIncludeFlags {
-var includeOthers: Boolean? = null
-var includeUpdates: Boolean? = null
-var includeSupport: Boolean? = null
-var includeProduct: Boolean? = null
-var filterCreatedBy: String? = null
-var filterCreatedAfter: Long? = null
-var filterCreatedBefore: Long? = null
-var filterProvider: String? = null
-var filterProductId: String? = null
-var filterProductCategory: String? = null
-var filterProviderIds: String? = null
-var filterIds: String? = null
-var filterName: String? = null
-var hideProductId: String? = null
-var hideProductCategory: String? = null
-var hideProvider: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"includeOthers" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeOthers = prop.element.value
-} else { throw ParsingException("Wrong type for includeOthers") }
-}
-"includeUpdates" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeUpdates = prop.element.value
-} else { throw ParsingException("Wrong type for includeUpdates") }
-}
-"includeSupport" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeSupport = prop.element.value
-} else { throw ParsingException("Wrong type for includeSupport") }
-}
-"includeProduct" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeProduct = prop.element.value
-} else { throw ParsingException("Wrong type for includeProduct") }
-}
-"filterCreatedBy" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterCreatedBy = prop.element.value
-} else { throw ParsingException("Wrong type for filterCreatedBy") }
-}
-"filterCreatedAfter" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-filterCreatedAfter = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for filterCreatedAfter") }
-}
-"filterCreatedBefore" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-filterCreatedBefore = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for filterCreatedBefore") }
-}
-"filterProvider" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProvider = prop.element.value
-} else { throw ParsingException("Wrong type for filterProvider") }
-}
-"filterProductId" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProductId = prop.element.value
-} else { throw ParsingException("Wrong type for filterProductId") }
-}
-"filterProductCategory" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProductCategory = prop.element.value
-} else { throw ParsingException("Wrong type for filterProductCategory") }
-}
-"filterProviderIds" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProviderIds = prop.element.value
-} else { throw ParsingException("Wrong type for filterProviderIds") }
-}
-"filterIds" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterIds = prop.element.value
-} else { throw ParsingException("Wrong type for filterIds") }
-}
-"filterName" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterName = prop.element.value
-} else { throw ParsingException("Wrong type for filterName") }
-}
-"hideProductId" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProductId = prop.element.value
-} else { throw ParsingException("Wrong type for hideProductId") }
-}
-"hideProductCategory" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProductCategory = prop.element.value
-} else { throw ParsingException("Wrong type for hideProductCategory") }
-}
-"hideProvider" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProvider = prop.element.value
-} else { throw ParsingException("Wrong type for hideProvider") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ProviderIncludeFlags(
-includeOthers = includeOthers ?: throw ParsingException("Missing key 'includeOthers'"),
-includeUpdates = includeUpdates ?: throw ParsingException("Missing key 'includeUpdates'"),
-includeSupport = includeSupport ?: throw ParsingException("Missing key 'includeSupport'"),
-includeProduct = includeProduct ?: throw ParsingException("Missing key 'includeProduct'"),
-filterCreatedBy = filterCreatedBy,
-filterCreatedAfter = filterCreatedAfter,
-filterCreatedBefore = filterCreatedBefore,
-filterProvider = filterProvider,
-filterProductId = filterProductId,
-filterProductCategory = filterProductCategory,
-filterProviderIds = filterProviderIds,
-filterIds = filterIds,
-filterName = filterName,
-hideProductId = hideProductId,
-hideProductCategory = hideProductCategory,
-hideProvider = hideProvider,
-)
-}
 inline fun `dk_sdu_cloud_provider_api_Provider_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.Provider {
 var id: String? = null
 var specification: dk.sdu.cloud.provider.api.ProviderSpecification? = null
@@ -3322,48 +3167,64 @@ owner = owner ?: throw ParsingException("Missing key 'owner'"),
 permissions = permissions,
 )
 }
-inline fun `dk_sdu_cloud_provider_api_ProviderSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderSpecification {
-var id: String? = null
-var domain: String? = null
-var https: Boolean? = null
-var port: Int? = null
+inline fun `dk_sdu_cloud_provider_api_ProviderStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderStatus {
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ProviderSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"domain" -> {
-if (prop.element is JsonStreamElement.Text) {
-domain = prop.element.value
-} else { throw ParsingException("Wrong type for domain") }
-}
-"https" -> {
-if (prop.element is JsonStreamElement.Bool) {
-https = prop.element.value
-} else { throw ParsingException("Wrong type for https") }
-}
-"port" -> {
+"resolvedSupport" -> {
 if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-port = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for port") }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ProviderSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
 }
 else -> {
 if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
 }
 }
 }
-return dk.sdu.cloud.provider.api.ProviderSpecification(
-id = id ?: throw ParsingException("Missing key 'id'"),
-domain = domain ?: throw ParsingException("Missing key 'domain'"),
-https = https ?: throw ParsingException("Missing key 'https'"),
-port = port,
+return dk.sdu.cloud.provider.api.ProviderStatus(
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
+)
+}
+inline fun <reified P, reified Support> `dk_sdu_cloud_accounting_api_providers_ResolvedSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.accounting.api.providers.ResolvedSupport<P, Support> {
+var product: P? = null
+var support: Support? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<P>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+"support" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+support = parseJson<Support>(parser)
+} else { throw ParsingException("Wrong type for support") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.accounting.api.providers.ResolvedSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+support = support ?: throw ParsingException("Missing key 'support'"),
 )
 }
 inline fun `dk_sdu_cloud_provider_api_ResourceOwner_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ResourceOwner {
@@ -3543,6 +3404,145 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 return dk.sdu.cloud.provider.api.AclEntity.User(
 username = username ?: throw ParsingException("Missing key 'username'"),
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ProviderIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ProviderIncludeFlags {
+var includeOthers: Boolean? = null
+var includeUpdates: Boolean? = null
+var includeSupport: Boolean? = null
+var includeProduct: Boolean? = null
+var filterCreatedBy: String? = null
+var filterCreatedAfter: Long? = null
+var filterCreatedBefore: Long? = null
+var filterProvider: String? = null
+var filterProductId: String? = null
+var filterProductCategory: String? = null
+var filterProviderIds: String? = null
+var filterIds: String? = null
+var filterName: String? = null
+var hideProductId: String? = null
+var hideProductCategory: String? = null
+var hideProvider: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"includeOthers" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeOthers = prop.element.value
+} else { throw ParsingException("Wrong type for includeOthers") }
+}
+"includeUpdates" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeUpdates = prop.element.value
+} else { throw ParsingException("Wrong type for includeUpdates") }
+}
+"includeSupport" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeSupport = prop.element.value
+} else { throw ParsingException("Wrong type for includeSupport") }
+}
+"includeProduct" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeProduct = prop.element.value
+} else { throw ParsingException("Wrong type for includeProduct") }
+}
+"filterCreatedBy" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterCreatedBy = prop.element.value
+} else { throw ParsingException("Wrong type for filterCreatedBy") }
+}
+"filterCreatedAfter" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+filterCreatedAfter = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for filterCreatedAfter") }
+}
+"filterCreatedBefore" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+filterCreatedBefore = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for filterCreatedBefore") }
+}
+"filterProvider" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProvider = prop.element.value
+} else { throw ParsingException("Wrong type for filterProvider") }
+}
+"filterProductId" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProductId = prop.element.value
+} else { throw ParsingException("Wrong type for filterProductId") }
+}
+"filterProductCategory" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProductCategory = prop.element.value
+} else { throw ParsingException("Wrong type for filterProductCategory") }
+}
+"filterProviderIds" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProviderIds = prop.element.value
+} else { throw ParsingException("Wrong type for filterProviderIds") }
+}
+"filterIds" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterIds = prop.element.value
+} else { throw ParsingException("Wrong type for filterIds") }
+}
+"filterName" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterName = prop.element.value
+} else { throw ParsingException("Wrong type for filterName") }
+}
+"hideProductId" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProductId = prop.element.value
+} else { throw ParsingException("Wrong type for hideProductId") }
+}
+"hideProductCategory" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProductCategory = prop.element.value
+} else { throw ParsingException("Wrong type for hideProductCategory") }
+}
+"hideProvider" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProvider = prop.element.value
+} else { throw ParsingException("Wrong type for hideProvider") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ProviderIncludeFlags(
+includeOthers = includeOthers ?: throw ParsingException("Missing key 'includeOthers'"),
+includeUpdates = includeUpdates ?: throw ParsingException("Missing key 'includeUpdates'"),
+includeSupport = includeSupport ?: throw ParsingException("Missing key 'includeSupport'"),
+includeProduct = includeProduct ?: throw ParsingException("Missing key 'includeProduct'"),
+filterCreatedBy = filterCreatedBy,
+filterCreatedAfter = filterCreatedAfter,
+filterCreatedBefore = filterCreatedBefore,
+filterProvider = filterProvider,
+filterProductId = filterProductId,
+filterProductCategory = filterProductCategory,
+filterProviderIds = filterProviderIds,
+filterIds = filterIds,
+filterName = filterName,
+hideProductId = hideProductId,
+hideProductCategory = hideProductCategory,
+hideProvider = hideProvider,
 )
 }
 inline fun <reified T> `dk_sdu_cloud_calls_BulkRequest_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.calls.BulkRequest<T> {
@@ -7216,78 +7216,40 @@ return dk.sdu.cloud.grant.api.DeleteGiftRequest(
 giftId = giftId ?: throw ParsingException("Missing key 'giftId'"),
 )
 }
-inline fun `dk_sdu_cloud_provider_api_ExampleResource_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource.Status {
-var state: dk.sdu.cloud.provider.api.ExampleResource.State? = null
-var value: Int? = null
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ExampleResourceSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"state" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.provider.api.ExampleResource.State>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"value" -> {
-if (prop.element is JsonStreamElement.Number) {
-value = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for value") }
-}
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ExampleResourceSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ExampleResource.Status(
-state = state ?: throw ParsingException("Missing key 'state'"),
-value = value ?: throw ParsingException("Missing key 'value'"),
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_provider_api_ExampleResourceSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResourceSupport {
+inline fun `dk_sdu_cloud_provider_api_ExampleResource_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource.Spec {
+var start: Int? = null
+var target: Int? = null
 var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-var supportsBackwardsCounting: dk.sdu.cloud.provider.api.ExampleResourceSupport.Supported? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
+"start" -> {
+if (prop.element is JsonStreamElement.Number) {
+start = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for start") }
+}
+"target" -> {
+if (prop.element is JsonStreamElement.Number) {
+target = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for target") }
+}
 "product" -> {
 if (prop.element is JsonStreamElement.ObjectStart) {
 product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
 } else { throw ParsingException("Wrong type for product") }
 }
-"supportsBackwardsCounting" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-supportsBackwardsCounting = parseJson<dk.sdu.cloud.provider.api.ExampleResourceSupport.Supported>(parser)
-} else { throw ParsingException("Wrong type for supportsBackwardsCounting") }
-}
 else -> {
 if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
 }
 }
 }
-return dk.sdu.cloud.provider.api.ExampleResourceSupport(
+return dk.sdu.cloud.provider.api.ExampleResource.Spec(
+start = start ?: throw ParsingException("Missing key 'start'"),
+target = target ?: throw ParsingException("Missing key 'target'"),
 product = product ?: throw ParsingException("Missing key 'product'"),
-supportsBackwardsCounting = supportsBackwardsCounting ?: throw ParsingException("Missing key 'supportsBackwardsCounting'"),
 )
 }
 inline fun `dk_sdu_cloud_provider_api_ExampleResource_Update_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource.Update {
@@ -7334,6 +7296,158 @@ timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
 status = status,
 newState = newState,
 currentValue = currentValue,
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ExampleResourceSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResourceSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+var supportsBackwardsCounting: dk.sdu.cloud.provider.api.ExampleResourceSupport.Supported? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+"supportsBackwardsCounting" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+supportsBackwardsCounting = parseJson<dk.sdu.cloud.provider.api.ExampleResourceSupport.Supported>(parser)
+} else { throw ParsingException("Wrong type for supportsBackwardsCounting") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ExampleResourceSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+supportsBackwardsCounting = supportsBackwardsCounting ?: throw ParsingException("Missing key 'supportsBackwardsCounting'"),
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ExampleResource_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource {
+var id: String? = null
+var specification: dk.sdu.cloud.provider.api.ExampleResource.Spec? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.provider.api.ExampleResource.Status? = null
+var updates: List<dk.sdu.cloud.provider.api.ExampleResource.Update>? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Spec>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Status>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.provider.api.ExampleResource.Update>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.provider.api.ExampleResource.Update
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Update>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ExampleResource(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+permissions = permissions,
+)
+}
+inline fun `dk_sdu_cloud_provider_api_ExampleResource_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource.Status {
+var state: dk.sdu.cloud.provider.api.ExampleResource.State? = null
+var value: Int? = null
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ExampleResourceSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"state" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.provider.api.ExampleResource.State>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"value" -> {
+if (prop.element is JsonStreamElement.Number) {
+value = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for value") }
+}
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.provider.api.ExampleResourceSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.provider.api.ExampleResource.Status(
+state = state ?: throw ParsingException("Missing key 'state'"),
+value = value ?: throw ParsingException("Missing key 'value'"),
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
 )
 }
 inline fun `dk_sdu_cloud_provider_api_ExampleResourceFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResourceFlags {
@@ -7475,87 +7589,8 @@ hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
 )
 }
-inline fun `dk_sdu_cloud_provider_api_ExampleResource_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource {
-var id: String? = null
-var specification: dk.sdu.cloud.provider.api.ExampleResource.Spec? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.provider.api.ExampleResource.Status? = null
-var updates: List<dk.sdu.cloud.provider.api.ExampleResource.Update>? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Spec>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Status>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.provider.api.ExampleResource.Update>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.provider.api.ExampleResource.Update
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.provider.api.ExampleResource.Update>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.provider.api.ExampleResource(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_provider_api_ExampleResource_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.provider.api.ExampleResource.Spec {
-var start: Int? = null
-var target: Int? = null
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec {
+var title: String? = null
 var product: dk.sdu.cloud.accounting.api.ProductReference? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
@@ -7563,15 +7598,10 @@ val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"start" -> {
-if (prop.element is JsonStreamElement.Number) {
-start = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for start") }
-}
-"target" -> {
-if (prop.element is JsonStreamElement.Number) {
-target = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for target") }
+"title" -> {
+if (prop.element is JsonStreamElement.Text) {
+title = prop.element.value
+} else { throw ParsingException("Wrong type for title") }
 }
 "product" -> {
 if (prop.element is JsonStreamElement.ObjectStart) {
@@ -7583,41 +7613,39 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 }
 }
-return dk.sdu.cloud.provider.api.ExampleResource.Spec(
-start = start ?: throw ParsingException("Missing key 'start'"),
-target = target ?: throw ParsingException("Missing key 'target'"),
+return dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec(
+title = title ?: throw ParsingException("Missing key 'title'"),
 product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Status {
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.FSSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Storage? = null
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Update_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Update {
+var timestamp: Long? = null
+var status: String? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.FSSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
 }
-"resolvedProduct" -> {
+"status" -> {
 if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Storage?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
 }
 else -> {
 if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
 }
 }
 }
-return dk.sdu.cloud.file.orchestrator.api.FileCollection.Status(
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
+return dk.sdu.cloud.file.orchestrator.api.FileCollection.Update(
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+status = status,
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_FSSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FSSupport {
@@ -7825,34 +7853,121 @@ trashSupported = trashSupported ?: throw ParsingException("Missing key 'trashSup
 isReadOnly = isReadOnly ?: throw ParsingException("Missing key 'isReadOnly'"),
 )
 }
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Update_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Update {
-var timestamp: Long? = null
-var status: String? = null
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection {
+var id: String? = null
+var specification: dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.file.orchestrator.api.FileCollection.Status? = null
+var updates: List<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+var providerGeneratedId: String? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"timestamp" -> {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"createdAt" -> {
 if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
 }
 "status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Status>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.file.orchestrator.api.FileCollection.Update
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+"providerGeneratedId" -> {
 if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
 else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
+providerGeneratedId = prop.element.value
+} else { throw ParsingException("Wrong type for providerGeneratedId") }
 }
 else -> {
 if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
 }
 }
 }
-return dk.sdu.cloud.file.orchestrator.api.FileCollection.Update(
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-status = status,
+return dk.sdu.cloud.file.orchestrator.api.FileCollection(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+permissions = permissions,
+providerGeneratedId = providerGeneratedId,
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Status {
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.FSSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Storage? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.FSSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Storage?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.FileCollection.Status(
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollectionIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollectionIncludeFlags {
@@ -7994,121 +8109,6 @@ hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
 )
 }
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection {
-var id: String? = null
-var specification: dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.file.orchestrator.api.FileCollection.Status? = null
-var updates: List<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-var providerGeneratedId: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Status>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.file.orchestrator.api.FileCollection.Update
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.FileCollection.Update>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-"providerGeneratedId" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-providerGeneratedId = prop.element.value
-} else { throw ParsingException("Wrong type for providerGeneratedId") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileCollection(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-permissions = permissions,
-providerGeneratedId = providerGeneratedId,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollection_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec {
-var title: String? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"title" -> {
-if (prop.element is JsonStreamElement.Text) {
-title = prop.element.value
-} else { throw ParsingException("Wrong type for title") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileCollection.Spec(
-title = title ?: throw ParsingException("Missing key 'title'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
-)
-}
 inline fun `dk_sdu_cloud_file_orchestrator_api_FileCollectionsRenameRequestItem_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileCollectionsRenameRequestItem {
 var id: String? = null
 var newTitle: String? = null
@@ -8136,6 +8136,123 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 return dk.sdu.cloud.file.orchestrator.api.FileCollectionsRenameRequestItem(
 id = id ?: throw ParsingException("Missing key 'id'"),
 newTitle = newTitle ?: throw ParsingException("Missing key 'newTitle'"),
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_UFileSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileSpecification {
+var collection: String? = null
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"collection" -> {
+if (prop.element is JsonStreamElement.Text) {
+collection = prop.element.value
+} else { throw ParsingException("Wrong type for collection") }
+}
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.UFileSpecification(
+collection = collection ?: throw ParsingException("Missing key 'collection'"),
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_UFileUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileUpdate {
+var timestamp: Long? = null
+var status: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.UFileUpdate(
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+status = status,
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_UFile_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFile {
+var id: String? = null
+var specification: dk.sdu.cloud.file.orchestrator.api.UFileSpecification? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.file.orchestrator.api.UFileStatus? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.file.orchestrator.api.UFileSpecification>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.file.orchestrator.api.UFileStatus>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.UFile(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+permissions = permissions,
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_UFileStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileStatus {
@@ -8620,36 +8737,6 @@ document = document ?: throw ParsingException("Missing key 'document'"),
 changeLog = changeLog ?: throw ParsingException("Missing key 'changeLog'"),
 )
 }
-inline fun `dk_sdu_cloud_file_orchestrator_api_UFileUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileUpdate {
-var timestamp: Long? = null
-var status: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.UFileUpdate(
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-status = status,
-)
-}
 inline fun `dk_sdu_cloud_file_orchestrator_api_UFileIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags {
 var includeOthers: Boolean? = null
 var includeUpdates: Boolean? = null
@@ -8858,93 +8945,6 @@ filterIds = filterIds,
 hideProductId = hideProductId,
 hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_UFile_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFile {
-var id: String? = null
-var specification: dk.sdu.cloud.file.orchestrator.api.UFileSpecification? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.file.orchestrator.api.UFileStatus? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.file.orchestrator.api.UFileSpecification>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.file.orchestrator.api.UFileStatus>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.UFile(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_UFileSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.UFileSpecification {
-var collection: String? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"collection" -> {
-if (prop.element is JsonStreamElement.Text) {
-collection = prop.element.value
-} else { throw ParsingException("Wrong type for collection") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.UFileSpecification(
-collection = collection ?: throw ParsingException("Missing key 'collection'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_FilesMoveRequestItem_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FilesMoveRequestItem {
@@ -9236,54 +9236,10 @@ return dk.sdu.cloud.file.orchestrator.api.FindByPath(
 id = id ?: throw ParsingException("Missing key 'id'"),
 )
 }
-inline fun `dk_sdu_cloud_file_orchestrator_api_Share_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share.Status {
-var shareAvailableAt: String? = null
-var state: dk.sdu.cloud.file.orchestrator.api.Share.State? = null
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.ShareSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Storage? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"shareAvailableAt" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-shareAvailableAt = prop.element.value
-} else { throw ParsingException("Wrong type for shareAvailableAt") }
-}
-"state" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.State>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.ShareSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Storage?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.Share.Status(
-shareAvailableAt = shareAvailableAt,
-state = state ?: throw ParsingException("Missing key 'state'"),
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_ShareSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.ShareSupport {
-var type: dk.sdu.cloud.file.orchestrator.api.ShareType? = null
+inline fun `dk_sdu_cloud_file_orchestrator_api_Share_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share.Spec {
+var sharedWith: String? = null
+var sourceFilePath: String? = null
+var permissions: List<dk.sdu.cloud.provider.api.Permission>? = null
 var product: dk.sdu.cloud.accounting.api.ProductReference? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
@@ -9291,10 +9247,33 @@ val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"type" -> {
+"sharedWith" -> {
+if (prop.element is JsonStreamElement.Text) {
+sharedWith = prop.element.value
+} else { throw ParsingException("Wrong type for sharedWith") }
+}
+"sourceFilePath" -> {
+if (prop.element is JsonStreamElement.Text) {
+sourceFilePath = prop.element.value
+} else { throw ParsingException("Wrong type for sourceFilePath") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val permissionsList = ArrayList<dk.sdu.cloud.provider.api.Permission>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val permissionsElem: dk.sdu.cloud.provider.api.Permission
 if (prop.element is JsonStreamElement.ObjectStart) {
-type = parseJson<dk.sdu.cloud.file.orchestrator.api.ShareType>(parser)
-} else { throw ParsingException("Wrong type for type") }
+permissionsElem = parseJson<dk.sdu.cloud.provider.api.Permission>(parser)
+} else { throw ParsingException("Wrong type for permissionsElem") }
+permissionsList.add(permissionsElem)
+} else { throw ParsingException("Wrong element type for permissions") }
+}
+permissions = permissionsList
+} else { throw ParsingException("Wrong type for permissions") }
 }
 "product" -> {
 if (prop.element is JsonStreamElement.ObjectStart) {
@@ -9306,8 +9285,10 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 }
 }
-return dk.sdu.cloud.file.orchestrator.api.ShareSupport(
-type = type ?: throw ParsingException("Missing key 'type'"),
+return dk.sdu.cloud.file.orchestrator.api.Share.Spec(
+sharedWith = sharedWith ?: throw ParsingException("Missing key 'sharedWith'"),
+sourceFilePath = sourceFilePath ?: throw ParsingException("Missing key 'sourceFilePath'"),
+permissions = permissions ?: throw ParsingException("Missing key 'permissions'"),
 product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
@@ -9354,6 +9335,159 @@ newState = newState ?: throw ParsingException("Missing key 'newState'"),
 shareAvailableAt = shareAvailableAt,
 timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
 status = status,
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_ShareSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.ShareSupport {
+var type: dk.sdu.cloud.file.orchestrator.api.ShareType? = null
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"type" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+type = parseJson<dk.sdu.cloud.file.orchestrator.api.ShareType>(parser)
+} else { throw ParsingException("Wrong type for type") }
+}
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.ShareSupport(
+type = type ?: throw ParsingException("Missing key 'type'"),
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_Share_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share {
+var id: String? = null
+var specification: dk.sdu.cloud.file.orchestrator.api.Share.Spec? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.file.orchestrator.api.Share.Status? = null
+var updates: List<dk.sdu.cloud.file.orchestrator.api.Share.Update>? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Spec>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Status>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.Share.Update>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.file.orchestrator.api.Share.Update
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Update>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.Share(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+permissions = permissions,
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_Share_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share.Status {
+var shareAvailableAt: String? = null
+var state: dk.sdu.cloud.file.orchestrator.api.Share.State? = null
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.ShareSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Storage? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"shareAvailableAt" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+shareAvailableAt = prop.element.value
+} else { throw ParsingException("Wrong type for shareAvailableAt") }
+}
+"state" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.State>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Storage, dk.sdu.cloud.file.orchestrator.api.ShareSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Storage?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.Share.Status(
+shareAvailableAt = shareAvailableAt,
+state = state ?: throw ParsingException("Missing key 'state'"),
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_ShareFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.ShareFlags {
@@ -9509,140 +9643,6 @@ filterIds = filterIds,
 hideProductId = hideProductId,
 hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_Share_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share {
-var id: String? = null
-var specification: dk.sdu.cloud.file.orchestrator.api.Share.Spec? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.file.orchestrator.api.Share.Status? = null
-var updates: List<dk.sdu.cloud.file.orchestrator.api.Share.Update>? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Spec>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Status>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.Share.Update>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.file.orchestrator.api.Share.Update
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.Share.Update>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.Share(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_Share_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.Share.Spec {
-var sharedWith: String? = null
-var sourceFilePath: String? = null
-var permissions: List<dk.sdu.cloud.provider.api.Permission>? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"sharedWith" -> {
-if (prop.element is JsonStreamElement.Text) {
-sharedWith = prop.element.value
-} else { throw ParsingException("Wrong type for sharedWith") }
-}
-"sourceFilePath" -> {
-if (prop.element is JsonStreamElement.Text) {
-sourceFilePath = prop.element.value
-} else { throw ParsingException("Wrong type for sourceFilePath") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val permissionsList = ArrayList<dk.sdu.cloud.provider.api.Permission>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val permissionsElem: dk.sdu.cloud.provider.api.Permission
-if (prop.element is JsonStreamElement.ObjectStart) {
-permissionsElem = parseJson<dk.sdu.cloud.provider.api.Permission>(parser)
-} else { throw ParsingException("Wrong type for permissionsElem") }
-permissionsList.add(permissionsElem)
-} else { throw ParsingException("Wrong element type for permissions") }
-}
-permissions = permissionsList
-} else { throw ParsingException("Wrong type for permissions") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.Share.Spec(
-sharedWith = sharedWith ?: throw ParsingException("Missing key 'sharedWith'"),
-sourceFilePath = sourceFilePath ?: throw ParsingException("Missing key 'sourceFilePath'"),
-permissions = permissions ?: throw ParsingException("Missing key 'permissions'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_SharesUpdatePermissionsRequestItem_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.SharesUpdatePermissionsRequestItem {
@@ -9839,6 +9839,165 @@ state = state ?: throw ParsingException("Missing key 'state'"),
 shareId = shareId ?: throw ParsingException("Missing key 'shareId'"),
 )
 }
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec {
+var name: String? = null
+var namespaceType: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaceType? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"name" -> {
+if (prop.element is JsonStreamElement.Text) {
+name = prop.element.value
+} else { throw ParsingException("Wrong type for name") }
+}
+"namespaceType" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+namespaceType = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaceType>(parser)
+} else { throw ParsingException("Wrong type for namespaceType") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec(
+name = name ?: throw ParsingException("Missing key 'name'"),
+namespaceType = namespaceType ?: throw ParsingException("Missing key 'namespaceType'"),
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_Update_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update {
+var timestamp: Long? = null
+var status: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update(
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+status = status,
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace {
+var id: String? = null
+var specification: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status? = null
+var updates: List<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+permissions = permissions,
+)
+}
 inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_Status_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status {
 var latestTitle: String? = null
 var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product, dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport>? = null
@@ -9876,58 +10035,6 @@ return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status(
 latestTitle = latestTitle,
 resolvedSupport = resolvedSupport,
 resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateSupport(
-product = product ?: throw ParsingException("Missing key 'product'"),
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_Update_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update {
-var timestamp: Long? = null
-var status: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update(
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-status = status,
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespaceFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaceFlags {
@@ -10067,113 +10174,6 @@ filterName = filterName,
 hideProductId = hideProductId,
 hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace {
-var id: String? = null
-var specification: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status? = null
-var updates: List<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Status>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Update>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateNamespace_Spec_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec {
-var name: String? = null
-var namespaceType: dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaceType? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"name" -> {
-if (prop.element is JsonStreamElement.Text) {
-name = prop.element.value
-} else { throw ParsingException("Wrong type for name") }
-}
-"namespaceType" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-namespaceType = parseJson<dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespaceType>(parser)
-} else { throw ParsingException("Wrong type for namespaceType") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateNamespace.Spec(
-name = name ?: throw ParsingException("Missing key 'name'"),
-namespaceType = namespaceType ?: throw ParsingException("Missing key 'namespaceType'"),
 )
 }
 inline fun `dk_sdu_cloud_file_orchestrator_api_FileMetadataTemplateAndVersion_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.file.orchestrator.api.FileMetadataTemplateAndVersion {
@@ -13912,721 +13912,6 @@ tags = tags ?: throw ParsingException("Missing key 'tags'"),
 applicationName = applicationName ?: throw ParsingException("Missing key 'applicationName'"),
 )
 }
-inline fun `dk_sdu_cloud_app_orchestrator_api_JobStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobStatus {
-var state: dk.sdu.cloud.app.orchestrator.api.JobState? = null
-var jobParametersJson: dk.sdu.cloud.app.orchestrator.api.ExportedParameters? = null
-var startedAt: Long? = null
-var expiresAt: Long? = null
-var resolvedApplication: dk.sdu.cloud.app.store.api.Application? = null
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Compute, dk.sdu.cloud.app.orchestrator.api.ComputeSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Compute? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"state" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"jobParametersJson" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-jobParametersJson = parseJson<dk.sdu.cloud.app.orchestrator.api.ExportedParameters?>(parser)
-} else { throw ParsingException("Wrong type for jobParametersJson") }
-}
-"startedAt" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-startedAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for startedAt") }
-}
-"expiresAt" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-expiresAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for expiresAt") }
-}
-"resolvedApplication" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedApplication = parseJson<dk.sdu.cloud.app.store.api.Application?>(parser)
-} else { throw ParsingException("Wrong type for resolvedApplication") }
-}
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Compute, dk.sdu.cloud.app.orchestrator.api.ComputeSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Compute?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.JobStatus(
-state = state ?: throw ParsingException("Missing key 'state'"),
-jobParametersJson = jobParametersJson,
-startedAt = startedAt,
-expiresAt = expiresAt,
-resolvedApplication = resolvedApplication,
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_ExportedParameters_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ExportedParameters {
-var siteVersion: Int? = null
-var request: dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest? = null
-var machineType: kotlinx.serialization.json.JsonObject? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"siteVersion" -> {
-if (prop.element is JsonStreamElement.Number) {
-siteVersion = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for siteVersion") }
-}
-"request" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-request = parseJson<dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest>(parser)
-} else { throw ParsingException("Wrong type for request") }
-}
-"machineType" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for machineType") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.ExportedParameters(
-siteVersion = siteVersion ?: throw ParsingException("Missing key 'siteVersion'"),
-request = request ?: throw ParsingException("Missing key 'request'"),
-machineType = machineType ?: throw ParsingException("Missing key 'machineType'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_ExportedParametersRequest_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest {
-var application: dk.sdu.cloud.app.store.api.NameAndVersion? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-var name: String? = null
-var replicas: Int? = null
-var parameters: kotlinx.serialization.json.JsonObject? = null
-var resources: List<kotlinx.serialization.json.JsonObject>? = null
-var timeAllocation: dk.sdu.cloud.app.store.api.SimpleDuration? = null
-var resolvedProduct: kotlinx.serialization.json.JsonObject? = null
-var resolvedApplication: kotlinx.serialization.json.JsonObject? = null
-var resolvedSupport: kotlinx.serialization.json.JsonObject? = null
-var allowDuplicateJob: Boolean? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"application" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-application = parseJson<dk.sdu.cloud.app.store.api.NameAndVersion>(parser)
-} else { throw ParsingException("Wrong type for application") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-"name" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-name = prop.element.value
-} else { throw ParsingException("Wrong type for name") }
-}
-"replicas" -> {
-if (prop.element is JsonStreamElement.Number) {
-replicas = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for replicas") }
-}
-"parameters" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for parameters") }
-}
-"resources" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val resourcesList = ArrayList<kotlinx.serialization.json.JsonObject>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val resourcesElem: kotlinx.serialization.json.JsonObject
-if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for resourcesElem") }
-resourcesList.add(resourcesElem)
-} else { throw ParsingException("Wrong element type for resources") }
-}
-resources = resourcesList
-} else { throw ParsingException("Wrong type for resources") }
-}
-"timeAllocation" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-timeAllocation = parseJson<dk.sdu.cloud.app.store.api.SimpleDuration?>(parser)
-} else { throw ParsingException("Wrong type for timeAllocation") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-"resolvedApplication" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for resolvedApplication") }
-}
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"allowDuplicateJob" -> {
-if (prop.element is JsonStreamElement.Bool) {
-allowDuplicateJob = prop.element.value
-} else { throw ParsingException("Wrong type for allowDuplicateJob") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest(
-application = application ?: throw ParsingException("Missing key 'application'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
-name = name,
-replicas = replicas ?: throw ParsingException("Missing key 'replicas'"),
-parameters = parameters ?: throw ParsingException("Missing key 'parameters'"),
-resources = resources ?: throw ParsingException("Missing key 'resources'"),
-timeAllocation = timeAllocation,
-resolvedProduct = resolvedProduct,
-resolvedApplication = resolvedApplication,
-resolvedSupport = resolvedSupport,
-allowDuplicateJob = allowDuplicateJob ?: throw ParsingException("Missing key 'allowDuplicateJob'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-var docker: dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker? = null
-var virtualMachine: dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-"docker" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-docker = parseJson<dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker>(parser)
-} else { throw ParsingException("Wrong type for docker") }
-}
-"virtualMachine" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-virtualMachine = parseJson<dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine>(parser)
-} else { throw ParsingException("Wrong type for virtualMachine") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.ComputeSupport(
-product = product ?: throw ParsingException("Missing key 'product'"),
-docker = docker ?: throw ParsingException("Missing key 'docker'"),
-virtualMachine = virtualMachine ?: throw ParsingException("Missing key 'virtualMachine'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_Docker_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker {
-var enabled: Boolean? = null
-var web: Boolean? = null
-var vnc: Boolean? = null
-var logs: Boolean? = null
-var terminal: Boolean? = null
-var peers: Boolean? = null
-var timeExtension: Boolean? = null
-var utilization: Boolean? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"enabled" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-enabled = prop.element.value
-} else { throw ParsingException("Wrong type for enabled") }
-}
-"web" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-web = prop.element.value
-} else { throw ParsingException("Wrong type for web") }
-}
-"vnc" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-vnc = prop.element.value
-} else { throw ParsingException("Wrong type for vnc") }
-}
-"logs" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-logs = prop.element.value
-} else { throw ParsingException("Wrong type for logs") }
-}
-"terminal" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-terminal = prop.element.value
-} else { throw ParsingException("Wrong type for terminal") }
-}
-"peers" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-peers = prop.element.value
-} else { throw ParsingException("Wrong type for peers") }
-}
-"timeExtension" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-timeExtension = prop.element.value
-} else { throw ParsingException("Wrong type for timeExtension") }
-}
-"utilization" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-utilization = prop.element.value
-} else { throw ParsingException("Wrong type for utilization") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker(
-enabled = enabled,
-web = web,
-vnc = vnc,
-logs = logs,
-terminal = terminal,
-peers = peers,
-timeExtension = timeExtension,
-utilization = utilization,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_VirtualMachine_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine {
-var enabled: Boolean? = null
-var logs: Boolean? = null
-var vnc: Boolean? = null
-var terminal: Boolean? = null
-var timeExtension: Boolean? = null
-var suspension: Boolean? = null
-var utilization: Boolean? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"enabled" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-enabled = prop.element.value
-} else { throw ParsingException("Wrong type for enabled") }
-}
-"logs" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-logs = prop.element.value
-} else { throw ParsingException("Wrong type for logs") }
-}
-"vnc" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-vnc = prop.element.value
-} else { throw ParsingException("Wrong type for vnc") }
-}
-"terminal" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-terminal = prop.element.value
-} else { throw ParsingException("Wrong type for terminal") }
-}
-"timeExtension" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-timeExtension = prop.element.value
-} else { throw ParsingException("Wrong type for timeExtension") }
-}
-"suspension" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-suspension = prop.element.value
-} else { throw ParsingException("Wrong type for suspension") }
-}
-"utilization" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-utilization = prop.element.value
-} else { throw ParsingException("Wrong type for utilization") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine(
-enabled = enabled,
-logs = logs,
-vnc = vnc,
-terminal = terminal,
-timeExtension = timeExtension,
-suspension = suspension,
-utilization = utilization,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_JobUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobUpdate {
-var state: dk.sdu.cloud.app.orchestrator.api.JobState? = null
-var outputFolder: String? = null
-var status: String? = null
-var expectedState: dk.sdu.cloud.app.orchestrator.api.JobState? = null
-var expectedDifferentState: Boolean? = null
-var newTimeAllocation: Long? = null
-var timestamp: Long? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"state" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"outputFolder" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-outputFolder = prop.element.value
-} else { throw ParsingException("Wrong type for outputFolder") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-"expectedState" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-expectedState = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
-} else { throw ParsingException("Wrong type for expectedState") }
-}
-"expectedDifferentState" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-expectedDifferentState = prop.element.value
-} else { throw ParsingException("Wrong type for expectedDifferentState") }
-}
-"newTimeAllocation" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-newTimeAllocation = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for newTimeAllocation") }
-}
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.JobUpdate(
-state = state,
-outputFolder = outputFolder,
-status = status,
-expectedState = expectedState,
-expectedDifferentState = expectedDifferentState,
-newTimeAllocation = newTimeAllocation,
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_JobIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags {
-var filterApplication: String? = null
-var filterState: dk.sdu.cloud.app.orchestrator.api.JobState? = null
-var includeParameters: Boolean? = null
-var includeApplication: Boolean? = null
-var includeProduct: Boolean? = null
-var includeOthers: Boolean? = null
-var includeUpdates: Boolean? = null
-var includeSupport: Boolean? = null
-var filterCreatedBy: String? = null
-var filterCreatedAfter: Long? = null
-var filterCreatedBefore: Long? = null
-var filterProvider: String? = null
-var filterProductId: String? = null
-var filterProductCategory: String? = null
-var filterProviderIds: String? = null
-var filterIds: String? = null
-var hideProductId: String? = null
-var hideProductCategory: String? = null
-var hideProvider: String? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"filterApplication" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterApplication = prop.element.value
-} else { throw ParsingException("Wrong type for filterApplication") }
-}
-"filterState" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-filterState = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
-} else { throw ParsingException("Wrong type for filterState") }
-}
-"includeParameters" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-includeParameters = prop.element.value
-} else { throw ParsingException("Wrong type for includeParameters") }
-}
-"includeApplication" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-includeApplication = prop.element.value
-} else { throw ParsingException("Wrong type for includeApplication") }
-}
-"includeProduct" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeProduct = prop.element.value
-} else { throw ParsingException("Wrong type for includeProduct") }
-}
-"includeOthers" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeOthers = prop.element.value
-} else { throw ParsingException("Wrong type for includeOthers") }
-}
-"includeUpdates" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeUpdates = prop.element.value
-} else { throw ParsingException("Wrong type for includeUpdates") }
-}
-"includeSupport" -> {
-if (prop.element is JsonStreamElement.Bool) {
-includeSupport = prop.element.value
-} else { throw ParsingException("Wrong type for includeSupport") }
-}
-"filterCreatedBy" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterCreatedBy = prop.element.value
-} else { throw ParsingException("Wrong type for filterCreatedBy") }
-}
-"filterCreatedAfter" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-filterCreatedAfter = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for filterCreatedAfter") }
-}
-"filterCreatedBefore" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Number) {
-filterCreatedBefore = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for filterCreatedBefore") }
-}
-"filterProvider" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProvider = prop.element.value
-} else { throw ParsingException("Wrong type for filterProvider") }
-}
-"filterProductId" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProductId = prop.element.value
-} else { throw ParsingException("Wrong type for filterProductId") }
-}
-"filterProductCategory" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProductCategory = prop.element.value
-} else { throw ParsingException("Wrong type for filterProductCategory") }
-}
-"filterProviderIds" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterProviderIds = prop.element.value
-} else { throw ParsingException("Wrong type for filterProviderIds") }
-}
-"filterIds" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-filterIds = prop.element.value
-} else { throw ParsingException("Wrong type for filterIds") }
-}
-"hideProductId" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProductId = prop.element.value
-} else { throw ParsingException("Wrong type for hideProductId") }
-}
-"hideProductCategory" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProductCategory = prop.element.value
-} else { throw ParsingException("Wrong type for hideProductCategory") }
-}
-"hideProvider" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-hideProvider = prop.element.value
-} else { throw ParsingException("Wrong type for hideProvider") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags(
-filterApplication = filterApplication,
-filterState = filterState,
-includeParameters = includeParameters,
-includeApplication = includeApplication,
-includeProduct = includeProduct ?: throw ParsingException("Missing key 'includeProduct'"),
-includeOthers = includeOthers ?: throw ParsingException("Missing key 'includeOthers'"),
-includeUpdates = includeUpdates ?: throw ParsingException("Missing key 'includeUpdates'"),
-includeSupport = includeSupport ?: throw ParsingException("Missing key 'includeSupport'"),
-filterCreatedBy = filterCreatedBy,
-filterCreatedAfter = filterCreatedAfter,
-filterCreatedBefore = filterCreatedBefore,
-filterProvider = filterProvider,
-filterProductId = filterProductId,
-filterProductCategory = filterProductCategory,
-filterProviderIds = filterProviderIds,
-filterIds = filterIds,
-hideProductId = hideProductId,
-hideProductCategory = hideProductCategory,
-hideProvider = hideProvider,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_Job_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.Job {
-var id: String? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var updates: List<dk.sdu.cloud.app.orchestrator.api.JobUpdate>? = null
-var specification: dk.sdu.cloud.app.orchestrator.api.JobSpecification? = null
-var status: dk.sdu.cloud.app.orchestrator.api.JobStatus? = null
-var createdAt: Long? = null
-var output: dk.sdu.cloud.app.orchestrator.api.JobOutput? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.JobUpdate>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.app.orchestrator.api.JobUpdate
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.JobUpdate>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.app.orchestrator.api.JobSpecification>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.app.orchestrator.api.JobStatus>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"output" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-output = parseJson<dk.sdu.cloud.app.orchestrator.api.JobOutput?>(parser)
-} else { throw ParsingException("Wrong type for output") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.Job(
-id = id ?: throw ParsingException("Missing key 'id'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-output = output,
-permissions = permissions,
-)
-}
 inline fun `dk_sdu_cloud_app_orchestrator_api_JobSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobSpecification {
 var application: dk.sdu.cloud.app.store.api.NameAndVersion? = null
 var product: dk.sdu.cloud.accounting.api.ProductReference? = null
@@ -14978,6 +14263,558 @@ return dk.sdu.cloud.app.store.api.AppParameterValue.Ingress(
 id = id ?: throw ParsingException("Missing key 'id'"),
 )
 }
+inline fun `dk_sdu_cloud_app_orchestrator_api_JobUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobUpdate {
+var state: dk.sdu.cloud.app.orchestrator.api.JobState? = null
+var outputFolder: String? = null
+var status: String? = null
+var expectedState: dk.sdu.cloud.app.orchestrator.api.JobState? = null
+var expectedDifferentState: Boolean? = null
+var newTimeAllocation: Long? = null
+var timestamp: Long? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"state" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"outputFolder" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+outputFolder = prop.element.value
+} else { throw ParsingException("Wrong type for outputFolder") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+"expectedState" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+expectedState = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
+} else { throw ParsingException("Wrong type for expectedState") }
+}
+"expectedDifferentState" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+expectedDifferentState = prop.element.value
+} else { throw ParsingException("Wrong type for expectedDifferentState") }
+}
+"newTimeAllocation" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+newTimeAllocation = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for newTimeAllocation") }
+}
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.JobUpdate(
+state = state,
+outputFolder = outputFolder,
+status = status,
+expectedState = expectedState,
+expectedDifferentState = expectedDifferentState,
+newTimeAllocation = newTimeAllocation,
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+var docker: dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker? = null
+var virtualMachine: dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+"docker" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+docker = parseJson<dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker>(parser)
+} else { throw ParsingException("Wrong type for docker") }
+}
+"virtualMachine" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+virtualMachine = parseJson<dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine>(parser)
+} else { throw ParsingException("Wrong type for virtualMachine") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.ComputeSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+docker = docker ?: throw ParsingException("Missing key 'docker'"),
+virtualMachine = virtualMachine ?: throw ParsingException("Missing key 'virtualMachine'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_Docker_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker {
+var enabled: Boolean? = null
+var web: Boolean? = null
+var vnc: Boolean? = null
+var logs: Boolean? = null
+var terminal: Boolean? = null
+var peers: Boolean? = null
+var timeExtension: Boolean? = null
+var utilization: Boolean? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"enabled" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+enabled = prop.element.value
+} else { throw ParsingException("Wrong type for enabled") }
+}
+"web" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+web = prop.element.value
+} else { throw ParsingException("Wrong type for web") }
+}
+"vnc" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+vnc = prop.element.value
+} else { throw ParsingException("Wrong type for vnc") }
+}
+"logs" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+logs = prop.element.value
+} else { throw ParsingException("Wrong type for logs") }
+}
+"terminal" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+terminal = prop.element.value
+} else { throw ParsingException("Wrong type for terminal") }
+}
+"peers" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+peers = prop.element.value
+} else { throw ParsingException("Wrong type for peers") }
+}
+"timeExtension" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+timeExtension = prop.element.value
+} else { throw ParsingException("Wrong type for timeExtension") }
+}
+"utilization" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+utilization = prop.element.value
+} else { throw ParsingException("Wrong type for utilization") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker(
+enabled = enabled,
+web = web,
+vnc = vnc,
+logs = logs,
+terminal = terminal,
+peers = peers,
+timeExtension = timeExtension,
+utilization = utilization,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_ComputeSupport_VirtualMachine_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine {
+var enabled: Boolean? = null
+var logs: Boolean? = null
+var vnc: Boolean? = null
+var terminal: Boolean? = null
+var timeExtension: Boolean? = null
+var suspension: Boolean? = null
+var utilization: Boolean? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"enabled" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+enabled = prop.element.value
+} else { throw ParsingException("Wrong type for enabled") }
+}
+"logs" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+logs = prop.element.value
+} else { throw ParsingException("Wrong type for logs") }
+}
+"vnc" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+vnc = prop.element.value
+} else { throw ParsingException("Wrong type for vnc") }
+}
+"terminal" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+terminal = prop.element.value
+} else { throw ParsingException("Wrong type for terminal") }
+}
+"timeExtension" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+timeExtension = prop.element.value
+} else { throw ParsingException("Wrong type for timeExtension") }
+}
+"suspension" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+suspension = prop.element.value
+} else { throw ParsingException("Wrong type for suspension") }
+}
+"utilization" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+utilization = prop.element.value
+} else { throw ParsingException("Wrong type for utilization") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine(
+enabled = enabled,
+logs = logs,
+vnc = vnc,
+terminal = terminal,
+timeExtension = timeExtension,
+suspension = suspension,
+utilization = utilization,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_Job_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.Job {
+var id: String? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var updates: List<dk.sdu.cloud.app.orchestrator.api.JobUpdate>? = null
+var specification: dk.sdu.cloud.app.orchestrator.api.JobSpecification? = null
+var status: dk.sdu.cloud.app.orchestrator.api.JobStatus? = null
+var createdAt: Long? = null
+var output: dk.sdu.cloud.app.orchestrator.api.JobOutput? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.JobUpdate>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.app.orchestrator.api.JobUpdate
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.JobUpdate>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.app.orchestrator.api.JobSpecification>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.app.orchestrator.api.JobStatus>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"output" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+output = parseJson<dk.sdu.cloud.app.orchestrator.api.JobOutput?>(parser)
+} else { throw ParsingException("Wrong type for output") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.Job(
+id = id ?: throw ParsingException("Missing key 'id'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+output = output,
+permissions = permissions,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_JobStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobStatus {
+var state: dk.sdu.cloud.app.orchestrator.api.JobState? = null
+var jobParametersJson: dk.sdu.cloud.app.orchestrator.api.ExportedParameters? = null
+var startedAt: Long? = null
+var expiresAt: Long? = null
+var resolvedApplication: dk.sdu.cloud.app.store.api.Application? = null
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Compute, dk.sdu.cloud.app.orchestrator.api.ComputeSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product.Compute? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"state" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"jobParametersJson" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+jobParametersJson = parseJson<dk.sdu.cloud.app.orchestrator.api.ExportedParameters?>(parser)
+} else { throw ParsingException("Wrong type for jobParametersJson") }
+}
+"startedAt" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+startedAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for startedAt") }
+}
+"expiresAt" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+expiresAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for expiresAt") }
+}
+"resolvedApplication" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedApplication = parseJson<dk.sdu.cloud.app.store.api.Application?>(parser)
+} else { throw ParsingException("Wrong type for resolvedApplication") }
+}
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.Compute, dk.sdu.cloud.app.orchestrator.api.ComputeSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.Compute?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.JobStatus(
+state = state ?: throw ParsingException("Missing key 'state'"),
+jobParametersJson = jobParametersJson,
+startedAt = startedAt,
+expiresAt = expiresAt,
+resolvedApplication = resolvedApplication,
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_ExportedParameters_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ExportedParameters {
+var siteVersion: Int? = null
+var request: dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest? = null
+var machineType: kotlinx.serialization.json.JsonObject? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"siteVersion" -> {
+if (prop.element is JsonStreamElement.Number) {
+siteVersion = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for siteVersion") }
+}
+"request" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+request = parseJson<dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest>(parser)
+} else { throw ParsingException("Wrong type for request") }
+}
+"machineType" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for machineType") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.ExportedParameters(
+siteVersion = siteVersion ?: throw ParsingException("Missing key 'siteVersion'"),
+request = request ?: throw ParsingException("Missing key 'request'"),
+machineType = machineType ?: throw ParsingException("Missing key 'machineType'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_ExportedParametersRequest_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest {
+var application: dk.sdu.cloud.app.store.api.NameAndVersion? = null
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+var name: String? = null
+var replicas: Int? = null
+var parameters: kotlinx.serialization.json.JsonObject? = null
+var resources: List<kotlinx.serialization.json.JsonObject>? = null
+var timeAllocation: dk.sdu.cloud.app.store.api.SimpleDuration? = null
+var resolvedProduct: kotlinx.serialization.json.JsonObject? = null
+var resolvedApplication: kotlinx.serialization.json.JsonObject? = null
+var resolvedSupport: kotlinx.serialization.json.JsonObject? = null
+var allowDuplicateJob: Boolean? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"application" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+application = parseJson<dk.sdu.cloud.app.store.api.NameAndVersion>(parser)
+} else { throw ParsingException("Wrong type for application") }
+}
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+"name" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+name = prop.element.value
+} else { throw ParsingException("Wrong type for name") }
+}
+"replicas" -> {
+if (prop.element is JsonStreamElement.Number) {
+replicas = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for replicas") }
+}
+"parameters" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for parameters") }
+}
+"resources" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val resourcesList = ArrayList<kotlinx.serialization.json.JsonObject>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val resourcesElem: kotlinx.serialization.json.JsonObject
+if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for resourcesElem") }
+resourcesList.add(resourcesElem)
+} else { throw ParsingException("Wrong element type for resources") }
+}
+resources = resourcesList
+} else { throw ParsingException("Wrong type for resources") }
+}
+"timeAllocation" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+timeAllocation = parseJson<dk.sdu.cloud.app.store.api.SimpleDuration?>(parser)
+} else { throw ParsingException("Wrong type for timeAllocation") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+"resolvedApplication" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for resolvedApplication") }
+}
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"allowDuplicateJob" -> {
+if (prop.element is JsonStreamElement.Bool) {
+allowDuplicateJob = prop.element.value
+} else { throw ParsingException("Wrong type for allowDuplicateJob") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest(
+application = application ?: throw ParsingException("Missing key 'application'"),
+product = product ?: throw ParsingException("Missing key 'product'"),
+name = name,
+replicas = replicas ?: throw ParsingException("Missing key 'replicas'"),
+parameters = parameters ?: throw ParsingException("Missing key 'parameters'"),
+resources = resources ?: throw ParsingException("Missing key 'resources'"),
+timeAllocation = timeAllocation,
+resolvedProduct = resolvedProduct,
+resolvedApplication = resolvedApplication,
+resolvedSupport = resolvedSupport,
+allowDuplicateJob = allowDuplicateJob ?: throw ParsingException("Missing key 'allowDuplicateJob'"),
+)
+}
 inline fun `dk_sdu_cloud_app_orchestrator_api_JobOutput_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobOutput {
 var outputFolder: String? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
@@ -14999,6 +14836,169 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 return dk.sdu.cloud.app.orchestrator.api.JobOutput(
 outputFolder = outputFolder,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_JobIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags {
+var filterApplication: String? = null
+var filterState: dk.sdu.cloud.app.orchestrator.api.JobState? = null
+var includeParameters: Boolean? = null
+var includeApplication: Boolean? = null
+var includeProduct: Boolean? = null
+var includeOthers: Boolean? = null
+var includeUpdates: Boolean? = null
+var includeSupport: Boolean? = null
+var filterCreatedBy: String? = null
+var filterCreatedAfter: Long? = null
+var filterCreatedBefore: Long? = null
+var filterProvider: String? = null
+var filterProductId: String? = null
+var filterProductCategory: String? = null
+var filterProviderIds: String? = null
+var filterIds: String? = null
+var hideProductId: String? = null
+var hideProductCategory: String? = null
+var hideProvider: String? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"filterApplication" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterApplication = prop.element.value
+} else { throw ParsingException("Wrong type for filterApplication") }
+}
+"filterState" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+filterState = parseJson<dk.sdu.cloud.app.orchestrator.api.JobState?>(parser)
+} else { throw ParsingException("Wrong type for filterState") }
+}
+"includeParameters" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+includeParameters = prop.element.value
+} else { throw ParsingException("Wrong type for includeParameters") }
+}
+"includeApplication" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+includeApplication = prop.element.value
+} else { throw ParsingException("Wrong type for includeApplication") }
+}
+"includeProduct" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeProduct = prop.element.value
+} else { throw ParsingException("Wrong type for includeProduct") }
+}
+"includeOthers" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeOthers = prop.element.value
+} else { throw ParsingException("Wrong type for includeOthers") }
+}
+"includeUpdates" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeUpdates = prop.element.value
+} else { throw ParsingException("Wrong type for includeUpdates") }
+}
+"includeSupport" -> {
+if (prop.element is JsonStreamElement.Bool) {
+includeSupport = prop.element.value
+} else { throw ParsingException("Wrong type for includeSupport") }
+}
+"filterCreatedBy" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterCreatedBy = prop.element.value
+} else { throw ParsingException("Wrong type for filterCreatedBy") }
+}
+"filterCreatedAfter" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+filterCreatedAfter = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for filterCreatedAfter") }
+}
+"filterCreatedBefore" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Number) {
+filterCreatedBefore = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for filterCreatedBefore") }
+}
+"filterProvider" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProvider = prop.element.value
+} else { throw ParsingException("Wrong type for filterProvider") }
+}
+"filterProductId" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProductId = prop.element.value
+} else { throw ParsingException("Wrong type for filterProductId") }
+}
+"filterProductCategory" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProductCategory = prop.element.value
+} else { throw ParsingException("Wrong type for filterProductCategory") }
+}
+"filterProviderIds" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterProviderIds = prop.element.value
+} else { throw ParsingException("Wrong type for filterProviderIds") }
+}
+"filterIds" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+filterIds = prop.element.value
+} else { throw ParsingException("Wrong type for filterIds") }
+}
+"hideProductId" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProductId = prop.element.value
+} else { throw ParsingException("Wrong type for hideProductId") }
+}
+"hideProductCategory" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProductCategory = prop.element.value
+} else { throw ParsingException("Wrong type for hideProductCategory") }
+}
+"hideProvider" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+hideProvider = prop.element.value
+} else { throw ParsingException("Wrong type for hideProvider") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.JobIncludeFlags(
+filterApplication = filterApplication,
+filterState = filterState,
+includeParameters = includeParameters,
+includeApplication = includeApplication,
+includeProduct = includeProduct ?: throw ParsingException("Missing key 'includeProduct'"),
+includeOthers = includeOthers ?: throw ParsingException("Missing key 'includeOthers'"),
+includeUpdates = includeUpdates ?: throw ParsingException("Missing key 'includeUpdates'"),
+includeSupport = includeSupport ?: throw ParsingException("Missing key 'includeSupport'"),
+filterCreatedBy = filterCreatedBy,
+filterCreatedAfter = filterCreatedAfter,
+filterCreatedBefore = filterCreatedBefore,
+filterProvider = filterProvider,
+filterProductId = filterProductId,
+filterProductCategory = filterProductCategory,
+filterProviderIds = filterProviderIds,
+filterIds = filterIds,
+hideProductId = hideProductId,
+hideProductCategory = hideProductCategory,
+hideProvider = hideProvider,
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_JobsRetrieveUtilizationRequest_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobsRetrieveUtilizationRequest {
@@ -15435,75 +15435,9 @@ url = url ?: throw ParsingException("Missing key 'url'"),
 password = password,
 )
 }
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus {
-var state: dk.sdu.cloud.app.orchestrator.api.NetworkIPState? = null
-var boundTo: List<String>? = null
-var ipAddress: String? = null
-var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.NetworkIP, dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product.NetworkIP? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"state" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPState>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"boundTo" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val boundToList = ArrayList<String>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val boundToElem: String
-if (prop.element is JsonStreamElement.Text) {
-boundToElem = prop.element.value
-} else { throw ParsingException("Wrong type for boundToElem") }
-boundToList.add(boundToElem)
-} else { throw ParsingException("Wrong element type for boundTo") }
-}
-boundTo = boundToList
-} else { throw ParsingException("Wrong type for boundTo") }
-}
-"ipAddress" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-ipAddress = prop.element.value
-} else { throw ParsingException("Wrong type for ipAddress") }
-}
-"resolvedSupport" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.NetworkIP, dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>?>(parser)
-} else { throw ParsingException("Wrong type for resolvedSupport") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.NetworkIP?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus(
-state = state ?: throw ParsingException("Missing key 'state'"),
-boundTo = boundTo ?: throw ParsingException("Missing key 'boundTo'"),
-ipAddress = ipAddress,
-resolvedSupport = resolvedSupport,
-resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport {
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification {
 var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-var firewall: dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall? = null
+var firewall: dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
@@ -15516,8 +15450,9 @@ product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
 } else { throw ParsingException("Wrong type for product") }
 }
 "firewall" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-firewall = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall>(parser)
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+firewall = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall?>(parser)
 } else { throw ParsingException("Wrong type for firewall") }
 }
 else -> {
@@ -15525,32 +15460,80 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 }
 }
-return dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport(
+return dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification(
 product = product ?: throw ParsingException("Missing key 'product'"),
-firewall = firewall ?: throw ParsingException("Missing key 'firewall'"),
+firewall = firewall,
 )
 }
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSupport_Firewall_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall {
-var enabled: Boolean? = null
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSpecification_Firewall_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall {
+var openPorts: List<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
 val nextParserToken = parser.nextToken()
 if (nextParserToken == JsonStreamElement.ObjectEnd) break
 val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
 when (prop.key) {
-"enabled" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Bool) {
-enabled = prop.element.value
-} else { throw ParsingException("Wrong type for enabled") }
+"openPorts" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val openPortsList = ArrayList<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val openPortsElem: dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto
+if (prop.element is JsonStreamElement.ObjectStart) {
+openPortsElem = parseJson<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>(parser)
+} else { throw ParsingException("Wrong type for openPortsElem") }
+openPortsList.add(openPortsElem)
+} else { throw ParsingException("Wrong element type for openPorts") }
+}
+openPorts = openPortsList
+} else { throw ParsingException("Wrong type for openPorts") }
 }
 else -> {
 if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
 }
 }
 }
-return dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall(
-enabled = enabled,
+return dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall(
+openPorts = openPorts ?: throw ParsingException("Missing key 'openPorts'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_PortRangeAndProto_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto {
+var start: Int? = null
+var end: Int? = null
+var protocol: dk.sdu.cloud.app.orchestrator.api.IPProtocol? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"start" -> {
+if (prop.element is JsonStreamElement.Number) {
+start = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for start") }
+}
+"end" -> {
+if (prop.element is JsonStreamElement.Number) {
+end = prop.element.value.toInt()
+} else { throw ParsingException("Wrong type for end") }
+}
+"protocol" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+protocol = parseJson<dk.sdu.cloud.app.orchestrator.api.IPProtocol>(parser)
+} else { throw ParsingException("Wrong type for protocol") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto(
+start = start ?: throw ParsingException("Missing key 'start'"),
+end = end ?: throw ParsingException("Missing key 'end'"),
+protocol = protocol ?: throw ParsingException("Missing key 'protocol'"),
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate {
@@ -15642,6 +15625,210 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 return dk.sdu.cloud.app.orchestrator.api.JobBinding(
 kind = kind ?: throw ParsingException("Missing key 'kind'"),
 job = job ?: throw ParsingException("Missing key 'job'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+var firewall: dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+"firewall" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+firewall = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall>(parser)
+} else { throw ParsingException("Wrong type for firewall") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+firewall = firewall ?: throw ParsingException("Missing key 'firewall'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSupport_Firewall_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall {
+var enabled: Boolean? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"enabled" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Bool) {
+enabled = prop.element.value
+} else { throw ParsingException("Wrong type for enabled") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport.Firewall(
+enabled = enabled,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIP_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIP {
+var id: String? = null
+var specification: dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus? = null
+var updates: List<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product.NetworkIP? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.NetworkIP?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.NetworkIP(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+resolvedProduct = resolvedProduct,
+permissions = permissions,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus {
+var state: dk.sdu.cloud.app.orchestrator.api.NetworkIPState? = null
+var boundTo: List<String>? = null
+var ipAddress: String? = null
+var resolvedSupport: dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.NetworkIP, dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>? = null
+var resolvedProduct: dk.sdu.cloud.accounting.api.Product.NetworkIP? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"state" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPState>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"boundTo" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val boundToList = ArrayList<String>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val boundToElem: String
+if (prop.element is JsonStreamElement.Text) {
+boundToElem = prop.element.value
+} else { throw ParsingException("Wrong type for boundToElem") }
+boundToList.add(boundToElem)
+} else { throw ParsingException("Wrong element type for boundTo") }
+}
+boundTo = boundToList
+} else { throw ParsingException("Wrong type for boundTo") }
+}
+"ipAddress" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+ipAddress = prop.element.value
+} else { throw ParsingException("Wrong type for ipAddress") }
+}
+"resolvedSupport" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedSupport = parseJson<dk.sdu.cloud.accounting.api.providers.ResolvedSupport<dk.sdu.cloud.accounting.api.Product.NetworkIP, dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport>?>(parser)
+} else { throw ParsingException("Wrong type for resolvedSupport") }
+}
+"resolvedProduct" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.NetworkIP?>(parser)
+} else { throw ParsingException("Wrong type for resolvedProduct") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus(
+state = state ?: throw ParsingException("Missing key 'state'"),
+boundTo = boundTo ?: throw ParsingException("Missing key 'boundTo'"),
+ipAddress = ipAddress,
+resolvedSupport = resolvedSupport,
+resolvedProduct = resolvedProduct,
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPFlags {
@@ -15783,193 +15970,6 @@ hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
 )
 }
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIP_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIP {
-var id: String? = null
-var specification: dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus? = null
-var updates: List<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>? = null
-var resolvedProduct: dk.sdu.cloud.accounting.api.Product.NetworkIP? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPStatus>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPUpdate>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"resolvedProduct" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-resolvedProduct = parseJson<dk.sdu.cloud.accounting.api.Product.NetworkIP?>(parser)
-} else { throw ParsingException("Wrong type for resolvedProduct") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.NetworkIP(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-resolvedProduct = resolvedProduct,
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-var firewall: dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-"firewall" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-firewall = parseJson<dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall?>(parser)
-} else { throw ParsingException("Wrong type for firewall") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification(
-product = product ?: throw ParsingException("Missing key 'product'"),
-firewall = firewall,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_NetworkIPSpecification_Firewall_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall {
-var openPorts: List<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"openPorts" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val openPortsList = ArrayList<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val openPortsElem: dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto
-if (prop.element is JsonStreamElement.ObjectStart) {
-openPortsElem = parseJson<dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto>(parser)
-} else { throw ParsingException("Wrong type for openPortsElem") }
-openPortsList.add(openPortsElem)
-} else { throw ParsingException("Wrong element type for openPorts") }
-}
-openPorts = openPortsList
-} else { throw ParsingException("Wrong type for openPorts") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall(
-openPorts = openPorts ?: throw ParsingException("Missing key 'openPorts'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_PortRangeAndProto_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto {
-var start: Int? = null
-var end: Int? = null
-var protocol: dk.sdu.cloud.app.orchestrator.api.IPProtocol? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"start" -> {
-if (prop.element is JsonStreamElement.Number) {
-start = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for start") }
-}
-"end" -> {
-if (prop.element is JsonStreamElement.Number) {
-end = prop.element.value.toInt()
-} else { throw ParsingException("Wrong type for end") }
-}
-"protocol" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-protocol = parseJson<dk.sdu.cloud.app.orchestrator.api.IPProtocol>(parser)
-} else { throw ParsingException("Wrong type for protocol") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.PortRangeAndProto(
-start = start ?: throw ParsingException("Missing key 'start'"),
-end = end ?: throw ParsingException("Missing key 'end'"),
-protocol = protocol ?: throw ParsingException("Missing key 'protocol'"),
-)
-}
 inline fun `dk_sdu_cloud_app_orchestrator_api_FirewallAndId_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.FirewallAndId {
 var id: String? = null
 var firewall: dk.sdu.cloud.app.orchestrator.api.NetworkIPSpecification.Firewall? = null
@@ -15997,6 +15997,195 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 return dk.sdu.cloud.app.orchestrator.api.FirewallAndId(
 id = id ?: throw ParsingException("Missing key 'id'"),
 firewall = firewall ?: throw ParsingException("Missing key 'firewall'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_IngressSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressSpecification {
+var domain: String? = null
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"domain" -> {
+if (prop.element is JsonStreamElement.Text) {
+domain = prop.element.value
+} else { throw ParsingException("Wrong type for domain") }
+}
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.IngressSpecification(
+domain = domain ?: throw ParsingException("Missing key 'domain'"),
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_IngressUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressUpdate {
+var state: dk.sdu.cloud.app.orchestrator.api.IngressState? = null
+var status: String? = null
+var timestamp: Long? = null
+var binding: dk.sdu.cloud.app.orchestrator.api.JobBinding? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"state" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressState?>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+"binding" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+binding = parseJson<dk.sdu.cloud.app.orchestrator.api.JobBinding?>(parser)
+} else { throw ParsingException("Wrong type for binding") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.IngressUpdate(
+state = state,
+status = status,
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+binding = binding,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_IngressSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressSupport {
+var domainPrefix: String? = null
+var domainSuffix: String? = null
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"domainPrefix" -> {
+if (prop.element is JsonStreamElement.Text) {
+domainPrefix = prop.element.value
+} else { throw ParsingException("Wrong type for domainPrefix") }
+}
+"domainSuffix" -> {
+if (prop.element is JsonStreamElement.Text) {
+domainSuffix = prop.element.value
+} else { throw ParsingException("Wrong type for domainSuffix") }
+}
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.IngressSupport(
+domainPrefix = domainPrefix ?: throw ParsingException("Missing key 'domainPrefix'"),
+domainSuffix = domainSuffix ?: throw ParsingException("Missing key 'domainSuffix'"),
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_Ingress_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.Ingress {
+var id: String? = null
+var specification: dk.sdu.cloud.app.orchestrator.api.IngressSpecification? = null
+var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
+var createdAt: Long? = null
+var status: dk.sdu.cloud.app.orchestrator.api.IngressStatus? = null
+var updates: List<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>? = null
+var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"id" -> {
+if (prop.element is JsonStreamElement.Text) {
+id = prop.element.value
+} else { throw ParsingException("Wrong type for id") }
+}
+"specification" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+specification = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressSpecification>(parser)
+} else { throw ParsingException("Wrong type for specification") }
+}
+"owner" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
+} else { throw ParsingException("Wrong type for owner") }
+}
+"createdAt" -> {
+if (prop.element is JsonStreamElement.Number) {
+createdAt = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for createdAt") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+status = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressStatus>(parser)
+} else { throw ParsingException("Wrong type for status") }
+}
+"updates" -> {
+if (prop.element is JsonStreamElement.ArrayStart) {
+val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>()
+while (true) {
+val tok = parser.nextToken()
+if (tok == JsonStreamElement.ArrayEnd) {
+break
+} else if (tok is JsonStreamElement.ArrayStart) {
+val updatesElem: dk.sdu.cloud.app.orchestrator.api.IngressUpdate
+if (prop.element is JsonStreamElement.ObjectStart) {
+updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>(parser)
+} else { throw ParsingException("Wrong type for updatesElem") }
+updatesList.add(updatesElem)
+} else { throw ParsingException("Wrong element type for updates") }
+}
+updates = updatesList
+} else { throw ParsingException("Wrong type for updates") }
+}
+"permissions" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
+} else { throw ParsingException("Wrong type for permissions") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.Ingress(
+id = id ?: throw ParsingException("Missing key 'id'"),
+specification = specification ?: throw ParsingException("Missing key 'specification'"),
+owner = owner ?: throw ParsingException("Missing key 'owner'"),
+createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
+status = status ?: throw ParsingException("Missing key 'status'"),
+updates = updates ?: throw ParsingException("Missing key 'updates'"),
+permissions = permissions,
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_IngressStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressStatus {
@@ -16055,88 +16244,6 @@ boundTo = boundTo ?: throw ParsingException("Missing key 'boundTo'"),
 state = state ?: throw ParsingException("Missing key 'state'"),
 resolvedSupport = resolvedSupport,
 resolvedProduct = resolvedProduct,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_IngressSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressSupport {
-var domainPrefix: String? = null
-var domainSuffix: String? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"domainPrefix" -> {
-if (prop.element is JsonStreamElement.Text) {
-domainPrefix = prop.element.value
-} else { throw ParsingException("Wrong type for domainPrefix") }
-}
-"domainSuffix" -> {
-if (prop.element is JsonStreamElement.Text) {
-domainSuffix = prop.element.value
-} else { throw ParsingException("Wrong type for domainSuffix") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.IngressSupport(
-domainPrefix = domainPrefix ?: throw ParsingException("Missing key 'domainPrefix'"),
-domainSuffix = domainSuffix ?: throw ParsingException("Missing key 'domainSuffix'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_IngressUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressUpdate {
-var state: dk.sdu.cloud.app.orchestrator.api.IngressState? = null
-var status: String? = null
-var timestamp: Long? = null
-var binding: dk.sdu.cloud.app.orchestrator.api.JobBinding? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"state" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressState?>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-"binding" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-binding = parseJson<dk.sdu.cloud.app.orchestrator.api.JobBinding?>(parser)
-} else { throw ParsingException("Wrong type for binding") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.IngressUpdate(
-state = state,
-status = status,
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-binding = binding,
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_IngressIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressIncludeFlags {
@@ -16278,13 +16385,103 @@ hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
 )
 }
-inline fun `dk_sdu_cloud_app_orchestrator_api_Ingress_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.Ingress {
+inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseSpecification {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.LicenseSpecification(
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseUpdate {
+var timestamp: Long? = null
+var state: dk.sdu.cloud.app.orchestrator.api.LicenseState? = null
+var status: String? = null
+var binding: dk.sdu.cloud.app.orchestrator.api.JobBinding? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"timestamp" -> {
+if (prop.element is JsonStreamElement.Number) {
+timestamp = prop.element.value.toLong()
+} else { throw ParsingException("Wrong type for timestamp") }
+}
+"state" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+state = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseState?>(parser)
+} else { throw ParsingException("Wrong type for state") }
+}
+"status" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.Text) {
+status = prop.element.value
+} else { throw ParsingException("Wrong type for status") }
+}
+"binding" -> {
+if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
+else if (prop.element is JsonStreamElement.ObjectStart) {
+binding = parseJson<dk.sdu.cloud.app.orchestrator.api.JobBinding?>(parser)
+} else { throw ParsingException("Wrong type for binding") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.LicenseUpdate(
+timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
+state = state,
+status = status,
+binding = binding,
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseSupport {
+var product: dk.sdu.cloud.accounting.api.ProductReference? = null
+if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
+while (true) {
+val nextParserToken = parser.nextToken()
+if (nextParserToken == JsonStreamElement.ObjectEnd) break
+val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
+when (prop.key) {
+"product" -> {
+if (prop.element is JsonStreamElement.ObjectStart) {
+product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
+} else { throw ParsingException("Wrong type for product") }
+}
+else -> {
+if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
+}
+}
+}
+return dk.sdu.cloud.app.orchestrator.api.LicenseSupport(
+product = product ?: throw ParsingException("Missing key 'product'"),
+)
+}
+inline fun `dk_sdu_cloud_app_orchestrator_api_License_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.License {
 var id: String? = null
-var specification: dk.sdu.cloud.app.orchestrator.api.IngressSpecification? = null
+var specification: dk.sdu.cloud.app.orchestrator.api.LicenseSpecification? = null
 var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
 var createdAt: Long? = null
-var status: dk.sdu.cloud.app.orchestrator.api.IngressStatus? = null
-var updates: List<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>? = null
+var status: dk.sdu.cloud.app.orchestrator.api.LicenseStatus? = null
+var updates: List<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>? = null
 var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
 if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
 while (true) {
@@ -16299,7 +16496,7 @@ id = prop.element.value
 }
 "specification" -> {
 if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressSpecification>(parser)
+specification = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseSpecification>(parser)
 } else { throw ParsingException("Wrong type for specification") }
 }
 "owner" -> {
@@ -16314,20 +16511,20 @@ createdAt = prop.element.value.toLong()
 }
 "status" -> {
 if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressStatus>(parser)
+status = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseStatus>(parser)
 } else { throw ParsingException("Wrong type for status") }
 }
 "updates" -> {
 if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>()
+val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>()
 while (true) {
 val tok = parser.nextToken()
 if (tok == JsonStreamElement.ArrayEnd) {
 break
 } else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.app.orchestrator.api.IngressUpdate
+val updatesElem: dk.sdu.cloud.app.orchestrator.api.LicenseUpdate
 if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.IngressUpdate>(parser)
+updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>(parser)
 } else { throw ParsingException("Wrong type for updatesElem") }
 updatesList.add(updatesElem)
 } else { throw ParsingException("Wrong element type for updates") }
@@ -16346,7 +16543,7 @@ if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamEl
 }
 }
 }
-return dk.sdu.cloud.app.orchestrator.api.Ingress(
+return dk.sdu.cloud.app.orchestrator.api.License(
 id = id ?: throw ParsingException("Missing key 'id'"),
 specification = specification ?: throw ParsingException("Missing key 'specification'"),
 owner = owner ?: throw ParsingException("Missing key 'owner'"),
@@ -16354,35 +16551,6 @@ createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
 status = status ?: throw ParsingException("Missing key 'status'"),
 updates = updates ?: throw ParsingException("Missing key 'updates'"),
 permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_IngressSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.IngressSpecification {
-var domain: String? = null
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"domain" -> {
-if (prop.element is JsonStreamElement.Text) {
-domain = prop.element.value
-} else { throw ParsingException("Wrong type for domain") }
-}
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.IngressSpecification(
-domain = domain ?: throw ParsingException("Missing key 'domain'"),
-product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseStatus_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseStatus {
@@ -16441,74 +16609,6 @@ state = state ?: throw ParsingException("Missing key 'state'"),
 resolvedSupport = resolvedSupport,
 resolvedProduct = resolvedProduct,
 boundTo = boundTo ?: throw ParsingException("Missing key 'boundTo'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseSupport_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseSupport {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.LicenseSupport(
-product = product ?: throw ParsingException("Missing key 'product'"),
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseUpdate_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseUpdate {
-var timestamp: Long? = null
-var state: dk.sdu.cloud.app.orchestrator.api.LicenseState? = null
-var status: String? = null
-var binding: dk.sdu.cloud.app.orchestrator.api.JobBinding? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"timestamp" -> {
-if (prop.element is JsonStreamElement.Number) {
-timestamp = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for timestamp") }
-}
-"state" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-state = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseState?>(parser)
-} else { throw ParsingException("Wrong type for state") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.Text) {
-status = prop.element.value
-} else { throw ParsingException("Wrong type for status") }
-}
-"binding" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-binding = parseJson<dk.sdu.cloud.app.orchestrator.api.JobBinding?>(parser)
-} else { throw ParsingException("Wrong type for binding") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.LicenseUpdate(
-timestamp = timestamp ?: throw ParsingException("Missing key 'timestamp'"),
-state = state,
-status = status,
-binding = binding,
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseIncludeFlags_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseIncludeFlags {
@@ -16640,106 +16740,6 @@ filterIds = filterIds,
 hideProductId = hideProductId,
 hideProductCategory = hideProductCategory,
 hideProvider = hideProvider,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_License_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.License {
-var id: String? = null
-var specification: dk.sdu.cloud.app.orchestrator.api.LicenseSpecification? = null
-var owner: dk.sdu.cloud.provider.api.ResourceOwner? = null
-var createdAt: Long? = null
-var status: dk.sdu.cloud.app.orchestrator.api.LicenseStatus? = null
-var updates: List<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>? = null
-var permissions: dk.sdu.cloud.provider.api.ResourcePermissions? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"id" -> {
-if (prop.element is JsonStreamElement.Text) {
-id = prop.element.value
-} else { throw ParsingException("Wrong type for id") }
-}
-"specification" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-specification = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseSpecification>(parser)
-} else { throw ParsingException("Wrong type for specification") }
-}
-"owner" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-owner = parseJson<dk.sdu.cloud.provider.api.ResourceOwner>(parser)
-} else { throw ParsingException("Wrong type for owner") }
-}
-"createdAt" -> {
-if (prop.element is JsonStreamElement.Number) {
-createdAt = prop.element.value.toLong()
-} else { throw ParsingException("Wrong type for createdAt") }
-}
-"status" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-status = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseStatus>(parser)
-} else { throw ParsingException("Wrong type for status") }
-}
-"updates" -> {
-if (prop.element is JsonStreamElement.ArrayStart) {
-val updatesList = ArrayList<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>()
-while (true) {
-val tok = parser.nextToken()
-if (tok == JsonStreamElement.ArrayEnd) {
-break
-} else if (tok is JsonStreamElement.ArrayStart) {
-val updatesElem: dk.sdu.cloud.app.orchestrator.api.LicenseUpdate
-if (prop.element is JsonStreamElement.ObjectStart) {
-updatesElem = parseJson<dk.sdu.cloud.app.orchestrator.api.LicenseUpdate>(parser)
-} else { throw ParsingException("Wrong type for updatesElem") }
-updatesList.add(updatesElem)
-} else { throw ParsingException("Wrong element type for updates") }
-}
-updates = updatesList
-} else { throw ParsingException("Wrong type for updates") }
-}
-"permissions" -> {
-if (prop.element is JsonStreamElement.Null) { /* do nothing */ }
-else if (prop.element is JsonStreamElement.ObjectStart) {
-permissions = parseJson<dk.sdu.cloud.provider.api.ResourcePermissions?>(parser)
-} else { throw ParsingException("Wrong type for permissions") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.License(
-id = id ?: throw ParsingException("Missing key 'id'"),
-specification = specification ?: throw ParsingException("Missing key 'specification'"),
-owner = owner ?: throw ParsingException("Missing key 'owner'"),
-createdAt = createdAt ?: throw ParsingException("Missing key 'createdAt'"),
-status = status ?: throw ParsingException("Missing key 'status'"),
-updates = updates ?: throw ParsingException("Missing key 'updates'"),
-permissions = permissions,
-)
-}
-inline fun `dk_sdu_cloud_app_orchestrator_api_LicenseSpecification_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.LicenseSpecification {
-var product: dk.sdu.cloud.accounting.api.ProductReference? = null
-if (!objectHasStarted && parser.nextToken() != JsonStreamElement.ObjectStart) throw ParsingException("Expected an object")
-while (true) {
-val nextParserToken = parser.nextToken()
-if (nextParserToken == JsonStreamElement.ObjectEnd) break
-val prop = nextParserToken as? JsonStreamElement.Property ?: throw ParsingException("Expected property but got $nextParserToken")
-when (prop.key) {
-"product" -> {
-if (prop.element is JsonStreamElement.ObjectStart) {
-product = parseJson<dk.sdu.cloud.accounting.api.ProductReference>(parser)
-} else { throw ParsingException("Wrong type for product") }
-}
-else -> {
-if (prop.element == JsonStreamElement.ArrayStart || prop.element == JsonStreamElement.ObjectStart) { parser.skipCurrentContext() }
-}
-}
-}
-return dk.sdu.cloud.app.orchestrator.api.LicenseSpecification(
-product = product ?: throw ParsingException("Missing key 'product'"),
 )
 }
 inline fun `dk_sdu_cloud_app_orchestrator_api_JobsProviderExtendRequestItem_deserialize`(parser: JsonParser, objectHasStarted: Boolean = false): dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem {
