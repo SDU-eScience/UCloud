@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import Box from "./Box";
+import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import {Spacer} from "./Spacer";
 
@@ -17,7 +17,7 @@ export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title
                         }
                         {props.title}
                     </>}
-                    right={<Box width="150px">{props.titleContent}</Box>}
+                    right={<Flex width="auto">{props.titleContent}</Flex>}
                 />
             </AccordionStyle>
             <Panel active={open}>

@@ -8,7 +8,7 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
-import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
@@ -35,6 +35,15 @@ import {
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SubAllocationViewer} from "./SubAllocations";
+import {Accordion, AccordionWrapper} from "@/ui-components/Accordion";
+import {ResourceProgress} from "@/ui-components/ResourcesProgress";
+import {format} from "date-fns/esm";
+import {Spacer} from "@/ui-components/Spacer";
+import {Toggle} from "@/ui-components/Toggle";
+
+const SIMPLE_VIEW = true;
+
+const FORMAT = "dd/MM/yyyy";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -66,9 +75,9 @@ filterPills.push(props =>
     <ValuePill {...props} propertyName={"filterAllocation"} showValue={false} icon={"grant"} title={"Allocation"} />);
 
 const ResourcesGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr;
-  grid-gap: 16px;
+    display: grid;
+    grid-template-columns: 1fr;
+    grid-gap: 16px;
 `;
 
 const Resources: React.FunctionComponent = () => {
@@ -157,11 +166,7 @@ const Resources: React.FunctionComponent = () => {
                                     <DonutChart key={idx} chart={it} />
                                 )}
                             </VisualizationSection>
-                            <VisualizationSection>
-                                {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it} />
-                                )}
-                            </VisualizationSection>
+                            <Wallets wallets={wallets.data.items} />
 
                             {managementStatus.allowManagement ?
                                 <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
@@ -178,6 +183,116 @@ const Resources: React.FunctionComponent = () => {
     );
 };
 
+type WalletStore = {
+    [key in keyof typeof productTypes]: Wallet[]
+};
+
+const VERY_HIGH_DATE_VALUE = 99999999999999;
+
+function Wallets(props: {wallets: Wallet[]}): JSX.Element {
+    const [wallets, setWallets] = React.useState<WalletStore>({} as WalletStore);
+    const [advancedToggles, setAdvancedToggles] = useState<string[]>([]);
+    React.useEffect(() => {
+        const dividedWallets = {};
+        productTypes.forEach(key => dividedWallets[key] = []);
+        props.wallets.forEach(wallet => {
+            const productType = wallet.productType;
+            dividedWallets[productType].push(wallet);
+        });
+        setWallets(dividedWallets as WalletStore);
+    }, [props.wallets]);
+
+    if (Object.keys(wallets).length === 0) return <div />;
+    return <AccordionWrapper>{productTypes.map((key: ProductType) => {
+        if (wallets[key].length === 0) return null;
+        const walletsList: Wallet[] = wallets[key];
+        const result = totalUsageFromMultipleWallets(walletsList);
+        const asPercent = result.balance / result.allocation;
+
+        let earliestExpiration = VERY_HIGH_DATE_VALUE;
+        walletsList.forEach(it => it.allocations.forEach(alloc => {
+            if (alloc.endDate && alloc.endDate < earliestExpiration) earliestExpiration = alloc.endDate;
+        }));
+
+        const expirationText = earliestExpiration === VERY_HIGH_DATE_VALUE ?
+            "" : `Earliest expiration: ${format(earliestExpiration, FORMAT)}`;
+
+        return <Accordion
+            icon={productTypeToIcon(key)}
+            title={prettierString(key)}
+            titleContent={<><Text mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
+        >
+            <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
+                if (advancedToggles.includes(key)) {
+                    setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
+                } else {
+                    setAdvancedToggles([...advancedToggles, key]);
+                }
+            }} /></>} />
+            {!advancedToggles.includes(key) ?
+                <SimpleWalletView wallets={walletsList} /> :
+                <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
+
+        </Accordion>
+    })}
+    </AccordionWrapper>;
+}
+
+function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
+    return (<SimpleWalletRowWrapper>
+        {props.wallets.map(wallet => {
+            const result = totalUsageFromWallet(wallet);
+            const usage = result.balance / result.allocation;
+            const expiration = wallet.allocations.reduce((lowest, wallet) =>
+                wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
+            );
+            const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
+            return (
+                <SimpleAllocationRowWrapper>
+                    <Spacer
+                        px="30px"
+                        left={<Text mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
+                        right={<><Text mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(usage)} /></>}
+                    />
+                </SimpleAllocationRowWrapper>
+            );
+        })}
+    </SimpleWalletRowWrapper>);
+}
+
+const SimpleAllocationRowWrapper = styled.div``;
+const SimpleWalletRowWrapper = styled.div`
+    & > ${SimpleAllocationRowWrapper} {
+        margin-top: 6px;
+        border-bottom: 1px solid var(--gray, #000);
+    }
+
+    & > ${SimpleAllocationRowWrapper} {
+        margin-top: 24px;
+    }
+    
+    & > ${SimpleAllocationRowWrapper} {
+        margin-bottom: 24px;
+        border-bottom: 0px solid black;
+    }
+`;
+
+function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, allocation: number} {
+    const result = {balance: 0, allocation: 0};
+    wallets.forEach(wallet => {
+        const usage = totalUsageFromWallet(wallet);
+        result.balance += usage.balance;
+        result.allocation += usage.allocation;
+    });
+    return result;
+
+}
+
+function totalUsageFromWallet(wallet: Wallet): {balance: number, allocation: number} {
+    return wallet.allocations.reduce(
+        (acc, it) => ({balance: acc.balance + it.balance, allocation: acc.allocation + it.initialBalance}),
+        {balance: 0, allocation: 0});
+}
 
 const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     return <>
@@ -224,18 +339,18 @@ const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | 
 };
 
 const VisualizationSection = styled.div`
-  display: grid;
-  grid-gap: 16px;
-  padding: 10px 0;
-  grid-template-columns: repeat(auto-fill, 400px);
-`;
+        display: grid;
+        grid-gap: 16px;
+        padding: 10px 0;
+        grid-template-columns: repeat(auto-fill, 400px);
+        `;
 
 const UsageChartStyle = styled.div`
-  .usage-chart {
-    width: calc(100% + 32px) !important;
-    margin: -16px;
-  }
-`;
+        .usage-chart {
+            width: calc(100% + 32px) !important;
+        margin: -16px;
+    }
+        `;
 
 const UsageChartViewer: React.FunctionComponent<{
     c: UsageChart;
@@ -389,9 +504,9 @@ function ChartPointName({name}: {name: string}): JSX.Element {
 }
 
 const SubText = styled.div`
-  color: var(--gray);
-  text-decoration: none;
-  font-size: 10px;
-`;
+        color: var(--gray);
+        text-decoration: none;
+        font-size: 10px;
+        `;
 
 export default Resources;

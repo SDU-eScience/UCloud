@@ -56,7 +56,7 @@ const Bar = styled.div<{value: number}>`
     }
 
     &.negative {
-        background: var(--lightGray);
+        background: var(--appCard);
         right: 0;
         width: ${props => 100 - props.value}%;        
         animation: ${animateNegative} 4s;
@@ -71,14 +71,12 @@ const Bar = styled.div<{value: number}>`
 const ProgressBar = styled.div<{value: number}>`
     border-radius: 4px;
     position: relative;
-    border: #ccc solid 1px;
     width: 150px;
     height: 15px;
     line-height: 15px;
     vertical-align: middle;
     overflow: hidden;
     font-size: 12px;
-    box-shadow: 0 4px 10px -5px rgba(0, 0, 0, 0.25);
 `;
 
 /* https://codepen.io/valiooo/pen/ALXodB */
