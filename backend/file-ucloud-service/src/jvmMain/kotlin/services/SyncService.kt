@@ -13,8 +13,7 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import java.io.File
 
 object SyncFoldersTable : SQLTable("sync_folders") {
@@ -97,11 +96,13 @@ class SyncService(
                         !mounter.orThrow().ready
                     ) {
                         retries++
+                        delay(1_000)
                     } else {
                         break
                     }
                 } catch (ex: Throwable) {
                     retries++
+                    delay(1_000)
                 }
             }
 
@@ -175,7 +176,6 @@ class SyncService(
 
             affectedDevices.forEach { device ->
                 // Syncthing is ready when it's accessible.
-
                 var retries = 0
                 while (true) {
                     if (retries == 3) {
@@ -193,11 +193,13 @@ class SyncService(
                             !syncthingReady
                         ) {
                             retries++
+                            delay(2_000)
                         } else {
                             break
                         }
                     } catch (ex: Throwable) {
                         retries++
+                        delay(2_000)
                     }
                 }
             }
@@ -311,23 +313,20 @@ class SyncService(
 
     private suspend fun unmountFolders(folders: List<MountFolderId>) {
         var retries = 0
-        var retryTime = Time.now() + 2_000
         unmounting@while (true) {
-            if (Time.now() > retryTime) {
-                if (retries == 3) {
-                    break@unmounting
-                }
+            if (retries == 3) {
+                break@unmounting
+            }
 
-                try {
-                    Mounts.unmount.call(
-                        UnmountRequest(folders),
-                        mounterClient
-                    ).orThrow()
-                    break@unmounting
-                } catch (ex: Throwable) {
-                    retries++
-                }
-                retryTime = Time.now() + 5_000
+            try {
+                Mounts.unmount.call(
+                    UnmountRequest(folders),
+                    mounterClient
+                ).orThrow()
+                break@unmounting
+            } catch (ex: Throwable) {
+                retries++
+                delay(5_000)
             }
         }
     }
