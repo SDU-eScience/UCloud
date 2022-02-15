@@ -4,7 +4,6 @@ import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.alerting.AlertingService
-import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -67,7 +66,6 @@ val services = setOf<Service>(
     FileOrchestratorService,
     FileUcloudService,
     SupportService,
-    AppAauService,
     AppKubernetesService,
     TaskService,
     AlertingService
@@ -76,7 +74,7 @@ val services = setOf<Service>(
 enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
     Full("full", { true }),
 
-    FullNoProviders("no-providers", { it != AppKubernetesService && it != FileUcloudService && it != AppAauService }),
+    FullNoProviders("no-providers", { it != AppKubernetesService && it != FileUcloudService }),
 
     Core("core", { svc ->
         when (svc) {
