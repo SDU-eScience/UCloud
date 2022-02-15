@@ -278,20 +278,20 @@ const SimpleWalletRowWrapper = styled.div`
 `;
 
 function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, allocation: number} {
-    const result = {balance: 0, allocation: 0};
-    wallets.forEach(wallet => {
+    return wallets.reduce((acc, wallet) => {
         const usage = totalUsageFromWallet(wallet);
-        result.balance += usage.balance;
-        result.allocation += usage.allocation;
-    });
-    return result;
+        acc.balance += usage.balance;
+        acc.allocation += usage.allocation;
+        return acc;
+    }, {balance: 0, allocation: 0});
 
 }
 
 function totalUsageFromWallet(wallet: Wallet): {balance: number, allocation: number} {
     return wallet.allocations.reduce(
         (acc, it) => ({balance: acc.balance + it.balance, allocation: acc.allocation + it.initialBalance}),
-        {balance: 0, allocation: 0});
+        {balance: 0, allocation: 0}
+    );
 }
 
 const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
