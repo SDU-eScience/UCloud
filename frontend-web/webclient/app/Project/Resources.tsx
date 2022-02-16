@@ -243,8 +243,8 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
 }
 
 const Border = styled.div`
-    border-top: 1px solid var(--text);
-    border-bottom: 1px solid var(--text);
+    border-top: 1px solid lightGrey;
+    border-bottom: 1px solid lightGrey;
     padding: 12px;
 `;
 
