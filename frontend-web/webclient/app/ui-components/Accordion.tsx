@@ -9,8 +9,8 @@ import Text from "./Text";
 export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title: string, titleContent?: React.ReactNode}>): JSX.Element {
     const [open, setOpen] = React.useState(false);
     return (
-        <div>
-            <AccordionStyle active={open} onClick={() => setOpen(!open)}>
+        <>
+            <AccordionStyle className="AccordionStyle" active={open} onClick={() => setOpen(!open)}>
                 <Spacer
                     left={<>
                         {props.icon ? <Icon mr="12px" color="text" name={props.icon} /> :
@@ -24,11 +24,11 @@ export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title
             <Panel active={open}>
                 {props.children}
             </Panel>
-        </div>
+        </>
     );
 }
 
-const AccordionStyle = styled.button<{active: boolean}>`
+const AccordionStyle = styled.div<{active: boolean}>`
     background-color: var(--white);
     padding: 18px;
     width: 100%;
@@ -45,19 +45,10 @@ const Panel = styled.div<{active: boolean}>`
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
     transition: all 0.2s ease-out;
-    padding: ${props => props.active ? "15px" : 0} 18px;
-    ${p => p.active ? "border-bottom: 1px solid #ddd;" : null}
 `;
 
 export const AccordionWrapper = styled.div`
     box-shadow: ${p => p.theme.shadows.md};
-
-    & > div > ${AccordionStyle} {
-        border-bottom: 1px solid #ddd;
-    }
-    & > div > ${AccordionStyle}:last-child {
-        border-bottom: 0px solid #ddd;
-    }
 `;
 
 const RotatingIcon = styled(Icon)`

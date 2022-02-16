@@ -211,6 +211,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
         {productTypes.filter(key => wallets[key].length > 0).map((key: ProductType) => {
             const walletsList: Wallet[] = wallets[key];
             const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
+
             let earliestExpiration = VERY_HIGH_DATE_VALUE;
             walletsList.forEach(it => it.allocations.forEach(alloc => {
                 if (alloc.endDate && alloc.endDate < earliestExpiration) earliestExpiration = alloc.endDate;
@@ -224,21 +225,28 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 title={prettierString(key)}
                 titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
             >
-                <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
-                    if (advancedToggles.includes(key)) {
-                        setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
-                    } else {
-                        setAdvancedToggles([...advancedToggles, key]);
-                    }
-                }} /></>} />
-                {!advancedToggles.includes(key) ?
-                    <SimpleWalletView wallets={walletsList} /> :
-                    <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
-
+                <Border>
+                    <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
+                        if (advancedToggles.includes(key)) {
+                            setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
+                        } else {
+                            setAdvancedToggles([...advancedToggles, key]);
+                        }
+                    }} /></>} />
+                    {!advancedToggles.includes(key) ?
+                        <SimpleWalletView wallets={walletsList} /> :
+                        <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
+                </Border>
             </Accordion>
         })}
     </AccordionWrapper>;
 }
+
+const Border = styled.div`
+    border-top: 1px solid var(--text);
+    border-bottom: 1px solid var(--text);
+    padding: 12px;
+`;
 
 function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
     return <SimpleWalletRowWrapper>
@@ -274,6 +282,7 @@ const SimpleWalletRowWrapper = styled.div`
     
     & > ${SimpleAllocationRowWrapper} {
         margin-bottom: 24px;
+        border-bottom: 0px solid black;
     }
 `;
 
