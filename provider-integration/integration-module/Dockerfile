@@ -27,6 +27,7 @@ RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
 
+
 FROM base AS development
 
 RUN useradd --user-group testuser 
@@ -41,6 +42,25 @@ WORKDIR /opt/ucloud
 FROM development AS ucloud-im
 RUN apt-get -qq -y install munge slurm-client ssh
 RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
+
+#recently post merge
+RUN cat > /etc/ucloud/frontend_proxy.json << EOF
+{
+	"remoteHost": "localhost",
+	"remotePort": 8889,
+	"remoteScheme": "http",
+	"sharedSecret": "somesharedsecret"
+}
+EOF
+
+RUN chown ucloud:ucloud /etc/ucloud/frontend_proxy.json
+RUN chmod 640 /etc/ucloud/frontend_proxy.json
+RUN usermod -a -G ucloud testuser
+RUN chmod 600 /etc/ucloud/frontend_proxy.json
+
+
+
+
 WORKDIR /opt/ucloud
 
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
