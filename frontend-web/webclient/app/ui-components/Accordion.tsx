@@ -3,6 +3,7 @@ import styled from "styled-components";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import {Spacer} from "./Spacer";
+import Text from "./Text";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
 export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title: string, titleContent?: React.ReactNode}>): JSX.Element {
@@ -12,10 +13,10 @@ export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title
             <AccordionStyle active={open} onClick={() => setOpen(!open)}>
                 <Spacer
                     left={<>
-                        {props.icon ? <Icon mr="12px" name={props.icon} /> :
-                            <RotatingIcon size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
+                        {props.icon ? <Icon mr="12px" color="text" name={props.icon} /> :
+                            <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
                         }
-                        {props.title}
+                        <Text color="text">{props.title}</Text>
                     </>}
                     right={<Flex width="auto">{props.titleContent}</Flex>}
                 />
@@ -43,8 +44,7 @@ const Panel = styled.div<{active: boolean}>`
     display: ${props => props.active ? "block" : "none"};
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
-    transition: max-height 0.2s ease-out;  
-    transition: padding 0.2s ease-out;  
+    transition: all 0.2s ease-out;
     padding: ${props => props.active ? "15px" : 0} 18px;
     ${p => p.active ? "border-bottom: 1px solid #ddd;" : null}
 `;
@@ -64,6 +64,5 @@ const RotatingIcon = styled(Icon)`
     size: 14px;
     margin-right: 12px;
     cursor: pointer;
-    color: var(--black, #f00);
     transition: transform 0.2s;
 `;

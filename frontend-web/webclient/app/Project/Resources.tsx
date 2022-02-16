@@ -189,7 +189,11 @@ type WalletStore = {
 
 const VERY_HIGH_DATE_VALUE = 99999999999999;
 
-function Wallets(props: {wallets: Wallet[]}): JSX.Element {
+function resultAsPercent(usage: {balance: number; initialBalance: number}): number {
+    return 100 - (usage.balance / usage.initialBalance * 100);
+}
+
+function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
     const [wallets, setWallets] = React.useState<WalletStore>({} as WalletStore);
     const [advancedToggles, setAdvancedToggles] = useState<string[]>([]);
     React.useEffect(() => {
@@ -202,47 +206,44 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element {
         setWallets(dividedWallets as WalletStore);
     }, [props.wallets]);
 
-    if (Object.keys(wallets).length === 0) return <div />;
-    return <AccordionWrapper>{productTypes.map((key: ProductType) => {
-        if (wallets[key].length === 0) return null;
-        const walletsList: Wallet[] = wallets[key];
-        const result = totalUsageFromMultipleWallets(walletsList);
-        const asPercent = result.balance / result.allocation;
+    if (Object.keys(wallets).length === 0) return null;
+    return <AccordionWrapper>
+        {productTypes.filter(key => wallets[key].length > 0).map((key: ProductType) => {
+            const walletsList: Wallet[] = wallets[key];
+            const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
+            let earliestExpiration = VERY_HIGH_DATE_VALUE;
+            walletsList.forEach(it => it.allocations.forEach(alloc => {
+                if (alloc.endDate && alloc.endDate < earliestExpiration) earliestExpiration = alloc.endDate;
+            }));
 
-        let earliestExpiration = VERY_HIGH_DATE_VALUE;
-        walletsList.forEach(it => it.allocations.forEach(alloc => {
-            if (alloc.endDate && alloc.endDate < earliestExpiration) earliestExpiration = alloc.endDate;
-        }));
+            const expirationText = earliestExpiration === VERY_HIGH_DATE_VALUE ?
+                "" : `Earliest expiration: ${format(earliestExpiration, FORMAT)}`;
 
-        const expirationText = earliestExpiration === VERY_HIGH_DATE_VALUE ?
-            "" : `Earliest expiration: ${format(earliestExpiration, FORMAT)}`;
+            return <Accordion
+                icon={productTypeToIcon(key)}
+                title={prettierString(key)}
+                titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
+            >
+                <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
+                    if (advancedToggles.includes(key)) {
+                        setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
+                    } else {
+                        setAdvancedToggles([...advancedToggles, key]);
+                    }
+                }} /></>} />
+                {!advancedToggles.includes(key) ?
+                    <SimpleWalletView wallets={walletsList} /> :
+                    <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
 
-        return <Accordion
-            icon={productTypeToIcon(key)}
-            title={prettierString(key)}
-            titleContent={<><Text mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
-        >
-            <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
-                if (advancedToggles.includes(key)) {
-                    setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
-                } else {
-                    setAdvancedToggles([...advancedToggles, key]);
-                }
-            }} /></>} />
-            {!advancedToggles.includes(key) ?
-                <SimpleWalletView wallets={walletsList} /> :
-                <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
-
-        </Accordion>
-    })}
+            </Accordion>
+        })}
     </AccordionWrapper>;
 }
 
 function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
-    return (<SimpleWalletRowWrapper>
+    return <SimpleWalletRowWrapper>
         {props.wallets.map(wallet => {
-            const result = totalUsageFromWallet(wallet);
-            const usage = result.balance / result.allocation;
+            const asPercent = resultAsPercent(totalUsageFromWallet(wallet));
             const expiration = wallet.allocations.reduce((lowest, wallet) =>
                 wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
             );
@@ -251,18 +252,18 @@ function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
                 <SimpleAllocationRowWrapper>
                     <Spacer
                         px="30px"
-                        left={<Text mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
-                        right={<><Text mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(usage)} /></>}
+                        left={<Text color="text" mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
+                        right={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
                     />
                 </SimpleAllocationRowWrapper>
             );
         })}
-    </SimpleWalletRowWrapper>);
+    </SimpleWalletRowWrapper>;
 }
 
 const SimpleAllocationRowWrapper = styled.div``;
 const SimpleWalletRowWrapper = styled.div`
-    & > ${SimpleAllocationRowWrapper} {
+    & > ${SimpleAllocationRowWrapper}:not(:last-child) {
         margin-top: 6px;
         border-bottom: 1px solid var(--gray, #000);
     }
@@ -273,24 +274,23 @@ const SimpleWalletRowWrapper = styled.div`
     
     & > ${SimpleAllocationRowWrapper} {
         margin-bottom: 24px;
-        border-bottom: 0px solid black;
     }
 `;
 
-function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, allocation: number} {
+function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, initialBalance: number} {
     return wallets.reduce((acc, wallet) => {
         const usage = totalUsageFromWallet(wallet);
         acc.balance += usage.balance;
-        acc.allocation += usage.allocation;
+        acc.initialBalance += usage.initialBalance;
         return acc;
-    }, {balance: 0, allocation: 0});
+    }, {balance: 0, initialBalance: 0});
 
 }
 
-function totalUsageFromWallet(wallet: Wallet): {balance: number, allocation: number} {
+function totalUsageFromWallet(wallet: Wallet): {balance: number, initialBalance: number} {
     return wallet.allocations.reduce(
-        (acc, it) => ({balance: acc.balance + it.balance, allocation: acc.allocation + it.initialBalance}),
-        {balance: 0, allocation: 0}
+        (acc, it) => ({balance: acc.balance + it.balance, initialBalance: acc.initialBalance + it.initialBalance}),
+        {balance: 0, initialBalance: 0}
     );
 }
 
