@@ -44,14 +44,14 @@ RUN apt-get -qq -y install munge slurm-client ssh
 RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
 
 #recently post merge
-RUN cat > /etc/ucloud/frontend_proxy.json << EOF
-{
-	"remoteHost": "localhost",
-	"remotePort": 8889,
-	"remoteScheme": "http",
-	"sharedSecret": "somesharedsecret"
-}
-EOF
+RUN echo -e   '\
+{ \
+	"remoteHost": "localhost", \
+	"remotePort": 8889, \
+	"remoteScheme": "http", \
+	"sharedSecret": "somesharedsecret" \
+} \
+' > /etc/ucloud/frontend_proxy.json
 
 RUN chown ucloud:ucloud /etc/ucloud/frontend_proxy.json
 RUN chmod 640 /etc/ucloud/frontend_proxy.json
