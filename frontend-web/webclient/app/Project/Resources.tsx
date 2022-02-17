@@ -271,16 +271,13 @@ function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): J
 const SimpleAllocationRowWrapper = styled.div``;
 const SimpleWalletRowWrapper = styled.div`
     & > ${SimpleAllocationRowWrapper}:not(:last-child) {
-        margin-top: 6px;
-        border-bottom: 1px solid var(--gray, #000);
-    }
-
-    & > ${SimpleAllocationRowWrapper} {
-        margin-top: 24px;
+        vertical-align: center;
+        border-bottom: 1px solid #d3d3d3;
     }
     
     & > ${SimpleAllocationRowWrapper} {
-        margin-bottom: 24px;
+        margin-top: 12px;
+        padding-bottom: 10px;
         border-bottom: 0px solid black;
     }
 `;
