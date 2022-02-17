@@ -65,6 +65,7 @@ class JobOrchestrator(
     private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
     Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
+    override val browseStrategy: ResourceBrowseStategy = ResourceBrowseStategy.NEW
     private val storageProviders = Providers(serviceClient) {
         StorageCommunication(
             it.client,
@@ -307,32 +308,31 @@ class JobOrchestrator(
             },
             """
                 select
-                    job.resource, job,
+                    (resc.spec).resource, resc.spec,
                     array_remove(array_agg(distinct res), null),
                     array_remove(array_agg(distinct param), null),
                     app, t
 
                 from
-                    accessible_resources resc join
-                    app_orchestrator.jobs job on (resc.r).id = resource join
+                    relevant_resources resc join
                     app_store.applications app on
-                        job.application_name = app.name and job.application_version = app.version join
+                        (resc.spec).application_name = app.name and (resc.spec).application_version = app.version join
                     app_store.tools t on app.tool_name = t.name and app.tool_version = t.version left join
-                    app_orchestrator.job_resources res on job.resource = res.job_id left join
-                    app_orchestrator.job_input_parameters param on job.resource = param.job_id
+                    app_orchestrator.job_resources res on (resc.spec).resource = res.job_id left join
+                    app_orchestrator.job_input_parameters param on (resc.spec).resource = param.job_id
 
                 where
-                    (:filter_state::text is null or current_state = :filter_state::text) and
-                    (:filter_application::text is null or application_name = :filter_application) and
+                    (:filter_state::text is null or (resc.spec).current_state = :filter_state::text) and
+                    (:filter_application::text is null or (resc.spec).application_name = :filter_application) and
                     (
                         :query::text is null or
-                        job.name ilike '%' || :query || '%' or
-                        job.resource::text ilike '%' || :query || '%' or
+                        (resc.spec).name ilike '%' || :query || '%' or
+                        (resc.spec).resource::text ilike '%' || :query || '%' or
                         app.title ilike '%' || :query || '%' or
                         t.name ilike '%' || :query || '%'
                     )
 
-                group by job.resource, job.*, app.*, t.*
+                group by (resc.spec).resource, resc.spec, app.*, t.*
             """
         )
     }
