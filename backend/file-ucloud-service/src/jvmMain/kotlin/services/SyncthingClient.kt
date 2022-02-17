@@ -443,28 +443,21 @@ class SyncthingClient(
     suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
         if (lock.acquire()) {
             mutex.withLock {
-                var pendingDevices = devices.ifEmpty { config.devices }
+                val pendingDevices = devices.ifEmpty { config.devices }
                 log.info("Attempting rescan of syncthing")
-                while (pendingDevices.isNotEmpty()) {
-                    if (Time.now() > lastWrite.get() + 5000) {
-                        try {
-                            pendingDevices.forEach { device ->
-                                val resp = httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
-                                    headers {
-                                        append("X-API-Key", device.apiKey)
-                                    }
-                                }
-
-                                if (resp.status == HttpStatusCode.OK) {
-                                    pendingDevices = pendingDevices.filter { it.id != device.id }
-                                }
+                pendingDevices.forEach { device ->
+                    try {
+                        httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
+                            headers {
+                                append("X-API-Key", device.apiKey)
                             }
-                        } catch (ex: Throwable) {
-                            // do nothing
                         }
+                    } catch (ex: Throwable) {
+                        // do nothing
                     }
                 }
             }
+            lock.release()
         }
     }
 
