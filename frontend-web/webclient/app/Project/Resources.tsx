@@ -233,9 +233,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                             setAdvancedToggles([...advancedToggles, key]);
                         }
                     }} /></>} />
-                    {!advancedToggles.includes(key) ?
-                        <SimpleWalletView wallets={walletsList} /> :
-                        <VisualizationSection>{wallets[key].map((w: Wallet) => <WalletViewer wallet={w} />)}</VisualizationSection>}
+                    <SimpleWalletView wallets={walletsList} advancedView={advancedToggles.includes(key)} />
                 </Border>
             </Accordion>
         })}
@@ -248,7 +246,7 @@ const Border = styled.div`
     padding: 12px;
 `;
 
-function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
+function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): JSX.Element {
     return <SimpleWalletRowWrapper>
         {props.wallets.map(wallet => {
             const asPercent = resultAsPercent(totalUsageFromWallet(wallet));
@@ -263,6 +261,7 @@ function SimpleWalletView(props: {wallets: Wallet[]}): JSX.Element {
                         left={<Text color="text" mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
                         right={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
                     />
+                    {props.advancedView ? <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection> : null}
                 </SimpleAllocationRowWrapper>
             );
         })}
