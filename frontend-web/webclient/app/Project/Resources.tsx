@@ -319,15 +319,14 @@ const AllocationViewer: React.FunctionComponent<{
                 size={"54px"} mr={"16px"} />
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
                 <Flex alignItems={"center"} mr={"-16px"}>
-                    <div><b>[{allocation.id}] {wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
+                    <div><b>Allocation ID: {allocation.id}</b></div>
                     <Box flexGrow={1} />
                 </Flex>
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
-                <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : <> Unknown
-                    Grant </>}  </div>
+                <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : null}  </div>
             </Flex>
         </Flex>
     </HighlightedCard>;
