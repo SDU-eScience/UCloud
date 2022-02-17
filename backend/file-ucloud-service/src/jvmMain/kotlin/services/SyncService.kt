@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.sync.mounter.api.*
+import kotlinx.coroutines.delay
 import java.io.File
 
 object SyncFoldersTable : SQLTable("sync_folders") {
@@ -76,6 +77,35 @@ class SyncService(
         val remoteDevices: MutableList<LocalSyncthingDevice> = mutableListOf()
 
         val affectedRows: Long = db.withSession { session ->
+
+            // Check if sync-mounter is ready for requests
+            var retries = 0
+            while (true) {
+                if (retries == 3) {
+                    throw RPCException(
+                        "The synchronization feature is offline. Please try again later.",
+                        HttpStatusCode.ServiceUnavailable
+                    )
+                }
+
+                try {
+                    val mounter = Mounts.ready.call(Unit, mounterClient)
+
+                    if (
+                        mounter.statusCode != HttpStatusCode.OK ||
+                        !mounter.orThrow().ready
+                    ) {
+                        retries++
+                        delay(1_000)
+                    } else {
+                        break
+                    }
+                } catch (ex: Throwable) {
+                    retries++
+                    delay(1_000)
+                }
+            }
+
             request.items.forEach { folder ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(folder.specification.path))
 
@@ -145,9 +175,7 @@ class SyncService(
             ).rowsAffected
 
             affectedDevices.forEach { device ->
-                // Mounter is ready when all folders added to syncthing on that device is mounted.
                 // Syncthing is ready when it's accessible.
-
                 var retries = 0
                 while (true) {
                     if (retries == 3) {
@@ -158,21 +186,20 @@ class SyncService(
                     }
 
                     try {
-                        val mounter = Mounts.ready.call(Unit, mounterClient)
                         val syncthingReady = syncthing.isReady(device)
 
                         if (
-                            mounter.statusCode != HttpStatusCode.OK ||
-                            !mounter.orThrow().ready ||
                             syncthingReady == null ||
                             !syncthingReady
                         ) {
                             retries++
+                            delay(2_000)
                         } else {
                             break
                         }
                     } catch (ex: Throwable) {
                         retries++
+                        delay(2_000)
                     }
                 }
             }
@@ -217,6 +244,8 @@ class SyncService(
             val userId: String
         )
 
+        var writeSuccessful = false
+
         val deleted = db.withSession { session ->
             val deleted = session.sendPreparedStatement(
                 {
@@ -242,31 +271,13 @@ class SyncService(
                 }
             }
 
-            deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
-                Mounts.unmount.call(
-                    UnmountRequest(deviceFolders.value.map { MountFolderId(it.id) }),
-                    mounterClient
-                ).orRethrowAs { throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError) }
-            }
-
             deleted
         }
 
         try {
             syncthing.writeConfig(deleted.map { it.localDevice })
+            writeSuccessful = true
         } catch (ex: Throwable) {
-            deleted.groupBy { it.localDevice }.forEach { deviceFolders ->
-                Mounts.mount.call(
-                    MountRequest(
-                        deviceFolders.value.map {
-                            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(it.path))
-                            MountFolder(it.id, internalFile.path)
-                        }
-                    ),
-                    mounterClient
-                )
-            }
-
             db.withSession { session ->
                 session.sendPreparedStatement(
                     {
@@ -292,6 +303,30 @@ class SyncService(
                         ) on conflict do nothing
                     """
                 )
+            }
+        }
+
+        if (writeSuccessful) {
+            unmountFolders(deleted.map { MountFolderId(it.id) })
+        }
+    }
+
+    private suspend fun unmountFolders(folders: List<MountFolderId>) {
+        var retries = 0
+        unmounting@while (true) {
+            if (retries == 3) {
+                break@unmounting
+            }
+
+            try {
+                Mounts.unmount.call(
+                    UnmountRequest(folders),
+                    mounterClient
+                ).orThrow()
+                break@unmounting
+            } catch (ex: Throwable) {
+                retries++
+                delay(5_000)
             }
         }
     }
@@ -481,9 +516,6 @@ class SyncService(
     )
 
     companion object {
-        // NOTE(Dan): This is truly a beautiful regex. I refuse to write something better (unless someone has a good
-        // reason).
-        private val deviceIdRegex =
-            Regex("""[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]-[\w\d][\w\d][\w\d][\w\d][\w\d][\w\d][\w\d]""")
+        private val deviceIdRegex = Regex("""([a-zA-Z\d]{7}-){7}[a-zA-Z\d]{7}""")
     }
 }
