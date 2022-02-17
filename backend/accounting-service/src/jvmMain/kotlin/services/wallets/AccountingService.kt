@@ -1223,7 +1223,7 @@ class AccountingService(
             session.sendPreparedStatement(
                 {
                     val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 7)))
+                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 31)))
                     setParameter("end_date", request.filterEndDate ?: now)
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("project", actorAndProject.project)
