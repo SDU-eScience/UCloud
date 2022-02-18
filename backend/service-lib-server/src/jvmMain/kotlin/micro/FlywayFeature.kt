@@ -78,6 +78,7 @@ fun DatabaseConfig.migrateAll() {
     data class SchemaMigrations(val schema: String, val location: Location, val loadedClasses: List<Class<*>>)
 
     val schemaPriority = mapOf(
+        "task" to 90,
         "newaccounting" to 100,
         "file_orchestrator" to 101,
         "app_orchestrator" to 102,
