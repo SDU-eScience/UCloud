@@ -513,6 +513,7 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
+                    if (true) return
                     println("onFailure")
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
@@ -1217,7 +1218,7 @@ abstract class ResourceService<
                 if (filterIds != null) setParameter("filter_ids", filterIds)
                 if (hideProductId != null) setParameter("hide_product_id", hideProductId)
                 if (hideProductCategory != null) setParameter("hide_product_category", hideProductCategory)
-                if (projectFilter != null) setParameter("project_filter", projectFilter)
+                if (!projectFilter.isNullOrEmpty()) setParameter("project_filter", projectFilter)
                 if (projectMembership != null) setParameter("groups", projectMembership.groupMemberOf.map { it.group })
                 if (projectMembership != null) setParameter("admin_in", projectMembership.adminInProjects)
                 if (needsEarlyAcl) setParameter("permissions", permissionsOneOf.map { it.name })
@@ -1307,8 +1308,7 @@ abstract class ResourceService<
                             else -> {
                                 // We need to consider everything
                                 appendLine("    or (")
-                                appendLine("      r.project = :project_filter")
-                                appendLine("      and (acl.group_id = some(:groups::text[]) or acl.username = :username)")
+                                appendLine("      (acl.group_id = some(:groups::text[]) or acl.username = :username)")
                                 appendLine("      and acl.permission = some(:permissions::text[])")
                                 appendLine("    )")
 
