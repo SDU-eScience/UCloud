@@ -24,11 +24,12 @@ private typealias Super = ResourceService<Provider, ProviderSpecification, Provi
         ProviderStatus, Product, ProviderSupport, ProviderComms>
 
 class ProviderService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<ProviderComms>,
     support: dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>,
     serviceClient: AuthenticatedClient,
-) : Super(db, providers, support, serviceClient) {
+) : Super(projectCache, db, providers, support, serviceClient) {
     override val isCoreResource: Boolean = true
     override val table = SqlObject.Table("provider.providers")
     override val defaultSortColumn = SqlObject.Column(table, "resource")

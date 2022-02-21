@@ -57,6 +57,7 @@ interface JobListener {
  * its internal state and potentially send new updates to the relevant computation providers.
  */
 class JobOrchestrator(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
@@ -64,7 +65,7 @@ class JobOrchestrator(
     private val appService: AppStoreCache,
     private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
-    Product.Compute, ComputeSupport, ComputeCommunication>(db, providers, support, serviceClient) {
+        Product.Compute, ComputeSupport, ComputeCommunication>(projectCache, db, providers, support, serviceClient) {
     override val browseStrategy: ResourceBrowseStategy = ResourceBrowseStategy.NEW
     private val storageProviders = Providers(serviceClient) {
         StorageCommunication(
@@ -80,6 +81,7 @@ class JobOrchestrator(
         appService,
         this,
         FileCollectionService(
+            projectCache,
             db,
             storageProviders,
             ProviderSupport(storageProviders, serviceClient) {
@@ -144,15 +146,24 @@ class JobOrchestrator(
         allowDuplicates: Boolean
     ) {
         val exports = idWithSpec.map { (_, spec) ->
-            exporter.exportParameters(spec)
+            println("Exporting")
+            exporter.exportParameters(spec).also { println("Export done") }
         }
 
         idWithSpec.forEach { (id, spec) ->
+            println("Verifying job")
             verificationService.verifyOrThrow(actorAndProject, spec)
+            println("Verify job done")
 
             val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
-            listeners.forEach { it.onVerified(db, preliminaryJob) }
+            listeners.forEach {
+                println("Verifying")
+                it.onVerified(db, preliminaryJob)
+                println("Verify done")
+            }
         }
+
+        println("Ready to create")
 
         session.sendPreparedStatement(
             {
@@ -290,7 +301,7 @@ class JobOrchestrator(
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
                         "Ignoring job update for $jobId by ${job.specification.product.provider} " +
-                            "(bad state transition)"
+                                "(bad state transition)"
                     )
                     continue
                 }
@@ -298,7 +309,11 @@ class JobOrchestrator(
         }
     }
 
-    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: JobIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: JobIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         @Suppress("SqlResolve")
         return PartialQuery(
             {
@@ -306,34 +321,77 @@ class JobOrchestrator(
                 setParameter("filter_state", flags?.filterState?.name)
                 setParameter("filter_application", flags?.filterApplication)
             },
-            """
-                select
-                    (resc.spec).resource, resc.spec,
-                    array_remove(array_agg(distinct res), null),
-                    array_remove(array_agg(distinct param), null),
-                    app, t
+            buildString {
+                run {
+                    appendLine("select")
+                    appendLine("  (resc.spec).resource, resc.spec")
 
-                from
-                    relevant_resources resc join
-                    app_store.applications app on
-                        (resc.spec).application_name = app.name and (resc.spec).application_version = app.version join
-                    app_store.tools t on app.tool_name = t.name and app.tool_version = t.version left join
-                    app_orchestrator.job_resources res on (resc.spec).resource = res.job_id left join
-                    app_orchestrator.job_input_parameters param on (resc.spec).resource = param.job_id
+                    if (flags?.includeParameters != false) {
+                        appendLine("  , array_remove(array_agg(distinct res), null)")
+                        appendLine("  , array_remove(array_agg(distinct param), null)")
+                    } else {
+                        appendLine("  , array[]::app_orchestrator.job_resources[] as res")
+                        appendLine("  , array[]::app_orchestrator.job_input_parameters[] as res")
+                    }
 
-                where
-                    (:filter_state::text is null or (resc.spec).current_state = :filter_state::text) and
-                    (:filter_application::text is null or (resc.spec).application_name = :filter_application) and
-                    (
-                        :query::text is null or
-                        (resc.spec).name ilike '%' || :query || '%' or
-                        (resc.spec).resource::text ilike '%' || :query || '%' or
-                        app.title ilike '%' || :query || '%' or
-                        t.name ilike '%' || :query || '%'
-                    )
+                    if (flags?.includeApplication != false) {
+                        appendLine("  , app, t")
+                    } else {
+                        appendLine("  , null::app_store.applications as app, null::app_store.tools as t")
+                    }
+                }
+                run {
+                    appendLine("from")
+                    appendLine("  relevant_resources resc")
 
-                group by (resc.spec).resource, resc.spec, app.*, t.*
-            """
+                    if (flags?.includeApplication != false) {
+                        appendLine("  join app_store.applications app on (resc.spec).application_name = app.name " +
+                                "and (resc.spec).application_version = app.version")
+                        appendLine("  join app_store.tools t on app.tool_name = t.name " +
+                                "and app.tool_version = t.version")
+                    }
+
+                    if (flags?.includeParameters != false) {
+                        appendLine("  left join app_orchestrator.job_resources res on " +
+                                "(resc.spec).resource = res.job_id")
+                        appendLine("  left join app_orchestrator.job_input_parameters param on " +
+                                "(resc.spec).resource = param.job_id")
+                    }
+                }
+
+                run {
+                    appendLine("where")
+                    appendLine("  true")
+
+                    if (flags?.filterState != null) {
+                        appendLine("  and (resc.spec).current_state = :filter_state")
+                    }
+
+                    if (flags?.filterApplication != null) {
+                        appendLine("  and (resc.spec).application_name = :filter_application")
+                    }
+
+                    if (query != null) {
+                        appendLine("  (")
+                        appendLine("    (resc.spec).name ilike '%' || :query || '%'")
+                        appendLine("    or (resc.spec).resource::text ilike '%' || :query || '%'")
+                        if (flags?.includeApplication != false) {
+                            appendLine("    or app.title ilike '%' || :query || '%'")
+                            appendLine("    or t.name ilike '%' || :query || '%'")
+                        }
+                        appendLine("  )")
+                    }
+                }
+
+                run {
+                    if (flags?.includeParameters != false) {
+                        append("group by (resc.spec).resource, resc.spec")
+                        if (flags?.includeApplication != false) {
+                            appendLine(", app.*, t.*")
+                        }
+                    }
+                }
+            }
         )
     }
 
@@ -357,7 +415,7 @@ class JobOrchestrator(
 
                     val isSupported =
                         (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
-                            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
+                                (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
 
                     if (!isSupported) {
                         throw RPCException(
@@ -400,7 +458,7 @@ class JobOrchestrator(
             val backend = app.invocation.tool.tool!!.description.backend
             val logsSupported =
                 (backend == ToolBackend.DOCKER && support.docker.logs == true) ||
-                    (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
+                        (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
 
             // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
             // retrieve them by themselves.
@@ -420,7 +478,7 @@ class JobOrchestrator(
                                     actorAndProject,
                                     Unit,
                                     object : SubscriptionProxyInstructions<ComputeCommunication, ComputeSupport, Job,
-                                        Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                            Unit, JobsProviderFollowRequest, JobsProviderFollowResponse>() {
                                         override val isUserRequest: Boolean = true
                                         override fun retrieveCall(comms: ComputeCommunication) =
                                             providerApi(comms).follow
@@ -513,7 +571,7 @@ class JobOrchestrator(
                             actorAndProject,
                             Unit,
                             object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job, Unit,
-                                JobsProviderFollowRequest, JobsProviderFollowResponse>() {
+                                    JobsProviderFollowRequest, JobsProviderFollowResponse>() {
                                 override val isUserRequest: Boolean = true
                                 override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).follow
 
@@ -587,7 +645,7 @@ class JobOrchestrator(
             actorAndProject,
             request,
             object : ProxyInstructions<ComputeCommunication, ComputeSupport, Job,
-                JobsRetrieveUtilizationRequest, JobsProviderUtilizationRequest, JobsProviderUtilizationResponse>() {
+                    JobsRetrieveUtilizationRequest, JobsProviderUtilizationRequest, JobsProviderUtilizationResponse>() {
                 override val isUserRequest: Boolean = false
                 override fun retrieveCall(comms: ComputeCommunication) = providerApi(comms).retrieveUtilization
 

@@ -25,6 +25,7 @@ import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -71,7 +72,8 @@ class Server(
             dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
         val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
             providerProviders, client, fetchSupport = { emptyList() })
-        val providerService = ProviderService(db, providerProviders, providerSupport, client)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+        val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
             db, providerService, client,
             micro.developmentModeEnabled

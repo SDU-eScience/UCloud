@@ -15,13 +15,14 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.serializer
 
 class IngressService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>,
     serviceClient: AuthenticatedClient,
     orchestrator: JobOrchestrator,
 ) : JobBoundResource<Ingress, IngressSpecification, IngressUpdate, IngressIncludeFlags, IngressStatus,
-        Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(db, providers, support, serviceClient, orchestrator) {
+        Product.Ingress, IngressSupport, ComputeCommunication, AppParameterValue.Ingress>(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.ingresses")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf(
         "domain" to SqlObject.Column(table, "domain")

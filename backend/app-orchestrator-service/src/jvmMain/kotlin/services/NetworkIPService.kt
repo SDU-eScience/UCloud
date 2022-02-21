@@ -26,12 +26,13 @@ private typealias Super = JobBoundResource<NetworkIP, NetworkIPSpecification, Ne
         NetworkIPStatus, Product.NetworkIP, NetworkIPSupport, ComputeCommunication, AppParameterValue.Network>
 
 class NetworkIPService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>,
     serviceClient: AuthenticatedClient,
     orchestrator: JobOrchestrator,
-) : Super(db, providers, support, serviceClient, orchestrator) {
+) : Super(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.network_ips")
     override val defaultSortColumn = SqlObject.Column(table, "ip_address")
     override val currentStateColumn = SqlObject.Column(table, "current_state")

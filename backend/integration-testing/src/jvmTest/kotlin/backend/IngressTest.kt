@@ -32,6 +32,9 @@ class IngressTest : IntegrationTest() {
     )
 
     override fun defineTests() {
+//        testFilter = { t, s ->
+//            t == "Ingress @ Dummy: Usage Test" && s == "Simple test: PI (count = 1)"
+//        }
         val cases = listOf(
             TestCase(
                 "Dummy",
@@ -144,7 +147,8 @@ class IngressTest : IntegrationTest() {
                                 )
                             )
 
-                            check {}
+                            check {
+                            }
                         }
 
                         case("Deletion") {

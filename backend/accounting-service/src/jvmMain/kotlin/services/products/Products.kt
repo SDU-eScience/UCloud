@@ -129,7 +129,8 @@ class ProductService(
             val (params, query) = queryProducts(actorAndProject, request, null)
             session.sendPreparedStatement(
                 params,
-                query
+                query,
+                debug = true
             ).rows
                 .singleOrNull()
                 ?.let { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
@@ -246,8 +247,10 @@ class ProductService(
                             select max(version) highest_version
                             from accounting.products p2
                             where (
-                                :version_filter::bigint is null or
-                                version = :version_filter and
+                                (
+                                    :version_filter::bigint is null or
+                                    version = :version_filter
+                                ) and
                                 p.name = p2.name and
                                 p.category = p2.category
                             )

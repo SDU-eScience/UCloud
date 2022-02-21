@@ -43,11 +43,18 @@ class NonDistributedStateFactory : DistributedStateFactory {
 class NonDistributedState<T>(override val name: String, override val expiry: Long?) : DistributedState<T> {
     private var value: T? = null
     private val mutex = Mutex()
+
     override suspend fun get(): T? = mutex.withLock { value }
 
     override suspend fun set(value: T) {
         mutex.withLock {
             this.value = value
+        }
+    }
+
+    override suspend fun delete() {
+        mutex.withLock {
+            this.value = null
         }
     }
 }
@@ -87,6 +94,7 @@ interface DistributedState<T> {
 
     suspend fun get(): T?
     suspend fun set(value: T)
+    suspend fun delete()
 }
 
 /**
@@ -116,5 +124,9 @@ class RedisDistributedState<T>(
 
         val serializedValue = defaultMapper.encodeToString(serializer, value)
         connManager.getConnection().set(name, serializedValue, setargs).await()
+    }
+
+    override suspend fun delete() {
+        connManager.getConnection().del(name).await()
     }
 }

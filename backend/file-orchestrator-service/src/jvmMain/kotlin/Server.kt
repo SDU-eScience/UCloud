@@ -1,10 +1,7 @@
 package dk.sdu.cloud.file.orchestrator
 
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.util.ProviderSupport
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
-import dk.sdu.cloud.accounting.util.asController
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
@@ -38,8 +35,9 @@ class Server(override val micro: Micro) : CommonServer {
         }
         val templateSupport = ProviderSupport<StorageCommunication, Product, FileMetadataTemplateSupport>(
             providers, serviceClient, fetchSupport = { listOf(FileMetadataTemplateSupport()) })
-        val metadataTemplateNamespaces = MetadataTemplateNamespaces(db, providers, templateSupport, serviceClient)
-        val fileCollections = FileCollectionService(db, providers, providerSupport, serviceClient)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+        val metadataTemplateNamespaces = MetadataTemplateNamespaces(projectCache, db, providers, templateSupport, serviceClient)
+        val fileCollections = FileCollectionService(projectCache, db, providers, providerSupport, serviceClient)
         val metadataService = MetadataService(db, fileCollections, metadataTemplateNamespaces)
         val filesService = FilesService(
             fileCollections,
@@ -52,6 +50,7 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         val shares = ShareService(
+            projectCache,
             db,
             providers,
             ProviderSupport(providers, serviceClient) { comms ->
@@ -69,8 +68,8 @@ class Server(override val micro: Micro) : CommonServer {
         ) { comms ->
             SyncFolderProvider(comms.provider.id).retrieveProducts.call(Unit, comms.client).orThrow().responses
         }
-        val syncDeviceService = SyncDeviceService(db, syncProviders, syncSupport, serviceClient)
-        val syncFolderService = SyncFolderService(db, syncProviders, syncSupport, serviceClient,
+        val syncDeviceService = SyncDeviceService(projectCache, db, syncProviders, syncSupport, serviceClient)
+        val syncFolderService = SyncFolderService(projectCache, db, syncProviders, syncSupport, serviceClient,
             filesService, fileCollections, DistributedLockFactory(micro), micro.backgroundScope)
 
         filesService.addMoveHandler(metadataService::onFilesMoved)
