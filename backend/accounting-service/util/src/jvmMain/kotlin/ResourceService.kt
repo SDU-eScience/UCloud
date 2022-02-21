@@ -29,7 +29,7 @@ data class PartialQuery(
     val query: String,
 )
 
-enum class ResourceBrowseStategy {
+enum class ResourceBrowseStrategy {
     OLD,
     NEW
 }
@@ -57,7 +57,7 @@ abstract class ResourceService<
     protected abstract val serializer: KSerializer<Res>
     protected open val requireAdminForCreate: Boolean = false
     protected open val personalResource: Boolean = false
-    protected open val browseStrategy: ResourceBrowseStategy = ResourceBrowseStategy.OLD
+    protected open val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.OLD
 
     private val resourceTable = SqlObject.Table("provider.resource")
     private val defaultSortColumns = mapOf(
@@ -116,6 +116,7 @@ abstract class ResourceService<
             request,
             request.normalize(),
             useProject,
+            null,
             ctx
         )
     }
@@ -186,7 +187,7 @@ abstract class ResourceService<
         @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
             val rows = when (browseStrategy) {
-                ResourceBrowseStategy.OLD -> {
+                ResourceBrowseStrategy.OLD -> {
                     session.sendPreparedStatement(
                         {
                             params()
@@ -209,7 +210,7 @@ abstract class ResourceService<
                     .rows
                 }
 
-                ResourceBrowseStategy.NEW -> {
+                ResourceBrowseStrategy.NEW -> {
                     fetchResourcesNew(session, resourceQuery, query, converter) {
                         params()
                         resourceParams()
@@ -244,7 +245,7 @@ abstract class ResourceService<
 
     private suspend fun Res.attachExtra(actor: Actor, flags: Flags?, includeSupport: Boolean = false): Res {
         val perms = permissions
-        if (browseStrategy == ResourceBrowseStategy.NEW && perms != null && perms.myself.isEmpty()) {
+        if (browseStrategy == ResourceBrowseStrategy.NEW && perms != null && perms.myself.isEmpty()) {
             // In this specific case, we need to extract the permissions from the `others` list
             val username = actor.safeUsername()
             val cached = projectCache.lookup(username)
@@ -1089,7 +1090,7 @@ abstract class ResourceService<
         val search = browseQuery(resolvedActorAndProject, request.flags, request.query)
         return paginatedQuery(
             search, resolvedActorAndProject, listOf(Permission.READ), request.flags,
-            request, request.normalize(), true, ctx
+            request, request.normalize(), true, request.query, ctx
         )
     }
 
@@ -1103,14 +1104,23 @@ abstract class ResourceService<
         includeUnconfirmed: Boolean = false,
         offset: Long? = null,
         limit: Long? = null,
-        sort: SortFlags? = null
+        sort: SortFlags? = null,
+        query: String? = null,
     ): PartialQuery {
         return when (browseStrategy) {
-            ResourceBrowseStategy.OLD -> accessibleResourcesOld(actor, permissionsOneOf, resourceId, projectFilter,
+            ResourceBrowseStrategy.OLD -> accessibleResourcesOld(actor, permissionsOneOf, resourceId, projectFilter,
                 flags, simpleFlags, includeUnconfirmed)
-            ResourceBrowseStategy.NEW -> accessibleResourcesNew(actor, permissionsOneOf, resourceId, projectFilter,
-                flags, simpleFlags, includeUnconfirmed, offset, limit, sort)
+            ResourceBrowseStrategy.NEW -> accessibleResourcesNew(actor, permissionsOneOf, resourceId, projectFilter,
+                flags, simpleFlags, includeUnconfirmed, offset, limit, sort, query)
         }
+    }
+
+    protected open suspend fun applyFilters(
+        actor: Actor,
+        query: String?,
+        flags: Flags?,
+    ): PartialQuery {
+        return PartialQuery({}, "true")
     }
 
     protected suspend fun accessibleResourcesNew(
@@ -1124,6 +1134,7 @@ abstract class ResourceService<
         offset: Long? = null,
         limit: Long? = null,
         sort: SortFlags? = null,
+        query: String? = null,
     ): PartialQuery {
         // NOTE(Dan): This function is responsible for fetching the accessible resources.
         // The query starts by fetching the relevant rows from provider.resource and the specification.
@@ -1188,8 +1199,11 @@ abstract class ResourceService<
             true
         }
 
+        val (filterParams, filterQuery) = applyFilters(actor, query, flags)
+
         return PartialQuery(
             {
+                filterParams()
                 setParameter("resource_type", resourceType)
                 setParameter("include_unconfirmed", includeUnconfirmed)
                 setParameter("username", actor.safeUsername())
@@ -1301,6 +1315,8 @@ abstract class ResourceService<
                                 appendLine("    or (r.created_by = :username and r.project is null)")
                             }
                         }
+                        appendLine("  and")
+                        append(filterQuery)
 
                         appendLine("  )")
                     }
@@ -1360,8 +1376,16 @@ abstract class ResourceService<
         resourceQuery: String,
         query: String,
         converter: String,
+        sort: SortFlags? = null,
         params: EnhancedPreparedStatement.() -> Unit,
     ): ResultSet {
+        val columnToSortBy = computedSortColumns[sort?.sortBy ?: ""] ?: defaultSortColumn
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortDirection = when (sort?.sortDirection ?: defaultSortDirection) {
+            SortDirection.ascending -> "asc"
+            SortDirection.descending -> "desc"
+        }
+
         return session.sendPreparedStatement(
             params,
             """
@@ -1388,6 +1412,7 @@ abstract class ResourceService<
                 from
                     accessible_resources resc join
                     spec spec_t on (resc.r).id = spec_t.resource
+                order by $sortBy $sortDirection
             """,
         ).rows
     }
@@ -1567,7 +1592,8 @@ abstract class ResourceService<
         sortFlags: SortFlags?,
         pagination: NormalizedPaginationRequestV2,
         useProject: Boolean,
-        ctx: DBContext?
+        query: String?,
+        ctx: DBContext?,
     ): PageV2<Res> {
         val resolvedActorAndProject =
             if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
@@ -1596,7 +1622,7 @@ abstract class ResourceService<
 
         val rows = (ctx ?: db).withSession { session ->
             when(browseStrategy) {
-                ResourceBrowseStategy.OLD -> {
+                ResourceBrowseStrategy.OLD -> {
                     if (sortBy == "created_by") {
                         sortBy = "(resc.r).created_by"
                     } else if (sortBy == "created_at") {
@@ -1624,7 +1650,7 @@ abstract class ResourceService<
                     ).rows
                 }
 
-                ResourceBrowseStategy.NEW -> {
+                ResourceBrowseStrategy.NEW -> {
                     fetchResourcesNew(session, resourceQuery, query, converter) {
                         resourceParams()
                         params()

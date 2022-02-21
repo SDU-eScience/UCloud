@@ -27,9 +27,7 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
-import kotlinx.coroutines.selects.select
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.serializer
@@ -66,7 +64,7 @@ class JobOrchestrator(
     private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport, ComputeCommunication>(projectCache, db, providers, support, serviceClient) {
-    override val browseStrategy: ResourceBrowseStategy = ResourceBrowseStategy.NEW
+    override val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.NEW
     private val storageProviders = Providers(serviceClient) {
         StorageCommunication(
             it.client,
@@ -309,6 +307,38 @@ class JobOrchestrator(
         }
     }
 
+    override suspend fun applyFilters(actor: Actor, query: String?, flags: JobIncludeFlags?): PartialQuery {
+        return PartialQuery(
+            {
+                setParameter("query", query)
+                setParameter("filter_state", flags?.filterState?.name)
+                setParameter("filter_application", flags?.filterApplication)
+            },
+            buildString {
+                appendLine("(")
+                appendLine("  true")
+                if (flags?.filterState != null) {
+                    appendLine("  and spec.current_state = :filter_state")
+                }
+
+                if (flags?.filterApplication != null) {
+                    appendLine("  and spec.application_name = :filter_application")
+                }
+
+                if (query != null) {
+                    appendLine("  (")
+                    appendLine("    spec.name ilike '%' || :query || '%'")
+                    appendLine("    or spec.resource::text ilike '%' || :query || '%'")
+                    if (flags?.includeApplication != false) {
+                        appendLine("    or spec.application_name ilike '%' || :query || '%'")
+                    }
+                    appendLine("  )")
+                }
+                appendLine(")")
+            }
+        )
+    }
+
     override suspend fun browseQuery(
         actorAndProject: ActorAndProject,
         flags: JobIncludeFlags?,
@@ -356,30 +386,6 @@ class JobOrchestrator(
                                 "(resc.spec).resource = res.job_id")
                         appendLine("  left join app_orchestrator.job_input_parameters param on " +
                                 "(resc.spec).resource = param.job_id")
-                    }
-                }
-
-                run {
-                    appendLine("where")
-                    appendLine("  true")
-
-                    if (flags?.filterState != null) {
-                        appendLine("  and (resc.spec).current_state = :filter_state")
-                    }
-
-                    if (flags?.filterApplication != null) {
-                        appendLine("  and (resc.spec).application_name = :filter_application")
-                    }
-
-                    if (query != null) {
-                        appendLine("  (")
-                        appendLine("    (resc.spec).name ilike '%' || :query || '%'")
-                        appendLine("    or (resc.spec).resource::text ilike '%' || :query || '%'")
-                        if (flags?.includeApplication != false) {
-                            appendLine("    or app.title ilike '%' || :query || '%'")
-                            appendLine("    or t.name ilike '%' || :query || '%'")
-                        }
-                        appendLine("  )")
                     }
                 }
 
