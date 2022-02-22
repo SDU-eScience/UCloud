@@ -1601,7 +1601,7 @@ abstract class ResourceService<
     ): PageV2<Res> {
         val resolvedActorAndProject =
             if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
-        val (params, query) = partialQuery
+        val (params, sqlQuery) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
@@ -1621,7 +1621,8 @@ abstract class ResourceService<
             flags = flags,
             limit = pagination.itemsPerPage.toLong(),
             offset = offset,
-            sort = sortFlags
+            sort = sortFlags,
+            query = query
         )
 
         val rows = (ctx ?: db).withSession { session ->
@@ -1641,7 +1642,7 @@ abstract class ResourceService<
                         """
                             with
                                 accessible_resources as ($resourceQuery),
-                                spec as ($query)
+                                spec as ($sqlQuery)
                             select provider.resource_to_json(resc, $converter(spec))
                             from
                                 accessible_resources resc join
@@ -1655,7 +1656,7 @@ abstract class ResourceService<
                 }
 
                 ResourceBrowseStrategy.NEW -> {
-                    fetchResourcesNew(session, resourceQuery, query, converter) {
+                    fetchResourcesNew(session, resourceQuery, sqlQuery, converter) {
                         resourceParams()
                         params()
                     }

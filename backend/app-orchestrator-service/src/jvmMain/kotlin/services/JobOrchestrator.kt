@@ -319,7 +319,7 @@ class JobOrchestrator(
                 }
 
                 if (query != null) {
-                    appendLine("  (")
+                    appendLine("  and (")
                     appendLine("    spec.name ilike '%' || :query || '%'")
                     appendLine("    or spec.resource::text ilike '%' || :query || '%'")
                     if (flags?.includeApplication != false) {
