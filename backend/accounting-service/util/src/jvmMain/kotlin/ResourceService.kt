@@ -1142,7 +1142,7 @@ abstract class ResourceService<
         val filterProvider = flags?.filterProvider ?: simpleFlags?.filterProvider
         val filterProductId = flags?.filterProductId ?: simpleFlags?.filterProductId
         val filterProductCategory = flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
-        val filterProviderIds = flags?.filterProviderIds ?: simpleFlags?.filterProviderIds
+        val filterProviderIds = (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
         val filterIds = run {
             (flags?.filterIds ?: simpleFlags?.filterIds ?: "")
                 .split(",")
