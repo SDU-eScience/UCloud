@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -111,7 +112,13 @@ abstract class ResourceService<
         return paginatedQuery(
             browseQuery,
             actorAndProject,
-            listOf(Permission.READ),
+            // TODO Bad fix for a bug in the new query
+            if (actorAndProject.actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) {
+                log.debug("Using provider hack")
+                listOf(Permission.PROVIDER)
+            } else {
+                listOf(Permission.READ)
+            },
             request.flags,
             request,
             request.normalize(),
@@ -207,7 +214,7 @@ abstract class ResourceService<
                         """,
                         "${this::class.simpleName} retrieveBulk",
                     )
-                    .rows
+                        .rows
                 }
 
                 ResourceBrowseStrategy.NEW -> {
@@ -236,7 +243,11 @@ abstract class ResourceService<
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result.attachExtra(actorAndProject.actor, flags, flags?.includeSupport ?: simpleFlags?.includeSupport ?: false)
+            result.attachExtra(
+                actorAndProject.actor,
+                flags,
+                flags?.includeSupport ?: simpleFlags?.includeSupport ?: false
+            )
         }
     }
 
@@ -1098,10 +1109,14 @@ abstract class ResourceService<
         query: String? = null,
     ): PartialQuery {
         return when (browseStrategy) {
-            ResourceBrowseStrategy.OLD -> accessibleResourcesOld(actor, permissionsOneOf, resourceId, projectFilter,
-                flags, simpleFlags, includeUnconfirmed)
-            ResourceBrowseStrategy.NEW -> accessibleResourcesNew(actor, permissionsOneOf, resourceId, projectFilter,
-                flags, simpleFlags, includeUnconfirmed, offset, limit, sort, query)
+            ResourceBrowseStrategy.OLD -> accessibleResourcesOld(
+                actor, permissionsOneOf, resourceId, projectFilter,
+                flags, simpleFlags, includeUnconfirmed
+            )
+            ResourceBrowseStrategy.NEW -> accessibleResourcesNew(
+                actor, permissionsOneOf, resourceId, projectFilter,
+                flags, simpleFlags, includeUnconfirmed, offset, limit, sort, query
+            )
         }
     }
 
@@ -1626,7 +1641,7 @@ abstract class ResourceService<
         )
 
         val rows = (ctx ?: db).withSession { session ->
-            when(browseStrategy) {
+            when (browseStrategy) {
                 ResourceBrowseStrategy.OLD -> {
                     if (sortBy == "created_by") {
                         sortBy = "(resc.r).created_by"
