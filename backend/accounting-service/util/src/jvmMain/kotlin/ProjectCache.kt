@@ -6,6 +6,7 @@ import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.Serializable
+import dk.sdu.cloud.service.Loggable
 
 @Serializable
 data class MembershipStatusCacheEntry(
@@ -63,10 +64,18 @@ class ProjectCache(
     }
 
     suspend fun invalidate(username: String) {
-        state(username).delete()
+        try {
+            state(username).delete()
+        } catch (ex: Throwable) {
+            log.warn("Failed to invalidate project cache entry for $username\n${ex.stackTraceToString()}")
+        }
     }
 
     private fun state(username: String): DistributedState<MembershipStatusCacheEntry> {
         return state.create(MembershipStatusCacheEntry.serializer(), "project-cache-$username", expiry = 1000L * 60 * 5)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }

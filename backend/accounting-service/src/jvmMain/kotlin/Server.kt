@@ -49,6 +49,7 @@ class Server(
         val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val productService = ProductService(db)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingService = AccountingService(db, simpleProviders)
@@ -56,8 +57,8 @@ class Server(
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer)
-        val projectGroups = ProjectGroupService(projectService, eventProducer)
+        val projectService = ProjectService(client, eventProducer, projectCache)
+        val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
 
         val giftService = GiftService(db)
@@ -72,7 +73,6 @@ class Server(
             dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
         val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
             providerProviders, client, fetchSupport = { emptyList() })
-        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
         val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
             db, providerService, client,
