@@ -20,11 +20,12 @@ private typealias Super = ResourceService<FileCollection, FileCollection.Spec, F
     FileCollectionIncludeFlags, FileCollection.Status, Product.Storage, FSSupport, StorageCommunication>
 
 class FileCollectionService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<StorageCommunication>,
     support: ProviderSupport<StorageCommunication, Product.Storage, FSSupport>,
     serviceClient: AuthenticatedClient,
-) : Super(db, providers, support, serviceClient) {
+) : Super(projectCache, db, providers, support, serviceClient) {
     private val aclUpdateHandlers = ArrayList<AclUpdateHandler>()
     override val table = SqlObject.Table("file_orchestrator.file_collections")
     override val defaultSortColumn = SqlObject.Column(table, "title")

@@ -89,7 +89,13 @@ fun DatabaseConfig.migrateAll() {
     javaClass.classLoader.resources("db/migration")
         .toList()
         .map { migrationUrl ->
-            val tempDirectory = Files.createTempDirectory("migration").toFile()
+            var schema: String? = try {
+                URL("$migrationUrl/schema.txt").readText()
+            } catch (ex: Throwable) {
+                null
+            }
+
+            val tempDirectory = Files.createTempDirectory("migration-$schema").toFile()
 
             val potentialClassNames = ArrayList<String>()
             val loadedClasses = ArrayList<Class<*>>()
@@ -106,12 +112,6 @@ fun DatabaseConfig.migrateAll() {
                         }
                     }
                 }
-            }
-
-            var schema: String? = try {
-                URL("$migrationUrl/schema.txt").readText()
-            } catch (ex: Throwable) {
-                null
             }
 
             if (potentialClassNames.isNotEmpty()) {
@@ -143,7 +143,6 @@ fun DatabaseConfig.migrateAll() {
         .toSortedMap(Comparator.comparingInt { schemaPriority[it] ?: priorityDontCareCounter++ })
         .forEach { (schema, migrations) ->
             val flyway = Flyway.configure().apply {
-                mixed(true)
                 validateOnMigrate(validateMigrations)
                 resolvers(object : MigrationResolver {
                     override fun resolveMigrations(context: Context?): MutableCollection<ResolvedMigration> {
