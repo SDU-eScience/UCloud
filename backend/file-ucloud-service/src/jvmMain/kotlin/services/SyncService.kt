@@ -229,6 +229,11 @@ class SyncService(
                         """
                     )
                 }
+
+                throw RPCException(
+                    "The synchronization feature is offline. Please try again later.",
+                    HttpStatusCode.ServiceUnavailable
+                )
             }
         }
 
@@ -304,6 +309,11 @@ class SyncService(
                     """
                 )
             }
+
+            throw RPCException(
+                "The synchronization feature is offline. Please try again later.",
+                HttpStatusCode.ServiceUnavailable
+            )
         }
 
         if (writeSuccessful) {
@@ -403,7 +413,11 @@ class SyncService(
                         """
                     )
                 }
-                throw RPCException("Invalid device ID", HttpStatusCode.BadRequest)
+
+                throw RPCException(
+                    "The synchronization feature is offline. Please try again later.",
+                    HttpStatusCode.ServiceUnavailable
+                )
             }
         }
 
@@ -460,6 +474,11 @@ class SyncService(
                         """
                     )
                 }
+
+                throw RPCException(
+                    "The synchronization feature is offline. Please try again later.",
+                    HttpStatusCode.ServiceUnavailable
+                )
             }
         }
     }
