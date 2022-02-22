@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
@@ -33,6 +34,7 @@ class IngressService(
     override val productArea: ProductArea = ProductArea.INGRESS
     override val serializer: KSerializer<Ingress> = serializer()
     override val updateSerializer: KSerializer<IngressUpdate> = serializer()
+    override val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.NEW
 
     override fun boundUpdate(binding: JobBinding): IngressUpdate = IngressUpdate(binding = binding)
 
@@ -64,6 +66,27 @@ class IngressService(
                 )
         }
     }
+
+    override suspend fun applyFilters(actor: Actor, query: String?, flags: IngressIncludeFlags?): PartialQuery {
+        return PartialQuery(
+            {
+                if (flags?.filterState != null) setParameter("filter_state", flags.filterState?.name)
+                if (query != null) setParameter("query", query)
+            },
+            buildString {
+                appendLine("(")
+                appendLine("  true")
+                if (flags?.filterState != null) {
+                    appendLine("  and spec.current_state = :filter_state")
+                }
+                if (query != null) {
+                    appendLine("  and spec.domain ilike ('%' || :query || '%')")
+                }
+                appendLine(")")
+            }
+        )
+    }
+
     override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: IngressIncludeFlags?, query: String?): PartialQuery {
         return PartialQuery(
             {
@@ -71,13 +94,8 @@ class IngressService(
                 setParameter("filter_state", flags?.filterState?.name)
             },
             """
-                select i.*
-                from
-                    accessible_resources resc join
-                    app_orchestrator.ingresses i on (resc.r).id = resource
-                where
-                    (:query::text is null or domain ilike ('%' || :query || '%')) and
-                    (:filter_state::text is null or :filter_state = current_state)
+                select (resc.spec).*
+                from relevant_resources resc
             """
         )
     }

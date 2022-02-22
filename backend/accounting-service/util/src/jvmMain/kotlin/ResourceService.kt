@@ -205,7 +205,7 @@ abstract class ResourceService<
                             where
                                 spec.resource = some(:ids::bigint[])
                         """,
-                        "${this::class.simpleName} retrieveBulk"
+                        "${this::class.simpleName} retrieveBulk",
                     )
                     .rows
                 }
@@ -378,9 +378,7 @@ abstract class ResourceService<
                     provider: String,
                     resources: List<RequestWithRefOrResource<Spec, Res>>
                 ): BulkRequest<Res> {
-                    println("Entering beforeCall")
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
-                        println(1)
                         if (!isCoreResource) {
                             val project = resolvedActorAndProject.project
                             payment.creditCheck(
@@ -393,10 +391,8 @@ abstract class ResourceService<
                             )
                         }
 
-                        println(2)
                         val isPublicRead =
                             isResourcePublicRead(resolvedActorAndProject, resources.map { it.first }, session)
-                        println(3)
                         val generatedIds = session
                             .sendPreparedStatement(
                                 {
@@ -441,7 +437,6 @@ abstract class ResourceService<
                             )
                             .rows
                             .map { it.getLong(0)!! }
-                        println(4)
 
                         check(generatedIds.size == resources.size)
 
@@ -451,12 +446,10 @@ abstract class ResourceService<
                             session,
                             false
                         )
-                        println(5)
 
                         lastBatchOfIds = generatedIds
                         if (shouldCloseEarly) db.commit(session)
 
-                        println(5)
                         BulkRequest(
                             retrieveBulk(
                                 resolvedActorAndProject,
@@ -466,9 +459,7 @@ abstract class ResourceService<
                                 includeUnconfirmed = true,
                                 simpleFlags = SimpleResourceIncludeFlags(includeSupport = true)
                             )
-                        ).also {
-                            println(6)
-                        }
+                        )
                     }
                 }
 
@@ -477,7 +468,6 @@ abstract class ResourceService<
                     resources: List<RequestWithRefOrResource<Spec, Res>>,
                     response: BulkResponse<FindByStringId?>
                 ) {
-                    println("afterCall")
                     if (response.responses.any { it?.id?.contains(",") == true }) {
                         throw RPCException("Provider generated ID cannot contain ','", HttpStatusCode.BadGateway)
                     }
@@ -514,7 +504,6 @@ abstract class ResourceService<
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
                     if (true) return
-                    println("onFailure")
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
                             deleteFromDatabaseSkipProvider(
@@ -1178,9 +1167,12 @@ abstract class ResourceService<
         }
 
         // NOTE(Dan): Project information is kept in a Redis cache. We fetch it only if needed.
-        val needsProjectMembership = projectFilter != null &&
-                !permissionsOneOf.contains(Permission.PROVIDER) &&
-                actor !is Actor.System
+        val needsProjectMembership = when {
+            projectFilter == null -> false
+            permissionsOneOf.contains(Permission.PROVIDER) -> false
+            actor is Actor.System -> false
+            else -> true
+        }
 
         val projectMembership = if (needsProjectMembership) {
             projectCache.lookup(actor.safeUsername())
@@ -1192,6 +1184,7 @@ abstract class ResourceService<
         // determine which resources are available to the user. In many cases we can completely skip the ACL
         // as we have access as an admin/provider.
         val needsEarlyAcl: Boolean = run acl@{
+            if (permissionsOneOf.contains(Permission.ADMIN)) return@acl false
             if (!needsProjectMembership) return@acl false
             if (projectFilter != "") {
                 val isAdmin = projectMembership!!.adminInProjects.any { it == projectFilter }
@@ -1225,9 +1218,10 @@ abstract class ResourceService<
             },
             buildString {
                 run {
-                    appendLine("select")
+                    appendLine("select distinct")
                     appendLine("  r, spec")
                     appendLine("  , p.name as product_name, pc.category as product_category, pc.provider as provider")
+                    appendLine("  , $sortBy")
 
                     if (needsEarlyAcl) {
                         // We write an empty array here to indicate that the permissions should be extracted from the
@@ -1239,7 +1233,7 @@ abstract class ResourceService<
                         if (permissionsOneOf.contains(Permission.PROVIDER)) {
                             appendLine("  , array['PROVIDER'] as permissions")
                         } else {
-                            appendLine("  , array['ADMIN'] as permissions")
+                            appendLine("  , array['ADMIN', 'READ', 'EDIT'] as permissions")
                         }
                     }
                 }
@@ -1274,14 +1268,24 @@ abstract class ResourceService<
                         }
 
                         when {
+                            actor is Actor.System -> {
+                                // Apply no filter. The system always has permission to access the object.
+                                appendLine("    or true")
+                            }
+
                             permissionsOneOf.contains(Permission.PROVIDER) -> {
                                 // Verify that we are the provider user
                                 appendLine("    or :username = '#P_' || pc.provider")
                             }
 
-                            actor is Actor.System -> {
-                                // Apply no filter. The system always has permission to access the object.
-                                appendLine("    or true")
+                            permissionsOneOf.contains(Permission.ADMIN) -> {
+                                if (projectFilter != null) {
+                                    appendLine("  or r.project = some(:admin_in::text[])")
+                                }
+
+                                if (projectFilter == null || projectFilter == "") {
+                                    appendLine("  or (r.created_by = :username and r.project is null)")
+                                }
                             }
 
                             projectFilter == null -> {
@@ -1308,7 +1312,7 @@ abstract class ResourceService<
                             else -> {
                                 // We need to consider everything
                                 appendLine("    or (")
-                                appendLine("      (acl.group_id = some(:groups::text[]) or acl.username = :username)")
+                                appendLine("      (r.project = some(:admin_in::text[]) or acl.group_id = some(:groups::text[]) or acl.username = :username)")
                                 appendLine("      and acl.permission = some(:permissions::text[])")
                                 appendLine("    )")
 

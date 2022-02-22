@@ -773,7 +773,6 @@ class AccountingService(
                             updated.id = some(:ids::bigint[])
                     ) checks
                 """,
-                debug = true
             ).rows.firstOrNull()?.getBoolean(0) ?: false
 
             if (!validAccordingToAncestors) {
@@ -808,7 +807,6 @@ class AccountingService(
                             updated.id = some(:ids::bigint[])
                     ) checks;
                 """,
-                debug = true
             ).rows.firstOrNull()?.getBoolean(0) ?: false
 
             if (!validAccordingToDescendants) {

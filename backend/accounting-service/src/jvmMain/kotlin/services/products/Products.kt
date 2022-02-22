@@ -130,7 +130,6 @@ class ProductService(
             session.sendPreparedStatement(
                 params,
                 query,
-                debug = true
             ).rows
                 .singleOrNull()
                 ?.let { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }

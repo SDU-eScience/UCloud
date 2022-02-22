@@ -40,7 +40,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
             override suspend fun onVerified(ctx: DBContext, job: Job) {
                 val resources = resourcesFromJob(job)
                 if (resources.isEmpty()) return
-                println("Resources are not empty: $resources")
 
                 val computeProvider = job.specification.product.provider
                 val jobProject = job.owner.project
@@ -51,7 +50,6 @@ abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support,
                     job.owner.project
                 )
 
-                println("So we are looking for: ${resources.map { it.id }}")
                 val allResources = retrieveBulk(
                     actorAndProject,
                     resources.map { it.id },

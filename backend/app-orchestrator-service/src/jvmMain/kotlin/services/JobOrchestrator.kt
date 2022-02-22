@@ -144,24 +144,17 @@ class JobOrchestrator(
         allowDuplicates: Boolean
     ) {
         val exports = idWithSpec.map { (_, spec) ->
-            println("Exporting")
-            exporter.exportParameters(spec).also { println("Export done") }
+            exporter.exportParameters(spec)
         }
 
         idWithSpec.forEach { (id, spec) ->
-            println("Verifying job")
             verificationService.verifyOrThrow(actorAndProject, spec)
-            println("Verify job done")
 
             val preliminaryJob = Job.fromSpecification(id.toString(), actorAndProject, spec)
             listeners.forEach {
-                println("Verifying")
                 it.onVerified(db, preliminaryJob)
-                println("Verify done")
             }
         }
-
-        println("Ready to create")
 
         session.sendPreparedStatement(
             {

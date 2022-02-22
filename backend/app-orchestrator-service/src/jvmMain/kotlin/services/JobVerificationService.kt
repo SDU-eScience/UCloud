@@ -27,28 +27,23 @@ class JobVerificationService(
         actorAndProject: ActorAndProject,
         specification: JobSpecification,
     ) {
-        println("App")
         val application = appService.resolveApplication(specification.application)
             ?: throw JobException.VerificationError("Application does not exist")
-        println("Params")
 
         if (specification.parameters == null || specification.resources == null) {
             throw JobException.VerificationError("Bad client request. Missing parameters or resources.")
         }
 
-        println("time")
         if (specification.timeAllocation != null) {
             if (specification.timeAllocation!!.toMillis() <= 0) {
                 throw JobException.VerificationError("Time allocated for job is too short.")
             }
         }
 
-        println("params 2")
         val verifiedParameters = verifyParameters(application, specification)
         val resources = specification.resources!!
 
         // Check peers
-        println("peers")
         run {
             val parameterPeers = application.invocation.parameters
                 .filterIsInstance<ApplicationParameter.Peer>()
@@ -72,7 +67,6 @@ class JobVerificationService(
         }
 
         // Check files
-        println("files")
         run {
             val files = resources.filterIsInstance<AppParameterValue.File>()
             val requiredCollections = files.map { extractPathMetadata(it.path).collection }.toSet()
@@ -90,7 +84,6 @@ class JobVerificationService(
                 file.readOnly = !allowWrite
             }
         }
-        println("more params")
         //Check parameters files
         val parameters = specification.parameters!!.values
         run {
