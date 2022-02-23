@@ -530,6 +530,38 @@ class SyncService(
         return BulkResponse(folders.items.map { })
     }
 
+    suspend fun verifyFolders(folders: List<SyncFolder>) {
+        return
+
+        // TODO(Brian): Not tested
+        val missing = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("ids", folders.map { it.id })
+                },
+                """
+                        delete from file_ucloud.sync_folders
+                        where id not in (select :ids::bigint[])
+                        returning id, device_id
+                    """
+            ).rows.map {
+                it.getField(SyncFoldersTable.device) to it.getField(SyncFoldersTable.id)
+            }.groupBy({it.first}, {it.second})
+        }
+
+        var writeSuccess = false
+        try {
+            syncthing.writeConfig(syncthing.config.devices.filter { missing.keys.contains(it.id) })
+            writeSuccess = true
+        } catch (ex: Throwable) {
+            throw RPCException("Unable to remove missing syncfolders", HttpStatusCode.ServiceUnavailable)
+        }
+
+        if (writeSuccess) {
+            unmountFolders(missing.values.flatten().map { MountFolderId(it) })
+        }
+    }
+
     val syncProducts = listOf(
         SyncFolderSupport(ProductReference("u1-sync", "u1-sync", providerId)),
     )

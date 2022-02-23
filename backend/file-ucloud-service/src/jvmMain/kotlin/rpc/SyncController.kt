@@ -61,6 +61,7 @@ class SyncController(
         }
 
         implement(folderApi.verify) {
+            syncService.verifyFolders(request.items)
             ok(Unit)
         }
 
