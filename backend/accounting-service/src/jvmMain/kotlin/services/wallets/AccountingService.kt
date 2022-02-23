@@ -790,7 +790,7 @@ class AccountingService(
                     }
                 },
                 """
-                    select bool_or(valid) is_valid
+                    select coalesce(bool_or(valid), true) is_valid
                     from (
                         select
                             (updated.start_date <= descendant.start_date) and
