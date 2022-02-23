@@ -209,7 +209,7 @@ class SyncService(
 
         if (affectedRows > 0) {
             try {
-                syncthing.writeConfig(affectedDevices.toList())
+                syncthing.addFolders(affectedDevices.toList())
             } catch (ex: Throwable) {
                 request.items.forEach { folder ->
                     Mounts.unmount.call(
@@ -280,7 +280,9 @@ class SyncService(
         }
 
         try {
-            syncthing.writeConfig(deleted.map { it.localDevice })
+            syncthing.removeFolders(
+                deleted.map { it.localDevice to it.id }.groupBy({it.first}, {it.second})
+            )
             writeSuccessful = true
         } catch (ex: Throwable) {
             db.withSession { session ->
@@ -400,7 +402,7 @@ class SyncService(
 
         if (affectedRows > 0) {
             try {
-                syncthing.writeConfig()
+                syncthing.addDevices()
             } catch (ex: Throwable) {
                 db.withSession { session ->
                     session.sendPreparedStatement(
@@ -452,7 +454,7 @@ class SyncService(
 
         if (deleted.isNotEmpty()) {
             try {
-                syncthing.writeConfig()
+                syncthing.removeDevices(deleted.map { it.deviceId })
             } catch (ex: Throwable) {
                 db.withSession { session ->
                     session.sendPreparedStatement(
@@ -513,7 +515,7 @@ class SyncService(
             )
         }
 
-        if (folders.items.isNotEmpty()) syncthing.writeConfig()
+        if (folders.items.isNotEmpty()) syncthing.addFolders()
 
         SyncFolderControl.update.call(
             BulkRequest(folders.items.map {
@@ -544,14 +546,19 @@ class SyncService(
                         where id not in (select :ids::bigint[])
                         returning id, device_id
                     """
-            ).rows.map {
-                it.getField(SyncFoldersTable.device) to it.getField(SyncFoldersTable.id)
+            ).rows.mapNotNull { row ->
+                val localDevice = syncthing.config.devices.find { it.id == row.getField(SyncFoldersTable.device)}
+                if (localDevice != null) {
+                    Pair(localDevice, row.getField(SyncFoldersTable.id))
+                } else {
+                    null
+                }
             }.groupBy({it.first}, {it.second})
         }
 
         var writeSuccess = false
         try {
-            syncthing.writeConfig(syncthing.config.devices.filter { missing.keys.contains(it.id) })
+            syncthing.removeFolders(missing)
             writeSuccess = true
         } catch (ex: Throwable) {
             throw RPCException("Unable to remove missing syncfolders", HttpStatusCode.ServiceUnavailable)
