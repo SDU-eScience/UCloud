@@ -114,7 +114,6 @@ abstract class ResourceService<
             actorAndProject,
             // TODO Bad fix for a bug in the new query
             if (actorAndProject.actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) {
-                log.debug("Using provider hack")
                 listOf(Permission.PROVIDER)
             } else {
                 listOf(Permission.READ)
@@ -174,7 +173,8 @@ abstract class ResourceService<
         ctx: DBContext? = null,
         useProject: Boolean = false,
     ): List<Res> {
-        if (ids.isEmpty()) return emptyList()
+        val mappedIds = ids.mapNotNull { it.toLongOrNull() }
+        if (mappedIds.isEmpty()) return emptyList()
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
         val (params, query) = browseQuery(actorAndProject, flags)
@@ -187,7 +187,7 @@ abstract class ResourceService<
             flags = flags,
             projectFilter = if (useProject) actorAndProject.project else "",
             simpleFlags = (simpleFlags ?: SimpleResourceIncludeFlags()).copy(
-                filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(",")
+                filterIds = mappedIds.joinToString(",")
             )
         )
 
@@ -199,7 +199,7 @@ abstract class ResourceService<
                         {
                             params()
                             resourceParams()
-                            setParameter("ids", ids.mapNotNull { it.toLongOrNull() })
+                            setParameter("ids", mappedIds)
                         },
                         """
                             with
