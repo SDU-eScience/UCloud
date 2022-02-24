@@ -190,6 +190,7 @@ type WalletStore = {
 const VERY_HIGH_DATE_VALUE = 99999999999999;
 
 function resultAsPercent(usage: {balance: number; initialBalance: number}): number {
+    if (usage.balance < 0) return 100;
     return 100 - (usage.balance / usage.initialBalance * 100);
 }
 
