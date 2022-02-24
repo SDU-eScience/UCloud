@@ -9,7 +9,6 @@ class JobCreationComponent(private val driver: WebDriver) {
     // Reservation
     fun jobNameInput(): WebElement = driver.findElementOrNull(By.id("reservation-name")) ?: error("No job name input")
     fun hoursInput(): WebElement = driver.findElementOrNull(By.id("reservation-hours")) ?: error("No hours")
-    fun minutesInput(): WebElement = driver.findElementOrNull(By.id("reservation-minutes")) ?: error("No minutes")
     fun replicasInput(): WebElement? = driver.findElementOrNull(By.id("reservation-replicas"))
 
     // Machines
