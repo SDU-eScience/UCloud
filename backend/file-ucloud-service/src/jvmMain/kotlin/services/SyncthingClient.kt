@@ -675,13 +675,38 @@ class SyncthingClient(
                 }
             }
             lock.release()
+
         }
+
+        // When a device is added to syncthing, the folders the user have already added to sync should be readded.
+        addFolders(toDevices)
     }
 
     suspend fun removeDevices(devices: List<String>) {
         if (lock.acquire()) {
             val timeout = Time.now() + 10_000
             log.debug("Removing devices from Syncthing")
+
+            // Check if there's devices with the same (deleted) Device IDs left. If so the device should not be
+            // removed from syncthing.
+            val deviceCount = db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("devices", devices)
+                    },
+                    """
+                       select count(d.id)
+                       from
+                          file_ucloud.sync_devices d
+                       where
+                          d.device_id in (select unnest(:devices::text[]))
+                    """
+                )
+            }.rows.firstOrNull()?.getLong(0)
+
+            if (deviceCount != null && deviceCount > 0) {
+                return
+            }
 
             while (Time.now() < timeout) {
                 if (Time.now() > lastWrite.get() + 1_000) {
