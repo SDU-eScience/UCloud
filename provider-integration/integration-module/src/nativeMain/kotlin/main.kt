@@ -81,7 +81,7 @@ private fun readSelfExecutablePath(): String {
 
 object ProcessingScope : CoroutineScope {
     private val job = SupervisorJob()
-    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(10, "Processing")
+    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(30, "Processing")
 }
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
