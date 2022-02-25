@@ -188,12 +188,6 @@ type WalletStore = {
 };
 
 const VERY_HIGH_DATE_VALUE = 99999999999999;
-
-function resultAsPercent(usage: {balance: number; initialBalance: number}): number {
-    if (usage.balance < 0) return 100;
-    return 100 - (usage.balance / usage.initialBalance * 100);
-}
-
 function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
     const [wallets, setWallets] = React.useState<WalletStore>({} as WalletStore);
     const [advancedToggles, setAdvancedToggles] = useState<string[]>([]);
@@ -283,7 +277,12 @@ const SimpleWalletRowWrapper = styled.div`
     }
 `;
 
-function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, initialBalance: number} {
+interface UsageFromWallet {
+    balance: number;
+    initialBalance: number;
+}
+
+function totalUsageFromMultipleWallets(wallets: Wallet[]): UsageFromWallet {
     return wallets.reduce((acc, wallet) => {
         const usage = totalUsageFromWallet(wallet);
         acc.balance += usage.balance;
@@ -293,7 +292,12 @@ function totalUsageFromMultipleWallets(wallets: Wallet[]): {balance: number, ini
 
 }
 
-function totalUsageFromWallet(wallet: Wallet): {balance: number, initialBalance: number} {
+function resultAsPercent(usage: UsageFromWallet): number {
+    if (usage.balance < 0) return 100;
+    return 100 - (usage.balance / usage.initialBalance * 100);
+}
+
+function totalUsageFromWallet(wallet: Wallet): UsageFromWallet {
     return wallet.allocations.reduce(
         (acc, it) => ({balance: acc.balance + it.balance, initialBalance: acc.initialBalance + it.initialBalance}),
         {balance: 0, initialBalance: 0}
