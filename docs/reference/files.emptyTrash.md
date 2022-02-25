@@ -25,9 +25,9 @@ __Errors:__
 
 | Status Code | Description |
 |-------------|-------------|
-| `404 Not Found` | Either the oldPath or newPath exists or you lack permissions |
-| `403 Forbidden` | You lack permissions to perform this operation |
-| `400 Bad Request` | This operation is not supported by the provider |
+| `HttpStatusCode(value=404, description=Not Found)` | Either the oldPath or newPath exists or you lack permissions |
+| `HttpStatusCode(value=403, description=Forbidden)` | You lack permissions to perform this operation |
+| `HttpStatusCode(value=400, description=Bad Request)` | This operation is not supported by the provider |
 
 __Examples:__
 

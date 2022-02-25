@@ -67,6 +67,10 @@ kotlin {
     }
 }
 
+tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
+    systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
+}
+
 version = "1.0.0"
 
 publishing {

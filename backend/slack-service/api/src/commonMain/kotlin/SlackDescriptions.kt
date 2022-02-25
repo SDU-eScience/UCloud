@@ -13,7 +13,13 @@ typealias SendSupportRequest = Ticket
 typealias SendSupportResponse = Unit
 
 object SlackDescriptions : CallDescriptionContainer("slack") {
-    val baseContext = "/api/slack"
+    private const val baseContext = "/api/slack"
+
+    init {
+        description = """
+            The slack-service is used for sending alerts and other notifications to a Slack channel used by admins of the service.
+        """.trimIndent()
+    }
 
     val sendAlert = call<SendAlertRequest, SendAlertResponse, CommonErrorMessage>("sendAlert") {
         auth {
@@ -30,6 +36,10 @@ object SlackDescriptions : CallDescriptionContainer("slack") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+        documentation {
+            summary = "Sends an alert"
         }
     }
 
@@ -48,6 +58,11 @@ object SlackDescriptions : CallDescriptionContainer("slack") {
             }
 
             body { bindEntireRequestFromBody() }
+        }
+
+
+        documentation {
+            summary = "Sends a support message"
         }
     }
 }

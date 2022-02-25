@@ -7,7 +7,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.delay
 
-sealed class JwtRefresher {
+abstract class JwtRefresher {
     abstract suspend fun fetchToken(client: RpcClient): String
 
     class Normal(private val refreshToken: String, val callCompanion: OutgoingCallCompanion<*>) : JwtRefresher() {

@@ -4,6 +4,21 @@ package dk.sdu.cloud.calls
 data class HttpStatusCode(val value: Int, val description: String) {
     fun isSuccess(): Boolean = value in 200..299
 
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null || this::class != other::class) return false
+
+        other as HttpStatusCode
+
+        if (value != other.value) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        return value
+    }
+
     companion object {
         val values = Array(600) { HttpStatusCode(it, "S$it") }
 

@@ -3,19 +3,22 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-ucloud"
-    version = "2022.1.3"
+    version = "2022.1.7"
 
     withAmbassador(null) {
         addSimpleMapping("/ucloud/ucloud/chunked")
         addSimpleMapping("/ucloud/ucloud/files")
         addSimpleMapping("/ucloud/ucloud/shares")
         addSimpleMapping("/ucloud/ucloud/download")
+        addSimpleMapping("/ucloud/ucloud/sync/folders")
+        addSimpleMapping("/ucloud/ucloud/sync/devices")
     }
     
     val deployment = withDeployment {
         deployment.spec.replicas = Configuration.retrieve("defaultScale", "Default scale", 1)
         injectSecret("elasticsearch-credentials")
         injectSecret("ucloud-provider-tokens")
+        injectSecret("sync-config", optional = true)
 
         val cephfsVolume = "cephfs"
         serviceContainer.volumeMounts.add(VolumeMount().apply {

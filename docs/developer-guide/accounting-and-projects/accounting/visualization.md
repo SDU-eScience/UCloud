@@ -9,6 +9,25 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_Visualization gives the user the possibility to get an easy overview of their usage during a set period or _
+
+## Rationale
+
+for a given product category. 
+
+There are currently two variations of usage visualization:
+
+1. Usage Chart: The usage chart shows the usage over time for each product category.
+
+Usage shown fully for product type COMPUTE for the period of week. 
+![](/backend/accounting-service/wiki/UsageChartFull.png)
+Usage specifics for each category in the product type.
+![](/backend/accounting-service/wiki/UsageChartInfo.png)
+
+2. Breakdown Chart: The breakdown chart shows the usage for the entire period divided into the
+different products used.
+Breakdown of different products usage in product type COMPUTE
+![](/backend/accounting-service/wiki/BreakdownChart.png)
 
 ## Table of Contents
 <details>

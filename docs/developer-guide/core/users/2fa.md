@@ -9,11 +9,35 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
+_UCloud supports 2FA for all users using a TOTP backend._
+
+## Rationale
+
+UCloud, for the most part, relies on the user's organization to enforce best practices. UCloud can be configured to
+require additional factors of authentication via WAYF. On top of this UCloud allows you to optionally add TOTP based
+two-factor authentication.
+
+https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via the `password` backend.
 
 ## Table of Contents
 <details>
 <summary>
-<a href='#remote-procedure-calls'>1. Remote Procedure Calls</a>
+<a href='#example-creating-2fa-credentials'>1. Examples</a>
+</summary>
+
+<table><thead><tr>
+<th>Description</th>
+</tr></thread>
+<tbody>
+<tr><td><a href='#example-creating-2fa-credentials'>Creating 2FA credentials</a></td></tr>
+</tbody></table>
+
+
+</details>
+
+<details>
+<summary>
+<a href='#remote-procedure-calls'>2. Remote Procedure Calls</a>
 </summary>
 
 <table><thead><tr>
@@ -23,15 +47,15 @@
 <tbody>
 <tr>
 <td><a href='#answerchallenge'><code>answerChallenge</code></a></td>
-<td><i>No description</i></td>
+<td>Answers a challenge previously issued by createCredentials</td>
 </tr>
 <tr>
 <td><a href='#createcredentials'><code>createCredentials</code></a></td>
-<td><i>No description</i></td>
+<td>Creates initial 2FA credentials and bootstraps a challenge for those credentials</td>
 </tr>
 <tr>
 <td><a href='#twofactorstatus'><code>twoFactorStatus</code></a></td>
-<td><i>No description</i></td>
+<td>Retrieves the 2FA status of the currently authenticated user</td>
 </tr>
 </tbody></table>
 
@@ -40,7 +64,7 @@
 
 <details>
 <summary>
-<a href='#data-models'>2. Data Models</a>
+<a href='#data-models'>3. Data Models</a>
 </summary>
 
 <table><thead><tr>
@@ -65,6 +89,184 @@
 
 </details>
 
+## Example: Creating 2FA credentials
+<table>
+<tr><th>Frequency of use</th><td>Common</td></tr>
+<tr>
+<th>Actors</th>
+<td><ul>
+<li>An authenticated user (<code>user</code>)</li>
+</ul></td>
+</tr>
+</table>
+<details>
+<summary>
+<b>Communication Flow:</b> Kotlin
+</summary>
+
+```kotlin
+TwoFactorAuthDescriptions.twoFactorStatus.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+TwoFactorStatusResponse(
+    connected = false, 
+)
+*/
+TwoFactorAuthDescriptions.createCredentials.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+Create2FACredentialsResponse(
+    challengeId = "CHALLENGE ID", 
+    otpAuthUri = "OTP URI", 
+    qrCodeB64Data = "QR CODE BASE64 ENCODED", 
+    secret = "SECRET", 
+)
+*/
+TwoFactorAuthDescriptions.answerChallenge.call(
+    AnswerChallengeRequest(
+        challengeId = "CHALLENGE ID", 
+        verificationCode = 999999, 
+    ),
+    user
+).orThrow()
+
+/*
+Unit
+*/
+TwoFactorAuthDescriptions.twoFactorStatus.call(
+    Unit,
+    user
+).orThrow()
+
+/*
+TwoFactorStatusResponse(
+    connected = true, 
+)
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> TypeScript
+</summary>
+
+```typescript
+// Authenticated as user
+await callAPI(AuthTwofactorApi.twoFactorStatus(
+    {
+    }
+);
+
+/*
+{
+    "connected": false
+}
+*/
+await callAPI(AuthTwofactorApi.createCredentials(
+    {
+    }
+);
+
+/*
+{
+    "otpAuthUri": "OTP URI",
+    "qrCodeB64Data": "QR CODE BASE64 ENCODED",
+    "secret": "SECRET",
+    "challengeId": "CHALLENGE ID"
+}
+*/
+await callAPI(AuthTwofactorApi.answerChallenge(
+    {
+        "challengeId": "CHALLENGE ID",
+        "verificationCode": 999999
+    }
+);
+
+/*
+{
+}
+*/
+await callAPI(AuthTwofactorApi.twoFactorStatus(
+    {
+    }
+);
+
+/*
+{
+    "connected": true
+}
+*/
+```
+
+
+</details>
+
+<details>
+<summary>
+<b>Communication Flow:</b> Curl
+</summary>
+
+```bash
+# ------------------------------------------------------------------------------------------------------
+# $host is the UCloud instance to contact. Example: 'http://localhost:8080' or 'https://cloud.sdu.dk'
+# $accessToken is a valid access-token issued by UCloud
+# ------------------------------------------------------------------------------------------------------
+
+# Authenticated as user
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/auth/2fa/status" 
+
+# {
+#     "connected": false
+# }
+
+curl -XPOST -H "Authorization: Bearer $accessToken" "$host/auth/2fa" 
+
+# {
+#     "otpAuthUri": "OTP URI",
+#     "qrCodeB64Data": "QR CODE BASE64 ENCODED",
+#     "secret": "SECRET",
+#     "challengeId": "CHALLENGE ID"
+# }
+
+curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-type: application/json; charset=utf-8" "$host/auth/2fa/challenge" -d '{
+    "challengeId": "CHALLENGE ID",
+    "verificationCode": 999999
+}'
+
+
+# {
+# }
+
+curl -XGET -H "Authorization: Bearer $accessToken" "$host/auth/2fa/status" 
+
+# {
+#     "connected": true
+# }
+
+```
+
+
+</details>
+
+<details open>
+<summary>
+<b>Communication Flow:</b> Visual
+</summary>
+
+![](/docs/diagrams/auth.twofactor_creating-2fa-credentials.png)
+
+</details>
+
+
 
 ## Remote Procedure Calls
 
@@ -74,6 +276,7 @@
 [![Auth: Public](https://img.shields.io/static/v1?label=Auth&message=Public&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Answers a challenge previously issued by createCredentials_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -87,6 +290,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Creates initial 2FA credentials and bootstraps a challenge for those credentials_
 
 | Request | Response | Error |
 |---------|----------|-------|
@@ -100,6 +304,7 @@
 [![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Retrieves the 2FA status of the currently authenticated user_
 
 | Request | Response | Error |
 |---------|----------|-------|

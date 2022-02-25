@@ -23,6 +23,7 @@ import io.ktor.utils.io.jvm.javaio.*
 import java.util.*
 
 class DownloadService(
+    private val providerId: String,
     private val db: DBContext,
     private val pathConverter: PathConverter,
     private val fs: NativeFS,
@@ -141,11 +142,11 @@ class DownloadService(
         )
     }
 
+    private val endpointWithoutToken = "/ucloud/$providerId/download"
+    private val endpoint = "$endpointWithoutToken?token="
+
     companion object : Loggable {
         override val log = logger()
-        const val endpointWithoutToken = "/ucloud/ucloud/download"
-        const val endpoint = "$endpointWithoutToken?token="
-
         private val safeFileNameChars =
             "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ._-+,@£$€!½§~'=()[]{}0123456789".let {
                 CharArray(it.length) { i -> it[i] }.toSet()

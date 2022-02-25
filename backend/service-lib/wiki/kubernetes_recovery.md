@@ -1,5 +1,3 @@
-# Kubernetes Recovery
-
 `kuberecov`
 
 ```

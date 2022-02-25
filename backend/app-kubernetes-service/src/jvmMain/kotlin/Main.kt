@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.kubernetes
 
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.app.kubernetes.api.AppKubernetesServiceDescription
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.micro.*
@@ -9,11 +10,16 @@ import dk.sdu.cloud.service.Loggable
 
 data class TolerationKeyAndValue(val key: String, val value: String)
 
+data class ProductReferenceWithoutProvider(
+    val id: String,
+    val category: String,
+)
+
 data class Configuration(
+    val providerId: String = "ucloud",
     val cookieName: String = "appRefreshToken",
     val prefix: String = "app-",
     val domain: String = "cloud.sdu.dk",
-    val performAuthentication: Boolean = true,
     val toleration: TolerationKeyAndValue? = null,
     val kubernetesConfig: String? = null,
     val disableMasterElection: Boolean = false,
@@ -25,7 +31,25 @@ data class Configuration(
     val enabled: Boolean = true,
     val useMachineSelector: Boolean? = null,
     val nodes: NodeConfiguration? = null,
-)
+    val ingress: Ingress = Ingress(),
+    val networkIp: NetworkIP = NetworkIP()
+) {
+    data class Ingress(
+        val enabled: Boolean = true,
+        val product: ProductReferenceWithoutProvider = ProductReferenceWithoutProvider(
+            "u1-publiclink",
+            "u1-publiclink"
+        ),
+    )
+
+    data class NetworkIP(
+        val enabled: Boolean = true,
+        val product: ProductReferenceWithoutProvider = ProductReferenceWithoutProvider(
+            "public-ip",
+            "public-ip"
+        ),
+    )
+}
 
 data class NodeConfiguration(
     val systemReservedCpuMillis: Int,

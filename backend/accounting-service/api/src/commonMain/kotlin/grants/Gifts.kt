@@ -77,7 +77,7 @@ object Gifts : CallDescriptionContainer("gifts") {
 
     init {
         description = """
-Gifts provide the system away to grant new and existing users (personal projects) credits from a project
+Gifts provide the system a way to grant new and existing users (personal projects) credits from a project
 
 The gifting system is primarily intended to provide credits to new users when they join the system. A 
 $TYPE_REF Gift follows the same rules as $TYPE_REF dk.sdu.cloud.accounting.api.Wallets do. This means that in order to 

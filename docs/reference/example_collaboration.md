@@ -74,7 +74,7 @@ Resources.retrieve.call(
 ).orThrow()
 
 /*
-404 Not Found
+HttpStatusCode(value=404, description=Not Found)
 */
 
 /* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
@@ -241,7 +241,7 @@ await callAPI(ExampleApi.retrieve(
 );
 
 /*
-404 Not Found
+HttpStatusCode(value=404, description=Not Found)
 */
 
 /* Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions. */
@@ -403,7 +403,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 # Authenticated as bob
 curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/example/retrieve?includeOthers=false&includeUpdates=false&includeSupport=false&includeProduct=false&id=1234" 
 
-# 404 Not Found
+# HttpStatusCode(value=404, description=Not Found)
 
 # Alice can change the permissions of the resource by invoking updateAcl. This causes Bob to gain READ permissions.
 

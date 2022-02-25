@@ -42,7 +42,7 @@ class ShareService(
                     ProviderRegisteredResource(
                         FileCollection.Spec(
                             share.specification.sourceFilePath.fileName(),
-                            PathConverter.PRODUCT_SHARE_REFERENCE
+                            pathConverter.shareProductReference
                         ),
                         PathConverter.COLLECTION_SHARE_PREFIX + share.id,
                         createdBy = "_ucloud",

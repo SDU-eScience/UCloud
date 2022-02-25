@@ -12,8 +12,11 @@ import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import * as Heading from "@/ui-components/Heading";
 import BaseLink from "@/ui-components/BaseLink";
-import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {GrayBox} from "../Create";
+
+export function networkIPResourceAllowed(app: UCloud.compute.Application): boolean {
+    return app.invocation.allowPublicIp;
+}
 
 export const NetworkIPResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
@@ -23,7 +26,7 @@ export const NetworkIPResource: React.FunctionComponent<{
     onRemove: (id: string) => void;
     provider?: string;
 }> = ({application, params, errors, onAdd, onRemove, provider}) => {
-    if (!application.invocation.allowPublicIp) return null;
+    if (!networkIPResourceAllowed(application)) return null;
 
     return <GrayBox>
         <Box>

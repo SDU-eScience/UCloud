@@ -14,6 +14,19 @@ data class AcceptSLARequest(val version: Int)
 object ServiceLicenseAgreement : CallDescriptionContainer("sla") {
     const val baseContext = "/api/sla"
 
+    init {
+        title = "Service License Agreement (SLA)"
+        description = """
+The service-license-agreement API enforces that the SLA is accepted before using the service.
+           
+Our SLA API allows for multiple SLA version to be stored and retrieved.
+A user has to accept the newest SLA to be allowed to access UCloud. This ensures that all users of UCloud 
+are informed on what is legal usage of UCloud and what is not. 
+
+${ApiConventions.nonConformingApiWarning}
+        """.trimIndent()
+    }
+
     val find = call<Unit, ServiceAgreementText, CommonErrorMessage>("find") {
         auth {
             access = AccessRight.READ

@@ -18,4 +18,3 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.suspend`](/docs/reference/jobs.suspend.md))
 
 
-

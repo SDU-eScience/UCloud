@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.projects
 import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.events.EventProducer
@@ -25,7 +26,8 @@ object GroupMembershipTable : SQLTable("project.group_members") {
 
 class ProjectGroupService(
     private val projects: ProjectService,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
+    private val projectCache: ProjectCache,
 ) {
     suspend fun createGroup(
         ctx: DBContext,
@@ -65,11 +67,21 @@ class ProjectGroupService(
     ) {
         ctx.withSession { session ->
             projects.requireRole(session, deletedBy, projectId, ProjectRole.ADMINS)
-
+            if (groups.isEmpty()) return@withSession
             val block: EnhancedPreparedStatement.() -> Unit = {
                 setParameter("project", projectId)
                 setParameter("groups", groups.toList())
             }
+
+            session.sendPreparedStatement(
+                {
+                    setParameter("groups", groups.toList())
+                },
+                """
+                    delete from provider.resource_acl_entry e
+                    where e.group_id = some(:groups::text[])
+                """
+            )
 
             session
                 .sendPreparedStatement(
@@ -140,6 +152,8 @@ class ProjectGroupService(
             log.warn(ex.stackTraceToString())
             throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
         }
+
+        projectCache.invalidate(newMember)
     }
 
     suspend fun removeMember(
@@ -174,8 +188,8 @@ class ProjectGroupService(
                 )
             )
         }
+        projectCache.invalidate(memberToRemove)
     }
-
 
     suspend fun rename(
         ctx: DBContext,

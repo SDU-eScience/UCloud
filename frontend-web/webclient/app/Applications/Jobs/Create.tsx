@@ -8,9 +8,9 @@ import {AppHeader, Information} from "@/Applications/View";
 import {Box, Button, ContainerForText, ExternalLink, Grid, Icon, Markdown, VerticalButtonGroup} from "@/ui-components";
 import {OptionalWidgetSearch, setWidgetValues, validateWidgets, Widget} from "@/Applications/Jobs/Widgets";
 import * as Heading from "@/ui-components/Heading";
-import {FolderResource} from "@/Applications/Jobs/Resources/Folders";
-import {getProviderField, IngressResource} from "@/Applications/Jobs/Resources/Ingress";
-import {PeerResource} from "@/Applications/Jobs/Resources/Peers";
+import {FolderResource, folderResourceAllowed} from "@/Applications/Jobs/Resources/Folders";
+import {getProviderField, IngressResource, ingressResourceAllowed} from "@/Applications/Jobs/Resources/Ingress";
+import {PeerResource, peerResourceAllowed} from "@/Applications/Jobs/Resources/Peers";
 import {createSpaceForLoadedResources, injectResources, useResource} from "@/Applications/Jobs/Resources";
 import {
     ReservationErrors,
@@ -25,7 +25,7 @@ import LoadingIcon from "@/LoadingIcon/LoadingIcon";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {NetworkIPResource} from "@/Applications/Jobs/Resources/NetworkIPs";
+import {NetworkIPResource, networkIPResourceAllowed} from "@/Applications/Jobs/Resources/NetworkIPs";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {getQueryParam} from "@/Utilities/URIUtilities";
 import {default as JobsApi, JobSpecification} from "@/UCloud/JobsApi";
@@ -135,10 +135,13 @@ export const Create: React.FunctionComponent = () => {
         }
 
         // Load resources
-        injectResources(folders, resources, "file");
-        injectResources(peers, resources, "peer");
-        injectResources(ingress, resources, "ingress");
-        injectResources(networks, resources, "network");
+        // Note(Jonas): An older version could have run with one of these resources while a newer might not allow them.
+        // Therefore, check to see if allowed!
+        if (folderResourceAllowed(application)) injectResources(folders, resources, "file");
+        if (peerResourceAllowed(application)) injectResources(peers, resources, "peer");
+        if (ingressResourceAllowed(application)) injectResources(ingress, resources, "ingress");
+        if (networkIPResourceAllowed(application)) injectResources(networks, resources, "network");
+
     }, [application, activeOptParams, folders, peers]);
 
     useLayoutEffect(() => {

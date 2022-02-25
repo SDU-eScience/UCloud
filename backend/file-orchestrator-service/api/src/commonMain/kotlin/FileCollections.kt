@@ -48,6 +48,18 @@ data class FileCollectionsProviderRenameRequestItem(
 }
 typealias FileCollectionsProviderRenameResponse = Unit
 
+@Serializable
+data class FileCollectionsAclUpdateRequestItem(
+    val id: String,
+)
+
+typealias FileCollectionsProviderAclUpdateRequest = BulkRequest<FileCollectionsProviderAclUpdateRequestItem>
+
+@Serializable
+data class FileCollectionsProviderAclUpdateRequestItem(
+    val id: String,
+)
+
 // ---
 
 object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCollection.Update,

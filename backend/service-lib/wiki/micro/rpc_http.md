@@ -1,6 +1,4 @@
-# `http`
-
-Configures the [HTTP](./http.md) backend for this call.
+Configures the HTTP backend for this call.
 
 | Fields | Mandatory | Description |
 |--------|-----------|-------------|

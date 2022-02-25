@@ -3,14 +3,12 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.Products
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
-import dk.sdu.cloud.app.orchestrator.api.IngressIncludeFlags
-import dk.sdu.cloud.app.orchestrator.api.IngressSpecification
-import dk.sdu.cloud.app.orchestrator.api.IngressState
-import dk.sdu.cloud.app.orchestrator.api.Ingresses
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.integration.DummyIngress
@@ -18,8 +16,16 @@ import dk.sdu.cloud.integration.DummyProvider
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.integration.retrySection
+import dk.sdu.cloud.project.api.AddGroupMemberRequest
+import dk.sdu.cloud.project.api.ProjectGroups
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.provider.api.ResourceAclEntry
+import dk.sdu.cloud.provider.api.UpdatedAcl
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
 class IngressTest : IntegrationTest() {
     data class TestCase(
@@ -33,6 +39,7 @@ class IngressTest : IntegrationTest() {
     )
 
     override fun defineTests() {
+        val dummyCase: TestCase
         val cases = listOf(
             TestCase(
                 "Dummy",
@@ -41,7 +48,7 @@ class IngressTest : IntegrationTest() {
                 "app-",
                 "dummy.com",
                 ignoreReadyTest = true
-            ),
+            ).also { dummyCase = it },
             run {
                 val product = Product.Ingress(
                     "u1-publiclink",
@@ -145,7 +152,8 @@ class IngressTest : IntegrationTest() {
                                 )
                             )
 
-                            check {}
+                            check {
+                            }
                         }
 
                         case("Deletion") {
@@ -166,6 +174,284 @@ class IngressTest : IntegrationTest() {
                     }
                 }
             )
+        }
+
+        run {
+            class Input(
+                val createdBy: UserType,
+                val accessedBy: UserType
+            )
+
+            class Output(
+                val didCreate: Boolean,
+                val resourceFromBrowse: Ingress?,
+                val resourceFromRetrieve: Ingress?,
+            )
+
+            test<Input, Output>("Resource ACL checks (Using dummy ingress)") {
+                execute {
+                    dummyCase.initialization()
+                    val ctx = initializeResourceTestContext(dummyCase.products, emptyList())
+                    val clientToCreateWith = ctx.client(input.createdBy).withProject(ctx.project)
+                    val clientToAccessWith = ctx.client(input.accessedBy).withProject(ctx.project)
+
+                    val id = Ingresses.create.call(
+                        bulkRequestOf(
+                            IngressSpecification(
+                                dummyCase.prefix + "my-domain" + dummyCase.suffix,
+                                dummyCase.products.first().toReference()
+                            )
+                        ),
+                        clientToCreateWith
+                    ).orNull()?.responses?.singleOrNull()
+
+                    val resourceFromRetrieve = if (id != null) {
+                        Ingresses.retrieve.call(
+                            ResourceRetrieveRequest(
+                                IngressIncludeFlags(
+                                    includeOthers = true,
+                                    includeUpdates = true
+                                ),
+                                id.id
+                            ),
+                            clientToAccessWith
+                        ).orNull()
+                    } else {
+                        null
+                    }
+
+                    val resourceFromBrowse = Ingresses.browse.call(
+                        ResourceBrowseRequest(
+                            IngressIncludeFlags(
+                                includeOthers = true,
+                                includeUpdates = true
+                            )
+                        ),
+                        clientToAccessWith
+                    ).orNull()?.items?.firstOrNull()
+
+                    Output(id != null, resourceFromBrowse, resourceFromRetrieve)
+                }
+
+                fun success(output: Output) {
+                    assertTrue { output.didCreate }
+                    assertNotNull(output.resourceFromRetrieve)
+                    assertEquals(output.resourceFromBrowse?.specification, output.resourceFromRetrieve.specification)
+                }
+
+                fun failureToRetrieve(output: Output) {
+                    assertTrue { output.didCreate }
+                    assertEquals(null, output.resourceFromRetrieve)
+                    assertEquals(null, output.resourceFromBrowse)
+                }
+
+                fun failureToCreate(output: Output) {
+                    assertTrue { !output.didCreate }
+                    assertEquals(null, output.resourceFromRetrieve)
+                    assertEquals(null, output.resourceFromBrowse)
+                }
+
+                run {
+                    // PI + X
+                    case("PI + PI") {
+                        input(Input(UserType.PI, UserType.PI))
+                        check { success(output) }
+                    }
+
+                    case("PI + Admin") {
+                        input(Input(UserType.PI, UserType.ADMIN))
+                        check { success(output) }
+                    }
+
+                    case("PI + Member") {
+                        input(Input(UserType.PI, UserType.MEMBER))
+                        check { failureToRetrieve(output) }
+                    }
+
+                    case("PI + User") {
+                        input(Input(UserType.PI, UserType.SOME_OTHER_USER))
+                        check { failureToRetrieve(output) }
+                    }
+                }
+
+                run {
+                    // Admin + X
+                    case("Admin + PI") {
+                        input(Input(UserType.ADMIN, UserType.PI))
+                        check { success(output) }
+                    }
+
+                    case("Admin + Admin") {
+                        input(Input(UserType.ADMIN, UserType.ADMIN))
+                        check { success(output) }
+                    }
+
+                    case("Admin + Member") {
+                        input(Input(UserType.ADMIN, UserType.MEMBER))
+                        check { failureToRetrieve(output) }
+                    }
+
+                    case("Admin + User") {
+                        input(Input(UserType.ADMIN, UserType.SOME_OTHER_USER))
+                        check { failureToRetrieve(output) }
+                    }
+                }
+
+                run {
+                    // Member + X
+                    case("Member + PI") {
+                        input(Input(UserType.MEMBER, UserType.PI))
+                        check { success(output) }
+                    }
+
+                    case("Member + Admin") {
+                        input(Input(UserType.MEMBER, UserType.ADMIN))
+                        check { success(output) }
+                    }
+
+                    case("Member + Member") {
+                        input(Input(UserType.MEMBER, UserType.MEMBER))
+                        check { success(output) }
+                    }
+
+                    case("Member + User") {
+                        input(Input(UserType.MEMBER, UserType.SOME_OTHER_USER))
+                        check { failureToRetrieve(output) }
+                    }
+                }
+
+                run {
+                    // User + X
+                    case("User + PI") {
+                        input(Input(UserType.SOME_OTHER_USER, UserType.PI))
+                        check { failureToCreate(output) }
+                    }
+
+                    case("User + Admin") {
+                        input(Input(UserType.SOME_OTHER_USER, UserType.ADMIN))
+                        check { failureToCreate(output) }
+                    }
+
+                    case("User + Member") {
+                        input(Input(UserType.SOME_OTHER_USER, UserType.MEMBER))
+                        check { failureToCreate(output) }
+                    }
+
+                    case("User + User") {
+                        input(Input(UserType.SOME_OTHER_USER, UserType.SOME_OTHER_USER))
+                        check { failureToCreate(output) }
+                    }
+                }
+            }
+        }
+
+        run {
+            class ACLChange(val group: String, val permissions: List<Permission>)
+
+            class Input(
+                val updates: List<ACLChange>,
+                val groupCreator: String,
+                val groupAccessedBy: List<String>,
+            ) {
+                init {
+                    require(groupAccessedBy.size == updates.size) { "groupAccessedBy must be equal in size to updates" }
+                }
+            }
+
+            class Output(
+                val didCreate: Boolean,
+                val resourcesByRetrieve: List<Ingress?>,
+            )
+
+            test<Input, Output>("Group ACLs") {
+                execute {
+                    dummyCase.initialization()
+                    val groups = (input.updates.map { it.group } + input.groupAccessedBy + input.groupCreator).toSet().toList()
+                    val ctx = initializeResourceTestContext(dummyCase.products, groups)
+                    val usersInGroups = groups.associateWith { createUser() }
+                    for ((group, user) in usersInGroups) {
+                        addMemberToProject(ctx.project, ctx.piClient, user.client, user.username)
+                        ProjectGroups.addGroupMember.call(
+                            AddGroupMemberRequest(ctx.groupNamesToId.getValue(group), user.username),
+                            ctx.piClient.withProject(ctx.project)
+                        ).orThrow()
+                    }
+
+                    val creatorClient = usersInGroups.getValue(input.groupCreator).client.withProject(ctx.project)
+                    val id = Ingresses.create.call(
+                        bulkRequestOf(
+                            IngressSpecification(
+                                dummyCase.prefix + "my-domain" + dummyCase.suffix,
+                                dummyCase.products.first().toReference()
+                            )
+                        ),
+                        creatorClient
+                    ).orNull()?.responses?.singleOrNull()
+
+                    val resourcesByRetrieve = if (id == null) {
+                        input.updates.map { null }
+                    } else {
+                        input.updates.zip(input.groupAccessedBy).map { (update, groupToAccess) ->
+                            val accessorClient = usersInGroups.getValue(groupToAccess).client.withProject(ctx.project)
+                            if (update.permissions.isNotEmpty()) {
+                                Ingresses.updateAcl.call(
+                                    bulkRequestOf(
+                                        UpdatedAcl(
+                                            id.id,
+                                            listOf(
+                                                ResourceAclEntry(
+                                                    AclEntity.ProjectGroup(ctx.project, ctx.groupNamesToId.getValue(update.group)),
+                                                    update.permissions
+                                                )
+                                            ),
+                                            emptyList()
+                                        ),
+                                    ),
+                                    ctx.piClient
+                                ).orThrow()
+                            }
+
+                            Ingresses.retrieve.call(
+                                ResourceRetrieveRequest(
+                                    IngressIncludeFlags(includeOthers = true),
+                                    id.id
+                                ),
+                                accessorClient
+                            ).orNull()
+                        }
+                    }
+
+                    Output(id != null, resourcesByRetrieve)
+                }
+
+                case("Simple read test") {
+                    input(Input(
+                        listOf(ACLChange("G2", listOf(Permission.READ))),
+                        "G1",
+                        listOf("G2")
+                    ))
+
+                    check {
+                        assertTrue(output.didCreate)
+                        assertEquals(1, output.resourcesByRetrieve.size)
+                        assertNotNull(output.resourcesByRetrieve.single())
+                    }
+                }
+
+                case("Simple test with no permissions") {
+                    input(Input(
+                        listOf(ACLChange("G2", emptyList())),
+                        "G1",
+                        listOf("G2")
+                    ))
+
+                    check {
+                        assertTrue(output.didCreate)
+                        assertEquals(1, output.resourcesByRetrieve.size)
+                        assertEquals(null, output.resourcesByRetrieve.single())
+                    }
+                }
+            }
         }
     }
 }

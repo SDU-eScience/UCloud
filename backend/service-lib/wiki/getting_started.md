@@ -1,5 +1,3 @@
-# Getting Started
-
 This document describes how to run services locally, and only how to run them locally. __This is not a guide for running
 UCloud in production.__
 

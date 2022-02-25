@@ -5,6 +5,7 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.auth.api.LookupUsersRequest
 import dk.sdu.cloud.auth.api.UserDescriptions
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -13,7 +14,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
-import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.contact.book.api.ContactBookDescriptions
 import dk.sdu.cloud.contact.book.api.InsertRequest
 import dk.sdu.cloud.contact.book.api.ServiceOrigin
@@ -63,7 +63,6 @@ object ProjectInvite : SQLTable("project.invites") {
     val createdAt = timestamp("created_at", notNull = true)
 }
 
-
 suspend fun RowData.toProject(): Project {
     return Project(
         id = getField(ProjectTable.id),
@@ -75,7 +74,8 @@ suspend fun RowData.toProject(): Project {
 
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
-    private val eventProducer: EventProducer<ProjectEvent>
+    private val eventProducer: EventProducer<ProjectEvent>,
+    private val projectCache: ProjectCache,
 ) {
     suspend fun create(
         ctx: DBContext,
@@ -93,6 +93,7 @@ class ProjectService(
         }
 
         val id = UUID.randomUUID().toString()
+        val piUsername = principalInvestigatorOverride ?: actor.safeUsername()
 
         try {
             ctx.withSession { session ->
@@ -105,7 +106,7 @@ class ProjectService(
                 }
 
                 session.insert(ProjectMemberTable) {
-                    set(ProjectMemberTable.username, principalInvestigatorOverride ?: actor.safeUsername())
+                    set(ProjectMemberTable.username, piUsername)
                     set(ProjectMemberTable.role, ProjectRole.PI.name)
                     set(ProjectMemberTable.project, id)
                     set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
@@ -127,9 +128,10 @@ class ProjectService(
         eventProducer.produce(
             ProjectEvent.MemberAdded(
                 id,
-                ProjectMember(principalInvestigatorOverride ?: actor.safeUsername(), ProjectRole.PI)
+                ProjectMember(piUsername, ProjectRole.PI)
             )
         )
+        projectCache.invalidate(piUsername)
         return id
     }
 
@@ -274,6 +276,7 @@ class ProjectService(
 
             eventProducer.produce(ProjectEvent.MemberAdded(projectId, ProjectMember(invitedUser, ProjectRole.USER)))
         }
+        projectCache.invalidate(invitedUser)
     }
 
     suspend fun rejectInvite(
@@ -359,6 +362,8 @@ class ProjectService(
                 serviceClient
             )
         }
+
+        projectCache.invalidate(initiatedBy)
     }
 
     private suspend fun notify(
@@ -457,6 +462,8 @@ class ProjectService(
                 bulkRequestOf(adminMessages + userMessage),
                 serviceClient
             )
+
+            projectCache.invalidate(userToDelete)
         }
     }
 
@@ -539,6 +546,8 @@ class ProjectService(
                 serviceClient
             )
         }
+
+        projectCache.invalidate(memberToUpdate)
     }
 
     suspend fun transferPrincipalInvestigatorRole(

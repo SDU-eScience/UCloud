@@ -61,7 +61,7 @@ export const ImportParameters: React.FunctionComponent<{
             setMessages(result.messages);
 
             /* Is this correct? Is the typeof an undefined value not a string? */
-            if (typeof result.output === undefined) {
+            if (typeof result.output === "undefined") {
                 // Do nothing
             } else {
                 onImport(result.output!);
@@ -93,16 +93,20 @@ export const ImportParameters: React.FunctionComponent<{
     const [, invokeCommand] = useCloudCommand();
 
     const fetchAndImportParameters = useCallback(async (file: UFile) => {
-        const download = await invokeCommand<UCloud.BulkResponse<FilesCreateDownloadResponseItem>>(
-            FilesApi.createDownload(bulkRequestOf({id: file.id})),
-            {defaultErrorHandler: false}
-        );
-        const downloadEndpoint = download?.responses[0]?.endpoint;
-        if (!downloadEndpoint) {
-            return;
+        try {
+            const download = await invokeCommand<UCloud.BulkResponse<FilesCreateDownloadResponseItem>>(
+                FilesApi.createDownload(bulkRequestOf({id: file.id})),
+                {defaultErrorHandler: false}
+            );
+            const downloadEndpoint = download?.responses[0]?.endpoint;
+            if (!downloadEndpoint) {
+                return;
+            }
+            const content = await fetch(downloadEndpoint);
+            if (content.ok) importParameters(new File([await content.blob()], "params"));
+        } catch (e) {
+            errorMessageOrDefault(e, "Failed to fetch parameters from job file.")
         }
-        const content = await fetch(downloadEndpoint);
-        if (content.ok) importParameters(new File([await content.blob()], "params"));
     }, []);
 
     const previousRunsValid: Job[] = [];

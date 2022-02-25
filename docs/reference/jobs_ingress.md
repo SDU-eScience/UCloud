@@ -54,6 +54,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "compute-example", 
@@ -204,7 +205,8 @@ await callAPI(JobsApi.create(
                         "id": "41231"
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -347,7 +349,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "id": "41231"
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'

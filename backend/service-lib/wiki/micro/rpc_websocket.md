@@ -1,5 +1,3 @@
-# `websocket`
-
 Configures the [websocket](./websockets.md) backend for this call.
 
 Added via `websocket(path: String)`. This will cause the server to start listening for websocket connections at `path`.

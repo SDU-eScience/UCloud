@@ -142,6 +142,7 @@ fun Chapter.linkToDocs(): String {
     val suffix = when (this) {
         is Chapter.Node -> "/README.md"
         is Chapter.Feature -> ".md"
+        is Chapter.ExternalMarkdown -> ".md"
     }
 
     return urlBuilder.toString() + id + suffix
@@ -187,6 +188,32 @@ fun generateSectionNavigation(
         }
         appendLine("</p>")
         appendLine()
+    }
+}
+
+fun generateExternalMarkdown(
+    previousSection: Chapter?,
+    nextSection: Chapter?,
+    path: List<Chapter.Node>,
+    chapter: Chapter.ExternalMarkdown
+) {
+    val title = chapter.title
+    val id = chapter.id
+
+    val outputFile = File(
+        outputFolder,
+        path.joinToString("/") { it.id.replace("/", "_") } + "/" + id + ".md"
+    )
+
+    outputFile.parentFile.mkdirs()
+    outputFile.printWriter().use { outs ->
+        outs.println(generateSectionNavigation(previousSection, nextSection))
+
+        outs.println(chapter.breadcrumbs())
+
+        outs.println("# $title")
+        outs.println()
+        outs.println(File(chapter.externalFile).readText())
     }
 }
 

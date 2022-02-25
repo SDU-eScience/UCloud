@@ -9,6 +9,10 @@ import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import {GrayBox} from "../Create";
 
+export function folderResourceAllowed(app: UCloud.compute.Application): boolean {
+    return !(app.invocation.allowAdditionalMounts === false || (app.invocation.allowAdditionalMounts == null && app.invocation.applicationType === "BATCH"));
+}
+
 export const FolderResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
@@ -16,7 +20,7 @@ export const FolderResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    return (application.invocation.allowAdditionalMounts === false || (application.invocation.allowAdditionalMounts == null && application.invocation.applicationType === "BATCH")) ? null : (
+    return !folderResourceAllowed(application) ? null : (
         <GrayBox>
             <Box>
                 <Flex alignItems="center">

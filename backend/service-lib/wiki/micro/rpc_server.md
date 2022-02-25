@@ -1,8 +1,6 @@
-# RPC Server
-
 The `RpcServer` is the object responsible for implementing the client-side of [remote procedure calls](./rpc.md).
 The server, like the client, is implemented using plugin based approach. The `RpcServer` instance is available from
-`micro.server` and is configured by the [ServerFeature](./features.md). Inside of an `RpcServer` we find the following
+`micro.server` and is configured by the `ServerFeature`. Inside an `RpcServer` we find the following
 properties:
 
 | Property | Description |
@@ -119,8 +117,8 @@ val IngoingCall.securityToken: SecurityPrincipalToken
 val IngoingCall.securityTokenOrNull: SecurityPrincipalToken?
 ```
 
-Returns information about the authenticated [security principal](../../../auth-service/README.md). If there is no
-guarantee that the user is authenticated (see [here](./rpc_auth.md)) then you should use the `OrNull` variant.
+Returns information about the authenticated security principal. If there is no guarantee that the user is authenticated
+(see [here](./rpc_auth.md)) then you should use the `OrNull` variant.
 
 ---
 
@@ -153,7 +151,7 @@ val IngoingCall.jobId: String
 val IngoingCall.causedBy: String?
 ```
 
-Returns information about the job ID and caused-by IDs (see [auditing](../auditing.md)).
+Returns information about the job ID and caused-by IDs.
 
 ---
 
@@ -169,4 +167,4 @@ Returns information about the calling client's [user agent](https://developer.mo
 val IngoingCall.project: String?
 ```
 
-Returns information about the calling user's [active project](../../../project-service/README.md).
+Returns information about the calling user's active project.

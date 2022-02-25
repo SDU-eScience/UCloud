@@ -9,7 +9,7 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_Gifts provide the system away to grant new and existing users (personal projects) credits from a project_
+_Gifts provide the system a way to grant new and existing users (personal projects) credits from a project_
 
 ## Rationale
 

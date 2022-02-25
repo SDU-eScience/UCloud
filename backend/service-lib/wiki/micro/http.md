@@ -1,5 +1,3 @@
-# HTTP Implementation
-
 In this article we will cover the HTTP server and client implementation details of UCloud. Both the server and client
 implementations are both provided by [Ktor](https://ktor.io). Before you read this article, you should read about the
 general [server](./rpc_server.md) and [client](./rpc_client.md) systems. The client/server is used, only, if the

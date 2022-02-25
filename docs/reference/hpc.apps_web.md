@@ -36,6 +36,8 @@ ApplicationWithFavoriteAndTags(
         allowAdditionalMounts = null, 
         allowAdditionalPeers = null, 
         allowMultiNode = false, 
+        allowPublicIp = false, 
+        allowPublicLink = null, 
         applicationType = ApplicationType.WEB, 
         container = null, 
         environment = null, 
@@ -187,6 +189,8 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "allowAdditionalMounts": null,
         "allowAdditionalPeers": null,
         "allowMultiNode": false,
+        "allowPublicIp": false,
+        "allowPublicLink": null,
         "fileExtensions": [
         ],
         "licenseServers": [
@@ -286,6 +290,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "allowAdditionalMounts": null,
 #         "allowAdditionalPeers": null,
 #         "allowMultiNode": false,
+#         "allowPublicIp": false,
+#         "allowPublicLink": null,
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [

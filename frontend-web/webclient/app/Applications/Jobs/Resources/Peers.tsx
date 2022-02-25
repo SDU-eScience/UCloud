@@ -8,6 +8,12 @@ import {compute} from "@/UCloud";
 import ApplicationParameter = compute.ApplicationParameter;
 import {GrayBox} from "../Create";
 
+export function peerResourceAllowed(app: UCloud.compute.Application) {
+    const invocation = app.invocation;
+    const tool = invocation.tool.tool!.description;
+    return invocation.allowAdditionalPeers !== false && tool.backend !== "VIRTUAL_MACHINE"
+}
+
 export const PeerResource: React.FunctionComponent<{
     application: UCloud.compute.Application;
     params: ApplicationParameter[];
@@ -15,10 +21,7 @@ export const PeerResource: React.FunctionComponent<{
     onAdd: () => void;
     onRemove: (id: string) => void;
 }> = ({application, params, errors, onAdd, onRemove}) => {
-    const invocation = application.invocation;
-    const tool = invocation.tool.tool!.description;
-    const shouldShow = invocation.allowAdditionalPeers !== false && tool.backend !== "VIRTUAL_MACHINE";
-    return !shouldShow ? null : (
+    return !peerResourceAllowed(application) ? null : (
         <GrayBox>
             <Box>
                 <Flex alignItems={"center"}>

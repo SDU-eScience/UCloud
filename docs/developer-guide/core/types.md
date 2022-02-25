@@ -1,5 +1,5 @@
 <p align='center'>
-<a href='/docs/developer-guide/orchestration/compute/providers/README.md'>« Previous section</a>
+<a href='/docs/developer-guide/development/micro/time.md'>« Previous section</a>
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a href='/docs/developer-guide/core/api-conventions.md'>Next section »</a>
 </p>
 
@@ -7,7 +7,7 @@
 [UCloud Developer Guide](/docs/developer-guide/README.md) / [Core](/docs/developer-guide/core/README.md) / Core Types
 # Core Types
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ## Table of Contents
@@ -27,15 +27,15 @@
 </tr>
 <tr>
 <td><a href='#findbylongid'><code>FindByLongId</code></a></td>
-<td><i>No description</i></td>
+<td>A request message to find a resource by a numeric unique identifier.</td>
 </tr>
 <tr>
 <td><a href='#findbystringid'><code>FindByStringId</code></a></td>
-<td><i>No description</i></td>
+<td>A request message to find a resource by a unique identifier.</td>
 </tr>
 <tr>
 <td><a href='#page'><code>Page</code></a></td>
-<td><i>No description</i></td>
+<td>A page of items. Superseded by PageV2.</td>
 </tr>
 <tr>
 <td><a href='#pagev2'><code>PageV2</code></a></td>
@@ -43,11 +43,11 @@
 </tr>
 <tr>
 <td><a href='#role'><code>Role</code></a></td>
-<td><i>No description</i></td>
+<td>Represents a `SecurityPrincipal`'s system-wide role.</td>
 </tr>
 <tr>
 <td><a href='#securityprincipal'><code>SecurityPrincipal</code></a></td>
-<td><i>No description</i></td>
+<td>A minimal representation of a security principal.</td>
 </tr>
 <tr>
 <td><a href='#paginationrequest'><code>PaginationRequest</code></a></td>
@@ -128,9 +128,10 @@ such a case UCloud will _not_ include a more detailed error message.
 
 ### `FindByLongId`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A request message to find a resource by a numeric unique identifier._
 
 ```kotlin
 data class FindByLongId(
@@ -164,9 +165,10 @@ data class FindByLongId(
 
 ### `FindByStringId`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A request message to find a resource by a unique identifier._
 
 ```kotlin
 data class FindByStringId(
@@ -200,9 +202,10 @@ data class FindByStringId(
 
 ### `Page`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-
+_A page of items. Superseded by PageV2._
 
 ```kotlin
 data class Page<T>(
@@ -272,7 +275,7 @@ data class Page<T>(
 
 ### `PageV2`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _Represents a single 'page' of results_
@@ -337,9 +340,10 @@ check if the end of results has been reached is by checking i `next == null`.
 
 ### `Role`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_Represents a `SecurityPrincipal`'s system-wide role._
 
 ```kotlin
 enum class Role {
@@ -352,6 +356,10 @@ enum class Role {
     UNKNOWN,
 }
 ```
+__This is usually not used for application-specific authorization.__
+
+Services are encouraged to implement their own authorization control, potentially
+from a common library.
 
 <details>
 <summary>
@@ -360,7 +368,7 @@ enum class Role {
 
 <details>
 <summary>
-<code>GUEST</code>
+<code>GUEST</code> The security principal is an unauthenticated guest
 </summary>
 
 
@@ -371,7 +379,31 @@ enum class Role {
 
 <details>
 <summary>
-<code>USER</code>
+<code>USER</code> The security principal is a normal end-user.
+</summary>
+
+
+
+Normal end users can also have "admin-like" privileges in certain parts of the application.
+
+
+</details>
+
+<details>
+<summary>
+<code>ADMIN</code> The security principal is an administrator of the system.
+</summary>
+
+
+
+Very few users should have this role.
+
+
+</details>
+
+<details>
+<summary>
+<code>SERVICE</code> The security principal is a first party, __trusted__, service.
 </summary>
 
 
@@ -382,33 +414,12 @@ enum class Role {
 
 <details>
 <summary>
-<code>ADMIN</code>
+<code>THIRD_PARTY_APP</code> The security principal is some third party application.
 </summary>
 
 
 
-
-
-</details>
-
-<details>
-<summary>
-<code>SERVICE</code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>THIRD_PARTY_APP</code>
-</summary>
-
-
-
+This type of role is currently not used. It is reserved for potential future purposes.
 
 
 </details>
@@ -426,11 +437,15 @@ enum class Role {
 
 <details>
 <summary>
-<code>UNKNOWN</code>
+<code>UNKNOWN</code> The user role is unknown.
 </summary>
 
 
 
+If the action is somewhat low-sensitivity it should be fairly safe to assume `USER`/`THIRD_PARTY_APP`
+ privileges. This means no special privileges should be granted to the user.
+ 
+ This will only happen if we are sent a token of a newer version that what we cannot parse.
 
 
 </details>
@@ -445,9 +460,10 @@ enum class Role {
 
 ### `SecurityPrincipal`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
+_A minimal representation of a security principal._
 
 ```kotlin
 data class SecurityPrincipal(
@@ -463,6 +479,7 @@ data class SecurityPrincipal(
     val organization: String?,
 )
 ```
+More information can be gathered from an auth service, using the username as a key.
 
 <details>
 <summary>
@@ -471,7 +488,19 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>username</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The unique username of this security principal.
+</summary>
+
+
+
+This is usually suitable for display in UIs.
+
+
+</details>
+
+<details>
+<summary>
+<code>role</code>: <code><code><a href='#role'>Role</a></code></code> The role of the security principal
 </summary>
 
 
@@ -482,7 +511,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>role</code>: <code><code><a href='#role'>Role</a></code></code>
+<code>firstName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The first name of the security principal. Can be empty.
 </summary>
 
 
@@ -493,7 +522,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>firstName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The last name of the security principal. Can be empty.
 </summary>
 
 
@@ -504,7 +533,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>lastName</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> A numeric unique identifier for this principal. The username is the preferred unique identifier.
 </summary>
 
 
@@ -515,7 +544,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>uid</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> The email of the user
 </summary>
 
 
@@ -526,22 +555,16 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>email</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A boolean flag indicating if the user has 2FA enabled for their user.
 </summary>
 
 
 
+If the token does not contain this information (old tokens generated before field's introduction) then this will
+be set to `true`. This is done to avoid breaking extended tokens. This behavior will should change in a
+future update.
 
-
-</details>
-
-<details>
-<summary>
-<code>twoFactorAuthentication</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
+All new tokens _should_ contain this information explicitly.
 
 
 </details>
@@ -559,7 +582,7 @@ data class SecurityPrincipal(
 
 <details>
 <summary>
-<code>serviceAgreementAccepted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+<code>serviceAgreementAccepted</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A boolean indicating if the service agreement has been accepted
 </summary>
 
 
@@ -589,8 +612,8 @@ data class SecurityPrincipal(
 
 ### `PaginationRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Deprecated: Yes](https://img.shields.io/static/v1?label=Deprecated&message=Yes&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 ```kotlin
@@ -637,7 +660,7 @@ data class PaginationRequest(
 
 ### `PaginationRequestV2Consistency`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -685,7 +708,7 @@ enum class PaginationRequestV2Consistency {
 
 ### `BulkRequest`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 _A base type for requesting a bulk operation._
@@ -737,7 +760,7 @@ verification API to cleanup these resources later.
 
 ### `BulkResponse`
 
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 

@@ -77,4 +77,3 @@ necessary parameters. For more details on the tool and app format see:
 ## Suggested Reading
 
 - [End-user Documentation](https://docs.cloud.sdu.dk/user/)
-- [UCloud Application Development](/backend/app-store-service/README.md)

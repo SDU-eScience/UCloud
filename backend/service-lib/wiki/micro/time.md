@@ -1,5 +1,3 @@
-# Time
-
 UCloud provides a `Time` object which should be used for all actions which require a timestamp. The timestamps used in
 UCloud are always returned as time expressed as milliseconds since the time 00:00:00 UTC on January 1, 1970.
 

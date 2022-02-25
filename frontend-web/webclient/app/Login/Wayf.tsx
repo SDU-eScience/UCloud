@@ -4,7 +4,7 @@ import {inDevEnvironment} from "@/UtilityFunctions";
 import {LoginPage} from "./Login";
 
 // https://stackoverflow.com/a/2138471
-function setCookie(name: string, value: string, days: number): void {
+export function setCookie(name: string, value: string, days: number): void {
     let expires = "";
     if (days) {
         const date = new Date();
@@ -14,7 +14,7 @@ function setCookie(name: string, value: string, days: number): void {
     document.cookie = name + "=" + (value || "") + expires + "; path=/";
 }
 
-function getCookie(name: string): string | null {
+export function getCookie(name: string): string | null {
     const nameEQ = name + "=";
     const ca = document.cookie.split(";");
     for (let c of ca) {

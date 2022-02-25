@@ -7,6 +7,9 @@ import kotlin.math.min
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@Deprecated("Replace with PageV2", ReplaceWith("PageV2"))
+@UCloudApiDoc("A page of items. Superseded by PageV2.")
+@UCloudApiStable
 data class Page<out T>(
     val itemsInTotal: Int,
     val itemsPerPage: Int,
@@ -44,6 +47,8 @@ fun WithPaginationRequest.normalizeWithFullReadEnabled(
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@Deprecated("Replaced with PaginationRequestV2")
+@UCloudApiStable
 data class PaginationRequest(
     override val itemsPerPage: Int? = null,
     override val page: Int? = null,
@@ -121,6 +126,7 @@ Every page contains the items from the current result set, along with informatio
 additional information.""")
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 data class PageV2<out T>(
     @UCloudApiDoc("The expected items per page, this is extracted directly from the request")
     val itemsPerPage: Int,
@@ -143,6 +149,7 @@ fun <T> singlePageOf(vararg items: T): PageV2<T> {
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 data class NormalizedPaginationRequestV2(
     val itemsPerPage: Int,
     val next: String?,
@@ -152,6 +159,7 @@ data class NormalizedPaginationRequestV2(
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 data class PaginationRequestV2(
     override val itemsPerPage: Int,
     override val next: String? = null,
@@ -221,6 +229,7 @@ interface WithPaginationRequestV2 {
 
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
 enum class PaginationRequestV2Consistency {
     @UCloudApiDoc("Consistency is preferred but not required. An inconsistent snapshot might be returned.")
     PREFER,

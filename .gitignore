@@ -156,3 +156,4 @@ fs/
 
 backend/envoy/
 .compose/
+syncfiles/

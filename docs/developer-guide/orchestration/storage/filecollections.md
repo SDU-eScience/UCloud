@@ -102,6 +102,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Deletes one or more resources</td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request (potential) initialization of resources</td>
+</tr>
+<tr>
 <td><a href='#rename'><code>rename</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -162,7 +166,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#memberfilesfilter'><code>MemberFilesFilter</code></a></td>
-<td>Filter for member files. </td>
+<td>Filter for member files.</td>
 </tr>
 <tr>
 <td><a href='#filecollectionsrenamerequestitem'><code>FileCollectionsRenameRequestItem</code></a></td>
@@ -1135,6 +1139,24 @@ _Deletes one or more resources_
 
 
 
+### `init`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request (potential) initialization of resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
+
+
 ### `rename`
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
@@ -2001,7 +2023,7 @@ data class FileCollectionIncludeFlags(
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
-_Filter for member files. _
+_Filter for member files._
 
 ```kotlin
 enum class MemberFilesFilter {

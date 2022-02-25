@@ -1,5 +1,3 @@
-# 3rd Party Dependencies (Risk assessment)
-
 In this document we cover the core 3rd party dependencies we have in UCloud and assess risk based on the following
 factors:
 

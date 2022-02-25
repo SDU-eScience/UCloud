@@ -22,4 +22,3 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.openInteractiveSession`](/docs/reference/jobs.openInteractiveSession.md))
 
 
-

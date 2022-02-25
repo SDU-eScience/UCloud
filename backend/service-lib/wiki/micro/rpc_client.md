@@ -1,8 +1,6 @@
-# RPC Client
-
 The `RpcClient` is the object responsible for implementing the client-side of [remote procedure calls](./rpc.md).
 The client, like the server, is implemented using plugin based approach. The `RpcClient` instance is available from
-`micro.client` and is configured by the [ClientFeature](./features.md). Inside of an `RpcClient` we find the following
+`micro.client` and is configured by the `ClientFeature`. Inside of an `RpcClient` we find the following
 properties:
 
 | Property | Description |
@@ -37,7 +35,7 @@ interface, later.
 
 The `RpcClient` will forward to the `OutgoingCallFilter`s and `OutgoingRequestInterceptor`s when `call` is invoked.
 
-![](rpc_client.png)
+![](/backend/service-lib/wiki/micro/rpc_client.png)
 
 __Figure:__ Flow of `call`
 

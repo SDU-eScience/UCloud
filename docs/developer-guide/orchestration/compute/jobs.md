@@ -121,6 +121,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Extend the duration of one or more jobs</td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request (potential) initialization of resources</td>
+</tr>
+<tr>
 <td><a href='#openinteractivesession'><code>openInteractiveSession</code></a></td>
 <td>Opens an interactive session (e.g. terminal, web or VNC)</td>
 </tr>
@@ -344,6 +348,8 @@ application = ApplicationWithFavoriteAndTags(
         allowAdditionalMounts = null, 
         allowAdditionalPeers = null, 
         allowMultiNode = false, 
+        allowPublicIp = false, 
+        allowPublicLink = null, 
         applicationType = ApplicationType.BATCH, 
         container = null, 
         environment = null, 
@@ -475,6 +481,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = mapOf("var" to AppParameterValue.Text(
             value = "Example", 
         )), 
@@ -644,6 +651,8 @@ application = {
         "allowAdditionalMounts": null,
         "allowAdditionalPeers": null,
         "allowMultiNode": false,
+        "allowPublicIp": false,
+        "allowPublicLink": null,
         "fileExtensions": [
         ],
         "licenseServers": [
@@ -729,7 +738,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -883,6 +893,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "allowAdditionalMounts": null,
 #         "allowAdditionalPeers": null,
 #         "allowMultiNode": false,
+#         "allowPublicIp": false,
+#         "allowPublicLink": null,
 #         "fileExtensions": [
 #         ],
 #         "licenseServers": [
@@ -951,7 +963,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -1547,6 +1560,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = "my-database", 
+        openedFile = null, 
         parameters = mapOf("dataStore" to AppParameterValue.File(
             path = "/123/acme-database", 
             readOnly = false, 
@@ -1589,6 +1603,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = "my-web-app", 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -1658,7 +1673,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -1708,7 +1724,8 @@ await callAPI(JobsApi.create(
                         "jobId": "4101"
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -1771,7 +1788,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -1816,7 +1834,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "jobId": "4101"
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -1901,6 +1920,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "compute-example", 
@@ -2051,7 +2071,8 @@ await callAPI(JobsApi.create(
                         "id": "41231"
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -2194,7 +2215,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "id": "41231"
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -2312,6 +2334,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = mapOf("license" to AppParameterValue.License(
             id = "56231", 
         )), 
@@ -2401,7 +2424,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -2482,7 +2506,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -2538,6 +2563,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -2623,7 +2649,8 @@ await callAPI(JobsApi.create(
                 "allowDuplicateJob": false,
                 "parameters": null,
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -2712,7 +2739,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "allowDuplicateJob": false,
             "parameters": null,
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -2802,6 +2830,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -2880,7 +2909,8 @@ await callAPI(JobsApi.create(
                 "allowDuplicateJob": false,
                 "parameters": null,
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -2962,7 +2992,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "allowDuplicateJob": false,
             "parameters": null,
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -3050,6 +3081,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -3125,6 +3157,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -3218,7 +3251,8 @@ await callAPI(JobsApi.create(
                         "readOnly": false
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -3324,7 +3358,8 @@ await callAPI(JobsApi.retrieve(
                 "readOnly": false
             }
         ],
-        "timeAllocation": null
+        "timeAllocation": null,
+        "openedFile": null
     },
     "status": {
         "state": "SUCCESS",
@@ -3385,7 +3420,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "readOnly": false
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -3462,7 +3498,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #                 "readOnly": false
 #             }
 #         ],
-#         "timeAllocation": null
+#         "timeAllocation": null,
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -3568,6 +3605,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -3639,6 +3677,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -3772,7 +3811,8 @@ await callAPI(JobsApi.create(
                 "allowDuplicateJob": false,
                 "parameters": null,
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -3871,7 +3911,8 @@ await callAPI(JobsApi.retrieve(
         "allowDuplicateJob": false,
         "parameters": null,
         "resources": null,
-        "timeAllocation": null
+        "timeAllocation": null,
+        "openedFile": null
     },
     "status": {
         "state": "SUCCESS",
@@ -3965,7 +4006,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "allowDuplicateJob": false,
             "parameters": null,
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -4035,7 +4077,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "allowDuplicateJob": false,
 #         "parameters": null,
 #         "resources": null,
-#         "timeAllocation": null
+#         "timeAllocation": null,
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -4097,6 +4140,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -4169,6 +4213,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -4280,6 +4325,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -4386,6 +4432,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -4475,7 +4522,8 @@ await callAPI(JobsApi.create(
                     "hours": 5,
                     "minutes": 0,
                     "seconds": 0
-                }
+                },
+                "openedFile": null
             }
         ]
     }
@@ -4566,7 +4614,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "RUNNING",
@@ -4684,7 +4733,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "RUNNING",
@@ -4806,7 +4856,8 @@ await callAPI(JobsApi.retrieve(
             "hours": 5,
             "minutes": 0,
             "seconds": 0
-        }
+        },
+        "openedFile": null
     },
     "status": {
         "state": "SUCCESS",
@@ -4863,7 +4914,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "hours": 5,
                 "minutes": 0,
                 "seconds": 0
-            }
+            },
+            "openedFile": null
         }
     ]
 }'
@@ -4926,7 +4978,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -5014,7 +5067,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -5106,7 +5160,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "hours": 5,
 #             "minutes": 0,
 #             "seconds": 0
-#         }
+#         },
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -5175,8 +5230,7 @@ Opens a WebSocket subscription to receive updates about a job. These updates inc
 - Messages from the provider. For example an update describing state changes or future maintenance.
 - State changes from UCloud. For example transition from [`IN_QUEUE`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md) to
   [`RUNNING`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobState.md).
-- If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md) 
-
+- If supported by the provider, `stdout` and `stderr` from the [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md)
 
 
 ### `retrieve`
@@ -5284,6 +5338,24 @@ if the time remaining of the job has been updated.
 This call will return 2XX if all jobs have successfully been extended. The job will fail with a
 status code from the provider one the first extension which fails. UCloud will not attempt to extend
 more jobs after the first failure.
+
+
+### `init`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request (potential) initialization of resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
 
 
 ### `openInteractiveSession`
@@ -5539,6 +5611,7 @@ data class JobSpecification(
     val parameters: JsonObject?,
     val resources: List<AppParameterValue>?,
     val timeAllocation: SimpleDuration?,
+    val openedFile: String?,
 )
 ```
 
@@ -5647,6 +5720,22 @@ This value can be `null` which signifies that the job should not (automatically)
 
 </details>
 
+<details>
+<summary>
+<code>openedFile</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> An optional path to the file which the user selected with the "Open with..." feature.
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+This value is null if the application is not launched using the "Open with..." feature. The value of this
+is passed to the compute environment in a provider specific way. We encourage providers to expose this as
+an environment variable named `UCLOUD_OPEN_WITH_FILE` containing the absolute path of the file (in the
+current environment). Remember that this path is the _UCloud_ path to the file and not the provider's path.
+
+
+</details>
+
 
 
 </details>
@@ -5735,7 +5824,7 @@ state, typically the `SUCCESS` state.
 
 <details>
 <summary>
-<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error  
+<code>SUCCESS</code> A Job which has terminated without a _scheduler_ error
 </summary>
 
 

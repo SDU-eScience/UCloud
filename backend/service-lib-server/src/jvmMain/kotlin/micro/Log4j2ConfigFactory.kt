@@ -90,7 +90,7 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
             configureLogLevelForPackage("reactor.core.publisher.UnsafeSupport", Level.INFO)
             configureLogLevelForPackage("ktor.application", Level.WARN)
             configureLogLevelForPackage("org.flywaydb.core.internal", Level.ERROR)
-            configureLogLevelForPackage("org.flywaydb.core.Flyway", Level.INFO)
+            configureLogLevelForPackage("org.flywaydb.core.Flyway", Level.DEBUG)
             configureLogLevelForPackage("org.asynchttpclient", Level.INFO)
 
             val ctx = ctx

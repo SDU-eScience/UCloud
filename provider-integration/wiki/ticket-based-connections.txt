@@ -11,11 +11,11 @@ participantgroup #lightblue **Provider Network**
 
 
 participantgroup #lightyellow **New components**
-participant "L7 Gateway (Envoy)" as gateway
+participant "L7 Ingress" as gateway
 
 database "IM: Database" as imdb
-participant "IM: Server Mode" as imsrv
-participant "IM: Admin CLI" as imcli
+participant "IM/Server" as imsrv
+participant "IM/Admin CLI" as imcli
 end 
 
 participantgroup #pink **Existing components**
@@ -61,7 +61,7 @@ sysadmin-->idp: Register user $localIdentity
 
 sysadmin->imcli: sudo ucloud connect\n$ticket $localIdentity
 
-note over imcli,imsrv: Communicate using IPC socket\n(/run/ucloud.sock)
+note over imcli,imsrv: Communicate using IPC socket\n(/var/run/ucloud.sock)
 imcli->imsrv: connections.tickets.approve(\n    $ticket,\n    $localIdentity\n)
 
 imsrv->imdb: tickets.approve($ticket)

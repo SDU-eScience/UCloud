@@ -1,6 +1,10 @@
 package dk.sdu.cloud.app.orchestrator
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.accounting.util.ProviderSupport
 import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.app.orchestrator.api.*
@@ -19,6 +23,8 @@ import dk.sdu.cloud.file.orchestrator.service.StorageProviders
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.runBlocking
 
 class Server(override val micro: Micro) : CommonServer {
@@ -28,9 +34,11 @@ class Server(override val micro: Micro) : CommonServer {
         val db = AsyncDBSessionFactory(micro)
         val serviceClient = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val streams = micro.eventStreamService
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val distributedLocks = DistributedLockFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
         val exporter = ParameterExportService(db)
+
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val altProviders = dk.sdu.cloud.accounting.util.Providers(serviceClient) { comms ->
             ComputeCommunication(
@@ -64,6 +72,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         val jobOrchestrator =
             JobOrchestrator(
+                projectCache,
                 db,
                 altProviders,
                 jobSupport,
@@ -80,7 +89,7 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
-        val ingressService = IngressService(db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
+        val ingressService = IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
 
         val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>(
             altProviders,
@@ -90,7 +99,7 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
-        val licenseService = LicenseService(db, altProviders, licenseSupport, serviceClient, jobOrchestrator)
+        val licenseService = LicenseService(projectCache, db, altProviders, licenseSupport, serviceClient, jobOrchestrator)
 
         val networkIpSupport = ProviderSupport<ComputeCommunication, Product.NetworkIP, NetworkIPSupport>(
             altProviders,
@@ -99,13 +108,13 @@ class Server(override val micro: Micro) : CommonServer {
                 comms.networkApi.retrieveProducts.call(Unit, comms.client).orThrow().responses.map { it }
             }
         )
-        val networkService = NetworkIPService(db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
+        val networkService = NetworkIPService(projectCache, db, altProviders, networkIpSupport, serviceClient, jobOrchestrator)
 
         val providerSupport = StorageProviderSupport(storageProviders, serviceClient) { comms ->
             comms.fileCollectionsApi.retrieveProducts.call(Unit, comms.client).orThrow().responses
         }
 
-        val fileCollections = FileCollectionService(db, storageProviders, providerSupport, serviceClient)
+        val fileCollections = FileCollectionService(projectCache, db, storageProviders, providerSupport, serviceClient)
 
 
         val jobMonitoring = JobMonitoringService(

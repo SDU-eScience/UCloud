@@ -3,6 +3,7 @@ services:
   backend:
     image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.3.0-alpha14
     user: root
+    privileged: true
     command:
       - tail
       - -f
@@ -14,5 +15,10 @@ services:
       - backendGradle:/root/.gradle
       - m2Repo:/root/.m2
       - ${PWD}/frontend-web/webclient:/opt/frontend
+      - type: bind
+        source: ${PWD}/syncfiles
+        target: /mnt/sync
+        bind:
+          propagation: shared
       - ${PWD}/.compose/home/:/home/
     hostname: backend

@@ -32,6 +32,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -107,6 +108,7 @@ Job(
             version = "1.0.0", 
         ), 
         name = null, 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -200,7 +202,8 @@ await callAPI(JobsApi.create(
                         "readOnly": false
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -306,7 +309,8 @@ await callAPI(JobsApi.retrieve(
                 "readOnly": false
             }
         ],
-        "timeAllocation": null
+        "timeAllocation": null,
+        "openedFile": null
     },
     "status": {
         "state": "SUCCESS",
@@ -367,7 +371,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "readOnly": false
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -444,7 +449,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #                 "readOnly": false
 #             }
 #         ],
-#         "timeAllocation": null
+#         "timeAllocation": null,
+#         "openedFile": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",

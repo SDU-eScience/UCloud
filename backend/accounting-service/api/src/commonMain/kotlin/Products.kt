@@ -7,8 +7,6 @@ import kotlinx.serialization.Serializable
 import kotlin.native.concurrent.ThreadLocal
 import kotlin.reflect.typeOf
 
-const val UCLOUD_PROVIDER = "ucloud"
-
 @Deprecated("Replace with ProductType", ReplaceWith("ProductType"))
 typealias ProductArea = ProductType
 
@@ -41,7 +39,9 @@ enum class ProductType {
     LICENSE,
 
     @UCloudApiDoc("See Product.NetworkIP")
-    NETWORK_IP
+    NETWORK_IP,
+    @UCloudApiDoc("See Product.Synchronization")
+    SYNCHRONIZATION
 }
 
 @Serializable
@@ -391,6 +391,27 @@ sealed class Product : DocVisualizable {
         }
 
         override fun toString() = super.toString()
+    }
+
+    @Serializable
+    @SerialName("synchronization")
+    data class Synchronization(
+        override val name: String,
+        override val pricePerUnit: Long,
+        override val category: ProductCategoryId,
+        override val description: String = "",
+        override val priority: Int = 0,
+        override val version: Int = 1,
+        override val freeToUse: Boolean = false,
+        override val unitOfPrice: ProductPriceUnit = ProductPriceUnit.CREDITS_PER_DAY,
+        override val chargeType: ChargeType = ChargeType.ABSOLUTE,
+        override val hiddenInGrantApplications: Boolean = false,
+    ) : Product() {
+        override val productType: ProductType = ProductType.SYNCHRONIZATION
+
+        init {
+            verify()
+        }
     }
 
     companion object {

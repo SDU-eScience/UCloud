@@ -1,62 +1,72 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.calls.UCloudApiOwnedBy
+import dk.sdu.cloud.calls.UCloudApiStable
 import kotlinx.serialization.Serializable
 
-/**
- * Represents a [SecurityPrincipal]'s system-wide role.
- *
- * __This is usually not used for application-specific authorization.__
- *
- * Services are encouraged to implement their own authorization control, potentially
- * from a common library.
- *
- * __DO NOT__ add your own roles here. They go in the services, this is __only__ for a system-wide role.
+/*
+ * NOTE(Dan): __DO NOT__ add your own roles here. They go in the services, this is __only__ for a system-wide role.
  */
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc(
+    """
+        Represents a `SecurityPrincipal`'s system-wide role.
+
+        __This is usually not used for application-specific authorization.__
+
+        Services are encouraged to implement their own authorization control, potentially
+        from a common library.       
+    """
+)
 enum class Role {
-    /**
-     * The security principal is an unauthenticated guest
-     */
+    @UCloudApiDoc("The security principal is an unauthenticated guest")
     GUEST,
 
-    /**
-     * The security principal is a normal end-user.
-     *
-     * Normal end users can also have "admin-like" privileges in certain parts of the application.
-     */
+    @UCloudApiDoc(
+        """
+            The security principal is a normal end-user.
+
+            Normal end users can also have "admin-like" privileges in certain parts of the application.
+        """
+    )
     USER,
 
-    /**
-     * The security principal is an administrator of the system.
-     *
-     * Very few users should have this role.
-     */
+    @UCloudApiDoc(
+        """
+            The security principal is an administrator of the system.
+
+            Very few users should have this role.
+        """
+    )
     ADMIN,
 
-    /**
-     * The security principal is a first party, __trusted__, service.
-     */
+    @UCloudApiDoc("The security principal is a first party, __trusted__, service.")
     SERVICE,
 
-    /**
-     * The security principal is some third party application.
-     *
-     * These can be created for OAuth or similar purposes.
-     */
+    @UCloudApiDoc(
+        """
+            The security principal is some third party application.
+            
+            This type of role is currently not used. It is reserved for potential future purposes.
+        """
+    )
     THIRD_PARTY_APP,
 
     PROVIDER,
 
-    /**
-     * The user role is unknown.
-     *
-     * If the action is somewhat low-sensitivity it should be fairly safe to assume [USER]/[THIRD_PARTY_APP]
-     * privileges. This means no special privileges should be granted to the user.
-     *
-     * This will only happen if we are sent a token of a newer version that what we cannot parse.
-     */
+    @UCloudApiDoc(
+        """
+            The user role is unknown.
+
+             If the action is somewhat low-sensitivity it should be fairly safe to assume `USER`/`THIRD_PARTY_APP`
+             privileges. This means no special privileges should be granted to the user.
+             
+             This will only happen if we are sent a token of a newer version that what we cannot parse.
+        """
+    )
     UNKNOWN
 }
 
@@ -75,62 +85,55 @@ object Roles {
     val PROVIDER = setOf(Role.PROVIDER, Role.SERVICE)
 }
 
-/**
- * A minimal representation of a security principal.
- *
- * More information can be gathered from an auth service, using the username as a key.
- */
 @Serializable
 @UCloudApiOwnedBy(CoreTypes::class)
+@UCloudApiStable
+@UCloudApiDoc(
+    """
+        A minimal representation of a security principal.
+
+        More information can be gathered from an auth service, using the username as a key.
+    """
+)
 data class SecurityPrincipal(
-    /**
-     * The unique username of this security principal.
-     *
-     * This is usually suitable for display in UIs.
-     */
+    @UCloudApiDoc(
+        """
+            The unique username of this security principal.
+            
+            This is usually suitable for display in UIs.
+        """
+    )
     val username: String,
 
-    /**
-     * The role of the security principal
-     */
+    @UCloudApiDoc("The role of the security principal")
     val role: Role,
 
-    /**
-     * The first name of the security principal. Can be empty.
-     */
+    @UCloudApiDoc("The first name of the security principal. Can be empty.")
     val firstName: String,
 
-    /**
-     * The last name of the security principal. Can be empty.
-     */
+    @UCloudApiDoc("The last name of the security principal. Can be empty.")
     val lastName: String,
 
-    /**
-     * A numeric unique identifier for this principal. The username is the preferred unique identifier.
-     */
+    @UCloudApiDoc("A numeric unique identifier for this principal. The username is the preferred unique identifier.")
     val uid: Long,
 
-    /**
-     * The email of the user
-     */
+    @UCloudApiDoc("The email of the user")
     val email: String? = null,
 
-    /**
-     * A boolean flag indicating if the user has 2FA enabled for their user.
-     *
-     * If the token does not contain this information (old tokens generated before field's introduction) then this will
-     * be set to `true`. This is done to avoid breaking extended tokens. This behavior will should change in a
-     * future update.
-     *
-     * All new tokens _should_ contain this information explicitly.
-     */
+    @UCloudApiDoc("""
+        A boolean flag indicating if the user has 2FA enabled for their user.
+        
+        If the token does not contain this information (old tokens generated before field's introduction) then this will
+        be set to `true`. This is done to avoid breaking extended tokens. This behavior will should change in a
+        future update.
+       
+        All new tokens _should_ contain this information explicitly.
+    """)
     val twoFactorAuthentication: Boolean = true,
 
     val principalType: String? = null,
 
-    /**
-     * A boolean indicating if the service agreement has been accepted
-     */
+    @UCloudApiDoc("A boolean indicating if the service agreement has been accepted")
     val serviceAgreementAccepted: Boolean = false,
 
     val organization: String? = null

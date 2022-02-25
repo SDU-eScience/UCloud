@@ -1,6 +1,4 @@
-# Structure and Internals of a UCloud Micro-service
-
-![](./structure.png)
+![](/backend/service-lib/wiki/structure.png)
 
 **Figure:** The overall structure and internals of a generic UCloud micro-service.
 
@@ -52,9 +50,9 @@ for [CephFS](https://ceph.io/)) and [Kubernetes](https://kubernetes.io/).
 ## UCloud Gateway
 
 The UCloud gateway is responsible for routing and load balancing to the different micro-services and ther instances.
-In production, [NGINX](https://nginx.org/) and [Ambassador](https://www.getambassador.io/) acts as the gateway.
+In production, [NGINX](https://nginx.org/) acts as the gateway.
 These are configured by the resources stored in `k8.kts` which configures Ambassador to route requests to the correct
-services. NGINX forwards all UCloud traffic to Ambassador.
+services.
 
 In development and when using integration testing, the gateway is replaced by a single JVM instance which runs all of
 UCloud. The `launcher` module and the `integration-testing` module implements this. These modules both
@@ -63,8 +61,8 @@ use the `Service` instances stored in `Main.kt` to configure routing.
 ## Networking and RPC
 
 UCloud has an internal library for exposing type-safe interfaces which can be used for RPC. You can read more about the
-interfaces [here](./micro/rpc.md). The type-safe interfaces are used by both the [client](./micro/rpc_client.md) and
-[server](./micro/rpc_server.md) component of UCloud. This significantly reduces the amount of duplicate code required.
+interfaces [here](./micro/rpc/intro.md). The type-safe interfaces are used by both the [client](./micro/rpc/rpc_client.md) and
+[server](./micro/rpc/rpc_server.md) component of UCloud. This significantly reduces the amount of duplicate code required.
 
 ## Event Streams
 
