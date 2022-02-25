@@ -35,6 +35,7 @@ integrationModule = False
 slurm = False
 
 os.makedirs('.compose', exist_ok=True)
+os.makedirs('syncfiles', exist_ok=True)
 
 def printCheckbox(value):
 	if value:
