@@ -8,12 +8,7 @@ import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.util.PartialQuery
-import dk.sdu.cloud.accounting.util.ProviderComms
-import dk.sdu.cloud.accounting.util.ProviderSupport
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.ResourceService
-import dk.sdu.cloud.accounting.util.SqlObject
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -36,13 +31,14 @@ typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags
         ShareSupport, StorageCommunication>
 
 class ShareService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<StorageCommunication>,
     support: ProviderSupport<StorageCommunication, Product.Storage, ShareSupport>,
     serviceClient: AuthenticatedClient,
     private val files: FilesService,
     private val collections: FileCollectionService
-) : ShareSvc(db, providers, support, serviceClient) {
+) : ShareSvc(projectCache, db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.shares")
     override val defaultSortColumn = SqlObject.Column(table, "original_file_path")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf(

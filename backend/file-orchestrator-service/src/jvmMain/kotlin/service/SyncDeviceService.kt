@@ -18,11 +18,12 @@ typealias DeviceSvcSuper = ResourceService<SyncDevice, SyncDevice.Spec, SyncDevi
     SyncDevice.Status, Product.Synchronization, SyncDeviceSupport, SimpleProviderCommunication>
 
 class SyncDeviceService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<SimpleProviderCommunication>,
     support: ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncDeviceSupport>,
     serviceClient: AuthenticatedClient,
-) : DeviceSvcSuper(db, providers, support, serviceClient) {
+) : DeviceSvcSuper(projectCache, db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.sync_devices")
     override val defaultSortColumn = SqlObject.Column(table, "resource")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to defaultSortColumn)

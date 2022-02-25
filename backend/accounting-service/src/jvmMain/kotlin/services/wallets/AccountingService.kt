@@ -773,7 +773,6 @@ class AccountingService(
                             updated.id = some(:ids::bigint[])
                     ) checks
                 """,
-                debug = true
             ).rows.firstOrNull()?.getBoolean(0) ?: false
 
             if (!validAccordingToAncestors) {
@@ -791,7 +790,7 @@ class AccountingService(
                     }
                 },
                 """
-                    select bool_or(valid) is_valid
+                    select coalesce(bool_or(valid), true) is_valid
                     from (
                         select
                             (updated.start_date <= descendant.start_date) and
@@ -808,7 +807,6 @@ class AccountingService(
                             updated.id = some(:ids::bigint[])
                     ) checks;
                 """,
-                debug = true
             ).rows.firstOrNull()?.getBoolean(0) ?: false
 
             if (!validAccordingToDescendants) {
@@ -1223,7 +1221,7 @@ class AccountingService(
             session.sendPreparedStatement(
                 {
                     val now = Time.now()
-                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 7)))
+                    setParameter("start_date", request.filterStartDate ?: (now - (1000L * 60 * 60 * 24 * 30)))
                     setParameter("end_date", request.filterEndDate ?: now)
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("project", actorAndProject.project)

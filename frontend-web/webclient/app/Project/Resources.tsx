@@ -41,8 +41,6 @@ import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
 import {Toggle} from "@/ui-components/Toggle";
 
-const SIMPLE_VIEW = true;
-
 const FORMAT = "dd/MM/yyyy";
 
 function dateFormatter(timestamp: number): string {
@@ -83,7 +81,11 @@ const ResourcesGrid = styled.div`
 const Resources: React.FunctionComponent = () => {
     const managementStatus = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
 
+    const pastMonthEnd = new Date(timestampUnixMs()).getTime();
+    const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
+    const filterStart = format(parseInt(filters.filterStartDate ?? pastMonthStart), "dd/MM/yyyy");
+    const filterEnd = format(parseInt(filters.filterEndDate ?? pastMonthEnd), "dd/MM/yyyy");
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
     const [breakdowns, fetchBreakdowns] = useCloudAPI<{charts: BreakdownChart[]}>({noop: true}, {charts: []});
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
@@ -134,8 +136,11 @@ const Resources: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
-            headerSize={60}
+            header={<>
+                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />
+                Viewing usage from {filterStart} to {filterEnd}
+            </>}
+            headerSize={98}
             sidebar={<>
                 <ResourceFilter
                     browseType={BrowseType.MainContent}

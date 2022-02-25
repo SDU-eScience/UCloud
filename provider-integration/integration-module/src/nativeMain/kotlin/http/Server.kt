@@ -5,6 +5,11 @@ import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.fd_add
+import dk.sdu.cloud.fd_zero
+import dk.sdu.cloud.fd_clr
+import dk.sdu.cloud.fd_isset
 import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
@@ -176,8 +181,9 @@ fun ByteBuffer.readUntilDelimiter(delim: Byte): String? {
 }
 
 class EndOfStreamException : RuntimeException("End of stream has been reached")
+class TimeoutException : RuntimeException("Timeout while waiting for data")
 
-fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer): String {
+fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer, timeoutSeconds: Long = 120): String {
     val inBuffer = buffer.readUntilDelimiter(delim)
     if (inBuffer != null) {
         return inBuffer
@@ -190,25 +196,40 @@ fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer): String {
             writerSpaceRemaining = buffer.writerSpaceRemaining()
         }
 
-        val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
-        if (bytesRead <= 0) throw EndOfStreamException()
-        buffer.writerIndex += bytesRead.toInt()
-
+        readAtLeast(1, buffer)
         val maybeLine = buffer.readUntilDelimiter(delim)
         if (maybeLine != null) return maybeLine
     }
 }
 
-inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer) {
-    while (buffer.readerRemaining() < minimumBytes) {
-        var writerSpaceRemaining = buffer.writerSpaceRemaining()
-        if (writerSpaceRemaining == 0) {
-            buffer.compact()
-            writerSpaceRemaining = buffer.writerSpaceRemaining()
+inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, timeoutSeconds: Long = 120) {
+    memScoped {
+        val readFds = alloc<fd_set>()
+        val writeFds = alloc<fd_set>()
+        val exceptFds = alloc<fd_set>()
+        val timeout = alloc<timeval>()
+
+        fd_zero(readFds.ptr)
+        fd_zero(writeFds.ptr)
+        fd_zero(exceptFds.ptr)
+        fd_add(fd, readFds.ptr)
+
+        timeout.tv_sec = timeoutSeconds
+        timeout.tv_usec = 0
+
+        while (buffer.readerRemaining() < minimumBytes) {
+            val isReadyToRead = select(fd + 1, readFds.ptr, writeFds.ptr, exceptFds.ptr, timeout.ptr) == 1
+            if (!isReadyToRead) throw TimeoutException()
+
+            var writerSpaceRemaining = buffer.writerSpaceRemaining()
+            if (writerSpaceRemaining == 0) {
+                buffer.compact()
+                writerSpaceRemaining = buffer.writerSpaceRemaining()
+            }
+            val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
+            if (bytesRead <= 0) throw EndOfStreamException()
+            buffer.writerIndex += bytesRead.toInt()
         }
-        val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
-        if (bytesRead <= 0) throw EndOfStreamException()
-        buffer.writerIndex += bytesRead.toInt()
     }
 }
 
@@ -258,6 +279,8 @@ fun <AppData> startServer(
     val trueSockValue = intArrayOf(1).pin()
     setsockopt(serverHandle, SOL_SOCKET, SO_REUSEADDR, trueSockValue.addressOf(0), 4)
 
+    val clientId = atomic(0)
+
     val socketAddress = alloc<sockaddr_in>()
     socketAddress.sin_family = AF_INET.toUShort()
     socketAddress.sin_addr.s_addr = htonl(INADDR_ANY)
@@ -280,7 +303,10 @@ fun <AppData> startServer(
 
         setsockopt(clientHandle, IPPROTO_TCP, TCP_NODELAY, trueSockValue.addressOf(0), 4)
 
+        val id = clientId.getAndIncrement()
+        val launchedAt = Time.now()
         ProcessingScope.launch {
+            val launchDelay = Time.now() - launchedAt
 //            val readBuffer = allocateDirect(1024 * 8)
             val outputBuffer = allocateDirect(1024 * 8)
 
@@ -295,7 +321,7 @@ fun <AppData> startServer(
 
             try {
                 while (true) {
-                    val requestLine = rawClient.readUntilDelimiter(NEW_LINE_DELIM, readBuffer)
+                    val requestLine = rawClient.readUntilDelimiter(NEW_LINE_DELIM, readBuffer, timeoutSeconds = 5)
                     val tokens = requestLine.split(" ")
                     if (tokens.size < 3 || !requestLine.endsWith("HTTP/1.1\r")) {
                         break
@@ -557,6 +583,8 @@ fun <AppData> startServer(
                     }
                 }
             } catch (ex: EndOfStreamException) {
+                // Ignore
+            } catch (ex: TimeoutException) {
                 // Ignore
             } catch (ex: Throwable) {
                 log.warn(ex.stackTraceToString())

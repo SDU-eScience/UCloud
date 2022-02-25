@@ -40,6 +40,8 @@ const val UCLOUD_PROVIDER = "ucloud"
 object UCloudProvider {
     var hasInitializedGlobally = false
         private set
+    var runComputeTests: Boolean = false
+        private set
 
     val storageProduct = Product.Storage(
         "u1-cephfs",
@@ -101,10 +103,8 @@ object UCloudProvider {
 
             if (files == null) {
                 log.warn("Don't know where files are located? This seems like a bug in the test suite.")
-                null
             } else if (kubeConfig == null) {
                 log.warn("Kubernetes configuration not supplied. UCloud/Compute tests will not run!")
-                null
             } else {
                 val k8 = KubernetesClient(KubernetesConfigurationSource.KubeConfigFile(kubeConfig, null))
 
@@ -193,6 +193,7 @@ object UCloudProvider {
                     )
                 }
 
+                runComputeTests = true
             }
 
             hasInitializedGlobally = true
@@ -525,13 +526,17 @@ class ComputeTest : IntegrationTest() {
         val cases: List<TestCase> = listOfNotNull(
             runBlocking {
                 UCloudProvider.globalInitialize(micro)
-                TestCase(
-                    "UCloud/Compute",
-                    { UCloudProvider.testInitialize(serviceClient) },
-                    UCloudProvider.products,
-                    UCloudProvider.storageProduct,
-                    UCloudProvider.ingress
-                )
+                if (UCloudProvider.runComputeTests) {
+                    TestCase(
+                        "UCloud/Compute",
+                        { UCloudProvider.testInitialize(serviceClient) },
+                        UCloudProvider.products,
+                        UCloudProvider.storageProduct,
+                        UCloudProvider.ingress
+                    )
+                } else {
+                    null
+                }
             }
         )
 

@@ -2,6 +2,7 @@ package dk.sdu.cloud.integration
 
 import com.sun.jna.Platform
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.alerting.AlertingService
 import dk.sdu.cloud.auth.api.AuthenticatorFeature
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -561,6 +562,7 @@ object UCloudLauncher : Loggable {
                 //AuditIngestionService,
                 RedisCleanerService,
                 ElasticManagementService,
+                AlertingService,
             )
 
             val servicesToRun = services + setOf(DummyProviderService)
