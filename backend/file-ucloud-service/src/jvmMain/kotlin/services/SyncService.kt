@@ -338,7 +338,7 @@ class SyncService(
                 break@unmounting
             } catch (ex: Throwable) {
                 retries++
-                delay(5_000)
+                delay(1_000)
             }
         }
     }
