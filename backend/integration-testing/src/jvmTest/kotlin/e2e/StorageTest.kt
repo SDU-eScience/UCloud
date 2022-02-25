@@ -375,8 +375,8 @@ class StorageTest : EndToEndTest() {
                     }
 
                     val rowsAscending = ListComponent.inMainContainer(driver).rows()
-                    assert(rowsAscending.first().title() == "A")
-                    assert(rowsAscending[1].title() == "B")
+                    assertEquals("A", rowsAscending.first().title())
+                    assertEquals("B", rowsAscending[1].title())
 
                     retrySection {
                         clickSortDirectionOption(driver, "Descending")
@@ -384,8 +384,8 @@ class StorageTest : EndToEndTest() {
 
                     delay(500)
                     val rowsDescending = ListComponent.inMainContainer(driver).rows()
-                    assert(rowsDescending.first().title() == "B")
-                    assert(rowsDescending[1].title() == "A")
+                    assertEquals("B", rowsDescending.first().title())
+                    assertEquals("A", rowsDescending[1].title())
 
                     delay(2000)
 
@@ -394,14 +394,15 @@ class StorageTest : EndToEndTest() {
                     var currentSortBy = "Sort By"
                     var sortDirection = "Ascending"
 
-                    suspend fun assertRows(driver: WebDriver, first: String, second: String) {
-                        delay(300)
-                        val rows = ListComponent.inMainContainer(driver).rows()
-                        assert(rows.first().title() == first)
-                        assert(rows[1].title() == second)
+                    fun assertRows(driver: WebDriver, first: String, second: String) {
+                        retrySection {
+                            val rows = ListComponent.inMainContainer(driver).rows()
+                            assert(rows.first().title() == first)
+                            assert(rows[1].title() == second)
+                        }
                     }
 
-                    (0..2).forEach { _ ->
+                    (0..1).forEach { _ ->
                         clickSortDirectionOption(driver, sortDirection)
                         options.forEach { option ->
                             clickSortByOption(driver, currentSortBy, option)
@@ -548,23 +549,24 @@ class StorageTest : EndToEndTest() {
     }
 }
 
-suspend fun clickSortByOption(driver: WebDriver, currentSortBy: String, nextSortBy: String) {
+fun clickSortByOption(driver: WebDriver, currentSortBy: String, nextSortBy: String) {
     driver.findElements(By.tagName("b")).find {
         it.text == currentSortBy
     }?.click()
-
-    delay(200)
-    driver.findElements(By.className("row-left-content")).find {
-        it.text == nextSortBy
-    }?.click()
+    retrySection {
+        driver.findElements(By.className("row-left-content")).find {
+            it.text == nextSortBy
+        }?.click()
+    }
 }
 
-suspend fun clickSortDirectionOption(driver: WebDriver, sortDirection: String) {
+fun clickSortDirectionOption(driver: WebDriver, sortDirection: String) {
     driver.findElements(By.tagName("b")).find {
         it.text == "Sort Direction"
     }?.click() ?: error("Could not find sort direction")
-    delay(200)
-    driver.findElements(By.className("row-left-content")).find {
-        it.text == sortDirection
-    }?.click() ?: error("$sortDirection field not found")
+    retrySection {
+        driver.findElements(By.className("row-left-content")).find {
+            it.text == sortDirection
+        }?.click() ?: error("$sortDirection field not found")
+    }
 }
