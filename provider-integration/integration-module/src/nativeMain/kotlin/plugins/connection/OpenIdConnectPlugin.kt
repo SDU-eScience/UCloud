@@ -116,8 +116,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var configuration: Configuration
     private val log = Log("OpenIdConnect")
 
-    value class UCloudUsername(val username: String)
-    value class OidcState(val state: String)
+    private value class UCloudUsername(val username: String)
+    private value class OidcState(val state: String)
     private val stateTableMutex = Mutex()
     private val stateTable = HashMap<OidcState, UCloudUsername>()
 
