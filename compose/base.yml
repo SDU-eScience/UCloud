@@ -51,7 +51,7 @@ services:
     hostname: k3s
 
   syncthing:
-    image: syncthing/syncthing:1.17
+    image: syncthing/syncthing:1.19
     user: root
     hostname: syncthing
     environment:
