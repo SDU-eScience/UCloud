@@ -76,21 +76,16 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         val extensions: Extensions,
     ) {
         fun hostInfo(): HostInfo {
-            println(tokenEndpoint)
             val schema = when {
                 tokenEndpoint.startsWith("http://") -> "http"
                 tokenEndpoint.startsWith("https://") -> "https"
                 else -> error("Invalid tokendEndpoint supplied ('$tokenEndpoint')")
             }
-            println(schema)
 
             val endpointWithoutSchema = tokenEndpoint.removePrefix("$schema://")
             val hostWithoutSchema = endpointWithoutSchema.substringBefore("/")
-            println(hostWithoutSchema)
             val host = hostWithoutSchema.substringBefore(":")
-            println(host)
             val portString = hostWithoutSchema.substringAfter(":", missingDelimiterValue = "")
-            println(portString)
             val port = if (portString == "") null else portString.toIntOrNull()
 
             return HostInfo(host, schema, port).also { println("OIDC Provider is available at: $it") }
