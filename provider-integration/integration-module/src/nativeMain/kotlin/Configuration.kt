@@ -216,7 +216,15 @@ class IMConfiguration(
     }
 
     @Serializable
-    data class Host(val host: String, val scheme: String, val port: Int)
+    data class Host(val host: String, val scheme: String, val port: Int) {
+        override fun toString() = buildString {
+            append(scheme)
+            append("://")
+            append(host)
+            append(":")
+            append(port)
+        }
+    }
 
     @Serializable
     data class FrontendProxy(

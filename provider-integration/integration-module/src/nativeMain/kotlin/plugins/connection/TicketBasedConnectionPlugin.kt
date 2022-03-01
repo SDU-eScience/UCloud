@@ -61,9 +61,9 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                         connection.prepareStatement(
                             //language=SQLite
                             """
-                            insert or replace into user_mapping (ucloud_id, local_identity)
-                            values (:ucloud_id, :local_identity)
-                        """
+                                insert or replace into user_mapping (ucloud_id, local_identity)
+                                values (:ucloud_id, :local_identity)
+                            """
                         ).useAndInvokeAndDiscard {
                             bindString("ucloud_id", capturedId)
                             bindString("local_identity", req.localIdentity)

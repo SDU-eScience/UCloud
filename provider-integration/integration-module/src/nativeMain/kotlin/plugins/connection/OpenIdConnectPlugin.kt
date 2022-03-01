@@ -4,12 +4,15 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.*
-import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.http.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.client.withFixedHost
+import dk.sdu.cloud.provider.api.IntegrationControl
+import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.secureToken
 import kotlinx.cinterop.*
 import kotlinx.coroutines.runBlocking
@@ -70,6 +73,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         val tokenEndpoint: String,
         val clientId: String,
         val clientSecret: String,
+        val extensions: Extensions,
     ) {
         fun hostInfo(): HostInfo {
             println(tokenEndpoint)
@@ -106,6 +110,11 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 tokenEndpoint = tokenEndpoint.removeSuffix("?").removeSuffix("/"),
             )
         }
+
+        @Serializable
+        data class Extensions(
+            val onOpenIdConnectCompleted: String
+        )
     }
 
     private lateinit var ownHost: IMConfiguration.Host
@@ -170,6 +179,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         
         with(server) {
             implement(openIdClientApi.callback) {
+                val sctx = (ctx.serverContext as HttpContext)
+
                 // The OpenID provider should redirect the end-user's client to this callback. Of course, it is not
                 // guaranteed that this isn't simply the end-user being malicious, so we need to verify the
                 // communication.
@@ -270,9 +281,31 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     )
                 } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-                println("We have received a valid token from $subject")
+                val result = onOpenIdConnectCompleted.invoke(configuration.extensions.onOpenIdConnectCompleted, subject)
+                dbConnection.withTransaction { connection ->
+                    connection.prepareStatement(
+                        //language=SQLite
+                        """
+                            insert or replace into user_mapping (ucloud_id, local_identity)
+                            values (:ucloud_id, :local_identity)
+                        """
+                    ).useAndInvokeAndDiscard {
+                        bindString("ucloud_id", subject.ucloudIdentity)
+                        bindString("local_identity", result.uid.toString())
+                    }
+                }
 
-                TODO()
+                IntegrationControl.approveConnection.call(
+                    IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
+                    rpcClient
+                ).orThrow()
+
+                sctx.session.sendHttpResponse(
+                    HttpStatusCode.Found.value,
+                    listOf(Header("Location", config.server!!.ucloud.toString()))
+                )
+
+                OutgoingCallResponse.AlreadyDelivered()
             }
         }
     }
@@ -303,5 +336,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 append("/connection/oidc-cb")
             }
         )
+    }
+
+    private companion object Extensions {
+        val onOpenIdConnectCompleted = extension<OpenIdConnectSubject, UidAndGid>()
     }
 }
