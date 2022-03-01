@@ -10,7 +10,11 @@ import dk.sdu.cloud.http.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.client.withFixedHost
+import dk.sdu.cloud.utils.secureToken
 import kotlinx.cinterop.*
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.Serializable
 import libjwt.*
@@ -30,6 +34,7 @@ fun AuthenticatedClient.emptyAuth(): AuthenticatedClient {
 
 @Serializable
 data class OpenIdConnectCallback(
+    val state: String,
     val session_state: String,
     val code: String
 )
@@ -43,6 +48,7 @@ data class OpenIdConnectToken(
 
 @Serializable
 data class OpenIdConnectSubject(
+    val ucloudIdentity: String,
     val subject: String,
     val preferredUsername: String?,
     val name: String?,
@@ -97,7 +103,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     .joinToString("\n")
                     .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" },
                 authEndpoint = authEndpoint.removeSuffix("?").removeSuffix("/"),
-                tokenEndpoint = authEndpoint.removeSuffix("?").removeSuffix("/"),
+                tokenEndpoint = tokenEndpoint.removeSuffix("?").removeSuffix("/"),
             )
         }
     }
@@ -105,6 +111,11 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var ownHost: IMConfiguration.Host
     private lateinit var configuration: Configuration
     private val log = Log("OpenIdConnect")
+
+    value class UCloudUsername(val username: String)
+    value class OidcState(val state: String)
+    private val stateTableMutex = Mutex()
+    private val stateTable = HashMap<OidcState, UCloudUsername>()
 
     override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
         if (config.serverMode != ServerMode.Server) return
@@ -134,12 +145,11 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     params {
                         +boundTo(OpenIdConnectCallback::session_state)
                         +boundTo(OpenIdConnectCallback::code)
+                        +boundTo(OpenIdConnectCallback::state)
                     }
                 }
             }
         }
-
-        
 
         val openIdProviderApi = object : CallDescriptionContainer("openidprovider") {
             val token = call<RawOutgoingHttpPayload, OpenIdConnectToken, CommonErrorMessage>("callback") {
@@ -163,6 +173,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 // The OpenID provider should redirect the end-user's client to this callback. Of course, it is not
                 // guaranteed that this isn't simply the end-user being malicious, so we need to verify the
                 // communication.
+
+                val ucloudIdentity = stateTableMutex.withLock {
+                    stateTable[OidcState(request.state)]
+                } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
                 // We start by calling back the OpenID provider and ask them to issue us a token based on the code we
                 // have just received from the client.
@@ -196,7 +210,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 // Assuming that this goes well, we will verify that the tokens also make sense. We do the verification
                 // based on certificates which we receive from the configuration.
 
-                val subject = accessTokenValidator.validateOrNull(tokenResponse.refresh_token) { jwt ->
+                val subject = accessTokenValidator.validateOrNull(tokenResponse.access_token) { jwt ->
                     // NOTE(Dan): The JWT has already been validated in terms of the certificate and the time.
 
                     // We verify the following values, just in case. We are not currently following the spec 100% in
@@ -216,7 +230,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
-                    if (type.equals("Bearer", ignoreCase = true)) {
+                    if (!type.equals("Bearer", ignoreCase = true)) {
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
@@ -236,11 +250,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     val middleName = jwt_get_grant(jwt, "middle_name")?.toKStringFromUtf8()
                     val nickname = jwt_get_grant(jwt, "nickname")?.toKStringFromUtf8()
                     val email = jwt_get_grant(jwt, "email")?.toKStringFromUtf8()
-                    val emailVerified = jwt_get_grant_bool(jwt, "email") != 0
+                    val emailVerified = jwt_get_grant_bool(jwt, "email_verified") > 0
                     val phoneNumber = jwt_get_grant(jwt, "phone_number")?.toKStringFromUtf8()
-                    val phoneNumberVerified = jwt_get_grant_bool(jwt, "phone_number_verified") != 0
+                    val phoneNumberVerified = jwt_get_grant_bool(jwt, "phone_number_verified") > 0
 
                     OpenIdConnectSubject(
+                        ucloudIdentity.username,
                         subject,
                         preferredUsername,
                         name,
@@ -263,12 +278,22 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+        val token = OidcState(secureToken(32))
+        runBlocking {
+            stateTableMutex.withLock {
+                stateTable[token] = UCloudUsername(username)
+            }
+        }
+
         return ConnectionResponse.Redirect(
             buildString {
                 append(configuration.authEndpoint)
                 append('?')
                 append("response_type=code")
                 append("&client_id=${configuration.clientId}")
+                append("&scope=openid")
+                append("&state=")
+                append(token.state)
                 append("&redirect_uri=")
                 append(ownHost.scheme)
                 append("://")
@@ -280,4 +305,3 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         )
     }
 }
-

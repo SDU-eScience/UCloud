@@ -12,6 +12,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import kotlin.random.Random
 
 @Serializable
@@ -258,8 +259,6 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                     val headerName = headerLine.substringBefore(':')
                     val headerValue = headerLine.substringAfter(':').trim()
-                    println(headerName)
-                    println(headerValue)
                     responseHeaders.add(Header(headerName, headerValue))
                 }
 
@@ -299,14 +298,22 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 connection.read.readerIndex += parsedContentLength.toInt()
 
                 val result: IngoingCallResponse<S, E> = if (responseCode in 200..299) {
-                    IngoingCallResponse.Ok(
-                        parseResponseToType(payloadAsString, call.successType),
-                        HttpStatusCode(responseCode, responseStatus),
-                        ctx,
-                    )
+                    try {
+                        IngoingCallResponse.Ok(
+                            parseResponseToType(payloadAsString, call.successType),
+                            HttpStatusCode(responseCode, responseStatus),
+                            ctx,
+                        )
+                    } catch (ex: SerializationException) {
+                        log.debug("Failed to serialize value. Received '$payloadAsString")
+                        throw ex
+                    }
                 } else {
                     IngoingCallResponse.Error(
-                        runCatching { parseResponseToType(payloadAsString, call.errorType) }.getOrNull(),
+                        runCatching { parseResponseToType(payloadAsString, call.errorType) }.getOrNull() ?: run {
+                            log.debug("Failed to serialize value. Received '$payloadAsString'")
+                            null
+                        },
                         HttpStatusCode(responseCode, responseStatus),
                         ctx,
                     )
