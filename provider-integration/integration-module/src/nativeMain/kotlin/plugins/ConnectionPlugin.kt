@@ -2,6 +2,8 @@ package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.http.RpcServer
+import kotlinx.serialization.json.JsonObject
 
 sealed class ConnectionResponse {
     class Redirect(val redirectTo: String) : ConnectionResponse()
@@ -33,9 +35,15 @@ value class HTML(val html: String) {
     }
 }
 
-interface ConnectionPlugin : Plugin<Unit> {
+interface ConnectionPlugin : Plugin<JsonObject> {
     fun PluginContext.initiateConnection(username: String): ConnectionResponse
+
+    fun PluginContext.initializeRpcServer(server: RpcServer) {
+        // Default is empty
+    }
+
     fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
+        // By default this is not required. This is useful if initiateConnection returns a redirect.
         throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 }

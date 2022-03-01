@@ -75,6 +75,12 @@ class ConnectionController(
         val mapperPlugin = controllerContext.plugins.identityMapper ?: return
         val pluginContext = controllerContext.pluginContext
 
+        with(pluginContext) {
+            with(plugin) {
+                initializeRpcServer(this@configure)
+            }
+        }
+
         val im = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
         val instructions = object : CallDescriptionContainer(im.namespace + ".instructions") {

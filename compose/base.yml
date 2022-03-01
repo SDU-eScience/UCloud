@@ -98,6 +98,7 @@ services:
       - elasticsearch
       - k3s
       - syncthing
+      - keycloak
     hostname: backend
 
   frontend:

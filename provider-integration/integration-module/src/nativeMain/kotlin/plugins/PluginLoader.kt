@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
+import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
 import dk.sdu.cloud.plugins.projects.DirectProjectMapperPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
@@ -31,7 +32,8 @@ class PluginLoader(private val pluginContext: PluginContext) {
     )
 
     private val connectionPlugins = mapOf<String, () -> ConnectionPlugin>(
-        "ticket" to { TicketBasedConnectionPlugin() }
+        "ticket" to { TicketBasedConnectionPlugin() },
+        "oidc" to { OpenIdConnectPlugin() },
     )
 
     private val identityMapperPlugins = mapOf<String, () -> IdentityMapperPlugin>(
@@ -42,14 +44,14 @@ class PluginLoader(private val pluginContext: PluginContext) {
         "direct" to { DirectProjectMapperPlugin() }
     )
 
-    private fun <T : Plugin<Unit>> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
+    private fun <T : Plugin<JsonObject>> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
         return jsonObject.entries.firstOrNull()?.let {
             val pluginFactory = lookupTable[it.key]
             if (pluginFactory != null) {
                 val plugin = pluginFactory()
                 with(pluginContext) {
                     with(plugin) {
-                        runBlocking { initialize(Unit) }
+                        runBlocking { initialize(it.value as JsonObject) }
                     }
                 }
                 return plugin

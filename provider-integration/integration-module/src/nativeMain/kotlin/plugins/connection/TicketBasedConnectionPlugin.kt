@@ -27,7 +27,7 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override suspend fun PluginContext.initialize(pluginConfig: Unit) {
+    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
         val log = Log("TicketBasedConnectionPlugin")
         if (config.serverMode == ServerMode.Server) {
             ipcServer.addHandler(

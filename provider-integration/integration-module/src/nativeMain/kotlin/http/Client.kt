@@ -11,7 +11,14 @@ import dk.sdu.cloud.utils.ObjectPool
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
 import kotlin.random.Random
+
+@Serializable
+data class RawOutgoingHttpPayload(
+    val contentType: String,
+    val payload: ByteArray
+)
 
 class OutgoingHttpCall(
     private val debugCall: CallDescription<*, *, *>
@@ -38,19 +45,23 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
     private class HttpConnectionPool(private val target: HostInfo) : ObjectPool<HttpConnection>(10) {
         override fun produceItem(): HttpConnection {
-            return HttpConnection(
-                allocateDirect(1024 * 32),
-                allocateDirect(1024 * 32),
-                tcpConnect(
-                    if (target.scheme == "https" || target.port == 443) TransportSecurity.TLS
-                    else TransportSecurity.PLAIN,
-                    target.host,
-                    target.port ?: when (target.scheme) {
-                        "https" -> 443
-                        else -> 80
-                    }
+            try {
+                return HttpConnection(
+                    allocateDirect(1024 * 32),
+                    allocateDirect(1024 * 32),
+                    tcpConnect(
+                        if (target.scheme == "https" || target.port == 443) TransportSecurity.TLS
+                        else TransportSecurity.PLAIN,
+                        target.host,
+                        target.port ?: when (target.scheme) {
+                            "https" -> 443
+                            else -> 80
+                        }
+                    )
                 )
-            )
+            } catch (ex: TcpException) {
+                throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+            }
         }
 
         override fun isValid(item: HttpConnection): Boolean {
@@ -117,10 +128,19 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             useConnection(ctx.attributes.outgoingTargetHost) { connection ->
                 log.debug("[$callId] -> ${call.fullName}: $shortRequestMessage")
 
-                val output = if (http.body is HttpBody.BoundToEntireRequest<*>) {
-                    defaultMapper.encodeToString(call.requestType, request).encodeToByteArray()
-                } else {
-                    null
+                val contentType: String? = when {
+                    request is RawOutgoingHttpPayload -> request.contentType
+                    http.body is HttpBody.BoundToEntireRequest<*> -> "application/json"
+                    else -> null
+                }
+
+                val output: ByteArray? = when {
+                    request is RawOutgoingHttpPayload -> request.payload
+                    http.body is HttpBody.BoundToEntireRequest<*> -> {
+                        defaultMapper.encodeToString(call.requestType, request).encodeToByteArray()
+                    }
+
+                    else -> null
                 }
 
                 connection.write.clear()
@@ -158,9 +178,16 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                     run {
                         // Payload headers
+                        if (contentType != null) {
+                            connection.write.putAscii("Content-Type: ")
+                            connection.write.putAscii(contentType)
+                            connection.write.putAscii("\r\n")
+                        }
+
                         if (output != null) {
-                            connection.write.putAscii("Content-Type: application/json\r\n")
-                            connection.write.putAscii("Content-Length: ${output.size}\r\n")
+                            connection.write.putAscii("Content-Length: ")
+                            connection.write.putAscii(output.size.toString())
+                            connection.write.putAscii("\r\n")
                         }
                     }
 
@@ -231,6 +258,8 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
 
                     val headerName = headerLine.substringBefore(':')
                     val headerValue = headerLine.substringAfter(':').trim()
+                    println(headerName)
+                    println(headerValue)
                     responseHeaders.add(Header(headerName, headerValue))
                 }
 

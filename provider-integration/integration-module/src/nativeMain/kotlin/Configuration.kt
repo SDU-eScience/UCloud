@@ -158,6 +158,9 @@ class IMConfiguration(
         val ipcDirectory: String? = null,
         // NOTE(Dan): If this is specified, this instance will never be launched
         val developmentInstance: DevelopmentInstance? = null,
+        // NOTE(Dan): Location where this integration module is publicly accessible, should match the configuration
+        // provided to UCloud/Core. Default value is `null` which will cause some plugins to not work.
+        val ownHost: Host? = null,
     ) {
         fun normalize(): Core {
             if (providerId != PLACEHOLDER_ID) {
@@ -197,7 +200,7 @@ class IMConfiguration(
     @Serializable
     data class Server(
         val refreshToken: String,
-        val ucloud: UCloud,
+        val ucloud: Host,
         val dbFile: String = "",
         val port: Int? = null,
     ) {
@@ -210,11 +213,10 @@ class IMConfiguration(
 
             return copy(dbFile = newDbFile)
         }
-
-        @Serializable
-        data class UCloud(val host: String, val scheme: String, val port: Int)
     }
 
+    @Serializable
+    data class Host(val host: String, val scheme: String, val port: Int)
 
     @Serializable
     data class FrontendProxy(

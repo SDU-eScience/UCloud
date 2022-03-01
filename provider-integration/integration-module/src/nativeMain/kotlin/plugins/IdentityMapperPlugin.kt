@@ -1,8 +1,10 @@
 package dk.sdu.cloud.plugins
 
+import kotlinx.serialization.json.JsonObject
+
 data class UidAndGid(val uid: Int, val gid: Int)
 
-interface IdentityMapperPlugin : Plugin<Unit> {
+interface IdentityMapperPlugin : Plugin<JsonObject> {
     fun PluginContext.mapLocalIdentityToUidAndGid(localIdentity: String): UidAndGid
     fun PluginContext.mapUidToLocalIdentity(uid: Int): String
 }
