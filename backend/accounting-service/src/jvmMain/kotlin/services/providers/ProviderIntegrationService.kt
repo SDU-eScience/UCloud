@@ -9,12 +9,10 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.provider.api.IntegrationBrowseResponseItem
-import dk.sdu.cloud.provider.api.IntegrationConnectResponse
-import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.provider.api.IntegrationProviderConnectRequest
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.PageV2
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.paginateV2
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -26,30 +24,51 @@ class ProviderIntegrationService(
     private val serviceClient: AuthenticatedClient,
     private val devMode: Boolean = false,
 ) {
+    private val communicationCache = SimpleCache<String, Communication>(
+        maxAge = 1000 * 60 * 60L,
+        lookup = { providerResourceId ->
+            val spec = providers.retrieve(
+                ActorAndProject(Actor.System, null),
+                providerResourceId,
+                null
+            ).specification
+
+            val hostInfo = HostInfo(spec.domain, if (spec.https) "https" else "http", spec.port)
+            val auth = RefreshingJWTAuthenticator(
+                serviceClient.client,
+                JwtRefresher.ProviderOrchestrator(serviceClient, spec.id)
+            )
+
+            val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
+            val integrationProvider = IntegrationProvider(spec.id)
+
+            val isEnabled = integrationProvider.retrieveManifest.call(Unit, httpClient).orNull()?.enabled ?: false
+            if (!isEnabled) return@SimpleCache null
+
+            Communication(integrationProvider, httpClient, spec)
+        }
+    )
+
+    private data class Communication(
+        val api: IntegrationProvider,
+        val client: AuthenticatedClient,
+        val spec: ProviderSpecification,
+    )
+
     suspend fun connect(
         actorAndProject: ActorAndProject,
         provider: String,
     ): IntegrationConnectResponse {
         // TODO This would ideally check if the user has been approved
-        val providerSpec = providers.retrieve(ActorAndProject(Actor.System, null), provider, null).specification
-        val hostInfo = HostInfo(providerSpec.domain, if (providerSpec.https) "https" else "http", providerSpec.port)
-        val auth = RefreshingJWTAuthenticator(
-            serviceClient.client,
-            JwtRefresher.ProviderOrchestrator(serviceClient, providerSpec.id)
-        )
-        val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
-
-        val integrationProvider = IntegrationProvider(providerSpec.id)
-
-        integrationProvider.retrieveManifest.call(Unit, httpClient).orNull()?.enabled?.takeIf { it }
-            ?: throw RPCException("Connection is not supported by this provider", HttpStatusCode.BadRequest)
+        val (integrationProvider, httpClient, providerSpec) = communicationCache.get(provider) ?:
+            throw RPCException("Connection is not supported by this provider", HttpStatusCode.BadRequest)
 
         val connection = integrationProvider.connect.call(
             IntegrationProviderConnectRequest(actorAndProject.actor.safeUsername()),
             httpClient
         ).orRethrowAs {
             val errorMessage = it.error?.why ?: it.statusCode.description
-            throw RPCException("Connection with ${providerSpec.id} has failed ($errorMessage)", HttpStatusCode.BadGateway)
+            throw RPCException("Connection has failed ($errorMessage)", HttpStatusCode.BadGateway)
         }
 
         if (connection.redirectTo.startsWith("http://") || connection.redirectTo.startsWith("https://")) {
@@ -129,10 +148,12 @@ class ProviderIntegrationService(
                     )
             },
             mapper = { _, rows ->
-                rows.map { row ->
+                rows.mapNotNull { row ->
+                    val connectionSupported = communicationCache.get(row.getLong(0)!!.toString()) != null
+
                     IntegrationBrowseResponseItem(
                         row.getLong(0)!!.toString(),
-                        row.getBoolean(1)!!,
+                        if (!connectionSupported) true else row.getBoolean(1)!!,
                         row.getString(2)!!,
                     )
                 }
