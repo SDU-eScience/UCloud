@@ -3,7 +3,7 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {useCloudAPI} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import {useCallback, useEffect} from "react";
 import {PageV2, provider} from "@/UCloud";
@@ -15,12 +15,17 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
         emptyPageV2
     );
 
+    const [commandLoading, invokeCommand] = useCloudCommand();
     const reload = useCallback(() => {
         fetchProviders(IntegrationApi.browse({}));
     }, []);
 
     useEffect(reload, [reload]);
     const shouldConnect = providers.data.items.some(it => !it.connected);
+    const connectToProvider = useCallback(async (provider: string) => {
+        const res = await invokeCommand<provider.IntegrationConnectResponse>(IntegrationApi.connect({provider}));
+        if (res) document.location.href = res.redirectTo;
+    }, []);
 
     return <HighlightedCard
         color={"darkOrange"}
@@ -36,9 +41,13 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
         <List>
             {providers.data.items.map(it => (
                 <ListRow
+                    key={it.provider}
                     icon={<Icon name={"deiCLogo"}/>}
                     left={<>{it.providerTitle}</>}
-                    right={it.connected ? <Icon name={"check"} color={"green"}/> : <Button>Connect</Button>}
+                    right={it.connected ?
+                        <Icon name={"check"} color={"green"}/> :
+                        <Button onClick={() => connectToProvider(it.provider)}>Connect</Button>
+                    }
                 />
             ))}
         </List>

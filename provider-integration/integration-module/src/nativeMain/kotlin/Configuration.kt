@@ -3,6 +3,7 @@ package dk.sdu.cloud
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
+import dk.sdu.cloud.utils.normalizeCertificate
 import dk.sdu.cloud.utils.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -172,14 +173,7 @@ class IMConfiguration(
 
                 return copy(
                     certificateFile = null,
-                    certificate = certificate.replace("\n", "")
-                        .replace("\r", "")
-                        .removePrefix("-----BEGIN PUBLIC KEY-----")
-                        .removeSuffix("-----END PUBLIC KEY-----")
-                        .chunked(64)
-                        .filter { it.isNotBlank() }
-                        .joinToString("\n")
-                        .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" }
+                    certificate = normalizeCertificate(certificate),
                 )
             }
 
@@ -193,7 +187,6 @@ class IMConfiguration(
         val fileCollection: ProductBasedConfiguration? = null,
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
-        val identityMapper: JsonObject? = null,
         val projects: JsonObject? = null,
     )
 

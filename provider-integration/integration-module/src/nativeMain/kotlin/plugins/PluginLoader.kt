@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
-import dk.sdu.cloud.plugins.identities.DirectIdentityMapperPlugin
 import dk.sdu.cloud.plugins.projects.DirectProjectMapperPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
@@ -34,10 +33,6 @@ class PluginLoader(private val pluginContext: PluginContext) {
     private val connectionPlugins = mapOf<String, () -> ConnectionPlugin>(
         "ticket" to { TicketBasedConnectionPlugin() },
         "oidc" to { OpenIdConnectPlugin() },
-    )
-
-    private val identityMapperPlugins = mapOf<String, () -> IdentityMapperPlugin>(
-        "direct" to { DirectIdentityMapperPlugin() }
     )
 
     private val projectPlugins = mapOf<String, () -> ProjectMapperPlugin>(
@@ -111,10 +106,9 @@ class PluginLoader(private val pluginContext: PluginContext) {
         val files = config.plugins.files?.let { loadProductBasedPlugin(filesPlugin, it) }
         val compute = config.plugins.compute?.let { loadProductBasedPlugin(computePlugins, it) }
         val connection = config.plugins.connection?.let { loadPlugin(connectionPlugins, it) }
-        val identityMapper = config.plugins.identityMapper?.let { loadPlugin(identityMapperPlugins, it) }
         val projects = config.plugins.projects?.let { loadPlugin(projectPlugins, it) }
 
-        return LoadedPlugins(files, fileCollection, compute, connection, identityMapper, projects)
+        return LoadedPlugins(files, fileCollection, compute, connection, projects)
     }
 }
 
@@ -151,6 +145,5 @@ data class LoadedPlugins(
     val fileCollection: ProductBasedPlugins<FileCollectionPlugin>?,
     val compute: ProductBasedPlugins<ComputePlugin>?,
     val connection: ConnectionPlugin?,
-    val identityMapper: IdentityMapperPlugin?,
     val projects: ProjectMapperPlugin?,
 )

@@ -9,10 +9,12 @@ import dk.sdu.cloud.http.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.client.withFixedHost
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withTransaction
+import dk.sdu.cloud.utils.normalizeCertificate
 import dk.sdu.cloud.utils.secureToken
 import kotlinx.cinterop.*
 import kotlinx.coroutines.runBlocking
@@ -21,49 +23,6 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.Serializable
 import libjwt.*
-
-fun AuthenticatedClient.emptyAuth(): AuthenticatedClient {
-    return AuthenticatedClient(
-        client,
-        backend,
-        authenticator = {
-            // Do nothing
-        },
-        afterHook = {
-            // Do nothing
-        }
-    )
-}
-
-@Serializable
-data class OpenIdConnectCallback(
-    val state: String,
-    val session_state: String,
-    val code: String
-)
-
-@Serializable
-data class OpenIdConnectToken(
-    val access_token: String,
-    val refresh_token: String,
-    val session_state: String,
-)
-
-@Serializable
-data class OpenIdConnectSubject(
-    val ucloudIdentity: String,
-    val subject: String,
-    val preferredUsername: String?,
-    val name: String?,
-    val givenName: String?,
-    val familyName: String?,
-    val middleName: String?,
-    val nickname: String?,
-    val email: String?,
-    val emailVerified: Boolean?,
-    val phoneNumber: String?,
-    val phoneNumberVerified: Boolean?,
-)
 
 class OpenIdConnectPlugin : ConnectionPlugin {
     @Serializable
@@ -78,6 +37,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         // NOTE(Dan): Redirect URL to use after connection has completed. Defaults to use the backend API. Can be
         // changed if the backend is not served behind a gateway (e.g. during development).
         val redirectUrl: String? = null,
+        val mappingLifetime: Long? = 1000L * 60 * 60 * 7 * 14,
     ) {
         fun hostInfo(): HostInfo {
             val schema = when {
@@ -92,19 +52,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
             val portString = hostWithoutSchema.substringAfter(":", missingDelimiterValue = "")
             val port = if (portString == "") null else portString.toIntOrNull()
 
-            return HostInfo(host, schema, port).also { println("OIDC Provider is available at: $it") }
+            return HostInfo(host, schema, port)
         }
 
         fun normalize(): Configuration {
             return copy(
-                certificate = certificate.replace("\n", "")
-                    .replace("\r", "")
-                    .removePrefix("-----BEGIN PUBLIC KEY-----")
-                    .removeSuffix("-----END PUBLIC KEY-----")
-                    .chunked(64)
-                    .filter { it.isNotBlank() }
-                    .joinToString("\n")
-                    .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" },
+                certificate = normalizeCertificate(certificate),
                 authEndpoint = authEndpoint.removeSuffix("?").removeSuffix("/"),
                 tokenEndpoint = tokenEndpoint.removeSuffix("?").removeSuffix("/"),
             )
@@ -120,6 +73,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var configuration: Configuration
     private val log = Log("OpenIdConnect")
 
+    // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private value class UCloudUsername(val username: String)
     private value class OidcState(val state: String)
     private val stateTableMutex = Mutex()
@@ -138,8 +92,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
+        // Token validator used to verify tokens returned by the OpenID provider (explained below).
         val accessTokenValidator = NativeJWTValidation(configuration.certificate)
 
+        // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
             val callback = call<OpenIdConnectCallback, Unit, CommonErrorMessage>("callback") {
                 auth {
@@ -159,6 +115,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
             }
         }
 
+        // Invoked by the integration module (see explanation below)
         val openIdProviderApi = object : CallDescriptionContainer("openidprovider") {
             val token = call<RawOutgoingHttpPayload, OpenIdConnectToken, CommonErrorMessage>("callback") {
                 auth {
@@ -174,6 +131,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
             }
         }
 
+        // Client used for the `openIdProviderApi`.
         val oidcClient = rpcClient.emptyAuth().withFixedHost(configuration.hostInfo())
         
         with(server) {
@@ -281,18 +239,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
                 val result = onOpenIdConnectCompleted.invoke(configuration.extensions.onOpenIdConnectCompleted, subject)
-                dbConnection.withTransaction { connection ->
-                    connection.prepareStatement(
-                        //language=SQLite
-                        """
-                            insert or replace into user_mapping (ucloud_id, local_identity)
-                            values (:ucloud_id, :local_identity)
-                        """
-                    ).useAndInvokeAndDiscard {
-                        bindString("ucloud_id", subject.ucloudIdentity)
-                        bindString("local_identity", result.uid.toString())
-                    }
-                }
+                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, mappingExpiration())
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
@@ -340,7 +287,54 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         )
     }
 
+    override fun PluginContext.mappingExpiration(): Long? {
+        return configuration.mappingLifetime
+    }
+
     private companion object Extensions {
         val onOpenIdConnectCompleted = extension<OpenIdConnectSubject, UidAndGid>()
     }
 }
+
+fun AuthenticatedClient.emptyAuth(): AuthenticatedClient {
+    return AuthenticatedClient(
+        client,
+        backend,
+        authenticator = {
+            // Do nothing
+        },
+        afterHook = {
+            // Do nothing
+        }
+    )
+}
+
+@Serializable
+data class OpenIdConnectCallback(
+    val state: String,
+    val session_state: String,
+    val code: String
+)
+
+@Serializable
+data class OpenIdConnectToken(
+    val access_token: String,
+    val refresh_token: String,
+    val session_state: String,
+)
+
+@Serializable
+data class OpenIdConnectSubject(
+    val ucloudIdentity: String,
+    val subject: String,
+    val preferredUsername: String?,
+    val name: String?,
+    val givenName: String?,
+    val familyName: String?,
+    val middleName: String?,
+    val nickname: String?,
+    val email: String?,
+    val emailVerified: Boolean?,
+    val phoneNumber: String?,
+    val phoneNumberVerified: Boolean?,
+)

@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.providers
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.NormalizedPaginationRequestV2
+import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -42,10 +43,11 @@ class ProviderIntegrationService(
             val httpClient = auth.authenticateClient(OutgoingHttpCall).withFixedHost(hostInfo)
             val integrationProvider = IntegrationProvider(spec.id)
 
-            val isEnabled = integrationProvider.retrieveManifest.call(Unit, httpClient).orNull()?.enabled ?: false
-            if (!isEnabled) return@SimpleCache null
+            val manifest = integrationProvider.retrieveManifest.call(Unit, httpClient).orNull()
+            val isEnabled = manifest?.enabled ?: false
+            if (!isEnabled || manifest == null) return@SimpleCache null
 
-            Communication(integrationProvider, httpClient, spec)
+            Communication(integrationProvider, httpClient, spec, manifest)
         }
     )
 
@@ -53,6 +55,7 @@ class ProviderIntegrationService(
         val api: IntegrationProvider,
         val client: AuthenticatedClient,
         val spec: ProviderSpecification,
+        val manifest: IntegrationProviderRetrieveManifestResponse,
     )
 
     suspend fun connect(
@@ -114,7 +117,9 @@ class ProviderIntegrationService(
                                 connected as (
                                     select provider_id
                                     from provider.connected_with
-                                    where username = :username
+                                    where
+                                        username = :username and
+                                        (expires_at is null or expires_at >= now())
                                 ),
                                 available as(
                                     select p.resource, p.unique_name
@@ -188,18 +193,29 @@ class ProviderIntegrationService(
     ) {
         val providerId = actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
         db.withSession { session ->
+            val provider = providers.browse(
+                ActorAndProject(Actor.System, null),
+                ResourceBrowseRequest(ProviderIncludeFlags(filterName = providerId)),
+                useProject = false,
+                ctx = session
+            ).items.singleOrNull() ?: return@withSession
+
+            val comms = communicationCache.get(provider.id) ?: return@withSession
+            val expireAfterMs = comms.manifest.expireAfterMs
+
             session
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
                         setParameter("provider_id", providerId)
+                        setParameter("expires_after", expireAfterMs)
                     },
                     """
-                        insert into provider.connected_with (username, provider_id)
-                        select :username, p.resource
+                        insert into provider.connected_with (username, provider_id, expires_at)
+                        select :username, p.resource, now() + (:expires_after::bigint || 'ms')::interval
                         from provider.providers p
                         where p.unique_name = :provider_id
-                        on conflict do nothing 
+                        on conflict (username, provider_id) do update set expires_at = excluded.expires_at 
                     """
                 )
         }
