@@ -44,7 +44,7 @@ class CoreAuthController(
     private val ottDao: OneTimeTokenAsyncDAO,
     private val tokenService: TokenService,
     private val tokenValidation: TokenValidation<DecodedJWT>,
-    private val trustedOrigins: Set<String> = setOf("localhost", "cloud.sdu.dk"),
+    private val trustedOrigins: Set<String> = setOf("localhost", "frontend", "cloud.sdu.dk"),
     private val ktor: Application? = null
 ) : Controller {
     private val log = LoggerFactory.getLogger(CoreAuthController::class.java)

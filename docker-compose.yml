@@ -32,6 +32,8 @@ services:
       - /dev/null
     volumes:
       - keycloak:/opt/keycloak/data
+  chrome:
+    image: alpine:latest
   helper:
     image: alpine:latest
     command:

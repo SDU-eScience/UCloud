@@ -12,4 +12,13 @@ services:
     ports:
       - ${KEYCLOAK_PORT:-61241}:8080
     hostname: keycloak
-
+  chrome:
+    image: dreg.cloud.sdu.dk/ucloud-apps/ubuntu-xfce:20.04
+    environment:
+      VNC_PW: vncpassword
+      VNC_RESOLUTION: 1920x1200
+    command:
+      - vnc_startup.sh
+      - -w
+    ports:
+      - ${CHROME_PORT:-62344}:6901

@@ -74,6 +74,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         val clientId: String,
         val clientSecret: String,
         val extensions: Extensions,
+
+        // NOTE(Dan): Redirect URL to use after connection has completed. Defaults to use the backend API. Can be
+        // changed if the backend is not served behind a gateway (e.g. during development).
+        val redirectUrl: String? = null,
     ) {
         fun hostInfo(): HostInfo {
             val schema = when {
@@ -297,7 +301,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
                 sctx.session.sendHttpResponse(
                     HttpStatusCode.Found.value,
-                    listOf(Header("Location", config.server!!.ucloud.toString()))
+                    listOf(
+                        Header("Location", configuration.redirectUrl ?: config.server!!.ucloud.toString()),
+                        Header("Content-Length", "0"),
+                    )
                 )
 
                 OutgoingCallResponse.AlreadyDelivered()
