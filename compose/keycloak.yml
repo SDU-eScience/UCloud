@@ -1,7 +1,8 @@
 version: "3.9"
 services:
   keycloak:
-    image: quay.io/keycloak/keycloak:17.0.0
+    # NOTE(Dan): The dockerfile can be found in provider-integration/integration-module/keycloak.dockerfile
+    image: dreg.cloud.sdu.dk/ucloud/keycloak-dev:17.0.0
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
