@@ -6,10 +6,13 @@ import {ListRow} from "@/ui-components/List";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import {useCallback, useEffect} from "react";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 
 export const ConnectDashboardCard: React.FunctionComponent = props => {
+    if (!inDevEnvironment() && !onDevSite()) return null;
+
     const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
         {noop: true},
         emptyPageV2
@@ -56,3 +59,4 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
         {/*</Button>*/}
     </HighlightedCard>;
 };
+
