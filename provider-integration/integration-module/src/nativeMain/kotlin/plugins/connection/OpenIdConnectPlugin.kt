@@ -338,3 +338,4 @@ data class OpenIdConnectSubject(
     val phoneNumber: String?,
     val phoneNumberVerified: Boolean?,
 )
+
