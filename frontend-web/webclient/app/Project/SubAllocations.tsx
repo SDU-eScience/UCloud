@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, Flex, Icon, Input, Label, Text, Tooltip as UITooltip} from "@/ui-components";
+import {Box, Button, Checkbox, Flex, Icon, Input, Label, Text, Tooltip as UITooltip} from "@/ui-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {
     Cell as SheetCell,
@@ -30,6 +30,13 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
+import {Accordion} from "@/ui-components/Accordion";
+import {IconName} from "@/ui-components/Icon";
+import {Spacer} from "@/ui-components/Spacer";
+import format from "date-fns/format";
+import {useHistory} from "react-router";
+import {ListRow, ListRowStat} from "@/ui-components/List";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 const Circle = styled(Box)`
   border-radius: 500px;
@@ -39,6 +46,8 @@ const Circle = styled(Box)`
   margin: 4px 4px 4px 8px;
   cursor: pointer;
 `;
+
+const SHOW_WORK_IN_PROGRESS = false;
 
 function formatTimestampForInput(timestamp: number): string {
     const d = new Date(timestamp);
@@ -82,7 +91,7 @@ function writeAllocations(
     allocations: SubAllocation[],
     dirtyRowStorage: Record<string, RowOrDeleted>,
     sessionId: number,
-    unsavedRowIds: { current: number }
+    unsavedRowIds: {current: number}
 ) {
     let row = 0;
     s.clear();
@@ -100,7 +109,9 @@ function writeAllocations(
         if (draftCopy !== "deleted") {
             if (draftCopy) return;
             s.addRow(alloc.id);
+            /* Note(Jonas): Isn't this an unused expression? */
             alloc.path
+            /* Note(Jonas): End */
 
             s.writeValue(colRecipientType, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
             s.writeValue(colRecipient, row, alloc.workspaceTitle);
@@ -169,7 +180,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
     filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
 }> = ({allocations, loadMore, generation, filterByAllocation, filterByWorkspace, wallets, onQuery}) => {
     const originalRows = useRef<Record<string, SubAllocation>>({});
-    const projectLookupTable = useRef<Record<string, { rows: SubAllocation[]; projectId: string }[]>>({});
+    const projectLookupTable = useRef<Record<string, {rows: SubAllocation[]; projectId: string}[]>>({});
     const sessionId = useMemo(() => Math.ceil(Math.random() * 1000000000), []);
     const unsavedRowIds = useRef(0);
     const dirtyRowStorageRef: MutableRefObject<Record<string, RowOrDeleted>> = useRef({});
@@ -241,7 +252,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
     );
 
     const header: string[] = useMemo(() => (
-            ["", "Recipient", "", "Product", "Allocation", "Start Date", "End Date", "Amount", "", ""]),
+        ["", "Recipient", "", "Product", "Allocation", "Start Date", "End Date", "Amount", "", ""]),
         []
     );
 
@@ -295,12 +306,11 @@ export const SubAllocationViewer: React.FunctionComponent<{
                             title: allocTitle,
                             value: alloc.id,
                             helpText: normalizeBalanceForFrontend(alloc.balance, wallet.productType, wallet.chargeType,
-                                    wallet.unit, false, 2) + " " +
+                                wallet.unit, false, 2) + " " +
                                 explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)
                         });
                     }
                 }
-
                 return entries;
             }
         ),
@@ -383,9 +393,9 @@ export const SubAllocationViewer: React.FunctionComponent<{
     const save = useCallback(() => {
         const dirtyRows = dirtyRowStorageRef.current;
 
-        const newRows: { update: DepositToWalletRequestItem, rowId: string }[] = [];
-        const updatedRows: { update: UpdateAllocationRequestItem, rowId: string }[] = [];
-        const deletedRows: { update: UpdateAllocationRequestItem, rowId: string }[] = [];
+        const newRows: {update: DepositToWalletRequestItem, rowId: string}[] = [];
+        const updatedRows: {update: UpdateAllocationRequestItem, rowId: string}[] = [];
+        const deletedRows: {update: UpdateAllocationRequestItem, rowId: string}[] = [];
         const unknownProjects: string[] = [];
 
         const original = originalRows.current;
@@ -533,8 +543,8 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
                 const asCreation: DepositToWalletRequestItem = {
                     recipient: (isProject ?
-                            {type: "project", projectId: resolvedRecipient!} :
-                            {type: "user", username: resolvedRecipient!}
+                        {type: "project", projectId: resolvedRecipient!} :
+                        {type: "user", username: resolvedRecipient!}
                     ),
                     startDate: startDate!,
                     endDate: endDate ?? undefined,
@@ -681,24 +691,59 @@ export const SubAllocationViewer: React.FunctionComponent<{
         }
     }, [onQuery]);
 
+    const byProject = allocations.data.items.filter(it => it.workspaceIsProject);
+    const groupedByProject: {[workspaceTitle: string]: SubAllocation[]} = {};
+    byProject.forEach(entry => {
+        if (groupedByProject[entry.workspaceTitle]) {
+            groupedByProject[entry.workspaceTitle].push(entry);
+        } else {
+            groupedByProject[entry.workspaceTitle] = [entry];
+        }
+    });
+    const byUser = allocations.data.items.filter(it => !it.workspaceIsProject);
+    const groupedByUser: {[workspaceTitle: string]: SubAllocation[]} = {};
+    byUser.forEach(entry => {
+        if (groupedByUser[entry.workspaceTitle]) {
+            groupedByUser[entry.workspaceTitle].push(entry);
+        } else {
+            groupedByUser[entry.workspaceTitle] = [entry];
+        }
+    });
+
+    const [sheetModeActive, setSheetMode] = useState(false || !SHOW_WORK_IN_PROGRESS);
+
+
     return <HighlightedCard
         color={"green"}
         icon={"grant"}
         title={"Sub-allocations"}
         subtitle={
             <SearchInput>
-                <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput}/>
+                <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
                 <Label htmlFor={"resource-search"}>
-                    <Icon name={"search"} size={"20px"}/>
+                    <Icon name={"search"} size={"20px"} />
                 </Label>
             </SearchInput>
         }
     >
-        <Text color="darkGray" fontSize={1} mb={"16px"}>
-            An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
-        </Text>
+        <Spacer
+            left={
+                <Text color="darkGray" fontSize={1} mb={"16px"}>
+                    An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
+                </Text>
+            }
+            right={SHOW_WORK_IN_PROGRESS ? <Label>Sheet Mode<Checkbox checked={sheetModeActive} onClick={e => setSheetMode(s => !s)} /> </Label> : null}
+        />
 
-        <div>
+        {!SHOW_WORK_IN_PROGRESS || byProject.length === 0 ? null : (
+            <SuballocationRows icon="projects" title="Projects" rows={groupedByProject} />
+        )}
+
+        {!SHOW_WORK_IN_PROGRESS || byUser.length === 0 ? null : (
+            <SuballocationRows icon="user" title="Users" rows={groupedByUser} />
+        )}
+
+        <div hidden={!sheetModeActive}>
             <Flex flexDirection={"row"} mb={"16px"} alignItems={"center"}>
                 <div>
                     <a href="#" onClick={toggleShowHelp}>Spreadsheet help</a>
@@ -713,7 +758,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
                     }
                 </div>
 
-                <Box flexGrow={1}/>
+                <Box flexGrow={1} />
 
                 {allocations.data.next == null ?
                     (hasSeenPagination.current ?
@@ -747,7 +792,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
                             </UITooltip>
                         </Flex>
                         <ConfirmCancelButtons onConfirm={save} onCancel={discard} confirmText={"Save"}
-                                              cancelText={"Discard"}/>
+                            cancelText={"Discard"} />
                     </>
                 }
             </Flex>
@@ -760,7 +805,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
                 </ul>
             </div>}
         </div>
-        <Box mb={"16px"} minHeight={"500px"} maxHeight={"calc(100vh - 300px)"} overflowY={"auto"}>
+        <Box mb={"16px"} height={sheetModeActive ? undefined : 0} minHeight={sheetModeActive ? "500px" : 0} maxHeight={"calc(100vh - 300px)"} overflowY={"auto"}>
             <Sheet
                 header={header}
                 cells={cells}
@@ -803,6 +848,45 @@ export const SubAllocationViewer: React.FunctionComponent<{
         </Box>
     </HighlightedCard>;
 };
+
+function SuballocationRows(props: {
+    icon: IconName;
+    title: string;
+    rows: {[workspaceTitle: string]: SubAllocation[]};
+}): JSX.Element {
+    return <Accordion title={props.title} icon={props.icon}>
+        <Box ml="16px">
+            {Object.keys(props.rows).map(key =>
+                <Accordion key={props.rows[key][0].workspaceTitle} title={props.rows[key][0].workspaceTitle}>
+                    {props.rows[key].map(entry => <SubAllocationRow suballocation={entry} />)}
+                </Accordion>
+            )}
+        </Box>
+    </Accordion>
+}
+
+function SubAllocationRow(props: {suballocation: SubAllocation;}): JSX.Element {
+    const entry = props.suballocation;
+    const history = useHistory();
+    return (
+        <ListRow
+            key={entry.id}
+            icon={<Icon name={productTypeToIcon(entry.productType)} />}
+            left={titleForSubAllocation(entry)}
+            leftSub={<ListRowStat icon="chrono">From: {format(entry.startDate, "dd/MM/yy")}, Until: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "No expiration"}</ListRowStat>}
+            right={<>
+                Amount: {remainingBalance(entry)}
+                <Icon ml="12px" name="grant" cursor="pointer" onClick={() => dialogStore.addDialog(<div>TODO</div>, () => undefined, false)} />
+            </>}
+        />
+    );
+}
+
+function remainingBalance(suballocation: SubAllocation): string {
+    return normalizeBalanceForFrontend(
+        suballocation.remaining, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
+    ) + " " + explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+}
 
 interface SubAllocationCallbacks {
     filterByAllocation: (allocationId: string) => void;

@@ -221,6 +221,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 "" : `Earliest expiration: ${format(earliestExpiration, FORMAT)}`;
 
             return <Accordion
+                key={key}
                 icon={productTypeToIcon(key)}
                 title={prettierString(key)}
                 titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
@@ -255,7 +256,7 @@ function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): J
             );
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
-                <SimpleAllocationRowWrapper>
+                <SimpleAllocationRowWrapper key={wallet.paysFor.name + wallet.paysFor.provider + wallet.paysFor.title}>
                     <Spacer
                         px="30px"
                         left={<Text color="text" mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
@@ -518,9 +519,9 @@ function ChartPointName({name}: {name: string}): JSX.Element {
 }
 
 const SubText = styled.div`
-        color: var(--gray);
-        text-decoration: none;
-        font-size: 10px;
-        `;
+    color: var(--gray);
+    text-decoration: none;
+    font-size: 10px;
+`;
 
 export default Resources;
