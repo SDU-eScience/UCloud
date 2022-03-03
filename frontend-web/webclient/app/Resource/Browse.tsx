@@ -429,7 +429,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             expanded={false}
                             browseType={BrowseType.Card}
                             propertyName="direction"
-                            title="Sort direction"
+                            title="Sort Direction"
                             facedownChevron
                             id={0}
                             onExpand={doNothing}
