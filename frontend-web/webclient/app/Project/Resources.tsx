@@ -84,6 +84,17 @@ const Resources: React.FunctionComponent = () => {
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
     const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
+    
+    React.useEffect(() => {
+        if (filters.filterStartDate == null && filters.filterEndDate == null) {
+            setFilters({
+                ...filters,
+                filterStartDate: pastMonthStart.toString(),
+                filterEndDate: pastMonthEnd.toString()
+            });
+        }
+    }, [filters]);
+
     const filterStart = format(parseInt(filters.filterStartDate ?? pastMonthStart), "dd/MM/yyyy");
     const filterEnd = format(parseInt(filters.filterEndDate ?? pastMonthEnd), "dd/MM/yyyy");
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
