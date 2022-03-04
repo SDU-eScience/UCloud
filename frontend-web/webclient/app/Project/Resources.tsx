@@ -136,11 +136,11 @@ const Resources: React.FunctionComponent = () => {
 
     return (
         <MainContainer
-            header={<>
-                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />
-                Viewing usage from {filterStart} to {filterEnd}
-            </>}
-            headerSize={98}
+            header={<Spacer
+                width={"calc(100% - var(--sidebarWidth))"}
+                left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
+                right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
+            />}
             sidebar={<>
                 <ResourceFilter
                     browseType={BrowseType.MainContent}
