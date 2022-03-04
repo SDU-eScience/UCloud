@@ -36,8 +36,8 @@ const AccordionStyle = styled.div<{active: boolean}>`
     text-align: left;
     outline: none;
     font-size: 15px;
-    transition: 0.4s;
     cursor: pointer;
+    ${p => p.active ? null : "border-bottom: solid lightGray 1px;"}
 `;
 
 const Panel = styled.div<{active: boolean}>`
@@ -49,6 +49,7 @@ const Panel = styled.div<{active: boolean}>`
 
 export const AccordionWrapper = styled.div`
     box-shadow: ${p => p.theme.shadows.md};
+    border-bottom: 0px solid red;
 `;
 
 const RotatingIcon = styled(Icon)`

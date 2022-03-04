@@ -227,13 +227,16 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
             >
                 <Border>
-                    <Spacer left={null} right={<><Text mt="-4px" mr="12px">Advanced view</Text><Toggle checked={advancedToggles.includes(key)} onChange={() => {
-                        if (advancedToggles.includes(key)) {
-                            setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
-                        } else {
-                            setAdvancedToggles([...advancedToggles, key]);
-                        }
-                    }} /></>} />
+                    <Flex>
+                        <Text mt="-4px" mr="12px">Advanced view</Text>
+                        <Toggle checked={advancedToggles.includes(key)} onChange={() => {
+                            if (advancedToggles.includes(key)) {
+                                setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
+                            } else {
+                                setAdvancedToggles([...advancedToggles, key]);
+                            }
+                        }} />
+                    </Flex>
                     <SimpleWalletView wallets={walletsList} advancedView={advancedToggles.includes(key)} />
                 </Border>
             </Accordion>
