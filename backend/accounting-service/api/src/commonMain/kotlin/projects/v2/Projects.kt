@@ -119,6 +119,7 @@ data class ProjectInvite(
     val invitedBy: String,
     val invitedTo: String,
     val recipient: String,
+    val projectTitle: String,
 )
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
@@ -274,8 +275,10 @@ data class ProjectsBrowseInvitesRequest(
 data class ProjectsCreateInviteRequestItem(val recipient: String)
 typealias ProjectsCreateInviteRequest = BulkRequest<ProjectsCreateInviteRequestItem>
 
-typealias ProjectsAcceptInviteRequest = BulkRequest<FindByStringId>
-typealias ProjectsDeleteInviteRequest = BulkRequest<FindByStringId>
+@Serializable
+data class FindByProjectId(val project: String)
+typealias ProjectsAcceptInviteRequest = BulkRequest<FindByProjectId>
+typealias ProjectsDeleteInviteRequest = BulkRequest<FindByProjectId>
 
 @Serializable
 data class ProjectsDeleteMemberRequestItem(val username: String)
@@ -294,16 +297,6 @@ data class ProjectsRetrieveGroupRequest(
     val id: String,
     override val includeMembers: Boolean? = null
 ) : ProjectGroupFlags
-
-@Serializable
-data class ProjectsBrowseGroupsRequest(
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-
-    override val includeMembers: Boolean? = null
-) : ProjectGroupFlags, WithPaginationRequestV2
 
 typealias ProjectsCreateGroupRequest = Group.Specification
 
