@@ -221,6 +221,10 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
+    val createBulk = call<BulkRequest<CreateNotification>, BulkResponse<FindByNotificationId>, CommonErrorMessage>("createBulk") {
+        httpCreate(baseContext, "bulk", roles = Roles.PRIVILEGED)
+    }
+
     val delete = call<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage>("delete") {
         auth {
             roles = Roles.PRIVILEGED

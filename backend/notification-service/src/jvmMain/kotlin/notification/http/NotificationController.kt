@@ -1,5 +1,6 @@
 package dk.sdu.cloud.notification.http
 
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -48,6 +49,10 @@ class NotificationController(
 
         implement(NotificationDescriptions.create) {
             ok(service.createNotification(request.user, request.notification))
+        }
+
+        implement(NotificationDescriptions.createBulk) {
+            ok(BulkResponse(service.createNotifications(request.items)))
         }
 
         implement(NotificationDescriptions.delete) {
