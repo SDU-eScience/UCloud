@@ -31,11 +31,9 @@ import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
-import {IconName} from "@/ui-components/Icon";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
-import {useHistory} from "react-router";
-import {ListRow, ListRowStat} from "@/ui-components/List";
+import {ListRow} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 
 const Circle = styled(Box)`
@@ -691,25 +689,6 @@ export const SubAllocationViewer: React.FunctionComponent<{
         }
     }, [onQuery]);
 
-    const byProject = allocations.data.items.filter(it => it.workspaceIsProject);
-    const groupedByProject: {[workspaceTitle: string]: SubAllocation[]} = {};
-    byProject.forEach(entry => {
-        if (groupedByProject[entry.workspaceTitle]) {
-            groupedByProject[entry.workspaceTitle].push(entry);
-        } else {
-            groupedByProject[entry.workspaceTitle] = [entry];
-        }
-    });
-    const byUser = allocations.data.items.filter(it => !it.workspaceIsProject);
-    const groupedByUser: {[workspaceTitle: string]: SubAllocation[]} = {};
-    byUser.forEach(entry => {
-        if (groupedByUser[entry.workspaceTitle]) {
-            groupedByUser[entry.workspaceTitle].push(entry);
-        } else {
-            groupedByUser[entry.workspaceTitle] = [entry];
-        }
-    });
-
     const [sheetModeActive, setSheetMode] = useState(false || !SHOW_WORK_IN_PROGRESS);
 
 
@@ -735,12 +714,8 @@ export const SubAllocationViewer: React.FunctionComponent<{
             right={SHOW_WORK_IN_PROGRESS ? <Label>Sheet Mode<Checkbox checked={sheetModeActive} onClick={e => setSheetMode(s => !s)} /> </Label> : null}
         />
 
-        {!SHOW_WORK_IN_PROGRESS || byProject.length === 0 ? null : (
-            <SuballocationRows icon="projects" title="Projects" rows={groupedByProject} />
-        )}
-
-        {!SHOW_WORK_IN_PROGRESS || byUser.length === 0 ? null : (
-            <SuballocationRows icon="user" title="Users" rows={groupedByUser} />
+        {!SHOW_WORK_IN_PROGRESS || allocations.data.items.length === 0 ? null : (
+            <SuballocationRows rows={allocations.data.items} />
         )}
 
         <div hidden={!sheetModeActive}>
@@ -850,32 +825,59 @@ export const SubAllocationViewer: React.FunctionComponent<{
 };
 
 function SuballocationRows(props: {
-    icon: IconName;
-    title: string;
-    rows: {[workspaceTitle: string]: SubAllocation[]};
+    rows: SubAllocation[];
 }): JSX.Element {
-    return <Accordion title={props.title} icon={props.icon}>
-        <Box ml="16px">
-            {Object.keys(props.rows).map(key =>
-                <Accordion key={props.rows[key][0].workspaceTitle} title={props.rows[key][0].workspaceTitle}>
-                    {props.rows[key].map(entry => <SubAllocationRow suballocation={entry} />)}
-                </Accordion>
-            )}
+    return React.useMemo(() => {
+        const groupedByName: {[key: string]: SubAllocation[]} = {};
+        props.rows.forEach(row => {
+            if (groupedByName[row.workspaceTitle]) {
+                groupedByName[row.workspaceTitle].push(row);
+            } else {
+                groupedByName[row.workspaceTitle] = [row];
+            }
+        });
+
+        return <Box ml="16px">
+            {Object.keys(groupedByName).map(key => {
+                const entries = groupedByName[key];
+
+                const storageEntries = entries.filter(it => it.productType === "STORAGE");
+                const storageRemaining = storageEntries.reduce((acc, it) => it.remaining + acc, 0);
+
+                const computeEntries = entries.filter(it => it.productType === "COMPUTE");
+                const computeRemaining = entries.reduce((acc, it) => it.remaining + acc, 0);
+
+                /* TODO(Jonas): I'm not sure we for sure know chargeType and unit are consistent throughout. */
+                const storageAmount = storageEntries[0] ? <Flex><Icon mx="12px" name="hdd" />{normalizeBalanceForFrontend(
+                    storageRemaining, storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit, false, 2
+                ) + " " + explainAllocation(storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit)}</Flex> : null;
+
+                const computeAmount = computeEntries[0] ? <Flex><Icon mx="12px" name="cpu" />{normalizeBalanceForFrontend(
+                    computeRemaining, computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit, false, 2
+                ) + " " + explainAllocation(computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit)}</Flex> : null;
+
+                return (
+                    <Accordion key={key} icon={entries[0].workspaceIsProject ? "projects" : "user"} title={key} titleContent={<Flex ml="26px">{storageAmount} {computeAmount}</Flex>}>
+                        {entries.map(row => <SubAllocationRow suballocation={row} />)}
+                    </Accordion>
+                )
+            })}
         </Box>
-    </Accordion>
+    }, [props.rows]);
 }
 
 function SubAllocationRow(props: {suballocation: SubAllocation;}): JSX.Element {
     const entry = props.suballocation;
-    const history = useHistory();
     return (
         <ListRow
             key={entry.id}
             icon={<Icon name={productTypeToIcon(entry.productType)} />}
-            left={titleForSubAllocation(entry)}
-            leftSub={<ListRowStat icon="chrono">From: {format(entry.startDate, "dd/MM/yy")}, Until: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "No expiration"}</ListRowStat>}
+            left={<Flex>
+                <Text>{titleForSubAllocation(entry)}</Text>
+                <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>Start date: {format(entry.startDate, "dd/MM/yy")}, End date: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
+            </Flex>}
             right={<>
-                Amount: {remainingBalance(entry)}
+                {remainingBalance(entry)}
                 <Icon ml="12px" name="grant" cursor="pointer" onClick={() => dialogStore.addDialog(<div>TODO</div>, () => undefined, false)} />
             </>}
         />

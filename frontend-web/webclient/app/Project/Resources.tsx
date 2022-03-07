@@ -84,9 +84,11 @@ const Resources: React.FunctionComponent = () => {
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
     const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
-    
+
     React.useEffect(() => {
         if (filters.filterStartDate == null && filters.filterEndDate == null) {
+            /* TODO(Jonas): I think this may cause multiple requests as empty filters are legal. */
+
             setFilters({
                 ...filters,
                 filterStartDate: pastMonthStart.toString(),

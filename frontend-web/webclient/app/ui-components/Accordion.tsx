@@ -6,7 +6,7 @@ import {Spacer} from "./Spacer";
 import Text from "./Text";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
-export function Accordion(props: React.PropsWithChildren<{icon?: IconName, title: string, titleContent?: React.ReactNode}>): JSX.Element {
+export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title: React.ReactNode; titleContent?: React.ReactNode}>): JSX.Element {
     const [open, setOpen] = React.useState(false);
     return (
         <>
