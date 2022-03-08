@@ -529,7 +529,7 @@ function ChartPointName({name}: {name: string}): JSX.Element {
     return (
         <div>
             <Text textAlign="center" fontSize="14px">{first}</Text>
-            <SubText>{second} / {third}</SubText>
+            <SubText>{second}{third ? ` / ${third}` : null}</SubText>
         </div>
     );
 }

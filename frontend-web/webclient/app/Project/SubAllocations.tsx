@@ -706,12 +706,17 @@ export const SubAllocationViewer: React.FunctionComponent<{
         }
     >
         <Spacer
+            mt="4px"
             left={
                 <Text color="darkGray" fontSize={1} mb={"16px"}>
                     An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
                 </Text>
             }
-            right={SHOW_WORK_IN_PROGRESS ? <Label>Sheet Mode<Checkbox checked={sheetModeActive} onClick={e => setSheetMode(s => !s)} /> </Label> : null}
+            right={!SHOW_WORK_IN_PROGRESS ? null : <div>
+                <Label style={{cursor: "pointer"}}>
+                    Sheet Mode<Checkbox checked={sheetModeActive} onClick={e => setSheetMode(s => !s)} />
+                </Label>
+            </div>}
         />
 
         {!SHOW_WORK_IN_PROGRESS || allocations.data.items.length === 0 ? null : (
