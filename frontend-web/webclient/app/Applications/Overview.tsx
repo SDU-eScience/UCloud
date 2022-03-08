@@ -45,7 +45,8 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "MACS2",
         "Salmon",
         "SAMtools",
-        "Seqtk"
+        "Seqtk",
+        "nf-core"
     ];
 
     const featuredTags = [
@@ -58,8 +59,7 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Virtual Machines",
         "Digital Humanities",
         "Health Science",
-        "Bioinformatics",
-        "nf-core"
+        "Bioinformatics"
     ];
 
     const [refreshId, setRefreshId] = useState<number>(0);
