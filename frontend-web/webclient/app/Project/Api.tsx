@@ -23,6 +23,7 @@ export interface ProjectStatus {
     groups?: ProjectGroup[] | null;
     settings?: ProjectSettings | null;
     myRole?: ProjectRole | null;
+    path?: string | null;
 }
 
 export interface ProjectSpecification {
@@ -59,6 +60,7 @@ export interface ProjectInvite {
     invitedBy: string;
     invitedTo: string;
     recipient: string;
+    projectTitle: string;
 }
 
 class ProjectApi {
@@ -68,7 +70,7 @@ class ProjectApi {
         return apiRetrieve(request, this.baseContext);
     }
 
-    public browse(request: ProjectFlags & PaginationRequestV2): APICallParameters {
+    public browse(request: ProjectFlags & ProjectsSortByFlags & PaginationRequestV2): APICallParameters {
         return apiBrowse(request, this.baseContext);
     }
 
@@ -141,8 +143,14 @@ export interface ProjectFlags {
     includeMembers?: boolean | null;
     includeGroups?: boolean | null;
     includeFavorite?: boolean | null;
+    includePath?: boolean | null;
     includeArchived?: boolean | null;
     includeSettings?: boolean | null;
+}
+
+export interface ProjectsSortByFlags {
+    sortBy?: "favorite" | "title" | "parent" | null;
+    sortDirection?: "ascending" | "descending" | null;
 }
 
 export interface ProjectInviteFlags {

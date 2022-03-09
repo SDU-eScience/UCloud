@@ -28,6 +28,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.util.*
+import kotlin.collections.ArrayList
 
 class ProjectService(
     private val db: DBContext,
@@ -70,7 +71,9 @@ class ProjectService(
                     sortDirection = request.sortDirection ?: SortDirection.ascending,
                     offset = offset,
                     limit = limit,
-                )
+                ),
+                sortBy = request.sortBy ?: ProjectsSortBy.title,
+                sortDirection = request.sortDirection ?: SortDirection.ascending,
             )
         }
 
@@ -164,6 +167,7 @@ class ProjectService(
                         if (sortBy == ProjectsSortBy.favorite) {
                             appendLine(", pf.username is not null as is_favorite")
                         }
+                        appendLine(", p.title")
                     }
 
                     run {
@@ -188,26 +192,7 @@ class ProjectService(
                         appendLine(")")
                     }
 
-                    if (sortBy != null) {
-                        when (sortBy) {
-                            ProjectsSortBy.title -> {
-                                append("order by p.title")
-                            }
-
-                            ProjectsSortBy.parent -> {
-                                append("order by p.title")
-                            }
-
-                            ProjectsSortBy.favorite -> {
-                                append("order by is_favorite")
-                            }
-                        }
-
-                        when (sortDirection) {
-                            SortDirection.ascending -> appendLine(" asc")
-                            SortDirection.descending -> appendLine(" desc")
-                        }
-                    }
+                    writeSortSql(this, sortBy, sortDirection)
 
                     if (offset != null && limit != null) {
                         appendLine("offset $offset")
@@ -218,15 +203,42 @@ class ProjectService(
         }
     }
 
+    private fun writeSortSql(builder: StringBuilder, sortBy: ProjectsSortBy?, sortDirection: SortDirection) {
+        val sortDir = when (sortDirection) {
+            SortDirection.ascending -> "asc"
+            SortDirection.descending -> "desc"
+        }
+
+        with(builder) {
+            if (sortBy != null) {
+                when (sortBy) {
+                    ProjectsSortBy.title -> {
+                        appendLine("order by title $sortDir")
+                    }
+
+                    ProjectsSortBy.parent -> {
+                        appendLine("order by title $sortDir")
+                    }
+
+                    ProjectsSortBy.favorite -> {
+                        appendLine("order by is_favorite $sortDir, title asc")
+                    }
+                }
+            }
+        }
+    }
+
     private suspend fun loadProjects(
         username: String,
         session: AsyncDBConnection,
         flags: ProjectFlags,
         relevantProjects: PartialQuery,
+        sortBy: ProjectsSortBy? = null,
+        sortDirection: SortDirection = SortDirection.ascending
     ): List<Project> {
         // NOTE(Dan): `loadProjects` fetches additional relevant information about a project, based on the
         // `ProjectFlags`. It is also responsible for JSON-ifying the rows before the response is sent to the backend.
-        return session.sendPreparedStatement(
+        val projects: List<Project> = session.sendPreparedStatement(
             {
                 with(relevantProjects) {
                     arguments()
@@ -284,15 +296,24 @@ class ProjectService(
                         }
                     }
 
+
                     run {
                         appendLine("group by")
                         appendLine("p.project")
                         appendLine(", p.role")
+                        appendLine(", p.title")
 
                         if (flags.includeFavorite == true) {
                             appendLine(", pf.project_id")
                         }
+
+                        if (sortBy == ProjectsSortBy.favorite) {
+                            appendLine(", p.is_favorite")
+                        }
                     }
+
+                    writeSortSql(this, sortBy, sortDirection)
+
                     appendLine(")")
                 }
 
@@ -302,6 +323,91 @@ class ProjectService(
         ).rows.map { row ->
             defaultMapper.decodeFromString(row.getString(0)!!)
         }
+
+        if (flags.includePath == true) {
+            // NOTE(Dan): We don't have an efficient way of looking up the project hierarchies. So in this code-path
+            // we are trying to make the best out of a bad situation. The algorithm works by resolving a full layer
+            // of projects in a single iteration. This will in most cases limit us to max 5 queries to resolve all
+            // projects.
+
+            // NOTE(Dan): We keep a map between project IDs and their titles. We initialize this with the data we
+            // already have, this can in some cases lead us to fewer queries needed.
+            data class ProjectTitleAndParent(val title: String, val parent: String?)
+            val projectToTitle = HashMap<String, ProjectTitleAndParent>()
+            for (project in projects) {
+                projectToTitle[project.id] = ProjectTitleAndParent(
+                    project.specification.title,
+                    project.specification.parent
+                )
+            }
+
+            // NOTE(Dan): We then find all the project parents we don't currently know about. We will keep resolving
+            // parents until we know all of them (or they are null).
+            var unknownProjects: List<String> = projects.mapNotNull { project ->
+                val parent = project.specification.parent
+                if (parent != null && parent !in projectToTitle) {
+                    parent
+                } else {
+                    null
+                }
+            }
+
+            var failSafe = 100 // NOTE(Dan): Limit ourselves to 100 queries to avoid looping forever.
+            while (unknownProjects.isNotEmpty() && failSafe > 0) {
+                failSafe--
+                val newUnknowns = ArrayList<String>()
+
+                session.sendPreparedStatement(
+                    {
+                        setParameter("projects", unknownProjects)
+                    },
+                    """
+                        select p.id, p.parent, p.title
+                        from project.projects p
+                        where p.id = some(:projects::text[])
+                    """
+                ).rows.forEach { row ->
+                    val id = row.getString(0)!!
+                    val parent = row.getString(1)
+                    val title = row.getString(2)!!
+
+                    projectToTitle[id] = ProjectTitleAndParent(title, parent)
+                    if (parent != null && parent !in projectToTitle) {
+                        newUnknowns.add(parent)
+                    }
+                }
+
+                unknownProjects = newUnknowns
+            }
+
+            if (failSafe == 0) {
+                log.warn("Fail-safe triggered while resolving project hierarchy: ${projects.map { it.id }}")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
+            // NOTE(Dan): Build the string based on the information we have resolved
+            for (project in projects) {
+                val components = ArrayList<String>()
+
+                var current = project.specification.parent
+                while (current != null) {
+                    val c = projectToTitle[project.specification.parent] ?: break
+                    components.add(c.title)
+                    current = c.parent
+                }
+
+                project.status.path = buildString {
+                    var first = true
+                    components.reversed().forEach {
+                        if (first) first = false
+                        else append('/')
+                        append(it)
+                    }
+                }
+            }
+        }
+
+        return projects
     }
 
     private suspend fun ActorAndProject.requireProject(): String {
@@ -429,6 +535,25 @@ class ProjectService(
         }
     }
 
+    suspend fun unarchive(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = db,
+    ) {
+        ctx.withSession { session ->
+            val projects = request.items.map { it.id }
+            requireAdmin(actorAndProject.actor, projects, session)
+            session.sendPreparedStatement(
+                { setParameter("ids", projects) },
+                """
+                    update project.projects
+                    set archived = false
+                    where id = some(:ids::text[])
+                """
+            )
+        }
+    }
+
     suspend fun toggleFavorite(
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>,
@@ -534,7 +659,7 @@ class ProjectService(
                     appendLine(
                         """
                             select jsonb_build_object(
-                                'createdAt', timestamp_to_unix(i.created_at),
+                                'createdAt', provider.timestamp_to_unix(i.created_at),
                                 'invitedBy', i.invited_by,
                                 'invitedTo', i.project_id,
                                 'recipient', i.username,
@@ -555,7 +680,7 @@ class ProjectService(
                             """
                                 (
                                     :next::bigint is null or
-                                    i.created_at > to_timestamp(:next::bigint)
+                                    i.created_at < to_timestamp(:next::bigint)
                                 )
                             """
                         )

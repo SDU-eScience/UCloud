@@ -65,6 +65,14 @@ data class Project(
             project without being a member. Common examples include: `Actor.System` and a relevant provider.
         """)
         val myRole: ProjectRole? = null,
+
+        @UCloudApiDoc("""
+            A path to this project, conditionally included if `includePath = true`.
+            
+            The path is a '/' separated string where each component is a project title. The path will not contain
+            this project. The path does not start or end with a '/'. If the project is a root, then "" will be returned.
+        """)
+        var path: String? = null,
     )
 
     @Serializable
@@ -146,6 +154,10 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "archive")
     }
 
+    val unarchive = call<ProjectsUnarchiveRequest, Unit, CommonErrorMessage>("unarchive") {
+        httpUpdate(baseContext, "unarchive")
+    }
+
     val toggleFavorite = call<ProjectsToggleFavoriteRequest, Unit, CommonErrorMessage>("toggleFavorite") {
         httpUpdate(baseContext, "toggleFavorite")
     }
@@ -157,7 +169,6 @@ object Projects : CallDescriptionContainer("projects.v2") {
     // TODO Rename
     // TODO unarchive
     // TODO verification status
-    // TODO project path
 
     val verifyMembership = call<ProjectsVerifyMembershipRequest, Unit, CommonErrorMessage>("verifyMembership") {
         httpUpdate(baseContext, "verifyMembership")
@@ -214,6 +225,7 @@ interface ProjectFlags {
     val includeFavorite: Boolean?
     val includeArchived: Boolean?
     val includeSettings: Boolean?
+    val includePath: Boolean?
 }
 
 @Serializable
@@ -224,6 +236,7 @@ data class ProjectsRetrieveRequest(
     override val includeFavorite: Boolean? = null,
     override val includeArchived: Boolean? = null,
     override val includeSettings: Boolean? = null,
+    override val includePath: Boolean? = null,
 ) : ProjectFlags
 
 @Serializable
@@ -245,6 +258,7 @@ data class ProjectsBrowseRequest(
     override val includeFavorite: Boolean? = null,
     override val includeArchived: Boolean? = null,
     override val includeSettings: Boolean? = null,
+    override val includePath: Boolean? = null,
 
     val sortBy: ProjectsSortBy? = null,
     val sortDirection: SortDirection? = null,
@@ -252,6 +266,7 @@ data class ProjectsBrowseRequest(
 
 typealias ProjectsCreateRequest = BulkRequest<Project.Specification>
 typealias ProjectsArchiveRequest = BulkRequest<FindByStringId>
+typealias ProjectsUnarchiveRequest = BulkRequest<FindByStringId>
 typealias ProjectsToggleFavoriteRequest = BulkRequest<FindByStringId>
 typealias ProjectsUpdateSettingsRequest = Project.Settings
 typealias ProjectsVerifyMembershipRequest = BulkRequest<FindByStringId>

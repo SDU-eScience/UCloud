@@ -138,6 +138,7 @@ interface ItemRowProps<T, CB> {
     itemTitle: string;
     itemTitlePlural?: string;
     disableSelection?: boolean;
+    highlight?: boolean;
 
     renaming?: RenamingState<T>;
 }
@@ -172,6 +173,7 @@ export const ItemRow = <T, CB>(
         disableSelection={props.disableSelection}
         onContextMenu={onContextMenu}
         icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} /> : null}
+        highlight={props.highlight}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
