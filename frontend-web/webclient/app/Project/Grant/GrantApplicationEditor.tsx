@@ -29,7 +29,10 @@ import {
     productTypeToIcon,
     ProductType,
     productTypeToTitle,
-    productTypes, explainAllocation, normalizeBalanceForBackend, normalizeBalanceForFrontend,
+    productTypes,
+    explainAllocation,
+    normalizeBalanceForBackend,
+    normalizeBalanceForFrontendOpts,
 } from "@/Accounting";
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -655,10 +658,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     success = false;
                                 } else {
                                     const meta = category.metadata;
-                                    creditsInput.value = normalizeBalanceForFrontend(
+                                    creditsInput.value = normalizeBalanceForFrontendOpts(
                                         credits,
                                         meta.productType, meta.chargeType, meta.unitOfPrice,
-                                        false, 0
+                                        {
+                                            isPrice: false,
+                                            forceInteger: true
+                                        }
                                     );
                                 }
                             } else {
