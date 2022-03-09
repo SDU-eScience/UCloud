@@ -19,7 +19,7 @@ const Markdown: React.FunctionComponent<Options> = props => {
     return <ReactMarkdown
         {...props}
         components={{
-            link: LinkBlock,
+            a: LinkBlock,
             code: CodeBlock
         }}
     >
