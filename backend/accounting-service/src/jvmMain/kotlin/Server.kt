@@ -53,7 +53,7 @@ class Server(
         val projectService = ProjectService(client, eventProducer, projectCache)
         val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
-        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db)
+        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)

@@ -19,11 +19,14 @@ import dk.sdu.cloud.notification.api.Notification
 import dk.sdu.cloud.notification.api.NotificationDescriptions
 import dk.sdu.cloud.notification.api.NotificationType
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.*
 
 class ProjectService(
@@ -62,8 +65,8 @@ class ProjectService(
                 request,
                 relevantProjects(
                     username,
-                    sortBy = request.sortBy,
-                    sortDirection = request.sortDirection,
+                    sortBy = request.sortBy ?: ProjectsSortBy.title,
+                    sortDirection = request.sortDirection ?: SortDirection.ascending,
                     offset = offset,
                     limit = limit,
                 )
@@ -295,6 +298,17 @@ class ProjectService(
         }
     }
 
+    private suspend fun ActorAndProject.requireProject(): String {
+        val p = project
+        if (p == null) {
+            throw RPCException(
+                "You cannot perform this operation in your personal workspace. Try selecting a different project!",
+                HttpStatusCode.BadRequest
+            )
+        }
+        return p
+    }
+
     private suspend fun requireMembership(actor: Actor, projects: Collection<String>, session: AsyncDBConnection) {
         requireRole(actor, projects.toSet(), session, setOf(ProjectRole.PI, ProjectRole.ADMIN, ProjectRole.USER))
     }
@@ -324,7 +338,7 @@ class ProjectService(
                 from project.project_members pm
                 where
                     pm.username = :username and
-                    pm.project_id = some(:project::text[]) and
+                    pm.project_id = some(:projects::text[]) and
                     pm.role = some(:roles::text[])
                 order by pm.project_id
             """
@@ -453,13 +467,8 @@ class ProjectService(
         settings: Project.Settings,
         ctx: DBContext = db,
     ) {
-        val (actor, project) = actorAndProject
-        if (project == null) {
-            throw RPCException(
-                "You cannot update settings of your personal workspace. Try selecting a different project.",
-                HttpStatusCode.BadRequest
-            )
-        }
+        val (actor) = actorAndProject
+        val project = actorAndProject.requireProject()
 
         // NOTE(Dan): Check if we have anything to do. If not, just return.
         // NOTE(Dan): Right now we only have subproject settings.
@@ -581,13 +590,8 @@ class ProjectService(
         // input is actually valid.
 
         // We start by checking that a project was actually supplied
-        val (actor, project) = actorAndProject
-        if (project == null) {
-            throw RPCException(
-                "You cannot invite someone to your personal workspace. Try selecting a different project!",
-                HttpStatusCode.BadRequest
-            )
-        }
+        val (actor) = actorAndProject
+        val project = actorAndProject.requireProject()
 
         ctx.withSession { session ->
             // Only administrators of a project can invite members. Check that we are an administrator.
@@ -804,20 +808,11 @@ class ProjectService(
     ) {
         ctx.withSession { session ->
             // Verify that the request is valid and makes sense
-            val (actor, project) = actorAndProject
+            val (actor) = actorAndProject
             val isLeaving = request.items.size == 1 && request.items.single().username == actor.safeUsername()
 
             // Personal workspaces are not actual projects. Make sure we didn't get this request without a project.
-            if (project == null) {
-                if (isLeaving) {
-                    throw RPCException("You cannot leave your personal workspace.", HttpStatusCode.BadRequest)
-                } else {
-                    throw RPCException(
-                        "You cannot remove members from your personal workspace.",
-                        HttpStatusCode.BadRequest
-                    )
-                }
-            }
+            val project = actorAndProject.requireProject()
 
             // Make sure that we are not trying to kick ourselves along with other users. Not allowing this simplifies
             // our code quite a bit.
@@ -899,4 +894,365 @@ class ProjectService(
             projectCache.invalidate(reqItem.username)
         }
     }
+
+    suspend fun changeRole(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProjectsChangeRoleRequestItem>,
+        ctx: DBContext = db,
+    ) {
+        val (actor) = actorAndProject
+        val project = actorAndProject.requireProject()
+
+        // NOTE(Dan): Some edge-cases requires us to modify the changes. As a result, you should use `requestItems`
+        // instead of `request.items` in the code below.
+        val requestItems = request.items.toMutableList()
+
+        run {
+            // NOTE(Dan): To ensure predictable and easy-to-understand results, we don't allow for duplicates. 
+            // We could technically implement consistent results, but it complicates the SQL code required and
+            // I don't see a good use-case for this.
+            val seen = HashSet<String>()
+            for (item in requestItems) {
+                if (item.username in seen) {
+                    throw RPCException(
+                        "Your request contains conflicting changes for ${item.username}. " + 
+                            "Try again or contact support for assistance.", 
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                seen.add(item.username)
+            }
+        }
+
+        // NOTE(Dan): We don't allow someone to change their own role. I don't see an obvious use-case for this and
+        // it simplifies our code a bit (see PI transfer below).
+        val requestContainsSelf = requestItems.any { it.username == actor.safeUsername() }
+        if (requestContainsSelf) {
+            throw RPCException("You cannot change your own role!", HttpStatusCode.BadRequest)
+        }
+
+        ctx.withSession { session ->
+            // NOTE(Dan): Only the PI can promote someone to a PI. If they are promoting someone to a PI, then we must
+            // demote them to an admin also.
+            val hasPiTransfer = requestItems.any { it.role == ProjectRole.PI }
+            if (hasPiTransfer) {
+                requireRole(actor, setOf(project), session, setOf(ProjectRole.PI))
+
+                // NOTE(Dan): This cannot conflict with an existing change, since we don't normally allow you to change
+                // your own role.
+                requestItems.add(ProjectsChangeRoleRequestItem(actor.safeUsername(), ProjectRole.ADMIN))
+            } else {
+                // If we are not trying to make someone the PI, then we only need to be an admin.
+                requireAdmin(actor, setOf(project), session)
+            }
+
+            // NOTE(Dan): Performing the update itself is straightforward. Just change the role in the table. We return
+            // the username of the successful changes, such that we can send the correct notifications.
+            val updatedUsers = session.sendPreparedStatement(
+                {
+                    requestItems.split {
+                        into("users") { it.username }
+                        into("roles") { it.role.name }
+                    }
+                },
+                """
+                    with changes as (
+                        select 
+                            unnest(:users::text[]) user_to_update, 
+                            unnest(:roles::text[]) new_role
+                    )
+                    update project.project_members
+                    set role = new_role
+                    from changes
+                    where username = user_to_update
+                    returning username
+                """
+            ).rows.map { it.getString(0)!! }
+
+            val success = updatedUsers.isNotEmpty()
+            if (!success) {
+                // NOTE(Dan): If none of them were successful, then fail with an error message. We choose to return OK
+                // if some were successful, since the client might simply have slightly out-of-date data.
+                throw RPCException(
+                    "Unable to change role of ${if (requestItems.size > 1) "members" else "member"}. " +
+                        "Maybe they are no longer a member? Try again or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            // NOTE(Dan): The change was successful! We notify PI and admins of the project about the change.
+            val titleAndAdmins = session.sendPreparedStatement(
+                {
+                    setParameter("project", project)
+                },
+                """
+                    select p.title, pm.username
+                    from
+                        project.projects p left join
+                        project.project_members pm on pm.project_id = p.id
+                    where
+                        p.id = :project and
+                        (pm.role = 'ADMIN' or pm.role = 'PI')
+                """
+            ).rows.map { Pair(it.getString(0)!!, it.getString(1)!!) }
+
+            // NOTE(Dan): This is really strange, fail with a warning
+            if (titleAndAdmins.isEmpty()) {
+                log.warn("changeRole succeeded for '$project' but no admins were found!")
+                return@withSession
+            }
+
+            val projectTitle = titleAndAdmins.first().first
+            val notifications = ArrayList<CreateNotification>()
+            val emails = ArrayList<SendRequestItem>()
+            for (reqItem in requestItems) {
+                if (reqItem.username !in updatedUsers) continue
+
+                val notificationMessage = "${reqItem.username} has changed role to ${reqItem.role} in project: $projectTitle"
+                for ((_, admin) in titleAndAdmins) {
+                    notifications.add(CreateNotification(
+                        admin,
+                        Notification(
+                            NotificationType.PROJECT_ROLE_CHANGE.name,
+                            notificationMessage,
+                            meta = JsonObject(mapOf("projectId" to JsonPrimitive(project))),
+                        )
+                    ))
+
+                    emails.add(SendRequestItem(
+                        admin,
+                        Mail.UserRoleChangeMail(
+                            reqItem.username,
+                            reqItem.role.name,
+                            projectTitle
+                        )
+                    ))
+                }
+            }
+
+            // NOTE(Dan): As always, we don't fail if one of the notification mechanisms fail.
+            NotificationDescriptions.createBulk.call(
+                BulkRequest(notifications),
+                serviceClient
+            )
+
+            MailDescriptions.sendToUser.call(
+                BulkRequest(emails),
+                serviceClient
+            )
+
+            for (reqItem in requestItems) {
+                projectCache.invalidate(reqItem.username)
+            }
+        }
+    }
+
+    suspend fun createGroup(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<Group.Specification>,
+        ctx: DBContext = db,
+    ): BulkResponse<FindByStringId> {
+        val (actor) = actorAndProject
+        val projects = request.items.map { it.project }.toSet()
+        return ctx.withSession { session ->
+            requireAdmin(actor, projects, session)
+
+            val ids = request.items.map { UUID.randomUUID().toString() }
+            val createdGroups = session.sendPreparedStatement(
+                {
+                    setParameter("ids", ids)
+                    request.items.split {
+                        into("projects") { it.project }
+                        into("titles") { it.title }
+                    }
+                },
+                """
+                    insert into project.groups(title, project, id)
+                    select unnest(:titles::text[]), unnest(:projects::text[]), unnest(:ids::text[])
+                    on conflict do nothing
+                    returning id
+                """
+            ).rows.map { it.getString(0)!! }
+
+            val success = createdGroups.isNotEmpty()
+            if (!success) {
+                throw RPCException(
+                    "Unable to create ${if (request.items.size > 1) "groups" else "group"}. " + 
+                        "Maybe a group with this name already exists in your project? " + 
+                        "Try refreshing or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            BulkResponse(ids.map { FindByStringId(it) })
+        }
+    }
+
+    private suspend fun requireAdminOfGroups(
+        actor: Actor,
+        groups: Collection<String>,
+        session: AsyncDBConnection,
+    ) {
+        val withoutDuplicates = groups.toSet()
+        val numberOfGroups = session.sendPreparedStatement(
+            {
+                setParameter("username", actor.safeUsername())
+                setParameter("groups", withoutDuplicates.toList())
+            },
+            """
+                select g.id
+                from
+                    project.project_members pm join
+                    project.groups g on pm.project_id = g.project
+                where
+                    g.id = some(:ids::text) and
+                    pm.username = :username and
+                    (pm.role = 'PI' or pm.role = 'ADMIN')
+            """
+        ).rows.size
+
+        if (numberOfGroups != withoutDuplicates.size) {
+            throw RPCException(
+                "You must be an admin of your project to perform this action! " +
+                    "Try refreshing or contact support for assistance.",
+                HttpStatusCode.BadRequest
+            )
+        }
+    }
+
+    suspend fun deleteGroup(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>,
+        ctx: DBContext = db,
+    ) {
+        val (actor) = actorAndProject
+        ctx.withSession { session ->
+            val groups = request.items.map { it.id }
+            requireAdminOfGroups(actor, groups, session)
+
+            session.sendPreparedStatement(
+                { setParameter("groups", groups) },
+                """
+                    delete from provider.resource_acl_entry e
+                    where e.group_id = some(:groups::text[])
+                """
+            )
+
+            session.sendPreparedStatement(
+                { setParameter("groups", groups) },
+                "delete from project.group_members where group_id = some(:groups::text[])"
+            )
+
+            val deletedGroups = session.sendPreparedStatement(
+                { setParameter("groups", groups) },
+                """
+                    delete from project.groups 
+                    where id = some(:groups::text[])
+                    returning id
+                """
+            ).rows.map { it.getString(0)!! }
+
+            val success = deletedGroups.isNotEmpty()
+            if (!success) {
+                throw RPCException(
+                    "Unable to delete groups. Maybe the group no longer exists? " + 
+                        "Try refreshing or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun createGroupMember(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<GroupMember>,
+        ctx: DBContext = db,
+    ) {
+        val (actor) = actorAndProject
+        ctx.withSession { session ->
+            val groups = request.items.map { it.group }
+            requireAdminOfGroups(actor, groups, session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("members") { it.username }
+                        into("groups") { it.group }
+                    }
+                },
+                """
+                    with
+                        raw_changes as (
+                            select unnest(:members::text[]) member, unnest(:groups::text[]) group_id
+                        ),
+                        changes as (
+                            select c.member, c.group_id
+                            from
+                                raw_changes c join
+                                project.groups g on c.group_id = g.id join
+                                project.project_members pm on
+                                    g.project = pm.project_id and
+                                    c.member = pm.username
+                        )
+                    insert into project.group_members (username, group_id)
+                    select c.member, c.group_id
+                    from changes c
+                    on conflict (group_id, username) do nothing;
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to add member to group. Maybe they are no longer in the project? " + 
+                        "Try refreshing or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    suspend fun deleteGroupMember(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<GroupMember>,
+        ctx: DBContext = db,
+    ) {
+        val (actor) = actorAndProject
+        ctx.withSession { session ->
+            val groups = request.items.map { it.group }
+            requireAdminOfGroups(actor, groups, session)
+
+            val success = session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("members") { it.username }
+                        into("groups") { it.group }
+                    }
+                },
+                """
+                    with changes as (
+                        select unnest(:members::text[]) member, unnest(:groups::text[]) group_id
+                    )
+                    delete from project.group_members gm
+                    using changes c
+                    where
+                        c.member = gm.username and
+                        c.group_id = gm.group_id
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to remove member of group. Maybe they are no longer in the group? " + 
+                        "Try refreshing or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+    }
 }
+

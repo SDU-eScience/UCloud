@@ -154,6 +154,11 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "updateSettings")
     }
 
+    // TODO Rename
+    // TODO unarchive
+    // TODO verification status
+    // TODO project path
+
     val verifyMembership = call<ProjectsVerifyMembershipRequest, Unit, CommonErrorMessage>("verifyMembership") {
         httpUpdate(baseContext, "verifyMembership")
     }
@@ -241,8 +246,8 @@ data class ProjectsBrowseRequest(
     override val includeArchived: Boolean? = null,
     override val includeSettings: Boolean? = null,
 
-    val sortBy: ProjectsSortBy = ProjectsSortBy.title,
-    val sortDirection: SortDirection = SortDirection.ascending
+    val sortBy: ProjectsSortBy? = null,
+    val sortDirection: SortDirection? = null,
 ) : ProjectFlags, WithPaginationRequestV2
 
 typealias ProjectsCreateRequest = BulkRequest<Project.Specification>
@@ -307,5 +312,5 @@ data class GroupMember(
 )
 
 typealias ProjectsCreateGroupMemberRequest = BulkRequest<GroupMember>
-typealias ProjectsDeleteGroupMemberRequest = BulkResponse<GroupMember>
+typealias ProjectsDeleteGroupMemberRequest = BulkRequest<GroupMember>
 

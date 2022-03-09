@@ -1,8 +1,8 @@
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {BulkRequest, PaginationRequestV2} from "@/UCloud";
-import {apiBrowse, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {BulkRequest, FindByStringId, PaginationRequestV2} from "@/UCloud";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate} from "@/Authentication/DataHook";
+import {ProjectRole as OldProjectRole} from "@/Project";
 
-export type ProjectRole = "PI" | "ADMIN" | "USER";
+export type ProjectRole = OldProjectRole;
 
 export interface ProjectMember {
     username: string;
@@ -61,6 +61,82 @@ export interface ProjectInvite {
     recipient: string;
 }
 
+class ProjectApi {
+    baseContext = "/api/projects/v2";
+
+    public retrieve(request: ProjectFlags & FindByStringId): APICallParameters {
+        return apiRetrieve(request, this.baseContext);
+    }
+
+    public browse(request: ProjectFlags & PaginationRequestV2): APICallParameters {
+        return apiBrowse(request, this.baseContext);
+    }
+
+    public create(request: ProjectSpecification): APICallParameters {
+        return apiCreate(request, this.baseContext);
+    }
+
+    public archive(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "archive");
+    }
+
+    public unarchive(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "unarchive");
+    }
+
+    public toggleFavorite(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "toggleFavorite");
+    }
+
+    public updateSettings(request: ProjectSettings): APICallParameters {
+        return apiUpdate(request, this.baseContext, "updateSettings");
+    }
+
+    public verifyMembership(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "verifyMembership");
+    }
+
+    public browseInvites(request: ProjectInviteFlags & PaginationRequestV2): APICallParameters {
+        return apiBrowse(request, this.baseContext, "invites");
+    }
+
+    public createInvite(request: BulkRequest<{recipient: string}>): APICallParameters {
+        return apiCreate(request, this.baseContext, "invites");
+    }
+
+    public acceptInvite(request: BulkRequest<FindByProjectId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "acceptInvite");
+    }
+
+    public deleteInvite(request: BulkRequest<FindByProjectId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteInvite");
+    }
+
+    public deleteMember(request: BulkRequest<{username: string}>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteMember");
+    }
+
+    public changeRole(request: BulkRequest<{username: string, role: ProjectRole}>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "changeRole");
+    }
+
+    public createGroup(request: BulkRequest<ProjectGroupSpecification>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "groups");
+    }
+
+    public createGroupMember(request: BulkRequest<{group: string, username: string}>): APICallParameters {
+        return apiCreate(request, this.baseContext, "groupMembers");
+    }
+
+    public deleteGroupMember(request: BulkRequest<{group: string, username: string}>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteGroupMember");
+    }
+}
+
+export interface FindByProjectId {
+    project: string;
+}
+
 export interface ProjectFlags {
     includeMembers?: boolean | null;
     includeGroups?: boolean | null;
@@ -69,12 +145,8 @@ export interface ProjectFlags {
     includeSettings?: boolean | null;
 }
 
-class ProjectApi {
-    baseContext = "/api/projects/v2";
-
-    public retrieve(request: ProjectFlags & FindById): APICallParameters {
-        return apiRetrieve(request, this.baseContext);
-    }
+export interface ProjectInviteFlags {
+    filterType?: "INGOING" | "OUTGOING" | null;
 }
 
 const api = new ProjectApi();

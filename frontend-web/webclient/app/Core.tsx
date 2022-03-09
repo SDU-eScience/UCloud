@@ -51,6 +51,7 @@ const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
+const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -157,6 +158,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/skus" component={Products} />
 
                     <Route exact path="/projects/" component={requireAuth(ProjectList)} />
+                    <Route exact path="/projects2/" component={requireAuth(ProjectList2)} />
                     <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
