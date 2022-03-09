@@ -37,6 +37,7 @@ import dk.sdu.cloud.project.api.Projects
 import dk.sdu.cloud.project.api.TransferPiRoleRequest
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.test.assertThatInstance
 import dk.sdu.cloud.service.test.assertThatPropertyEquals
@@ -2089,6 +2090,133 @@ class AccountingTest : IntegrationTest() {
                         assertEquals(0, output.wallets[1].allocations[1].balance)
                         assertEquals(0, output.wallets[1].allocations[1].localBalance)
 
+                    }
+                }
+            }
+        }
+   
+        run {
+            class In(
+                val rootBalance: Long,
+                val chainFromRoot: List<Allocation>,
+                val breadth: Int = 1,
+                val chargeAmount: Long = 100,
+                val extraAllocateAndCharge: Boolean = false
+            )
+
+            class Out(
+                val wallets: List<Wallet>
+            )
+
+            test<In, Out>("Charge fix test") {
+                execute {
+                    val leaves = prepareProjectChain(
+                        input.rootBalance, input.chainFromRoot,
+                        sampleStorageDifferential.category, breadth = input.breadth
+                    )
+
+                    val subproject = leaves.first()
+                    val leaf = leaves.last()
+
+                    val request1 = ChargeWalletRequestItem(
+                        leaf.owner,
+                        input.chargeAmount,
+                        1,
+                        sampleStorageDifferential.toReference(),
+                        leaf.username,
+                        "charge of storage",
+                        UUID.randomUUID().toString()
+                    )
+
+                    Accounting.charge.call(bulkRequestOf(request1), serviceClient).orThrow()
+
+                    val request2 = ChargeWalletRequestItem(
+                        leaf.owner,
+                        input.chargeAmount*2,
+                        1,
+                        sampleStorageDifferential.toReference(),
+                        leaf.username,
+                        "charge of storage",
+                        UUID.randomUUID().toString()
+                    )
+
+                    Accounting.charge.call(bulkRequestOf(request2), serviceClient).orThrow()
+
+                    if (input.extraAllocateAndCharge) {
+                        Accounting.deposit.call(
+                            bulkRequestOf(
+                                DepositToWalletRequestItem(
+                                    leaf.owner,
+                                    findWallet(subproject.client, sampleStorageDifferential.category)?.allocations?.first()?.id!!,
+                                    1000L,
+                                    "new deposit",
+                                    transactionId = UUID.randomUUID().toString()
+                                )
+                            ),
+                            subproject.client
+                        )
+
+                        val request3 = ChargeWalletRequestItem(
+                            leaf.owner,
+                            input.chargeAmount*2,
+                            1,
+                            sampleStorageDifferential.toReference(),
+                            leaf.username,
+                            "charge of storage",
+                            UUID.randomUUID().toString()
+                        )
+
+                        Accounting.charge.call(bulkRequestOf(request3), serviceClient).orThrow()
+                    }
+
+                    Out(
+                        leaves.map {
+                            findWallet(it.client, sampleStorageDifferential.category)!!
+                        }
+                    )
+                }
+
+                case("charge twice") {
+                    input(
+                        In(
+                            rootBalance = 10000L,
+                            chainFromRoot = listOf(Allocation(true, 3000L), Allocation(true, 1000L)),
+                            chargeAmount = 100L
+                        )
+                    )
+
+                    check {
+                        assertEquals(800, output.wallets.last().allocations.first().balance)
+                    }
+                }
+
+                case("charge twice - result in overcharge") {
+                    input(
+                        In(
+                            rootBalance = 10000L,
+                            chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                            chargeAmount = 750L
+                        )
+                    )
+
+                    check {
+                        assertEquals(-500, output.wallets.last().allocations.first().balance)
+                    }
+                }
+
+                case("charge twice - result in overcharge - new alloc and charge again") {
+                    input(
+                        In(
+                            rootBalance = 10000L,
+                            chainFromRoot = listOf(Allocation(true, 1000L), Allocation(true, 1000L)),
+                            chargeAmount = 750L,
+                            extraAllocateAndCharge = true
+                        )
+                    )
+
+                    check {
+                        assertEquals(0, output.wallets.last().allocations.first().balance)
+                        assertEquals(500, output.wallets.last().allocations.last().balance)
                     }
                 }
             }

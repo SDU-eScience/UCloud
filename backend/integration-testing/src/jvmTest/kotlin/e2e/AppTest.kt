@@ -25,8 +25,6 @@ suspend fun E2EIntegrationContext<*>.createApplication(
             ?: error("Could not find desired application")
     }
 
-    driver.clickUniqueButton("Run Application")
-
     await { driver.currentUrl.contains("/jobs/create") }
 
     retrySection {
@@ -42,13 +40,6 @@ suspend fun E2EIntegrationContext<*>.createApplication(
             jobCreation.hoursInput().apply {
                 clear()
                 sendKeys(hours.toString())
-            }
-        }
-
-        if (minutes != null) {
-            jobCreation.minutesInput().apply {
-                clear()
-                sendKeys(minutes.toString())
             }
         }
 
