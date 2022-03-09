@@ -41,7 +41,7 @@ class ProjectService(
     ): Project {
         val username = actorAndProject.actor.safeUsername()
         return ctx.withSession { session ->
-            loadProjects(username, session, request, relevantProjects(username, request.id))
+            loadProjects(username, session, request, relevantProjects(username, request.id, includeArchived = true))
         }.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
@@ -65,6 +65,7 @@ class ProjectService(
                 request,
                 relevantProjects(
                     username,
+                    includeArchived = request.includeArchived == true,
                     sortBy = request.sortBy ?: ProjectsSortBy.title,
                     sortDirection = request.sortDirection ?: SortDirection.ascending,
                     offset = offset,
@@ -80,6 +81,7 @@ class ProjectService(
     private fun relevantProjects(
         username: String,
         id: String? = null,
+        includeArchived: Boolean = false,
         sortBy: ProjectsSortBy? = null,
         sortDirection: SortDirection = SortDirection.ascending,
         offset: Long? = null,
@@ -107,6 +109,7 @@ class ProjectService(
                 {
                     setParameter("provider_id", providerId)
                     setParameter("id", id)
+                    setParameter("include_archived", includeArchived)
                 },
                 buildString {
                     // NOTE(Dan): In this case we need to look for allocations to a product the provider manages. We
@@ -131,7 +134,8 @@ class ProjectService(
                                 accounting.product_categories pc on w.category = pc.id join
                                 accounting.wallet_allocations wa on w.id = wa.associated_wallet
                             where
-                                pc.provider = :provider
+                                pc.provider = :provider and
+                                (:include_archived or p.archived = false)
                             order by p.project
                         """
                     )
@@ -150,6 +154,7 @@ class ProjectService(
                 {
                     setParameter("username", username)
                     setParameter("id", id)
+                    setParameter("include_archived", includeArchived)
                 },
                 buildString {
                     run {
@@ -175,6 +180,7 @@ class ProjectService(
                     run {
                         appendLine("where")
                         appendLine("pm.username = :username")
+                        appendLine("and (:include_archived or p.archived = false)")
 
                         appendLine("and (")
                         appendLine("  :id::text is null")

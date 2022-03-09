@@ -16,9 +16,17 @@ import { History } from "history";
 import { Box, Icon, Tooltip, Text, Flex } from "@/ui-components";
 import { projectRoleToString, projectRoleToStringIcon, useProjectId } from ".";
 import { Toggle } from "@/ui-components/Toggle";
-import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import {CheckboxFilter, FilterWidgetProps, ResourceFilter} from "@/Resource/Filter";
+import {doNothing} from "@/UtilityFunctions";
+import {useDispatch} from "react-redux";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const title = "Project";
+
+const [widget, pill] = CheckboxFilter("tags", "includeArchived", "Archived");
+const filterPills = [pill];
+const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
 
 const ProjectTooltip: React.FunctionComponent<{text: string}> = props => {
     return <Tooltip
@@ -75,8 +83,12 @@ const ProjectRenderer: ItemRenderer<Project> = {
 
     ImportantStats: ({resource}) => {
         const projectId = useProjectId();
-        if (!resource) return null;
+        const dispatch = useDispatch();
+        const updateProject = useCallback((id: string) => {
+            dispatchSetProjectAction(dispatch, id);
+        }, [dispatch]);
 
+        if (!resource) return null;
         const isActive = projectId === resource.id;
 
         return <>
@@ -97,14 +109,11 @@ const ProjectRenderer: ItemRenderer<Project> = {
                     checked={isActive}
                     onChange={() => {
                         if (isActive) return;
-                        /*
+                        updateProject(resource.id);
                         snackbarStore.addInformation(
-                            `${e.title} is now the active project`,
+                            `${resource.specification.title} is now the active project`,
                             false
                         );
-                        projectStatus.reload();
-                        props.setProject(e.projectId);
-                        */
                     }}
                 />
             </Flex>
@@ -185,10 +194,13 @@ export const ProjectList2: React.FunctionComponent = props => {
     const history = useHistory();
     const toggleSet = useToggleSet<Project>([]);
     const [commandLoading, invokeCommand] = useCloudCommand();
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
+    console.log(filters);
 
     const fetchProjects = useCallback((next?: string) => {
-        return Api.browse({includeFavorite: true, itemsPerPage: 100, next});
-    }, []);
+        return Api.browse({includeFavorite: true, itemsPerPage: 100, next, ...filters});
+    }, [filters]);
 
     const callbacks: Callbacks = useMemo(() => {
         return {
@@ -228,6 +240,18 @@ export const ProjectList2: React.FunctionComponent = props => {
             <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
                 entityNameSingular={title}
                 extra={callbacks} operations={operations} />
+
+            <ResourceFilter
+                browseType={BrowseType.MainContent}
+                pills={filterPills}
+                sortEntries={[]}
+                sortDirection={"ascending"}
+                filterWidgets={filterWidgets}
+                onSortUpdated={doNothing}
+                readOnlyProperties={{}}
+                properties={filters}
+                setProperties={setFilters}
+            />
         </>}
     />;
 };
