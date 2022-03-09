@@ -28,6 +28,10 @@ class ProjectsControllerV2(
             ok(projects.archive(actorAndProject, request))
         }
 
+        implement(Projects.unarchive) {
+            ok(projects.unarchive(actorAndProject, request))
+        }
+
         implement(Projects.toggleFavorite) {
             ok(projects.toggleFavorite(actorAndProject, request))
         }
