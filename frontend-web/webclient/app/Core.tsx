@@ -30,6 +30,8 @@ const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
+const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
+const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
@@ -51,7 +53,6 @@ const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
-const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -159,6 +160,7 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/projects/" component={requireAuth(ProjectList)} />
                     <Route exact path="/projects2/" component={requireAuth(ProjectList2)} />
+                    <Route exact path="/projects2/members/:project" component={requireAuth(ProjectMembers2)} />
                     <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
