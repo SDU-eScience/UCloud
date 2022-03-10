@@ -53,7 +53,7 @@ class SyncFolderService(
 
     init {
         files.addMoveHandler(::onFilesMoved)
-        files.addDeleteHandler(::onFilesDeleted)
+        files.addDeleteFileHandler(::onFilesDeleted)
         fileCollectionService.addDeleteHandler(::onFileCollectionDeleted)
     }
 

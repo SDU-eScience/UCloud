@@ -66,9 +66,9 @@ services:
         bind:
           propagation: slave
     ports:
-      - 8485:8384
-      - 22001:22001/tcp
-      - 22001:22001/udp
+      - ${SYNCTHING_API_PORT:-8485}:8384
+      - ${SYNCTHING_PORT:-22001}:22001/tcp
+      - ${SYNCTHING_PORT:-22001}:22001/udp
     restart: unless-stopped
 
   backend:

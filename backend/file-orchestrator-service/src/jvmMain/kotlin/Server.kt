@@ -11,7 +11,6 @@ import dk.sdu.cloud.file.orchestrator.rpc.*
 import dk.sdu.cloud.file.orchestrator.service.*
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.backgroundScope
-import dk.sdu.cloud.micro.redisConnectionManager
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 
@@ -74,7 +73,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addTrashHandler(metadataService::onFileMovedToTrash)
-        filesService.addDeleteHandler(metadataService::onFilesDeleted)
+
         syncFolderService.initialize()
 
         configureControllers(
