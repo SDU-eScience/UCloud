@@ -511,6 +511,22 @@ export function normalizeBalanceForBackend(
     }
 }
 
+export function normalizeBalanceForFrontendOpts(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit,
+    opts: {
+        isPrice?: boolean,
+        precisionOverride?: number,
+        multiplier?: number,
+        forceInteger?: boolean
+    }
+): string {
+    return normalizeBalanceForFrontend(balance, type, chargeType, unit,
+        opts.isPrice ?? true, opts.precisionOverride, opts.multiplier, opts.forceInteger);
+}
+
 export function normalizeBalanceForFrontend(
     balance: number,
     type: ProductType,
@@ -518,7 +534,8 @@ export function normalizeBalanceForFrontend(
     unit: ProductPriceUnit,
     isPrice: boolean,
     precisionOverride?: number,
-    multiplier?: number
+    multiplier?: number,
+    forceInteger?: boolean
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -530,7 +547,7 @@ export function normalizeBalanceForFrontend(
         case "CREDITS_PER_HOUR":
         case "CREDITS_PER_DAY": {
             if (!isPrice) {
-                return currencyFormatter(balance, precisionOverride ?? 2);
+                return currencyFormatter(balance, precisionOverride ?? 2, forceInteger ?? false);
             }
 
             const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
@@ -538,27 +555,27 @@ export function normalizeBalanceForFrontend(
             switch (type) {
                 case "INGRESS": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "NETWORK_IP": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "LICENSE": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "STORAGE": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "COMPUTE": {
                     const factor = (HOUR / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4, forceInteger ?? false);
                 }
                 case "SYNCHRONIZATION": {
                     const factor = HOUR / inputIs;
-                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4, forceInteger ?? false);
                 }
             }
         }
@@ -599,12 +616,16 @@ export function normalizeBalanceForFrontend(
     }
 }
 
-function currencyFormatter(credits: number, precision = 2): string {
+function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
+
+    if (forceInteger) {
+        return ((credits / 1000000) | 0).toString();
+    }
 
     // Edge-case handling
     if (credits < 0) {
-        return "-" + currencyFormatter(-credits);
+        return "-" + currencyFormatter(-credits, precision, forceInteger);
     } else if (credits === 0) {
         return "0";
     } else if (credits < Math.pow(10, 6 - precision)) {
