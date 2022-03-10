@@ -1237,7 +1237,7 @@ class ProjectService(
                     project.project_members pm join
                     project.groups g on pm.project_id = g.project
                 where
-                    g.id = some(:ids::text) and
+                    g.id = some(:groups::text[]) and
                     pm.username = :username and
                     (pm.role = 'PI' or pm.role = 'ADMIN')
             """

@@ -1,8 +1,8 @@
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useReducer } from "react";
-import { default as Api, Project, ProjectGroup, ProjectMember } from "./Api";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
+import { default as Api, Project, ProjectGroup, ProjectMember, ProjectInvite } from "./Api";
 import styled from "styled-components";
-import { useHistory, useLocation, useParams } from "react-router";
+import { useHistory, useParams } from "react-router";
 import MainContainer from "@/MainContainer/MainContainer";
 import { callAPI, useCloudAPI } from "@/Authentication/DataHook";
 import { BreadCrumbsBase } from "@/ui-components/Breadcrumbs";
@@ -43,14 +43,25 @@ import { buildQueryString, getQueryParam } from "@/Utilities/URIUtilities";
 import { History } from "history";
 import BaseLink from "@/ui-components/BaseLink";
 import { deepCopy } from "@/Utilities/CollectionUtilities";
+import { Operation } from "@/ui-components/Operation";
+import { useTitle, useLoading } from "@/Navigation/Redux/StatusActions";
+import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
+import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
+import { PageV2 } from "@/UCloud";
+import { emptyPageV2 } from "@/DefaultObjects";
 
 // UI state management
 // ================================================================================
-type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup;
+type ProjectAction = AddToGroup | RemoveFromGroup | Reload | InspectGroup | InviteMember | ReloadInvites;
 
 interface Reload {
     type: "Reload";
     project: Project;
+}
+
+interface ReloadInvites {
+    type: "ReloadInvites";
+    invites: PageV2<ProjectInvite>;
 }
 
 interface AddToGroup {
@@ -70,26 +81,50 @@ interface InspectGroup {
     group: string | null;
 }
 
-function projectReducer(state: Project | null, action: ProjectAction): Project | null {
-    if (state === null) {
-        if (action.type === "Reload") return action.project;
-        return state;
-    }
+interface InviteMember {
+    type: "InviteMember";
+    members: string[];
+}
 
+interface UIState {
+    project: Project | null;
+    invites: PageV2<ProjectInvite>;
+}
+
+function projectReducer(state: UIState, action: ProjectAction): UIState {
     const copy = deepCopy(state);
     switch (action.type) {
+        case "Reload": {
+            copy.project = action.project;
+            return copy;
+        }
+
+        case "ReloadInvites": {
+            copy.invites = action.invites;
+            return copy;
+        }
+    }
+
+    const project = copy.project;
+    if (!project) return state;
+
+    switch (action.type) {
         case "AddToGroup": {
-            const g = copy.status.groups!.find(it => it.id === action.group);
+            const g = project.status.groups!.find(it => it.id === action.group);
             if (!g) return state;
             g.status.members!.push(action.member);
             return copy;
         }
 
         case "RemoveFromGroup": {
-            const g = copy.status.groups!.find(it => it.id === action.group);
+            const g = project.status.groups!.find(it => it.id === action.group);
             if (!g) return state;
             g.status.members = g.status.members!.filter(gm => gm !== action.member);
             return copy;
+        }
+
+        case "InviteMember": {
+            // TODO actually show the invites
         }
     }
     return state;
@@ -97,8 +132,9 @@ function projectReducer(state: Project | null, action: ProjectAction): Project |
 
 // NOTE(Dan): Implements side effects which need to occur based on an action. This typically involves sending commands
 // to the backend which reflect the desired change.
-function onAction(state: Project | null, action: ProjectAction, cb: ActionCallbacks) {
-    if (!state) return;
+function onAction(state: UIState, action: ProjectAction, cb: ActionCallbacks) {
+    const {project, invites} = state;
+    if (!project) return;
     switch (action.type) {
         case "AddToGroup": {
             callAPI(Api.createGroupMember(bulkRequestOf({group: action.group, username: action.member})));
@@ -111,7 +147,12 @@ function onAction(state: Project | null, action: ProjectAction, cb: ActionCallba
         }
 
         case "InspectGroup": {
-            cb.history.push(buildQueryString(`/projects2/members/${state.id}`, {group: action.group ?? undefined}));
+            cb.history.push(buildQueryString(`/projects2/members/${project.id}`, {group: action.group ?? undefined}));
+            break;
+        }
+
+        case "InviteMember": {
+            callAPI(Api.createInvite(bulkRequestOf(...action.members.map(it => ({recipient: it})))));
             break;
         }
     }
@@ -124,24 +165,37 @@ interface ActionCallbacks {
 // Primary user interface
 // ================================================================================
 export const ProjectMembers2: React.FunctionComponent = () => {
+    // Input "parameters"
+    const history = useHistory();
     const params = useParams<{ project: string }>();
+    const inspectingGroupId = getQueryParam(history.location.search, "group");
     const projectId = params.project;
+
+    // Remote data
+    const [invitesFromApi, fetchInvites] = useCloudAPI<PageV2<ProjectInvite>>({noop: true}, emptyPageV2);
     const [projectFromApi, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     const avatars = useAvatars();
-    const [project, pureDispatch] = useReducer(projectReducer, null);
+
+    // UI state
+    const [uiState, pureDispatch] = useReducer(projectReducer, {project: null, invites: emptyPageV2});
+    const {project, invites} = uiState;
     const groupToggleSet = useToggleSet([]);
     const groupMemberToggleSet = useToggleSet([]);
-    const history = useHistory();
-    const inspectingGroupId = getQueryParam(history.location.search, "group");
 
+    const [memberQuery, setMemberQuery] = useState<string>("");
+    const updateMemberQueryFromEvent = useCallback((e: React.SyntheticEvent) => {
+        setMemberQuery((e.target as HTMLInputElement).value);
+    }, []);
+
+    // UI callbacks and state manipulation
     const actionCb: ActionCallbacks = useMemo(() => ({
         history
     }), [history]);
 
     const dispatch = useCallback((action: ProjectAction) => {
-        onAction(project, action, actionCb);
+        onAction(uiState, action, actionCb);
         pureDispatch(action);
-    }, [project, pureDispatch, actionCb]);
+    }, [uiState, pureDispatch, actionCb]);
 
     const reload = useCallback(() => {
         fetchProject(Api.retrieve({
@@ -151,22 +205,57 @@ export const ProjectMembers2: React.FunctionComponent = () => {
             includeArchived: true,
             includeGroups: true,
         }));
+
+        fetchInvites(Api.browseInvites({
+            itemsPerPage: 50,
+            filterType: "OUTGOING",
+        }));
     }, [projectId]);
 
+    // Aliases and computed data
+    const inspectingGroup: ProjectGroup | null =
+        !inspectingGroupId || !project ? null : 
+            project.status.groups!.find(it => it.id === inspectingGroupId) ?? null;
+
+    const isAdmin = !project ? false : isAdminOrPI(project.status.myRole!);
+
+    const groups: ProjectGroup[] = !project ? [] : project.status.groups!;
+    const relevantMembers: ProjectMember[] = useMemo(() => {
+        if (!project) return [];
+
+        const allMembers = project.status.members!;
+        const normalizedQuery = memberQuery.trim().toLowerCase();
+        if (normalizedQuery === "") return allMembers;
+
+        return allMembers.filter(m => m.username.toLowerCase().indexOf(normalizedQuery) != -1);
+    }, [project, memberQuery]);
+
+    const callbacks: Callbacks = useMemo(() => ({
+        dispatch,
+        inspectingGroup,
+        isAdmin
+    }), [dispatch, inspectingGroup, isAdmin]);
+
+    // Effects
     useEffect(() => reload(), [reload]);
+
     useEffect(() => {
         if (!projectFromApi.data) return;
         avatars.updateCache(projectFromApi.data.status.members!.map(it => it.username));
         dispatch({type: "Reload", project: projectFromApi.data});
     }, [projectFromApi.data]);
 
-    if (!project) return null;
+    useEffect(() => {
+        if (!invitesFromApi.data) return;
+        dispatch({type: "ReloadInvites", invites: invitesFromApi.data});
+    }, [invitesFromApi.data]);
 
-    const isAdmin = isAdminOrPI(project.status.myRole!);
-    const members = project.status.members!;
-    const groups = project.status.groups!;
-    const inspectingGroup: ProjectGroup | null =
-        !inspectingGroupId ? null : groups.find(it => it.id === inspectingGroupId) ?? null;
+    useTitle("Member and Group Management");
+    useRefreshFunction(reload);
+    useSidebarPage(SidebarPages.Projects);
+    useLoading(projectFromApi.loading || invitesFromApi.loading);
+
+    if (!project) return null;
 
     return <MainContainer
         sidebar={null}
@@ -243,11 +332,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                 placeholder="Search existing project members..."
                                 pr="30px"
                                 autoComplete="off"
-                                // disabled={isLoading}
-                                // value={memberSearchQuery}
-                                // onChange={e => {
-                                //     setMemberSearchQuery(e.target.value);
-                                //}}
+                                value={memberQuery}
+                                onChange={updateMemberQueryFromEvent}
                             />
                             <Relative>
                                 <Absolute right="6px" top="10px">
@@ -259,7 +345,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                         </form>
                     </SearchContainer>
                     <Grid gridGap={"16px"}>
-                        {members.map(it => (
+                        {relevantMembers.map(it => (
                             <MemberCard key={it.username} project={project} member={it}
                                         inspectingGroup={inspectingGroup} dispatch={dispatch}/>
                         ))}
@@ -296,8 +382,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                 browseType={BrowseType.Embedded}
                                 renderer={GroupRenderer}
                                 toggleSet={groupToggleSet}
-                                operations={[]}
-                                callbacks={{}}
+                                operations={groupOperations}
+                                callbacks={callbacks}
                                 itemTitle={"Group"}
                                 navigate={() => dispatch({type: "InspectGroup", group: g.id})}
                             />
@@ -305,7 +391,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                     </>}
 
                     {!inspectingGroup ? null : <>
-                        <Flex>
+                        <Flex mb="16px">
                             <BaseLink onClick={() => dispatch({type: "InspectGroup", group: null})}>
                                 <Button mt="4px" width="42px" height="34px"><Icon rotation={90} name="arrowDown" /></Button>
                             </BaseLink>
@@ -322,8 +408,8 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                                     browseType={BrowseType.Embedded}
                                     renderer={GroupMemberRenderer}
                                     toggleSet={groupMemberToggleSet}
-                                    operations={[]}
-                                    callbacks={{}}
+                                    operations={groupMemberOperations}
+                                    callbacks={callbacks}
                                     itemTitle={"Member"}
                                 />
                             ))}
@@ -426,8 +512,32 @@ const GroupRenderer: ItemRenderer<ProjectGroup> = {
     Icon: ({resource}) => null,
     MainTitle: ({resource}) => <>{resource?.specification?.title}</>,
     Stats: ({resource}) => null,
-    ImportantStats: ({resource}) => null,
+    ImportantStats: ({resource}) => {
+        if (!resource) return null;
+        const numberOfMembers = resource.status.members?.length;
+        return <><Icon name="user" mr="8px" /> {numberOfMembers}</>;
+    },
 };
+
+const groupOperations: Operation<ProjectGroup, Callbacks>[] = [
+    {
+        text: "Rename",
+        icon: "rename",
+        enabled: (groups, cb) => {
+            return groups.length === 1 && cb.isAdmin;
+        },
+        onClick: (groups, cb) => {
+        }
+    },
+    {
+        text: "Properties",
+        icon: "properties",
+        enabled: (groups) => groups.length === 1,
+        onClick: ([group], cb) => {
+            cb.dispatch({type: "InspectGroup", group: group.id});
+        }
+    }
+];
 
 const GroupMemberRenderer: ItemRenderer<string> = {
     Icon: ({resource}) => {
@@ -438,8 +548,30 @@ const GroupMemberRenderer: ItemRenderer<string> = {
     MainTitle: ({resource}) => <>{resource}</>,
 };
 
+const groupMemberOperations: Operation<string, Callbacks>[] = [
+    {
+        text: "Remove",
+        icon: "close",
+        color: "red",
+        primary: true,
+        enabled: (members, cb) => members.length > 0 && !!cb.inspectingGroup,
+        onClick: (members, cb) => {
+            if (!cb.inspectingGroup) return;
+            members.forEach(member => {
+                cb.dispatch({type: "RemoveFromGroup", member, group: cb.inspectingGroup!.id});
+            });
+        }
+    }
+];
+
 // Utilities
 // ================================================================================
+interface Callbacks {
+    dispatch: (action: ProjectAction) => void;
+    inspectingGroup: ProjectGroup | null;
+    isAdmin: boolean;
+}
+
 interface RoleOption {
     text: string;
     icon: IconName;
