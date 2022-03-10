@@ -492,33 +492,32 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
         >
             <Text color="darkGray" fontSize={1}>Usage across different products</Text>
 
-            <Flex justifyContent={"center"}>
-                <PieChart width={215} height={215}>
-                    <Pie
-                        data={props.chart.chart.points}
-                        fill="#8884d8"
-                        dataKey="value"
-                        innerRadius={55}
-                    >
-                        {props.chart.chart.points.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
-                        ))}
-                    </Pie>
-                </PieChart>
-            </Flex>
-
-            <Flex pb="12px" style={{overflowX: "auto"}} justifyContent={"center"}>
-                {props.chart.chart.points.map((it, index) =>
-                    <Box mx="4px" width="auto" style={{whiteSpace: "nowrap"}} key={it.name}>
-                        <ChartPointName name={it.name} />
-                        <Text
-                            textAlign="center"
-                            color={getCssVar(COLORS[index % COLORS.length])}
+            <Flex>
+                <Flex mt="12px">
+                    <PieChart width={215} height={215}>
+                        <Pie
+                            data={props.chart.chart.points}
+                            fill="#8884d8"
+                            dataKey="value"
+                            innerRadius={55}
                         >
-                            {toPercentageString(it.value / totalUsage)}
-                        </Text>
-                    </Box>
-                )}
+                            {props.chart.chart.points.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
+                            ))}
+                        </Pie>
+                    </PieChart>
+                </Flex>
+
+                <Box ml="4px" textAlign="center" width="100%" height="330px" pb="12px" style={{overflowY: "auto"}} justifyContent={"center"}>
+                    {props.chart.chart.points.map((it, index) =>
+                        <Box mb="4px" width="100%" style={{whiteSpace: "nowrap"}} key={it.name}>
+                            <ChartPointName name={it.name} />
+                            <Text textAlign="center" color={getCssVar(COLORS[index % COLORS.length])}>
+                                {toPercentageString(it.value / totalUsage)}
+                            </Text>
+                        </Box>
+                    )}
+                </Box>
             </Flex>
         </HighlightedCard>
     )
@@ -528,7 +527,7 @@ function ChartPointName({name}: {name: string}): JSX.Element {
     const [first, second, third] = name.split(" / ");
     return (
         <div>
-            <Text textAlign="center" fontSize="14px">{first}</Text>
+            <Text fontSize="14px">{first}</Text>
             <SubText>{second}{third ? ` / ${third}` : null}</SubText>
         </div>
     );
