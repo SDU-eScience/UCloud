@@ -31,6 +31,7 @@ const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
 const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
+const ProjectDashboard2 = React.lazy(() => import("@/Project/Dashboard2"));
 const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
@@ -158,9 +159,11 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/skus" component={Products} />
 
-                    <Route exact path="/projects/" component={requireAuth(ProjectList)} />
                     <Route exact path="/projects2/" component={requireAuth(ProjectList2)} />
-                    <Route exact path="/projects2/members/:project" component={requireAuth(ProjectMembers2)} />
+                    <Route exact path="/projects2/:project" component={requireAuth(ProjectDashboard2)} />
+                    <Route exact path="/projects2/:project/members" component={requireAuth(ProjectMembers2)} />
+
+                    <Route exact path="/projects/" component={requireAuth(ProjectList)} />
                     <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />

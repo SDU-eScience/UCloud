@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.services.projects.v2
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.util.PartialQuery
 import dk.sdu.cloud.accounting.util.ProjectCache
@@ -654,6 +655,13 @@ class ProjectService(
                 {
                     setParameter("next", pagination.next?.toLongOrNull()?.let { it / 1000 })
                     setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter(
+                        "project_filter", if (request.filterType == ProjectInviteType.OUTGOING) {
+                            actorAndProject.project
+                        } else {
+                            null
+                        }
+                    )
                 },
                 buildString {
                     appendLine(
@@ -690,6 +698,7 @@ class ProjectService(
                             }
                             ProjectInviteType.OUTGOING -> {
                                 appendLine("and i.invited_by = :username")
+                                appendLine("and i.project_id = :project_filter")
                             }
                             null -> {
                                 appendLine("and (i.username = :username or i.invited_by = :username)")
@@ -743,6 +752,7 @@ class ProjectService(
                 {
                     setParameter("username", actor.safeUsername())
                     setParameter("recipients", request.items.map { it.recipient })
+                    setParameter("project", project)
                 },
                 """
                     with relevant_invites as (
@@ -757,13 +767,14 @@ class ProjectService(
                                 i.project_id = :project
                         where
                             p.id = some(:recipients::text[]) and
+                            p.role != 'SERVICE' and
                             pm.username is null and
                             i.username is null
                     )
                     insert into project.invites (project_id, username, invited_by) 
                     select :project, invited_user, :username
                     from relevant_invites
-                    returning invited_user
+                    returning username
                 """
             ).rows.map { it.getString(0)!! }
 
@@ -906,10 +917,15 @@ class ProjectService(
         ctx: DBContext = db,
     ) {
         // NOTE(Dan): This endpoint is used both by the recipient and the sender.
+        val (actor) = actorAndProject
+        val myUsername = actor.safeUsername()
+        val isDeletingAsRecipient = request.items.all { it.username == myUsername }
+
         ctx.withSession { session ->
             val success = session.sendPreparedStatement(
                 {
-                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("user_is_recipient", isDeletingAsRecipient)
+                    setParameter("username", myUsername)
                     setParameter("projects", request.items.map { it.project })
                 },
                 """
@@ -917,8 +933,8 @@ class ProjectService(
                     where
                         project_id = some(:projects::text[]) and
                         (
-                            username = :username or
-                            invited_by = :username
+                            (:user_is_recipient =  true and username = :username) or
+                            (:user_is_recipient = false and invited_by = :username)
                         )
                 """
             ).rowsAffected > 0
@@ -1249,6 +1265,52 @@ class ProjectService(
                     "Try refreshing or contact support for assistance.",
                 HttpStatusCode.BadRequest
             )
+        }
+    }
+
+    suspend fun renameGroup(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<ProjectsRenameGroupRequestItem>,
+        ctx: DBContext = db,
+    ) {
+        for (reqItem in request.items) {
+            try {
+                checkSingleLine(ProjectsRenameGroupRequestItem::newTitle, reqItem.newTitle, maximumSize = 128)
+            } catch (ex: Throwable) {
+                throw RPCException("The new title is too long! Try a shorter title.", HttpStatusCode.BadRequest)
+            }
+        }
+
+        val (actor) = actorAndProject
+        ctx.withSession { session ->
+            val groups = request.items.map { it.group }
+            requireAdminOfGroups(actor, groups, session)
+
+            val success = session.sendPreparedStatement(
+                { 
+                    setParameter("groups", groups)
+                    setParameter("titles", request.items.map { it.newTitle })
+                },
+                """
+                    with changes as (
+                        select
+                            unnest(:groups::text[]) group_id, 
+                            unnest(:titles::text[]) new_title
+                    )
+                    update project.groups g
+                    set title = new_title
+                    from changes
+                    where g.id = group_id
+                """
+            ).rowsAffected > 0
+
+            if (!success) {
+                throw RPCException(
+                    "Unable to rename groups. Maybe the group no longer exists? " + 
+                        "Try refreshing or contact support for assistance.",
+                    HttpStatusCode.BadRequest
+                )
+            }
         }
     }
 

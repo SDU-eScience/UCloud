@@ -167,7 +167,6 @@ object Projects : CallDescriptionContainer("projects.v2") {
     }
 
     // TODO Rename
-    // TODO unarchive
     // TODO verification status
 
     val verifyMembership = call<ProjectsVerifyMembershipRequest, Unit, CommonErrorMessage>("verifyMembership") {
@@ -207,6 +206,14 @@ object Projects : CallDescriptionContainer("projects.v2") {
 
     val createGroup = call<ProjectsCreateGroupRequest, BulkResponse<FindByStringId>, CommonErrorMessage>("createGroup") {
         httpCreate(baseContext, groupResource)
+    }
+
+    val renameGroup = call<ProjectsRenameGroupRequest, Unit, CommonErrorMessage>("renameGroup") {
+        httpUpdate(baseContext, "renameGroup")
+    }
+
+    val deleteGroup = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("deleteGroup") {
+        httpUpdate(baseContext, "deleteGroup")
     }
 
     // Group member management
@@ -298,7 +305,13 @@ typealias ProjectsCreateInviteRequest = BulkRequest<ProjectsCreateInviteRequestI
 @Serializable
 data class FindByProjectId(val project: String)
 typealias ProjectsAcceptInviteRequest = BulkRequest<FindByProjectId>
-typealias ProjectsDeleteInviteRequest = BulkRequest<FindByProjectId>
+
+@Serializable
+data class ProjectsDeleteInviteRequestItem(
+    val project: String,
+    val username: String,
+)
+typealias ProjectsDeleteInviteRequest = BulkRequest<ProjectsDeleteInviteRequestItem>
 
 @Serializable
 data class ProjectsDeleteMemberRequestItem(val username: String)
@@ -318,7 +331,15 @@ data class ProjectsRetrieveGroupRequest(
     override val includeMembers: Boolean? = null
 ) : ProjectGroupFlags
 
-typealias ProjectsCreateGroupRequest = Group.Specification
+typealias ProjectsCreateGroupRequest = BulkRequest<Group.Specification>
+
+@Serializable
+data class ProjectsRenameGroupRequestItem(
+    val group: String,
+    val newTitle: String,
+)
+
+typealias ProjectsRenameGroupRequest = BulkRequest<ProjectsRenameGroupRequestItem>
 
 @Serializable
 data class GroupMember(

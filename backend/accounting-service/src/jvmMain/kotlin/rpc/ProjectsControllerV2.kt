@@ -69,7 +69,15 @@ class ProjectsControllerV2(
         }
 
         implement(Projects.createGroup) {
-            ok(projects.createGroup(actorAndProject, bulkRequestOf(request)))
+            ok(projects.createGroup(actorAndProject, request))
+        }
+
+        implement(Projects.renameGroup) {
+            ok(projects.renameGroup(actorAndProject, request))
+        }
+
+        implement(Projects.deleteGroup) {
+            ok(projects.deleteGroup(actorAndProject, request))
         }
 
         implement(Projects.createGroupMember) {

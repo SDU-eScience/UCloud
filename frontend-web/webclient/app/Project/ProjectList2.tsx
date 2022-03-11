@@ -373,7 +373,7 @@ const ProjectInvite: React.FunctionComponent<{
 
     const rejectInvite = useCallback(async () => {
         onInviteHandled(invite);
-        await callAPI(Api.deleteInvite(bulkRequestOf({project: invite.invitedTo})));
+        await callAPI(Api.deleteInvite(bulkRequestOf({project: invite.invitedTo, username: invite.recipient})));
         requestReload();
     }, [onInviteHandled, invite, requestReload]);
     return (

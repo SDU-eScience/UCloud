@@ -119,9 +119,9 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
 }
 
 export interface ItemRenderer<T, CB = any> {
-    Icon?: React.FunctionComponent<{resource?: T, size: string; browseType: BrowseType;}>;
-    MainTitle?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
-    Stats?: React.FunctionComponent<{resource?: T; browseType: BrowseType}>;
+    Icon?: React.FunctionComponent<{resource?: T, size: string; browseType: BrowseType; callbacks: CB;}>;
+    MainTitle?: React.FunctionComponent<{resource?: T; browseType: BrowseType; callbacks: CB;}>;
+    Stats?: React.FunctionComponent<{resource?: T; browseType: BrowseType; callbacks: CB;}>;
     ImportantStats?: React.FunctionComponent<{resource?: T; callbacks: CB; browseType: BrowseType}>;
 }
 
@@ -172,21 +172,21 @@ export const ItemRow = <T, CB>(
     return <ListRow
         disableSelection={props.disableSelection}
         onContextMenu={onContextMenu}
-        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} /> : null}
+        icon={renderer.Icon ? <renderer.Icon resource={props.item} size={"36px"} browseType={props.browseType} callbacks={props.callbacks} /> : null}
         highlight={props.highlight}
         left={
             props.item && props.renaming?.isRenaming(props.item) === true ?
                 <NamingField onCancel={props.renaming?.onRenameCancel ?? doNothing} confirmText={"Rename"}
                     inputRef={renameInputRef} onSubmit={onRename}
                     defaultValue={renameValue} /> :
-                renderer.MainTitle ? <renderer.MainTitle browseType={props.browseType} resource={props.item} /> : null
+                renderer.MainTitle ? <renderer.MainTitle browseType={props.browseType} resource={props.item} callbacks={props.callbacks} /> : null
         }
         isSelected={props.item && props.toggleSet.checked.has(props.item)}
         select={() => props.item ? props.toggleSet.toggle(props.item) : 0}
         navigate={props.navigate && props.item ? () => props.navigate?.(props.item!) : undefined}
         leftSub={
             <ListStatContainer>
-                {renderer.Stats ? <renderer.Stats browseType={props.browseType} resource={props.item} /> : null}
+                {renderer.Stats ? <renderer.Stats browseType={props.browseType} resource={props.item} callbacks={props.callbacks} /> : null}
             </ListStatContainer>
         }
         right={

@@ -100,8 +100,13 @@ class Server(
                 MembershipController(db, projectQueryService),
                 ProjectController(db, projectService, projectQueryService),
                 ProviderController(providerService, micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")),
-                ProjectsControllerV2(projectsV2),
             )
+
+            if (micro.developmentModeEnabled || micro.commandLineArguments.contains("--projects-v2")) {
+                configureControllers(
+                    ProjectsControllerV2(projectsV2),
+                )
+            }
         }
 
         startServices()

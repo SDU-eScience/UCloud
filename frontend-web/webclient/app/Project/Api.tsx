@@ -110,7 +110,7 @@ class ProjectApi {
         return apiUpdate(request, this.baseContext, "acceptInvite");
     }
 
-    public deleteInvite(request: BulkRequest<FindByProjectId>): APICallParameters {
+    public deleteInvite(request: BulkRequest<{ username: string, project: string }>): APICallParameters {
         return apiUpdate(request, this.baseContext, "deleteInvite");
     }
 
@@ -124,6 +124,14 @@ class ProjectApi {
 
     public createGroup(request: BulkRequest<ProjectGroupSpecification>): APICallParameters {
         return apiUpdate(request, this.baseContext, "groups");
+    }
+
+    public renameGroup(request: BulkRequest<{ group: string, newTitle: string }>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "renameGroup");
+    }
+
+    public deleteGroup(request: BulkRequest<FindByStringId>): APICallParameters {
+        return apiUpdate(request, this.baseContext, "deleteGroup");  
     }
 
     public createGroupMember(request: BulkRequest<{group: string, username: string}>): APICallParameters {
