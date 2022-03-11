@@ -11,6 +11,7 @@ typealias IntegrationProviderRetrieveManifestRequest = Unit
 @Serializable
 data class IntegrationProviderRetrieveManifestResponse(
     val enabled: Boolean,
+    val expireAfterMs: Long? = null,
 )
 
 @Serializable

@@ -52,18 +52,7 @@ class RpcServer(
         if (showWelcomeMessage) {
             println(buildString {
                 append("\u001B[34m")
-                append(
-                    """
-                         __  __  ____    ___                      __     
-                        /\ \/\ \/\  _`\ /\_ \                    /\ \    
-                        \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version $version
-                         \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:$port
-                          \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
-                           \ \_____\ \____//\____\ \____/\ \____\ \___,_\
-                            \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
-                                                             
-                    """.trimIndent()
-                )
+                append(welcomeMessage)
                 append("\u001B[0m")
             })
         }
@@ -346,6 +335,18 @@ class RpcServer(
             }
         )
     }
+
+    private val welcomeMessage = """
+         __  __  ____    ___                      __     
+        /\ \/\ \/\  _`\ /\_ \                    /\ \    
+        \ \ \ \ \ \ \/\_\//\ \     ___   __  __  \_\ \      Version $version
+         \ \ \ \ \ \ \/_/_\ \ \   / __`\/\ \/\ \ /'_` \     Running on http://localhost:$port
+          \ \ \_\ \ \ \L\ \\_\ \_/\ \L\ \ \ \_\ /\ \L\ \ 
+           \ \_____\ \____//\____\ \____/\ \____\ \___,_\
+            \/_____/\/___/ \/____/\/___/  \/___/ \/__,_ /
+                                             
+    """.trimIndent()
+
 
     companion object : Loggable {
         override val log = logger()

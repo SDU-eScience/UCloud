@@ -1,4 +1,5 @@
 .env
+tags
 ### Java template
 # Compiled class file
 *.class
