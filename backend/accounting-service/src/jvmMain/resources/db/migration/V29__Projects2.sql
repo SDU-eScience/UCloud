@@ -1,3 +1,20 @@
+create or replace function project.group_to_json(
+    group_in project.groups,
+    members_in project.group_members[]
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'id', group_in.id,
+        'createdAt', 0, -- TODO This is currently not known
+        'specification', jsonb_build_object(
+            'project', group_in.project,
+            'title', group_in.title
+        ),
+        'status', jsonb_build_object(
+            'members', array_remove((select array_agg(t.username) from unnest(members_in) as t), null)
+        )
+    );
+$$;
+
 create or replace function project.project_to_json(
     project_in project.projects,
     groups_in project.groups[],
@@ -46,21 +63,3 @@ create or replace function project.project_to_json(
         )
     );
 $$;
-
-create or replace function project.group_to_json(
-    group_in project.groups,
-    members_in project.group_members[]
-) returns jsonb language sql as $$
-    select jsonb_build_object(
-        'id', group_in.id,
-        'createdAt', 0, -- TODO This is currently not known
-        'specification', jsonb_build_object(
-            'project', group_in.project,
-            'title', group_in.title
-        ),
-        'status', jsonb_build_object(
-            'members', array_remove((select array_agg(t.username) from unnest(members_in) as t), null)
-        )
-    );
-$$;
-

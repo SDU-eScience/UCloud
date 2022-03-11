@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "webclient"
-    version = "2022.1.17"
+    version = "2022.1.20"
 
     withAmbassador(null) {
         addSimpleMapping("/api/auth-callback")

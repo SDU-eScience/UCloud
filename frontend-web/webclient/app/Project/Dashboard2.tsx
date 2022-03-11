@@ -57,7 +57,7 @@ const ProjectDashboard: React.FunctionComponent = () => {
                 <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
                     <span><Link to="/projects2">My Projects</Link></span>
                     <span>
-                        <Link to={`/projects2/${projectId}/dashboard`}>
+                        <Link to={`/projects2/${projectId}`}>
                             {shorten(20, project.specification.title)}
                         </Link>
                     </span>

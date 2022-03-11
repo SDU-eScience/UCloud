@@ -358,7 +358,7 @@ async function onAction(state: UIState, action: ProjectAction, cb: ActionCallbac
         }
 
         case "InspectGroup": {
-            cb.history.push(buildQueryString(`/projects2/members/${project.id}`, {group: action.group ?? undefined}));
+            cb.history.push(buildQueryString(`/projects2/${project.id}/members`, {group: action.group ?? undefined}));
             break;
         }
 
@@ -565,7 +565,7 @@ export const ProjectMembers2: React.FunctionComponent = () => {
                     <ProjectBreadcrumbsWrapper mb="12px" embedded={false}>
                         <span><Link to="/projects2">My Projects</Link></span>
                         <span>
-                            <Link to={`/projects2/${projectId}/dashboard`}>
+                            <Link to={`/projects2/${projectId}`}>
                                 {shorten(20, project.specification.title)}
                             </Link>
                         </span>
