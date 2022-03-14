@@ -69,7 +69,7 @@ class ParamsParsing(
         val firstTry = enumDescriptor.elementNames.indexOf(value).takeIf { it != -1 }
         if (firstTry != null) return firstTry
         return enumDescriptor.elementNames.indexOfFirst { it.equals(value, ignoreCase = true) }.takeIf { it != -1 }
-            ?: throw SerializationException("$value is not a valid enum. is null = ${value == null}")
+            ?: throw SerializationException("$value is not a valid enum while parsing $enumDescriptor. is null = ${value == null}")
     }
 
     override fun decodeFloat(): Float {

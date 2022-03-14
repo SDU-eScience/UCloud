@@ -1,14 +1,7 @@
 package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.rpc.AccountingController
-import dk.sdu.cloud.accounting.rpc.FavoritesController
-import dk.sdu.cloud.accounting.rpc.GroupController
-import dk.sdu.cloud.accounting.rpc.IntegrationController
-import dk.sdu.cloud.accounting.rpc.MembershipController
-import dk.sdu.cloud.accounting.rpc.ProductController
-import dk.sdu.cloud.accounting.rpc.ProjectController
-import dk.sdu.cloud.accounting.rpc.ProviderController
+import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.grants.GiftService
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
@@ -60,6 +53,7 @@ class Server(
         val projectService = ProjectService(client, eventProducer, projectCache)
         val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
+        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
@@ -107,6 +101,12 @@ class Server(
                 ProjectController(db, projectService, projectQueryService),
                 ProviderController(providerService, micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")),
             )
+
+            if (micro.developmentModeEnabled || micro.commandLineArguments.contains("--projects-v2")) {
+                configureControllers(
+                    ProjectsControllerV2(projectsV2),
+                )
+            }
         }
 
         startServices()

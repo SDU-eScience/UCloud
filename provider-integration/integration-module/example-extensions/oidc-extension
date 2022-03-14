@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+import json
+import sys
+import subprocess
+import os
+
+if os.getuid() != 0:
+    res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
+    if res.returncode != 0:
+        print("oidc-extension failed. Is sudo misconfigured?")
+        exit(1)
+    exit(0)
+
+# NOTE(Dan): This script is invoked when the OIDC plugin has completed a mapping between a UCloud identity
+# and an OIDC identity. The information containing the OIDC identity and UCloud identity is passed in a file
+# which we receive as a command line argument. We start by reading and parsing the file.
+request = json.loads(open(sys.argv[1]).read())
+
+# Mandatory values from UIM
+subject: str = request['subject']
+ucloud_identity: str = request['ucloudIdentity']
+
+# Optional values from UIM
+preferred_username: str = request.get('preferredUsername')
+name: str = request.get('name')
+given_name: str = request.get('givenName')
+family_name: str = request.get('familyName')
+middle_name: str = request.get('middleName')
+nickname: str = request.get('nickname')
+email: str = request.get('email')
+email_verified: bool = request.get('emailVerified')
+phone_number: str = request.get('phoneNumber')
+phone_number_verified: bool = request.get('phoneNumberVerified')
+
+# NOTE(Dan): In this example, we assume that we can use the subject as a username. The example is written to support
+# keycloak's user IDs. As a result, we remove '-' to obtain a valid unix username.
+local_username = subject.replace('-', '')
+
+response = {}
+
+def lookup_user() -> int:
+    id_result = subprocess.run(['/usr/bin/id', '-u', local_username], capture_output=True)
+    if id_result.returncode != 0:
+        return None
+    else:
+        return int(id_result.stdout)
+
+uid = lookup_user()
+if uid != None:
+    # User already exists. In that case we want to simply return the appropiate ID.
+    response['uid'] = uid
+    response['gid'] = uid # TODO(Dan): This is overly simplified
+else:
+    # We need to create a user.
+    useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], capture_output=True)
+    if useradd_result.returncode != 0:
+        print("Failed to create a user!")
+        print(useradd_result.stdout)
+        print(useradd_result.stderr)
+        exit(1)
+    
+    uid = lookup_user()
+    if uid == None:
+        print("Failed to create a user! Could not look it up after calling useradd.")
+        exit(1)
+
+    response['uid'] = uid
+    response['gid'] = uid
+
+print(json.dumps(response))

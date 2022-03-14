@@ -24,6 +24,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 
+// TODO(Dan): This should probably be moved to `dk.sdu.cloud` since it is of general use
 data class PartialQuery(
     val arguments: EnhancedPreparedStatement.() -> Unit,
     @Language("sql")

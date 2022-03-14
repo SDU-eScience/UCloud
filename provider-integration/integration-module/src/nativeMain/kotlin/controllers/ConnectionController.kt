@@ -12,6 +12,7 @@ import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
 import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.NativeFile
@@ -42,19 +43,11 @@ class ConnectionController(
 
     override fun configureIpc(server: IpcServer) {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
-        val idMapper = controllerContext.plugins.identityMapper ?: return
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(ConnectionIpc.registerSessionProxy.handler { user, request ->
-            val ucloudIdentity = with(controllerContext.pluginContext) {
-                with(idMapper) {
-                    runCatching {
-                        lookupUCloudIdentifyFromLocalIdentity(
-                            mapUidToLocalIdentity(user.uid.toInt())
-                        )
-                    }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
-                }
-            }
+            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
+                ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
 
             envoyConfig.requestConfiguration(
                 EnvoyRoute.ShellSession(
@@ -72,8 +65,13 @@ class ConnectionController(
 
         val providerId = controllerContext.configuration.core.providerId
         val plugin = controllerContext.plugins.connection ?: return
-        val mapperPlugin = controllerContext.plugins.identityMapper ?: return
         val pluginContext = controllerContext.pluginContext
+
+        with(pluginContext) {
+            with(plugin) {
+                initializeRpcServer(this@configure)
+            }
+        }
 
         val im = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
@@ -135,35 +133,28 @@ class ConnectionController(
         }
 
         implement(im.retrieveManifest) {
+            val expiration = with(plugin) {
+                with(pluginContext) {
+                    mappingExpiration()
+                }
+            }
+
             OutgoingCallResponse.Ok(
                 IntegrationProviderRetrieveManifestResponse(
-                    enabled = true
+                    enabled = true,
+                    expireAfterMs = expiration
                 )
             )
         }
 
         implement(im.init) {
-            // NOTE(Dan): This code is reponsible for launching new instances of IM/User. 
+            // NOTE(Dan): This code is responsible for launching new instances of IM/User.
 
-            // Map the UCloud username to a local UID (see the IdentityMapperPlugin).
+            // First we map the UCloud username to a local UID.
             // If no such user exists, notify UCloud/Core that the user is not known to this provider
             val envoyConfig = envoyConfig ?: error("No envoy")
-            var localId: String? = null
-            dbConnection.withTransaction { conn ->
-                conn.prepareStatement(
-                    //language=SQLite
-                    "select local_identity from user_mapping where ucloud_id = :ucloud_id"
-                ).useAndInvoke({ bindString("ucloud_id", request.username) }) { row ->
-                    localId = row.getString(0)
-                }
-            }
-
-            val capturedId = localId ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
-            val (uid) = with(pluginContext) {
-                with(mapperPlugin) {
-                    mapLocalIdentityToUidAndGid(capturedId)
-                }
-            }
+            val uid = UserMapping.ucloudIdToLocalId(request.username)
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             // Obtain the global lock for IM/User configuration
             uimMutex.withLock {   
@@ -212,26 +203,106 @@ class ConnectionController(
     }
 }
 
-fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
-    var result: String? = null
-    dbConnection.withSession { session ->
-        session.prepareStatement(
-            //language=SQLite
-            """
-                select ucloud_id 
-                from user_mapping 
-                where local_identity = :local_id
-            """
-        ).useAndInvoke(
-            prepare = {
-                bindString("local_id", localId)
-            },
-            readRow = { row ->
-                result = row.getString(0)!!
-            }
-        )
+/**
+ * The UserMapping service is responsible for storing a mapping between UCloud identities and local identities.
+ *
+ * This service is only usable by when the IM is running in server mode.
+ *
+ * Local identities are _always_ represented by a Unix UID. Plugins and services which require knowledge of the local
+ * UID should query this service.
+ */
+object UserMapping {
+    fun localIdToUCloudId(localId: Int): String? {
+        var result: String? = null
+
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    select ucloud_id
+                    from user_mapping
+                    where local_identity = :local_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("local_id", localId.toString())
+                },
+                readRow = { row ->
+                    result = row.getString(0)!!
+                }
+            )
+        }
+
+        return result
     }
-    return result
+
+    fun ucloudIdToLocalId(ucloudId: String): Int? {
+        var result: Int? = null
+
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    select local_identity
+                    from user_mapping
+                    where ucloud_id = :ucloud_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("ucloud_id", ucloudId)
+                },
+                readRow = { row ->
+                    result = row.getString(0)!!.toIntOrNull()
+                }
+            )
+        }
+
+        return result
+    }
+
+    fun insertMapping(ucloudId: String, localId: Int, expiry: Long?) {
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    insert or replace into user_mapping (ucloud_id, local_identity)
+                    values (:ucloud_id, :local_id)
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindString("ucloud_id", ucloudId)
+                    bindString("local_id", localId.toString())
+                },
+            )
+        }
+    }
+
+    fun clearMappingByUCloudId(ucloudId: String) {
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    delete from user_mapping
+                    where ucloud_id = :ucloud_id
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindString("ucloud_id", ucloudId)
+                },
+            )
+        }
+    }
+
+    fun clearMappingByLocalId(localId: Int) {
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    delete from user_mapping
+                    where local_identity = :local_id
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindString("local_id", localId.toString())
+                },
+            )
+        }
+    }
 }
 
 const val UCLOUD_IM_PORT = 42000

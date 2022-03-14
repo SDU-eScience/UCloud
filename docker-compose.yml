@@ -24,6 +24,16 @@ services:
     image: alpine:latest
   frontend:
     image: alpine:latest
+  keycloak:
+    image: alpine:latest
+    command:
+      - tail
+      - -f
+      - /dev/null
+    volumes:
+      - keycloak:/opt/keycloak/data
+  chrome:
+    image: alpine:latest
   helper:
     image: alpine:latest
     command:
@@ -60,6 +70,7 @@ volumes:
   backendKonan: {}
   backendGradle: {}
   m2Repo: {}
+  keycloak: {}
 
 # SLURM volumes
   etc_munge: {}

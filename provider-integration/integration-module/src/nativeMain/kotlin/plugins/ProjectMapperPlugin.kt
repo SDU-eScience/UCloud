@@ -1,4 +1,6 @@
 package dk.sdu.cloud.plugins
 
-interface ProjectMapperPlugin : Plugin<Unit> {
+import kotlinx.serialization.json.JsonObject
+
+interface ProjectMapperPlugin : Plugin<JsonObject> {
 }
