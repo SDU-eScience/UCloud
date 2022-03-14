@@ -54,6 +54,7 @@ class SyncFolderService(
     init {
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
+        files.addTrashHandler(::onFilesTrashed)
         fileCollectionService.addDeleteHandler(::onFileCollectionDeleted)
     }
 
@@ -62,6 +63,10 @@ class SyncFolderService(
     }
 
     private suspend fun onFilesDeleted(request: List<FindByStringId>) {
+        removeSyncFolders(request.map { it.id })
+    }
+
+    private suspend fun onFilesTrashed(request: List<FindByPath>) {
         removeSyncFolders(request.map { it.id })
     }
 
