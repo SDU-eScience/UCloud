@@ -232,6 +232,7 @@ class Server(
         // 4c. Optional accounting feature
         // ===========================================================================================================
         if (configuration.accounting.enabled) {
+            log.debug("Accounting is enabled!")
             val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
             scriptManager.register(
                 Script(

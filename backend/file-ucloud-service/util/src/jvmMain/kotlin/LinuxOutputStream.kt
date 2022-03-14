@@ -2,13 +2,13 @@ package dk.sdu.cloud.file.ucloud.services
 
 import java.io.OutputStream
 
-class LinuxOutputStream(private val fd: Int) : OutputStream() {
+class LinuxOutputStream(private val handle: LinuxFileHandle) : OutputStream() {
     override fun write(b: Int) {
         write(byteArrayOf(b.toByte()))
     }
 
     override fun write(b: ByteArray) {
-        CLibrary.INSTANCE.write(fd, b, b.size.toLong())
+        CLibrary.INSTANCE.write(handle.fd, b, b.size.toLong())
     }
 
     override fun write(b: ByteArray, off: Int, len: Int) {
@@ -20,6 +20,6 @@ class LinuxOutputStream(private val fd: Int) : OutputStream() {
     }
 
     override fun close() {
-        CLibrary.INSTANCE.close(fd)
+        handle.close()
     }
 }
