@@ -54,6 +54,8 @@ class Server(
         val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache)
+        val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
+            .ProviderNotificationService(projectsV2, db, simpleProviders)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
@@ -104,7 +106,7 @@ class Server(
 
             if (micro.developmentModeEnabled || micro.commandLineArguments.contains("--projects-v2")) {
                 configureControllers(
-                    ProjectsControllerV2(projectsV2),
+                    ProjectsControllerV2(projectsV2, projectNotifications),
                 )
             }
         }

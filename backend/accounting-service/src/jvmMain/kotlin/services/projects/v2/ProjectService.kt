@@ -31,11 +31,18 @@ import kotlinx.serialization.json.JsonPrimitive
 import java.util.*
 import kotlin.collections.ArrayList
 
+private typealias OnProjectUpdatedHandler = suspend (session: AsyncDBConnection, projects: Collection<String>) -> Unit
 class ProjectService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
     private val projectCache: ProjectCache,
 ) {
+    private val updateHandlers = ArrayList<OnProjectUpdatedHandler>()
+
+    fun addUpdateHandler(handler: OnProjectUpdatedHandler) {
+        updateHandlers.add(handler)
+    }
+
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProjectsRetrieveRequest,
@@ -229,7 +236,7 @@ class ProjectService(
         }
     }
 
-    private suspend fun loadProjects(
+    internal suspend fun loadProjects(
         username: String,
         session: AsyncDBConnection,
         flags: ProjectFlags,
@@ -513,6 +520,10 @@ class ProjectService(
             )
 
             projectCache.invalidate(actor.safeUsername())
+
+            // NOTE(Dan): We don't trigger an update handler here, since we expect further notifications to be
+            // dispatched soon (e.g. grant notifications)
+
             ids
         }.let { ids -> BulkResponse(ids.map { FindByStringId(it) }) }
     }
@@ -533,6 +544,8 @@ class ProjectService(
                     where id = some(:ids::text[])
                 """
             )
+
+            updateHandlers.forEach { it(session, projects) }
         }
     }
 
@@ -552,6 +565,8 @@ class ProjectService(
                     where id = some(:ids::text[])
                 """
             )
+
+            updateHandlers.forEach { it(session, projects) }
         }
     }
 
@@ -620,6 +635,8 @@ class ProjectService(
                     where id = :project
                 """
             )
+
+            updateHandlers.forEach { it(session, listOf(project)) }
         }
     }
 
@@ -879,11 +896,12 @@ class ProjectService(
         request: ProjectsAcceptInviteRequest,
         ctx: DBContext = db,
     ) {
+        val projects = request.items.map { it.project }
         ctx.withSession { session ->
             val success = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("projects", request.items.map { it.project })
+                    setParameter("projects", projects)
                 },
                 """
                     with accepted_invites as (
@@ -906,6 +924,8 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            updateHandlers.forEach { it(session, projects) }
         }
 
         projectCache.invalidate(actorAndProject.actor.safeUsername())
@@ -1035,6 +1055,8 @@ class ProjectService(
                     )
                 }
             }
+
+            updateHandlers.forEach { it(session, listOf(project)) }
         }
 
         for (reqItem in request.items) {
@@ -1189,6 +1211,7 @@ class ProjectService(
                 serviceClient
             )
 
+            updateHandlers.forEach { it(session, listOf(project)) }
             for (reqItem in requestItems) {
                 projectCache.invalidate(reqItem.username)
             }
@@ -1232,6 +1255,7 @@ class ProjectService(
                 )
             }
 
+            updateHandlers.forEach { it(session, projects) }
             BulkResponse(ids.map { FindByStringId(it) })
         }
     }
@@ -1286,7 +1310,7 @@ class ProjectService(
             val groups = request.items.map { it.group }
             requireAdminOfGroups(actor, groups, session)
 
-            val success = session.sendPreparedStatement(
+            val affectedProjects = session.sendPreparedStatement(
                 { 
                     setParameter("groups", groups)
                     setParameter("titles", request.items.map { it.newTitle })
@@ -1301,8 +1325,10 @@ class ProjectService(
                     set title = new_title
                     from changes
                     where g.id = group_id
+                    returning g.project
                 """
-            ).rowsAffected > 0
+            ).rows.map { it.getString(0)!! }
+            val success = affectedProjects.isNotEmpty()
 
             if (!success) {
                 throw RPCException(
@@ -1311,6 +1337,8 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            updateHandlers.forEach { it(session, affectedProjects) }
         }
     }
 
@@ -1337,16 +1365,16 @@ class ProjectService(
                 "delete from project.group_members where group_id = some(:groups::text[])"
             )
 
-            val deletedGroups = session.sendPreparedStatement(
+            val affectedProjects = session.sendPreparedStatement(
                 { setParameter("groups", groups) },
                 """
-                    delete from project.groups 
+                    delete from project.groups g
                     where id = some(:groups::text[])
-                    returning id
+                    returning g.project
                 """
             ).rows.map { it.getString(0)!! }
 
-            val success = deletedGroups.isNotEmpty()
+            val success = affectedProjects.isNotEmpty()
             if (!success) {
                 throw RPCException(
                     "Unable to delete groups. Maybe the group no longer exists? " + 
@@ -1354,6 +1382,8 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            updateHandlers.forEach { it(session, affectedProjects) }
         }
     }
 
@@ -1402,6 +1432,19 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            val affectedProjects = session.sendPreparedStatement(
+                {
+                    setParameter("groups", request.items.map { it.group })
+                },
+                """
+                    select g.project
+                    from project.groups g
+                    where id = some(:groups)
+                """
+            ).rows.map { it.getString(0)!! }
+
+            updateHandlers.forEach { it(session, affectedProjects) }
         }
     }
 
@@ -1441,6 +1484,19 @@ class ProjectService(
                     HttpStatusCode.BadRequest
                 )
             }
+
+            val affectedProjects = session.sendPreparedStatement(
+                {
+                    setParameter("groups", request.items.map { it.group })
+                },
+                """
+                    select g.project
+                    from project.groups g
+                    where id = some(:groups)
+                """
+            ).rows.map { it.getString(0)!! }
+
+            updateHandlers.forEach { it(session, affectedProjects) }
         }
     }
 
@@ -1448,4 +1504,3 @@ class ProjectService(
         override val log = logger()
     }
 }
-
