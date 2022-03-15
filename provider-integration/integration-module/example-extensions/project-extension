@@ -1,0 +1,56 @@
+#!/usr/bin/env python3
+import json
+import sys
+import subprocess
+import os
+
+if os.getuid() != 0:
+    res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
+    if res.returncode != 0:
+        print("project-extension failed. Is sudo misconfigured?")
+        exit(1)
+    exit(0)
+
+request = json.loads(open(sys.argv[1]).read())
+
+# Mandatory values from UIM
+subject: str = request['subject']
+
+# useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], capture_output=True)
+# if id_result.returncode != 0:
+#     return None
+
+response = {}
+
+# TODO Do stuff
+
+# UCloud Projects
+# ================================================================================
+# UCloud
+#   /G1
+#   /G2
+#   /G3
+#   /G4
+
+# Local Groups
+# ================================================================================
+# ucloud_123123
+# ucloud_g1_123128
+# ucloud_g2_123130
+# ucloud_g3_123143
+# ucloud_g4_123156
+
+# Imagine rename of group
+
+# UCloud Projects
+# ================================================================================
+# UCloud
+#   /Gruppe 2
+
+# Local Groups
+# ================================================================================
+# ucloud_gruppe_2_123130
+
+# groupadd -g 1010 mygroup
+
+print(json.dumps(response))
