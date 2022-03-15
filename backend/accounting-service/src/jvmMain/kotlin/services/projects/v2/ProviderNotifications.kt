@@ -21,8 +21,8 @@ class ProviderNotificationService(
     private val providers: Providers<*>
 ) {
     init {
-        projectService.addUpdateHandler { session, projects ->
-            notifyChange(projects, session)
+        projectService.addUpdateHandler { projects ->
+            notifyChange(projects)
         }
     }
 
@@ -94,6 +94,8 @@ class ProviderNotificationService(
                 """
             ).rows.map { NotificationAndProject(it.getLong(0)!!.toString(), it.getString(1)!!) }
 
+            if (relevantData.isEmpty()) return@withSession BulkResponse(emptyList())
+
             val relevantProjects = PartialQuery(
                 {
                     setParameter("project_ids", relevantData.map { it.projectId })
@@ -105,7 +107,7 @@ class ProviderNotificationService(
                             from project.projects p
                             where id = some(:project_ids::text[])
                         )
-                    select distinct p.project, null::text as role
+                    select distinct p.project, null::text as role, (p.project).title
                     from the_projects p
                     order by p.project
                 """

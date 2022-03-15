@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -121,3 +122,4 @@ object ProjectMapper {
         }
     }
 }
+ */

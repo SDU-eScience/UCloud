@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.compute.slurm.SlurmPlugin
 import dk.sdu.cloud.plugins.connection.TicketBasedConnectionPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
-import dk.sdu.cloud.plugins.projects.DirectProjectMapperPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import kotlinx.coroutines.runBlocking
@@ -35,8 +34,8 @@ class PluginLoader(private val pluginContext: PluginContext) {
         "oidc" to { OpenIdConnectPlugin() },
     )
 
-    private val projectPlugins = mapOf<String, () -> ProjectMapperPlugin>(
-        "direct" to { DirectProjectMapperPlugin() }
+    private val projectPlugins = mapOf<String, () -> ProjectPlugin>(
+        "simple" to { SimpleProjectPlugin() }
     )
 
     private fun <T : Plugin<JsonObject>> loadPlugin(lookupTable: Map<String, () -> T>, jsonObject: JsonObject): T? {
@@ -145,5 +144,5 @@ data class LoadedPlugins(
     val fileCollection: ProductBasedPlugins<FileCollectionPlugin>?,
     val compute: ProductBasedPlugins<ComputePlugin>?,
     val connection: ConnectionPlugin?,
-    val projects: ProjectMapperPlugin?,
+    val projects: ProjectPlugin?,
 )
