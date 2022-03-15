@@ -131,27 +131,35 @@ class ByteBuffer {
     fun get(index: Int): Byte = rawMemory[index]
 
     fun getShort(index: Int): Short = (
-        (rawMemory[index + 1].toInt()) or
-            (rawMemory[index + 0].toInt() shl 8)
+        (rawMemory[index + 1].toUnsignedInt()) or
+            (rawMemory[index + 0].toUnsignedInt() shl 8)
         ).toShort()
 
     fun getInt(index: Int): Int = (
-        (rawMemory[index + 3].toInt()) or
-            (rawMemory[index + 2].toInt() shl 8) or
-            (rawMemory[index + 1].toInt() shl 16) or
-            (rawMemory[index + 0].toInt() shl 24)
+        (rawMemory[index + 3].toUnsignedInt()) or
+            (rawMemory[index + 2].toUnsignedInt() shl 8) or
+            (rawMemory[index + 1].toUnsignedInt() shl 16) or
+            (rawMemory[index + 0].toUnsignedInt() shl 24)
         )
 
     fun getLong(index: Int): Long = (
-        (rawMemory[index + 7].toLong()) or
-            (rawMemory[index + 6].toLong() shl 8) or
-            (rawMemory[index + 5].toLong() shl 16) or
-            (rawMemory[index + 4].toLong() shl 24) or
-            (rawMemory[index + 3].toLong() shl 32) or
-            (rawMemory[index + 2].toLong() shl 40) or
-            (rawMemory[index + 1].toLong() shl 48) or
-            (rawMemory[index + 0].toLong() shl 56)
+        (rawMemory[index + 7].toUnsignedLong()) or
+            (rawMemory[index + 6].toUnsignedLong() shl 8) or
+            (rawMemory[index + 5].toUnsignedLong() shl 16) or
+            (rawMemory[index + 4].toUnsignedLong() shl 24) or
+            (rawMemory[index + 3].toUnsignedLong() shl 32) or
+            (rawMemory[index + 2].toUnsignedLong() shl 40) or
+            (rawMemory[index + 1].toUnsignedLong() shl 48) or
+            (rawMemory[index + 0].toUnsignedLong() shl 56)
         )
+
+    private inline fun Byte.toUnsignedInt(): Int {
+        return toInt() and 0xFF
+    }
+
+    private inline fun Byte.toUnsignedLong(): Long {
+        return toLong() and 0xFF
+    }
 
     fun getFloat(index: Int): Float = Float.fromBits(getInt(index))
 
