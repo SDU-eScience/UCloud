@@ -64,7 +64,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             HttpStatusCode.BadRequest
                         )
 
-                        UserMapping.insertMapping(capturedId, uid, mappingExpiration())
+                        UserMapping.insertMapping(capturedId, uid, mappingExpiration(), ctx = connection)
 
                         IntegrationControl.approveConnection.callBlocking(
                             IntegrationControlApproveConnectionRequest(capturedId),

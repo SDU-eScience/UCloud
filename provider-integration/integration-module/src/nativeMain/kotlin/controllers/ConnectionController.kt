@@ -11,10 +11,7 @@ import dk.sdu.cloud.plugins.ConnectionResponse
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withSession
-import dk.sdu.cloud.sql.withTransaction
+import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
 import dk.sdu.cloud.utils.startProcess
@@ -258,8 +255,13 @@ object UserMapping {
         return result
     }
 
-    fun insertMapping(ucloudId: String, localId: Int, expiry: Long?) {
-        dbConnection.withTransaction { session ->
+    fun insertMapping(
+        ucloudId: String,
+        localId: Int,
+        expiry: Long?,
+        ctx: DBContext = dbConnection
+    ) {
+        ctx.withSession { session ->
             session.prepareStatement(
                 """
                     insert or replace into user_mapping (ucloud_id, local_identity)
