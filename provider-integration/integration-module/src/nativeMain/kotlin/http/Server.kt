@@ -3,15 +3,15 @@ package dk.sdu.cloud.http
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.fd_add
+import dk.sdu.cloud.fd_zero
 import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.fd_add
-import dk.sdu.cloud.fd_zero
-import dk.sdu.cloud.fd_clr
-import dk.sdu.cloud.fd_isset
 import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
+import kotlinx.atomicfu.locks.ReentrantLock
+import kotlinx.atomicfu.locks.withLock
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
 import platform.posix.*
@@ -34,56 +34,59 @@ class HttpClientSession<AppData>(
     val appData: AppData,
 ) {
     var closing: Boolean = false
+    private val lock = ReentrantLock()
 
     fun sendWebsocketFrame(
         opcode: WebSocketOpCode,
         payload: ByteBuffer,
         mask: Boolean = false
     ) {
-        val size = payload.readerRemaining()
-        with(outs) {
-            clear()
-            val maskingKey: Int = secureRandomInt()
-            put(((0b1000 shl 4) or opcode.opcode).toByte())
+        lock.withLock {
+            val size = payload.readerRemaining()
+            with(outs) {
+                clear()
+                val maskingKey: Int = secureRandomInt()
+                put(((0b1000 shl 4) or opcode.opcode).toByte())
 
-            val maskBit = if (mask) 0b1 else 0b0
-            val initialPayloadByte = when {
-                size < 126 -> size
-                size < 65536 -> 126
-                else -> 127
-            }
-            put(((maskBit shl 7) or initialPayloadByte).toByte())
-            if (initialPayloadByte == 126) {
-                putShort(size.toShort())
-            } else if (initialPayloadByte == 127) {
-                putLong(size.toLong())
-            }
-
-            if (mask) {
-                // TODO This is probably nowhere near correct. Haven't tested, not fully awake.
-                for (i in 0 until (size / 4)) {
-                    val idx = (i * 4) + payload.readerIndex
-                    payload.putInt(
-                        idx,
-                        payload.getInt(idx) xor maskingKey
-                    )
+                val maskBit = if (mask) 0b1 else 0b0
+                val initialPayloadByte = when {
+                    size < 126 -> size
+                    size < 65536 -> 126
+                    else -> 127
+                }
+                put(((maskBit shl 7) or initialPayloadByte).toByte())
+                if (initialPayloadByte == 126) {
+                    putShort(size.toShort())
+                } else if (initialPayloadByte == 127) {
+                    putLong(size.toLong())
                 }
 
-                val rem = size % 4
-                if (rem != 0) {
-                    val idx = (size / 4) + 1
-                    val truncatedMask = maskingKey xor ((1 shl (rem * 8)) - 1)
-                    payload.putInt(
-                        idx,
-                        payload.getInt(idx) xor truncatedMask
-                    )
+                if (mask) {
+                    // TODO This is probably nowhere near correct. Haven't tested, not fully awake.
+                    for (i in 0 until (size / 4)) {
+                        val idx = (i * 4) + payload.readerIndex
+                        payload.putInt(
+                            idx,
+                            payload.getInt(idx) xor maskingKey
+                        )
+                    }
+
+                    val rem = size % 4
+                    if (rem != 0) {
+                        val idx = (size / 4) + 1
+                        val truncatedMask = maskingKey xor ((1 shl (rem * 8)) - 1)
+                        payload.putInt(
+                            idx,
+                            payload.getInt(idx) xor truncatedMask
+                        )
+                    }
                 }
+
+                channel.write(this)
+
+                // TODO We probably need to do something about indexes here
+                channel.write(payload)
             }
-
-            channel.write(this)
-
-            // TODO We probably need to do something about indexes here
-            channel.write(payload)
         }
     }
 
@@ -120,7 +123,7 @@ class HttpClientSession<AppData>(
                     }
                 }
             } finally {
-               openFile.close()
+                openFile.close()
             }
         }
     }
@@ -226,7 +229,8 @@ inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, time
                 buffer.compact()
                 writerSpaceRemaining = buffer.writerSpaceRemaining()
             }
-            val bytesRead = read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
+            val bytesRead =
+                read(fd, buffer.rawMemoryPinned.addressOf(buffer.writerIndex), writerSpaceRemaining.toULong())
             if (bytesRead <= 0) throw EndOfStreamException()
             buffer.writerIndex += bytesRead.toInt()
         }
@@ -261,7 +265,8 @@ fun sha1(data: ByteArray): ByteArray {
 const val NEW_LINE_DELIM = '\n'.code.toByte()
 
 // TODO(Dan): Needed for file uploads, but we should really just send partial payloads
-@ThreadLocal private val readBuffer = allocateDirect(1024 * 1024 * 32)
+@ThreadLocal
+private val readBuffer = allocateDirect(1024 * 1024 * 32)
 
 @OptIn(ExperimentalUnsignedTypes::class)
 fun <AppData> startServer(
@@ -489,6 +494,17 @@ fun <AppData> startServer(
                                 break
                             }
 
+                            if (payloadLength < 0) {
+                                log.info("Negative payload length? payloadLength = $payloadLength")
+                                log.info("maskAndPayload = $maskAndPayload")
+                                log.info("mask = $mask")
+                                log.info("opcode = $opcode")
+                                log.info("fin = $fin")
+                                log.info("initialByte = $initialByte")
+                                rawClient.close()
+                                break
+                            }
+
                             if (payloadLength > readBuffer.writerSpaceRemaining()) {
                                 readBuffer.compact()
                             }
@@ -618,7 +634,7 @@ private fun dateHeader(): Header {
         val tm = st.pointed
         return Header("Date", buildString {
             append(
-                when(tm.tm_wday) {
+                when (tm.tm_wday) {
                     0 -> "Sun"
                     1 -> "Mon"
                     2 -> "Tue"

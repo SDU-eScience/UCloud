@@ -1,4 +1,4 @@
-version = "2022.1.9"
+version = rootProject.file("./version.txt").readText().trim()
 
 application {
     mainClassName = "dk.sdu.cloud.file.ucloud.MainKt"
