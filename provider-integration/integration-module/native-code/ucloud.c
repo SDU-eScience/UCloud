@@ -2,12 +2,15 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <sys/unistd.h>
+#include <sys/select.h>
 #include <stdio.h>
 #include <linux/fs.h>
 #include <sys/syscall.h>
 #include <netinet/in.h>
 #include <stdalign.h>
 #include <sys/wait.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 struct socket_credentials getSocketCredentials(int socket, struct msghdr *msgh) {
     struct cmsghdr *header = CMSG_FIRSTHDR(msgh);
@@ -47,4 +50,21 @@ bool wifexited(int status) {
 
 int wexitstatus(int status) {
     return WEXITSTATUS(status);
+}
+
+void fd_clr(int fd, fd_set *set) {
+    FD_CLR(fd, set);
+}
+
+int fd_isset(int fd, fd_set *set) {
+    return FD_ISSET(fd, set);
+}
+
+// NOTE(Dan): Renamed from FD_SET since it conflicts with the fd_set struct typedef
+void fd_add(int fd, fd_set *set) {
+    return FD_SET(fd, set);
+}
+
+void fd_zero(fd_set *set) {
+    FD_ZERO(set);
 }

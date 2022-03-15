@@ -36,8 +36,9 @@ class ConnectionController(
     private val controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
 ) : Controller {
-    private val mapMutex = Mutex()
-    private val mappedUsersToPort = HashMap<String, Int>()
+    // Mutex used for configuration and launching of new IM/user instances (See `im.init` in this file)
+    private val uimMutex = Mutex()
+    private val uimLaunched = HashSet<String>()
 
     override fun configureIpc(server: IpcServer) {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
@@ -74,9 +75,9 @@ class ConnectionController(
         val mapperPlugin = controllerContext.plugins.identityMapper ?: return
         val pluginContext = controllerContext.pluginContext
 
-        val calls = IntegrationProvider(providerId)
+        val im = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
-        val instructions = object : CallDescriptionContainer(calls.namespace + ".instructions") {
+        val instructions = object : CallDescriptionContainer(im.namespace + ".instructions") {
             val retrieveInstructions = call<TicketRequest, Unit, CommonErrorMessage>("retrieveInstructions") {
                 auth {
                     access = AccessRight.READ
@@ -93,33 +94,6 @@ class ConnectionController(
                     }
                 }
             }
-        }
-
-        implement(calls.connect) {
-            with(pluginContext) {
-                with(plugin) {
-                    when (val result = initiateConnection(request.username)) {
-                        is ConnectionResponse.Redirect -> {
-                            OutgoingCallResponse.Ok(IntegrationProviderConnectResponse(result.redirectTo))
-                        }
-                        is ConnectionResponse.ShowInstructions -> {
-                            OutgoingCallResponse.Ok(
-                                IntegrationProviderConnectResponse(
-                                    baseContext + encodeQueryParamsToString(result.query)
-                                )
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        implement(calls.retrieveManifest) {
-            OutgoingCallResponse.Ok(
-                IntegrationProviderRetrieveManifestResponse(
-                    enabled = true
-                )
-            )
         }
 
         implement(instructions.retrieveInstructions) {
@@ -141,7 +115,38 @@ class ConnectionController(
             OutgoingCallResponse.AlreadyDelivered()
         }
 
-        implement(calls.init) {
+        implement(im.connect) {
+            with(pluginContext) {
+                with(plugin) {
+                    when (val result = initiateConnection(request.username)) {
+                        is ConnectionResponse.Redirect -> {
+                            OutgoingCallResponse.Ok(IntegrationProviderConnectResponse(result.redirectTo))
+                        }
+                        is ConnectionResponse.ShowInstructions -> {
+                            OutgoingCallResponse.Ok(
+                                IntegrationProviderConnectResponse(
+                                    baseContext + encodeQueryParamsToString(result.query)
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        implement(im.retrieveManifest) {
+            OutgoingCallResponse.Ok(
+                IntegrationProviderRetrieveManifestResponse(
+                    enabled = true
+                )
+            )
+        }
+
+        implement(im.init) {
+            // NOTE(Dan): This code is reponsible for launching new instances of IM/User. 
+
+            // Map the UCloud username to a local UID (see the IdentityMapperPlugin).
+            // If no such user exists, notify UCloud/Core that the user is not known to this provider
             val envoyConfig = envoyConfig ?: error("No envoy")
             var localId: String? = null
             dbConnection.withTransaction { conn ->
@@ -154,44 +159,51 @@ class ConnectionController(
             }
 
             val capturedId = localId ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
-
             val (uid) = with(pluginContext) {
                 with(mapperPlugin) {
                     mapLocalIdentityToUidAndGid(capturedId)
                 }
             }
 
-            val devInstance = controllerContext.configuration.core.developmentInstance
-            val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
-            envoyConfig.requestConfiguration(
-                EnvoyRoute.Standard(request.username, request.username),
-                EnvoyCluster.create(
-                    request.username,
-                    "127.0.0.1",
-                    allocatedPort
-                )
-            )
+            // Obtain the global lock for IM/User configuration
+            uimMutex.withLock {   
+                // Check if we were not the first to acquire the lock
+                if (request.username in uimLaunched) return@withLock
+                uimLaunched.add(request.username)
 
-            mapMutex.withLock {
-                mappedUsersToPort[request.username] = allocatedPort
-            }
+                // Allocate a port, if the IM/User does not have a static port allocated.
+                // Static ports are used only for development purposes.
+                val devInstance = controllerContext.configuration.core.developmentInstance
+                val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
 
-            if (devInstance?.userId != uid) {
-                startProcess(
-                    listOf(
-                        "/usr/bin/sudo",
-                        "-u",
-                        "#${uid}",
-                        controllerContext.ownExecutable,
-                        "user",
-                        allocatedPort.toString()
-                    ),
-                    createStreams = {
-                        val devnull = NativeFile.open("/dev/null", readOnly = false)
-                        unlink("/tmp/ucloud_${uid}.log")
-                        val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
-                        ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
-                    }
+                // Launch the IM/User instance
+                if (devInstance?.userId != uid) {
+                    startProcess(
+                        listOf(
+                            "/usr/bin/sudo",
+                            "-u",
+                            "#${uid}",
+                            controllerContext.ownExecutable,
+                            "user",
+                            allocatedPort.toString()
+                        ),
+                        createStreams = {
+                            val devnull = NativeFile.open("/dev/null", readOnly = false)
+                            unlink("/tmp/ucloud_${uid}.log")
+                            val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                            ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
+                        }
+                    )
+                }
+
+                // Configure Envoy to route the relevant IM/User traffic to the newly launched instance
+                envoyConfig.requestConfiguration(
+                    EnvoyRoute.Standard(request.username, request.username),
+                    EnvoyCluster.create(
+                        request.username,
+                        "127.0.0.1",
+                        allocatedPort
+                    )
                 )
             }
 
@@ -206,10 +218,10 @@ fun lookupUCloudIdentifyFromLocalIdentity(localId: String): String? {
         session.prepareStatement(
             //language=SQLite
             """
-                    select ucloud_id 
-                    from user_mapping 
-                    where local_identity = :local_id
-                """
+                select ucloud_id 
+                from user_mapping 
+                where local_identity = :local_id
+            """
         ).useAndInvoke(
             prepare = {
                 bindString("local_id", localId)
