@@ -3,6 +3,7 @@ import json
 import sys
 import subprocess
 import os
+import re
 
 if os.getuid() != 0:
     res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
@@ -11,18 +12,110 @@ if os.getuid() != 0:
         exit(1)
     exit(0)
 
+########################################################################################################################
+
 request = json.loads(open(sys.argv[1]).read())
+request_type = request['type']
 
-# Mandatory values from UIM
-subject: str = request['subject']
+########################################################################################################################
 
-# useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], capture_output=True)
-# if id_result.returncode != 0:
-#     return None
+def generate_name(ucloud_title, allocated_gid):
+    return re.sub(r'[^a-z0-9]', '_', ucloud_title.lower()) + '_' + str(allocated_gid)
 
-response = {}
+def create_group(gid, name):
+    result = subprocess.run(['/usr/sbin/groupadd', '-g', str(gid), name], capture_output=True)
+    return result.returncode == 0
 
-# TODO Do stuff
+def rename_group(gid, name):
+    result = subprocess.run(['/usr/sbin/groupmod', '-n', name, get_group_by_gid(gid)], capture_output=True)
+    return result.returncode == 0
+
+def delete_group(gid):
+    group_name = get_group_by_gid(gid)
+    if group_name is None:
+        return False
+    result = subprocess.run(['/usr/sbin/groupdel', get_group_by_gid(gid)], capture_output=True)
+    return result.returncode == 0
+
+def add_user_to_group(uid, gid):
+    result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)], capture_output=True)
+    return result.returncode == 0
+
+def remove_user_from_group(uid, gid):
+    result = subprocess.run(['/usr/bin/gpasswd', '-d', get_username_by_uid(uid), get_group_by_gid(gid)], capture_output=True)
+    return result.returncode == 0
+
+def get_gid_by_group(group_name):
+    result = subprocess.run(['/usr/bin/getent', 'group', group_name], capture_output=True)
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.decode('UTF-8').split(':')[2])
+
+def get_group_by_gid(gid):
+    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], capture_output=True)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+def get_username_by_uid(uid):
+    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], capture_output=True)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+########################################################################################################################
+
+if request_type == 'project_renamed':
+    gid = request['newProject']['localId']
+    if request['oldProject'] is None:
+        create_group(gid, generate_name(request['newTitle'], gid))
+    else:
+        rename_group(gid, generate_name(request['newTitle'], gid))
+
+elif request_type == 'group_created':
+    for group in request['groups']:
+        gid = group['localId']
+        create_group(gid, generate_name(group['group']['specification']['title'], gid))
+
+elif request_type == 'group_deleted':
+    for group in request['groups']:
+        delete_group(group['localId'])
+
+elif request_type == 'group_renamed':
+    gid = request['group']['localId']
+    rename_group(gid, generate_name(request['group']['group']['specification']['title'], gid))
+
+elif request_type == 'members_added_to_project':
+    gid = request['newProject']['localId']
+    create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
+    for member in request['newMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        add_user_to_group(uid, gid)
+
+elif request_type == 'members_removed_from_project':
+    gid = request['newProject']['localId']
+    create_group(gid, generate_name(request['newProject']['project']['specification']['title'], gid))
+    for member in request['removedMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        remove_user_from_group(uid, gid)
+
+elif request_type == 'members_added_to_group':
+    gid = request['group']['localId']
+    for member in request['newMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        add_user_to_group(uid, gid)
+
+elif request_type == 'members_remove_from_group':
+    gid = request['group']['localId']
+    for member in request['removedMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        remove_user_from_group(uid, gid)
+
+########################################################################################################################
 
 # UCloud Projects
 # ================================================================================
@@ -53,4 +146,4 @@ response = {}
 
 # groupadd -g 1010 mygroup
 
-print(json.dumps(response))
+print('{}')

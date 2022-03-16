@@ -11,6 +11,7 @@ import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
 import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
 import dk.sdu.cloud.service.Loggable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 
 class ProjectController(
