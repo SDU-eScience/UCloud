@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.service
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
@@ -16,6 +17,7 @@ import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.task.api.*
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
@@ -48,6 +50,34 @@ class FilesService(
 
     private var cachedSensitivityTemplate: FileMetadataTemplate? = null
     private val sensitivityTemplateMutex = Mutex()
+    private var ucloudShareReference: ProductReference? = null
+
+    init {
+        ucloudShareReference =  runBlocking {
+            db.withSession { session ->
+                session
+                    .sendPreparedStatement(
+                        """
+                        select r.type, pc.category, pc.provider
+                        from provider.resource r
+                        join accounting.products p on p.id = r.product
+                        join accounting.product_categories pc on pc.id = p.category
+                        where r.type = 'share' and
+                            r.provider = 'ucloud'
+                    """.trimIndent()
+                    ).rows
+                    .singleOrNull()?.let {
+                        ProductReference(
+                            it.getString(0)!!,
+                            it.getString(1)!!,
+                            it.getString(2)!!
+                        )
+                    }
+
+            }
+        }
+    }
+
     private suspend fun retrieveSensitivityTemplate(): FileMetadataTemplate {
         if (cachedSensitivityTemplate != null) {
             return cachedSensitivityTemplate!!
@@ -198,7 +228,7 @@ class FilesService(
      */
     suspend fun replaceFileCollectionIdWhenShare(path: String) : String {
         if (path.startsWith("/")) {
-            val id = "/" + path.substringAfter("/").substringBefore("/")
+            val id = "/" + path.components().first()
             val replaceString = db.withSession { session ->
                 session
                     .sendPreparedStatement(
@@ -231,7 +261,7 @@ class FilesService(
         syncedPaths: List<String>? = null
     ): UFile {
         val metadataHistory = if (metadata != null) {
-            val resolvedIdIfShare = if (resolvedCollection.specification.product.id == "share") {
+            val resolvedIdIfShare = if (ucloudShareReference != null && resolvedCollection.specification.product == ucloudShareReference) {
                 replaceFileCollectionIdWhenShare(id)
             } else {
                 id
