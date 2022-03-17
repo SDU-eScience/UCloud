@@ -228,14 +228,14 @@ class SimpleProjectPlugin : ProjectPlugin {
         val newArchived = newProject.status.archived
 
         if (oldTitle != newTitle) {
-            result.add(ProjectDiff.ProjectRenamed(oldProject, newProject, newTitle))
+            result.add(ProjectDiff.ProjectRenamed(oldProjectWithLocalId, newProjectWithLocalId, newTitle))
         }
         
         if (oldArchived != newArchived) {
             if (newArchived) {
-                result.add(ProjectDiff.ProjectArchived(oldProject, newProject))
+                result.add(ProjectDiff.ProjectArchived(oldProjectWithLocalId, newProjectWithLocalId))
             } else {
-                result.add(ProjectDiff.ProjectUnarchived(oldProject, newProject))
+                result.add(ProjectDiff.ProjectUnarchived(oldProjectWithLocalId, newProjectWithLocalId))
             }
         }
 
@@ -251,7 +251,15 @@ class SimpleProjectPlugin : ProjectPlugin {
                     addedMembers.add(memberWithUid)
                 } else if (oldStatus.role != member.role) {
                     // We have a new role
-                    result.add(ProjectDiff.RoleChanged(oldProject, newProject, member, oldStatus.role, member.role))
+                    result.add(
+                        ProjectDiff.RoleChanged(
+                            oldProjectWithLocalId,
+                            newProjectWithLocalId,
+                            memberWithUid,
+                            oldStatus.role,
+                            member.role
+                        )
+                    )
                 } else {
                     // Nothing has changed
                 }
@@ -267,11 +275,23 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
 
             if (addedMembers.isNotEmpty()) {
-                result.add(ProjectDiff.MembersAddedToProject(oldProject, newProject, addedMembers))
+                result.add(
+                    ProjectDiff.MembersAddedToProject(
+                        oldProjectWithLocalId,
+                        newProjectWithLocalId,
+                        addedMembers
+                    )
+                )
             }
 
             if (removedMembers.isNotEmpty()) {
-                result.add(ProjectDiff.MembersRemovedFromProject(oldProject, newProject, removedMembers))
+                result.add(
+                    ProjectDiff.MembersRemovedFromProject(
+                        oldProjectWithLocalId,
+                        newProjectWithLocalId,
+                        removedMembers
+                    )
+                )
             }
         }
 
@@ -283,8 +303,8 @@ class SimpleProjectPlugin : ProjectPlugin {
             for (group in newLocalGroups) {
                 val oldStatus = oldLocalGroups.find { it.group.id == group.group.id }
 
-                if (oldStatus != null && oldStatus.specification.title != group.specification.title) {
-                    result.add(ProjectDiff.GroupRenamed(oldProject, newProject, group))
+                if (oldStatus != null && oldStatus.group.specification.title != group.group.specification.title) {
+                    result.add(ProjectDiff.GroupRenamed(oldProjectWithLocalId, newProjectWithLocalId, group))
                 }
 
                 if (oldStatus == null) {
@@ -323,11 +343,25 @@ class SimpleProjectPlugin : ProjectPlugin {
                     }
 
                     if (addedMembers.isNotEmpty()) {
-                        result.add(ProjectDiff.MembersAddedToGroup(oldProject, newProject, group.id, addedMembers))
+                        result.add(
+                            ProjectDiff.MembersAddedToGroup(
+                                oldProjectWithLocalId,
+                                newProjectWithLocalId,
+                                group,
+                                addedMembers.map { GroupMemberWithUid(UserMapping.ucloudIdToLocalId(it), it) }
+                            )
+                        )
                     }
 
                     if (removedMembers.isNotEmpty()) {
-                        result.add(ProjectDiff.MembersRemovedFromGroup(oldProject, newProject, group.id, removedMembers))
+                        result.add(
+                            ProjectDiff.MembersRemovedFromGroup(
+                                oldProjectWithLocalId,
+                                newProjectWithLocalId,
+                                group,
+                                removedMembers.map { GroupMemberWithUid(UserMapping.ucloudIdToLocalId(it), it) }
+                            )
+                        )
                     }
                 }
 
@@ -341,11 +375,11 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
 
             if (addedGroups.isNotEmpty()) {
-                result.add(ProjectDiff.GroupsCreated(oldProject, newProject, addedGroups))
+                result.add(ProjectDiff.GroupsCreated(oldProjectWithLocalId, newProjectWithLocalId, addedGroups))
             }
 
             if (removedGroups.isNotEmpty()) {
-                result.add(ProjectDiff.GroupsDeleted(oldProject, newProject, removedGroups))
+                result.add(ProjectDiff.GroupsDeleted(oldProjectWithLocalId, newProjectWithLocalId, removedGroups))
             }
         }
 
