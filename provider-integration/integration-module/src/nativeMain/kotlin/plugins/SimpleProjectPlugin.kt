@@ -41,10 +41,10 @@ data class SimpleProjectPluginConfiguration(
 }
 
 // NOTE(Dan, Brian): This plugin is responsible for taking the raw updates, coming in from UCloud/Core, and
-// translating them into a diff. This diff is then passed on two operator defined extensions which are responsible
-// for acting on these changes. In practice, this means that we store a copy of every project, in its JSON serialized
-// form. We compare this with the new event and try to determine relevant changes and dispatch them to the relevant
-// extensions.
+// translating them into a diff. This diff is then passed on to operator defined extensions which are responsible
+// for acting on these changes. These extensions are defined in the configuration (see above). In practice, this means
+// that we store a copy of every project, in its JSON serialized form. We compare this with the new event and try to
+// determine relevant changes and dispatch them to the relevant extensions.
 //
 // This plugin is also responsible for allocating unique group IDs, which are suitable for use as UNIX group IDs. The
 // extensions are not required to use the allocated group IDs, but they may choose to use them if they wish.
@@ -57,6 +57,10 @@ class SimpleProjectPlugin : ProjectPlugin {
         this@SimpleProjectPlugin.extensions = Extensions(this@SimpleProjectPlugin.pluginConfig)
     }
 
+    // NOTE(Dan): Invoked whenever an update arrives from UCloud/Core. The update simply contains the new state of a
+    // project which has changed. The integration module isn't guaranteed to receive an invocation per update in
+    // UCloud/Core. This can, for example, happen if the integration module is down. As a result, each update can
+    // result in many diffs or even none at all.
     override suspend fun PluginContext.onProjectUpdated(newProject: Project) {
         val oldProject = run {
             var oldProject: Project? = null
@@ -93,6 +97,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             oldProject
         }
 
+        // NOTE(Dan): Diffs are slightly different if we have an old project or not.
         val diff = if (oldProject == null) {
             calculateNewProjectDiffs(newProject)
         } else {
@@ -151,64 +156,13 @@ class SimpleProjectPlugin : ProjectPlugin {
         return ucloudProjectIdToUnixGroupId(groupId)
     }
 
-    private fun calculateNewProjectDiffs(newProject: Project): List<ProjectDiff> {
-        // NOTE(Dan): Emits events for a project which has never been seen by the system before
-
-        val result = ArrayList<ProjectDiff>()
-        val newProjectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(newProject.id), newProject)
-
-        // TODO(Dan): Should we really be dispatching a renamed event?
-        result.add(ProjectDiff.ProjectRenamed(null, newProjectWithLocalId, newProject.specification.title))
-
-        val members = newProject.status.members!!
-        if (members.isNotEmpty()) {
-            val membersWithUid = members.map {
-                val uid = UserMapping.ucloudIdToLocalId(it.username)
-                ProjectMemberWithUid(uid, it)
-            }
-
-            result.add(ProjectDiff.MembersAddedToProject(null, newProjectWithLocalId, membersWithUid))
-
-            // TODO(Dan): Should we be dispatching a role changed?
-            for (member in membersWithUid) {
-                result.add(
-                    ProjectDiff.RoleChanged(
-                        null,
-                        newProjectWithLocalId,
-                        member,
-                        member.projectMember.role,
-                        member.projectMember.role
-                    )
-                )
-            }
-        }
-
-        val groups = newProject.status.groups!!
-        val localGroups = groups.map { GroupWithLocalId(ucloudGroupIdToUnixGroupId(it.id), it) }
-        if (localGroups.isNotEmpty()) {
-            result.add(ProjectDiff.GroupsCreated(null, newProjectWithLocalId, localGroups))
-
-            for (group in localGroups) {
-                val groupMembers = group.group.status.members!!
-                if (groupMembers.isNotEmpty()) {
-                    val groupMembersWithUid = groupMembers.map {
-                        val uid = UserMapping.ucloudIdToLocalId(it)
-                        GroupMemberWithUid(uid, it)
-                    }
-
-                    result.add(ProjectDiff.MembersAddedToGroup(null, newProjectWithLocalId, group, groupMembersWithUid))
-                }
-            }
-        }
-
-        // NOTE(Dan): There is no unarchive event, since that would imply an archive event has already taken place.
-
-        return result
-    }
-
     private fun calculateDiff(oldProject: Project, newProject: Project): List<ProjectDiff> {
+        // NOTE(Dan): The result will contain the diff events as we calculate them. We return these at the end of the
+        // function. We sort this list at the end of this function. As a result, please don't return early unless
+        // it is an unrecoverable error.
         val result = ArrayList<ProjectDiff>()
 
+        // Just a bunch of aliases and UID/GID mappings
         val oldProjectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(oldProject.id), oldProject)
         val newProjectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(newProject.id), newProject)
 
@@ -227,6 +181,11 @@ class SimpleProjectPlugin : ProjectPlugin {
         val oldArchived = oldProject.status.archived
         val newArchived = newProject.status.archived
 
+        // NOTE(Dan): From this point, we actually calculate the diff. You can look at the bottom of this file for a
+        // concrete list of `ProjectDiff`s. For the most part, the events directly mirror the changes which can occur
+        // when a project admin performs a management action. For the operator's convenience, we also perform UID and
+        // GID mapping in this function. That way the operator should have all the information required to write
+        // an extension with very little code required.
         if (oldTitle != newTitle) {
             result.add(ProjectDiff.ProjectRenamed(oldProjectWithLocalId, newProjectWithLocalId, newTitle))
         }
@@ -383,11 +342,69 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
         }
 
+        return result.doSort()
+    }
+
+    // NOTE(Dan): Emits events for a project which has never been seen by the system before
+    private fun calculateNewProjectDiffs(newProject: Project): List<ProjectDiff> {
+        // NOTE(Dan): The result list is sorted before existing the function. Please don't return early.
+        val result = ArrayList<ProjectDiff>()
+        val newProjectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(newProject.id), newProject)
+
+        // TODO(Dan): Should we really be dispatching a renamed event?
+        result.add(ProjectDiff.ProjectRenamed(null, newProjectWithLocalId, newProject.specification.title))
+
+        val members = newProject.status.members!!
+        if (members.isNotEmpty()) {
+            val membersWithUid = members.map {
+                val uid = UserMapping.ucloudIdToLocalId(it.username)
+                ProjectMemberWithUid(uid, it)
+            }
+
+            result.add(ProjectDiff.MembersAddedToProject(null, newProjectWithLocalId, membersWithUid))
+
+            // TODO(Dan): Should we be dispatching a role changed?
+            for (member in membersWithUid) {
+                result.add(
+                    ProjectDiff.RoleChanged(
+                        null,
+                        newProjectWithLocalId,
+                        member,
+                        member.projectMember.role,
+                        member.projectMember.role
+                    )
+                )
+            }
+        }
+
+        val groups = newProject.status.groups!!
+        val localGroups = groups.map { GroupWithLocalId(ucloudGroupIdToUnixGroupId(it.id), it) }
+        if (localGroups.isNotEmpty()) {
+            result.add(ProjectDiff.GroupsCreated(null, newProjectWithLocalId, localGroups))
+
+            for (group in localGroups) {
+                val groupMembers = group.group.status.members!!
+                if (groupMembers.isNotEmpty()) {
+                    val groupMembersWithUid = groupMembers.map {
+                        val uid = UserMapping.ucloudIdToLocalId(it)
+                        GroupMemberWithUid(uid, it)
+                    }
+
+                    result.add(ProjectDiff.MembersAddedToGroup(null, newProjectWithLocalId, group, groupMembersWithUid))
+                }
+            }
+        }
+
+        // NOTE(Dan): There is no unarchive event, since that would imply an archive event has already taken place.
+
+        return result.doSort()
+    }
+
+    private fun List<ProjectDiff>.doSort(): List<ProjectDiff> {
         // NOTE(Dan): Ordering is quite important. We should dispatch events in an order that makes sense, which is
         // not the same order as we compute them. For example, we should dispatch group creation before members
         // added to group.
-
-        return result.sortedBy { event ->
+        return sortedBy { event ->
             when (event)  {
                 is ProjectDiff.ProjectArchived -> 1
                 is ProjectDiff.ProjectUnarchived -> 2
@@ -423,7 +440,10 @@ class SimpleProjectPlugin : ProjectPlugin {
         }
     }
 
-    private class Extensions(val pluginConfig: SimpleProjectPluginConfiguration) {
+    // NOTE(Dan): Right now we need to use the ProjectDiff serializer in the extension rather than the more specific
+    // type they will actually receive. This is simply to make sure that the "type" property is actually added by
+    // `kotlinx.serialization`.
+    private class Extensions(pluginConfig: SimpleProjectPluginConfiguration) {
         private val e = pluginConfig.extensions
 
         val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.projectRenamed)

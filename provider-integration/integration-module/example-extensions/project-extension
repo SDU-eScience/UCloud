@@ -5,6 +5,47 @@ import subprocess
 import os
 import re
 
+"""
+This example extension maps UCloud projects into a series of local UNIX groups.
+
+As with any other example extension, it is important to remember that they should be tailored to the needs of a
+specific system. These are owned and maintained by the operators of the system on which the integration module runs.
+
+Every project is mapped into a UNIX group and every group is mapped into an additional UNIX group. Members are 
+automatically synchronized to these groups. However, this synchronization only occurs if the users have already
+performed a connection with this provider (i.e. a UID mapping exists).
+
+The following diagram shows an example of how the mapping is performed:
+
++---------------------------------------+               +---------------------------------------+ 
+|                                       |               |                                       |
+| Title: My Research                    |               | UNIX group: my_research_42410         |
+|                                       |               |                                       |
+| Group: Ph.D. Students                 |    maps to    | UNIX group: ph_d__students_42450      |
+| Group: All                            | <===========> | UNIX group: all_42451                 |
+| Group: Taskforce Foobar               |               | UNIX group: taskforce_foobar_42470    |
+|                                       |               |                                       |
++---------------------------------------+               +---------------------------------------+
+
+If a project/group is renamed, then the corresponding UNIX group is also renamed. However, the GID of the UNIX group
+itself is retained.
+
+The local unix groups are created using the following commands, which are all wrapped in utility functions as seen
+below:
+
+- /usr/sbin/groupadd
+- /usr/sbin/groupmod
+- /usr/sbin/groupdel
+- /usr/sbin/usermod
+- /usr/bin/gpasswd
+- /usr/bin/getent
+
+If these functions are not available on your target system, or they are simply unsuitable for group management, then you
+should attempt to change the functions below to more suitable for your system.
+"""
+
+# NOTE(Dan): This script requires root privileges. However, the integration module will launch it with the privileges
+# of the ucloud service user. As a result, we immediately attempt to elevate our own privileges via `sudo`.
 if os.getuid() != 0:
     res = subprocess.run(['sudo', '-S', sys.argv[0], sys.argv[1]], stdin=open('/dev/null'))
     if res.returncode != 0:
@@ -114,36 +155,5 @@ elif request_type == 'members_remove_from_group':
         uid = member['uid']
         if uid is None: continue
         remove_user_from_group(uid, gid)
-
-########################################################################################################################
-
-# UCloud Projects
-# ================================================================================
-# UCloud
-#   /G1
-#   /G2
-#   /G3
-#   /G4
-
-# Local Groups
-# ================================================================================
-# ucloud_123123
-# ucloud_g1_123128
-# ucloud_g2_123130
-# ucloud_g3_123143
-# ucloud_g4_123156
-
-# Imagine rename of group
-
-# UCloud Projects
-# ================================================================================
-# UCloud
-#   /Gruppe 2
-
-# Local Groups
-# ================================================================================
-# ucloud_gruppe_2_123130
-
-# groupadd -g 1010 mygroup
 
 print('{}')
