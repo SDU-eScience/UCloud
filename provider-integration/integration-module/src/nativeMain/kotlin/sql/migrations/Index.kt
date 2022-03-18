@@ -11,4 +11,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V1__Tasks())
     migrationHandler.addScript(V1__ProjectMapping())
     migrationHandler.addScript(V1__SimpleProjectPluginInitial())
+    migrationHandler.addScript(V2__SimpleProjectPlugin())
 }

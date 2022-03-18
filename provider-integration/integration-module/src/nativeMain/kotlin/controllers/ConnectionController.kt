@@ -255,6 +255,30 @@ object UserMapping {
         return result
     }
 
+    fun ucloudIdToLocalIdBulk(ucloudIds: List<String>): Map<String, Int> {
+        val result = HashMap<String, Int>()
+        dbConnection.withTransaction { session ->
+            val queryTable = ucloudIds.map { mapOf("ucloud_id" to it) }
+            session.prepareStatement(
+                """
+                    with query as (
+                        ${safeSqlTableUpload("query", queryTable)}
+                    )
+                    select ucloud_id, local_identity
+                    from
+                        user_mapping um join
+                        query q on um.ucloud_id = q.ucloud_id
+                """
+            ).useAndInvoke(
+                prepare = { bindTableUpload("query", queryTable) },
+                readRow = { row ->
+                    result[row.getString(0)!!] = row.getString(1)!!.toInt()
+                }
+            )
+        }
+        return result
+    }
+
     fun insertMapping(
         ucloudId: String,
         localId: Int,

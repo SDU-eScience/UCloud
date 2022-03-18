@@ -25,3 +25,16 @@ fun V1__SimpleProjectPluginInitial(): MigrationScript = MigrationScript("V1__Sim
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__SimpleProjectPlugin() = MigrationScript("V2__SimpleProjectPlugin") { session ->
+    session.prepareStatement(
+        """
+            create table simple_project_missing_connections(
+                ucloud_id text not null,
+                project_id text not null,
+                created_at timestamp not null default datetime(),
+                primary key (ucloud_id, project_id)
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}

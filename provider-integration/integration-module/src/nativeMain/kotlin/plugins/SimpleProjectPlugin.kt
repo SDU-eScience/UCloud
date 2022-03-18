@@ -4,9 +4,7 @@ import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.v2.*
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withTransaction
+import dk.sdu.cloud.sql.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -106,6 +104,54 @@ class SimpleProjectPlugin : ProjectPlugin {
 
         for (event in diff) {
             dispatchEvent(event)
+        }
+
+        // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
+        // that we can correctly enroll them into groups later.
+        val missingUids = ArrayList<Map<String, String>>()
+        for (event in diff) {
+            when (event) {
+                is ProjectDiff.MembersAddedToProject -> {
+                    for (member in event.newMembers) {
+                        if (member.uid == null) {
+                            missingUids.add(mapOf("username" to member.projectMember.username))
+                        }
+                    }
+                }
+
+                is ProjectDiff.MembersAddedToGroup -> {
+                    for (member in event.newMembers) {
+                        if (member.uid == null) {
+                            missingUids.add(mapOf("username" to member.ucloudUsername))
+                        }
+                    }
+                }
+
+                else -> {
+                    // Nothing to do. We purposefully don't attempt to remove entries which are no longer valid.
+                    // Instead, we simply keep them. We also keep a timestamp such that we could potentially remove
+                    // old and irrelevant data.
+                }
+            }
+        }
+
+        dbConnection.withTransaction { session ->
+            session.prepareStatement(
+                """
+                    with changes as (
+                        ${safeSqlTableUpload("changes", missingUids)}
+                    )
+                    insert into simple_project_missing_connections(ucloud_id, project_id)
+                    select c.username, :project_id
+                    from changes c
+                    on conflict do nothing
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindTableUpload("changes", missingUids)
+                    bindString("project_id", newProject.id)
+                }
+            )
         }
     }
 
