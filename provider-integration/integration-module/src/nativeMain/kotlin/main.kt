@@ -1,14 +1,11 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.file.orchestrator.api.Files
-import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
 import dk.sdu.cloud.http.OutgoingHttpCall
 import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.http.RpcServer
@@ -23,14 +20,10 @@ import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.addressOf
-import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.usePinned
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 import platform.posix.*
 import kotlin.coroutines.CoroutineContext
-import kotlin.native.concurrent.TransferMode
-import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
 sealed class ServerMode {
