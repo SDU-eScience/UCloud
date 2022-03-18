@@ -96,7 +96,7 @@ data class SyncthingLdap(
 @Serializable
 data class SyncthingOptions(
     val alwaysLocalNets: List<String> = emptyList(),
-    val announceLANAddresses: Boolean = true,
+    val announceLANAddresses: Boolean = false,
     val autoUpgradeIntervalH: Int = 12,
     val cacheIgnoredFiles: Boolean = false,
     val connectionLimitEnough: Int = 0,
@@ -110,7 +110,7 @@ data class SyncthingOptions(
     val keepTemporariesH: Int = 24,
     val limitBandwidthInLan: Boolean = false,
     val listenAddresses: List<String> = listOf("default"),
-    val localAnnounceEnabled: Boolean = true,
+    val localAnnounceEnabled: Boolean = false,
     val localAnnounceMCAddr: String = "[ff12::8384]:21027",
     val localAnnouncePort: Int = 21027,
     val maxConcurrentIncomingRequestKiB: Int = 0,
