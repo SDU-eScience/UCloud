@@ -1,5 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services
 
+import dk.sdu.cloud.accounting.api.ErrorCode
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
@@ -47,7 +48,8 @@ class LimitChecker(
         if (isCollectionLocked.get(key) == true) {
             throw RPCException(
                 "Quota has been exceeded. Delete some files and try again later.",
-                HttpStatusCode.PaymentRequired
+                HttpStatusCode.PaymentRequired,
+                ErrorCode.EXCEEDED_STORAGE_QUOTA.toString()
             )
         }
     }
