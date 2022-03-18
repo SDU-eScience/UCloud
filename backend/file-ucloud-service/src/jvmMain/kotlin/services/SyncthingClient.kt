@@ -288,7 +288,13 @@ class SyncthingClient(
                                             deviceID = row.getField(SyncDevicesTable.device),
                                             name = row.getField(SyncDevicesTable.device)
                                         )
-                                    } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                                    } + listOf(
+                                    SyncthingDevice(
+                                        deviceID = device.id,
+                                        name = device.name,
+                                        addresses = device.addresses + SyncthingDevice().addresses
+                                    )
+                                ),
                                 folders = result
                                     .filter {
                                         it.getString("local_device_id") == device.id
@@ -347,7 +353,10 @@ class SyncthingClient(
                                 }
 
                             } catch (ex: RPCException) {
-                                throw RPCException("Invalid Syncthing Configuration", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+                                throw RPCException(
+                                    "Invalid Syncthing Configuration",
+                                    dk.sdu.cloud.calls.HttpStatusCode.BadRequest
+                                )
                             } catch (ex: Throwable) {
                                 // Do nothing
                             }
@@ -538,7 +547,12 @@ class SyncthingClient(
         folders.forEach { deviceFolders ->
             deviceFolders.value.forEach { folder ->
                 try {
-                    val resp = httpClient.delete<HttpResponse>(deviceEndpoint(deviceFolders.key, "/rest/config/folders/$folder")) {
+                    val resp = httpClient.delete<HttpResponse>(
+                        deviceEndpoint(
+                            deviceFolders.key,
+                            "/rest/config/folders/$folder"
+                        )
+                    ) {
                         headers {
                             append("X-API-Key", deviceFolders.key.apiKey)
                         }
