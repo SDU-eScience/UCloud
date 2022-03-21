@@ -82,7 +82,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
                 bulkRequestOf(
                     ResourceChargeCredits(
                         jobId,
-                        lastTs.toString(),
+                        jobId + "_" + lastTs.toString(),
                         replicas * virtualCpus,
                         kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                     )
