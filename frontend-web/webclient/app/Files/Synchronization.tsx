@@ -202,7 +202,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                 return (
                     <>
                         <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
-                        The synchronization feature is experimental, and should be used at your own risk. Please report any errors through the Support Form.
+                        The synchronization feature is experimental. Please report any errors through the Support Form.
                         </Box>
                         <Box mt="30px">
                             The synchronization feature requires you to set up a
@@ -288,7 +288,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                             <>
                                 <Heading.h3>Synchronization Tutorial - Installing Syncthing</Heading.h3>
                                 <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
-                                The synchronization feature is experimental, and should be used at your own risk. Please report any errors through the Support Form.
+                                The synchronization feature is experimental. Please report any errors through the Support Form.
                                 </Box>
                                 <p>The synchronization feature allows you to synchronize folders between UCloud and your devices.</p>
                                 <p>For synchronization to work, you need to install the 3rd-party tool <a target="blank" href="https://syncthing.net">Syncthing</a>.</p>

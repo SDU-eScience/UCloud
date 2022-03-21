@@ -61,7 +61,25 @@ open class ResourceUsageTestContext(
     val otherUserPassword: String,
 
     val groupNamesToId: Map<String, String>
-)
+) {
+    fun client(type: UserType): AuthenticatedClient {
+        return when (type) {
+            UserType.PI -> piClient
+            UserType.ADMIN -> adminClient
+            UserType.MEMBER -> memberClient
+            UserType.SOME_OTHER_USER -> otherUserClient
+        }
+    }
+
+    fun username(type: UserType): String {
+        return when (type) {
+            UserType.PI -> piUsername
+            UserType.ADMIN -> adminUsername
+            UserType.MEMBER -> memberUsername
+            UserType.SOME_OTHER_USER -> otherUserUsername
+        }
+    }
+}
 
 suspend fun initializeResourceTestContext(
     products: List<Product>,

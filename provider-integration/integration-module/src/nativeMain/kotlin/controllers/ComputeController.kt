@@ -200,9 +200,9 @@ class ComputeController(
                             sessionMap[wsContext.internalId] = channel
                         }
 
-                        while (isActive && wsContext.isOpen()) {
-                            delay(50)
-                        }
+                        // NOTE(Dan): We do not want to send a response yet. Which is why we tell the RPC system that
+                        // we have already sent what we need to send, which is nothing.
+                        return@runBlocking OutgoingCallResponse.AlreadyDelivered()
                     }
 
                     is ShellRequest.Input, is ShellRequest.Resize -> {

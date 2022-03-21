@@ -56,11 +56,11 @@ class FileController(
 
     override fun configureIpc(server: IpcServer) {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
-        val idMapper = controllerContext.plugins.identityMapper ?: return
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
-            val (ucloudId, localIdentity) = mapToUcloudIdentity(idMapper, user)
+            UserMapping.localIdToUCloudId(user.uid.toInt())
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             dbConnection.withTransaction { session ->
                 val id = secureToken(32).replace("/", "-")
@@ -74,7 +74,7 @@ class FileController(
                     prepare = {
                         bindString("title", request.title)
                         bindString("task_id", id)
-                        bindString("local", localIdentity)
+                        bindString("local", user.uid.toString())
                     }
                 )
 
@@ -83,7 +83,9 @@ class FileController(
         })
 
         server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
-            val (_, localIdentity) = mapToUcloudIdentity(idMapper, user)
+            UserMapping.localIdToUCloudId(user.uid.toInt())
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+
             var doesExist = false
             dbConnection.withTransaction { session ->
                 session.prepareStatement(
@@ -97,7 +99,7 @@ class FileController(
                 ).useAndInvoke(
                     prepare = {
                         bindString("task_id", request.id)
-                        bindString("local_id", localIdentity)
+                        bindString("local_id", user.uid.toString())
                     },
                     readRow = { doesExist = true }
                 )
@@ -112,7 +114,8 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
-            val (ucloudIdentity) = mapToUcloudIdentity(idMapper, user)
+            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
+                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             dbConnection.prepareStatement(
                 """
@@ -161,15 +164,8 @@ class FileController(
         })
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
-            val ucloudIdentity = with(controllerContext.pluginContext) {
-                with(idMapper) {
-                    runCatching {
-                        lookupUCloudIdentifyFromLocalIdentity(
-                            mapUidToLocalIdentity(user.uid.toInt())
-                        )
-                    }.getOrNull() ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
-                }
-            }
+            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
+                ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
 
             dbConnection.prepareStatement(
                 """
@@ -218,24 +214,6 @@ class FileController(
         })
     }
 
-    data class UCloudAndLocalId(val ucloudId: String, val localId: String)
-
-    private fun mapToUcloudIdentity(
-        idMapper: IdentityMapperPlugin,
-        user: IpcUser
-    ): UCloudAndLocalId {
-        return with(controllerContext.pluginContext) {
-            with(idMapper) {
-                val localId = mapUidToLocalIdentity(user.uid.toInt())
-                UCloudAndLocalId(
-                    lookupUCloudIdentifyFromLocalIdentity(localId)
-                        ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden),
-                    localId
-                )
-            }
-        }
-    }
-
     override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
         val pathConverter = PathConverter(controllerContext.pluginContext)
         val providerId = controllerContext.configuration.core.providerId
@@ -278,7 +256,7 @@ class FileController(
             val plugin = plugins.lookup(request.resolvedCollection.specification.product)
             with(controllerContext.pluginContext) {
                 with(plugin) {
-                    OutgoingCallResponse.Ok<FilesProviderBrowseResponse, CommonErrorMessage>(browse(UCloudFile.create(path), request))
+                    OutgoingCallResponse.Ok(browse(UCloudFile.create(path), request))
                 }
             }
         }

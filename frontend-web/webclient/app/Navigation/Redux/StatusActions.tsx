@@ -44,5 +44,7 @@ export function useTitle(title: string): void {
 
 export function useLoading(loading: boolean): void {
     const dispatch = useDispatch();
-    dispatch(setLoading(loading));
+    useEffect(() => {
+        dispatch(setLoading(loading));
+    }, [loading]);
 }

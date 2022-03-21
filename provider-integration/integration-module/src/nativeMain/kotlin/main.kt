@@ -81,7 +81,7 @@ private fun readSelfExecutablePath(): String {
 
 object ProcessingScope : CoroutineScope {
     private val job = SupervisorJob()
-    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(10, "Processing")
+    override val coroutineContext: CoroutineContext = job + newFixedThreadPoolContext(30, "Processing")
 }
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
@@ -162,7 +162,7 @@ fun main(args: Array<String>) {
                 }
             }
 
-            val validation = NativeJWTValidation(config.core.certificate!!)
+            val validation = NativeJWTValidation(config.core.certificate ?: error("Missing certificate"))
             loadMiddleware(config, validation)
 
             if (config.server != null && serverMode == ServerMode.Server) {
@@ -181,7 +181,7 @@ fun main(args: Array<String>) {
             }
 
             val rpcServer = when (serverMode) {
-                ServerMode.Server, ServerMode.User -> RpcServer(rpcServerPort!!)
+                ServerMode.Server, ServerMode.User -> RpcServer(rpcServerPort ?: error("Missing rpcServerPort"))
                 else -> null
             }
 
@@ -194,7 +194,7 @@ fun main(args: Array<String>) {
             val providerClient = run {
                 when (serverMode) {
                     ServerMode.Server -> {
-                        val serverConfig = config.server!!
+                        val serverConfig = config.server ?: error("Could not find server configuration")
                         val client = RpcClient().also { client ->
                             OutgoingHttpRequestInterceptor()
                                 .install(
@@ -229,7 +229,7 @@ fun main(args: Array<String>) {
                     }
 
                     ServerMode.FrontendProxy -> {
-                        val cfg = config.frontendProxy!!
+                        val cfg = config.frontendProxy ?: error("Could not find frontend proxy configuration")
                         val client = RpcClient().also { client ->
                             OutgoingHttpRequestInterceptor()
                                 .install(
@@ -256,7 +256,7 @@ fun main(args: Array<String>) {
             val ipcServer = when (serverMode) {
                 ServerMode.Server, ServerMode.FrontendProxy -> IpcServer(
                     ipcSocketDirectory,
-                    config.frontendProxy!!,
+                    config.frontendProxy ?: error("Could not find frontend proxy configuration"),
                     providerClient!!,
                     rpcServer
                 )
@@ -316,7 +316,8 @@ fun main(args: Array<String>) {
                             FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig),
-                            AccountingController(controllerContext)
+                            AccountingController(controllerContext),
+                            ProjectController(controllerContext)
                         )
 
                         rpcServer.start()

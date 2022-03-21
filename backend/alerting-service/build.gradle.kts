@@ -1,4 +1,4 @@
-version = "2022.1.7"
+version = rootProject.file("./version.txt").readText().trim()
 
 application {
     mainClassName = "dk.sdu.cloud.alerting.MainKt"

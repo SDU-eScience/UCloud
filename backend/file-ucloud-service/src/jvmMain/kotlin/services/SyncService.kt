@@ -210,6 +210,7 @@ class SyncService(
         if (affectedRows > 0) {
             try {
                 syncthing.addFolders(affectedDevices.toList())
+                syncthing.addDevices(affectedDevices.toList())
             } catch (ex: Throwable) {
                 request.items.forEach { folder ->
                     Mounts.unmount.call(

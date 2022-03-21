@@ -29,6 +29,7 @@ typealias FolderSvcSuper = ResourceService<SyncFolder, SyncFolder.Spec, SyncFold
     SyncFolder.Status, Product.Synchronization, SyncFolderSupport, SimpleProviderCommunication>
 
 class SyncFolderService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<SimpleProviderCommunication>,
     support: ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncFolderSupport>,
@@ -37,7 +38,7 @@ class SyncFolderService(
     private val fileCollectionService: FileCollectionService,
     private val distributedLocks: DistributedLockFactory,
     private val scope: BackgroundScope,
-) : FolderSvcSuper(db, providers, support, serviceClient) {
+) : FolderSvcSuper(projectCache, db, providers, support, serviceClient) {
     override val table = SqlObject.Table("file_orchestrator.sync_folders")
     override val defaultSortColumn = SqlObject.Column(table, "resource")
     override val sortColumns: Map<String, SqlObject.Column> = mapOf("resource" to defaultSortColumn)
@@ -53,6 +54,7 @@ class SyncFolderService(
     init {
         files.addMoveHandler(::onFilesMoved)
         files.addDeleteHandler(::onFilesDeleted)
+        files.addTrashHandler(::onFilesTrashed)
         fileCollectionService.addDeleteHandler(::onFileCollectionDeleted)
     }
 
@@ -61,6 +63,10 @@ class SyncFolderService(
     }
 
     private suspend fun onFilesDeleted(request: List<FindByStringId>) {
+        removeSyncFolders(request.map { it.id })
+    }
+
+    private suspend fun onFilesTrashed(request: List<FindByPath>) {
         removeSyncFolders(request.map { it.id })
     }
 

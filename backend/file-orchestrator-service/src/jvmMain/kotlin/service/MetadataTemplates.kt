@@ -25,11 +25,12 @@ private typealias SuperTemplateNs = ResourceService<FileMetadataTemplateNamespac
     Product, FileMetadataTemplateSupport, StorageCommunication>
 
 class MetadataTemplateNamespaces(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<StorageCommunication>,
     support: ProviderSupport<StorageCommunication, Product, FileMetadataTemplateSupport>,
     serviceClient: AuthenticatedClient,
-) : SuperTemplateNs(db, providers, support, serviceClient) {
+) : SuperTemplateNs(projectCache, db, providers, support, serviceClient) {
     override val isCoreResource: Boolean = true
     override val resourceType: String = "metadata_template_namespace"
     override val sqlJsonConverter = SqlObject.Function("file_orchestrator.metadata_template_namespace_to_json")

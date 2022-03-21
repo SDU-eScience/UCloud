@@ -4,6 +4,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <stdbool.h>
+#include <sys/select.h>
 
 struct socket_credentials {
     bool valid;
@@ -22,4 +23,10 @@ size_t sockaddr_in_align();
 bool wifexited(int status);
 int wexitstatus(int status);
 
+void fd_clr(int fd, fd_set *set);
+int fd_isset(int fd, fd_set *set);
+void fd_add(int fd, fd_set *set);
+void fd_zero(fd_set *set);
+
 #endif
+

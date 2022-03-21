@@ -351,10 +351,9 @@ class SyncthingClient(
                                 } else {
                                     pendingDevices = pendingDevices.filter { it.id != device.id }
                                 }
-
                             } catch (ex: RPCException) {
                                 throw RPCException(
-                                    "Invalid Syncthing Configuration",
+                                    "Invalid Syncthing Configuration: ${ex.message}",
                                     dk.sdu.cloud.calls.HttpStatusCode.BadRequest
                                 )
                             } catch (ex: Throwable) {

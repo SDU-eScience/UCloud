@@ -32,15 +32,9 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 api(project(":service-lib"))
-
-                rootProject.childProjects.values
-                    .filter { it.name.endsWith("-service") }
-                    .forEach { p ->
-                        val hasApiProject = rootProject.subprojects
-                            .find { it.name == p.name }!!.subprojects
-                            .any { it.name == "api" }
-                        if (hasApiProject) api(project(":" + p.name + ":api"))
-                    }
+                api(project(":auth-service:api"))
+                api(project(":file-orchestrator-service:api"))
+                api(project(":app-orchestrator-service:api"))
             }
         }
 

@@ -15,7 +15,7 @@ data class ProcessStreams(
 )
 
 fun replaceThisProcess(args: List<String>, newStreams: ProcessStreams, envs: List<String> = listOf()): Nothing {
-//    setsid()
+    setsid()
 
     val nativeArgs = nativeHeap.allocArray<CPointerVar<KotlinxCinteropByteVar>>(args.size + 1)
     for (i in args.indices) {

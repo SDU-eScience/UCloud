@@ -33,3 +33,7 @@ export function associateBy<T>(items: T[], keySelector: (t: T) => string): Recor
 export function takeLast<T>(items: T[], numberOfItems: number): T[] {
     return items.slice(Math.max(0, items.length - numberOfItems));
 }
+
+export function deepCopy<T>(item: T): T {
+    return JSON.parse(JSON.stringify(item));
+}

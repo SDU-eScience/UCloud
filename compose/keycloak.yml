@@ -1,0 +1,25 @@
+version: "3.9"
+services:
+  keycloak:
+    # NOTE(Dan): The dockerfile can be found in provider-integration/integration-module/keycloak.dockerfile
+    image: dreg.cloud.sdu.dk/ucloud/keycloak-dev:17.0.0
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    command:
+      - start-dev
+    volumes:
+      - keycloak:/opt/keycloak/data
+    ports:
+      - ${KEYCLOAK_PORT:-61241}:8080
+    hostname: keycloak
+  chrome:
+    image: dreg.cloud.sdu.dk/ucloud-apps/ubuntu-xfce:20.04
+    environment:
+      VNC_PW: vncpassword
+      VNC_RESOLUTION: 1920x1200
+    command:
+      - vnc_startup.sh
+      - -w
+    ports:
+      - ${CHROME_PORT:-62344}:6901

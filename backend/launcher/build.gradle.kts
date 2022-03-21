@@ -67,7 +67,11 @@ kotlin {
     }
 }
 
-version = "1.0.0"
+tasks.withType<org.gradle.api.tasks.JavaExec>().configureEach {
+    systemProperty("log4j2.configurationFactory", "dk.sdu.cloud.micro.Log4j2ConfigFactory")
+}
+
+version = rootProject.file("./version.txt").readText().trim()
 
 publishing {
     repositories {
