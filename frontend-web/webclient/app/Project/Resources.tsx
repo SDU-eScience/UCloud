@@ -154,24 +154,22 @@ const Resources: React.FunctionComponent = () => {
                 left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
-            sidebar={<>
-                <ResourceFilter
-                    browseType={BrowseType.MainContent}
-                    pills={filterPills}
-                    filterWidgets={filterWidgets}
-                    sortEntries={[]}
-                    properties={filters}
-                    setProperties={setFilters}
-                    sortDirection={"ascending"}
-                    onSortUpdated={doNothing}
-                />
-            </>}
+            sidebar={<ResourceFilter
+                browseType={BrowseType.MainContent}
+                pills={filterPills}
+                filterWidgets={filterWidgets}
+                sortEntries={[]}
+                properties={filters}
+                setProperties={setFilters}
+                sortDirection={"ascending"}
+                onSortUpdated={doNothing}
+            />}
             main={<ResourcesGrid>
                 <Grid gridGap={"16px"}>
-                    {maximizedUsage == null ? null : <>
+                    {maximizedUsage == null ? null :
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
                             onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
-                    </>}
+                    }
                     {maximizedUsage != null ? null :
                         <>
                             <VisualizationSection>
@@ -364,24 +362,26 @@ const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | 
         return <>No expiration</>;
     } else if (now < endDate) {
         return <>Expires in {formatDistance(new Date(endDate), new Date(now))}</>;
+    } else if (now > endDate) {
+        return <>Expired</>;
     } else {
         return <>Expires soon</>;
     }
 };
 
 const VisualizationSection = styled.div`
-        display: grid;
-        grid-gap: 16px;
-        padding: 10px 0;
-        grid-template-columns: repeat(auto-fill, 400px);
-        `;
+    display: grid;
+    grid-gap: 16px;
+    padding: 10px 0;
+    grid-template-columns: repeat(auto-fill, 400px);
+`;
 
 const UsageChartStyle = styled.div`
-        .usage-chart {
-            width: calc(100% + 32px) !important;
+    .usage-chart {
+        width: calc(100% + 32px) !important;
         margin: -16px;
     }
-        `;
+`;
 
 const UsageChartViewer: React.FunctionComponent<{
     c: UsageChart;
