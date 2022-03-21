@@ -334,7 +334,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
+                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={{}} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
@@ -375,7 +375,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}
-            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
+            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} callbacks={{}} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,

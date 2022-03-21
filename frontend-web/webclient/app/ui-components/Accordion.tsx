@@ -6,11 +6,12 @@ import {Spacer} from "./Spacer";
 import Text from "./Text";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
-export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title: React.ReactNode; titleContent?: React.ReactNode}>): JSX.Element {
+export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title: React.ReactNode; titleContent?: React.ReactNode; forceOpen?: boolean;}>): JSX.Element {
     const [open, setOpen] = React.useState(false);
+    const isOpen = props.forceOpen || open;
     return (
         <>
-            <AccordionStyle className="AccordionStyle" active={open} onClick={() => setOpen(!open)}>
+            <AccordionStyle className="AccordionStyle" active={isOpen} onClick={() => setOpen(!open)}>
                 <Spacer
                     left={<>
                         {props.icon ? <Icon mr="12px" color="text" name={props.icon} /> :
@@ -21,7 +22,7 @@ export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title
                     right={<Flex width="auto">{props.titleContent}</Flex>}
                 />
             </AccordionStyle>
-            <Panel active={open}>
+            <Panel active={isOpen}>
                 {props.children}
             </Panel>
         </>
