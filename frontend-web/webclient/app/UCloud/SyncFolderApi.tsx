@@ -13,9 +13,9 @@ import { Icon } from "@/ui-components";
 import { ItemRenderer } from "@/ui-components/Browse";
 import { ProductSyncFolder } from "@/Accounting";
 
-enum SynchronizationType {
-    SEND_RECEIVE = "SEND_RECEIVE",
-    SEND_ONLY = "SEND_ONLY",
+export enum SyncPermission {
+    SEND_RECEIVE = "EDIT",
+    SEND_ONLY = "READ",
 }
 
 export interface SyncFolderSpecification extends ResourceSpecification {
@@ -23,6 +23,7 @@ export interface SyncFolderSpecification extends ResourceSpecification {
 }
 
 export interface SyncFolderStatus extends ResourceStatus {
+    permission: SyncPermission;
     remoteDevice: string;
 }
 
