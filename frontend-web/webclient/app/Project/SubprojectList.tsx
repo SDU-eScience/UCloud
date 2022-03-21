@@ -119,10 +119,11 @@ export default function SubprojectList(): JSX.Element | null {
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const history = useHistory();
+    const [overrideRedirect, setOverride] = React.useState(false)
 
     const projectId = useProjectId();
 
-    React.useEffect(() => history.push(`/subprojects?subproject=${projectId}`), [projectId]);
+    React.useEffect(() => {if (!overrideRedirect) history.push(`/subprojects?subproject=${projectId}`)}, [projectId, overrideRedirect]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -155,12 +156,13 @@ export default function SubprojectList(): JSX.Element | null {
             return;
         }
         try {
-            await invokeCommand(createProject({
+            const result = await invokeCommand(createProject({
                 title: subprojectName,
                 parent: subprojectFromQuery
             }));
-            reloadRef.current();
-            toggleSet.uncheckAll();
+            setOverride(true);
+            dispatchSetProjectAction(dispatch, result.id);
+            history.push("/project/grants/existing/");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
         }
@@ -179,7 +181,6 @@ export default function SubprojectList(): JSX.Element | null {
             setRenameId("");
         } catch (e) {
             snackbarStore.addFailure(errorMessageOrDefault(e, "Invalid subproject name"), false);
-
         }
     }, [subprojectFromQuery]);
 
