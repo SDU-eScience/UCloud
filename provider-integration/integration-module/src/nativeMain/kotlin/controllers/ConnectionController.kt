@@ -176,9 +176,10 @@ class ConnectionController(
                             allocatedPort.toString()
                         ),
                         createStreams = {
+                            val logFilePath = controllerContext.configuration.core.logDirectory!! + "/user_${uid}.log"
                             val devnull = NativeFile.open("/dev/null", readOnly = false)
                             unlink("/tmp/ucloud_${uid}.log")
-                            val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                            val logFile = NativeFile.open(logFilePath, readOnly = false)
                             ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
                         }
                     )

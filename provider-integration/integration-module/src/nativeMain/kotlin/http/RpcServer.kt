@@ -127,6 +127,7 @@ class RpcServer(
                                 }
                             }
                         } catch (ex: Throwable) {
+                            log.debug("Failed to parse request message.\n${ex.stackTraceToString().prependIndent("  ")}")
                             sendHttpResponse(400, defaultHeaders())
                             return
                         }

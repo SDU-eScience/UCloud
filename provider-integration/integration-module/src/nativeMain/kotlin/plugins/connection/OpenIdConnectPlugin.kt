@@ -191,14 +191,17 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     val azp = jwt_get_grant(jwt, "azp")?.toKStringFromUtf8()
 
                     if (returnedSessionState != request.session_state) {
+                        log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
                     if (azp != null && azp != configuration.clientId) {
+                        log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.clientId}")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
                     if (!type.equals("Bearer", ignoreCase = true)) {
+                        log.debug("OIDC failed due to the type not being equal to Bearer (it was $type)")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
@@ -236,7 +239,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         phoneNumber,
                         phoneNumberVerified,
                     )
-                } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                } ?: run {
+                    log.debug("OIDC failed due to a bad token: ${tokenResponse.access_token}")
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
+
+                log.debug("OIDC success! Subject is $subject")
 
                 val result = onOpenIdConnectCompleted.invoke(configuration.extensions.onOpenIdConnectCompleted, subject)
                 UserMapping.insertMapping(subject.ucloudIdentity, result.uid, mappingExpiration())
