@@ -330,20 +330,24 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
-const AllocationViewer: React.FunctionComponent<{
+export const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
-}> = ({wallet, allocation}) => {
+    simple?: boolean;
+}> = ({wallet, allocation, simple = true}) => {
     const url = "/project/grants/view/" + allocation.grantedIn;
     return <HighlightedCard color={"red"} width={"400px"}>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                 size={"54px"} mr={"16px"} />
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-                <Flex alignItems={"center"} mr={"-16px"}>
+                {simple ? <Flex alignItems={"center"} mr={"-16px"}>
                     <div><b>Allocation ID: {allocation.id}</b></div>
                     <Box flexGrow={1} />
-                </Flex>
+                </Flex> : <Flex alignItems={"center"} mr={"-16px"}>
+                    <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
+                    <Box flexGrow={1} />
+                </Flex>}
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />

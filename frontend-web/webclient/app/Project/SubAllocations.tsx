@@ -1,6 +1,7 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, Checkbox, Flex, Icon, Input, Label, Text, Tooltip as UITooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Checkbox, Flex, Icon, Input, Label, Link, Text, Tooltip as UITooltip} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {
     Cell as SheetCell,
@@ -11,23 +12,25 @@ import {
     TextCell
 } from "@/ui-components/Sheet";
 import {
+    ChargeType,
     deposit,
     DepositToWalletRequestItem,
     explainAllocation, normalizeBalanceForBackend,
-    normalizeBalanceForFrontend, ProductType,
+    normalizeBalanceForFrontend, ProductPriceUnit, ProductType,
     productTypes,
     productTypeToIcon,
     productTypeToTitle, retrieveRecipient,
     TransferRecipient, updateAllocation, UpdateAllocationRequestItem,
-    Wallet
+    Wallet,
+    WalletAllocation
 } from "@/Accounting";
-import {APICallState, callAPI} from "@/Authentication/DataHook";
+import {APICallState, callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import {ConfirmCancelButtons} from "@/UtilityComponents";
+import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
@@ -35,17 +38,24 @@ import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
 import {ListRow} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
+import {DatePicker} from "@/ui-components/DatePicker";
+import {InputLabel} from "@/ui-components/Input";
+import {startOfDay} from "date-fns/esm";
+import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {AllocationViewer} from "./Resources";
+import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
 
 const Circle = styled(Box)`
-  border-radius: 500px;
-  width: 20px;
-  height: 20px;
-  border: 1px solid ${getCssVar("black")};
-  margin: 4px 4px 4px 8px;
-  cursor: pointer;
+    border-radius: 500px;
+    width: 20px;
+    height: 20px;
+    border: 1px solid ${getCssVar("black")};
+    margin: 4px 4px 4px 8px;
+    cursor: pointer;
 `;
 
-const SHOW_WORK_IN_PROGRESS = false;
+const SHOW_WORK_IN_PROGRESS = true;
 
 function formatTimestampForInput(timestamp: number): string {
     const d = new Date(timestamp);
@@ -107,9 +117,6 @@ function writeAllocations(
         if (draftCopy !== "deleted") {
             if (draftCopy) return;
             s.addRow(alloc.id);
-            /* Note(Jonas): Isn't this an unused expression? */
-            alloc.path
-            /* Note(Jonas): End */
 
             s.writeValue(colRecipientType, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
             s.writeValue(colRecipient, row, alloc.workspaceTitle);
@@ -691,11 +698,10 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
     const [sheetModeActive, setSheetMode] = useState(false || !SHOW_WORK_IN_PROGRESS);
 
-
     return <HighlightedCard
         color={"green"}
         icon={"grant"}
-        title={"Sub-allocations"}
+        title={<Heading.h3>Sub-allocations</Heading.h3>}
         subtitle={
             <SearchInput>
                 <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
@@ -720,7 +726,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
         />
 
         {!SHOW_WORK_IN_PROGRESS || allocations.data.items.length === 0 ? null : (
-            <SuballocationRows rows={allocations.data.items} />
+            <SuballocationRows rows={allocations.data.items} wallets={wallets.data.items} reload={reload} />
         )}
 
         <div hidden={!sheetModeActive}>
@@ -831,6 +837,8 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
 function SuballocationRows(props: {
     rows: SubAllocation[];
+    reload(): void;
+    wallets: Wallet[];
 }): JSX.Element {
     return React.useMemo(() => {
         const groupedByName: {[key: string]: SubAllocation[]} = {};
@@ -842,38 +850,345 @@ function SuballocationRows(props: {
             }
         });
 
-        return <Box ml="16px">
-            {Object.keys(groupedByName).map(key => {
-                const entries = groupedByName[key];
-
-                const storageEntries = entries.filter(it => it.productType === "STORAGE");
-                const storageRemaining = storageEntries.reduce((acc, it) => it.remaining + acc, 0);
-
-                const computeEntries = entries.filter(it => it.productType === "COMPUTE");
-                const computeRemaining = entries.reduce((acc, it) => it.remaining + acc, 0);
-
-                /* TODO(Jonas): I'm not sure we for sure know chargeType and unit are consistent throughout. */
-                const storageAmount = storageEntries[0] ? <Flex><Icon mx="12px" name="hdd" />{normalizeBalanceForFrontend(
-                    storageRemaining, storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit, false, 2
-                ) + " " + explainAllocation(storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit)}</Flex> : null;
-
-                const computeAmount = computeEntries[0] ? <Flex><Icon mx="12px" name="cpu" />{normalizeBalanceForFrontend(
-                    computeRemaining, computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit, false, 2
-                ) + " " + explainAllocation(computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit)}</Flex> : null;
-
-                return (
-                    <Accordion key={key} icon={entries[0].workspaceIsProject ? "projects" : "user"} title={key} titleContent={<Flex ml="26px">{storageAmount} {computeAmount}</Flex>}>
-                        {entries.map(row => <SubAllocationRow suballocation={row} />)}
-                    </Accordion>
-                )
-            })}
+        return <Box>
+            {Object.keys(groupedByName).map(key => <SuballocationGroup key={key} entryKey={key} rows={groupedByName[key]} wallets={props.wallets} reload={props.reload} />)}
         </Box>
     }, [props.rows]);
 }
 
-function SubAllocationRow(props: {suballocation: SubAllocation;}): JSX.Element {
+function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAllocation[]): APICallParameters | null {
+    const updated: UpdateAllocationRequestItem[] = [];
+    for (const [index, oldEntry] of oldAllocs.entries()) {
+        const newEntry = newAllocs[index];
+        if (!isEqual(oldEntry, newEntry)) {
+            updated.push({
+                id: newEntry.id,
+                balance: newEntry.remaining,
+                startDate: newEntry.startDate,
+                endDate: newEntry.endDate,
+                reason: "Allocation updated by grant giver"
+            });
+        }
+    }
+    if (updated.length === 0) return null;
+    return updateAllocation(bulkRequestOf(...updated));
+
+    function isEqual(oldAlloc: SubAllocation, newAlloc: SubAllocation): boolean {
+        if (oldAlloc.startDate != newAlloc.startDate) return false;
+        if ((oldAlloc == null && newAlloc == null) || oldAlloc.endDate != newAlloc.endDate) return false;
+        if (oldAlloc.remaining != newAlloc.remaining) return false;
+        return true;
+    }
+}
+
+
+interface SuballocationCreationRow {
+    id: number;
+    productType: ProductType;
+    recipient: React.RefObject<HTMLInputElement>;
+    startDate: number;
+    endDate?: number;
+    amount?: number;
+    wallet?: Wallet;
+    allocationId: string;
+}
+
+function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[];}): JSX.Element {
+    const isProject = props.rows[0].workspaceIsProject ? "projects" : "user"
+
+
+    const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
+    const storageRemaining = storageEntries.reduce((acc, it) => it.remaining + acc, 0);
+
+    const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
+    const computeRemaining = props.rows.reduce((acc, it) => it.remaining + acc, 0);
+
+    /* TODO(Jonas): I'm not sure we for sure know chargeType and unit are consistent throughout. */
+    const storageAmount = storageEntries[0] ? <Flex><Icon mx="12px" name="hdd" />{normalizeBalanceForFrontend(
+        storageRemaining, storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit, false, 2
+    ) + " " + explainAllocation(storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit)}</Flex> : null;
+
+    const computeAmount = computeEntries[0] ? <Flex><Icon mx="12px" name="cpu" />{normalizeBalanceForFrontend(
+        computeRemaining, computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit, false, 2
+    ) + " " + explainAllocation(computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit)}</Flex> : null;
+    /* TODO(Jonas): End */
+
+    const [editing, setEditing] = useState(false);
+    const startEdit = useCallback(() => {
+        setEditing(true);
+    }, [setEditing]);
+    const cancelEdit = useCallback(() => {
+        setEditing(false);
+    }, [setEditing]);
+
+    const [loading, invokeCommand] = useCloudCommand();
+
+    /* TODO(Jonas): Use context? */
+    const editEntries = useRef<{[id: string]: SubAllocation}>({});
+    /* TODO(Jonas): End */
+
+    React.useEffect(() => {
+        editEntries.current = {};
+        props.rows.forEach(it => {
+            editEntries.current[it.id] = it;
+        });
+    }, [props.rows]);
+
+    const [creationRows, setCreationRows] = useState<SuballocationCreationRow[]>([]);
+
+    const updateRows = useCallback(async () => {
+        try {
+            const edited = props.rows.map(it => editEntries.current[it.id]);
+            const request = findChangedAndMapToRequest(props.rows, edited);
+            if (request != null) {
+                await callAPI(request);
+                props.reload();
+            }
+        } catch (e) {
+            errorMessageOrDefault(e.response?.why, "Update failed");
+        }
+    }, []);
+
+    const submitNewRows = React.useCallback(async (creationRows: SuballocationCreationRow[]): Promise<void> => {
+        const mappedRows: DepositToWalletRequestItem[] = [];
+        for (const [index, row] of creationRows.entries()) {
+            if (row.allocationId == "") {
+                snackbarStore.addFailure(`Row #${index + 1} is missing an allocation selection`, false);
+                return;
+            }
+
+            if (row.amount == null || isNaN(row.amount)) {
+                snackbarStore.addFailure(`Row #${index + 1} is missing an amount`, false);
+                return;
+            } else if (row.amount < 1) {
+                snackbarStore.addFailure(`Row #${index + 1}'s amount must be more than 0.`, false);
+                return;
+            }
+
+            const recipient = row.recipient.current?.value;
+            if (!recipient) {
+                snackbarStore.addFailure(`Row #${index + 1} is missing a recipient`, false);
+                return;
+            }
+
+            mappedRows.push({
+                amount: row.amount,
+                description: "",
+                recipient: isProject ? {type: "project", projectId: props.entryKey} : {type: "user", username: props.entryKey},
+                sourceAllocation: row.allocationId,
+                startDate: row.startDate,
+                endDate: row.endDate,
+            });
+        }
+
+        try {
+            await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
+        } catch (e) {
+            errorMessageOrDefault(e, "Failed to submit rows");
+        }
+    }, [])
+
+    const allocationsByProductTypes = useMemo((): {
+        [key: string]: {
+            wallet: Wallet;
+            allocations: WalletAllocation[];
+        }[]
+    } => ({
+        ["COMPUTE" as ProductType]: findValidAllocations(props.wallets, "COMPUTE"),
+        ["STORAGE" as ProductType]: findValidAllocations(props.wallets, "STORAGE"),
+        ["INGRESS" as ProductType]: findValidAllocations(props.wallets, "INGRESS"),
+        ["LICENSE" as ProductType]: findValidAllocations(props.wallets, "LICENSE"),
+        ["NETWORK_IP" as ProductType]: findValidAllocations(props.wallets, "NETWORK_IP")
+    }), [props.wallets])
+
+    const idRef = useRef(0);
+    const addNewRow = React.useCallback(() => setCreationRows(rows => {
+        const productTypeWithEntries = productTypes.find(it => {
+            for (const entry of allocationsByProductTypes[it]) {
+                if (entry.allocations.length > 0) return true;
+            }
+            return false;
+        });
+
+        if (!productTypeWithEntries) {
+            snackbarStore.addFailure("No available allocations to use", false);
+            return rows;
+        }
+
+        rows.push({
+            id: idRef.current++,
+            productType: productTypeWithEntries,
+            recipient: React.createRef<HTMLInputElement>(),
+            amount: undefined,
+            endDate: undefined,
+            startDate: startOfDay(new Date()).getTime(),
+            wallet: allocationsByProductTypes[productTypeWithEntries][0].wallet,
+            allocationId: allocationsByProductTypes[productTypeWithEntries][0].allocations[0].id
+        });
+        return [...rows];
+    }), [props.wallets]);
+
+    const removeRow = React.useCallback((id: number) => {
+        setCreationRows(rows => [...rows.filter(it => it.id !== id)]);
+    }, []);
+
+    const selectAllocation = React.useCallback((allocationAndWallets: {
+        wallet: Wallet;
+        allocations: WalletAllocation[];
+    }[], id: number) => {
+        dialogStore.addDialog(
+            <div>
+                <Heading.h3>Allocations</Heading.h3>
+                {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
+                    <div onClick={() => {
+                        setCreationRows(rows => {
+                            rows[id].wallet = it.wallet;
+                            rows[id].allocationId = allocation.id;
+                            return [...rows];
+                        });
+                        dialogStore.success();
+                    }}>
+                        <AllocationViewer allocation={allocation} wallet={it.wallet} simple={false} />
+                    </div>
+                ))}
+            </div>, () => undefined, false, largeModalStyle);
+    }, []);
+
+    return React.useMemo(() =>
+        <Accordion
+            key={props.entryKey}
+            icon={isProject ? "projects" : "user"}
+            title={props.entryKey}
+            forceOpen={editing || creationRows.length > 0}
+            titleContent={<Flex>{storageAmount} {computeAmount}
+                <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button>
+                {editing ?
+                    <ButtonGroup>
+                        <Button ml="8px" mt="-5px" mb="-8px" height="32px" color="green" onClick={updateRows}>Update</Button>
+                        <Button mt="-5px" mb="-8px" height="32px" color="red" onClick={cancelEdit}>Cancel</Button>
+                    </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={startEdit}>Edit</Button>}
+            </Flex>}
+        >
+            {creationRows.length === 0 ? null : <Spacer right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
+            {creationRows.map((row, index) => {
+                const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
+                const remainingProductTypes = productTypes.filter(it => it !== row.productType && hasValidAllocations(allocationsByProductTypes[it]));
+
+                return (
+                    <ListRow
+                        key={row.id}
+                        icon={<ClickableDropdown width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />} >
+                            {remainingProductTypes.map(pt => <div onClick={() => {
+                                const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                creationRows[index].productType = pt;
+                                creationRows[index].wallet = wallet;
+                                creationRows[index].allocationId = allocations[0].id;
+                                setCreationRows([...creationRows]);
+                            }}><Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</div>)}
+                        </ClickableDropdown>}
+                        left={<Flex>
+                            {allowProductDropDown(allocationsByProductTypes[row.productType]) ? <Flex onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
+                                {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
+                            </Flex> : productAndProvider}
+                            <Flex color="var(--gray)" ml="12px">
+                                <DatePicker
+                                    selectsRange
+                                    fontSize="18px"
+                                    py="0"
+                                    startDate={new Date(row.startDate)}
+                                    endDate={row.endDate != null ? new Date(row.endDate) : undefined}
+                                    onChange={(dates: [Date, Date | null]) => {
+                                        setCreationRows(rows => {
+                                            creationRows[index].startDate = dates[0].getTime();
+                                            creationRows[index].endDate = dates[1]?.getTime();
+                                            return [...rows];
+                                        });
+                                    }}
+                                />
+                            </Flex>
+                        </Flex>}
+                        right={row.wallet == null ? null : <Flex width="280px">
+                            <Input
+                                width="100%"
+                                type="number"
+                                rightLabel
+                                placeholder="Amount..."
+                                onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
+                            />
+                            <InputLabel width={row.productType === "INGRESS" ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                            <Icon name="close" color="red" cursor="pointer" onClick={() => removeRow(row.id)} />
+                        </Flex>}
+                    />);
+            })}
+            {props.rows.map(row => <SubAllocationRow key={row.id} editEntries={editEntries} editing={editing} suballocation={row} />)}
+        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes]);
+}
+
+function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
+    const now = new Date().getTime();
+
+    return wallets.filter(it => it.productType === productType).flatMap(w => ({
+        wallet: w,
+        allocations: w.allocations.filter(it =>
+            (it.endDate == null || it.endDate < now) &&
+            it.localBalance > 0
+        )
+    }));
+}
+
+function allowProductDropDown(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
+    if (!walletAllocations) return false;
+    let count = 0;
+    console.log(walletAllocations);
+    for (const entry of walletAllocations) {
+        count += entry.allocations.length;
+        if (count > 2) return true;
+    }
+    console.log(count)
+    return false;
+}
+
+function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
+    if (!walletAllocations) return false;
+    return walletAllocations.some(({allocations}) => allocations.length > 0);
+}
+
+function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<{[id: string]: SubAllocation}>}): JSX.Element {
     const entry = props.suballocation;
-    return (
+    const [dates, setDates] = useState<[number, number | undefined]>([entry.startDate, entry.endDate ?? undefined]);
+    if (props.editing) return (
+        <ListRow
+            key={entry.id}
+            icon={<Icon name={productTypeToIcon(entry.productType)} />}
+            left={<Flex>
+                <Text>{titleForSubAllocation(entry)}</Text>
+                <Flex color="var(--gray)" ml="12px">
+                    Start date: <DatePicker
+                        selectsRange
+                        fontSize="18px"
+                        py="0"
+                        startDate={new Date(dates[0])}
+                        endDate={dates[1] != null ? new Date(dates[1]) : undefined}
+                        onChange={(dates: [Date, Date | null]) => {
+                            setDates([dates[0].getTime(), dates[1]?.getTime()]);
+                            props.editEntries.current[entry.id].startDate = dates[0].getTime();
+                            props.editEntries.current[entry.id].endDate = dates[1]?.getTime();
+                        }}
+                    />
+                </Flex>
+            </Flex>}
+            right={<Flex width="280px">
+                <Input
+                    width="100%"
+                    type="number"
+                    rightLabel
+                    placeholder={normalizeSuballocationBalanceForFrontend(entry)}
+                    onChange={e => props.editEntries.current[entry.id].remaining = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit)}
+                />
+                <InputLabel width={entry.productType === "INGRESS" ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
+            </Flex>}
+        />
+    ); else return (
         <ListRow
             key={entry.id}
             icon={<Icon name={productTypeToIcon(entry.productType)} />}
@@ -889,10 +1204,18 @@ function SubAllocationRow(props: {suballocation: SubAllocation;}): JSX.Element {
     );
 }
 
-function remainingBalance(suballocation: SubAllocation): string {
+function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
+    return explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+}
+
+function normalizeSuballocationBalanceForFrontend(suballocation: {remaining: number; productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
     return normalizeBalanceForFrontend(
         suballocation.remaining, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
-    ) + " " + explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
+    );
+}
+
+function remainingBalance(suballocation: SubAllocation): string {
+    return normalizeSuballocationBalanceForFrontend(suballocation) + " " + explainSubAllocation(suballocation);
 }
 
 interface SubAllocationCallbacks {
@@ -927,11 +1250,11 @@ const subAllocationOperations: Operation<never, SheetCallbacks>[] = [{
 }];
 
 const SearchInput = styled.div`
-  position: relative;
+    position: relative;
 
-  label {
-    position: absolute;
-    left: 250px;
-    top: 10px;
-  }
+    label {
+        position: absolute;
+        left: 250px;
+        top: 10px;
+    }
 `;
