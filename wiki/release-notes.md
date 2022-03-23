@@ -7,6 +7,13 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 23-03-22
+
+```
+✅  Deployment(slack, 2022.1.29) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.29) (UP-TO-DATE)
+```
+
 ## 22-03-22
 
 ```

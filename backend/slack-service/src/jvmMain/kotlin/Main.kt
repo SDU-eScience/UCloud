@@ -23,8 +23,8 @@ object SlackService : Service {
     
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(AuthenticatorFeature)
-        val alertConfiguration = micro.configuration.requestChunkAt<Configuration>("alerting")
-        val supportConfiguration = micro.configuration.requestChunkAt<Configuration>("ticket")
+        val alertConfiguration = micro.configuration.requestChunkAtOrNull<Configuration>("alerting") ?: Configuration()
+        val supportConfiguration = micro.configuration.requestChunkAtOrNull<Configuration>("ticket") ?: Configuration()
         return Server(micro, alertConfiguration, supportConfiguration)
     }
 }

@@ -8,14 +8,17 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 
-class SupportSlackService(private val notifiers: List<Notifier>){
+class SupportSlackService(private val notifiers: List<Notifier>) {
     init {
         if (notifiers.isEmpty()) {
-            throw IllegalArgumentException("Need at least one notifier!")
+            log.warn("No support notifier configured. This will not produce any output!")
         }
     }
 
+    // TODO(Dan): Clean this up. This design is full of redundant indirection.
     suspend fun createTicket(ticket: Ticket) {
+        if (notifiers.isEmpty()) return
+
         coroutineScope {
             val result = notifiers.map {
                 async {

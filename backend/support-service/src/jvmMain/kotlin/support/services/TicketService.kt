@@ -13,13 +13,7 @@ import dk.sdu.cloud.slack.api.Ticket
 class TicketService(private val authenticatedClient: AuthenticatedClient) {
     suspend fun createTicket(ticket: Ticket) {
         SlackDescriptions.sendSupport.call(
-            SendSupportRequest(
-                ticket.requestId,
-                ticket.principal,
-                ticket.userAgent,
-                ticket.subject,
-                ticket.message
-            ),
+            ticket,
             authenticatedClient
         ).orThrow()
         MailDescriptions.sendSupport.call(

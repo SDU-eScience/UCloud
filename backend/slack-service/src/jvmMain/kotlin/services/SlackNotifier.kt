@@ -1,8 +1,11 @@
 package dk.sdu.cloud.slack.services
 
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.slack.api.Alert
 import dk.sdu.cloud.slack.api.Ticket
@@ -22,7 +25,8 @@ import kotlinx.serialization.encodeToString
 private data class SlackMessage(val text: String)
 
 class SlackNotifier(
-    val hook: String
+    private val hook: String,
+    private val db: DBContext,
 ) : Notifier {
     private val httpClient = HttpClient() {
         expectSuccess = false
@@ -37,30 +41,74 @@ class SlackNotifier(
 
     @OptIn(KtorExperimentalAPI::class)
     override suspend fun onTicket(ticket: Ticket) {
+        data class ProjectIdAndTitle(val id: String, val title: String)
+
+        val projects = db.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("username", ticket.principal.username)
+                },
+                """
+                    select p.id, p.title
+                    from
+                        project.projects p join
+                        project.project_members pm on p.id = pm.project_id
+                    where
+                        pm.username = :username
+                """
+            ).rows.map { row ->
+                ProjectIdAndTitle(row.getString(0)!!, row.getString(1)!!)
+            }
+        }
+
+        val projectString = if (projects.isEmpty()) {
+            "None"
+        } else {
+            buildString {
+                appendLine()
+                for (project in projects) {
+                    val isCurrentProject = ticket.project == project.id
+                    append("    - ")
+                    append(project.title)
+                    append(" (`")
+                    append(project.id)
+                    append("`)")
+
+                    if (isCurrentProject) {
+                        appendLine(" [Current]")
+                    } else {
+                        appendLine()
+                    }
+                }
+            }
+        }
+
         val message = """
-            New ticket via UCloud:
+New ticket via UCloud:
 
-            *User information:*
-              - *Username:* ${ticket.principal.username}
-              - *Role:* ${ticket.principal.role}
-              - *Real name:* ${ticket.principal.firstName} ${ticket.principal.lastName}
-              - *Email:* ${ticket.principal.email}
+*User information:*
+  - *Username:* ${ticket.principal.username}
+  - *Real name:* ${ticket.principal.firstName} ${ticket.principal.lastName}
+  - *Email:* ${ticket.principal.email}
+  - *Projects:* ${projectString}
 
-            *Technical info:*
-              - *Request ID (Audit):* ${ticket.requestId}
-              - *User agent:* ${ticket.userAgent}
+*Technical info:*
+  - *Request ID (Audit):* `${ticket.requestId}`
+  - *User agent:* ${ticket.userAgent}
 
-            Subject: ${ticket.subject}
+Subject: ${ticket.subject}
 
-            The following message was attached:
+The following message was attached:
 
-        """.trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
+""".trimIndent() + ticket.message.lines().joinToString("\n") { "> $it" }
 
         attemptSend(message)
     }
 
     @OptIn(KtorExperimentalAPI::class)
     private suspend fun attemptSend(message: String) {
+        log.debug("Attempting to send notification:\n${message}")
+
         var retries = 0
         while (true) {
             retries++

@@ -19,6 +19,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
+import dk.sdu.cloud.slack.SlackService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
@@ -68,7 +69,8 @@ val services = setOf<Service>(
     SupportService,
     AppKubernetesService,
     TaskService,
-    AlertingService
+    AlertingService,
+    SlackService
 )
 
 enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {

@@ -2,6 +2,7 @@ package dk.sdu.cloud.support.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.server.HttpCall
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.jobId
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -38,7 +39,8 @@ class SupportController(
                     ctx.securityPrincipal,
                     call.request.userAgent() ?: "Missing UA",
                     request.subject,
-                    request.message
+                    request.message,
+                    ctx.project
                 )
 
                 ticketService.createTicket(ticket)

@@ -2,13 +2,12 @@ package dk.sdu.cloud.slack
 
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.slack.services.*
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.configureControllers
 import dk.sdu.cloud.service.startServices
 import dk.sdu.cloud.slack.rpc.SlackController
-import dk.sdu.cloud.slack.services.AlertSlackService
-import dk.sdu.cloud.slack.services.SlackNotifier
-import dk.sdu.cloud.slack.services.SupportSlackService
 
 class Server(
     override val micro: Micro,
@@ -18,8 +17,15 @@ class Server(
     override val log = logger()
     
     override fun start() {
-        val alertSlackService = AlertSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack?.hook!!)))
-        val supportSlackService = SupportSlackService(listOf(SlackNotifier(supportConfiguration.notifiers.slack?.hook!!)))
+        val db = AsyncDBSessionFactory(micro)
+        val notifiers = ArrayList<Notifier>()
+        if (supportConfiguration.notifiers.slack != null) {
+            notifiers.add(SlackNotifier(supportConfiguration.notifiers.slack?.hook!!, db))
+        }
+
+        val alertSlackService = AlertSlackService(notifiers)
+        val supportSlackService = SupportSlackService(notifiers)
+
         with(micro.server) {
             configureControllers(
                 SlackController(alertSlackService, supportSlackService)
