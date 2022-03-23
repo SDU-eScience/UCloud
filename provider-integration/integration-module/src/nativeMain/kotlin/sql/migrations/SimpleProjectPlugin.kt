@@ -32,7 +32,7 @@ fun V2__SimpleProjectPlugin() = MigrationScript("V2__SimpleProjectPlugin") { ses
             create table simple_project_missing_connections(
                 ucloud_id text not null,
                 project_id text not null,
-                created_at timestamp not null default datetime(),
+                created_at timestamp not null default current_timestamp,
                 primary key (ucloud_id, project_id)
             );
         """
