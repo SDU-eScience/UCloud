@@ -31,7 +31,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import java.util.*
 import kotlin.collections.ArrayList
 
-private typealias OnProjectUpdatedHandler = suspend (session: AsyncDBConnection, projects: Collection<String>) -> Unit
+private typealias OnProjectUpdatedHandler = suspend (projects: Collection<String>) -> Unit
 class ProjectService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
@@ -137,7 +137,7 @@ class ProjectService(
                                     :id::text is null or
                                     p.id = :id::text
                             )
-                            select distinct p.project, null::text as role
+                            select distinct p.project, null::text as role, (p.project).title
                             from
                                 accounting.wallet_owner wo join
                                 the_project p on wo.project_id = (p.project).id join
@@ -545,7 +545,7 @@ class ProjectService(
                 """
             )
 
-            updateHandlers.forEach { it(session, projects) }
+            updateHandlers.forEach { it(projects) }
         }
     }
 
@@ -566,7 +566,7 @@ class ProjectService(
                 """
             )
 
-            updateHandlers.forEach { it(session, projects) }
+            updateHandlers.forEach { it(projects) }
         }
     }
 
@@ -636,7 +636,7 @@ class ProjectService(
                 """
             )
 
-            updateHandlers.forEach { it(session, listOf(project)) }
+            updateHandlers.forEach { it(listOf(project)) }
         }
     }
 
@@ -925,7 +925,7 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(session, projects) }
+            updateHandlers.forEach { it(projects) }
         }
 
         projectCache.invalidate(actorAndProject.actor.safeUsername())
@@ -1056,7 +1056,7 @@ class ProjectService(
                 }
             }
 
-            updateHandlers.forEach { it(session, listOf(project)) }
+            updateHandlers.forEach { it(listOf(project)) }
         }
 
         for (reqItem in request.items) {
@@ -1211,7 +1211,7 @@ class ProjectService(
                 serviceClient
             )
 
-            updateHandlers.forEach { it(session, listOf(project)) }
+            updateHandlers.forEach { it(listOf(project)) }
             for (reqItem in requestItems) {
                 projectCache.invalidate(reqItem.username)
             }
@@ -1255,7 +1255,7 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(session, projects) }
+            updateHandlers.forEach { it(projects) }
             BulkResponse(ids.map { FindByStringId(it) })
         }
     }
@@ -1338,7 +1338,7 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(session, affectedProjects) }
+            updateHandlers.forEach { it(affectedProjects) }
         }
     }
 
@@ -1383,7 +1383,7 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(session, affectedProjects) }
+            updateHandlers.forEach { it(affectedProjects) }
         }
     }
 
@@ -1444,7 +1444,7 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
-            updateHandlers.forEach { it(session, affectedProjects) }
+            updateHandlers.forEach { it(affectedProjects) }
         }
     }
 
@@ -1496,7 +1496,7 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
-            updateHandlers.forEach { it(session, affectedProjects) }
+            updateHandlers.forEach { it(affectedProjects) }
         }
     }
 

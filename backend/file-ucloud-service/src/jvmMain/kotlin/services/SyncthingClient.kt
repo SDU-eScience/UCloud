@@ -96,7 +96,7 @@ data class SyncthingLdap(
 @Serializable
 data class SyncthingOptions(
     val alwaysLocalNets: List<String> = emptyList(),
-    val announceLANAddresses: Boolean = true,
+    val announceLANAddresses: Boolean = false,
     val autoUpgradeIntervalH: Int = 12,
     val cacheIgnoredFiles: Boolean = false,
     val connectionLimitEnough: Int = 0,
@@ -110,7 +110,7 @@ data class SyncthingOptions(
     val keepTemporariesH: Int = 24,
     val limitBandwidthInLan: Boolean = false,
     val listenAddresses: List<String> = listOf("default"),
-    val localAnnounceEnabled: Boolean = true,
+    val localAnnounceEnabled: Boolean = false,
     val localAnnounceMCAddr: String = "[ff12::8384]:21027",
     val localAnnouncePort: Int = 21027,
     val maxConcurrentIncomingRequestKiB: Int = 0,
@@ -126,7 +126,7 @@ data class SyncthingOptions(
     val progressUpdateIntervalS: Int = 5,
     val reconnectionIntervalS: Int = 60,
     val relayReconnectIntervalM: Int = 10,
-    val relaysEnabled: Boolean = true,
+    val relaysEnabled: Boolean = false,
     val releasesURL: String = "https://upgrades.syncthing.net/meta.json",
     val restartOnWakeup: Boolean = true,
     val sendFullIndexOnUpgrade: Boolean = false,
@@ -288,7 +288,13 @@ class SyncthingClient(
                                             deviceID = row.getField(SyncDevicesTable.device),
                                             name = row.getField(SyncDevicesTable.device)
                                         )
-                                    } + listOf(SyncthingDevice(deviceID = device.id, name = device.name)),
+                                    } + listOf(
+                                    SyncthingDevice(
+                                        deviceID = device.id,
+                                        name = device.name,
+                                        addresses = device.addresses + SyncthingDevice().addresses
+                                    )
+                                ),
                                 folders = result
                                     .filter {
                                         it.getString("local_device_id") == device.id
@@ -345,9 +351,11 @@ class SyncthingClient(
                                 } else {
                                     pendingDevices = pendingDevices.filter { it.id != device.id }
                                 }
-
                             } catch (ex: RPCException) {
-                                throw RPCException("Invalid Syncthing Configuration", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
+                                throw RPCException(
+                                    "Invalid Syncthing Configuration: ${ex.message}",
+                                    dk.sdu.cloud.calls.HttpStatusCode.BadRequest
+                                )
                             } catch (ex: Throwable) {
                                 // Do nothing
                             }
@@ -538,7 +546,12 @@ class SyncthingClient(
         folders.forEach { deviceFolders ->
             deviceFolders.value.forEach { folder ->
                 try {
-                    val resp = httpClient.delete<HttpResponse>(deviceEndpoint(deviceFolders.key, "/rest/config/folders/$folder")) {
+                    val resp = httpClient.delete<HttpResponse>(
+                        deviceEndpoint(
+                            deviceFolders.key,
+                            "/rest/config/folders/$folder"
+                        )
+                    ) {
                         headers {
                             append("X-API-Key", deviceFolders.key.apiKey)
                         }

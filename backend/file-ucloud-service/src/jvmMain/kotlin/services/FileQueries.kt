@@ -185,16 +185,20 @@ class FileQueries(
                     }
                 }
                 else -> {
+                    val nextFile = foundFilesToStat[nextInternalFile.path]
+                    if (nextFile == null) {
+                        didSkipFiles = true
+                        continue
+                    }
+
                     items.add(
                         convertNativeStatToUFile(
                             nextInternalFile,
-                            foundFilesToStat.getValue(nextInternalFile.path),
+                            nextFile,
                             file.path,
                             sensitivity,
                         )
                     )
-
-                    // TODO(jonas): Can we expect exceptions here? We have already stat'ed the file.
                 }
             }
         }
@@ -258,17 +262,33 @@ fun sortFiles(
     foundFiles: List<InternalFile>,
     foundFilesToStat: HashMap<String, NativeStat>
 ): List<InternalFile> {
-    if (sortBy != FilesSortBy.PATH) foundFiles.forEach { foundFilesToStat[it.path] = nativeFs.stat(it) }
+    if (sortBy != FilesSortBy.PATH) {
+        for (file in foundFiles) {
+            // NOTE(Dan): Catch any errors, since the files could go away at any point during this process
+            runCatching {
+                foundFilesToStat[file.path] = nativeFs.stat(file)
+            }
+        }
+    }
+
     val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, InternalFile::path)
     var comparator = when (sortBy) {
         FilesSortBy.PATH -> pathComparator
+
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
-            ((foundFilesToStat[a.path]?.size ?: 0L) - (foundFilesToStat[b.path]?.size ?: 0L)).toInt()
+            val aSize = foundFilesToStat[a.path]?.size ?: 0L
+            val bSize = foundFilesToStat[b.path]?.size ?: 0L
+            (aSize - bSize).toInt()
         }.thenComparing(pathComparator)
+
         FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
-            ((foundFilesToStat[a.path]?.modifiedAt ?: 0L) - (foundFilesToStat[b.path]?.modifiedAt ?: 0L)).toInt()
+            val aModifiedAt = foundFilesToStat[a.path]?.modifiedAt ?: 0L
+            val bModifiedAt = foundFilesToStat[b.path]?.modifiedAt ?: 0L
+            (aModifiedAt - bModifiedAt).toInt()
         }.thenComparing(pathComparator)
     }
+
     if (sortOrder != SortDirection.ascending) comparator = comparator.reversed()
     return foundFiles.sortedWith(comparator)
 }
+

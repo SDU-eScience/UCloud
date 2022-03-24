@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.plugins.projects
 
 import dk.sdu.cloud.FindByStringId
@@ -129,3 +130,4 @@ class DirectProjectMapperPlugin : ProjectMapperPlugin {
         private const val GET_LOCAL_COMMAND = "get-local"
     }
 }
+ */

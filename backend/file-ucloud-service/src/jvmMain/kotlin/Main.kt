@@ -37,6 +37,7 @@ data class LocalSyncthingDevice(
     val hostname: String = "",
     val apiKey: String = "",
     val id: String = "",
+    val addresses: List<String> = emptyList(),
     val port: Int = 80,
     val username: String = "",
     val password: String = "",

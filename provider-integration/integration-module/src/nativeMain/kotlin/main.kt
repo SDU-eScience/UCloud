@@ -316,7 +316,8 @@ fun main(args: Array<String>) {
                             FileCollectionController(controllerContext),
                             ComputeController(controllerContext),
                             ConnectionController(controllerContext, envoyConfig),
-                            AccountingController(controllerContext)
+                            AccountingController(controllerContext),
+                            ProjectController(controllerContext)
                         )
 
                         rpcServer.start()

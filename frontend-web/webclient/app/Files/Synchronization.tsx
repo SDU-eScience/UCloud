@@ -6,6 +6,7 @@ import {UFile} from "@/UCloud/FilesApi";
 import SyncFolderApi, {
     SyncFolder,
     SyncFolderSupport,
+    SyncPermission,
 } from "@/UCloud/SyncFolderApi";
 import {
     Box,
@@ -202,8 +203,13 @@ export const SynchronizationSettings: React.FunctionComponent<{
                 return (
                     <>
                         <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
-                        The synchronization feature is experimental. Please report any errors through the Support Form.
+                            The synchronization feature is experimental. Please report any errors through the Support Form.
                         </Box>
+                        { syncFolder !== undefined && syncFolder.status.permission === SyncPermission.SEND_ONLY ? (
+                            <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={10}>
+                                This folder is read-only. Changes on your local device will not be synchronized back to UCloud.
+                            </Box>
+                        ) : null}
                         <Box mt="30px">
                             The synchronization feature requires you to set up a
                             local instance of{" "}
@@ -288,7 +294,7 @@ export const SynchronizationSettings: React.FunctionComponent<{
                             <>
                                 <Heading.h3>Synchronization Tutorial - Installing Syncthing</Heading.h3>
                                 <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
-                                The synchronization feature is experimental. Please report any errors through the Support Form.
+                                    The synchronization feature is experimental. Please report any errors through the Support Form.
                                 </Box>
                                 <p>The synchronization feature allows you to synchronize folders between UCloud and your devices.</p>
                                 <p>For synchronization to work, you need to install the 3rd-party tool <a target="blank" href="https://syncthing.net">Syncthing</a>.</p>

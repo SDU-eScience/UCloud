@@ -965,17 +965,21 @@ abstract class ResourceService<
             val api = providerApi(comms)
 
             // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
-            for (attempt in 0 until 5) {
-                val resp =
-                    api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
+            loop@for (attempt in 0 until 5) {
+                try {
+                    val resp =
+                        api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
 
-                if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
-                    val im = IntegrationProvider(provider)
-                    im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
-                    delay(200L + (attempt * 500))
-                    continue
-                } else {
-                    break
+                    if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
+                        val im = IntegrationProvider(provider)
+                        im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
+                        delay(200L + (attempt * 500))
+                        continue@loop
+                    } else {
+                        break@loop
+                    }
+                } catch(ex: Throwable) {
+                    log.info(ex.stackTraceToString())
                 }
             }
         }
