@@ -30,7 +30,7 @@ data class TypedIpcHandler<Req, Resp>(
     val responseSerializer: KSerializer<Resp>,
 )
 
-inline fun <reified Req, reified Resp >TypedIpcHandler<Req, Resp>.handler(
+inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
     noinline handler: (user: IpcUser, request: Req) -> Resp
 ): IpcHandler {
     return IpcHandler(method) { user, request ->
