@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Checkbox, Flex, Icon, Input, Label, Link, Text, Tooltip as UITooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Card, Checkbox, Flex, Grid, Icon, Input, Label, Link, Text, Tooltip, Tooltip as UITooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {
@@ -27,10 +27,9 @@ import {
 import {APICallState, callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {errorMessageOrDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {errorMessageOrDefault, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import HighlightedCard from "@/ui-components/HighlightedCard";
-import {addStandardDialog, ConfirmCancelButtons} from "@/UtilityComponents";
+import {ConfirmCancelButtons} from "@/UtilityComponents";
 import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
@@ -44,7 +43,7 @@ import {startOfDay} from "date-fns/esm";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {AllocationViewer} from "./Resources";
-import {defaultModalStyle, largeModalStyle} from "@/Utilities/ModalUtilities";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
 
 const Circle = styled(Box)`
     border-radius: 500px;
@@ -698,19 +697,24 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
     const [sheetModeActive, setSheetMode] = useState(false || !SHOW_WORK_IN_PROGRESS);
 
-    return <HighlightedCard
-        color={"green"}
-        icon={"grant"}
-        title={<Heading.h3>Sub-allocations</Heading.h3>}
-        subtitle={
-            <SearchInput>
-                <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
-                <Label htmlFor={"resource-search"}>
-                    <Icon name={"search"} size={"20px"} />
-                </Label>
-            </SearchInput>
-        }
+    return <Card
+        overflow="hidden"
+        boxShadow="sm"
+        borderWidth={0}
+        borderRadius={6}
+        px={3}
+        py={1}
     >
+        <Spacer left={<Heading.h3>Sub-allocations</Heading.h3>}
+            right={
+                <SearchInput>
+                    <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
+                    <Label htmlFor={"resource-search"}>
+                        <Icon name={"search"} size={"20px"} />
+                    </Label>
+                </SearchInput>
+            }
+        />
         <Spacer
             mt="4px"
             left={
@@ -832,7 +836,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
                 }}
             />
         </Box>
-    </HighlightedCard>;
+    </Card>;
 };
 
 function SuballocationRows(props: {
@@ -850,8 +854,10 @@ function SuballocationRows(props: {
             }
         });
 
+        const keys = Object.keys(groupedByName);
+
         return <Box>
-            {Object.keys(groupedByName).map(key => <SuballocationGroup key={key} entryKey={key} rows={groupedByName[key]} wallets={props.wallets} reload={props.reload} />)}
+            {keys.map((key, index) => <SuballocationGroup key={key} isLast={keys.length - 1 === index} entryKey={key} rows={groupedByName[key]} wallets={props.wallets} reload={props.reload} />)}
         </Box>
     }, [props.rows]);
 }
@@ -872,13 +878,13 @@ function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAl
     }
     if (updated.length === 0) return null;
     return updateAllocation(bulkRequestOf(...updated));
+}
 
-    function isEqual(oldAlloc: SubAllocation, newAlloc: SubAllocation): boolean {
-        if (oldAlloc.startDate != newAlloc.startDate) return false;
-        if ((oldAlloc == null && newAlloc == null) || oldAlloc.endDate != newAlloc.endDate) return false;
-        if (oldAlloc.remaining != newAlloc.remaining) return false;
-        return true;
-    }
+function isEqual(oldAlloc: SubAllocation, newAlloc: SubAllocation): boolean {
+    if (oldAlloc.startDate != newAlloc.startDate) return false;
+    if ((oldAlloc == null && newAlloc == null) || oldAlloc.endDate != newAlloc.endDate) return false;
+    if (oldAlloc.remaining != newAlloc.remaining) return false;
+    return true;
 }
 
 
@@ -893,9 +899,8 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
-function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[];}): JSX.Element {
-    const isProject = props.rows[0].workspaceIsProject ? "projects" : "user"
-
+function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[]; isLast: boolean;}): JSX.Element {
+    const isProject = props.rows[0].workspaceIsProject;
 
     const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
     const storageRemaining = storageEntries.reduce((acc, it) => it.remaining + acc, 0);
@@ -1003,27 +1008,24 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
 
     const idRef = useRef(0);
     const addNewRow = React.useCallback(() => setCreationRows(rows => {
-        const productTypeWithEntries = productTypes.find(it => {
-            for (const entry of allocationsByProductTypes[it]) {
-                if (entry.allocations.length > 0) return true;
-            }
-            return false;
-        });
+        const firstProductTypeWithEntries = productTypes.find(it =>
+            hasValidAllocations(allocationsByProductTypes[it])
+        );
 
-        if (!productTypeWithEntries) {
+        if (!firstProductTypeWithEntries) {
             snackbarStore.addFailure("No available allocations to use", false);
             return rows;
         }
 
         rows.push({
             id: idRef.current++,
-            productType: productTypeWithEntries,
+            productType: firstProductTypeWithEntries,
             recipient: React.createRef<HTMLInputElement>(),
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
-            wallet: allocationsByProductTypes[productTypeWithEntries][0].wallet,
-            allocationId: allocationsByProductTypes[productTypeWithEntries][0].allocations[0].id
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
         });
         return [...rows];
     }), [props.wallets]);
@@ -1037,59 +1039,87 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         allocations: WalletAllocation[];
     }[], id: number) => {
         dialogStore.addDialog(
-            <div>
-                <Heading.h3>Allocations</Heading.h3>
-                {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
-                    <div onClick={() => {
-                        setCreationRows(rows => {
-                            rows[id].wallet = it.wallet;
-                            rows[id].allocationId = allocation.id;
-                            return [...rows];
-                        });
-                        dialogStore.success();
-                    }}>
-                        <AllocationViewer allocation={allocation} wallet={it.wallet} simple={false} />
-                    </div>
-                ))}
-            </div>, () => undefined, false, largeModalStyle);
+            <Box width="830px">
+                <Heading.h3>Available Allocations</Heading.h3>
+                <Grid gridTemplateColumns={`repeat(2 , 1fr)`} gridGap="15px">
+                    {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
+                        <Box key={allocation.allocationPath} height="120px" onClick={() => {
+                            setCreationRows(rows => {
+                                rows[id].wallet = it.wallet;
+                                rows[id].allocationId = allocation.id;
+                                return [...rows];
+                            });
+                            dialogStore.success();
+                        }}>
+                            <AllocationViewer allocation={allocation} wallet={it.wallet} simple={false} />
+                        </Box>
+                    ))}
+                </Grid>
+            </Box>, () => undefined, false, largeModalStyle);
     }, []);
+
+    const addRowButtonEnabled = React.useMemo(() => {
+        for (const pt of productTypes) {
+            if (hasValidAllocations(allocationsByProductTypes[pt])) {
+                return true;
+            }
+        }
+        return false;
+    }, [allocationsByProductTypes]);
 
     return React.useMemo(() =>
         <Accordion
             key={props.entryKey}
             icon={isProject ? "projects" : "user"}
+            iconColor2="white"
             title={props.entryKey}
             forceOpen={editing || creationRows.length > 0}
-            titleContent={<Flex>{storageAmount} {computeAmount}
-                <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button>
+            noBorder={props.isLast}
+            titleContent={<Flex>{storageAmount} {computeAmount}</Flex>}
+            titleContentOnOpened={<>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New Row</Button>}>
+                        No allocations available for use.
+                    </Tooltip>
+                }
                 {editing ?
                     <ButtonGroup>
                         <Button ml="8px" mt="-5px" mb="-8px" height="32px" color="green" onClick={updateRows}>Update</Button>
                         <Button mt="-5px" mb="-8px" height="32px" color="red" onClick={cancelEdit}>Cancel</Button>
                     </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={startEdit}>Edit</Button>}
-            </Flex>}
+            </>}
         >
-            {creationRows.length === 0 ? null : <Spacer right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
+            {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
             {creationRows.map((row, index) => {
                 const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
-                const remainingProductTypes = productTypes.filter(it => it !== row.productType && hasValidAllocations(allocationsByProductTypes[it]));
+                const remainingProductTypes = productTypes.filter(it => it !== row.productType);
 
                 return (
                     <ListRow
                         key={row.id}
                         icon={<ClickableDropdown width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />} >
-                            {remainingProductTypes.map(pt => <div onClick={() => {
-                                const {wallet, allocations} = allocationsByProductTypes[pt][0];
-                                creationRows[index].productType = pt;
-                                creationRows[index].wallet = wallet;
-                                creationRows[index].allocationId = allocations[0].id;
-                                setCreationRows([...creationRows]);
-                            }}><Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</div>)}
+                            {remainingProductTypes.map(pt => {
+                                const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
+                                return allowProductSelect ?
+                                    <Flex key={pt} color="text" onClick={() => {
+                                        const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                        creationRows[index].productType = pt;
+                                        creationRows[index].wallet = wallet;
+                                        creationRows[index].allocationId = allocations[0].id;
+                                        setCreationRows([...creationRows]);
+                                    }}>
+                                        <Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}
+                                    </Flex> :
+                                    <Tooltip key={pt} trigger={<Flex color="gray" onClick={stopPropagationAndPreventDefault}>
+                                        <Icon mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</Flex>}>
+                                        No allocations for product type available
+                                    </Tooltip>
+                            })}
                         </ClickableDropdown>}
                         left={<Flex>
-                            {allowProductDropDown(allocationsByProductTypes[row.productType]) ? <Flex onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
+                            <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
                                 {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
-                            </Flex> : productAndProvider}
+                            </Flex>
                             <Flex color="var(--gray)" ml="12px">
                                 <DatePicker
                                     selectsRange
@@ -1116,12 +1146,12 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                 onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                             />
                             <InputLabel width={row.productType === "INGRESS" ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
-                            <Icon name="close" color="red" cursor="pointer" onClick={() => removeRow(row.id)} />
+                            <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeRow(row.id)} />
                         </Flex>}
                     />);
             })}
             {props.rows.map(row => <SubAllocationRow key={row.id} editEntries={editEntries} editing={editing} suballocation={row} />)}
-        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes]);
+        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing]);
 }
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
@@ -1134,18 +1164,6 @@ function findValidAllocations(wallets: Wallet[], productType: ProductType): {wal
             it.localBalance > 0
         )
     }));
-}
-
-function allowProductDropDown(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
-    if (!walletAllocations) return false;
-    let count = 0;
-    console.log(walletAllocations);
-    for (const entry of walletAllocations) {
-        count += entry.allocations.length;
-        if (count > 2) return true;
-    }
-    console.log(count)
-    return false;
 }
 
 function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: WalletAllocation[]}[]): boolean {
@@ -1250,11 +1268,11 @@ const subAllocationOperations: Operation<never, SheetCallbacks>[] = [{
 }];
 
 const SearchInput = styled.div`
-    position: relative;
+                    position: relative;
 
-    label {
-        position: absolute;
-        left: 250px;
-        top: 10px;
+                    label {
+                        position: absolute;
+                    left: 250px;
+                    top: 10px;
     }
-`;
+                    `;

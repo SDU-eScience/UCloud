@@ -10,7 +10,7 @@ import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import {Box, Card, Flex, Grid, Icon, Link, Text} from "@/ui-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import {formatDistance} from "date-fns";
@@ -35,7 +35,7 @@ import {
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SubAllocationViewer} from "./SubAllocations";
-import {Accordion, AccordionWrapper} from "@/ui-components/Accordion";
+import {Accordion} from "@/ui-components/Accordion";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
@@ -218,8 +218,16 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
     }, [props.wallets]);
 
     if (Object.keys(wallets).length === 0) return null;
-    return <AccordionWrapper>
-        {productTypes.filter(key => wallets[key].length > 0).map((key: ProductType) => {
+    const nonEmptyWallets = productTypes.filter(key => wallets[key].length > 0);
+    return <Card
+        overflow="hidden"
+        boxShadow="sm"
+        borderWidth={0}
+        borderRadius={6}
+        px={3}
+        py={1}
+    >
+        {nonEmptyWallets.map((key, index) => {
             const walletsList: Wallet[] = wallets[key];
             const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
 
@@ -235,6 +243,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 key={key}
                 icon={productTypeToIcon(key)}
                 title={prettierString(key)}
+                noBorder={nonEmptyWallets.length - 1 === index}
                 titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
             >
                 <Border>
@@ -252,12 +261,13 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 </Border>
             </Accordion>
         })}
-    </AccordionWrapper>;
+    </Card>;
 }
 
 const Border = styled.div`
-    border-top: 1px solid lightGrey;
-    border-bottom: 1px solid lightGrey;
+    &:not(:last-child) {
+        border-bottom: 1px solid lightGrey;
+    }
     padding: 12px;
 `;
 
@@ -285,7 +295,7 @@ function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): J
 
 const SimpleAllocationRowWrapper = styled.div``;
 const SimpleWalletRowWrapper = styled.div`
-    & > ${SimpleAllocationRowWrapper}:not(:last-child) {
+    & > ${SimpleAllocationRowWrapper}:not(&:last-child) {
         vertical-align: center;
         border-bottom: 1px solid #d3d3d3;
     }

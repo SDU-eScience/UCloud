@@ -4,22 +4,33 @@ import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import {Spacer} from "./Spacer";
 import Text from "./Text";
+import {ThemeColor} from "./theme";
 
 /* https://www.w3schools.com/howto/tryit.asp?filename=tryhow_js_accordion_symbol */
-export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title: React.ReactNode; titleContent?: React.ReactNode; forceOpen?: boolean;}>): JSX.Element {
+export function Accordion(props: React.PropsWithChildren<{
+    icon?: IconName;
+    iconColor?: ThemeColor;
+    iconColor2?: ThemeColor;
+    title: React.ReactNode;
+    titleContent?: React.ReactNode;
+    titleContentOnOpened?: React.ReactNode;
+    forceOpen?: boolean;
+    noBorder?: boolean;
+}>): JSX.Element {
+    const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
     const isOpen = props.forceOpen || open;
     return (
         <>
-            <AccordionStyle className="AccordionStyle" active={isOpen} onClick={() => setOpen(!open)}>
+            <AccordionStyle active={isOpen} noBorder={props.noBorder ?? false} onClick={() => setOpen(!open)}>
                 <Spacer
                     left={<>
-                        {props.icon ? <Icon mr="12px" color="text" name={props.icon} /> :
+                        {props.icon ? <Icon color2={props.iconColor2} mr="12px" color={color} name={props.icon} /> :
                             <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
                         }
                         <Text color="text">{props.title}</Text>
                     </>}
-                    right={<Flex width="auto">{props.titleContent}</Flex>}
+                    right={<Flex width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
                 />
             </AccordionStyle>
             <Panel active={isOpen}>
@@ -29,7 +40,8 @@ export function Accordion(props: React.PropsWithChildren<{icon?: IconName; title
     );
 }
 
-const AccordionStyle = styled.div<{active: boolean}>`
+/* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
+const AccordionStyle = styled.div<{active: boolean; noBorder: boolean}>`
     background-color: var(--white);
     padding: 18px;
     width: 100%;
@@ -38,7 +50,8 @@ const AccordionStyle = styled.div<{active: boolean}>`
     outline: none;
     font-size: 15px;
     cursor: pointer;
-    ${p => p.active ? null : "border-bottom: solid lightGray 1px;"}
+    border-bottom: solid lightGray 1px;
+    ${p => p.noBorder && !p.active ? "border-bottom: solid lightGray 0px;" : null}
 `;
 
 const Panel = styled.div<{active: boolean}>`
@@ -46,11 +59,6 @@ const Panel = styled.div<{active: boolean}>`
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
     transition: all 0.2s ease-out;
-`;
-
-export const AccordionWrapper = styled.div`
-    box-shadow: ${p => p.theme.shadows.md};
-    border-bottom: 0px solid red;
 `;
 
 const RotatingIcon = styled(Icon)`
