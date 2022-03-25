@@ -33,7 +33,7 @@ export function Accordion(props: React.PropsWithChildren<{
                     right={<Flex width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
                 />
             </AccordionStyle>
-            <Panel active={isOpen}>
+            <Panel active={isOpen} noBorder={props.noBorder ?? false}>
                 {props.children}
             </Panel>
         </>
@@ -54,8 +54,10 @@ const AccordionStyle = styled.div<{active: boolean; noBorder: boolean}>`
     ${p => p.noBorder && !p.active ? "border-bottom: solid lightGray 0px;" : null}
 `;
 
-const Panel = styled.div<{active: boolean}>`
+/* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
+const Panel = styled.div<{active: boolean; noBorder: boolean;}>`
     display: ${props => props.active ? "block" : "none"};
+    ${props => props.active && !props.noBorder ? "border-bottom: 1px solid lightGray;" : null}
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
     transition: all 0.2s ease-out;
