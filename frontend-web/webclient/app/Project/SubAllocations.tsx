@@ -1117,7 +1117,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 return (
                     <ListRow
                         key={row.id}
-                        icon={<ClickableDropdown width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />} >
+                        icon={<ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />} >
                             {remainingProductTypes.map(pt => {
                                 const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                 return allowProductSelect ?
