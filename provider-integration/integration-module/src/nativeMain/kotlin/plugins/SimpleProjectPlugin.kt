@@ -135,21 +135,109 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
         }
 
+        if (!missingUids.isEmpty()) {
+            println("Added missing uids: ${missingUids}")
+            dbConnection.withTransaction { session ->
+                session.prepareStatement(
+                    """
+                        with changes as (
+                            ${safeSqlTableUpload("changes", missingUids)}
+                        )
+                        insert or ignore into simple_project_missing_connections(ucloud_id, project_id)
+                        select c.username, :project_id
+                        from changes c
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindTableUpload("changes", missingUids)
+                        bindString("project_id", newProject.id)
+                    }
+                )
+            }
+        }
+    }
+
+    override fun onUserMappingInserted(ucloudId: String, localId: Int) {
+        fixMissingConnections(ucloudId, localId)
+    }
+
+    // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
+    // events to the extension, fixing any missing connections between the user and projects/groups.
+    fun fixMissingConnections(userId: String, localId: Int) {
         dbConnection.withTransaction { session ->
+            var projects = mutableSetOf<Project>()
+
+            // Fetch missing connections
             session.prepareStatement(
                 """
-                    with changes as (
-                        ${safeSqlTableUpload("changes", missingUids)}
+                    select p.project_as_json
+                    from simple_project_missing_connections m
+                    left join simple_project_project_database p
+                    on m.project_id = p.ucloud_id
+                    where m.ucloud_id = :user_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("user_id", userId)
+                },
+                readRow = { row ->
+                    val project: Project? = defaultMapper.decodeFromString(row.getString(0)!!)
+                    if (project != null) {
+                        println(project)
+                        if (project.status.members!!.map { it.username }.contains(userId)) {
+                            projects.add(project)
+                        }
+                    }
+                }
+            )
+
+            println("Mapping to ${projects.size} projects")
+
+            // Dispatch events
+            projects.forEach { project ->
+                val projectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(project.id), project)
+                val event = ProjectDiff.MembersAddedToProject(
+                    projectWithLocalId,
+                    projectWithLocalId,
+                    listOf(
+                        ProjectMemberWithUid(
+                            localId,
+                            project.status.members!!.first { it.username == userId }
+                        )
                     )
-                    insert into simple_project_missing_connections(ucloud_id, project_id)
-                    select c.username, :project_id
-                    from changes c
-                    on conflict do nothing
+                )
+
+                dispatchEvent(event)
+
+                println("Mapping to ${project.status.groups!!.size} groups:")
+                project.status.groups!!.forEach { group ->
+                    if (group.status.members!!.contains(userId)) {
+                        val event = ProjectDiff.MembersAddedToGroup(
+                            projectWithLocalId,
+                            projectWithLocalId,
+                            GroupWithLocalId(ucloudGroupIdToUnixGroupId(group.id), group),
+                            listOf(
+                                GroupMemberWithUid(
+                                    localId,
+                                    userId
+                                )
+                            )
+                        )
+                        dispatchEvent(event)
+                    }
+                }
+            }
+
+            // Delete the missing connections
+            session.prepareStatement(
+                """
+                    delete from 
+                    simple_project_missing_connections
+                    where ucloud_id = :user_id
                 """
             ).useAndInvokeAndDiscard(
                 prepare = {
-                    bindTableUpload("changes", missingUids)
-                    bindString("project_id", newProject.id)
+                    bindString("user_id", userId)
                 }
             )
         }
@@ -235,7 +323,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         if (oldTitle != newTitle) {
             result.add(ProjectDiff.ProjectRenamed(oldProjectWithLocalId, newProjectWithLocalId, newTitle))
         }
-        
+
         if (oldArchived != newArchived) {
             if (newArchived) {
                 result.add(ProjectDiff.ProjectArchived(oldProjectWithLocalId, newProjectWithLocalId))
@@ -451,7 +539,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         // not the same order as we compute them. For example, we should dispatch group creation before members
         // added to group.
         return sortedBy { event ->
-            when (event)  {
+            when (event) {
                 is ProjectDiff.ProjectArchived -> 1
                 is ProjectDiff.ProjectUnarchived -> 2
 

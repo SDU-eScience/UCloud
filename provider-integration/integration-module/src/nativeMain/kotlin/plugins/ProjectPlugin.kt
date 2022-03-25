@@ -5,4 +5,5 @@ import kotlinx.serialization.json.JsonObject
 
 interface ProjectPlugin : Plugin<JsonObject> {
     suspend fun PluginContext.onProjectUpdated(newProject: Project)
+    suspend fun PluginContext.onMappingInserted(ucloudId: String, localId: Int)
 }
