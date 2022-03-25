@@ -217,7 +217,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
         setWallets(dividedWallets as WalletStore);
     }, [props.wallets]);
 
-    if (Object.keys(wallets).length === 0) return null;
+    if (Object.keys(wallets).every(it => wallets[it].length === 0)) return null;
     const nonEmptyWallets = productTypes.filter(key => wallets[key].length > 0);
     return <Card
         overflow="hidden"

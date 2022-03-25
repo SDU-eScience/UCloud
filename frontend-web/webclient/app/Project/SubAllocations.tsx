@@ -899,33 +899,51 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
+function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType) {
+    const byUnitAndChargeType = {ABSOLUTE: {}, DIFFERENTIAL_QUOTA: {}};
+    for (const entry of suballocations) {
+        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = entry.remaining;
+        else byUnitAndChargeType[entry.chargeType][entry.unit] += entry.remaining;
+    }
+
+    const result = {
+        ABSOLUTE: Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => normalizeBalanceForFrontend(
+            byUnitAndChargeType.ABSOLUTE[it],
+            productType,
+            "ABSOLUTE",
+            it,
+            false,
+            2
+        ) + " " + explainAllocation(productType, "ABSOLUTE", it)),
+        DIFFERENTIAL_QUOTA: Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => normalizeBalanceForFrontend(
+            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it],
+            productType,
+            "DIFFERENTIAL_QUOTA",
+            it,
+            false,
+            2
+        ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it))
+    }
+
+    return result;
+}
+
 function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[]; isLast: boolean;}): JSX.Element {
     const isProject = props.rows[0].workspaceIsProject;
 
-    const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
-    const storageRemaining = storageEntries.reduce((acc, it) => it.remaining + acc, 0);
+    const storageRemaining = React.useMemo(() => {
+        const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
+        const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
+        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <><Icon mx="12px" name="hdd" />{e}</>))}</Flex>
+    }, [props.rows]);
 
-    const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
-    const computeRemaining = props.rows.reduce((acc, it) => it.remaining + acc, 0);
-
-    /* TODO(Jonas): I'm not sure we for sure know chargeType and unit are consistent throughout. */
-    const storageAmount = storageEntries[0] ? <Flex><Icon mx="12px" name="hdd" />{normalizeBalanceForFrontend(
-        storageRemaining, storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit, false, 2
-    ) + " " + explainAllocation(storageEntries[0].productType, storageEntries[0].chargeType, storageEntries[0].unit)}</Flex> : null;
-
-    const computeAmount = computeEntries[0] ? <Flex><Icon mx="12px" name="cpu" />{normalizeBalanceForFrontend(
-        computeRemaining, computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit, false, 2
-    ) + " " + explainAllocation(computeEntries[0].productType, computeEntries[0].chargeType, computeEntries[0].unit)}</Flex> : null;
-    /* TODO(Jonas): End */
+    const computeRemaining = React.useMemo(() => {
+        const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
+        const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <><Icon mx="12px" name="hdd" />{e}</>))}</Flex>
+    }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
-    const startEdit = useCallback(() => {
-        setEditing(true);
-    }, [setEditing]);
-    const cancelEdit = useCallback(() => {
-        setEditing(false);
-    }, [setEditing]);
-
     const [loading, invokeCommand] = useCloudCommand();
 
     /* TODO(Jonas): Use context? */
@@ -939,8 +957,6 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         });
     }, [props.rows]);
 
-    const [creationRows, setCreationRows] = useState<SuballocationCreationRow[]>([]);
-
     const updateRows = useCallback(async () => {
         try {
             const edited = props.rows.map(it => editEntries.current[it.id]);
@@ -953,6 +969,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             errorMessageOrDefault(e.response?.why, "Update failed");
         }
     }, []);
+
+    const [creationRows, setCreationRows] = useState<SuballocationCreationRow[]>([]);
 
     const submitNewRows = React.useCallback(async (creationRows: SuballocationCreationRow[]): Promise<void> => {
         const mappedRows: DepositToWalletRequestItem[] = [];
@@ -1030,6 +1048,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         return [...rows];
     }), [props.wallets]);
 
+
+
     const removeRow = React.useCallback((id: number) => {
         setCreationRows(rows => [...rows.filter(it => it.id !== id)]);
     }, []);
@@ -1075,7 +1095,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             title={props.entryKey}
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
-            titleContent={<Flex>{storageAmount} {computeAmount}</Flex>}
+            titleContent={<Flex>{storageRemaining} {computeRemaining}</Flex>}
             titleContentOnOpened={<>
                 {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button> :
                     <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New Row</Button>}>
@@ -1085,8 +1105,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 {editing ?
                     <ButtonGroup>
                         <Button ml="8px" mt="-5px" mb="-8px" height="32px" color="green" onClick={updateRows}>Update</Button>
-                        <Button mt="-5px" mb="-8px" height="32px" color="red" onClick={cancelEdit}>Cancel</Button>
-                    </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={startEdit}>Edit</Button>}
+                        <Button mt="-5px" mb="-8px" height="32px" color="red" onClick={() => setEditing(false)}>Cancel</Button>
+                    </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={() => setEditing(true)}>Edit</Button>}
             </>}
         >
             {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
