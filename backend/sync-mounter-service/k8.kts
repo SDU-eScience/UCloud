@@ -7,7 +7,7 @@ import io.fabric8.kubernetes.api.model.SecurityContext
 
 bundle {
     name = "sync-mounter"
-    version = "2022.1.7"
+    version = "2022.1.31"
 
     val deployment = withDeployment(enableLiveness = false) {
         val cephfsVolume = "cephfs"
