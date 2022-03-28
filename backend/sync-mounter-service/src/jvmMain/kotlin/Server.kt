@@ -39,18 +39,18 @@ class Server(
         // To understand why this is needed, you must first understand that the security of UCloud/Stoage depends
         // heavily on never resolving a path which has symbolic links in it. The security model of UCloud/Storage
         // always implicitly grants access to a FileCollection. As a result, UCloud/Storage always assumes that if
-        // a file is placed hiearchically under a FileCollection, and you have access to the collection, then you 
+        // a file is placed hierarchically under a FileCollection, and you have access to the collection, then you
         // should also have access to the file. However, symbolic links makes this situation more complicated, as a
         // symbolic link could make a file appear to be in a FileCollection while pointing to a completely different
         // collection. UCloud/Storage resolves this by opening all files in a special way, which involves opening
         // each component in a path with `O_NOFOLLOW`. This way, we ensure that no single component of that path
-        // is a link. Unfortuantely, Syncthing does not work this way. Thus we must trick Syncthing into never
+        // is a link. Unfortunately, Syncthing does not work this way. Thus, we must trick Syncthing into never
         // attempting to follow any link. We do this by:
         //
         // 1. Opening the desired collection without following any link
         // 2. Use the /proc file-system to find the file-descriptor of the file we have just opened
         // 3. Bind-mount this file-descriptor file to a new location
-        // 4. Ask syncthing to synchronize the bind-mounted folder
+        // 4. Ask Syncthing to synchronize the bind-mounted folder
         //
         // This service receives instructions from UCloud/Storage about which folder to bind-mount and where to
         // bind-mount it. Authentication between this service and UCloud/Storage is done using a shared secret.
@@ -148,4 +148,3 @@ class Server(
         startServices()
     }
 }
-

@@ -979,7 +979,11 @@ abstract class ResourceService<
                         break@loop
                     }
                 } catch(ex: Throwable) {
-                    log.info(ex.stackTraceToString())
+                    if (ex is RPCException && ex.httpStatusCode == HttpStatusCode.BadGateway) {
+                        if (attempt == 0) log.debug("Could not connect to provider: $provider")
+                    } else {
+                        log.info(ex.stackTraceToString())
+                    }
                 }
             }
         }

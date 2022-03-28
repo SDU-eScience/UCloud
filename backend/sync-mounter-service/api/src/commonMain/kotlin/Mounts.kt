@@ -21,11 +21,15 @@ typealias MountResponse = Unit
 typealias UnmountRequest = BulkRequest<MountFolderId>
 typealias UnmountResponse = Unit
 
-typealias ReadyRequest = Unit
+@Serializable
+data class ReadyRequest(
+    val configurationId: String? = null,
+)
 
 @Serializable
 data class ReadyResponse(
-    val ready: Boolean
+    val ready: Boolean,
+    val requireConfigurationId: String,
 )
 
 object Mounts: CallDescriptionContainer("sync.mounter") {

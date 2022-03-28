@@ -3,18 +3,22 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
+import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.sync.mounter.api.*
 import kotlinx.coroutines.delay
-import java.io.File
 
 object SyncFoldersTable : SQLTable("sync_folders") {
     val id = long("id", notNull = true)
@@ -37,238 +41,147 @@ class SyncService(
     private val authenticatedClient: AuthenticatedClient,
     private val cephStats: CephFsFastDirectoryStats,
     private val pathConverter: PathConverter,
+    private val fs: NativeFS,
     private val mounterClient: AuthenticatedClient,
 ) {
-    private val syncthingLoadBalancerCached = SimpleCache<Unit, LocalSyncthingDevice> {
-        db.withSession { session ->
-            syncthing.config.devices.associateWith { device ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("device", device.id)
-                    },
-                    """
-                        select path
-                        from file_ucloud.sync_folders
-                        where device_id = :device
-                    """
-                ).rows.map { it.getField(SyncFoldersTable.path) }
-            }.filter { it.value.size < 1000 }
-                .minByOrNull { (_, folders) ->
-                    folders.sumOf { folder ->
-                        cephStats.getRecursiveSize(
-                            pathConverter.ucloudToInternal(UCloudFile.create(folder))
-                        ) ?: 0
-                    }
-                }?.key
-        }
-    }
-
-    private suspend fun loadBalanceToDevice(): LocalSyncthingDevice {
-        return syncthingLoadBalancerCached.get(Unit)
-            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
-    }
-
     suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
-        // Things which need to happen:
-        // 1. Check if the users are whitelisted
-        // 2. Check if the paths exists
-        // 3. Check if the folders are not too large
-        // 4. Check if the mounter is ready
-        // 5. Find a device
-        // 6. Check if the device is ready
-        // --- Validation complete ---
-        // 7. Ask the mounter to perform a mount
-        //    - What if we fail here?
-        // 8. Update syncthing
-        //    - What if we fail here?
-        // 9. Update UCloud folder with device ID
-        //    - What if we fail here?
-        // 10. Keep a record of the folder and device ID
-        //    - What if we fail here?
+        class State(
+            val request: SyncFolder,
+            val internalFile: InternalFile,
+            val file: NativeStat,
+            val loadBalancedDevice: LocalSyncthingDevice,
+        )
+        val stateList = ArrayList<State>()
 
+        // Verify feature whitelist
         if (!syncthing.config.userWhiteList.containsAll(request.items.map { it.owner.createdBy })) {
+            log.debug(buildString {
+                appendLine("Some users are not allowed to synchronize a folder!")
+                appendLine("  Users requesting creation:")
+                for (item in request.items) {
+                    append("  - ")
+                    appendLine(item.owner.createdBy)
+                }
+                appendLine("  Allowed users:")
+                for (item in syncthing.config.userWhiteList) {
+                    append("  - ")
+                    appendLine(item)
+                }
+            })
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
 
-        val affectedDevices: MutableSet<LocalSyncthingDevice> = mutableSetOf()
-        val remoteDevices: MutableList<LocalSyncthingDevice> = mutableListOf()
-
-        val affectedRows: Long = db.withSession { session ->
-
-            // Check if sync-mounter is ready for requests
-            var retries = 0
-            while (true) {
-                if (retries == 3) {
-                    throw RPCException(
-                        "The synchronization feature is offline. Please try again later.",
-                        HttpStatusCode.ServiceUnavailable
-                    )
-                }
-
-                try {
-                    val mounter = Mounts.ready.call(Unit, mounterClient)
-
-                    if (
-                        mounter.statusCode != HttpStatusCode.OK ||
-                        !mounter.orThrow().ready
-                    ) {
-                        retries++
-                        delay(1_000)
-                    } else {
-                        break
-                    }
-                } catch (ex: Throwable) {
-                    retries++
-                    delay(1_000)
-                }
-            }
-
-            request.items.forEach { folder ->
-                val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(folder.specification.path))
-
-                if (!File(internalFile.path).exists() || !File(internalFile.path).isDirectory) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                }
-
-                if (cephStats.getRecursiveFileCount(internalFile) > 1_000_000) {
-                    throw RPCException(
-                        "Number of files in directory exceeded for synchronization",
-                        HttpStatusCode.Forbidden
-                    )
-                }
-
-                val device = loadBalanceToDevice()
-                affectedDevices.add(device)
-
-                SyncFolderControl.update.call(
-                    bulkRequestOf(
-                        ResourceUpdateAndId(
-                            folder.id,
-                            SyncFolder.Update(
-                                Time.now(),
-                                "Updated synchronized folder",
-                                remoteDeviceId = device.id,
-                                permission = folder.status.permission
-                            )
-                        )
-                    ),
-                    authenticatedClient
-                )
-
-                Mounts.mount.call(
-                    MountRequest(listOf(MountFolder(folder.id.toLong(), internalFile.path))),
-                    mounterClient,
-                ).orRethrowAs {
-                    throw RPCException.fromStatusCode(
-                        HttpStatusCode.InternalServerError,
-                        "Failed to prepare folder for synchronization"
-                    )
-                }
-
-                remoteDevices.add(device)
-            }
-
-            val affectedRows = session.sendPreparedStatement(
-                {
-                    setParameter("ids", request.items.map { folder -> folder.id.toLong() })
-                    setParameter("remote_devices", remoteDevices.map { it.id })
-                    setParameter("paths", request.items.map { folder -> folder.specification.path })
-                    setParameter("users", request.items.map { folder -> folder.owner.createdBy })
-                    setParameter("type", request.items.map { folder ->
-                        when (folder.status.permission) {
-                            Permission.READ -> SynchronizationType.SEND_ONLY.name
-                            Permission.EDIT -> SynchronizationType.SEND_RECEIVE.name
-                            Permission.ADMIN -> SynchronizationType.SEND_RECEIVE.name
-                            Permission.PROVIDER -> SynchronizationType.SEND_ONLY.name
-                        }
-                    })
-                },
-                """
-                    insert into file_ucloud.sync_folders(id, device_id, path, user_id, sync_type)
-                    values (unnest(:ids::bigint[]), unnest(:remote_devices::text[]), unnest(:paths::text[]), 
-                            unnest(:users::text[]), unnest(:type::text[])) 
-                    on conflict do nothing
-                """
-            ).rowsAffected
-
-            affectedDevices.forEach { device ->
-                // Syncthing is ready when it's accessible.
-                var retries = 0
-                while (true) {
-                    if (retries == 3) {
-                        throw RPCException(
-                            "The synchronization feature is offline. Please try again later.",
-                            HttpStatusCode.ServiceUnavailable
-                        )
-                    }
-
-                    try {
-                        val syncthingReady = syncthing.isReady(device)
-
-                        if (
-                            syncthingReady == null ||
-                            !syncthingReady
-                        ) {
-                            retries++
-                            delay(2_000)
-                        } else {
-                            break
-                        }
-                    } catch (ex: Throwable) {
-                        retries++
-                        delay(2_000)
-                    }
-                }
-            }
-
-            affectedRows
-        }
-
-        if (affectedRows > 0) {
-            try {
-                syncthing.addFolders(affectedDevices.toList())
-                syncthing.addDevices(affectedDevices.toList())
-            } catch (ex: Throwable) {
-                request.items.forEach { folder ->
-                    Mounts.unmount.call(
-                        UnmountRequest(listOf(MountFolderId(folder.id.toLong()))),
-                        mounterClient
-                    )
-                }
-
-                db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("ids", request.items.map { folder -> folder.id.toLong() })
-                        },
-                        """
-                            delete from file_ucloud.sync_folders
-                            where id in (select unnest(:ids::bigint[]))
-                        """
-                    )
-                }
-
+        // Verify files involved in request and select an appropriate target
+        for (folder in request.items) {
+            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(folder.specification.path))
+            val fileName = folder.specification.path.fileName()
+            val fileStats = try {
+                fs.stat(internalFile)
+            } catch (ex: FSException.NotFound) {
                 throw RPCException(
-                    "The synchronization feature is offline. Please try again later.",
-                    HttpStatusCode.ServiceUnavailable
+                    "One of the files you requested no longer exists! " +
+                        "Double-check if $fileName is still present.",
+                    HttpStatusCode.BadRequest
+                )
+            } catch (ex: Throwable) {
+                log.info("Unexpected exception thrown while creating a sync-folder: ${ex.stackTraceToString()}")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+
+            if (fileStats.fileType != FileType.DIRECTORY) {
+                throw RPCException(
+                    "You can only synchronize folders and '$fileName' does not appear to " +
+                        "be one. Try refreshing or select a different folder!",
+                    HttpStatusCode.BadRequest
                 )
             }
+
+            if (cephStats.getRecursiveFileCount(internalFile) > 1_000_000) {
+                throw RPCException(
+                    "The folder '$fileName' has too many files for synchronization. Try selecting a different folder!",
+                    HttpStatusCode.BadRequest
+                )
+            }
+
+            stateList.add(State(folder, internalFile, fileStats, loadBalanceToDevice()))
         }
+
+        // Verify mounter is ready
+        verifyMounterIsReady(mounterClient) // TODO Pending #3374 this will change
+
+        // Verify that all syncthing devices are ready
+        val affectedDevices = stateList.asSequence().map { it.loadBalancedDevice }.toSet()
+        for (device in affectedDevices) verifyDeviceIsReady(device)
+
+        // Perform mount
+        Mounts.mount.call(
+            MountRequest(stateList.map { MountFolder(it.request.id.toLong(), it.internalFile.path) }),
+            mounterClient,
+        ).orRethrowAs {
+            log.info("Failed to prepare folder for synchronization: $stateList")
+            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        }
+
+        // Notify syncthing and insert record of our change
+        try {
+            db.withSession { session ->
+                val affectedRows = session.sendPreparedStatement(
+                    {
+                        setParameter("ids", request.items.map { folder -> folder.id.toLong() })
+                        setParameter("remote_devices", affectedDevices.map { it.id })
+                        setParameter("paths", request.items.map { folder -> folder.specification.path })
+                        setParameter("users", request.items.map { folder -> folder.owner.createdBy })
+                        setParameter("type", request.items.map { folder ->
+                            when (folder.status.permission) {
+                                Permission.READ -> SynchronizationType.SEND_ONLY.name
+                                Permission.EDIT -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.ADMIN -> SynchronizationType.SEND_RECEIVE.name
+                                Permission.PROVIDER -> SynchronizationType.SEND_ONLY.name
+                            }
+                        })
+                    },
+                    """
+                        insert into file_ucloud.sync_folders(id, device_id, path, user_id, sync_type)
+                        values (unnest(:ids::bigint[]), unnest(:remote_devices::text[]), unnest(:paths::text[]), 
+                                unnest(:users::text[]), unnest(:type::text[])) 
+                        on conflict do nothing
+                    """
+                ).rowsAffected
+
+                if (affectedRows > 0L) {
+                    syncthing.addFolders(affectedDevices.toList(), session)
+                    syncthing.addDevices(affectedDevices.toList(), session)
+                }
+            }
+        } catch (ex: Throwable) {
+            // Result is ignored, since we are failing regardless
+            runCatching { unmountFolders(stateList.map { MountFolderId(it.request.id.toLong()) }) }
+            throw ex
+        }
+
+        // NOTE(Dan): Not throwing since this is a purely optional step and the user _will_ receive the share if the
+        // previous steps were successful.
+        SyncFolderControl.update.call(
+            BulkRequest(
+                stateList.map {
+                    ResourceUpdateAndId(
+                        it.request.id,
+                        SyncFolder.Update(
+                            Time.now(),
+                            "Remote device has been attached! ${it.loadBalancedDevice.id}",
+                            remoteDeviceId = it.loadBalancedDevice.id,
+                            permission = it.request.status.permission
+                        )
+                    )
+                }
+            ),
+            authenticatedClient
+        )
 
         return BulkResponse(emptyList())
     }
 
     suspend fun removeFolders(ids: List<Long>) {
-        data class DeletedFolder(
-            val id: Long,
-            val path: String,
-            val localDevice: LocalSyncthingDevice,
-            val syncType: SynchronizationType,
-            val userId: String
-        )
-
-        var writeSuccessful = false
-
         val deleted = db.withSession { session ->
             val deleted = session.sendPreparedStatement(
                 {
@@ -277,88 +190,24 @@ class SyncService(
                 """
                     delete from file_ucloud.sync_folders
                     where id in (select unnest(:ids::bigint[]))
-                    returning id, device_id, path, sync_type, user_id 
+                    returning id, device_id
                 """
             ).rows.mapNotNull {
-                val id = it.getField(SyncFoldersTable.id)
-                val deviceId = it.getField(SyncFoldersTable.device)
-                val path = it.getField(SyncFoldersTable.path)
-                val syncType = it.getField(SyncFoldersTable.syncType)
-                val userId = it.getField(SyncFoldersTable.user)
+                val id = it.getLong(0)!!
+                val deviceId = it.getString(1)!!
+                val device = syncthing.config.devices.find { it.id == deviceId } ?: return@mapNotNull null
 
-                val device = syncthing.config.devices.find { it.id == deviceId }
-                if (device != null) {
-                    DeletedFolder(id, path, device, SynchronizationType.valueOf(syncType), userId)
-                } else {
-                    null
-                }
-            }
+                device to id
+            }.groupBy(
+                keySelector = { it.first },
+                valueTransform = { it.second }
+            )
 
             deleted
         }
 
-        try {
-            syncthing.removeFolders(
-                deleted.map { it.localDevice to it.id }.groupBy({it.first}, {it.second})
-            )
-            writeSuccessful = true
-        } catch (ex: Throwable) {
-            db.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("ids", deleted.map { it.id })
-                        setParameter("devices", deleted.map { it.localDevice.id })
-                        setParameter("paths", deleted.map { it.path })
-                        setParameter("users", deleted.map { it.userId })
-                        setParameter("types", deleted.map { it.syncType.name })
-                    },
-                    """
-                        insert into file_ucloud.sync_folders(
-                            id, 
-                            device_id, 
-                            path,
-                            user_id,
-                            sync_type
-                        ) values (
-                            unnest(:ids::bigint[]),
-                            unnest(:devices::text[]),
-                            unnest(:paths::text[]),
-                            unnest(:users::text[]),
-                            unnest(:types::text[])
-                        ) on conflict do nothing
-                    """
-                )
-            }
-
-            throw RPCException(
-                "The synchronization feature is offline. Please try again later.",
-                HttpStatusCode.ServiceUnavailable
-            )
-        }
-
-        if (writeSuccessful) {
-            unmountFolders(deleted.map { MountFolderId(it.id) })
-        }
-    }
-
-    private suspend fun unmountFolders(folders: List<MountFolderId>) {
-        var retries = 0
-        unmounting@while (true) {
-            if (retries == 3) {
-                break@unmounting
-            }
-
-            try {
-                Mounts.unmount.call(
-                    UnmountRequest(folders),
-                    mounterClient
-                ).orThrow()
-                break@unmounting
-            } catch (ex: Throwable) {
-                retries++
-                delay(1_000)
-            }
-        }
+        syncthing.removeFolders(deleted)
+        unmountFolders(deleted.flatMap { f -> f.value.map { MountFolderId(it) } })
     }
 
     suspend fun browseFolders(
@@ -366,9 +215,7 @@ class SyncService(
     ): List<SyncFolderBrowseItem> {
         return db.withSession { session ->
             session.sendPreparedStatement(
-                {
-                    setParameter("device", device)
-                },
+                { setParameter("device", device) },
                 """
                     select id, path, sync_type
                     from file_ucloud.sync_folders
@@ -376,9 +223,9 @@ class SyncService(
                 """
             ).rows.map { folder ->
                 SyncFolderBrowseItem(
-                    folder.getField(SyncFoldersTable.id),
-                    pathConverter.ucloudToInternal(UCloudFile.create(folder.getField(SyncFoldersTable.path))).path,
-                    SynchronizationType.valueOf(folder.getField(SyncFoldersTable.syncType))
+                    folder.getLong(0)!!,
+                    pathConverter.ucloudToInternal(UCloudFile.create(folder.getString(1)!!)).path,
+                    SynchronizationType.valueOf(folder.getString(2)!!)
                 )
             }
         }
@@ -391,53 +238,24 @@ class SyncService(
             }
         }
 
-        val affectedRows = db.withSession { session ->
-            devices.items.sumOf { device ->
-                if (syncthing.config.devices.any { it.id == device.id }) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                }
+        db.withSession { session ->
+            val didInsert = session.sendPreparedStatement(
+                {
+                    devices.items.split {
+                        into("ids") { it.id }
+                        into("devices") { it.specification.deviceId }
+                        into("users") { it.owner.createdBy }
+                    }
+                },
+                """
+                    insert into file_ucloud.sync_devices (id, device_id, user_id)
+                    select unnest(:ids), unnest(:devices), unnest(:users)
+                    on conflict do nothing 
+                """
+            ).rowsAffected > 0L
 
-                session.sendPreparedStatement(
-                    {
-                        setParameter("id", device.id)
-                        setParameter("device", device.specification.deviceId)
-                        setParameter("user", device.owner.createdBy)
-                    },
-                    """
-                        insert into file_ucloud.sync_devices(
-                            id,
-                            device_id,
-                            user_id
-                        ) values (
-                            :id,
-                            :device,
-                            :user
-                        )
-                    """
-                ).rowsAffected
-            }
-        }
-
-        if (affectedRows > 0) {
-            try {
-                syncthing.addDevices()
-            } catch (ex: Throwable) {
-                db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("ids", devices.items.map { it.id })
-                        },
-                        """
-                            delete from file_ucloud.sync_devices
-                            where id in (select unnest(:ids::bigint[]))
-                        """
-                    )
-                }
-
-                throw RPCException(
-                    "The synchronization feature is offline. Please try again later.",
-                    HttpStatusCode.ServiceUnavailable
-                )
+            if (didInsert) {
+                syncthing.addDevices(ctx = session)
             }
         }
 
@@ -445,61 +263,19 @@ class SyncService(
     }
 
     suspend fun removeDevices(devices: BulkRequest<SyncDevice>) {
-        data class DeletedDevice(
-            val id: Long,
-            val deviceId: String,
-            val userId: String
-        )
-
-        val deleted = db.withSession { session ->
-            session.sendPreparedStatement(
+        db.withSession { session ->
+            val deleted = session.sendPreparedStatement(
                 {
                     setParameter("ids", devices.items.map { it.id })
                 },
                 """
                     delete from file_ucloud.sync_devices
                     where id in (select unnest(:ids::bigint[]))
-                    returning id, device_id, user_id
+                    returning device_id, user_id
                 """
-            ).rows.mapNotNull {
-                DeletedDevice(
-                    it.getField(SyncDevicesTable.id),
-                    it.getField(SyncDevicesTable.device),
-                    it.getField(SyncDevicesTable.user)
-                )
-            }
-        }
+            ).rows.map { it.getString(0)!! }
 
-        if (deleted.isNotEmpty()) {
-            try {
-                syncthing.removeDevices(deleted.map { it.deviceId })
-            } catch (ex: Throwable) {
-                db.withSession { session ->
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("ids", deleted.map { it.id })
-                            setParameter("deviceIds", deleted.map { it.deviceId })
-                            setParameter("userIds", deleted.map { it.userId })
-                        },
-                        """
-                            insert into file_ucloud.sync_devices(
-                                id,
-                                device_id,
-                                user_id
-                            ) values (
-                                unnest(:ids::bigint[]),
-                                unnest(:deviceIds::text[]),
-                                unnest(:userIds::text[])
-                            )
-                        """
-                    )
-                }
-
-                throw RPCException(
-                    "The synchronization feature is offline. Please try again later.",
-                    HttpStatusCode.ServiceUnavailable
-                )
-            }
+            syncthing.removeDevices(deleted, session)
         }
     }
 
@@ -531,9 +307,9 @@ class SyncService(
                         f.id = updates.id
                 """
             )
-        }
 
-        if (folders.items.isNotEmpty()) syncthing.addFolders()
+            if (folders.items.isNotEmpty()) syncthing.addFolders(ctx = session)
+        }
 
         SyncFolderControl.update.call(
             BulkRequest(folders.items.map {
@@ -565,13 +341,13 @@ class SyncService(
                         returning id, device_id
                     """
             ).rows.mapNotNull { row ->
-                val localDevice = syncthing.config.devices.find { it.id == row.getField(SyncFoldersTable.device)}
+                val localDevice = syncthing.config.devices.find { it.id == row.getField(SyncFoldersTable.device) }
                 if (localDevice != null) {
                     Pair(localDevice, row.getField(SyncFoldersTable.id))
                 } else {
                     null
                 }
-            }.groupBy({it.first}, {it.second})
+            }.groupBy({ it.first }, { it.second })
         }
 
         var writeSuccess = false
@@ -591,7 +367,81 @@ class SyncService(
         SyncFolderSupport(ProductReference("u1-sync", "u1-sync", providerId)),
     )
 
-    companion object {
+    private suspend inline fun withRetries(attempts: Int = 3, block: () -> Unit) {
+        for (i in 1..attempts) {
+            @Suppress("TooGenericExceptionCaught")
+            try {
+                return block()
+            } catch (ex: Throwable) {
+                if (i == attempts) throw ex
+                delay(500)
+            }
+        }
+    }
+
+    private suspend fun verifyMounterIsReady(mounterClient: AuthenticatedClient) {
+        withRetries {
+            val isReady = Mounts.ready.call(Unit, mounterClient).orThrow().ready
+            if (!isReady) {
+                throw RPCException(
+                    "The synchronization feature is offline. Please try again later.",
+                    HttpStatusCode.ServiceUnavailable
+                )
+            }
+        }
+    }
+
+    private suspend fun verifyDeviceIsReady(device: LocalSyncthingDevice) {
+        withRetries {
+            if (!syncthing.isReady(device)) {
+                throw RPCException(
+                    "The synchronization feature is offline. Please try again later.",
+                    HttpStatusCode.ServiceUnavailable
+                )
+            }
+        }
+    }
+
+    private suspend fun unmountFolders(folders: List<MountFolderId>) {
+        withRetries {
+            Mounts.unmount.call(
+                UnmountRequest(folders),
+                mounterClient
+            ).orThrow()
+        }
+    }
+
+    private val syncthingLoadBalancerCached = SimpleCache<Unit, LocalSyncthingDevice> {
+        db.withSession { session ->
+            syncthing.config.devices.associateWith { device ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("device", device.id)
+                    },
+                    """
+                        select path
+                        from file_ucloud.sync_folders
+                        where device_id = :device
+                    """
+                ).rows.map { it.getField(SyncFoldersTable.path) }
+            }.filter { it.value.size < 1000 }
+                .minByOrNull { (_, folders) ->
+                    folders.sumOf { folder ->
+                        cephStats.getRecursiveSize(
+                            pathConverter.ucloudToInternal(UCloudFile.create(folder))
+                        ) ?: 0
+                    }
+                }?.key
+        }
+    }
+
+    private suspend fun loadBalanceToDevice(): LocalSyncthingDevice {
+        return syncthingLoadBalancerCached.get(Unit)
+            ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
+    }
+
+    companion object : Loggable {
+        override val log = logger()
         private val deviceIdRegex = Regex("""([a-zA-Z\d]{7}-){7}[a-zA-Z\d]{7}""")
     }
 }

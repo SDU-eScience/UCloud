@@ -1,14 +1,11 @@
 package dk.sdu.cloud.file.ucloud.services
 
-import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.SyncConfiguration
-import dk.sdu.cloud.service.DistributedLockFactory
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.client.*
 import io.ktor.client.engine.okhttp.*
@@ -21,8 +18,316 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import java.net.ConnectException
-import java.util.concurrent.atomic.AtomicLong
+
+class SyncthingClient(
+    val config: SyncConfiguration,
+    private val db: DBContext,
+) {
+    private val httpClient = HttpClient(OkHttp) {
+        expectSuccess = false
+    }
+    private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
+        return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
+    }
+
+    suspend fun writeConfig(pendingDevices: List<LocalSyncthingDevice> = config.devices) {
+        log.debug("Writing config to Syncthing")
+
+        data class SyncedFolder(
+            val id: Long,
+            val path: String,
+            val synchronizationType: SynchronizationType,
+            val ucloudDevice: String,
+            val endUserDevice: String,
+            val username: String,
+        )
+
+        val syncedFolders = db.withSession { session ->
+            session.sendPreparedStatement(
+                { setParameter("devices", pendingDevices.map { it.id }) },
+                """
+                    select
+                        f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id
+                    from
+                       file_ucloud.sync_folders f join
+                       file_ucloud.sync_devices d on f.user_id = d.user_id
+                    where
+                       f.device_id in (select unnest(:devices::text[]))
+                """
+            )
+        }.rows.asSequence().map {
+            SyncedFolder(
+                it.getLong(0)!!,
+                it.getString(1)!!,
+                SynchronizationType.valueOf(it.getString(2)!!),
+                it.getString(3)!!,
+                it.getString(4)!!,
+                it.getString(5)!!
+            )
+        }.groupBy { it.ucloudDevice }
+
+        val devicesByUser = syncedFolders.values.flatMap { folders ->
+            folders.map {
+                it.username to it.endUserDevice
+            }
+        }.groupBy(
+            keySelector = { it.first },
+            valueTransform = { it.second }
+        )
+
+        pendingDevices.forEach { device ->
+            val folders = syncedFolders[device.id] ?: emptyList()
+
+            val newConfig = SyncthingConfig(
+                devices = folders
+                    .asSequence()
+                    .distinctBy { it.endUserDevice }
+                    .map { row ->
+                        SyncthingDevice(
+                            deviceID = row.endUserDevice,
+                            name = row.endUserDevice
+                        )
+                    }
+                    .toList() + listOf(
+                    SyncthingDevice(
+                        deviceID = device.id,
+                        name = device.name,
+                        addresses = device.addresses + SyncthingDevice().addresses
+                    )
+                ),
+                folders = folders.asSequence()
+                    .distinctBy { it.id }
+                    .map { row ->
+                        SyncthingFolder(
+                            id = row.id.toString(),
+                            label = row.path.fileName(),
+                            devices = devicesByUser.getOrDefault(row.username, emptyList()).map {
+                                SyncthingFolderDevice(it)
+                            },
+                            path = "/mnt/sync/${row.id}",
+                            type = row.synchronizationType.syncthingValue,
+                            rescanIntervalS = device.rescanIntervalSeconds
+                        )
+                    }
+                    .toList(),
+                defaults = SyncthingDefaults(),
+                gui = SyncthingGui(
+                    address = device.hostname,
+                    apiKey = device.apiKey,
+                    user = device.username,
+                    password = device.password
+                ),
+                ldap = SyncthingLdap(),
+                options = SyncthingOptions()
+            )
+
+            runCatching {
+                httpClient.put<HttpResponse>(
+                    deviceEndpoint(device, "/rest/config"),
+                    apiRequestWithBody(device, newConfig)
+                ).orThrow()
+            }
+        }
+    }
+
+    suspend fun isReady(device: LocalSyncthingDevice): Boolean {
+        return try {
+            httpClient.get<HttpResponse>(
+                deviceEndpoint(device, "/rest/system/ping"),
+                apiRequest(device)
+            ).status.isSuccess()
+        } catch (ex: Throwable) {
+            false
+        }
+    }
+
+    suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
+        val localDevices = devices.ifEmpty { config.devices }
+        log.info("Attempting rescan of syncthing")
+        localDevices.forEach { device ->
+            runCatching {
+                httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan"), apiRequest(device))
+            }
+        }
+    }
+
+    suspend fun addFolders(
+        localDevices: List<LocalSyncthingDevice> = config.devices,
+        ctx: DBContext = db,
+    ) {
+        val result = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("devices", localDevices.map { it.id })
+                },
+                """
+                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                   from
+                      file_ucloud.sync_folders f join
+                      file_ucloud.sync_devices d on f.user_id = d.user_id
+                   where
+                      f.device_id = some(:devices::text[])
+                """
+            )
+        }.rows
+
+        localDevices.forEach { device ->
+            val newFolders = result
+                .filter {
+                    it.getString("local_device_id") == device.id
+                }
+                .distinctBy { it.getField(SyncFoldersTable.id) }
+                .map { row ->
+                    SyncthingFolder(
+                        id = row.getField(SyncFoldersTable.id).toString(),
+                        label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
+                        devices = result
+                            .filter {
+                                it.getString("local_device_id") == device.id &&
+                                    it.getField(SyncFoldersTable.id) == row.getField(
+                                    SyncFoldersTable.id
+                                ) &&
+                                    it.getField(SyncDevicesTable.user) == row.getField(
+                                    SyncFoldersTable.user
+                                )
+                            }.map {
+                                SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
+                            },
+                        path = "/mnt/sync/${row.getField(SyncFoldersTable.id)}",
+                        type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
+                        rescanIntervalS = device.rescanIntervalSeconds
+                    )
+                }
+
+            httpClient.put<HttpResponse>(
+                deviceEndpoint(device, "/rest/config/folders"),
+                apiRequestWithBody(device, newFolders)
+            ).orThrow()
+        }
+    }
+
+    suspend fun removeFolders(folders: Map<LocalSyncthingDevice, List<Long>>) {
+        log.debug("Removing folders from Syncthing")
+
+        folders.forEach { deviceFolders ->
+            deviceFolders.value.forEach { folder ->
+                httpClient.delete<HttpResponse>(
+                    deviceEndpoint(deviceFolders.key, "/rest/config/folders/$folder"),
+                    apiRequest(deviceFolders.key)
+                ).orThrow()
+            }
+        }
+    }
+
+    suspend fun addDevices(localDevices: List<LocalSyncthingDevice> = config.devices, ctx: DBContext = db) {
+        ctx.withSession { session ->
+            val foldersAndDevices = session.sendPreparedStatement(
+                {
+                    setParameter("devices", localDevices.map { it.id })
+                },
+                """
+                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
+                   from
+                      file_ucloud.sync_folders f join
+                      file_ucloud.sync_devices d on f.user_id = d.user_id
+                   where
+                      f.device_id in (select unnest(:devices::text[]))
+                """
+            ).rows
+
+            localDevices.forEach { localDevice ->
+                val newDevices = foldersAndDevices
+                    .filter {
+                        it.getString("local_device_id") == localDevice.id
+                    }
+                    .distinctBy { it.getField(SyncDevicesTable.device) }
+                    .map { row ->
+                        SyncthingDevice(
+                            deviceID = row.getField(SyncDevicesTable.device),
+                            name = row.getField(SyncDevicesTable.device)
+                        )
+                    }
+
+                httpClient.put<HttpResponse>(
+                    deviceEndpoint(localDevice, "/rest/config/devices"),
+                    apiRequestWithBody(localDevice, newDevices)
+                ).orThrow()
+            }
+
+            // When a device is added to Syncthing, the folders the user have already added to sync should be re-added.
+            addFolders(localDevices, session)
+        }
+    }
+
+    suspend fun removeDevices(devices: List<String>, ctx: DBContext = db) {
+        log.debug("Removing devices from Syncthing")
+
+        // Check if there's devices with the same (deleted) Device IDs left. If so the device should not be
+        // removed from syncthing.
+        val deviceCount = ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("devices", devices)
+                },
+                """
+                   select count(d.id)
+                   from
+                      file_ucloud.sync_devices d
+                   where
+                      d.device_id in (select unnest(:devices::text[]))
+                """
+            )
+        }.rows.firstOrNull()?.getLong(0)
+
+        if (deviceCount != null && deviceCount > 0) {
+            return
+        }
+
+        config.devices.forEach { localDevice ->
+            devices.forEach { device ->
+                httpClient.delete<HttpResponse>(
+                    deviceEndpoint(localDevice, "/rest/config/devices/$device"),
+                    apiRequest(localDevice)
+                ).orThrow()
+            }
+        }
+    }
+
+    private fun apiRequest(device: LocalSyncthingDevice): HttpRequestBuilder.() -> Unit {
+        return apiRequestWithBody<Unit>(device, null)
+    }
+
+    private inline fun <reified T> apiRequestWithBody(
+        device: LocalSyncthingDevice,
+        payload: T?
+    ): HttpRequestBuilder.() -> Unit {
+        return {
+            if (payload != null) {
+                body = TextContent(
+                    defaultMapper.encodeToString(payload),
+                    ContentType.Application.Json
+                )
+            }
+
+            headers {
+                append("X-API-Key", device.apiKey)
+            }
+        }
+    }
+
+    private suspend fun HttpResponse.orThrow() {
+        if (!status.isSuccess()) {
+            throw RPCException(
+                content.toByteArray().toString(Charsets.UTF_8),
+                dk.sdu.cloud.calls.HttpStatusCode.BadRequest
+            )
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+    }
+}
 
 @Serializable
 data class SyncthingIgnoredFolder(
@@ -221,479 +526,3 @@ data class SyncthingFolderDevice(
     val encryptionPassword: String = "",
     val introducedBy: String = ""
 )
-
-class SyncthingClient(
-    val config: SyncConfiguration,
-    val db: DBContext,
-    val distributedLocks: DistributedLockFactory,
-    val lastWrite: AtomicLong
-) {
-    private val httpClient = HttpClient(OkHttp) {
-        expectSuccess = false
-
-        engine {
-            threadsCount = 1
-            pipelining = false
-        }
-    }
-    private val mutex = Mutex()
-    private val lock = distributedLocks.create("syncthing-client-writer", duration = 5_000)
-
-    private fun deviceEndpoint(device: LocalSyncthingDevice, path: String): String {
-        return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
-    }
-
-    suspend fun writeConfig(
-        toDevices: List<LocalSyncthingDevice> = emptyList()
-    ) {
-        if (lock.acquire()) {
-            var pendingDevices = toDevices.ifEmpty {
-                config.devices
-            }
-
-            val timeout = Time.now() + 30_000
-
-            log.debug("Writing config to Syncthing")
-
-            // NOTE(Brian): We are waiting for changes to be written to all syncthing devices, sending requests every
-            // 5 seconds, for 30 seconds.
-            while (pendingDevices.isNotEmpty()) {
-                if (Time.now() > lastWrite.get() + 5_000) {
-                    mutex.withLock {
-                        val result = db.withSession { session ->
-                            session.sendPreparedStatement(
-                                {
-                                    setParameter("devices", pendingDevices.map { it.id })
-                                },
-                                """
-                                       select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                                       from
-                                          file_ucloud.sync_folders f join
-                                          file_ucloud.sync_devices d on f.user_id = d.user_id
-                                       where
-                                          f.device_id in (select unnest(:devices::text[]))
-                                    """
-                            )
-                        }.rows
-
-                        pendingDevices.forEach { device ->
-                            val newConfig = SyncthingConfig(
-                                devices = result
-                                    .filter {
-                                        it.getString("local_device_id") == device.id
-                                    }
-                                    .distinctBy { it.getField(SyncDevicesTable.device) }
-                                    .map { row ->
-                                        SyncthingDevice(
-                                            deviceID = row.getField(SyncDevicesTable.device),
-                                            name = row.getField(SyncDevicesTable.device)
-                                        )
-                                    } + listOf(
-                                    SyncthingDevice(
-                                        deviceID = device.id,
-                                        name = device.name,
-                                        addresses = device.addresses + SyncthingDevice().addresses
-                                    )
-                                ),
-                                folders = result
-                                    .filter {
-                                        it.getString("local_device_id") == device.id
-                                    }
-                                    .distinctBy { it.getField(SyncFoldersTable.id) }
-                                    .map { row ->
-                                        SyncthingFolder(
-                                            id = row.getField(SyncFoldersTable.id).toString(),
-                                            label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
-                                            devices = result
-                                                .filter {
-                                                    it.getString("local_device_id") == device.id &&
-                                                        it.getField(SyncFoldersTable.id) == row.getField(
-                                                        SyncFoldersTable.id
-                                                    ) &&
-                                                        it.getField(SyncDevicesTable.user) == row.getField(
-                                                        SyncFoldersTable.user
-                                                    )
-                                                }.map {
-                                                    SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
-                                                },
-                                            path = "/mnt/sync/${row.getField(SyncFoldersTable.id)}",
-                                            type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
-                                            rescanIntervalS = device.rescanIntervalSeconds
-                                        )
-                                    },
-                                defaults = SyncthingDefaults(),
-                                gui = SyncthingGui(
-                                    address = device.hostname,
-                                    apiKey = device.apiKey,
-                                    user = device.username,
-                                    password = device.password
-                                ),
-                                ldap = SyncthingLdap(),
-                                options = SyncthingOptions()
-                            )
-
-                            try {
-                                val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
-                                    body = TextContent(
-                                        defaultMapper.encodeToString(newConfig),
-                                        ContentType.Application.Json
-                                    )
-                                    headers {
-                                        append("X-API-Key", device.apiKey)
-                                    }
-                                }
-
-                                if (!resp.status.isSuccess()) {
-                                    throw RPCException(
-                                        resp.content.toByteArray().toString(Charsets.UTF_8),
-                                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                                    )
-                                } else {
-                                    pendingDevices = pendingDevices.filter { it.id != device.id }
-                                }
-                            } catch (ex: RPCException) {
-                                throw RPCException(
-                                    "Invalid Syncthing Configuration: ${ex.message}",
-                                    dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                                )
-                            } catch (ex: Throwable) {
-                                // Do nothing
-                            }
-                        }
-                    }
-                    lastWrite.set(Time.now())
-
-                    if (Time.now() > timeout) {
-                        throw RPCException(
-                            "Unable to contact one or more syncthing clients",
-                            dk.sdu.cloud.calls.HttpStatusCode.ServiceUnavailable
-                        )
-                    }
-                }
-            }
-            lock.release()
-        }
-    }
-
-    suspend fun drainConfig() {
-        if (lock.acquire()) {
-            mutex.withLock {
-                config.devices.forEach { device ->
-                    val newConfig = SyncthingConfig(
-                        devices = emptyList(),
-                        folders = emptyList(),
-                        defaults = SyncthingDefaults(),
-                        gui = SyncthingGui(
-                            address = device.hostname,
-                            apiKey = device.apiKey,
-                            user = device.username,
-                            password = device.password
-                        ),
-                        ldap = SyncthingLdap(),
-                        options = SyncthingOptions()
-                    )
-
-                    try {
-                        val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config")) {
-                            body = TextContent(
-                                defaultMapper.encodeToString(newConfig),
-                                ContentType.Application.Json
-                            )
-                            headers {
-                                append("X-API-Key", device.apiKey)
-                            }
-                        }
-
-                        if (!resp.status.isSuccess()) {
-                            throw RPCException(
-                                resp.content.toByteArray().toString(Charsets.UTF_8),
-                                dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                            )
-                        }
-                    } catch (e: ConnectException) {
-                        e.printStackTrace()
-                        throw RPCException(
-                            "The synchronization feature is offline. Please try again later.",
-                            dk.sdu.cloud.calls.HttpStatusCode.ServiceUnavailable,
-                        )
-                    } finally {
-                        lock.release()
-                    }
-                }
-            }
-        }
-    }
-
-    suspend fun isReady(device: LocalSyncthingDevice): Boolean? {
-        if (lock.acquire()) {
-            mutex.withLock {
-                return try {
-                    val resp = httpClient.get<HttpResponse>(deviceEndpoint(device, "/rest/system/ping")) {
-                        headers {
-                            append("X-API-Key", device.apiKey)
-                        }
-                    }
-                    resp.status == HttpStatusCode.OK
-                } catch (ex: Throwable) {
-                    false
-                } finally {
-                    lock.release()
-                }
-            }
-        }
-        return null
-    }
-
-    suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
-        if (lock.acquire()) {
-            mutex.withLock {
-                val localDevices = devices.ifEmpty { config.devices }
-                log.info("Attempting rescan of syncthing")
-                localDevices.forEach { device ->
-                    try {
-                        httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan")) {
-                            headers {
-                                append("X-API-Key", device.apiKey)
-                            }
-                        }
-                    } catch (ex: Throwable) {
-                        // do nothing
-                    }
-                }
-            }
-            lock.release()
-        }
-    }
-
-    suspend fun addFolders(toDevices: List<LocalSyncthingDevice> = emptyList()) {
-        log.debug("Adding folders to Syncthing")
-
-        var localDevices = toDevices.ifEmpty {
-            config.devices
-        }
-
-        val result = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("devices", localDevices.map { it.id })
-                },
-                """
-                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                   from
-                      file_ucloud.sync_folders f join
-                      file_ucloud.sync_devices d on f.user_id = d.user_id
-                   where
-                      f.device_id = some(:devices::text[])
-                """
-            )
-        }.rows
-
-        localDevices.forEach { device ->
-            val newFolders = result
-                .filter {
-                    it.getString("local_device_id") == device.id
-                }
-                .distinctBy { it.getField(SyncFoldersTable.id) }
-                .map { row ->
-                    SyncthingFolder(
-                        id = row.getField(SyncFoldersTable.id).toString(),
-                        label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
-                        devices = result
-                            .filter {
-                                it.getString("local_device_id") == device.id &&
-                                    it.getField(SyncFoldersTable.id) == row.getField(
-                                    SyncFoldersTable.id
-                                ) &&
-                                    it.getField(SyncDevicesTable.user) == row.getField(
-                                    SyncFoldersTable.user
-                                )
-                            }.map {
-                                SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
-                            },
-                        path = "/mnt/sync/${row.getField(SyncFoldersTable.id)}",
-                        type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
-                        rescanIntervalS = device.rescanIntervalSeconds
-                    )
-                }
-
-            try {
-                val resp = httpClient.put<HttpResponse>(deviceEndpoint(device, "/rest/config/folders")) {
-                    body = TextContent(
-                        defaultMapper.encodeToString(newFolders),
-                        ContentType.Application.Json
-                    )
-                    headers {
-                        append("X-API-Key", device.apiKey)
-                    }
-                }
-
-                if (!resp.status.isSuccess()) {
-                    throw RPCException(
-                        resp.content.toByteArray().toString(Charsets.UTF_8),
-                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                    )
-                }
-
-            } catch (ex: Throwable) {
-                throw RPCException("Invalid Syncthing Configuration", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
-            }
-        }
-    }
-
-    suspend fun removeFolders(folders: Map<LocalSyncthingDevice, List<Long>>) {
-        log.debug("Removing folders from Syncthing")
-
-        folders.forEach { deviceFolders ->
-            deviceFolders.value.forEach { folder ->
-                try {
-                    val resp = httpClient.delete<HttpResponse>(
-                        deviceEndpoint(
-                            deviceFolders.key,
-                            "/rest/config/folders/$folder"
-                        )
-                    ) {
-                        headers {
-                            append("X-API-Key", deviceFolders.key.apiKey)
-                        }
-                    }
-
-                    if (!resp.status.isSuccess()) {
-                        throw RPCException(
-                            resp.content.toByteArray().toString(Charsets.UTF_8),
-                            dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                        )
-                    }
-                } catch (ex: Throwable) {
-                    log.error("Syncthing responded: ${ex.message}")
-                    throw RPCException(
-                        "Invalid Syncthing Configuration",
-                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                    )
-                }
-            }
-        }
-    }
-
-    suspend fun addDevices(toDevices: List<LocalSyncthingDevice> = emptyList()) {
-        log.debug("Adding devices to Syncthing")
-        var localDevices = toDevices.ifEmpty {
-            config.devices
-        }
-
-        val foldersAndDevices = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("devices", localDevices.map { it.id })
-                },
-                """
-                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                   from
-                      file_ucloud.sync_folders f join
-                      file_ucloud.sync_devices d on f.user_id = d.user_id
-                   where
-                      f.device_id in (select unnest(:devices::text[]))
-                """
-            )
-        }.rows
-
-        localDevices.forEach { localDevice ->
-            val newDevices = foldersAndDevices
-                .filter {
-                    it.getString("local_device_id") == localDevice.id
-                }
-                .distinctBy { it.getField(SyncDevicesTable.device) }
-                .map { row ->
-                    SyncthingDevice(
-                        deviceID = row.getField(SyncDevicesTable.device),
-                        name = row.getField(SyncDevicesTable.device)
-                    )
-                }
-
-            try {
-                val resp = httpClient.put<HttpResponse>(deviceEndpoint(localDevice, "/rest/config/devices")) {
-                    body = TextContent(
-                        defaultMapper.encodeToString(newDevices),
-                        ContentType.Application.Json
-                    )
-                    headers {
-                        append("X-API-Key", localDevice.apiKey)
-                    }
-                }
-
-                if (!resp.status.isSuccess()) {
-                    throw RPCException(
-                        resp.content.toByteArray().toString(Charsets.UTF_8),
-                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                    )
-                }
-
-            } catch (ex: Throwable) {
-                log.error("Syncthing responded: ${ex.message}")
-                throw RPCException("Invalid Syncthing Configuration", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
-            }
-        }
-
-        // When a device is added to Syncthing, the folders the user have already added to sync should be re-added.
-        addFolders(toDevices)
-    }
-
-    suspend fun removeDevices(devices: List<String>) {
-        log.debug("Removing devices from Syncthing")
-
-        // Check if there's devices with the same (deleted) Device IDs left. If so the device should not be
-        // removed from syncthing.
-        val deviceCount = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("devices", devices)
-                },
-                """
-                   select count(d.id)
-                   from
-                      file_ucloud.sync_devices d
-                   where
-                      d.device_id in (select unnest(:devices::text[]))
-                """
-            )
-        }.rows.firstOrNull()?.getLong(0)
-
-        if (deviceCount != null && deviceCount > 0) {
-            return
-        }
-
-        config.devices.forEach { localDevice ->
-            devices.forEach { device ->
-                try {
-                    val resp = httpClient.delete<HttpResponse>(
-                        deviceEndpoint(
-                            localDevice,
-                            "/rest/config/devices/$device"
-                        )
-                    ) {
-                        headers {
-                            append("X-API-Key", localDevice.apiKey)
-                        }
-                    }
-
-                    if (!resp.status.isSuccess()) {
-                        throw RPCException(
-                            resp.content.toByteArray().toString(Charsets.UTF_8),
-                            dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                        )
-                    }
-
-                } catch (ex: Throwable) {
-                    log.error("Syncthing responded: ${ex.message}")
-                    throw RPCException(
-                        "Invalid Syncthing Configuration",
-                        dk.sdu.cloud.calls.HttpStatusCode.BadRequest
-                    )
-                }
-            }
-        }
-    }
-
-    companion object : Loggable {
-        override val log = logger()
-    }
-}

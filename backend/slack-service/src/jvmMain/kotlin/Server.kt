@@ -21,13 +21,11 @@ class Server(
         val alertSlackService = if (alertConfiguration.notifiers.slack != null) {
             AlertSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack.hook, db)))
         } else {
-            log.warn("No alert channel given")
             AlertSlackService(emptyList())
         }
         val supportSlackService = if (supportConfiguration.notifiers.slack != null) {
             SupportSlackService(listOf(SlackNotifier(supportConfiguration.notifiers.slack.hook, db)))
         } else {
-            log.warn("No support channel given")
             SupportSlackService(emptyList())
         }
 

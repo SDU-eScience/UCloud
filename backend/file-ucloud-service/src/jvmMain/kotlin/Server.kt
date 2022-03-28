@@ -150,6 +150,7 @@ class Server(
                 authenticatedClient,
                 cephStats,
                 pathConverter,
+                nativeFs,
                 mounterClient
             )
 

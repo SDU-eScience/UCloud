@@ -1,13 +1,12 @@
 package dk.sdu.cloud.sync.mounter.services
 
 import com.sun.jna.Native
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
-import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.service.Loggable
 import java.io.File
 import java.nio.file.Paths
+import java.util.*
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.io.path.ExperimentalPathApi
 import kotlin.io.path.pathString
@@ -16,6 +15,8 @@ class MountService(
     private val config: SyncMounterConfiguration,
     private val ready: AtomicBoolean
 ) {
+    private val configurationId = UUID.randomUUID().toString()
+
     @OptIn(ExperimentalPathApi::class)
     fun mount(request: MountRequest) {
         item@for (item in request.items) {
@@ -124,8 +125,11 @@ class MountService(
         return UnmountResponse
     }
 
-    fun ready(): ReadyResponse {
-        return ReadyResponse(ready.get())
+    fun ready(req: ReadyRequest): ReadyResponse {
+        // NOTE(Dan): Right now, we just don't differentiate between the two. But we reserve the rights to change this
+        // in the future.
+        val isReady = ready.get() && req.configurationId == configurationId
+        return ReadyResponse(isReady, configurationId)
     }
 
     private fun joinPath(vararg components: String): String {
