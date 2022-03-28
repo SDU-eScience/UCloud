@@ -319,10 +319,12 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
 
     React.useEffect(() => {
         editEntries.current = {};
-        props.rows.forEach(it => {
-            editEntries.current[it.id] = it;
-        });
-    }, [props.rows]);
+        if (editing) {
+            props.rows.forEach(it => {
+                editEntries.current[it.id] = it;
+            });
+        }
+    }, [props.rows, editing]);
 
     const updateRows = useCallback(async () => {
         try {
@@ -582,7 +584,12 @@ function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: W
 
 function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<{[id: string]: SubAllocation}>}): JSX.Element {
     const entry = props.suballocation;
-    const [dates, setDates] = useState<[number, number | undefined]>([entry.startDate, entry.endDate ?? undefined]);
+    const [dates, setDates] = useState<[number, number | undefined | null]>([entry.startDate, entry.endDate ?? undefined]);
+    React.useEffect(() => {
+        if (!props.editing) {
+            setDates([entry.startDate, entry.endDate]);
+        }
+    }, [props.editing]);
     if (props.editing) return (
         <ListRow
             key={entry.id}
