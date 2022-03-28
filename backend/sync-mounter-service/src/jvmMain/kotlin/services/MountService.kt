@@ -95,29 +95,29 @@ class MountService(
     }
 
     fun unmount(request: UnmountRequest) {
-        request.items.forEach { item ->
-            println(item.id.toString())
+        for (item in request.items ) {
             val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
+                log.info("Umount: Invalid target of: ${target}")
+                continue
             }
 
             if (!target.exists()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
+                log.info("Umount: Target does not exist: ${target}")
+                continue
             }
 
             if (CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
                 if (Native.getLastError() != EINVAL) {
                     // We assume EINVAL to mean that it is not a valid mount-point, which can happen at start up.
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
+                    log.info("Umount: Unable to unmount target: ${target}")
+                    continue
                 }
             }
 
             if (target.exists() && !target.delete()) {
-                throw RPCException.fromStatusCode(
-                    HttpStatusCode.InternalServerError,
-                    "Failed to delete target: ${target.absolutePath}"
-                )
+                log.info("Umount: Failed to delete: ${target}")
+                continue
             }
         }
 
@@ -151,3 +151,4 @@ class MountService(
         private const val O_NOFOLLOW = 0x20000
     }
 }
+
