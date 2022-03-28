@@ -10,10 +10,7 @@ import dk.sdu.cloud.file.ucloud.api.UCloudSyncFoldersBrowseRequest
 import dk.sdu.cloud.file.ucloud.services.InternalFile
 import dk.sdu.cloud.file.ucloud.services.JwtRefresherSharedSecret
 import dk.sdu.cloud.file.ucloud.services.PathConverter
-import dk.sdu.cloud.micro.Micro
-import dk.sdu.cloud.micro.client
-import dk.sdu.cloud.micro.providerTokenValidation
-import dk.sdu.cloud.micro.server
+import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.sync.mounter.api.*
 import dk.sdu.cloud.sync.mounter.http.MountController
@@ -106,8 +103,10 @@ class Server(
             log.info("Attempting to re-synchronize state with UCloud after a complete restart")
             readyFile.deleteOnExit()
 
+            var attempts = 0
             while (isActive) {
                 try {
+                    attempts++
                     val folders = UCloudSyncFoldersBrowse(providerId).browse.call(
                         UCloudSyncFoldersBrowseRequest(config.deviceId),
                         internalClient
@@ -125,10 +124,13 @@ class Server(
 
                     break
                 } catch (ex: Throwable) {
-                    log.warn("Could not initialize Syncthing state. file-ucloud might not be ready yet.")
-                    log.warn("The exception we encountered was:")
-                    log.warn(ex.stackTraceToString())
-                    log.warn("We will now attempt to retry the synchronization!")
+                    // Grace period is useful during startup
+                    if (attempts > 2) {
+                        log.warn("Could not initialize Syncthing state. file-ucloud might not be ready yet.")
+                        log.warn("The exception we encountered was:")
+                        log.warn(ex.stackTraceToString())
+                        log.warn("We will now attempt to retry the synchronization!")
+                    }
                     delay(5000)
                 }
             }
