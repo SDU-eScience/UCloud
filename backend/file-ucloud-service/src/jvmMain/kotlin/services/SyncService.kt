@@ -39,7 +39,7 @@ class SyncService(
     private val pathConverter: PathConverter,
     private val mounterClient: AuthenticatedClient,
 ) {
-    private val folderDeviceCache = SimpleCache<Unit, LocalSyncthingDevice> {
+    private val syncthingLoadBalancerCached = SimpleCache<Unit, LocalSyncthingDevice> {
         db.withSession { session ->
             syncthing.config.devices.associateWith { device ->
                 session.sendPreparedStatement(
@@ -63,12 +63,29 @@ class SyncService(
         }
     }
 
-    private suspend fun chooseFolderDevice(session: AsyncDBConnection): LocalSyncthingDevice {
-        return folderDeviceCache.get(Unit)
+    private suspend fun loadBalanceToDevice(): LocalSyncthingDevice {
+        return syncthingLoadBalancerCached.get(Unit)
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
     suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
+        // Things which need to happen:
+        // 1. Check if the users are whitelisted
+        // 2. Check if the paths exists
+        // 3. Check if the folders are not too large
+        // 4. Check if the mounter is ready
+        // 5. Find a device
+        // 6. Check if the device is ready
+        // --- Validation complete ---
+        // 7. Ask the mounter to perform a mount
+        //    - What if we fail here?
+        // 8. Update syncthing
+        //    - What if we fail here?
+        // 9. Update UCloud folder with device ID
+        //    - What if we fail here?
+        // 10. Keep a record of the folder and device ID
+        //    - What if we fail here?
+
         if (!syncthing.config.userWhiteList.containsAll(request.items.map { it.owner.createdBy })) {
             throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
         }
@@ -120,7 +137,7 @@ class SyncService(
                     )
                 }
 
-                val device = chooseFolderDevice(session)
+                val device = loadBalanceToDevice()
                 affectedDevices.add(device)
 
                 SyncFolderControl.update.call(

@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.sync.mounter.SyncMounterConfiguration
 import dk.sdu.cloud.sync.mounter.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.service.Loggable
 import java.io.File
 import java.nio.file.Paths
 import java.util.concurrent.atomic.AtomicBoolean
@@ -17,22 +18,23 @@ class MountService(
 ) {
     @OptIn(ExperimentalPathApi::class)
     fun mount(request: MountRequest) {
-        request.items.forEach { item ->
+        item@for (item in request.items) {
             if (!item.path.startsWith(config.cephfsBaseMount)) {
-                println(item.path)
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
+                log.info("Invalid source of: ${item.path}")
+                continue
             }
 
             val source = File(item.path)
 
             if (!source.exists() || !source.isDirectory) {
-                println(source.absolutePath)
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Invalid source")
+                log.info("Invalid source of: ${item.path}")
+                continue
             }
 
             val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
+                log.info("Invalid target of: ${item.path}")
+                continue
             }
 
             if (target.exists()) {
@@ -40,7 +42,8 @@ class MountService(
             }
 
             if (!target.mkdir()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Failed to create target")
+                log.info("Failed to create target of: ${item.path}")
+                continue
             }
 
             val components = source.path.removePrefix("/").removeSuffix("/").split("/")
@@ -52,14 +55,15 @@ class MountService(
                 for (i in 1 until fileDescriptors.size) {
                     val previousFd = fileDescriptors[i - 1]
                     if (previousFd < 0) {
-                        println("Nope")
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid source")
+                        log.info("Unable to open: ${item.path}")
+                        continue@item
                     }
 
                     fileDescriptors[i] = CLibrary.INSTANCE.openat(fileDescriptors[i - 1], components[i], O_NOFOLLOW, 0)
 
                     if (fileDescriptors[i] < 0) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                        log.info("Unable to open: ${item.path}")
+                        continue@item
                     }
 
                     CLibrary.INSTANCE.close(previousFd)
@@ -77,10 +81,9 @@ class MountService(
                 )
 
                 if (mountValue < 0) {
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to mount folder")
+                    log.info("Unable to mount: ${item.path}")
+                    continue@item
                 }
-
-
             } catch (ex: Throwable) {
                 throw ex
             } finally {
@@ -92,29 +95,29 @@ class MountService(
     }
 
     fun unmount(request: UnmountRequest) {
-        request.items.forEach { item ->
-            println(item.id.toString())
+        for (item in request.items ) {
             val target = File(joinPath(config.syncBaseMount, item.id.toString()))
             if (!target.canonicalPath.startsWith(config.syncBaseMount) || target.canonicalPath == config.syncBaseMount) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Invalid target")
+                log.info("Umount: Invalid target of: ${target}")
+                continue
             }
 
             if (!target.exists()) {
-                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Target does not exist")
+                log.info("Umount: Target does not exist: ${target}")
+                continue
             }
 
             if (CLibrary.INSTANCE.umount(target.canonicalPath) < 0) {
                 if (Native.getLastError() != EINVAL) {
                     // We assume EINVAL to mean that it is not a valid mount-point, which can happen at start up.
-                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError, "Unable to unmount target")
+                    log.info("Umount: Unable to unmount target: ${target}")
+                    continue
                 }
             }
 
             if (target.exists() && !target.delete()) {
-                throw RPCException.fromStatusCode(
-                    HttpStatusCode.InternalServerError,
-                    "Failed to delete target: ${target.absolutePath}"
-                )
+                log.info("Umount: Failed to delete: ${target}")
+                continue
             }
         }
 
@@ -141,9 +144,11 @@ class MountService(
         }
     }
 
-    companion object {
+    companion object : Loggable {
+        override val log = logger()
         private const val EINVAL = 22
         private const val MS_BIND = 4096L
         private const val O_NOFOLLOW = 0x20000
     }
 }
+

@@ -21,6 +21,7 @@ import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.slack.SlackService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -221,6 +222,23 @@ suspend fun main(args: Array<String>) {
                 client
             ).orThrow().id
 
+            Grants.setEnabledStatus.call(
+                SetEnabledStatusRequest(project, true),
+                userClient
+            ).orThrow()
+
+            Grants.uploadRequestSettings.call(
+                UploadRequestSettingsRequest(
+                    automaticApproval = AutomaticApprovalSettings(
+                        from = emptyList(),
+                        maxResources = emptyList()
+                    ),
+                    allowRequestsFrom = listOf<UserCriteria>(UserCriteria.Anyone()),
+                    excludeRequestsFrom = emptyList()
+                ),
+                userClient.withProject(project)
+            )
+
             val providerId = "ucloud"
             val createdId = Providers.create.call(
                 bulkRequestOf(
@@ -274,25 +292,28 @@ suspend fun main(args: Array<String>) {
                         "u1-cephfs",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
                     Product.Storage(
                         "home",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
                     Product.Storage(
                         "project-home",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
                     Product.Synchronization(
                         "u1-sync",
@@ -301,6 +322,14 @@ suspend fun main(args: Array<String>) {
                         unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
                         freeToUse = true,
                         description = "An example product for development use"
+                    ),
+                    Product.Storage(
+                        "share",
+                        1,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        "Shares for UCloud (personal workspaces only)",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT
                     )
                 ),
                 userClient
@@ -311,7 +340,7 @@ suspend fun main(args: Array<String>) {
                     RootDepositRequestItem(
                         ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.Project(project),
-                        1_000_000L * 1000_000L,
+                        1_000_000L,
                         "Root deposit"
                     ),
                     RootDepositRequestItem(
@@ -323,7 +352,7 @@ suspend fun main(args: Array<String>) {
                     RootDepositRequestItem(
                         ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.User("user"),
-                        1_000_000L * 1000_000L,
+                        1_000,
                         "Root deposit"
                     ),
                     RootDepositRequestItem(
@@ -335,6 +364,8 @@ suspend fun main(args: Array<String>) {
                 ),
                 client
             ).orThrow()
+
+
 
             ToolStore.create.call(
                 Unit,

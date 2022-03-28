@@ -18,13 +18,18 @@ class Server(
     
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
-        val notifiers = ArrayList<Notifier>()
-        if (supportConfiguration.notifiers.slack != null) {
-            notifiers.add(SlackNotifier(supportConfiguration.notifiers.slack?.hook!!, db))
+        val alertSlackService = if (alertConfiguration.notifiers.slack != null) {
+            AlertSlackService(listOf(SlackNotifier(alertConfiguration.notifiers.slack.hook, db)))
+        } else {
+            log.warn("No alert channel given")
+            AlertSlackService(emptyList())
         }
-
-        val alertSlackService = AlertSlackService(notifiers)
-        val supportSlackService = SupportSlackService(notifiers)
+        val supportSlackService = if (supportConfiguration.notifiers.slack != null) {
+            SupportSlackService(listOf(SlackNotifier(supportConfiguration.notifiers.slack.hook, db)))
+        } else {
+            log.warn("No support channel given")
+            SupportSlackService(emptyList())
+        }
 
         with(micro.server) {
             configureControllers(
