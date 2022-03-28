@@ -10,7 +10,8 @@ import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Card, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import {formatDistance} from "date-fns";
@@ -221,14 +222,8 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
 
     if (Object.keys(wallets).length === 0) return null;
     const nonEmptyWallets = productTypes.filter(key => wallets[key].length > 0);
-    return <Card
-        overflow="hidden"
-        boxShadow="sm"
-        borderWidth={0}
-        borderRadius={6}
-        px={3}
-        py={1}
-    >
+    return <>
+        <Heading.h3>Allocations by product type</Heading.h3>
         {nonEmptyWallets.map((key, index) => {
             const walletsList: Wallet[] = wallets[key];
             const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
@@ -263,7 +258,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 </Border>
             </Accordion>
         })}
-    </Card>;
+    </>;
 }
 
 const Border = styled.div`

@@ -1,15 +1,10 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Card, Checkbox, Flex, Grid, Icon, Input, Label, Link, Text, TextArea, Tooltip, Tooltip as UITooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Card, Flex, Grid, Icon, Input, Label, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {
-    Cell as SheetCell,
-    DropdownCell,
-    FuzzyCell, Sheet, SheetCallbacks,
-    SheetDropdownOption,
-    SheetRenderer, StaticCell,
-    TextCell
+    SheetRenderer
 } from "@/ui-components/Sheet";
 import {
     ChargeType,
@@ -19,18 +14,17 @@ import {
     normalizeBalanceForFrontend, ProductPriceUnit, ProductType,
     productTypes,
     productTypeToIcon,
-    productTypeToTitle, retrieveRecipient,
-    TransferRecipient, updateAllocation, UpdateAllocationRequestItem,
+    productTypeToTitle,
+    updateAllocation,
+    UpdateAllocationRequestItem,
     Wallet,
     WalletAllocation
 } from "@/Accounting";
 import {APICallState, callAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {PageV2} from "@/UCloud";
-import {MutableRefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
-import {errorMessageOrDefault, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
+import {MutableRefObject, useCallback, useMemo, useRef, useState} from "react";
+import {errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {addStandardInputDialog, ConfirmCancelButtons} from "@/UtilityComponents";
-import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
@@ -44,15 +38,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {AllocationViewer} from "./Resources";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
-
-const Circle = styled(Box)`
-    border-radius: 500px;
-    width: 20px;
-    height: 20px;
-    border: 1px solid ${getCssVar("black")};
-    margin: 4px 4px 4px 8px;
-    cursor: pointer;
-`;
+import {ListV2} from "@/Pagination";
 
 function formatTimestampForInput(timestamp: number): string {
     const d = new Date(timestamp);
@@ -196,14 +182,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
         }
     }, [onQuery]);
 
-    return <Card
-        overflow="hidden"
-        boxShadow="sm"
-        borderWidth={0}
-        borderRadius={6}
-        px={3}
-        py={1}
-    >
+    return <>
         <Spacer left={<Heading.h3>Sub-allocations</Heading.h3>}
             right={
                 <SearchInput>
@@ -219,14 +198,13 @@ export const SubAllocationViewer: React.FunctionComponent<{
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
 
-        {allocations.data.items.length === 0 ? null : (
-            <SuballocationRows rows={allocations.data.items} wallets={wallets.data.items} reload={reload} />
-        )}
-
-        {allocations.data.next == null ? null :
-            <Flex justifyContent="center" mb="6px"><Button mr={"32px"} height={"35px"} onClick={loadMore}>Load more</Button></Flex>
-        }
-    </Card>;
+        <ListV2
+            page={allocations.data}
+            pageRenderer={page => <SuballocationRows rows={page} wallets={wallets.data.items} reload={reload} />}
+            loading={allocations.loading || wallets.loading}
+            onLoadMore={loadMore}
+        />
+    </>;
 };
 
 function SuballocationRows(props: {
@@ -323,13 +301,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const storageRemaining = React.useMemo(() => {
         const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
         const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
-        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <><Icon mx="12px" name="hdd" />{e}</>))}</Flex>
+        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={e}><Icon mx="12px" name="hdd" />{e}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const computeRemaining = React.useMemo(() => {
         const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
         const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <><Icon mx="12px" name="cpu" />{e}</>))}</Flex>
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={e}><Icon mx="12px" name="cpu" />{e}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
@@ -352,7 +330,10 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             const request = findChangedAndMapToRequest(props.rows, edited);
             if (request != null) {
                 await callAPI(request);
+                setEditing(false);
                 props.reload();
+            } else {
+                snackbarStore.addInformation("No rows have been changed.", false);
             }
         } catch (e) {
             errorMessageOrDefault(e.response?.why, "Update failed");
@@ -388,26 +369,33 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             });
         }
 
-        let reason = "";
+        if (mappedRows.length > 0) {
 
-        dialogStore.addDialog(<Box>
-            <Heading.h3>Reason for sub-allocations</Heading.h3>
-            <Box height="290px" mb="10px">
-                <TextArea style={{height: "100%"}} width="100%" onChange={e => reason = e.target.value} />
-            </Box>
-            <ButtonGroup><Button onClick={async () => {
-                mappedRows.forEach(it => it.description = reason);
-                try {
-                    await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
-                    setCreationRows([]);
-                    props.reload();
-                    dialogStore.success();
-                } catch (e) {
-                    errorMessageOrDefault(e, "Failed to submit rows");
-                }
-            }} color="green">Confirm</Button><Button color="red">Cancel</Button></ButtonGroup>
-        </Box>, () => undefined);
+            let reason = "";
 
+            dialogStore.addDialog(<Box>
+                <Heading.h3>Reason for sub-allocations</Heading.h3>
+                <Box height="290px" mb="10px">
+                    <TextArea style={{height: "100%"}} width="100%" onChange={e => reason = e.target.value} />
+                </Box>
+                <ButtonGroup><Button onClick={async () => {
+                    mappedRows.forEach(it => it.description = reason);
+                    try {
+                        await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
+                        setCreationRows([]);
+                        props.reload();
+                        dialogStore.success();
+                    } catch (e) {
+                        errorMessageOrDefault(e, "Failed to submit rows");
+                    }
+                }} color="green">Confirm</Button><Button color="red">Cancel</Button></ButtonGroup>
+            </Box>, () => undefined);
+        } else {
+            // Note(Jonas): Technically not reachable, as submit is only available when >0 rows are shown.
+            // Should be caught in earlier checks, but let's keep it here, to make sure this issue doesn't pop up
+            // during a re-write of the code.
+            snackbarStore.addFailure("No rows to submit", false);
+        }
 
     }, [])
 
@@ -520,7 +508,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                             {remainingProductTypes.map(pt => {
                                 const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                 return allowProductSelect ?
-                                    <Flex key={pt} color="text" onClick={() => {
+                                    <Flex height="32px" key={pt} color="text" onClick={() => {
                                         const {wallet, allocations} = allocationsByProductTypes[pt][0];
                                         creationRows[index].productType = pt;
                                         creationRows[index].wallet = wallet;
@@ -529,7 +517,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     }}>
                                         <Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}
                                     </Flex> :
-                                    <Tooltip key={pt} trigger={<Flex color="gray" onClick={stopPropagationAndPreventDefault}>
+                                    <Tooltip key={pt} trigger={<Flex height="32px" color="gray" onClick={stopPropagationAndPreventDefault}>
                                         <Icon mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</Flex>}>
                                         No allocations for product type available
                                     </Tooltip>
