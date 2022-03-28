@@ -486,7 +486,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             titleContentOnOpened={<>
                 {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button> :
                     <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New Row</Button>}>
-                        No allocations available for use.
+                       No allocations available for use.
                     </Tooltip>
                 }
                 {editing ?
@@ -496,6 +496,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={() => setEditing(true)}>Edit</Button>}
             </>}
         >
+            <Box px="12px">
             {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
             {creationRows.map((row, index) => {
                 const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
@@ -504,7 +505,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 return (
                     <ListRow
                         key={row.id}
-                        icon={<ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />} >
+                        icon={<Box pl="20px"><ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
                             {remainingProductTypes.map(pt => {
                                 const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                 return allowProductSelect ?
@@ -522,7 +523,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         No allocations for product type available
                                     </Tooltip>
                             })}
-                        </ClickableDropdown>}
+                        </ClickableDropdown></Box>}
                         left={<Flex>
                             <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
                                 {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
@@ -558,6 +559,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     />);
             })}
             {props.rows.map(row => <SubAllocationRow key={row.id} editEntries={editEntries} editing={editing} suballocation={row} />)}
+            </Box>
         </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing]);
 }
 
@@ -584,7 +586,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
     if (props.editing) return (
         <ListRow
             key={entry.id}
-            icon={<Icon name={productTypeToIcon(entry.productType)} />}
+            icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
             left={<Flex>
                 <Text>{titleForSubAllocation(entry)}</Text>
                 <Flex color="var(--gray)" ml="12px">
@@ -616,7 +618,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
     ); else return (
         <ListRow
             key={entry.id}
-            icon={<Icon name={productTypeToIcon(entry.productType)} />}
+            icon={<Box pl="20px"><Icon name={productTypeToIcon(entry.productType)} /></Box>}
             left={<Flex>
                 <Text>{titleForSubAllocation(entry)}</Text>
                 <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>Start date: {format(entry.startDate, "dd/MM/yy")}, End date: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
