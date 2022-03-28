@@ -185,7 +185,9 @@ const Resources: React.FunctionComponent = () => {
                             <Wallets wallets={wallets.data.items} />
 
                             {managementStatus.allowManagement ?
-                                <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
+                                <SubAllocationViewer
+                                    allocations={allocations}
+                                    generation={allocationGeneration}
                                     loadMore={loadMoreAllocations}
                                     filterByAllocation={filterByAllocation}
                                     filterByWorkspace={filterByWorkspace} wallets={wallets}

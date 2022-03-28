@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Card, Checkbox, Flex, Grid, Icon, Input, Label, Link, Text, Tooltip, Tooltip as UITooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Card, Checkbox, Flex, Grid, Icon, Input, Label, Link, Text, TextArea, Tooltip, Tooltip as UITooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {
@@ -29,7 +29,7 @@ import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState} from "react";
 import {errorMessageOrDefault, stopPropagationAndPreventDefault, timestampUnixMs} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {ConfirmCancelButtons} from "@/UtilityComponents";
+import {addStandardInputDialog, ConfirmCancelButtons} from "@/UtilityComponents";
 import {Operation} from "@/ui-components/Operation";
 import {SubAllocation} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
@@ -181,8 +181,6 @@ export const SubAllocationViewer: React.FunctionComponent<{
     filterByAllocation: (allocationId: string) => void;
     filterByWorkspace: (workspaceId: string, isProject: boolean) => void;
 }> = ({allocations, loadMore, wallets, onQuery}) => {
-    // NOTE(Dan): Sheets are not powered by React, as a result, we must wrap the wallets such that we can pass it
-    // down into the cells.
     const reload = useCallback(() => {
         const query = document.querySelector<HTMLInputElement>("#resource-search");
         if (query != null) {
@@ -283,7 +281,6 @@ function isEqual(oldAlloc: SubAllocation, newAlloc: SubAllocation): boolean {
 interface SuballocationCreationRow {
     id: number;
     productType: ProductType;
-    recipient: React.RefObject<HTMLInputElement>;
     startDate: number;
     endDate?: number;
     amount?: number;
@@ -332,7 +329,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const computeRemaining = React.useMemo(() => {
         const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
         const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <><Icon mx="12px" name="hdd" />{e}</>))}</Flex>
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <><Icon mx="12px" name="cpu" />{e}</>))}</Flex>
     }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
@@ -368,6 +365,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         const mappedRows: DepositToWalletRequestItem[] = [];
         for (const [index, row] of creationRows.entries()) {
             if (row.allocationId == "") {
+                /* NOTE(Jonas): Should not be possible, but let's make sure it's handled. */
                 snackbarStore.addFailure(`Row #${index + 1} is missing an allocation selection`, false);
                 return;
             }
@@ -377,12 +375,6 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 return;
             } else if (row.amount < 1) {
                 snackbarStore.addFailure(`Row #${index + 1}'s amount must be more than 0.`, false);
-                return;
-            }
-
-            const recipient = row.recipient.current?.value;
-            if (!recipient) {
-                snackbarStore.addFailure(`Row #${index + 1} is missing a recipient`, false);
                 return;
             }
 
@@ -396,11 +388,27 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             });
         }
 
-        try {
-            await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
-        } catch (e) {
-            errorMessageOrDefault(e, "Failed to submit rows");
-        }
+        let reason = "";
+
+        dialogStore.addDialog(<Box>
+            <Heading.h3>Reason for sub-allocations</Heading.h3>
+            <Box height="290px" mb="10px">
+                <TextArea style={{height: "100%"}} width="100%" onChange={e => reason = e.target.value} />
+            </Box>
+            <ButtonGroup><Button onClick={async () => {
+                mappedRows.forEach(it => it.description = reason);
+                try {
+                    await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
+                    setCreationRows([]);
+                    props.reload();
+                    dialogStore.success();
+                } catch (e) {
+                    errorMessageOrDefault(e, "Failed to submit rows");
+                }
+            }} color="green">Confirm</Button><Button color="red">Cancel</Button></ButtonGroup>
+        </Box>, () => undefined);
+
+
     }, [])
 
     const allocationsByProductTypes = useMemo((): {
@@ -430,7 +438,6 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         rows.push({
             id: idRef.current++,
             productType: firstProductTypeWithEntries,
-            recipient: React.createRef<HTMLInputElement>(),
             amount: undefined,
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
@@ -541,8 +548,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     endDate={row.endDate != null ? new Date(row.endDate) : undefined}
                                     onChange={(dates: [Date, Date | null]) => {
                                         setCreationRows(rows => {
-                                            creationRows[index].startDate = dates[0].getTime();
-                                            creationRows[index].endDate = dates[1]?.getTime();
+                                            rows[index].startDate = dates[0].getTime();
+                                            rows[index].endDate = dates[1]?.getTime();
                                             return [...rows];
                                         });
                                     }}
@@ -653,38 +660,12 @@ interface SubAllocationCallbacks {
     filterByWorkspace: (allocationId: string) => void;
 }
 
-const subAllocationOperations: Operation<never, SheetCallbacks>[] = [{
-    icon: "filterSolid",
-    text: "Focus on allocation",
-    enabled: (selected, cb) => {
-        const rowId = cb.sheet.retrieveRowId(cb.sheet.contextMenuTriggeredBy);
-        return !(rowId == null || rowId.indexOf(unsavedPrefix) === 0);
-    },
-    onClick: (selected, cb) => {
-        const extraCb = cb.extra! as SubAllocationCallbacks;
-        const rowId = cb.sheet.retrieveRowId(cb.sheet.contextMenuTriggeredBy)!;
-        extraCb.filterByAllocation(rowId);
-    },
-}, {
-    icon: "filterSolid",
-    text: "Focus on workspace",
-    enabled: (selected, cb) => {
-        const rowId = cb.sheet.retrieveRowId(cb.sheet.contextMenuTriggeredBy);
-        return !(rowId == null || rowId.indexOf(unsavedPrefix) === 0);
-    },
-    onClick: (selected, cb) => {
-        const extraCb = cb.extra! as SubAllocationCallbacks;
-        const rowId = cb.sheet.retrieveRowId(cb.sheet.contextMenuTriggeredBy)!;
-        extraCb.filterByWorkspace(rowId);
-    },
-}];
-
 const SearchInput = styled.div`
-                    position: relative;
+    position: relative;
 
-                    label {
-                        position: absolute;
-                    left: 250px;
-                    top: 10px;
+    label {
+        position: absolute;
+        left: 250px;
+        top: 10px;
     }
-                    `;
+`;
