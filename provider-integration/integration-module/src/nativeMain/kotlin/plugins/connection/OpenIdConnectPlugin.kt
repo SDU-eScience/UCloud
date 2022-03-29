@@ -37,7 +37,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         // NOTE(Dan): Redirect URL to use after connection has completed. Defaults to use the backend API. Can be
         // changed if the backend is not served behind a gateway (e.g. during development).
         val redirectUrl: String? = null,
-        val mappingLifetime: Long? = 1000L * 60 * 60 * 7 * 14,
+        val mappingLifetime: Long? = 1000L * 60 * 60 * 7 * 24,
     ) {
         fun hostInfo(): HostInfo {
             val schema = when {
