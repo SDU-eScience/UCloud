@@ -70,7 +70,7 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfigur
         appendLine("#")
         appendLine("# POSTFIX END")
         appendLine("#")
-        appendLine(cliInvocation)
+        appendLine("srun --output='std-%N.out' --error='std-%N.err' " + cliInvocation)
         appendLine("#EOF")
     }
 }

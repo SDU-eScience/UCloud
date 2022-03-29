@@ -191,7 +191,7 @@ class ComputeController(
                         ProcessingScope.launch {
                             with(ctx) {
                                 with(pluginHandler) {
-                                    handleShellSession(request)
+                                    handleShellSession(request.cols, request.rows)
                                 }
                             }
                         }

@@ -45,6 +45,10 @@ RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "test
 
 WORKDIR /opt/ucloud
 
+
+
+
+### SLURM RELATED ###
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
 RUN useradd --user-group testuser
 
@@ -73,5 +77,5 @@ RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
 COPY default_config/slurm.conf /etc/slurm/slurm.conf
 
 
-FROM SLURM-BASE-SSH as slurm-ssh-openmpi
+FROM slurm-base-ssh as slurm-ssh-openmpi
 RUN yum -y install openmpi-devel Lmod

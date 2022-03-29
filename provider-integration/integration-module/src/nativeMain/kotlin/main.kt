@@ -86,6 +86,66 @@ object ProcessingScope : CoroutineScope {
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
+
+
+        //https://tldp.org/LDP/lpg/node143.html
+
+        // //allocates a virtual device and a file descriptor 
+        // val fd = posix_openpt(O_RDWR)
+        // println(fd)
+
+        // println(ptsname(fd)?.toKString())
+
+        // grantpt(fd)
+        // unlockpt(fd)
+
+        // val session = setsid()
+
+        // println(session)
+        
+        // val ioctl: Int = ioctl(fd, TIOCSCTTY)
+
+        // val process = startProcess(
+        //     args = listOf(
+        //         "/usr/bin/sudo",
+        //         "-u",
+        //         "testuser",
+        //         "/usr/bin/ssh",
+        //         "c1",
+        //         "([ -x /bin/bash ] && exec /bin/bash) || " +
+        //         "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+        //         "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+        //         "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+        //         "([ -x /bin/fish ] && exec /bin/fish) || " +
+        //         "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+        //         "exec /bin/sh "
+        //     ),
+        //     envs = listOf("TERM=xterm-256color"),
+        //     attachStdin = true,
+        //     attachStdout = true,
+        //     attachStderr = true,
+        //     nonBlockingStdout = true,
+        //     nonBlockingStderr = true
+        // )
+
+        // val cmd = "hostname \n env \n ".encodeToByteArray()
+        // val cmdend = "stty cols 1200 rows 1200 \r stty size \r ".encodeToByteArray()
+        // process!!.stdin!!.write(cmd)
+        // process!!.stdin!!.write(cmdend)
+
+        // sleep(5)
+        // var buffer = ByteArray(2048 * 2048)
+        // //while(true) {
+        //     val stdOut = process!!.stdout!!.read(buffer)
+        //     if ( !buffer.decodeToString().isNullOrEmpty() ) println("THIS IS: ${ buffer.decodeToString() }")
+        // //}
+
+        // sleep(100000000)
+        // exitProcess(0)
+
+
+
+
     try {
         val serverMode = when {
             args.getOrNull(0) == "user" -> ServerMode.User
