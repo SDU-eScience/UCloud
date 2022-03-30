@@ -19,6 +19,8 @@ import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.sync.mounter.api.*
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 object SyncFoldersTable : SQLTable("sync_folders") {
     val id = long("id", notNull = true)
@@ -249,7 +251,7 @@ class SyncService(
                 },
                 """
                     insert into file_ucloud.sync_devices (id, device_id, user_id)
-                    select unnest(:ids), unnest(:devices), unnest(:users)
+                    select unnest(:ids::bigint[]), unnest(:devices::text[]), unnest(:users::text[])
                     on conflict do nothing 
                 """
             ).rowsAffected > 0L
@@ -379,14 +381,27 @@ class SyncService(
         }
     }
 
+    private val configMutex = Mutex()
+    private var lastSeenConfigurationId: String? = null
     private suspend fun verifyMounterIsReady(mounterClient: AuthenticatedClient) {
-        withRetries {
-            val isReady = Mounts.ready.call(Unit, mounterClient).orThrow().ready
-            if (!isReady) {
-                throw RPCException(
-                    "The synchronization feature is offline. Please try again later.",
-                    HttpStatusCode.ServiceUnavailable
-                )
+        configMutex.withLock {
+            val configId = lastSeenConfigurationId
+            val device = syncthing.config.devices[0] // TODO This is wrong
+            withRetries {
+                val readyResponse = Mounts.ready.call(ReadyRequest(lastSeenConfigurationId), mounterClient).orThrow()
+                if (!readyResponse.ready) {
+                    if (readyResponse.requireConfigurationId != configId) {
+                        syncthing.writeConfig(listOf(device))
+                        syncthing.rescan(listOf(device))
+
+                        lastSeenConfigurationId = readyResponse.requireConfigurationId
+                    }
+
+                    throw RPCException(
+                        "The synchronization feature is offline. Please try again later.",
+                        HttpStatusCode.ServiceUnavailable
+                    )
+                }
             }
         }
     }

@@ -30,21 +30,22 @@ class SyncthingClient(
         return "http://${device.hostname}:${device.port}/${path.removePrefix("/")}"
     }
 
-    suspend fun writeConfig(pendingDevices: List<LocalSyncthingDevice> = config.devices) {
-        log.debug("Writing config to Syncthing")
+    data class SyncedFolder(
+        val id: Long,
+        val path: String,
+        val synchronizationType: SynchronizationType,
+        val ucloudDevice: String,
+        val endUserDevice: String,
+        val username: String,
+    )
 
-        data class SyncedFolder(
-            val id: Long,
-            val path: String,
-            val synchronizationType: SynchronizationType,
-            val ucloudDevice: String,
-            val endUserDevice: String,
-            val username: String,
-        )
-
-        val syncedFolders = db.withSession { session ->
+    private suspend fun findSyncedFolders(
+        devicesAnyOf: List<LocalSyncthingDevice>, 
+        ctx: DBContext = db,
+    ): List<SyncedFolder> {
+        return ctx.withSession { session ->
             session.sendPreparedStatement(
-                { setParameter("devices", pendingDevices.map { it.id }) },
+                { setParameter("devices", devicesAnyOf.map { it.id }) },
                 """
                     select
                         f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id
@@ -55,7 +56,7 @@ class SyncthingClient(
                        f.device_id in (select unnest(:devices::text[]))
                 """
             )
-        }.rows.asSequence().map {
+        }.rows.map {
             SyncedFolder(
                 it.getLong(0)!!,
                 it.getString(1)!!,
@@ -64,12 +65,16 @@ class SyncthingClient(
                 it.getString(4)!!,
                 it.getString(5)!!
             )
-        }.groupBy { it.ucloudDevice }
+        }
+    }
+
+    suspend fun writeConfig(pendingDevices: List<LocalSyncthingDevice> = config.devices) {
+        log.debug("Writing config to Syncthing")
+
+        val syncedFolders = findSyncedFolders(pendingDevices).groupBy { it.ucloudDevice }
 
         val devicesByUser = syncedFolders.values.flatMap { folders ->
-            folders.map {
-                it.username to it.endUserDevice
-            }
+            folders.map { it.username to it.endUserDevice }
         }.groupBy(
             keySelector = { it.first },
             valueTransform = { it.second }
@@ -141,8 +146,7 @@ class SyncthingClient(
         }
     }
 
-    suspend fun rescan(devices: List<LocalSyncthingDevice> = emptyList()) {
-        val localDevices = devices.ifEmpty { config.devices }
+    suspend fun rescan(localDevices: List<LocalSyncthingDevice> = config.devices) {
         log.info("Attempting rescan of syncthing")
         localDevices.forEach { device ->
             runCatching {
@@ -155,50 +159,32 @@ class SyncthingClient(
         localDevices: List<LocalSyncthingDevice> = config.devices,
         ctx: DBContext = db,
     ) {
-        val result = ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("devices", localDevices.map { it.id })
-                },
-                """
-                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                   from
-                      file_ucloud.sync_folders f join
-                      file_ucloud.sync_devices d on f.user_id = d.user_id
-                   where
-                      f.device_id = some(:devices::text[])
-                """
-            )
-        }.rows
+        val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
+        val devicesByUser = syncedFolders.values.flatMap { folders ->
+            folders.map { it.username to it.endUserDevice }
+        }.groupBy(
+            keySelector = { it.first },
+            valueTransform = { it.second }
+        )
 
         localDevices.forEach { device ->
-            val newFolders = result
-                .filter {
-                    it.getString("local_device_id") == device.id
-                }
-                .distinctBy { it.getField(SyncFoldersTable.id) }
+            val folders = syncedFolders[device.id] ?: emptyList()
+            val newFolders = folders.asSequence()
+                .distinctBy { it.id }
                 .map { row ->
                     SyncthingFolder(
-                        id = row.getField(SyncFoldersTable.id).toString(),
-                        label = row.getField(SyncFoldersTable.path).substringAfterLast("/"),
-                        devices = result
-                            .filter {
-                                it.getString("local_device_id") == device.id &&
-                                    it.getField(SyncFoldersTable.id) == row.getField(
-                                    SyncFoldersTable.id
-                                ) &&
-                                    it.getField(SyncDevicesTable.user) == row.getField(
-                                    SyncFoldersTable.user
-                                )
-                            }.map {
-                                SyncthingFolderDevice(it.getField(SyncDevicesTable.device))
-                            },
-                        path = "/mnt/sync/${row.getField(SyncFoldersTable.id)}",
-                        type = SynchronizationType.valueOf(row.getField(SyncFoldersTable.syncType)).syncthingValue,
+                        id = row.id.toString(),
+                        label = row.path.fileName(),
+                        devices = devicesByUser.getOrDefault(row.username, emptyList()).map {
+                            SyncthingFolderDevice(it)
+                        },
+                        path = "/mnt/sync/${row.id}",
+                        type = row.synchronizationType.syncthingValue,
                         rescanIntervalS = device.rescanIntervalSeconds
                     )
                 }
-
+                .toList()
+            
             httpClient.put<HttpResponse>(
                 deviceEndpoint(device, "/rest/config/folders"),
                 apiRequestWithBody(device, newFolders)
@@ -221,32 +207,20 @@ class SyncthingClient(
 
     suspend fun addDevices(localDevices: List<LocalSyncthingDevice> = config.devices, ctx: DBContext = db) {
         ctx.withSession { session ->
-            val foldersAndDevices = session.sendPreparedStatement(
-                {
-                    setParameter("devices", localDevices.map { it.id })
-                },
-                """
-                   select f.id, f.path, f.sync_type, f.device_id as local_device_id, d.device_id, d.user_id, f.user_id
-                   from
-                      file_ucloud.sync_folders f join
-                      file_ucloud.sync_devices d on f.user_id = d.user_id
-                   where
-                      f.device_id in (select unnest(:devices::text[]))
-                """
-            ).rows
+            val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
 
             localDevices.forEach { localDevice ->
-                val newDevices = foldersAndDevices
-                    .filter {
-                        it.getString("local_device_id") == localDevice.id
-                    }
-                    .distinctBy { it.getField(SyncDevicesTable.device) }
+                val folders = syncedFolders[localDevice.id] ?: emptyList()
+                val newDevices = folders
+                    .asSequence()
+                    .distinctBy { it.endUserDevice }
                     .map { row ->
                         SyncthingDevice(
-                            deviceID = row.getField(SyncDevicesTable.device),
-                            name = row.getField(SyncDevicesTable.device)
+                            deviceID = row.endUserDevice,
+                            name = row.endUserDevice
                         )
                     }
+                    .toList()
 
                 httpClient.put<HttpResponse>(
                     deviceEndpoint(localDevice, "/rest/config/devices"),
@@ -277,11 +251,9 @@ class SyncthingClient(
                       d.device_id in (select unnest(:devices::text[]))
                 """
             )
-        }.rows.firstOrNull()?.getLong(0)
+        }.rows.firstOrNull()?.getLong(0) ?: 0L
 
-        if (deviceCount != null && deviceCount > 0) {
-            return
-        }
+        if (deviceCount > 0) return
 
         config.devices.forEach { localDevice ->
             devices.forEach { device ->

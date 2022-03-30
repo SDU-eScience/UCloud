@@ -105,7 +105,6 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(configuration.providerId, db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
-        val distributedLocks = DistributedLockFactory(micro)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(
@@ -141,8 +140,7 @@ class Server(
                 JwtRefresherSharedSecret(syncMounterSharedSecret)
             ).authenticateClient(OutgoingHttpCall)
 
-            val lastWrite = AtomicLong(Time.now())
-            val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
+            val syncthingClient = SyncthingClient(syncConfig, db)
             val syncService = SyncService(
                 configuration.providerId,
                 syncthingClient,
@@ -155,46 +153,6 @@ class Server(
             )
 
             controllers.add(SyncController(configuration.providerId, syncService, syncMounterSharedSecret))
-
-            Runtime.getRuntime().addShutdownHook(Thread {
-                runBlocking {
-                    syncthingClient.drainConfig()
-                }
-            })
-
-            onKtorReadyCallbacks.add {
-                try {
-                    val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
-                        var foldersMounted = false
-                        var retryCount = 0
-
-                        while (!foldersMounted && retryCount < 5) {
-                            delay(1000L)
-                            retryCount += 1
-
-                            val ready = Mounts.ready.call(Unit, mounterClient)
-
-                            if (ready.statusCode == HttpStatusCode.OK) {
-                                if (ready.orThrow().ready) {
-                                    foldersMounted = true
-                                }
-                            }
-                        }
-
-                        if (foldersMounted) {
-                            device
-                        } else {
-                            null
-                        }
-                    }
-
-                    syncthingClient.writeConfig(running)
-                    syncthingClient.rescan(running)
-                } catch (ex: Throwable) {
-                    log.warn("Caught exception while trying to configure sync-thing (is it running?)")
-                    log.warn(ex.stackTraceToString())
-                }
-            }
         }
 
         // 4b. Optional indexing feature
