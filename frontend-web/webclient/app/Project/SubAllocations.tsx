@@ -187,7 +187,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
             right={
                 <SearchInput>
                     <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
-                    <Label htmlFor={"resource-search"}>
+                    <Label ml="-15px" htmlFor={"resource-search"}>
                         <Icon name={"search"} size={"20px"} />
                     </Label>
                 </SearchInput>
@@ -659,17 +659,12 @@ function remainingBalance(suballocation: SubAllocation): string {
     return normalizeSuballocationBalanceForFrontend(suballocation) + " " + explainSubAllocation(suballocation);
 }
 
-interface SubAllocationCallbacks {
-    filterByAllocation: (allocationId: string) => void;
-    filterByWorkspace: (allocationId: string) => void;
-}
-
 const SearchInput = styled.div`
     position: relative;
 
     label {
         position: absolute;
-        left: 250px;
+        left: 260px;
         top: 10px;
     }
 `;
