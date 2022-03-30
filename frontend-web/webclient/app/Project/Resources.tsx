@@ -140,12 +140,17 @@ const Resources: React.FunctionComponent = () => {
 
     const onSubAllocationQuery = useCallback((query: string) => {
         fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+        setAllocationGeneration(prev => prev + 1);
     }, []);
 
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
-    useEffect(reloadPage, [reloadPage]);
+    useEffect(() => {
+        if (filters.filterStartDate != null && filters.filterEndDate != null) {
+            reloadPage();
+        }
+    }, [reloadPage]);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     return (

@@ -9,7 +9,7 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
-import {isLightThemeStored, joinToString, removeTrailingSlash, useEffectSkipMount} from "@/UtilityFunctions";
+import {isLightThemeStored, joinToString, removeTrailingSlash} from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
