@@ -123,7 +123,9 @@ class SyncthingClient(
                     password = device.password
                 ),
                 ldap = SyncthingLdap(),
-                options = SyncthingOptions()
+                options = SyncthingOptions(
+                    relaysEnabled = config.enableRelays
+                )
             )
 
             runCatching {
@@ -132,17 +134,6 @@ class SyncthingClient(
                     apiRequestWithBody(device, newConfig)
                 ).orThrow()
             }
-        }
-    }
-
-    suspend fun isReady(device: LocalSyncthingDevice): Boolean {
-        return try {
-            httpClient.get<HttpResponse>(
-                deviceEndpoint(device, "/rest/system/ping"),
-                apiRequest(device)
-            ).status.isSuccess()
-        } catch (ex: Throwable) {
-            false
         }
     }
 
@@ -159,7 +150,9 @@ class SyncthingClient(
         localDevices: List<LocalSyncthingDevice> = config.devices,
         ctx: DBContext = db,
     ) {
-        val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
+        // TODO(Dan): Check if Syncthing correctly escapes these values. We don't want some kind of XML injection vuln
+        // here.
+        val syncedFolders = findSyncedFolders(localDevices, ctx).groupBy { it.ucloudDevice }
         val devicesByUser = syncedFolders.values.flatMap { folders ->
             folders.map { it.username to it.endUserDevice }
         }.groupBy(
@@ -184,7 +177,7 @@ class SyncthingClient(
                     )
                 }
                 .toList()
-            
+
             httpClient.put<HttpResponse>(
                 deviceEndpoint(device, "/rest/config/folders"),
                 apiRequestWithBody(device, newFolders)
@@ -207,7 +200,7 @@ class SyncthingClient(
 
     suspend fun addDevices(localDevices: List<LocalSyncthingDevice> = config.devices, ctx: DBContext = db) {
         ctx.withSession { session ->
-            val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
+            val syncedFolders = findSyncedFolders(localDevices, ctx).groupBy { it.ucloudDevice }
 
             localDevices.forEach { localDevice ->
                 val folders = syncedFolders[localDevice.id] ?: emptyList()
@@ -257,10 +250,11 @@ class SyncthingClient(
 
         config.devices.forEach { localDevice ->
             devices.forEach { device ->
+                // NOTE(Dan): Not throwing since the device might not be available on this UCloud device.
                 httpClient.delete<HttpResponse>(
                     deviceEndpoint(localDevice, "/rest/config/devices/$device"),
                     apiRequest(localDevice)
-                ).orThrow()
+                )
             }
         }
     }

@@ -45,17 +45,10 @@ data class LocalSyncthingDevice(
     val doNotChangeHostNameForMounter: Boolean = false,
 )
 
-fun AuthenticatedClient.withMounterInfo(device: LocalSyncthingDevice): AuthenticatedClient {
-    return if (device.doNotChangeHostNameForMounter) {
-        this
-    } else {
-        withFixedHost(HostInfo(device.hostname, port = 8080))
-    }
-}
-
 data class SyncConfiguration(
     val devices: List<LocalSyncthingDevice> = emptyList(),
-    val userWhiteList: List<String> = emptyList()
+    val userWhiteList: List<String> = emptyList(),
+    val enableRelays: Boolean = true,
 )
 
 object FileUcloudService : Service {

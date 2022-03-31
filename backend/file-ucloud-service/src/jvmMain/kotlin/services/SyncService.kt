@@ -2,11 +2,11 @@ package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.* import dk.sdu.cloud.calls.client.AuthenticatedClient import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.calls.client.withFixedHost
+import dk.sdu.cloud.calls.client.HostInfo
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.ucloud.LocalSyncthingDevice
 import dk.sdu.cloud.file.ucloud.api.SyncFolderBrowseItem
@@ -22,20 +22,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-object SyncFoldersTable : SQLTable("sync_folders") {
-    val id = long("id", notNull = true)
-    val device = varchar("device_id", 64, notNull = true)
-    val path = text("path", notNull = true)
-    val syncType = varchar("sync_type", 20, notNull = true)
-    val user = text("user_id", notNull = true)
-}
-
-object SyncDevicesTable : SQLTable("sync_devices") {
-    val id = long("id", notNull = true)
-    val device = varchar("device_id", 64, notNull = true)
-    val user = text("user_id", notNull = true)
-}
-
 class SyncService(
     private val providerId: String,
     private val syncthing: SyncthingClient,
@@ -44,7 +30,7 @@ class SyncService(
     private val cephStats: CephFsFastDirectoryStats,
     private val pathConverter: PathConverter,
     private val fs: NativeFS,
-    private val mounterClient: AuthenticatedClient,
+    private val baseMounterClient: AuthenticatedClient,
 ) {
     suspend fun addFolders(request: BulkRequest<SyncFolder>): BulkResponse<FindByStringId?> {
         class State(
@@ -108,22 +94,24 @@ class SyncService(
             stateList.add(State(folder, internalFile, fileStats, loadBalanceToDevice()))
         }
 
-        // Verify mounter is ready
-        verifyMounterIsReady(mounterClient) // TODO Pending #3374 this will change
-
-        // Verify that all syncthing devices are ready
+        // Verify that all syncthing devices and mounters are ready
         val affectedDevices = stateList.asSequence().map { it.loadBalancedDevice }.toSet()
-        for (device in affectedDevices) verifyDeviceIsReady(device)
-
-        // Perform mount
-        Mounts.mount.call(
-            MountRequest(stateList.map { MountFolder(it.request.id.toLong(), it.internalFile.path) }),
-            mounterClient,
-        ).orRethrowAs {
-            log.info("Failed to prepare folder for synchronization: $stateList")
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+        for (device in affectedDevices) {
+            verifyMounterIsReady(device)
         }
 
+        // Perform mount
+        val foldersByDevice = stateList.groupBy { it.loadBalancedDevice }
+        for ((remoteDevice, state) in foldersByDevice) {
+            Mounts.mount.call(
+                MountRequest(state.map { MountFolder(it.request.id.toLong(), it.internalFile.path) }),
+                mounterClient(remoteDevice),
+            ).orRethrowAs {
+                log.info("Failed to prepare folder for synchronization: $stateList")
+                throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+            }
+        }
+        
         // Notify syncthing and insert record of our change
         try {
             db.withSession { session ->
@@ -154,10 +142,18 @@ class SyncService(
                     syncthing.addFolders(affectedDevices.toList(), session)
                     syncthing.addDevices(affectedDevices.toList(), session)
                 }
+
+                // NOTE(Dan): If we have a failure after syncthing has been notified and before the database
+                // commits. Then we end up in the weird situation of Syncthing being aware of the folders + devices,
+                // which means the end-user will see them, but they will disappear immediately after the next update
+                // to syncthing. We assume that the end-user will simply add it again, since they most likely received
+                // an error message in the frontend.
             }
         } catch (ex: Throwable) {
             // Result is ignored, since we are failing regardless
-            runCatching { unmountFolders(stateList.map { MountFolderId(it.request.id.toLong()) }) }
+            for ((remoteDevice, state) in foldersByDevice) {
+                runCatching { unmountFolders(remoteDevice, state.map { MountFolderId(it.request.id.toLong()) }) }
+            }
             throw ex
         }
 
@@ -205,11 +201,23 @@ class SyncService(
                 valueTransform = { it.second }
             )
 
+            syncthing.removeFolders(deleted) // We keep this inside withSession to make it slightly more robust
             deleted
         }
 
-        syncthing.removeFolders(deleted)
-        unmountFolders(deleted.flatMap { f -> f.value.map { MountFolderId(it) } })
+        // It shouldn't matter significantly if unmounts fail at this point. Worst case we leak a few file descriptors.
+        // Chances are, something is very wrong if these requests fail.
+        for ((device, items) in deleted) {
+            try {
+                unmountFolders(device, items.map { MountFolderId(it) })
+            } catch (ex: Throwable) {
+                log.warn(buildString {
+                    appendLine("Failed to unmount folders in response to a folder being removed in UCloud!")
+                    appendLine("  Request: $ids")
+                    appendLine("  Exception: ${ex.stackTraceToString()}")
+                })
+            }
+        }
     }
 
     suspend fun browseFolders(
@@ -258,6 +266,11 @@ class SyncService(
 
             if (didInsert) {
                 syncthing.addDevices(ctx = session)
+
+                // NOTE(Dan): If the database fails to commit, then we accidentally leave a few devices in the 
+                // Syncthing configuration. They should, however, disappear eventually, since there is no trace of them
+                // in the actual database which is used for all configuration. In other words, we should recover from
+                // this error automatically.
             }
         }
 
@@ -278,6 +291,9 @@ class SyncService(
             ).rows.map { it.getString(0)!! }
 
             syncthing.removeDevices(deleted, session)
+
+            // NOTE(Dan): If the database fails to commit, then we will accidentally remove devices prematurely. They
+            // should automatically be added soon (whenever a new change is triggered on the same UCloud device).
         }
     }
 
@@ -311,6 +327,9 @@ class SyncService(
             )
 
             if (folders.items.isNotEmpty()) syncthing.addFolders(ctx = session)
+
+            // TODO, FIXME(Dan): It is not obvious to me if this will lead to a situation where permissions are never
+            // updated.
         }
 
         SyncFolderControl.update.call(
@@ -329,45 +348,8 @@ class SyncService(
     }
 
     suspend fun verifyFolders(folders: List<SyncFolder>) {
-        return
-
-        // TODO(Brian): Not tested
-        val missing = db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("ids", folders.map { it.id })
-                },
-                """
-                        delete from file_ucloud.sync_folders
-                        where id not in (select :ids::bigint[])
-                        returning id, device_id
-                    """
-            ).rows.mapNotNull { row ->
-                val localDevice = syncthing.config.devices.find { it.id == row.getField(SyncFoldersTable.device) }
-                if (localDevice != null) {
-                    Pair(localDevice, row.getField(SyncFoldersTable.id))
-                } else {
-                    null
-                }
-            }.groupBy({ it.first }, { it.second })
-        }
-
-        var writeSuccess = false
-        try {
-            syncthing.removeFolders(missing)
-            writeSuccess = true
-        } catch (ex: Throwable) {
-            throw RPCException("Unable to remove missing syncfolders", HttpStatusCode.ServiceUnavailable)
-        }
-
-        if (writeSuccess) {
-            unmountFolders(missing.values.flatten().map { MountFolderId(it) })
-        }
+        return // NOTE(Dan): Not yet implemented
     }
-
-    val syncProducts = listOf(
-        SyncFolderSupport(ProductReference("u1-sync", "u1-sync", providerId)),
-    )
 
     private suspend inline fun withRetries(attempts: Int = 3, block: () -> Unit) {
         for (i in 1..attempts) {
@@ -381,20 +363,24 @@ class SyncService(
         }
     }
 
+    // TODO(Dan): Do we need to invoke this periodically as well? Just to ensure that we actually push configuration
+    // soon after restart. Technically, it shouldn't be needed since Syncthing is storing the configuration in a 
+    // persistent manner.
     private val configMutex = Mutex()
-    private var lastSeenConfigurationId: String? = null
-    private suspend fun verifyMounterIsReady(mounterClient: AuthenticatedClient) {
+    private var lastSeenConfigurationIds = HashMap<String, String>()
+    private suspend fun verifyMounterIsReady(device: LocalSyncthingDevice) {
         configMutex.withLock {
-            val configId = lastSeenConfigurationId
-            val device = syncthing.config.devices[0] // TODO This is wrong
-            withRetries {
-                val readyResponse = Mounts.ready.call(ReadyRequest(lastSeenConfigurationId), mounterClient).orThrow()
+            val configId = lastSeenConfigurationIds[device.id] ?: null
+            withRetries(attempts = 20) {
+                val readyResponse = Mounts.ready.call(
+                    ReadyRequest(configId), 
+                    mounterClient(device)
+                ).orThrow()
+
                 if (!readyResponse.ready) {
                     if (readyResponse.requireConfigurationId != configId) {
                         syncthing.writeConfig(listOf(device))
                         syncthing.rescan(listOf(device))
-
-                        lastSeenConfigurationId = readyResponse.requireConfigurationId
                     }
 
                     throw RPCException(
@@ -402,31 +388,22 @@ class SyncService(
                         HttpStatusCode.ServiceUnavailable
                     )
                 }
+
+                lastSeenConfigurationIds[device.id] = readyResponse.requireConfigurationId
             }
         }
     }
 
-    private suspend fun verifyDeviceIsReady(device: LocalSyncthingDevice) {
-        withRetries {
-            if (!syncthing.isReady(device)) {
-                throw RPCException(
-                    "The synchronization feature is offline. Please try again later.",
-                    HttpStatusCode.ServiceUnavailable
-                )
-            }
-        }
-    }
-
-    private suspend fun unmountFolders(folders: List<MountFolderId>) {
+    private suspend fun unmountFolders(device: LocalSyncthingDevice, folders: List<MountFolderId>) {
         withRetries {
             Mounts.unmount.call(
                 UnmountRequest(folders),
-                mounterClient
+                mounterClient(device)
             ).orThrow()
         }
     }
 
-    private val syncthingLoadBalancerCached = SimpleCache<Unit, LocalSyncthingDevice> {
+    private val syncthingLoadBalancerCached = SimpleCache<Unit, LocalSyncthingDevice>(maxAge = 60_000 * 60) {
         db.withSession { session ->
             syncthing.config.devices.associateWith { device ->
                 session.sendPreparedStatement(
@@ -438,13 +415,15 @@ class SyncService(
                         from file_ucloud.sync_folders
                         where device_id = :device
                     """
-                ).rows.map { it.getField(SyncFoldersTable.path) }
+                ).rows.map { it.getString(0)!! }
             }.filter { it.value.size < 1000 }
                 .minByOrNull { (_, folders) ->
                     folders.sumOf { folder ->
-                        cephStats.getRecursiveSize(
-                            pathConverter.ucloudToInternal(UCloudFile.create(folder))
-                        ) ?: 0
+                        runCatching {
+                            cephStats.getRecursiveSize(
+                                pathConverter.ucloudToInternal(UCloudFile.create(folder))
+                            )
+                        }.getOrNull() ?: 0
                     }
                 }?.key
         }
@@ -455,8 +434,22 @@ class SyncService(
             ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Syncthing device not found")
     }
 
+    private fun mounterClient(device: LocalSyncthingDevice): AuthenticatedClient {
+        return if (device.doNotChangeHostNameForMounter) {
+            baseMounterClient
+        } else {
+            baseMounterClient.withFixedHost(HostInfo(device.hostname, port = 8080))
+        }
+    }
+
+    val syncProducts = listOf(
+        SyncFolderSupport(ProductReference("u1-sync", "u1-sync", providerId)),
+    )
+
     companion object : Loggable {
         override val log = logger()
         private val deviceIdRegex = Regex("""([a-zA-Z\d]{7}-){7}[a-zA-Z\d]{7}""")
+
     }
 }
+

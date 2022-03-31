@@ -77,7 +77,6 @@ class NativeFS(
                     fileDescriptors[i - 1] = null
                 }
             } catch (ex: Throwable) {
-                ex.printStackTrace()
                 fileDescriptors.closeAll()
                 throw ex
             }
