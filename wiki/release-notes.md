@@ -7,6 +7,12 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 30-03-22
+
+```
+✅  Deployment(file-ucloud, 2022.1.33) (UP-TO-DATE)
+```
+
 
 ## 25-03-22
 
