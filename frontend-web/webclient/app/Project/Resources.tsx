@@ -88,8 +88,6 @@ const Resources: React.FunctionComponent = () => {
 
     React.useEffect(() => {
         if (filters.filterStartDate == null && filters.filterEndDate == null) {
-            /* TODO(Jonas): I think this may cause multiple requests as empty filters are legal. */
-
             setFilters({
                 ...filters,
                 filterStartDate: pastMonthStart.toString(),
