@@ -30,6 +30,9 @@ import platform.posix.usleep
 import kotlin.native.concurrent.AtomicReference
 
 import platform.posix.*
+// import kotlinx.coroutines.runBlocking
+// import kotlinx.coroutines.async
+// import kotlinx.coroutines.awaitAll
 
 
 @Serializable
@@ -243,10 +246,21 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
+
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
+
         val config = config(job)
-        var stdout: NativeFile? = null
-        var stderr: NativeFile? = null
+        class OutputFile(val rank: Int, val out: NativeFile, val err: NativeFile)
+
+        // TBD: error handling or move below
+        val fdList = (0..job.specification.replicas-1).map{ rank -> 
+                OutputFile( 
+                            rank, 
+                            NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.out", readOnly = true), 
+                            NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
+                )
+        }
+
         try {
             // NOTE(Dan): Don't open the files until the job looks like it is running
             var currentStatus = getStatus(job.id)
@@ -258,18 +272,19 @@ class SlurmPlugin : ComputePlugin {
             // NOTE(Dan): If the job is done, then don't attempt to read the logs
             if (currentStatus.isFinal) return
 
-            stdout = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.out", readOnly = true)
-            stderr = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.err", readOnly = true)
 
             while (isActive()) {
+
                 val check: UcloudStateInfo = getStatus(job.id)
-
                 if (check.state == JobState.RUNNING) {
-                    val line = stdout.readText(autoClose = false)
-                    if (line.isNotEmpty()) emitStdout(0, line)
 
-                    val err = stderr.readText(autoClose = false)
-                    if (err.isNotEmpty()) emitStderr(0, err)
+                    fdList.forEach{ file ->
+                        val line = file.out.readText(autoClose = false)
+                        if (line.isNotEmpty()) emitStdout(file.rank, line)
+
+                        val err = file.err.readText(autoClose = false)
+                        if (err.isNotEmpty()) emitStderr(file.rank, err)
+                    }
 
                 } else break
 
@@ -277,8 +292,12 @@ class SlurmPlugin : ComputePlugin {
             }
 
         } finally {
-            stdout?.close()
-            stderr?.close()
+
+            fdList.forEach{ file -> 
+                file.out?.close()
+                file.err?.close()
+            }
+
         }
     }
 
@@ -318,8 +337,9 @@ class SlurmPlugin : ComputePlugin {
         return request.sessionIdentifier == "testing"
     }
 
-    override suspend fun ComputePlugin.ShellContext.handleShellSession(cols: Int, rows: Int) {
+    override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         // DONE Start SSH session
+        println("INTERACTIVE SESSION RANK $request")
         val process = startProcess(
             args = listOf(
                 "/usr/bin/ssh",

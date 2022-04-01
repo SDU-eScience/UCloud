@@ -51,6 +51,11 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfigur
         "${resolvedProduct.memoryInGigs ?: 1}G"
     }
 
+    /*
+     *   https://slurm.schedmd.com/sbatch.html
+     *   %n - Node identifier relative to current job (e.g. "0" is the first node of the running job) This will create a separate IO file per node.
+     */
+
     return buildString {
         appendLine("#!/usr/bin/env bash")
         appendLine("#")
@@ -61,7 +66,7 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfigur
         appendLine("#SBATCH --mem $memoryAllocation")
         appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
         appendLine("#SBATCH --time $formattedTime")
-        appendLine("#SBATCH --nodes ${job.specification.replicas}")  //TODO: check if correct
+        appendLine("#SBATCH --nodes ${job.specification.replicas}")
         appendLine("#SBATCH --job-name ${job.id}")
         appendLine("#SBATCH --partition ${config.partition}")
         appendLine("#SBATCH --parsable")
@@ -71,7 +76,7 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfigur
         appendLine("#")
         appendLine("# POSTFIX END")
         appendLine("#")
-        appendLine("srun --output='std-%N.out' --error='std-%N.err' " + cliInvocation)
+        appendLine("srun --output='std-%n.out' --error='std-%n.err' " + cliInvocation)
         appendLine("#EOF")
     }
 }
