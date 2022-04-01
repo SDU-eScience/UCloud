@@ -92,9 +92,17 @@ The script is expected to start the following two processes:
 1. The configuration process
 2. Syncthing
 
-Syncthing is expected to place all relevant files in this directory. Similarly, the configuration process should use
-this directory to watch the `ucloud_config.json` file. The format of this file can be described by the
-`UCloudSyncthingConfig` as shown below.
+Syncthing is expected to place all relevant files in this directory. 
+
+
+The configuration process has two responsibilities:
+
+1. Extract the device ID (and other relevant information) from Syncthing's configuration
+   - The device ID should be placed in the config dir in a file called `ucloud_device_id.txt`
+2. Watch the configuration file
+
+The configuration process should use this directory to watch the `ucloud_config.json` file. The format of this file can
+be described by the `UCloudSyncthingConfig` as shown below.
 
 ```kotlin
 @Serializable
