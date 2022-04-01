@@ -71,3 +71,78 @@ From the list of servers you are able to:
   - Restarts the syncthing server
 - Pause
   - Suspends the syncthing server, such that it is no longer actively running
+- View logs
+
+Syncthing Application
+=======================================================================================================================
+
+The syncthing servers are powered by a syncthing application on UCloud. This is a wrapper application around the normal
+syncthing application.
+
+The application will be invoked in the following way:
+
+```
+/init $PATH_TO_CONFIG_DIR
+```
+
+In other words, the application in UCloud will expect that the entry point is a script located at `/init`. This script
+will receive, as its first argument, the path to a folder. This folder will contain the configuration of Syncthing.
+The script is expected to start the following two processes:
+
+1. The configuration process
+2. Syncthing
+
+Syncthing is expected to place all relevant files in this directory. Similarly, the configuration process should use
+this directory to watch the `ucloud_config.json` file. The format of this file can be described by the
+`UCloudSyncthingConfig` as shown below.
+
+```kotlin
+@Serializable
+data class UCloudSyncthingConfig(
+    val folders: List<Folder>,
+    val devices: List<Device>
+) {
+
+    @Serializable
+    data class Folder(
+        val path: String,
+    )
+
+    @Serializable
+    data class Device(
+        val deviceId: String,
+        val label: String,
+    )
+}
+```
+
+The configuration process should repeatedly look in this file to detect changes in it. Whenever a change is detected it
+should configure _validate_ the configuration and then _apply_ the configuration.
+
+__Validating the configuration:__
+
+```
+val observedPreviously = readObservedPreviously(configDir)
+var requiresRestart = false
+for (folder in config.folders) {
+    if (!File(folder.path).exists()) {
+        if (observedPreviously.contains(folder.path)) {
+            // Ignore, and do not apply to syncthing
+        } else {
+            observedPreviously.add(folder.path)
+            requiresRestart = true
+        }
+    }
+}
+
+if (requiresRestart) {
+    flushObservedPreviouslyToDisk(observedPreviously)
+    exitProcess(0) // Trigger restart 
+}
+```
+
+__Applying the configuration:__
+
+The configuration should be applied by adding all devices to syncthing. Similarly all the folder should be added, all
+folders are shared to all devices.
+
