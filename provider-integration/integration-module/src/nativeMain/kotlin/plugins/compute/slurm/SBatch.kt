@@ -67,6 +67,7 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfigur
         appendLine("#SBATCH --parsable")
         appendLine("#SBATCH --output=std.out")
         appendLine("#SBATCH --error=std.err")
+        appendLine("#SBATCH --get-user-env")
         appendLine("#")
         appendLine("# POSTFIX END")
         appendLine("#")
