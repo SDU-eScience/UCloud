@@ -168,39 +168,40 @@ const Resources: React.FunctionComponent = () => {
                 sortDirection={"ascending"}
                 onSortUpdated={doNothing}
             />}
-            main={<ResourcesGrid>
-                <Grid gridGap={"16px"}>
-                    {maximizedUsage == null ? null :
-                        <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
-                    }
-                    {maximizedUsage != null ? null :
-                        <>
-                            <VisualizationSection>
-                                {usage.data.charts.map((it, idx) =>
-                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
-                                )}
-                            </VisualizationSection>
-                            <VisualizationSection>
-                                {breakdowns.data.charts.map((it, idx) =>
-                                    <DonutChart key={idx} chart={it} />
-                                )}
-                            </VisualizationSection>
-                            <Wallets wallets={wallets.data.items} />
-
-                            {managementStatus.allowManagement ?
-                                <SubAllocationViewer
-                                    allocations={allocations}
-                                    generation={allocationGeneration}
-                                    loadMore={loadMoreAllocations}
-                                    filterByAllocation={filterByAllocation}
-                                    filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                    onQuery={onSubAllocationQuery} />
-                                : null}
-                        </>
-                    }
-                </Grid>
-            </ResourcesGrid>}
+            main={<>
+                <ResourcesGrid>
+                    <Grid gridGap={"16px"}>
+                        {maximizedUsage == null ? null :
+                            <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                                onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
+                        }
+                        {maximizedUsage != null ? null :
+                            <>
+                                <VisualizationSection>
+                                    {usage.data.charts.map((it, idx) =>
+                                        <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
+                                    )}
+                                </VisualizationSection>
+                                <VisualizationSection>
+                                    {breakdowns.data.charts.map((it, idx) =>
+                                        <DonutChart key={idx} chart={it} />
+                                    )}
+                                </VisualizationSection>
+                            </>
+                        }
+                    </Grid>
+                </ResourcesGrid>
+                <Wallets wallets={wallets.data.items} />
+                {managementStatus.allowManagement ?
+                    <SubAllocationViewer
+                        allocations={allocations}
+                        generation={allocationGeneration}
+                        loadMore={loadMoreAllocations}
+                        filterByAllocation={filterByAllocation}
+                        filterByWorkspace={filterByWorkspace} wallets={wallets}
+                        onQuery={onSubAllocationQuery} />
+                    : null}
+            </>}
         />
     );
 };

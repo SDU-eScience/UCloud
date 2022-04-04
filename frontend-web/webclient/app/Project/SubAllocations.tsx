@@ -387,9 +387,9 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     </Tooltip>
                 }
                 {editing ?
-                    <ButtonGroup>
-                        <Button ml="8px" mt="-5px" mb="-8px" height="32px" color="green" onClick={updateRows}>Update</Button>
-                        <Button mt="-5px" mb="-8px" height="32px" color="red" onClick={() => setEditing(false)}>Cancel</Button>
+                    <ButtonGroup ml="8px" mb="-8px" mt="-5px" height="32px">
+                        <Button color="green" onClick={updateRows}>Update</Button>
+                        <Button color="red" onClick={() => setEditing(false)}>Cancel</Button>
                     </ButtonGroup> : <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={() => setEditing(true)}>Edit</Button>}
             </>}
         >
