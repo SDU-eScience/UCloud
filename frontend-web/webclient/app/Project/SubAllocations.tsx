@@ -70,7 +70,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
     return <>
         <Spacer
-            mr="10px"
+            mr="15px"
             left={<Heading.h3>Sub-allocations</Heading.h3>}
             right={
                 <SearchInput>
@@ -431,11 +431,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         selectsRange
                                         fontSize="18px"
                                         py="0"
+                                        width="265px"
                                         startDate={new Date(row.startDate)}
+                                        isClearable={creationRows[index].endDate != null}
                                         endDate={row.endDate != null ? new Date(row.endDate) : undefined}
-                                        onChange={(dates: [Date, Date | null]) => {
+                                        onChange={(dates: [Date | null, Date | null]) => {
                                             setCreationRows(rows => {
-                                                rows[index].startDate = dates[0].getTime();
+                                                if (dates[0]) rows[index].startDate = dates[0].getTime();
                                                 rows[index].endDate = dates[1]?.getTime();
                                                 return [...rows];
                                             });
@@ -497,13 +499,19 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                         selectsRange
                         fontSize="18px"
                         py="0"
+                        width="265px"
+                        isClearable={dates[1] != null}
                         startDate={new Date(dates[0])}
                         endDate={dates[1] != null ? new Date(dates[1]) : undefined}
-                        onChange={(dates: [Date, Date | null]) => {
-                            setDates([dates[0].getTime(), dates[1]?.getTime()]);
-                            props.editEntries.current[entry.id].startDate = dates[0].getTime();
-                            props.editEntries.current[entry.id].endDate = dates[1]?.getTime();
-                        }}
+                        onChange={(dates: [Date, Date | null]) =>
+                            setDates(oldDates => {
+                                const firstDate = dates[0] ? dates[0].getTime() : oldDates[0];
+                                const secondDate = dates[1]?.getTime();
+                                props.editEntries.current[entry.id].startDate = firstDate;
+                                props.editEntries.current[entry.id].endDate = secondDate;
+                                return [firstDate, secondDate];
+                            })
+                        }
                     />
                 </Flex>
             </Flex>}

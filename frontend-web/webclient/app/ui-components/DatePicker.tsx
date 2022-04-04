@@ -1,14 +1,13 @@
 import ReactDatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import styled from "styled-components";
-import {borders, fontSize, space} from "styled-system";
+import {borders, fontSize, space, width} from "styled-system";
 import theme from "@/ui-components/theme";
 import {InputProps} from "./Input";
 
 export const DatePicker = styled(ReactDatePicker) <InputProps>`
     appearance: none;
     display: block;
-    width: 100%;
     font-family: inherit;
     color: inherit;
     font-size: ${theme.fontSizes[1]}px;
@@ -33,9 +32,12 @@ export const DatePicker = styled(ReactDatePicker) <InputProps>`
       display: none;
     }
 
-    ${borders} ${space} ${fontSize};
-
+    ${borders} ${space} ${fontSize} ${width}
 `;
+
+DatePicker.defaultProps = {
+    width: "100%"
+}
 
 DatePicker.displayName = "DatePicker";
 
