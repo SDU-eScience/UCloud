@@ -513,25 +513,26 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     return (
                         <ListRow
                             key={row.id}
-                            icon={<Box pl="20px"><ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
-                                {remainingProductTypes.map(pt => {
-                                    const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
-                                    return allowProductSelect ?
-                                        <Flex height="32px" key={pt} color="text" onClick={() => {
-                                            const {wallet, allocations} = allocationsByProductTypes[pt][0];
-                                            creationRows[index].productType = pt;
-                                            creationRows[index].wallet = wallet;
-                                            creationRows[index].allocationId = allocations[0].id;
-                                            setCreationRows([...creationRows]);
-                                        }}>
-                                            <Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}
-                                        </Flex> :
-                                        <Tooltip key={pt} trigger={<Flex height="32px" color="gray" onClick={stopPropagationAndPreventDefault}>
-                                            <Icon mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</Flex>}>
-                                            No allocations for product type available
-                                        </Tooltip>
-                                })}
-                            </ClickableDropdown></Box>}
+                            icon={<Box pl="20px">
+                                <ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
+                                    {remainingProductTypes.map(pt => {
+                                        const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
+                                        return allowProductSelect ?
+                                            <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
+                                                const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                                creationRows[index].productType = pt;
+                                                creationRows[index].wallet = wallet;
+                                                creationRows[index].allocationId = allocations[0].id;
+                                                setCreationRows([...creationRows]);
+                                            }}>
+                                                <Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}
+                                            </Flex> :
+                                            <Tooltip key={pt} trigger={<Flex height="32px" style={{alignItems: "center"}} color="gray" onClick={stopPropagationAndPreventDefault}>
+                                                <Icon mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</Flex>}>
+                                                No allocations for product type available
+                                            </Tooltip>
+                                    })}
+                                </ClickableDropdown></Box>}
                             left={<Flex>
                                 <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], index)}>
                                     {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
