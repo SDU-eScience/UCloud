@@ -69,7 +69,9 @@ export const SubAllocationViewer: React.FunctionComponent<{
     }, [onQuery]);
 
     return <>
-        <Spacer left={<Heading.h3>Sub-allocations</Heading.h3>}
+        <Spacer
+            mr="10px"
+            left={<Heading.h3>Sub-allocations</Heading.h3>}
             right={
                 <SearchInput>
                     <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
