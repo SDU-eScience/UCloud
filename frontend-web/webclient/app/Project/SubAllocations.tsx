@@ -3,9 +3,6 @@ import styled from "styled-components";
 import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
-    SheetRenderer
-} from "@/ui-components/Sheet";
-import {
     ChargeType,
     deposit,
     DepositToWalletRequestItem,
@@ -39,123 +36,13 @@ import {AllocationViewer} from "./Resources";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
 
-function formatTimestampForInput(timestamp: number): string {
-    const d = new Date(timestamp);
-    let res = "";
-    res += d.getUTCFullYear().toString().padStart(4, '0');
-    res += "-";
-    res += (d.getMonth() + 1).toString().padStart(2, '0');
-    res += "-";
-    res += (d.getDate()).toString().padStart(2, '0');
-    return res;
-}
-
-const subAllocationsDirtyKey = "subAllocationsDirty";
-const unsavedPrefix = "unsaved";
-
-type RowOrDeleted = "deleted" | ((string | null)[]);
-
-function writeRow(s: SheetRenderer, row: RowOrDeleted, rowNumber: number) {
-    if (row !== "deleted") {
-        let col = 0;
-        for (const value of row) {
-            s.writeValue(col++, rowNumber, value ?? undefined);
-        }
-    }
-}
-
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider);
-}
-
-function titleForWallet(wallet: Wallet): string {
-    return rawAllocationTitleInRow(wallet.paysFor.name, wallet.paysFor.provider);
 }
 
 function rawAllocationTitleInRow(category: string, provider: string) {
     return `${category} @ ${provider}`;
 }
-
-function writeAllocations(
-    s: SheetRenderer,
-    allocations: SubAllocation[],
-    dirtyRowStorage: Record<string, RowOrDeleted>,
-    sessionId: number,
-    unsavedRowIds: {current: number}
-) {
-    let row = 0;
-    s.clear();
-
-    for (const key of Object.keys(dirtyRowStorage)) {
-        s.addRow(key);
-        const draftCopy = dirtyRowStorage[key];
-        writeRow(s, draftCopy, row);
-        s.writeValue(colStatus, row, undefined);
-        row++;
-    }
-
-    allocations.forEach(alloc => {
-        const draftCopy = dirtyRowStorage[alloc.id];
-        if (draftCopy !== "deleted") {
-            if (draftCopy) return;
-            s.addRow(alloc.id);
-
-            s.writeValue(colRecipientType, row, alloc.workspaceIsProject ? "PROJECT" : "USER");
-            s.writeValue(colRecipient, row, alloc.workspaceTitle);
-            s.writeValue(colProductType, row, alloc.productType);
-            s.writeValue(colProduct, row, titleForSubAllocation(alloc));
-            {
-                let path = alloc.path.split(".");
-                s.writeValue(colAllocation, row, path[path.length - 2]);
-            }
-            s.writeValue(colStartDate, row, formatTimestampForInput(alloc.startDate));
-            if (alloc.endDate) s.writeValue(colEndDate, row, formatTimestampForInput(alloc.endDate));
-            s.writeValue(colAmount, row, normalizeBalanceForFrontend(alloc.remaining, alloc.productType,
-                alloc.chargeType, alloc.unit, false, 0).replace('.', '').toString());
-            s.writeValue(colStatus, row, undefined);
-            s.writeValue(colUnit, row, undefined);
-
-            row++;
-        }
-    });
-
-    s.addRow(`${unsavedPrefix}-${sessionId}-${unsavedRowIds.current++}`);
-    s.writeValue(colRecipientType, row, "PROJECT");
-    s.writeValue(colProductType, row, "STORAGE");
-    s.writeValue(colStatus, row, undefined);
-}
-
-function parseDateFromInput(value: string): number | null {
-    const splitValue = value.split("-");
-    if (splitValue.length != 3) return null;
-    const year = parseInt(splitValue[0], 10);
-    const month = parseInt(splitValue[1], 10);
-    const date = parseInt(splitValue[2], 10);
-
-    // NOTE(Dan): Time-travel to the past is not supported by this application.
-    if (year < 2020) return null;
-    // NOTE(Dan): I am assuming that someone will rewrite this code before this date is relevant.
-    if (year >= 2100) return null;
-
-    if (month < 1 || month > 12) return null;
-
-    // NOTE(Dan): Only doing some basic validation. The browser should not allow these values. The backend will reject
-    // invalid values also.
-    if (date < 1 || date > 31) return null;
-
-    return Math.floor(new Date(year, month - 1, date).getTime());
-}
-
-const colRecipientType: 0 = 0 as const;
-const colRecipient: 1 = 1 as const;
-const colProductType: 2 = 2 as const;
-const colProduct: 3 = 3 as const;
-const colAllocation: 4 = 4 as const;
-const colStartDate: 5 = 5 as const;
-const colEndDate: 6 = 6 as const;
-const colAmount: 7 = 7 as const;
-const colUnit: 8 = 8 as const;
-const colStatus: 9 = 9 as const;
 
 export const SubAllocationViewer: React.FunctionComponent<{
     wallets: APICallState<PageV2<Wallet>>;
@@ -562,7 +449,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     placeholder="Amount..."
                                     onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                 />
-                                <InputLabel width={["INGRESS", "LICENSE"].includes(row.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                                <InputLabel textAlign="center" width={["INGRESS", "LICENSE"].includes(row.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
                                 <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeRow(row.id)} />
                             </Flex>}
                         />);
@@ -626,7 +513,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                     placeholder={normalizeSuballocationBalanceForFrontend(entry)}
                     onChange={e => props.editEntries.current[entry.id].remaining = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit)}
                 />
-                <InputLabel width={entry.productType === "INGRESS" ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
+                <InputLabel textAlign={"center"} width={["INGRESS", "LICENSE"].includes(entry.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
             </Flex>}
         />
     ); else return (
