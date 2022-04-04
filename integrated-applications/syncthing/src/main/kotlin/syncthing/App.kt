@@ -7,33 +7,54 @@ import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.util.*
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
-import java.lang.Compiler.command
+import org.w3c.dom.Document
+import org.w3c.dom.Element
+import java.io.File
+import javax.xml.parsers.DocumentBuilderFactory
 
 fun main(args: Array<String>) {
-    println("START")
-    runBlocking {
-        // Launch Syncthing
-        launch {
-            val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home /var/syncthing")
-            val out = syncthingProcess.inputStream.bufferedReader()
-            var line = out.readLine()
-            while (line != null) {
-                println("SYNCTHING: $line")
-                line = out.readLine()
-            }
+    // Launch Syncthing process (currently printing output for debugging)
+    GlobalScope.launch {
+        val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home /var/syncthing")
+        val out = syncthingProcess.inputStream.bufferedReader()
+        var line = out.readLine()
+        while (line != null) {
+            println("SYNCTHING: $line")
+            line = out.readLine()
         }
-
-        // TODO(Brian) Read api key and device id
-
-        // TODO(Brian) Listen for changes to mounted config
     }
-    println("END")
+
+    /*
+     * Wait for Syncthing to create the config file, if it isn't created yet, then read the apiKey and device ID
+     */
+    val syncthingConfig = File("/var/syncthing/config.xml")
+
+    val timeout = System.currentTimeMillis() + 10_000
+    while (System.currentTimeMillis() < timeout) {
+        if (syncthingConfig.exists()) {
+            break
+        }
+    }
+
+    val configDoc: Document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(syncthingConfig)
+    val guiElement = configDoc.getElementsByTagName("gui").item(0) as Element
+    val apiKeyElement = guiElement.getElementsByTagName("apikey")
+    val apiKey = apiKeyElement.item(0).textContent
+    val deviceElement = configDoc.getElementsByTagName("device").item(0) as Element
+    val deviceId = deviceElement.getAttribute("id")
+
+    println("apiKey is: $apiKey")
+    println("deviceId is: $deviceId")
+
+    // TODO(Brian) Listen for changes to mounted config
 }
 
 fun String.fileName(): String = substringAfterLast('/')
