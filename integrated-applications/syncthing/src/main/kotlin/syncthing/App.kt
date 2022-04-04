@@ -7,13 +7,33 @@ import io.ktor.client.statement.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.util.*
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import java.lang.Compiler.command
 
 fun main(args: Array<String>) {
-    println("Hello, World!")
+    println("START")
+    runBlocking {
+        // Launch Syncthing
+        launch {
+            val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home /var/syncthing")
+            val out = syncthingProcess.inputStream.bufferedReader()
+            var line = out.readLine()
+            while (line != null) {
+                println("SYNCTHING: $line")
+                line = out.readLine()
+            }
+        }
+
+        // TODO(Brian) Read api key and device id
+
+        // TODO(Brian) Listen for changes to mounted config
+    }
+    println("END")
 }
 
 fun String.fileName(): String = substringAfterLast('/')
