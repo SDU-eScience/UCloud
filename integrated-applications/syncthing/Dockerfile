@@ -16,6 +16,7 @@ RUN mkdir /var/syncthing
 RUN chown 11042 /var/syncthing
 
 USER 11042
+WORKDIR /
 
 # /opt/service/bin/service
 CMD ["/init"]
