@@ -12,8 +12,6 @@ RUN curl -L https://github.com/syncthing/syncthing/releases/download/v1.19.1/syn
 RUN tar xzf syncthing.tar.gz
 RUN rm syncthing.tar.gz
 RUN mv syncthing-linux-amd64-v1.19.1 syncthing
-RUN mkdir /var/syncthing
-RUN chown 11042 /var/syncthing
 
 USER 11042
 WORKDIR /

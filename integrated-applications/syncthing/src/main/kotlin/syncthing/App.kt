@@ -8,7 +8,7 @@ import java.io.File
 import java.io.FileNotFoundException
 
 fun main(args: Array<String>) {
-    if (args.size < 1) {
+    if (args.isEmpty()) {
         println("Missing argument: config path")
         return
     }
@@ -20,7 +20,7 @@ fun main(args: Array<String>) {
 
     // Launch Syncthing process (currently printing output for debugging)
     GlobalScope.launch {
-        val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home /var/syncthing")
+        val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home ${configFolder.path}")
         val out = syncthingProcess.inputStream.bufferedReader()
         var line = out.readLine()
         while (line != null) {
@@ -43,7 +43,7 @@ val defaultMapper = Json {
     coerceInputValues = true
 }
 
-data class SyncConfiguration(
+/*data class SyncConfiguration(
     val devices: List<LocalSyncthingDevice> = emptyList(),
 )
 
@@ -58,4 +58,4 @@ data class LocalSyncthingDevice(
     val password: String = "",
     val rescanIntervalSeconds: Int = 3600,
     val doNotChangeHostNameForMounter: Boolean = false,
-)
+)*/
