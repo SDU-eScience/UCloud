@@ -200,11 +200,26 @@ class Server(
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
-            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
-            elasticQueryService = ElasticQueryService(
-                micro.elasticHighLevelClient,
-                nativeFs,
-                pathConverter
+            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 4, numberOfReplicas = 0)
+
+            scriptManager.register(
+                Script(
+                    ScriptMetadata(
+                        "ucloud-storage-index-full",
+                        "UCloud/Storage: Full Indexing",
+                        WhenToStart.Never
+                    ),
+                    script = {
+                        FileScanner(
+                            micro.elasticHighLevelClient,
+                            authenticatedClient,
+                            db,
+                            nativeFs,
+                            pathConverter,
+                            cephStats
+                        ).runFullScan()
+                    }
+                )
             )
 
             scriptManager.register(
@@ -221,8 +236,7 @@ class Server(
                             db,
                             nativeFs,
                             pathConverter,
-                            cephStats,
-                            elasticQueryService
+                            cephStats
                         ).runScan()
                     }
                 )
