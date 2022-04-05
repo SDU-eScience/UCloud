@@ -12,15 +12,27 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import java.io.File
+import java.io.FileNotFoundException
 import javax.xml.parsers.DocumentBuilderFactory
 
 fun main(args: Array<String>) {
+    if (args.size < 1) {
+        println("Missing argument: config path")
+        return
+    }
+
+    val ucloudConfigFolder = File(args[0])
+    if (!ucloudConfigFolder.exists()) {
+        throw FileNotFoundException(ucloudConfigFolder.path)
+    }
+
     // Launch Syncthing process (currently printing output for debugging)
     GlobalScope.launch {
         val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home /var/syncthing")
@@ -54,10 +66,51 @@ fun main(args: Array<String>) {
     println("apiKey is: $apiKey")
     println("deviceId is: $deviceId")
 
-    // TODO(Brian) Listen for changes to mounted config
+    // Write device ID
+    val deviceIdFile = File(ucloudConfigFolder, "ucloud_device_id.txt")
+    deviceIdFile.writeText(deviceId)
+
+    // Listen for changes to mounted config
+    val ucloudConfigFile = File(ucloudConfigFolder, "ucloud_config.json")
+    var ucloudConfig = UCloudSyncthingConfig()
+
+    var nextScan = System.currentTimeMillis()
+    while (true) {
+        if (System.currentTimeMillis() > nextScan) {
+            try {
+                val newConfig = defaultMapper.decodeFromString<UCloudSyncthingConfig>(ucloudConfigFile.readText())
+
+                if (newConfig != ucloudConfig) {
+                    println("Using new config")
+                    ucloudConfig = newConfig
+                }
+            } catch (e: Throwable) {
+                println("Unable to use new config")
+            }
+            nextScan = System.currentTimeMillis() + 5000
+        }
+    }
 }
 
 fun String.fileName(): String = substringAfterLast('/')
+
+@Serializable
+data class UCloudSyncthingConfig(
+    val folders: List<Folder> = emptyList(),
+    val devices: List<Device> = emptyList()
+) {
+
+    @Serializable
+    data class Folder(
+        val path: String,
+    )
+
+    @Serializable
+    data class Device(
+        val deviceId: String,
+        val label: String,
+    )
+}
 
 val defaultMapper = Json {
     encodeDefaults = true
