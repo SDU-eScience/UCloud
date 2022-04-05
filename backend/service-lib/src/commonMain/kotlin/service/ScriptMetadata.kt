@@ -34,6 +34,8 @@ sealed class WhenToStart {
         }
     }
 
+    @Serializable
+    @SerialName("never")
     object Never: WhenToStart()
 }
 

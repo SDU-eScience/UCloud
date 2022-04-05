@@ -199,6 +199,9 @@ class Server(
         // 4b. Optional indexing feature
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
+        if ( micro.featureOrNull(ElasticFeature) != null) {
+            elasticQueryService = ElasticQueryService(micro.elasticHighLevelClient, nativeFs, pathConverter)
+        }
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
             FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 4, numberOfReplicas = 0)
 

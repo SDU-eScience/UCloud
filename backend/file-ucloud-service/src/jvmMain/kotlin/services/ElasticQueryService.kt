@@ -49,9 +49,12 @@ class ElasticQueryService(
     private val mapper = defaultMapper
 
     private suspend fun verifyAndUpdateIndex(hits: List<PartialUFile>): List<PartialUFile> {
+        //making sure that the results does not contain duplicates
+        val filteredHits = hits.toSet()
+
         val illegalIndices = mutableListOf<PartialUFile>()
 
-        val existingHits = hits.mapNotNull { partialUFile ->
+        val existingHits = filteredHits.mapNotNull { partialUFile ->
             try {
                 nativeFS.stat(pathConverter.ucloudToInternal(UCloudFile.createFromPreNormalizedString(partialUFile.id)))
                 partialUFile
@@ -66,11 +69,13 @@ class ElasticQueryService(
             }
         }
 
+        // Deletes indices that do not exist anymore
         val bulk = BulkRequest()
         illegalIndices.forEach {
             bulk.add(DeleteRequest(FILES_INDEX, it.id))
         }
         if (illegalIndices.isNotEmpty()) {
+            log.info("Deleting: $illegalIndices from ES (does not exist anymore)")
             elasticClient.bulk(bulk, RequestOptions.DEFAULT)
         }
         return existingHits
@@ -429,6 +434,6 @@ class ElasticQueryService(
 
         private const val FILES_INDEX = FileScanner.FILES_INDEX
 
-        private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
+        private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 50
     }
 }
