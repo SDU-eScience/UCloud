@@ -346,6 +346,7 @@ fun main(args: Array<String>) {
             // -------------------------------------------------------------------------------------------------------
             val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli)
             val plugins = PluginLoader(pluginContext).load()
+            pluginContext.loadedPlugins = plugins
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)
 
             // 4. Transferring control to services:
