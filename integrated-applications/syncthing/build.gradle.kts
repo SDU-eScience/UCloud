@@ -14,6 +14,7 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8")
     implementation("io.ktor:ktor-client-core:1.6.8")
     implementation("io.ktor:ktor-client-cio:1.6.8")
+    implementation("org.slf4j:slf4j-simple:1.7.25")
 
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.2")
     testImplementation("org.jetbrains.kotlin:kotlin-test")

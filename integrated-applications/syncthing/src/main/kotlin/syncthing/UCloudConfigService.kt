@@ -1,10 +1,8 @@
-package syncthing
+package dk.sdu.cloud.syncthing
 
-import dk.sdu.cloud.syncthing.SyncthingClient
-import dk.sdu.cloud.syncthing.defaultMapper
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import org.slf4j.LoggerFactory
@@ -44,11 +42,11 @@ class UCloudConfigService(
     private val previouslyObservedFile: File
 
     /*
-     * Wait for Syncthing to create the config file, if it isn't created yet, then read the apiKey and device ID.
-     * Then write the device ID to the config folder
+     * Wait for Syncthing to initialize, then read the apiKey and device ID,
+     * If this is the first time the instance is started, update the name of the Syncthing instance and write the
+     * device ID to the config folder
      */
     init {
-
         val syncthingConfig = File(configFolder, "config.xml")
 
         val timeout = System.currentTimeMillis() + 10_000
@@ -65,12 +63,8 @@ class UCloudConfigService(
         val deviceElement = configDoc.getElementsByTagName("device").item(0) as Element
         deviceId = deviceElement.getAttribute("id")
 
-        println("apiKey is: $apiKey")
-        println("deviceId is: $deviceId")
-
-        // Write device ID
-        val deviceIdFile = File(configFolder, "ucloud_device_id.txt")
-        deviceIdFile.writeText(deviceId)
+        log.info("apiKey is: $apiKey")
+        log.info("deviceId is: $deviceId")
 
         config = UCloudSyncthingConfig()
 
@@ -83,12 +77,37 @@ class UCloudConfigService(
         }
 
         syncthingClient = SyncthingClient(apiKey)
+
+        // If the deviceIdFile does not exist, this is (most likely) the first time the instance is running.
+        val deviceIdFile = File(configFolder, "ucloud_device_id.txt")
+        if (!deviceIdFile.exists()) {
+            GlobalScope.launch {
+                log.info("Updating name of Syncthing instance")
+                val timeout = System.currentTimeMillis() + 10_000
+                while (System.currentTimeMillis() < timeout) {
+                    try {
+                        syncthingClient.addDevices(
+                            listOf(
+                                UCloudSyncthingConfig.Device(deviceId, "UCloud")
+                            )
+                        )
+                        break
+                    } catch (e: Throwable) {
+                        // Do nothing
+                    }
+                    delay(1000)
+                }
+            }
+
+            deviceIdFile.writeText(deviceId)
+        }
     }
 
     /*
-     * Listen for changes to mounted config (main-loop)
+     * Start the service/listen for changes to mounted config (main-loop)
+     * Checks for changes every few seconds, and if found the changes are validated and applied
      */
-    fun listen() {
+    fun start() {
         val ucloudConfigFile = File(configFolder, "ucloud_config.json")
 
         var nextScan = System.currentTimeMillis()
@@ -100,11 +119,11 @@ class UCloudConfigService(
                     val validatedNewConfig = validate(newConfig)
 
                     if (validatedNewConfig != config) {
-                        println("Using new config")
+                        log.info("Using new config")
                         apply(validatedNewConfig)
                     }
                 } catch (e: Throwable) {
-                    println("Unable to use new config: ${e.message}")
+                    log.debug("Unable to use new config: ${e.message}")
                 }
                 nextScan = System.currentTimeMillis() + 5000
             }
@@ -135,24 +154,37 @@ class UCloudConfigService(
         return UCloudSyncthingConfig(validatedFolders.toList(), newConfig.devices)
     }
 
+    /*
+     * Apply changes to configuration to Syncthing
+     */
     private fun apply(newConfig: UCloudSyncthingConfig) {
         val oldConfig = config
+        val timeout = System.currentTimeMillis() + 10_000
         config = newConfig
 
         GlobalScope.launch {
-            // TODO(Brian Write new devices
-            syncthingClient.addDevices(config.devices.filter { !oldConfig.devices.contains(it) })
+            while (System.currentTimeMillis() < timeout) {
+                try {
+                    // Write new devices
+                    syncthingClient.addDevices(config.devices.filter { !oldConfig.devices.contains(it) })
 
-            // TODO(Brian) Remove old devices
-            syncthingClient.removeDevices(oldConfig.devices
-                .filter { !config.devices.contains(it) }
-                .map { it.deviceId.toString() })
+                    // Remove old devices
+                    syncthingClient.removeDevices(oldConfig.devices
+                        .filter { !config.devices.contains(it) }
+                        .map { it.deviceId })
 
-            // TODO(Brian) Write new folders
-            syncthingClient.addFolders(config.folders.filter { !oldConfig.folders.contains(it) }, config.devices)
+                    // All folders are rewritten to Syncthing, to make sure new devices are added to each folder
+                    syncthingClient.addFolders(config.folders, config.devices)
 
-            // TODO(Brian) Remove old folders
-            syncthingClient.removeFolders(oldConfig.folders.filter { !config.folders.contains(it) })
+                    // Remove old folders
+                    syncthingClient.removeFolders(oldConfig.folders.filter { !config.folders.contains(it) })
+
+                    break
+                } catch (e: Throwable) {
+                    log.debug("Unable to apply configuration: ${e.message}")
+                }
+                delay(1000)
+            }
         }
     }
 
@@ -163,7 +195,7 @@ class UCloudConfigService(
     }
 
 
-    /*companion object {
+    companion object {
         val log = LoggerFactory.getLogger("UCloudConfigService")
-    }*/
+    }
 }

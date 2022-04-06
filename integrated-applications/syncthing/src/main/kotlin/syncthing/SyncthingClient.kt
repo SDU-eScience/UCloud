@@ -9,62 +9,28 @@ import io.ktor.http.content.*
 import io.ktor.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
-import syncthing.UCloudSyncthingConfig
+import org.slf4j.LoggerFactory
 
 class SyncthingClient(
     private val apiKey: String
 ) {
-
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
     }
 
     private fun deviceEndpoint(path: String): String {
-        return "http://127.0.0.1:8384/${path.removePrefix("/")}"
+        return "http://localhost:8384/${path.removePrefix("/")}"
     }
 
-    private fun canMap() {
-        defaultMapper.encodeToString("Hello, World")
-    }
-
-    data class SyncedFolder(
-        val id: Long,
-        val path: String,
-        val synchronizationType: SynchronizationType,
-        val ucloudDevice: String,
-        val endUserDevice: String,
-        val username: String,
-    )
-
-    /*private suspend fun findSyncedFolders(
-        devicesAnyOf: List<LocalSyncthingDevice>,
-    ): List<SyncedFolder> {
-        return emptyList()
-    }*/
-
-    /*suspend fun rescan(localDevices: List<LocalSyncthingDevice> = config.devices) {
-        log.info("Attempting rescan of syncthing")
-        localDevices.forEach { device ->
-            runCatching {
-                httpClient.post<HttpResponse>(deviceEndpoint(device, "/rest/db/scan"), apiRequest(device))
-            }
-        }
-    }*/
-
+    /*
+     * Adds folders in `folders` to Syncthing with all `devices` attached to each folder
+     */
     suspend fun addFolders(
         folders: List<UCloudSyncthingConfig.Folder>,
         devices: List<UCloudSyncthingConfig.Device>
     ) {
-        println("Adding folders")
-        //val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
-        //val devicesByUser = syncedFolders.values.flatMap { folders ->
-        //    folders.map { it.username to it.endUserDevice }
-        //}.groupBy(
-        //    keySelector = { it.first },
-        //    valueTransform = { it.second }
-        //)
+        log.info("Adding folders")
 
-        //val folders = syncedFolders[device.id] ?: emptyList()
         val newFolders = folders.map { folder ->
             SyncthingFolder(
                 id = folder.id,
@@ -86,10 +52,13 @@ class SyncthingClient(
         ).orThrow()
     }
 
+    /*
+     * Remove folders from Syncthing
+     */
     suspend fun removeFolders(
         folders: List<UCloudSyncthingConfig.Folder>
     ) {
-        println("Removing folders")
+        log.info("Removing folders")
 
         val toDelete = folders.map { it.id }
 
@@ -105,11 +74,14 @@ class SyncthingClient(
         }
     }
 
+    /*
+     * Add devices to Syncthing
+     */
     suspend fun addDevices(
         devices: List<UCloudSyncthingConfig.Device>
     ) {
-        //val syncedFolders = findSyncedFolders(localDevices).groupBy { it.ucloudDevice }
-        println("Adding devices")
+
+        log.info("Adding devices")
 
         val newDevices = devices.map { device ->
             SyncthingDevice(
@@ -117,17 +89,6 @@ class SyncthingClient(
                 name = device.label
             )
         }
-        /*val folders = syncedFolders[localDevice.id] ?: emptyList()
-        val newDevices = folders
-            .asSequence()
-            .distinctBy { it.endUserDevice }
-            .map { row ->
-                SyncthingDevice(
-                    deviceID = row.endUserDevice,
-                    name = row.endUserDevice
-                )
-            }
-            .toList()*/
 
         if (newDevices.isEmpty()) {
             return
@@ -137,13 +98,14 @@ class SyncthingClient(
             deviceEndpoint("/rest/config/devices"),
             apiRequestWithBody(newDevices)
         ).orThrow()
-
-        // TODO(Brian) When a device is added to Syncthing, the folders the user have already added to sync should be re-added.
-        //addFolders(localDevices)
     }
 
+    /*
+     * Remove devices from Syncthing.
+     * Syncthing will automatically remove each device from folders as well.
+     */
     suspend fun removeDevices(devices: List<String>) {
-        println("Removing devices from Syncthing")
+        log.info("Removing devices")
 
         if (devices.isEmpty()) {
             return
@@ -188,9 +150,9 @@ class SyncthingClient(
         }
     }
 
-    /*companion object {
-        val log = LoggerFactory.getLogger("Syncthing")
-    }*/
+    companion object {
+        val log = LoggerFactory.getLogger("SyncthingClient")
+    }
 }
 
 class RPCException(message: String, val code: Int) : RuntimeException(message)
