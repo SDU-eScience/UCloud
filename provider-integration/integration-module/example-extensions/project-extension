@@ -64,42 +64,46 @@ def generate_name(ucloud_title, allocated_gid):
     return re.sub(r'[^a-z0-9]', '_', ucloud_title.lower()) + '_' + str(allocated_gid)
 
 def create_group(gid, name):
-    result = subprocess.run(['/usr/sbin/groupadd', '-g', str(gid), name], capture_output=True)
+    result = subprocess.run(['/usr/sbin/groupadd', '-g', str(gid), name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.returncode == 0
 
 def rename_group(gid, name):
-    result = subprocess.run(['/usr/sbin/groupmod', '-n', name, get_group_by_gid(gid)], capture_output=True)
+    result = subprocess.run(['/usr/sbin/groupmod', '-n', name, get_group_by_gid(gid)], stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
     return result.returncode == 0
 
 def delete_group(gid):
     group_name = get_group_by_gid(gid)
     if group_name is None:
         return False
-    result = subprocess.run(['/usr/sbin/groupdel', get_group_by_gid(gid)], capture_output=True)
+    result = subprocess.run(['/usr/sbin/groupdel', get_group_by_gid(gid)], stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
     return result.returncode == 0
 
 def add_user_to_group(uid, gid):
-    result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)], capture_output=True)
+    result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.returncode == 0
 
 def remove_user_from_group(uid, gid):
-    result = subprocess.run(['/usr/bin/gpasswd', '-d', get_username_by_uid(uid), get_group_by_gid(gid)], capture_output=True)
+    result = subprocess.run(['/usr/bin/gpasswd', '-d', get_username_by_uid(uid), get_group_by_gid(gid)],
+                            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.returncode == 0
 
 def get_gid_by_group(group_name):
-    result = subprocess.run(['/usr/bin/getent', 'group', group_name], capture_output=True)
+    result = subprocess.run(['/usr/bin/getent', 'group', group_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
         return None
     return int(result.stdout.decode('UTF-8').split(':')[2])
 
 def get_group_by_gid(gid):
-    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], capture_output=True)
+    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
         return None
     return result.stdout.decode('UTF-8').split(':')[0]
 
 def get_username_by_uid(uid):
-    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], capture_output=True)
+    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     if result.returncode != 0:
         return None
     return result.stdout.decode('UTF-8').split(':')[0]

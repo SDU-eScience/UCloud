@@ -140,9 +140,9 @@ data class ProductBasedPlugins<T : Plugin<ProductBasedConfiguration>>(
 }
 
 data class LoadedPlugins(
-    val files: ProductBasedPlugins<FilePlugin>?,
-    val fileCollection: ProductBasedPlugins<FileCollectionPlugin>?,
-    val compute: ProductBasedPlugins<ComputePlugin>?,
-    val connection: ConnectionPlugin?,
-    val projects: ProjectPlugin?,
+    val files: ProductBasedPlugins<FilePlugin>? = null,
+    val fileCollection: ProductBasedPlugins<FileCollectionPlugin>? = null,
+    val compute: ProductBasedPlugins<ComputePlugin>? = null,
+    val connection: ConnectionPlugin? = null,
+    val projects: ProjectPlugin? = null,
 )
