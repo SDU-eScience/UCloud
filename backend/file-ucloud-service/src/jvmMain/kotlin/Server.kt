@@ -208,7 +208,7 @@ class Server(
             scriptManager.register(
                 Script(
                     ScriptMetadata(
-                        "ucloud-storage-index-full",
+                        "ucloud-storage-index",
                         "UCloud/Storage: Full Indexing",
                         WhenToStart.Never
                     ),

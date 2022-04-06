@@ -75,7 +75,7 @@ class FileScanner(
         }
         val activeRootsQueue = ArrayDeque(activeRoots)
 
-       // println("filtered ${activeRootsQueue.size} : orig ${roots.size}")
+        println("filtered ${activeRootsQueue.size} : orig ${roots.size}")
         (1..32).map {
             Thread {
                 runBlocking {
@@ -89,9 +89,9 @@ class FileScanner(
                     }
 
                     bulkRunner.flush()
-                    //println("${bulkRunner.threadname} Total amount of docs ${bulkRunner.totalDocCount}")
-                    //println("${bulkRunner.threadname} Folders skipped in this run ${bulkRunner.foldersSkipped}" )
-                    //println("${bulkRunner.threadname} Files skipped in this run ${bulkRunner.filesSkipped}" )
+                    println("${bulkRunner.threadname} Total amount of docs ${bulkRunner.totalDocCount}")
+                    println("${bulkRunner.threadname} Folders skipped in this run ${bulkRunner.foldersSkipped}" )
+                    println("${bulkRunner.threadname} Files skipped in this run ${bulkRunner.filesSkipped}" )
                 }
             }.also { it.start() }
         }.forEach {
@@ -102,8 +102,8 @@ class FileScanner(
         println("Scan done")
     }
 
-    private fun fastScan(bulkRunner: BulkRequestBuilder, root: InternalFileAndCollection, scanTime: Long, lastScan: LocalDateTime) {
-        //println("Working in: ${root.file}")
+    private suspend fun fastScan(bulkRunner: BulkRequestBuilder, root: InternalFileAndCollection, scanTime: Long, lastScan: LocalDateTime) {
+        println("Working in: ${root.file}")
         val queue = ArrayDeque<InternalFileAndCollection>()
         queue.add(root)
         while (queue.isNotEmpty()) {
