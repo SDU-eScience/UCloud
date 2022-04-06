@@ -116,6 +116,8 @@ class Server(override val micro: Micro) : CommonServer {
 
         val fileCollections = FileCollectionService(projectCache, db, storageProviders, providerSupport, serviceClient)
 
+        val syncthingService = SyncthingService(storageProviders, serviceClient, fileCollections)
+
 
         val jobMonitoring = JobMonitoringService(
             micro.backgroundScope,
@@ -146,6 +148,8 @@ class Server(override val micro: Micro) : CommonServer {
                 licenseService.asController(),
 
                 NetworkIPController(networkService),
+
+                SyncthingController(syncthingService)
             )
         }
 

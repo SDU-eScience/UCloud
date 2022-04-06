@@ -4,19 +4,15 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.Products
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
-import dk.sdu.cloud.app.orchestrator.api.ComputeSupport
-import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
-import dk.sdu.cloud.app.orchestrator.api.Job
-import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.app.orchestrator.api.JobUpdate
-import dk.sdu.cloud.app.orchestrator.api.JobsControl
-import dk.sdu.cloud.app.orchestrator.api.JobsProviderExtendRequestItem
+import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.debug.tellMeEverything
@@ -105,6 +101,46 @@ class JobManagement(
                     "single instance of this service running!"
             )
         }
+    }
+
+    suspend fun registerApplication(
+        specification: JobSpecification,
+        username: String,
+        project: String? = null,
+        providerId: String? = null,
+    ): Job {
+        val id = JobsControl.register.call(
+            bulkRequestOf(
+                ProviderRegisteredResource(
+                    specification,
+                    providerId,
+                    username,
+                    project
+                )
+            ),
+            k8.serviceClient
+        ).orThrow().responses.singleOrNull()?.id ?: throw RPCException(
+            "Unable to start a job at the moment. It looks like UCloud is not responsive.",
+            HttpStatusCode.BadGateway
+        )
+
+        // TODO Failing here requires rolling back the registered resource
+        val actualJob = JobsControl.retrieve.call(
+            ResourceRetrieveRequest(
+                JobIncludeFlags(
+                    includeProduct = true,
+                    includeApplication = true,
+                    includeParameters = true,
+                ),
+                id
+            ),
+            k8.serviceClient
+        ).orThrow()
+
+        // TODO Failing here requires rolling back the registered resource
+        create(actualJob)
+
+        return actualJob
     }
 
     fun register(plugin: JobManagementPlugin) {

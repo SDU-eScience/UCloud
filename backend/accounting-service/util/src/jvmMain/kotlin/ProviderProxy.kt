@@ -484,3 +484,55 @@ class ProviderProxy<
 }
 
 private val HttpStatusCode.Companion.RetryWith get() = HttpStatusCode(449, "Retry With")
+
+suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeCall(
+    provider: String,
+    actorAndProject: ActorAndProject,
+    call: (comms: C) -> CallDescription<R, S, E>,
+
+    requestForProvider: R,
+
+    isUserRequest: Boolean = true,
+    useHttpClient: Boolean = true,
+): S {
+    val comms = prepareCommunication(provider)
+    val im = IntegrationProvider(provider)
+    val actualCall = call(comms)
+
+    val baseClient = if (useHttpClient) {
+        comms.client
+    } else {
+        comms.wsClient
+    }
+
+    for (attempt in 0 until 5) {
+        val response = actualCall.call(
+            requestForProvider,
+            if (isUserRequest) {
+                baseClient.withProxyInfo(actorAndProject.actor.safeUsername())
+            } else {
+                baseClient
+            }
+        )
+
+        if (response.statusCode == HttpStatusCode.RetryWith ||
+            response.statusCode == HttpStatusCode.ServiceUnavailable
+        ) {
+            if (isUserRequest) {
+                im.init.call(
+                    IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
+                    comms.client
+                ).orThrow()
+
+                delay(200L + (attempt * 500))
+                continue
+            } else {
+                response.throwError()
+            }
+        }
+
+        return response.orThrow()
+    }
+
+    throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+}
