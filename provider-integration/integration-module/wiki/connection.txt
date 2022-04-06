@@ -1,0 +1,106 @@
+# sequencediagram.org
+title Overview
+
+actor "Grant Approver" as ga
+actor "End-User" as u
+participant "UCloud/Core" as uc
+participant "UCloud's IdP\n(e.g. WAYF)" as ucidp
+
+participantgroup #lightblue HPC System
+participant "Integration Module" as im
+participant "Slurm" as slurm
+participant "File System" as fs
+participant "OpenID Connect Provider\n (e.g. Keycloak)" as oidc
+participant "Local IdP\n(e.g. FreeIPA)" as idp
+end
+
+
+group User Creation (SAML2 flow)
+u -> uc: Login with WAYF
+uc ->ucidp: Start auth (SAML2)
+ucidp --> uc: Redirect to IdP
+uc --> u: Redirect to IdP
+u -> ucidp: Authentication
+ucidp --> u: OK Redirect to UCloud/Core
+u -> uc: Auth tokens
+uc -> uc: Create user
+uc --> u: Welcome EndUser#1234
+end
+
+group Requesting Resources (Grants)
+u -> uc: Apply for Resources
+uc --> u: Please select affiliation
+u -> uc: Select DeiC Interactive HPC
+uc --> u: Grant application form
+u -> uc: Grant application
+uc --> u: OK
+uc-->> ga: Notify new application
+ga -> uc: Approved
+uc --> ga: OK
+uc -->> u: Notify approved\n**⚠️ Missing connection!**
+uc -->> im: Notify approved\n**XXX DKK approved for ProjectFoo**
+end
+
+group Optional: Provisioning Resources
+note over im: The approval notification from UCloud/Core\ncontains all the relevant information about the\ngrant. Providers can optionally prepare these\nresources now.
+note over im: The notification also contains information about\nthe project itself. It contains information such as\nmembership, groups and internal roles.
+note over im: However, the end-user has not yet performed any\ntype of connection. Thus the provider might choose\nto wait before allocating resources.
+im->slurm: Prepare accounts
+slurm --> im: OK
+im->fs: Prepare storage
+fs-->im: OK
+end
+
+group Connecting with Provider (OpenID Connect Flow)
+u -> uc: Initiate connection with Provider
+uc -> im: EndUser#1234 wishes to connect
+
+uc ->oidc: Start auth (OIDC)
+oidc --> im: Redirect to IdP
+im --> uc: Redirect to IdP
+uc --> u: Redirect to IdP
+u -> oidc: Authenticate
+oidc -> idp: << Auth protocol >>
+idp --> oidc: << Auth protocol >>
+note over oidc,idp: The authentication is either\n directly with the OIDC provider\nor some delegate (e.g. FreeIPA)
+note over oidc,idp: The integration module has no\nknowledge of the specifics in this step.\n**It is a black-box.**
+note over idp,oidc: Authentication protocol is up to\nOIDC provider/IdP. This can include\nmultiple factors and hardware keys.
+oidc --> u: OK Redirect to Integration Module
+u -> im: Auth tokens
+im -> im: Verify and register mapping\n(EndUser#1234 = 512314)
+note over im: OIDC tokens are verified using the\nRSA public key of the OIDC provider
+im --> u: OK Redirect to UCloud
+im -->> uc: Notify connection complete for\nEndUser#1234
+end
+
+group Optional: Provisioning Resources
+note over im: At this point, the integration module may\nalso choose to perform initialization of\nresources. This is beneficial since UID\nof local users is now available.
+im -> slurm: Allocate resources
+slurm --> im: OK
+end
+
+group Project Management
+u -> uc: Add user Alice#1234 to ProjectFoo
+uc --> u: OK
+uc -->> im: One or more project updates pending
+im -> uc: Fetch project updates
+uc --> im: ProjectFoo updated (full state)
+note over im: The integration module calculates its own diff.\nThis helps protect against missed events while\nthe provider is down (but UCloud isn't).
+im -> im: Calculate project diff
+
+note over im: Each diff event is dispatches to one or more\nextensions. Each extension is responsible\nfor handling a concrete type of event.
+
+group Project created extension
+im -> im: Invoke project created extension
+note over im,idp: ""/* Simplified extension payload */\n{"newProject":{"localId": 41005,"project":{"specification":{"title": "ProjectFoo"}}}}""
+im -> idp: Create group with GID ""41005"" and name ""ProjectFoo_41005""
+idp --> im: OK
+end
+
+group User added extension
+im -> im: Invoke user added extension
+note over im,idp:""/* Simplified extension payload */\n{\n   "newMembers": [{ "uid": 78514, "projectMember": { "username": "Alice#1234", "role": "USER" } } ]\n   "newProject": { "localId": 41005, "project": { ... } }\n}""
+im -> idp: Add user with UID ""78514"" to group with GID ""41005""
+idp --> im: OK
+end
+end

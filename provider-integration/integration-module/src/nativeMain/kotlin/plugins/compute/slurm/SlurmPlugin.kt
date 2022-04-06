@@ -169,11 +169,9 @@ class SlurmPlugin : ComputePlugin {
             delay(5000)
 
             val jobs = SlurmJobMapper.browse(SlurmBrowseFlags(filterIsActive = true))
-            log.debug("Jobs are: $jobs")
             if (jobs.isEmpty()) continue
 
             val acctJobs = SlurmCommandLine.browseJobAllocations(jobs.map { it.slurmId })
-            log.debug("Allocations are: $acctJobs")
 
             // TODO(Dan): Everything should be more or less ready to do in bulk if needed
             acctJobs.forEach { job ->

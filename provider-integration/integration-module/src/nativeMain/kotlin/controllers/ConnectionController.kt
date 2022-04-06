@@ -7,6 +7,8 @@ import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.utils.ProcessWatcher
 import dk.sdu.cloud.plugins.ConnectionResponse
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
@@ -166,7 +168,8 @@ class ConnectionController(
 
                 // Launch the IM/User instance
                 if (devInstance?.userId != uid) {
-                    startProcess(
+                    val logFilePath = controllerContext.configuration.core.logDirectory!! + "/user_${uid}.log"
+                    val uimPid = startProcess(
                         listOf(
                             "/usr/bin/sudo",
                             "-u",
@@ -178,10 +181,21 @@ class ConnectionController(
                         createStreams = {
                             val devnull = NativeFile.open("/dev/null", readOnly = false)
                             unlink("/tmp/ucloud_${uid}.log")
-                            val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                            val logFile = NativeFile.open(logFilePath, readOnly = false)
                             ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
                         }
                     )
+
+                    // NOTE(Dan): We do not wish to kill this process on exit, since we do not have permissions to
+                    // kill it. This is instead handled by the ping+pong protocol.
+                    ProcessWatcher.addWatch(uimPid, killOnExit = false) { statusCode ->
+                        log.warn("IM/User for uid=$uid terminated unexpectedly with statusCode=$statusCode")
+                        log.warn("You might be able to find more information in the log file: $logFilePath")
+                        log.warn("The instance will be automatically restarted when the user makes another request")
+                        uimMutex.withLock {
+                            uimLaunched.remove(request.username)
+                        }
+                    }
                 }
 
                 // Configure Envoy to route the relevant IM/User traffic to the newly launched instance
@@ -197,6 +211,10 @@ class ConnectionController(
 
             OutgoingCallResponse.Ok(Unit)
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
@@ -252,6 +270,30 @@ object UserMapping {
             )
         }
 
+        return result
+    }
+
+    fun ucloudIdToLocalIdBulk(ucloudIds: List<String>): Map<String, Int> {
+        val result = HashMap<String, Int>()
+        dbConnection.withTransaction { session ->
+            val queryTable = ucloudIds.map { mapOf("ucloud_id" to it) }
+            session.prepareStatement(
+                """
+                    with query as (
+                        ${safeSqlTableUpload("query", queryTable)}
+                    )
+                    select ucloud_id, local_identity
+                    from
+                        user_mapping um join
+                        query q on um.ucloud_id = q.ucloud_id
+                """
+            ).useAndInvoke(
+                prepare = { bindTableUpload("query", queryTable) },
+                readRow = { row ->
+                    result[row.getString(0)!!] = row.getString(1)!!.toInt()
+                }
+            )
+        }
         return result
     }
 

@@ -4,12 +4,15 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.normalizeCertificate
+import dk.sdu.cloud.utils.fileIsDirectory    
+import dk.sdu.cloud.utils.writeText    
 import dk.sdu.cloud.utils.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
+import platform.posix.*
 
 @Serializable
 data class ProductReferenceWithoutProvider(
@@ -162,6 +165,7 @@ class IMConfiguration(
         // NOTE(Dan): Location where this integration module is publicly accessible, should match the configuration
         // provided to UCloud/Core. Default value is `null` which will cause some plugins to not work.
         val ownHost: Host? = null,
+        val logDirectory: String? = null,
     ) {
         fun normalize(): Core {
             if (providerId != PLACEHOLDER_ID) {
@@ -171,13 +175,64 @@ class IMConfiguration(
                     certificate
                 } ?: throw IllegalStateException("No certificate available")
 
+                val logDirectory = findLogLocation(logDirectory)    
                 return copy(
                     certificateFile = null,
                     certificate = normalizeCertificate(certificate),
+                    logDirectory = logDirectory,
                 )
             }
 
             return this
+        }
+
+        private fun verifyLogLocation(location: String) {
+            if (!fileIsDirectory(location)) {
+                throw ConfigurationException.BadConfiguration(
+                    "Unable to use '$location' for logs. File is not a directory!"
+                )
+            }
+
+            try {
+                val path = "$location/probe.txt"
+                NativeFile.open(
+                    path,
+                    readOnly = false, 
+                    truncateIfNeeded = true, 
+                    createIfNeeded = true, 
+                    mode = "600".toInt(8)
+                ).writeText("Testing", autoClose = true)
+
+                unlink(path)
+            } catch (ex: Throwable) {
+                throw ConfigurationException.BadConfiguration(
+                    "Unable to use '$location' for logs. We were unable to create a file. " + 
+                        "Make sure the permissions are set appropiately. " + 
+                        "The directory should be writeable by _any_ user!"
+                )
+            }
+        }
+
+        private fun findLogLocation(desiredLocation: String?): String {
+            val defaultLocations = listOf("/var/log/ucloud", "/tmp")
+            if (desiredLocation != null) {
+                verifyLogLocation(desiredLocation)
+                return desiredLocation.removeSuffix("/")
+            }
+
+            for (location in defaultLocations) {
+                try {
+                    verifyLogLocation(location)
+                    return location.removeSuffix("/")
+                } catch (ignored: Throwable) {
+                    // Do nothing
+                }
+            }
+
+            throw ConfigurationException.BadConfiguration(
+                "Unable to use ${defaultLocations} for log storage. Try setting the 'logDirectory' property in " +
+                    "core.json! The directory should be writeable by _any_ user!"
+            )
         }
     }
 

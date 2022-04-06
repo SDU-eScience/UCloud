@@ -10,19 +10,24 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.micro.BackgroundScope
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import kotlinx.coroutines.launch
 
 class ProviderNotificationService(
     private val projectService: ProjectService,
     private val db: DBContext,
-    private val providers: Providers<*>
+    private val providers: Providers<*>,
+    private val backgroundScope: BackgroundScope,
 ) {
     init {
         projectService.addUpdateHandler { projects ->
-            notifyChange(projects)
+            backgroundScope.launch {
+                notifyChange(projects)
+            }
         }
     }
 

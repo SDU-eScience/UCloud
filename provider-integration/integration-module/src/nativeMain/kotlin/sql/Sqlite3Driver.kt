@@ -23,9 +23,10 @@ class Sqlite3Driver(
     }
 }
 
-private fun Int.unwrapSqlite3Error(sqlite: CPointerVar<sqlite3>) {
+private fun Int.unwrapSqlite3Error(sqlite: CPointerVar<sqlite3>, statementForDebugging: String? = null) {
     if (this != SQLITE_OK) {
-        throw Sqlite3Exception(sqlite3_errmsg(sqlite.value)?.toKString() + "($this)")
+        throw Sqlite3Exception(sqlite3_errmsg(sqlite.value)?.toKString() + "($this)\n    Statement was:\n" +
+            (statementForDebugging?.prependIndent("    ") ?: ""))
     }
 }
 
@@ -47,8 +48,9 @@ class Sqlite3Connection(
     override fun prepareStatement(statement: String): PreparedStatement {
         val statementPtr = nativeHeap.alloc<CPointerVar<sqlite3_stmt>>()
         try {
-            sqlite3_prepare(connPtr.value, statement, -1, statementPtr.ptr, null).unwrapSqlite3Error(connPtr)
-            return Sqlite3PreparedStatement(connPtr, statementPtr)
+            sqlite3_prepare(connPtr.value, statement, -1, statementPtr.ptr, null)
+                .unwrapSqlite3Error(connPtr, statement)
+            return Sqlite3PreparedStatement(connPtr, statementPtr, statement)
         } catch(ex: Throwable) {
             nativeHeap.free(statementPtr)
             throw ex
@@ -75,10 +77,11 @@ class Sqlite3Connection(
 
 class Sqlite3PreparedStatement(
     private val connPtr: CPointerVar<sqlite3>,
-    private val statementPtr: CPointerVar<sqlite3_stmt>
+    private val statementPtr: CPointerVar<sqlite3_stmt>,
+    private val statementForDebugging: String,
 ) : PreparedStatement {
     private var didReset = true
-    private val resultCursor = Sqlite3ResultCursor(connPtr, statementPtr)
+    private val resultCursor = Sqlite3ResultCursor(connPtr, statementPtr, statementForDebugging)
     private val localCache = HashMap<String, Int>()
     private fun readParamIndex(param: String): Int {
         val cached = localCache[param]
@@ -141,6 +144,8 @@ class Sqlite3PreparedStatement(
     }
 
     override fun execute(): ResultCursor {
+        if (DO_DEBUG_STATEMENTS) println(statementForDebugging)
+
         if (resultCursor.isCollectingResults) {
             throw Sqlite3Exception("Current result cursor is still open. Please discardResult()s if they are " +
                 "not needed")
@@ -155,6 +160,7 @@ class Sqlite3PreparedStatement(
 class Sqlite3ResultCursor(
     private val connPtr: CPointerVar<sqlite3>,
     private val statementPtr: CPointerVar<sqlite3_stmt>,
+    private val statementForDebugging: String,
 ) : ResultCursor {
     var isCollectingResults = false
 
@@ -207,9 +213,11 @@ class Sqlite3ResultCursor(
             return true
         }
 
-        resultCode.unwrapSqlite3Error(connPtr)
+        resultCode.unwrapSqlite3Error(connPtr, statementForDebugging)
         throw Sqlite3Exception("This should not happen. OK status code was treated as an error.")
     }
 }
+
+private const val DO_DEBUG_STATEMENTS = false
 
 class Sqlite3Exception(message: String) : RuntimeException(message)

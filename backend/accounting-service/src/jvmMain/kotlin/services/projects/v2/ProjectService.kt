@@ -264,15 +264,15 @@ class ProjectService(
                         appendLine(", p.role")
 
                         if (flags.includeGroups == true) {
-                            appendLine(", coalesce(array_agg(distinct g), array[]::project.groups[]) all_groups")
-                            appendLine(", coalesce(array_agg(distinct gm), array[]::project.group_members[]) all_group_members")
+                            appendLine(", coalesce(array_remove(array_agg(distinct g), null), array[]::project.groups[]) all_groups")
+                            appendLine(", coalesce(array_remove(array_agg(distinct gm), null), array[]::project.group_members[]) all_group_members")
                         } else {
                             appendLine(", null::project.groups[] all_groups")
                             appendLine(", null::project.group_members[] all_group_members")
                         }
 
                         if (flags.includeMembers == true) {
-                            appendLine(", coalesce(array_agg(distinct pm), array[]::project.project_members[]) all_members")
+                            appendLine(", coalesce(array_remove(array_agg(distinct pm), null), array[]::project.project_members[]) all_members")
                         } else {
                             appendLine(", null::project.project_members[] all_members")
                         }

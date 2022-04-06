@@ -1,0 +1,1 @@
+ucloud  ALL= NOPASSWD: /opt/ucloud/example-extensions/oidc-extension, /opt/ucloud/example-extensions/project-extension
