@@ -228,9 +228,9 @@ class Server(
             scriptManager.register(
                 Script(
                     ScriptMetadata(
-                        "ucloud-storage-index",
-                        "UCloud/Storage: Indexing",
-                        WhenToStart.Periodically(1000L * 60L * 60L * 96)
+                        "ucloud-storage-index-fast",
+                        "UCloud/Storage: Active Indexing ",
+                        WhenToStart.Periodically(1000L * 60L * 10L)
                     ),
                     script = {
                         FileScanner(
@@ -240,7 +240,7 @@ class Server(
                             nativeFs,
                             pathConverter,
                             cephStats
-                        ).runScan()
+                        ).runFastScan()
                     }
                 )
             )

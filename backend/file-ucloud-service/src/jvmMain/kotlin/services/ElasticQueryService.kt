@@ -17,7 +17,9 @@ import dk.sdu.cloud.file.ucloud.api.StatisticsResponse
 import dk.sdu.cloud.file.ucloud.api.toPartialUFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
+import kotlinx.coroutines.delay
 import kotlinx.serialization.decodeFromString
+import org.elasticsearch.ElasticsearchException
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.search.ClearScrollRequest
@@ -30,6 +32,7 @@ import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.query.RangeQueryBuilder
 import org.elasticsearch.index.query.TermsQueryBuilder
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.Aggregations
 import org.elasticsearch.search.aggregations.metrics.Avg
@@ -40,6 +43,7 @@ import org.elasticsearch.search.aggregations.metrics.Sum
 import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
+import java.net.SocketTimeoutException
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
@@ -68,16 +72,36 @@ class ElasticQueryService(
                 }
             }
         }
-
         // Deletes indices that do not exist anymore
-        val bulk = BulkRequest()
         illegalIndices.forEach {
-            bulk.add(DeleteRequest(FILES_INDEX, it.id))
+            log.info("Deleting: ${it.id} from ES (does not exist anymore)")
+            val queryDeleteRequest = DeleteByQueryRequest(FileScanner.FILES_INDEX)
+            queryDeleteRequest.setConflicts("proceed")
+            queryDeleteRequest.setQuery(
+                QueryBuilders.matchQuery(
+                    ElasticIndexedFileConstants.PATH_FIELD,
+                    it.id
+                )
+            )
+            queryDeleteRequest.batchSize = 100
+            try {
+                var moreToDelete = true
+                while (moreToDelete) {
+                    try {
+                        val response = elasticClient.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                        if (response.deleted == 0L) moreToDelete = false
+                    } catch (ex: SocketTimeoutException) {
+                        FileScanner.log.warn(ex.message)
+                        FileScanner.log.warn("Socket Timeout: Delay and try again")
+                        delay(2000)
+                    }
+                }
+            } catch (ex: ElasticsearchException) {
+                FileScanner.log.warn(ex.message)
+                FileScanner.log.warn("Deletion failed")
+            }
         }
-        if (illegalIndices.isNotEmpty()) {
-            log.info("Deleting: $illegalIndices from ES (does not exist anymore)")
-            elasticClient.bulk(bulk, RequestOptions.DEFAULT)
-        }
+
         return existingHits
     }
 
