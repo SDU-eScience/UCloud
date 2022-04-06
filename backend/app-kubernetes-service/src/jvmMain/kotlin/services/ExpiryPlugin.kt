@@ -20,8 +20,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
     const val JOB_START = "ucloud.dk/jobStart"
 
     override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        // TODO Some jobs might actually not have a time allocation
-        val maxTimeMillis = job.specification.timeAllocation?.toMillis() ?: error("time allocation required")
+        val maxTimeMillis = job.specification.timeAllocation?.toMillis() ?: return
         val jobMetadata = builder.metadata ?: error("no metadata")
         (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
             annotations[MAX_TIME_ANNOTATION] = JsonPrimitive("$maxTimeMillis")
@@ -31,7 +30,7 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
 
     override suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {
         val metadata = jobFromServer.metadata ?: return
-        val maxTime = jobFromServer.maxTime ?: error("no max time attached to job: $jobId")
+        val maxTime = jobFromServer.maxTime ?: return
         if (jobFromServer.jobStart != null) return // Job had already been started earlier
 
         val start = Time.now()

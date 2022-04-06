@@ -20,15 +20,15 @@ fun main(args: Array<String>) {
     }
 
     // Launch Syncthing process
-    GlobalScope.launch {
-        val syncthingProcess = Runtime.getRuntime().exec("/opt/syncthing/syncthing --home ${configFolder.path}")
-        val out = syncthingProcess.inputStream.bufferedReader()
-        var line = out.readLine()
-        while (line != null) {
-            println(line)
-            line = out.readLine()
-        }
-    }
+    val syncthingProcess = ProcessBuilder().apply {
+        command("/opt/syncthing/syncthing", "--home", configFolder.path)
+        redirectError(ProcessBuilder.Redirect.appendTo(File("/dev/stderr")))
+        redirectOutput(ProcessBuilder.Redirect.appendTo(File("/dev/stdout")))
+    }.start()
+
+    Runtime.getRuntime().addShutdownHook(Thread {
+        syncthingProcess.destroy()
+    })
 
     val ucloudConfigService = UCloudConfigService(configFolder.path)
     ucloudConfigService.start()
@@ -46,3 +46,4 @@ val defaultMapper = Json {
     isLenient = true
     coerceInputValues = true
 }
+

@@ -38,9 +38,7 @@ class SyncthingService(
         val configFile = findConfigFile(request.principal.createdBy)
 
         try {
-            println("Config file is $configFile")
             val rawConfig = fs.openForReading(configFile).reader().readText()
-            println("Text is $rawConfig")
             return IAppsProviderRetrieveConfigResponse(
                 "",
                 defaultMapper.decodeFromString<SyncthingConfig>(rawConfig),
@@ -163,8 +161,8 @@ class SyncthingService(
                     )
                 },
 
-                // TODO(Dan): Temporary
-                timeAllocation = SimpleDuration(1, 0, 0),
+                // No expiration
+                timeAllocation = null,
             ),
             username
         )

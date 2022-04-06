@@ -1,5 +1,6 @@
 package dk.sdu.cloud.syncthing
 
+import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -130,6 +131,8 @@ class UCloudConfigService(
         }
 
         flushPreviouslyObservedToDisk()
+
+        exitProcess(0)
     }
 
     /*
@@ -199,3 +202,4 @@ class UCloudConfigService(
         val log = LoggerFactory.getLogger("UCloudConfigService")
     }
 }
+

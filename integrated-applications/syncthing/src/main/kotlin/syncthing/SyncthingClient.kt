@@ -11,9 +11,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import org.slf4j.LoggerFactory
 
-class SyncthingClient(
-    private val apiKey: String
-) {
+class SyncthingClient(private val apiKey: String) {
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
     }
@@ -80,7 +78,6 @@ class SyncthingClient(
     suspend fun addDevices(
         devices: List<UCloudSyncthingConfig.Device>
     ) {
-
         log.info("Adding devices")
 
         val newDevices = devices.map { device ->
@@ -105,11 +102,8 @@ class SyncthingClient(
      * Syncthing will automatically remove each device from folders as well.
      */
     suspend fun removeDevices(devices: List<String>) {
+        if (devices.isEmpty()) return
         log.info("Removing devices")
-
-        if (devices.isEmpty()) {
-            return
-        }
 
         devices.forEach { device ->
             // NOTE(Dan): Not throwing since the device might not be available on this UCloud device.
