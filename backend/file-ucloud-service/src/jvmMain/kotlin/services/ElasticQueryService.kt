@@ -177,7 +177,7 @@ class ElasticQueryService(
                             query
                         ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
                     )
-                    if (isNumber) {
+                   /* if (isNumber) {
                         add(
                             QueryBuilders.matchQuery(
                                 ElasticIndexedFileConstants.CREATED_AT_FIELD,
@@ -190,7 +190,7 @@ class ElasticQueryService(
                                 query
                             )
                         )
-                    }
+                    }*/
                 }
                 filter().apply {
                     if (searchRequest.owner.project == null) {
