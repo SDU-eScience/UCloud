@@ -124,9 +124,10 @@ fun MutableBundle.withDeployment(
     injectAllDefaults: Boolean = true,
     injectServiceSecrets: Boolean = true,
     image: String = "dreg.cloud.sdu.dk/ucloud/$name-service:$version",
+    enableLiveness: Boolean = true,
     init: DeploymentResource.() -> Unit
 ): DeploymentResource {
-    val resource = DeploymentResource(name, version, image)
+    val resource = DeploymentResource(name, version, image, enableLiveness = enableLiveness)
         .apply(init)
         .apply {
             if (injectAllDefaults) {

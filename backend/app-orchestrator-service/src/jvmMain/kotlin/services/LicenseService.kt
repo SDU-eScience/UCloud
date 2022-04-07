@@ -3,20 +3,18 @@ package dk.sdu.cloud.app.orchestrator.services
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductArea
-import dk.sdu.cloud.accounting.util.ProviderComms
-import dk.sdu.cloud.accounting.util.ProviderSupport
+import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.accounting.util.Providers
-import dk.sdu.cloud.accounting.util.SqlObject
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import kotlinx.serialization.serializer
 
 class LicenseService(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<ComputeCommunication>,
     support: ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>,
@@ -24,7 +22,7 @@ class LicenseService(
     orchestrator: JobOrchestrator,
 ) : JobBoundResource<License, LicenseSpecification, LicenseUpdate, LicenseIncludeFlags, LicenseStatus, Product.License,
         LicenseSupport, ComputeCommunication,
-        AppParameterValue.License>(db, providers, support, serviceClient, orchestrator) {
+        AppParameterValue.License>(projectCache, db, providers, support, serviceClient, orchestrator) {
     override val table = SqlObject.Table("app_orchestrator.licenses")
     override val sqlJsonConverter = SqlObject.Function("app_orchestrator.license_to_json")
     override val resourceType: String = "license"

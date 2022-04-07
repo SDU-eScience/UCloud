@@ -1,4 +1,5 @@
 .env
+tags
 ### Java template
 # Compiled class file
 *.class
@@ -156,3 +157,4 @@ fs/
 
 backend/envoy/
 .compose/
+syncfiles/

@@ -56,6 +56,7 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
+import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 
 function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     const history = useHistory();
@@ -150,6 +151,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
+            <ConnectDashboardCard/>
         </GridCardGroup>
     );
 
@@ -416,8 +418,10 @@ function DashboardResources({products}: {
             balance: product.balance!
         };
 
-        if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
-            wallets.push(metadata);
+        if (!product.freeToUse) {
+            if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+                wallets.push(metadata);
+            }
         }
     }
 
@@ -434,7 +438,7 @@ function DashboardResources({products}: {
             icon={"grant"}
             error={products.error?.why}
         >
-            {products.data.items.length === 0 ? (
+            {wallets.length === 0 ? (
                 <NoResultsCardBody title={"No available resources"}>
                     <Text>
                         Apply for resources to use storage and compute on UCloud.
@@ -506,13 +510,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
             <>
                 {outgoingApps.data.items.length !== 0 ? null : (
                     <>
-                        <Heading.h3>No recent outgoing grant applications</Heading.h3>
-                        <Text>
+                        <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={"/project/grants-landing"}>
+                            <Link to={"/project/grants-landing"} width={"100%"}>
                                 <Button fullWidth mt={8}>Apply for resources</Button>
                             </Link>
-                        </Text>
+                        </NoResultsCardBody>
                     </>
                 )}
                 <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />

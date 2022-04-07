@@ -11,11 +11,13 @@ import kotlinx.coroutines.coroutineScope
 class AlertSlackService(private val notifiers: List<Notifier>) {
     init {
         if (notifiers.isEmpty()) {
-            throw IllegalArgumentException("Need at least one notifier!")
+            log.warn("No alerting notifier configured. This will not produce any output!")
         }
     }
 
     suspend fun createAlert(alert: Alert) {
+        if (notifiers.isEmpty()) return
+
         coroutineScope {
             val result = notifiers.map {
                 async {

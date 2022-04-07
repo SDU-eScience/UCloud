@@ -18,7 +18,6 @@ import {joinToString} from "@/UtilityFunctions";
 
 const reservationName = "reservation-name";
 const reservationHours = "reservation-hours";
-const reservationMinutes = "reservation-minutes";
 const reservationReplicas = "reservation-replicas";
 
 export const ReservationParameter: React.FunctionComponent<{
@@ -196,14 +195,12 @@ export function validateReservation(): ValidationAnswer {
 export function setReservation(values: Partial<ReservationValues>): void {
     const name = document.getElementById(reservationName) as HTMLInputElement | null;
     const hours = document.getElementById(reservationHours) as HTMLInputElement | null;
-    const minutes = document.getElementById(reservationMinutes) as HTMLInputElement | null;
     const replicas = document.getElementById(reservationReplicas) as HTMLInputElement | null;
 
-    if (name === null || hours === null || minutes === null) throw "Reservation component not mounted";
+    if (name === null || hours === null) throw "Reservation component not mounted";
 
     name.value = values.name ?? "";
     hours.value = values.timeAllocation?.hours?.toString(10) ?? "";
-    minutes.value = values.timeAllocation?.minutes?.toString(10) ?? "";
     if (replicas != null && values.replicas !== undefined) replicas.value = values.replicas.toString(10)
 
     if (values.product !== undefined) setMachineReservationFromRef(values.product);

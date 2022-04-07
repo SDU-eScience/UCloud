@@ -1,7 +1,5 @@
-# `audit`
-
-Configures the [auditing](../auditing.md) feature. By-default the system will audit all requests, but they use the
-request type. Some times this can lead to bad results, for example, if the request message contains sensitive data.
+Configures the auditing feature. By-default the system will audit all requests, but they use the
+request type. Sometimes this can lead to bad results, for example, if the request message contains sensitive data.
 In this case the audit block should be used to transform the audit message. The audit type should be set
 with `audit<AuditType> { /* configuration * / }`.
 

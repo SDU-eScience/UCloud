@@ -22,6 +22,7 @@ export function productToArea(product: Product): ProductArea {
         case "license": return "LICENSE";
         case "storage": return "STORAGE";
         case "network_ip": return "NETWORK_IP";
+        case "synchronization": return "SYNCHRONIZATION";
     }
 }
 
@@ -37,6 +38,8 @@ export function productAreaTitle(area: ProductArea): string {
             return "Application license";
         case "NETWORK_IP":
             return "Public IP";
+        case "SYNCHRONIZATION":
+            return "Synchronization";
     }
 }
 
@@ -224,9 +227,9 @@ export type ProductPriceUnit =
     "CREDITS_PER_MINUTE" | "CREDITS_PER_HOUR" | "CREDITS_PER_DAY" |
     "UNITS_PER_MINUTE" | "UNITS_PER_HOUR" | "UNITS_PER_DAY";
 
-export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
-export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip";
-export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE"];
+export type ProductType = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP" | "SYNCHRONIZATION";
+export type Type = "storage" | "compute" | "ingress" | "license" | "network_ip" | "synchronization";
+export const productTypes: ProductType[] = ["STORAGE", "COMPUTE", "INGRESS", "NETWORK_IP", "LICENSE", "SYNCHRONIZATION"];
 
 export function productTypeToJsonType(type: ProductType): Type {
     switch (type) {
@@ -282,12 +285,22 @@ export interface ProductLicense extends ProductBase {
     tags?: string[];
 }
 
+export interface ProductSyncFolder extends ProductBase {
+    type: "synchronization";
+    productType: "SYNCHRONIZATION";
+}
+
+export interface ProductSyncDevice extends ProductBase {
+    type: "synchronization";
+    productType: "SYNCHRONIZATION";
+}
+
 export interface ProductNetworkIP extends ProductBase {
     type: "network_ip";
     productType: "NETWORK_IP";
 }
 
-export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense;
+export type Product = ProductStorage | ProductCompute | ProductIngress | ProductNetworkIP | ProductLicense | ProductSyncFolder | ProductSyncDevice;
 
 export function productTypeToTitle(type: ProductType): string {
     switch (type) {
@@ -301,6 +314,8 @@ export function productTypeToTitle(type: ProductType): string {
             return "Public IP";
         case "LICENSE":
             return "Software License";
+        case "SYNCHRONIZATION":
+            return "Synchronization";
     }
 }
 
@@ -316,6 +331,8 @@ export function productTypeToIcon(type: ProductType): IconName {
             return "networkWiredSolid";
         case "LICENSE":
             return "apps";
+        case "SYNCHRONIZATION":
+            return "refresh";
     }
 }
 
@@ -333,6 +350,8 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
                     return "GB";
                 case "COMPUTE":
                     return "Job(s)";
+                case "SYNCHRONIZATION":
+                    return "Synchronization";
             }
         }
 
@@ -359,6 +378,8 @@ export function explainAllocation(type: ProductType, chargeType: ChargeType, uni
                     return "Days of GB";
                 case "COMPUTE":
                     return "Core hours";
+                case "SYNCHRONIZATION":
+                    return "Days of synchronization";
             }
         }
     }
@@ -384,6 +405,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "GB";
                 case "COMPUTE":
                     return "Job(s)";
+                case "SYNCHRONIZATION":
+                    return "Synchronization";
             }
         }
 
@@ -402,6 +425,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "DKK/day of one GB";
                 case "COMPUTE":
                     return "DKK/hour";
+                case "SYNCHRONIZATION":
+                    return "DKK/day";
             }
         }
 
@@ -422,6 +447,8 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
                     return "Days of GB";
                 case "COMPUTE":
                     return "Core hour(s)";
+                case "SYNCHRONIZATION":
+                    return "Days of synchronization";
             }
         }
     }
@@ -475,9 +502,29 @@ export function normalizeBalanceForBackend(
                     const factor = HOUR / inputIs;
                     return Math.ceil(balance * factor);
                 }
+                case "SYNCHRONIZATION": {
+                    const factor = HOUR / inputIs;
+                    return Math.ceil(balance * factor);
+                }
             }
         }
     }
+}
+
+export function normalizeBalanceForFrontendOpts(
+    balance: number,
+    type: ProductType,
+    chargeType: ChargeType,
+    unit: ProductPriceUnit,
+    opts: {
+        isPrice?: boolean,
+        precisionOverride?: number,
+        multiplier?: number,
+        forceInteger?: boolean
+    }
+): string {
+    return normalizeBalanceForFrontend(balance, type, chargeType, unit,
+        opts.isPrice ?? true, opts.precisionOverride, opts.multiplier, opts.forceInteger);
 }
 
 export function normalizeBalanceForFrontend(
@@ -487,7 +534,8 @@ export function normalizeBalanceForFrontend(
     unit: ProductPriceUnit,
     isPrice: boolean,
     precisionOverride?: number,
-    multiplier?: number
+    multiplier?: number,
+    forceInteger?: boolean
 ): string {
     switch (unit) {
         case "PER_UNIT": {
@@ -499,7 +547,7 @@ export function normalizeBalanceForFrontend(
         case "CREDITS_PER_HOUR":
         case "CREDITS_PER_DAY": {
             if (!isPrice) {
-                return currencyFormatter(balance, precisionOverride ?? 2);
+                return currencyFormatter(balance, precisionOverride ?? 2, forceInteger ?? false);
             }
 
             const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
@@ -507,23 +555,27 @@ export function normalizeBalanceForFrontend(
             switch (type) {
                 case "INGRESS": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "NETWORK_IP": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "LICENSE": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "STORAGE": {
                     const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
                 }
                 case "COMPUTE": {
                     const factor = (HOUR / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 4);
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4, forceInteger ?? false);
+                }
+                case "SYNCHRONIZATION": {
+                    const factor = HOUR / inputIs;
+                    return currencyFormatter(balance * factor, precisionOverride ?? 4, forceInteger ?? false);
                 }
             }
         }
@@ -555,17 +607,25 @@ export function normalizeBalanceForFrontend(
                     const factor = HOUR / inputIs;
                     return Math.floor(balance * factor).toString();
                 }
+                case "SYNCHRONIZATION": {
+                    const factor = HOUR / inputIs;
+                    return Math.floor(balance * factor).toString();
+                }
             }
         }
     }
 }
 
-function currencyFormatter(credits: number, precision = 2): string {
+function currencyFormatter(credits: number, precision = 2, forceInteger: boolean): string {
     if (precision < 0 || precision > 6) throw Error("Precision must be in 0..6");
+
+    if (forceInteger) {
+        return ((credits / 1000000) | 0).toString();
+    }
 
     // Edge-case handling
     if (credits < 0) {
-        return "-" + currencyFormatter(-credits);
+        return "-" + currencyFormatter(-credits, precision, forceInteger);
     } else if (credits === 0) {
         return "0";
     } else if (credits < Math.pow(10, 6 - precision)) {

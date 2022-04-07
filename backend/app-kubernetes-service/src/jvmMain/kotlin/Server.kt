@@ -54,8 +54,8 @@ class Server(
         @Suppress("UNCHECKED_CAST")
         micro.providerTokenValidation = validation as TokenValidation<Any>
 
-        val broadcastingStream = RedisBroadcastingStream(micro.redisConnectionManager)
-        val distributedLocks = DistributedLockBestEffortFactory(micro)
+        val broadcastingStream = BroadcastingStream(micro)
+        val distributedLocks = DistributedLockFactory(micro)
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro)
 
@@ -83,26 +83,47 @@ class Server(
         val utilizationService = UtilizationService(k8Dependencies)
         val resourceCache = ResourceCache(k8Dependencies)
         val sessions = SessionDao()
-        val ingressService = IngressService(
-            IngressSupport(
-                configuration.prefix,
-                "." + configuration.domain,
-                ProductReference("u1-publiclink", "u1-publiclink", "ucloud")
-            ),
-            db,
-            k8Dependencies
-        )
-        val licenseService = LicenseService(k8Dependencies, db)
-        val networkIpService = NetworkIPService(db, k8Dependencies, configuration.networkInterface ?: "")
+        val ingressService =
+            if (configuration.ingress.enabled) {
+                IngressService(
+                    IngressSupport(
+                        configuration.prefix,
+                        "." + configuration.domain,
+                        ProductReference(
+                            configuration.ingress.product.id,
+                            configuration.ingress.product.category,
+                            configuration.providerId
+                        )
+                    ),
+                    db,
+                    k8Dependencies
+                )
+            } else {
+                null
+            }
+        val licenseService = LicenseService(configuration.providerId, k8Dependencies, db)
+        val networkIpService = if (configuration.networkIp.enabled) {
+            NetworkIPService(
+                db,
+                k8Dependencies,
+                configuration.networkInterface ?: "",
+                with(configuration.networkIp.product) {
+                    ProductReference(id, category, configuration.providerId)
+                }
+            )
+        } else {
+            null
+        }
 
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
-        val pathConverter = PathConverter(InternalFile(fsRootFile.absolutePath), serviceClient)
+        val pathConverter = PathConverter(configuration.providerId, "", InternalFile(fsRootFile.absolutePath), serviceClient)
         val fs = NativeFS(pathConverter)
         val memberFiles = MemberFiles(fs, pathConverter, serviceClient)
 
         val jobManagement = JobManagement(
+            configuration.providerId,
             k8Dependencies,
             distributedLocks,
             logService,
@@ -139,8 +160,8 @@ class Server(
             register(NetworkLimitPlugin)
             register(FairSharePlugin)
             if (micro.developmentModeEnabled) register(MinikubePlugin)
-            register(ingressService)
-            register(networkIpService)
+            if (ingressService != null) register(ingressService)
+            if (networkIpService != null) register(networkIpService)
             register(FirewallPlugin(db, configuration.networkGatewayCidr))
             register(ProxyPlugin(broadcastingStream, ingressService))
             register(FileOutputPlugin(pathConverter, fs, logService, fileMountPlugin))
@@ -184,8 +205,9 @@ class Server(
             resources = resourceCache
         )
 
-        vncService = VncService(db, sessions, jobCache, resourceCache, tunnelManager)
+        vncService = VncService(configuration.providerId, db, sessions, jobCache, resourceCache, tunnelManager)
         webService = WebService(
+            providerId = configuration.providerId,
             prefix = configuration.prefix,
             domain = configuration.domain,
             k8 = k8Dependencies,
@@ -196,18 +218,22 @@ class Server(
         )
 
         configureControllers(
-            AppKubernetesController(
-                jobManagement,
-                logService,
-                webService,
-                vncService,
-                utilizationService
-            ),
-            MaintenanceController(maintenance, micro.tokenValidation),
-            ShellController(k8Dependencies, db, sessions),
-            IngressController(ingressService),
-            LicenseController(licenseService),
-            NetworkIPController(networkIpService),
+            *buildList {
+                add(AppKubernetesController(
+                    configuration.providerId,
+                    jobManagement,
+                    logService,
+                    webService,
+                    vncService,
+                    utilizationService
+                ))
+                add(MaintenanceController(maintenance, micro.tokenValidation))
+                add(ShellController(configuration.providerId, k8Dependencies, db, sessions))
+                add(LicenseController(configuration.providerId, licenseService))
+
+                if (ingressService != null) add(IngressController(configuration.providerId, ingressService))
+                if (networkIpService != null) add(NetworkIPController(configuration.providerId, networkIpService))
+            }.toTypedArray()
         )
 
         runBlocking {

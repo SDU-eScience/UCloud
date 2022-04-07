@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.ipc.*
@@ -27,14 +28,14 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override suspend fun PluginContext.initialize(pluginConfig: Unit) {
+    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
         val log = Log("TicketBasedConnectionPlugin")
         if (config.serverMode == ServerMode.Server) {
             ipcServer.addHandler(
                 IpcHandler("connect.approve") { user, jsonRequest ->
                     log.debug("Asked to approve connection!")
                     if (user.uid != 0u || user.gid != 0u) {
-                        throw RPCException("Only root can call these endpoints", HttpStatusCode.Unauthorized)
+                        throw RPCException("Only root can use these endpoints", HttpStatusCode.Unauthorized)
                     }
 
                     val req = runCatching {
@@ -46,11 +47,11 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                         connection.prepareStatement(
                             //language=SQLite
                             """
-                            update ticket_connections
-                            set completed_at = datetime()
-                            where ticket = :ticket and completed_at is null
-                            returning ucloud_id
-                        """
+                                update ticket_connections
+                                set completed_at = datetime()
+                                where ticket = :ticket and completed_at is null
+                                returning ucloud_id
+                            """
                         ).useAndInvoke({ bindString("ticket", req.ticket) }) {
                             ucloudId = it.getString(0)
                         }
@@ -58,16 +59,12 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                         val capturedId =
                             ucloudId ?: throw RPCException("Invalid ticket supplied", HttpStatusCode.BadRequest)
 
-                        connection.prepareStatement(
-                            //language=SQLite
-                            """
-                            insert or replace into user_mapping (ucloud_id, local_identity)
-                            values (:ucloud_id, :local_identity)
-                        """
-                        ).useAndInvokeAndDiscard {
-                            bindString("ucloud_id", capturedId)
-                            bindString("local_identity", req.localIdentity)
-                        }
+                        val uid = req.localIdentity.toIntOrNull() ?: throw RPCException(
+                            "Invalid UID supplied: '$${req.localIdentity}'",
+                            HttpStatusCode.BadRequest
+                        )
+
+                        UserMapping.insertMapping(capturedId, uid, mappingExpiration(), ctx = connection)
 
                         IntegrationControl.approveConnection.callBlocking(
                             IntegrationControlApproveConnectionRequest(capturedId),

@@ -17,6 +17,7 @@ data class RootDepositRequestItem(
     val startDate: Long?,
     val endDate: Long?,
     val transactionId: String?,
+    val providerGeneratedId: String?,
 )
 ```
 
@@ -94,6 +95,17 @@ data class RootDepositRequestItem(
 <details>
 <summary>
 <code>transactionId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

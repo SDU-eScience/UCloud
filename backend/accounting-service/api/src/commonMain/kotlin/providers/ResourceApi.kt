@@ -15,6 +15,7 @@ import kotlin.reflect.typeOf
 
 @Suppress("EnumEntryName")
 @UCloudApiOwnedBy(Resources::class)
+// TODO(Dan): This should probably be moved to `dk.sdu.cloud` as it is of general use.
 enum class SortDirection {
     ascending,
     descending

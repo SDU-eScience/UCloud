@@ -1,5 +1,3 @@
-# Auditing Scenarios
-
 The following UCloud usage scenarios are used to manually verify that the complete auditing stack works. This is
 currently not machine tested.
 

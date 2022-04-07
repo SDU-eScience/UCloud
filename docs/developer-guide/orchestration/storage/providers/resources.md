@@ -72,6 +72,10 @@ The examples in this section follow the same scenario as the end-user API.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#init'><code>init</code></a></td>
+<td>Request from the user to (potentially) initialize any resources</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Callback received by the Provider when permissions are updated</td>
 </tr>
@@ -1020,7 +1024,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 ```
 
@@ -1086,7 +1090,7 @@ await callAPI(ExampleProviderPROVIDERIDApi.create(
 );
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 ```
 
@@ -1155,7 +1159,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# 500 Internal Server Error
+# HttpStatusCode(value=500, description=Internal Server Error)
 
 ```
 
@@ -1274,7 +1278,7 @@ ResourceProvider.create.call(
 ).orThrow()
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -1393,7 +1397,7 @@ await callAPI(ExampleProviderPROVIDERIDApi.create(
 );
 
 /*
-500 Internal Server Error
+HttpStatusCode(value=500, description=Internal Server Error)
 */
 
 /* In this case, imagine that the provider failed to create the second resource. This should
@@ -1514,7 +1518,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
 }'
 
 
-# 500 Internal Server Error
+# HttpStatusCode(value=500, description=Internal Server Error)
 
 # In this case, imagine that the provider failed to create the second resource. This should
 # immediately trigger cleanup on the provider, if the first resource was already created. The provider
@@ -1581,6 +1585,24 @@ UCloud/Core already.
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.provider.api.ExampleResource.md'>ExampleResource</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+
+
+### `init`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Request from the user to (potentially) initialize any resources_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceInitializationRequest.md'>ResourceInitializationRequest</a></code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This request is sent by the client, if the client believes that initialization of resources 
+might be needed. NOTE: This request might be sent even if initialization has already taken 
+place. UCloud/Core does not check if initialization has already taken place, it simply validates
+the request.
 
 
 ### `updateAcl`

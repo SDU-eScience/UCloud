@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.checkMinimumValue
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
@@ -16,7 +17,6 @@ import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.*
 import org.elasticsearch.client.Requests.bulkRequest
 import java.util.*
 import kotlin.test.assertEquals
@@ -106,17 +106,21 @@ val sampleProducts = listOf(sampleCompute, sampleStorage, sampleIngress, sampleN
 val sampleProductsOtherProvider = listOf(sampleComputeOtherProvider, sampleStorageOtherProvider)
 
 suspend fun createProvider(providerName: String = UCLOUD_PROVIDER) {
-    Providers.create.call(
-        bulkRequestOf(
-            ProviderSpecification(
-                providerName,
-                "localhost",
-                https = false,
-                port = 8080
-            )
-        ),
-        adminClient
-    ).orThrow()
+    if (providerName == "ucloud" || providerName == "dummy") {
+        println("ucloud and dummy provider initiated by launcher")
+    } else {
+        Providers.create.call(
+            bulkRequestOf(
+                ProviderSpecification(
+                    providerName,
+                    "localhost",
+                    https = false,
+                    port = 8080
+                )
+            ),
+            adminClient
+        ).orThrow()
+    }
 }
 
 /**

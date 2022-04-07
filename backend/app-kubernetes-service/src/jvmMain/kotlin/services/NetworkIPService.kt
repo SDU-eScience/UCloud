@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.kubernetes.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.kubernetes.api.K8Subnet
@@ -38,6 +39,7 @@ class NetworkIPService(
     private val db: DBContext,
     private val k8: K8Dependencies,
     private val networkInterface: String,
+    val product: ProductReference,
 ) : JobManagementPlugin {
     suspend fun create(networks: BulkRequest<NetworkIP>) {
         data class IdAndIp(val id: String, val ipAddress: String)

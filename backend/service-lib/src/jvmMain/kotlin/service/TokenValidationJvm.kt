@@ -25,6 +25,10 @@ typealias TokenValidationJWT = TokenValidation<DecodedJWT>
 class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
     //override val tokenType = DecodedJWT::class.java
 
+    override fun canHandleToken(token: Any?): Boolean {
+        return token is DecodedJWT
+    }
+
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
             withIssuer("cloud.sdu.dk")

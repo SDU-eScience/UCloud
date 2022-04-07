@@ -14,7 +14,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {useProjectManagementStatus} from "@/Project";
 import * as Pagination from "@/Pagination";
 import {ListRow, ListRowStat} from "@/ui-components/List";
-import {Flex, Label, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
+import {Flex, List, Text, Truncate, VerticalButtonGroup} from "@/ui-components";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
@@ -22,27 +22,28 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import {useHistory} from "react-router";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {dateToString} from "@/Utilities/DateUtilities";
-import {IconName} from "@/ui-components/Icon";
+import Icon, {IconName} from "@/ui-components/Icon";
 import {ThemeColor} from "@/ui-components/theme";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {FilterTrigger} from "./OutgoingApplications";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
     const [scrollGeneration, setScrollGeneration] = useState(0);
-    const [filter, setFilter] = React.useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
     const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
         {noop: true},
         emptyPage
     );
 
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
     useRefreshFunction(() => {
         fetchIngoingApplications(
             ingoingGrantApplications({
                 itemsPerPage: 50,
-                filter
+                filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
             })
         );
         setScrollGeneration(prev => prev + 1);
@@ -52,33 +53,45 @@ export const IngoingApplications: React.FunctionComponent = () => {
 
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
-        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, filter}));
-    }, [projectId, filter]);
+        fetchIngoingApplications(ingoingGrantApplications({
+            itemsPerPage: 50, filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
+        }));
+    }, [projectId, filters]);
 
     const loadMore = useCallback(() => {
-        fetchIngoingApplications(ingoingGrantApplications({itemsPerPage: 50, next: ingoingApplications.data.next,
-            filter}));
-    }, [ingoingApplications.data, filter]);
+        fetchIngoingApplications(ingoingGrantApplications({
+            itemsPerPage: 50, next: ingoingApplications.data.next,
+            filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
+        }));
+    }, [ingoingApplications.data, filters]);
 
     useLoading(ingoingApplications.loading);
     useSidebarPage(SidebarPages.Projects);
 
+    const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => { }, []);
+
+    const [widget, pill] = EnumFilter("cubeSolid", "filterType", "Grant status", Object
+        .keys(GrantApplicationFilter)
+        .map(it => ({
+            icon: "tags",
+            title: grantApplicationFilterPrettify(it as GrantApplicationFilter),
+            value: it
+        }))
+    );
+
     return <MainContainer
         header={<ProjectBreadcrumbs crumbs={[{title: "Ingoing Applications"}]} />}
         sidebar={<VerticalButtonGroup>
-            <Label>Filter</Label>
-            <ClickableDropdown
-                chevron
-                trigger={<FilterTrigger>{grantApplicationFilterPrettify(filter)}</FilterTrigger>}
-                options={
-                    Object
-                        .keys(GrantApplicationFilter)
-                        .map(it => ({
-                            text: grantApplicationFilterPrettify(it as GrantApplicationFilter),
-                            value: it
-                        }))
-                }
-                onChange={(value: GrantApplicationFilter) => setFilter(value)}
+            <ResourceFilter
+                browseType={BrowseType.MainContent}
+                pills={[pill]}
+                sortEntries={[]}
+                sortDirection={"ascending"}
+                filterWidgets={[widget]}
+                onSortUpdated={onSortUpdated}
+                readOnlyProperties={{}}
+                properties={filters}
+                setProperties={setFilters}
             />
         </VerticalButtonGroup>
         }
@@ -138,9 +151,9 @@ export const GrantApplicationList: React.FunctionComponent<{
                     truncateWidth="230px"
                     left={
                         <Flex width={1}>
-                            <Text title={app.grantRecipientTitle} mr={16}>
+                            <Truncate title={app.grantRecipientTitle}>
                                 {app.grantRecipientTitle}
-                            </Text>
+                            </Truncate>
                             {slim ? null : (
                                 <Truncate>
                                     {/*
@@ -153,7 +166,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             )}
                         </Flex>
                     }
-                    right={null}
+                    right={<Icon ml="4px" name={icon} color={iconColor} />}
                     leftSub={
                         <>
                             {slim ? null : (
@@ -172,7 +185,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             </ListRowStat>
                         </>
                     }
-                />;
+                />
             })}
         </List>
     );

@@ -65,6 +65,10 @@ class TokenValidationWithProviderSupport(
         }
     }
 
+    override fun canHandleToken(token: Any?): Boolean {
+        return token is DecodedJWT
+    }
+
     override fun decodeToken(token: DecodedJWT): SecurityPrincipalToken {
         return delegate.decodeToken(token)
     }

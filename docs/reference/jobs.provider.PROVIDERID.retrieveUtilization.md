@@ -19,4 +19,3 @@ __Implementation requirements:__
 For more information, see the end-user API ([`jobs.retrieveUtilization`](/docs/reference/jobs.retrieveUtilization.md))
 
 
-

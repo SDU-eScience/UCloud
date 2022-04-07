@@ -1,8 +1,8 @@
 package dk.sdu.cloud.test
 
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.DynamicTest
 import org.junit.jupiter.api.TestFactory

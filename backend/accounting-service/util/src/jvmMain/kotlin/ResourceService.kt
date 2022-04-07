@@ -1,10 +1,12 @@
 package dk.sdu.cloud.accounting.util
 
+import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductArea
+import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.api.providers.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
@@ -19,22 +21,31 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 
+// TODO(Dan): This should probably be moved to `dk.sdu.cloud` since it is of general use
 data class PartialQuery(
     val arguments: EnhancedPreparedStatement.() -> Unit,
     @Language("sql")
     val query: String,
 )
 
+enum class ResourceBrowseStrategy {
+    OLD,
+    NEW
+}
+
 abstract class ResourceService<
-    Res : Resource<Prod, Support>,
-    Spec : ResourceSpecification,
-    Update : ResourceUpdate,
-    Flags : ResourceIncludeFlags,
-    Status : ResourceStatus<Prod, Support>,
-    Prod : Product,
-    Support : ProductSupport,
-    Comms : ProviderComms>(
+        Res : Resource<Prod, Support>,
+        Spec : ResourceSpecification,
+        Update : ResourceUpdate,
+        Flags : ResourceIncludeFlags,
+        Status : ResourceStatus<Prod, Support>,
+        Prod : Product,
+        Support : ProductSupport,
+        Comms : ProviderComms>(
+    protected val projectCache: ProjectCache,
     protected val db: AsyncDBSessionFactory,
     protected val providers: Providers<Comms>,
     protected val support: ProviderSupport<Comms, Prod, Support>,
@@ -47,6 +58,8 @@ abstract class ResourceService<
     protected open val defaultSortDirection: SortDirection = SortDirection.ascending
     protected abstract val serializer: KSerializer<Res>
     protected open val requireAdminForCreate: Boolean = false
+    protected open val personalResource: Boolean = false
+    protected open val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.OLD
 
     private val resourceTable = SqlObject.Table("provider.resource")
     private val defaultSortColumns = mapOf(
@@ -56,7 +69,6 @@ abstract class ResourceService<
     private val computedSortColumns: Map<String, SqlObject.Column> by lazy {
         defaultSortColumns + sortColumns
     }
-
 
     protected open val resourceType: String by lazy {
         runBlocking {
@@ -81,7 +93,7 @@ abstract class ResourceService<
         }
     }
 
-    abstract val productArea: ProductArea
+    abstract val productArea: ProductType
 
     abstract fun userApi(): ResourceApi<Res, Spec, Update, Flags, Status, Prod, Support>
     abstract fun controlApi(): ResourceControlApi<Res, Spec, Update, Flags, Status, Prod, Support>
@@ -101,11 +113,17 @@ abstract class ResourceService<
         return paginatedQuery(
             browseQuery,
             actorAndProject,
-            listOf(Permission.READ),
+            // TODO Bad fix for a bug in the new query
+            if (actorAndProject.actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)) {
+                listOf(Permission.PROVIDER)
+            } else {
+                listOf(Permission.READ)
+            },
             request.flags,
             request,
             request.normalize(),
             useProject,
+            null,
             ctx
         )
     }
@@ -134,52 +152,15 @@ abstract class ResourceService<
         ctx: DBContext?,
         asProvider: Boolean,
     ): Res {
-        val convertedId = id.toLongOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        val (params, query) = browseQuery(actorAndProject, flags)
-        val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
-
-        val (resourceParams, resourceQuery) = accessibleResources(
-            actorAndProject.actor,
+        return retrieveBulk(
+            actorAndProject,
+            listOf(id),
             if (asProvider) listOf(Permission.PROVIDER) else listOf(Permission.READ),
-            resourceId = convertedId,
-            projectFilter = "",
-            flags = flags,
-            includeUnconfirmed = asProvider,
-        )
-
-        @Suppress("SqlResolve")
-        return (ctx ?: db).withSession { session ->
-            session
-                .sendPreparedStatement(
-                    {
-                        resourceParams()
-                        params()
-                    },
-                    """
-                        with
-                            accessible_resources as ($resourceQuery),
-                            spec as ($query)
-                        select provider.resource_to_json(resc, $converter(spec))
-                        from
-                            accessible_resources resc join
-                            spec on (resc.r).id = spec.resource
-                    """,
-                    "${this::class.simpleName} retrieve"
-                )
-                .rows
-                .singleOrNull()
-                ?.let {
-                    try {
-                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
-                    } catch (ex: Throwable) {
-                        log.warn("Caught exception while retrieving resource: ${it.getString(0)}")
-                        log.warn(ex.stackTraceToString())
-                        null
-                    }
-                }
-                ?.attachExtra(flags)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-        }
+            flags,
+            ctx = ctx,
+            requireAll = false,
+            includeUnconfirmed = asProvider
+        ).singleOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
     open suspend fun retrieveBulk(
@@ -193,6 +174,8 @@ abstract class ResourceService<
         ctx: DBContext? = null,
         useProject: Boolean = false,
     ): List<Res> {
+        val mappedIds = ids.mapNotNull { it.toLongOrNull() }
+        if (mappedIds.isEmpty()) return emptyList()
         if (permissionOneOf.isEmpty()) throw IllegalArgumentException("Must specify at least one permission")
 
         val (params, query) = browseQuery(actorAndProject, flags)
@@ -204,32 +187,46 @@ abstract class ResourceService<
             includeUnconfirmed = includeUnconfirmed,
             flags = flags,
             projectFilter = if (useProject) actorAndProject.project else "",
-            simpleFlags = (simpleFlags ?: SimpleResourceIncludeFlags()).copy(filterIds = ids.mapNotNull { it.toLongOrNull() }.joinToString(","))
+            simpleFlags = (simpleFlags ?: SimpleResourceIncludeFlags()).copy(
+                filterIds = mappedIds.joinToString(",")
+            )
         )
 
         @Suppress("SqlResolve")
         return (ctx ?: db).withSession { session ->
-            val result = session
-                .sendPreparedStatement(
-                    {
+            val rows = when (browseStrategy) {
+                ResourceBrowseStrategy.OLD -> {
+                    session.sendPreparedStatement(
+                        {
+                            params()
+                            resourceParams()
+                            setParameter("ids", mappedIds)
+                        },
+                        """
+                            with
+                                accessible_resources as ($resourceQuery),
+                                spec as ($query)
+                            select provider.resource_to_json(resc, $converter(spec))
+                            from
+                                accessible_resources resc join
+                                spec on (resc.r).id = spec.resource
+                            where
+                                spec.resource = some(:ids::bigint[])
+                        """,
+                        "${this::class.simpleName} retrieveBulk",
+                    )
+                        .rows
+                }
+
+                ResourceBrowseStrategy.NEW -> {
+                    fetchResourcesNew(session, resourceQuery, query, converter) {
                         params()
                         resourceParams()
-                        setParameter("ids", ids.mapNotNull { it.toLongOrNull() })
-                    },
-                    """
-                        with
-                            accessible_resources as ($resourceQuery),
-                            spec as ($query)
-                        select provider.resource_to_json(resc, $converter(spec))
-                        from
-                            accessible_resources resc join
-                            spec on (resc.r).id = spec.resource
-                        where
-                            spec.resource = some(:ids::bigint[])
-                    """,
-                    "${this::class.simpleName} retrieveBulk"
-                )
-                .rows
+                    }
+                }
+            }
+
+            val result = rows
                 .asSequence()
                 .map { defaultMapper.decodeFromString(serializer, it.getString(0)!!) }
                 .filter {
@@ -247,14 +244,56 @@ abstract class ResourceService<
                 throw RPCException("Unable to use all requested resources", HttpStatusCode.BadRequest)
             }
 
-            result.attachExtra(flags, flags?.includeSupport ?: simpleFlags?.includeSupport ?: false)
+            result.attachExtra(
+                actorAndProject.actor,
+                flags,
+                flags?.includeSupport ?: simpleFlags?.includeSupport ?: false
+            )
         }
     }
 
-    private suspend fun List<Res>.attachExtra(flags: Flags?, includeSupport: Boolean = false): List<Res> =
-        onEach { it.attachExtra(flags, includeSupport) }
+    private suspend fun List<Res>.attachExtra(actor: Actor, flags: Flags?, includeSupport: Boolean = false): List<Res> =
+        onEach { it.attachExtra(actor, flags, includeSupport) }
 
-    private suspend fun Res.attachExtra(flags: Flags?, includeSupport: Boolean = false): Res {
+    private suspend fun Res.attachExtra(actor: Actor, flags: Flags?, includeSupport: Boolean = false): Res {
+        val perms = permissions
+        if (browseStrategy == ResourceBrowseStrategy.NEW && perms != null && perms.myself.isEmpty()) {
+            // In this specific case, we need to extract the permissions from the `others` list
+            val username = actor.safeUsername()
+            val cached = projectCache.lookup(username)
+            val actualPermissions = HashSet<Permission>()
+
+            if (owner.createdBy == username) {
+                actualPermissions.add(Permission.ADMIN)
+            }
+
+            for (admin in cached.adminInProjects) {
+                if (owner.project == admin) {
+                    actualPermissions.add(Permission.ADMIN)
+                }
+            }
+
+            for (entry in (perms.others ?: emptyList())) {
+                when (val entity = entry.entity) {
+                    is AclEntity.User -> {
+                        if (entity.username == username) {
+                            actualPermissions.addAll(entry.permissions)
+                        }
+                    }
+
+                    is AclEntity.ProjectGroup -> {
+                        for (membership in cached.groupMemberOf) {
+                            if (membership.group == entity.group) {
+                                actualPermissions.addAll(entry.permissions)
+                            }
+                        }
+                    }
+                }
+            }
+
+            perms.myself = actualPermissions.toList()
+        }
+
         if (specification.product.provider != Provider.UCLOUD_CORE_PROVIDER) {
             if (includeSupport || flags?.includeSupport == true) {
                 val retrieveProductSupport = support.retrieveProductSupport(specification.product)
@@ -314,6 +353,8 @@ abstract class ResourceService<
         request: BulkRequest<Spec>,
         ctx: DBContext?
     ): BulkResponse<FindByStringId?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         var lastBatchOfIds: List<Long>? = null
         val adjustedResponse = ArrayList<FindByStringId?>()
 
@@ -323,7 +364,7 @@ abstract class ResourceService<
         }
 
         proxy.bulkProxy(
-            actorAndProject,
+            resolvedActorAndProject,
             request,
             object : BulkProxyInstructions<Comms, Support, Res, Spec, BulkRequest<Res>, FindByStringId>() {
                 override val isUserRequest: Boolean = true
@@ -351,25 +392,26 @@ abstract class ResourceService<
                 ): BulkRequest<Res> {
                     return (ctx as? AsyncDBConnection ?: db).withSession(remapExceptions = true) { session ->
                         if (!isCoreResource) {
-                            val project = actorAndProject.project
+                            val project = resolvedActorAndProject.project
                             payment.creditCheck(
                                 if (project != null) {
                                     WalletOwner.Project(project)
                                 } else {
-                                    WalletOwner.User(actorAndProject.actor.safeUsername())
+                                    WalletOwner.User(resolvedActorAndProject.actor.safeUsername())
                                 },
                                 resources.map { it.second.reference }
                             )
                         }
 
-                        val isPublicRead = isResourcePublicRead(actorAndProject, resources.map { it.first }, session)
+                        val isPublicRead =
+                            isResourcePublicRead(resolvedActorAndProject, resources.map { it.first }, session)
                         val generatedIds = session
                             .sendPreparedStatement(
                                 {
                                     setParameter("type", resourceType)
                                     setParameter("provider", provider.takeIf { it != Provider.UCLOUD_CORE_PROVIDER })
-                                    setParameter("created_by", actorAndProject.actor.safeUsername())
-                                    setParameter("project", actorAndProject.project)
+                                    setParameter("created_by", resolvedActorAndProject.actor.safeUsername())
+                                    setParameter("project", resolvedActorAndProject.project)
                                     setParameter("product_ids", resources.map { it.second.reference.id })
                                     setParameter("product_categories", resources.map { it.second.reference.category })
                                     setParameter("is_public_read", isPublicRead)
@@ -411,7 +453,7 @@ abstract class ResourceService<
                         check(generatedIds.size == resources.size)
 
                         createSpecifications(
-                            actorAndProject,
+                            resolvedActorAndProject,
                             generatedIds.zip(resources.map { it.first }),
                             session,
                             false
@@ -422,7 +464,7 @@ abstract class ResourceService<
 
                         BulkRequest(
                             retrieveBulk(
-                                actorAndProject,
+                                resolvedActorAndProject,
                                 generatedIds.map { it.toString() },
                                 if (requireAdminForCreate) listOf(Permission.ADMIN) else listOf(Permission.EDIT),
                                 ctx = session,
@@ -473,6 +515,7 @@ abstract class ResourceService<
                     cause: Throwable,
                     mappedRequestIfAny: BulkRequest<Res>?
                 ) {
+                    if (true) return
                     if (mappedRequestIfAny != null && shouldCloseEarly) {
                         db.withTransaction { session ->
                             deleteFromDatabaseSkipProvider(
@@ -501,17 +544,26 @@ abstract class ResourceService<
         // Empty by default
     }
 
+    open suspend fun onUpdateAcl(
+        session: AsyncDBConnection,
+        request: BulkRequest<UpdatedAclWithResource<Res>>
+    ) {
+        // Empty by default
+    }
+
     override suspend fun updateAcl(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdatedAcl>
     ): BulkResponse<Unit?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                actorAndProject,
+                resolvedActorAndProject,
                 request,
                 object : BulkProxyInstructions<Comms, Support, Res, UpdatedAcl,
-                    BulkRequest<UpdatedAclWithResource<Res>>, Unit>() {
+                        BulkRequest<UpdatedAclWithResource<Res>>, Unit>() {
                     override val isUserRequest: Boolean = true
 
                     override fun retrieveCall(comms: Comms) = providerApi(comms).updateAcl
@@ -598,15 +650,17 @@ abstract class ResourceService<
                                 )
                         }
 
-                        return BulkRequest(
-                            resources.map {
-                                UpdatedAclWithResource(
-                                    (it.second as ProductRefOrResource.SomeResource<Res>).resource,
-                                    it.first.added,
-                                    it.first.deleted
-                                )
-                            }
-                        )
+                        val bulkRequest = BulkRequest(resources.map {
+                            UpdatedAclWithResource(
+                                (it.second as ProductRefOrResource.SomeResource<Res>).resource,
+                                it.first.added,
+                                it.first.deleted
+                            )
+                        })
+
+                        onUpdateAcl(session, bulkRequest)
+
+                        return bulkRequest
                     }
 
                     override suspend fun afterCall(
@@ -680,13 +734,15 @@ abstract class ResourceService<
         actorAndProject: ActorAndProject,
         request: BulkRequest<FindByStringId>
     ): BulkResponse<Unit?> {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val hasDelete = providerApi(providers.placeholderCommunication).delete != null
         if (!hasDelete) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
         val session = db.openSession()
         return try {
             proxy.bulkProxy(
-                actorAndProject,
+                resolvedActorAndProject,
                 request,
                 object : BulkProxyInstructions<Comms, Support, Res, FindByStringId, BulkRequest<Res>, Unit>() {
                     override val isUserRequest: Boolean = true
@@ -764,10 +820,12 @@ abstract class ResourceService<
         updates: BulkRequest<ResourceUpdateAndId<Update>>,
         requireAll: Boolean,
     ) {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         db.withSession { session ->
             val ids = updates.items.asSequence().map { it.id }.toSet()
             val resources = retrieveBulk(
-                actorAndProject,
+                resolvedActorAndProject,
                 ids,
                 listOf(Permission.PROVIDER),
                 includeUnconfirmed = true,
@@ -881,10 +939,9 @@ abstract class ResourceService<
                             )
                         select distinct resource_id from acl_entries;
                     """,
-                    debug = true
                 ).rows.map { it.getLong(0)!! }
 
-            check(generatedIds.size == request.items.size, lazyMessage = {"Might be missing product"} )
+            check(generatedIds.size == request.items.size, lazyMessage = { "Might be missing product" })
 
             createSpecifications(
                 actorAndProject,
@@ -898,24 +955,31 @@ abstract class ResourceService<
     }
 
     override suspend fun init(actorAndProject: ActorAndProject) {
-        val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+        val owner = ResourceOwner(
+            actorAndProject.actor.safeUsername(),
+            if (personalResource) null else actorAndProject.project
+        )
         val relevantProviders = findRelevantProviders(actorAndProject)
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             val api = providerApi(comms)
 
             // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
-            for (attempt in 0 until 5) {
-                val resp =
-                    api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
+            loop@for (attempt in 0 until 5) {
+                try {
+                    val resp =
+                        api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
 
-                if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
-                    val im = IntegrationProvider(provider)
-                    im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
-                    delay(200L + (attempt * 500))
-                    continue
-                } else {
-                    break
+                    if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
+                        val im = IntegrationProvider(provider)
+                        im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
+                        delay(200L + (attempt * 500))
+                        continue@loop
+                    } else {
+                        break@loop
+                    }
+                } catch(ex: Throwable) {
+                    log.info(ex.stackTraceToString())
                 }
             }
         }
@@ -972,10 +1036,12 @@ abstract class ResourceService<
         request: BulkRequest<ResourceChargeCredits>,
         checkOnly: Boolean
     ): ResourceChargeCreditsResponse {
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
         val ids = request.items.asSequence().map { it.id }.toSet()
 
         val allResources = retrieveBulk(
-            actorAndProject,
+            resolvedActorAndProject,
             ids,
             listOf(Permission.PROVIDER),
             simpleFlags = SimpleResourceIncludeFlags(includeSupport = true),
@@ -1025,14 +1091,357 @@ abstract class ResourceService<
         request: ResourceSearchRequest<Flags>,
         ctx: DBContext?,
     ): PageV2<Res> {
-        val search = browseQuery(actorAndProject, request.flags, request.query)
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
+        val search = browseQuery(resolvedActorAndProject, request.flags, request.query)
         return paginatedQuery(
-            search, actorAndProject, listOf(Permission.READ), request.flags,
-            request, request.normalize(), true, ctx
+            search, resolvedActorAndProject, listOf(Permission.READ), request.flags,
+            request, request.normalize(), true, request.query, ctx
         )
     }
 
-    protected fun accessibleResources(
+    protected suspend fun accessibleResources(
+        actor: Actor,
+        permissionsOneOf: Collection<Permission>,
+        resourceId: Long? = null,
+        projectFilter: String? = "",
+        flags: Flags? = null,
+        simpleFlags: SimpleResourceIncludeFlags? = null,
+        includeUnconfirmed: Boolean = false,
+        offset: Long? = null,
+        limit: Long? = null,
+        sort: SortFlags? = null,
+        query: String? = null,
+    ): PartialQuery {
+        return when (browseStrategy) {
+            ResourceBrowseStrategy.OLD -> accessibleResourcesOld(
+                actor, permissionsOneOf, resourceId, projectFilter,
+                flags, simpleFlags, includeUnconfirmed
+            )
+            ResourceBrowseStrategy.NEW -> accessibleResourcesNew(
+                actor, permissionsOneOf, resourceId, projectFilter,
+                flags, simpleFlags, includeUnconfirmed, offset, limit, sort, query
+            )
+        }
+    }
+
+    protected open suspend fun applyFilters(
+        actor: Actor,
+        query: String?,
+        flags: Flags?,
+    ): PartialQuery {
+        return PartialQuery({}, "true")
+    }
+
+    protected suspend fun accessibleResourcesNew(
+        actor: Actor,
+        permissionsOneOf: Collection<Permission>,
+        resourceId: Long? = null,
+        projectFilter: String? = "",
+        flags: Flags? = null,
+        simpleFlags: SimpleResourceIncludeFlags? = null,
+        includeUnconfirmed: Boolean = false,
+        offset: Long? = null,
+        limit: Long? = null,
+        sort: SortFlags? = null,
+        query: String? = null,
+    ): PartialQuery {
+        // NOTE(Dan): This function is responsible for fetching the accessible resources.
+        // The query starts by fetching the relevant rows from provider.resource and the specification.
+        // At this point we perform a sort and limit. It is crucial that we limit the query at this stage
+        // as the query times otherwise grow out of control.
+        //
+        // The query is built dynamically based on what is requested. This allows us to take a faster path
+        // through the query when possible.
+
+        // NOTE(Dan): We start by determining the concrete values of every flag. The flags in `Flags` have
+        // higher priority than `simpleFlags`.
+        val filterCreatedBy = flags?.filterCreatedBy ?: simpleFlags?.filterCreatedBy
+        val filterCreatedBefore = flags?.filterCreatedBefore ?: simpleFlags?.filterCreatedBefore
+        val filterCreatedAfter = flags?.filterCreatedAfter ?: simpleFlags?.filterCreatedAfter
+        val filterProvider = flags?.filterProvider ?: simpleFlags?.filterProvider
+        val filterProductId = flags?.filterProductId ?: simpleFlags?.filterProductId
+        val filterProductCategory = flags?.filterProductCategory ?: simpleFlags?.filterProductCategory
+        val filterProviderIds = (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
+        val filterIds = run {
+            (flags?.filterIds ?: simpleFlags?.filterIds ?: "")
+                .split(",")
+                .asSequence()
+                .map { it.toLongOrNull() }
+                .plus(resourceId)
+                .filterNotNull()
+                .toList()
+                .takeIf { it.isNotEmpty() }
+        }
+        val hideProductId = flags?.hideProductId ?: simpleFlags?.hideProductId
+        val hideProductCategory = flags?.hideProductCategory ?: simpleFlags?.hideProductCategory
+
+        // NOTE(Dan): Next we need to determine the table name of the specification. We also need to determine how to
+        // sort the query.
+        val tableName = table.verify({ db.openSession() }, { db.closeSession(it) })
+        val columnToSortBy = computedSortColumns[sort?.sortBy ?: ""] ?: defaultSortColumn
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortDirection = when (sort?.sortDirection ?: defaultSortDirection) {
+            SortDirection.ascending -> "asc"
+            SortDirection.descending -> "desc"
+        }
+
+        // NOTE(Dan): Project information is kept in a Redis cache. We fetch it only if needed.
+        val needsProjectMembership = when {
+            projectFilter == null -> false
+            permissionsOneOf.contains(Permission.PROVIDER) -> false
+            actor is Actor.System -> false
+            else -> true
+        }
+
+        val projectMembership = if (needsProjectMembership) {
+            projectCache.lookup(actor.safeUsername())
+        } else {
+            null
+        }
+
+        // NOTE(Dan): We will optionally fetch the ACL early. We only fetch it early if we need it to
+        // determine which resources are available to the user. In many cases we can completely skip the ACL
+        // as we have access as an admin/provider.
+        val needsEarlyAcl: Boolean = run acl@{
+            if (permissionsOneOf.contains(Permission.ADMIN)) return@acl false
+            if (!needsProjectMembership) return@acl false
+            if (projectFilter != "") {
+                val isAdmin = projectMembership!!.adminInProjects.any { it == projectFilter }
+                if (isAdmin) return@acl false
+            }
+            true
+        }
+
+        val (filterParams, filterQuery) = applyFilters(actor, query, flags)
+
+        return PartialQuery(
+            {
+                filterParams()
+                setParameter("resource_type", resourceType)
+                setParameter("include_unconfirmed", includeUnconfirmed)
+                setParameter("username", actor.safeUsername())
+                if (filterCreatedBy != null) setParameter("filter_created_by", filterCreatedBy)
+                if (filterCreatedBefore != null) setParameter("filter_created_before", filterCreatedBefore)
+                if (filterCreatedAfter != null) setParameter("filter_created_after", filterCreatedAfter)
+                if (filterProvider != null) setParameter("filter_provider", filterProvider)
+                if (filterProductId != null) setParameter("filter_product_id", filterProductId)
+                if (filterProductCategory != null) setParameter("filter_product_category", filterProductCategory)
+                if (filterProviderIds != null) setParameter("filter_provider_ids", filterProviderIds)
+                if (filterIds != null) setParameter("filter_ids", filterIds)
+                if (hideProductId != null) setParameter("hide_product_id", hideProductId)
+                if (hideProductCategory != null) setParameter("hide_product_category", hideProductCategory)
+                if (!projectFilter.isNullOrEmpty()) setParameter("project_filter", projectFilter)
+                if (projectMembership != null) setParameter("groups", projectMembership.groupMemberOf.map { it.group })
+                if (projectMembership != null) setParameter("admin_in", projectMembership.adminInProjects)
+                if (needsEarlyAcl) setParameter("permissions", permissionsOneOf.map { it.name })
+            },
+            buildString {
+                run {
+                    appendLine("select distinct")
+                    appendLine("  r, spec")
+                    appendLine("  , p.name as product_name, pc.category as product_category, pc.provider as provider")
+                    appendLine("  , $sortBy")
+
+                    if (needsEarlyAcl) {
+                        // We write an empty array here to indicate that the permissions should be extracted from the
+                        // ACL we retrieve later. See `attachExtra` for details.
+                        appendLine("  , array[]::text[] as permissions")
+                    } else {
+                        // If we don't need to ACL, then it is because we already know for sure that we implicitly are
+                        // an ADMIN or a PROVIDER.
+                        if (permissionsOneOf.contains(Permission.PROVIDER)) {
+                            appendLine("  , array['PROVIDER'] as permissions")
+                        } else {
+                            appendLine("  , array['ADMIN', 'READ', 'EDIT'] as permissions")
+                        }
+                    }
+                }
+
+                run {
+                    // NOTE(Dan): We always select the resource, specification and product information.
+                    appendLine("from")
+                    appendLine("  provider.resource r")
+                    appendLine("  join $tableName spec on r.id = spec.resource")
+                    appendLine("  join accounting.products p on r.product = p.id")
+                    appendLine("  join accounting.product_categories pc on p.category = pc.id")
+
+                    if (needsEarlyAcl) {
+                        appendLine("  left join provider.resource_acl_entry acl on acl.resource_id = r.id")
+                    }
+                }
+
+                run {
+                    // NOTE(Dan): We now apply filters in the query. All filters are AND'd together at this level of
+                    // indentation. At each level of indentation we swap between AND and OR. This makes the query
+                    // easier to read and reason about. The AND/OR should be attached to each filter at the beginning.
+                    appendLine("where")
+                    appendLine("  r.type = :resource_type")
+
+                    run {
+                        // Verify permissions
+                        appendLine("  and (")
+                        if (permissionsOneOf.contains(Permission.READ)) {
+                            appendLine("    r.public_read = true")
+                        } else {
+                            appendLine("    false")
+                        }
+
+                        when {
+                            actor is Actor.System -> {
+                                // Apply no filter. The system always has permission to access the object.
+                                appendLine("    or true")
+                            }
+
+                            permissionsOneOf.contains(Permission.PROVIDER) -> {
+                                // Verify that we are the provider user
+                                appendLine("    or :username = '#P_' || pc.provider")
+                            }
+
+                            permissionsOneOf.contains(Permission.ADMIN) -> {
+                                if (projectFilter != null) {
+                                    appendLine("  or r.project = some(:admin_in::text[])")
+                                }
+
+                                if (projectFilter == null || projectFilter == "") {
+                                    appendLine("  or (r.created_by = :username and r.project is null)")
+                                }
+                            }
+
+                            projectFilter == null -> {
+                                // Fast-path, we just need to look at created_by
+                                appendLine("    or (r.created_by = :username and r.project is null)")
+                            }
+
+                            projectFilter != "" -> {
+                                // We need to consider a specific project
+                                val membership = projectCache.lookup(actor.safeUsername())
+                                val isAdmin = membership.adminInProjects.any { it == projectFilter }
+
+                                if (isAdmin) {
+                                    appendLine("    or r.project = :project_filter")
+                                } else {
+                                    appendLine("    or (")
+                                    appendLine("      r.project = :project_filter")
+                                    appendLine("      and (acl.group_id = some(:groups::text[]) or acl.username = :username)")
+                                    appendLine("      and acl.permission = some(:permissions::text[])")
+                                    appendLine("    )")
+                                }
+                            }
+
+                            else -> {
+                                // We need to consider everything
+                                appendLine("    or (")
+                                appendLine("      (r.project = some(:admin_in::text[]) or acl.group_id = some(:groups::text[]) or acl.username = :username)")
+                                appendLine("      and acl.permission = some(:permissions::text[])")
+                                appendLine("    )")
+
+                                appendLine("    or (r.created_by = :username and r.project is null)")
+                            }
+                        }
+                        appendLine("  and")
+                        append(filterQuery)
+
+                        appendLine("  )")
+                    }
+
+                    run {
+                        // Apply filters
+                        appendLine("  and (confirmed_by_provider = true or :include_unconfirmed = true)")
+
+                        if (filterCreatedBy != null) {
+                            appendLine("  and r.created_by ilike '%' || :filter_created_by || '%'")
+                        }
+
+                        if (filterCreatedAfter != null) {
+                            appendLine("  and r.created_at >= to_timestamp(:filter_created_after::bigint / 1000)")
+                        }
+
+                        if (filterCreatedBefore != null) {
+                            appendLine("  and r.created_at <= to_timestamp(:filter_created_before::bigint / 1000)")
+                        }
+
+                        if (filterProviderIds != null) {
+                            appendLine("  and r.provider_generated_id = some(:filter_provider_ids::text[])")
+                        }
+
+                        if (filterIds != null) {
+                            appendLine("  and r.id = some(:filter_ids::bigint[])")
+                        }
+
+                        if (filterProductCategory != null) {
+                            appendLine("  and pc.category = :filter_product_category")
+                        }
+
+                        if (filterProductId != null) {
+                            appendLine("  and p.name = :filter_product_id")
+                        }
+
+                        if (hideProductCategory != null) {
+                            appendLine("  and pc.category != :hide_product_category")
+                        }
+
+                        if (hideProductId != null) {
+                            appendLine("  and p.name != :hide_product_id")
+                        }
+                    }
+                }
+
+                // Apply sort and pagination
+                appendLine("order by $sortBy $sortDirection")
+                if (offset != null) appendLine("offset $offset")
+                if (limit != null) appendLine("limit $limit")
+            }
+        )
+    }
+
+    private suspend fun fetchResourcesNew(
+        session: AsyncDBConnection,
+        resourceQuery: String,
+        query: String,
+        converter: String,
+        sort: SortFlags? = null,
+        params: EnhancedPreparedStatement.() -> Unit,
+    ): ResultSet {
+        val columnToSortBy = computedSortColumns[sort?.sortBy ?: ""] ?: defaultSortColumn
+        var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
+        val sortDirection = when (sort?.sortDirection ?: defaultSortDirection) {
+            SortDirection.ascending -> "asc"
+            SortDirection.descending -> "desc"
+        }
+
+        return session.sendPreparedStatement(
+            params,
+            """
+                with
+                    relevant_resources as ($resourceQuery),
+                    spec as ($query),
+                    accessible_resources as (
+                        select distinct
+                            r.r,
+                            r.product_name as name,
+                            r.product_category as category,
+                            r.provider as provider,
+                            r.permissions,
+                            array_remove(array_agg(distinct acl), null) as other_permissions,
+                            array_remove(array_agg(distinct update), null) as updates
+                        from
+                            relevant_resources r left join
+                            provider.resource_acl_entry acl on (r.r).id = acl.resource_id left join
+                            provider.resource_update update on (r.r).id = update.resource
+                        group by
+                            r.r, r.product_name, r.product_category, r.provider, r.permissions
+                    )
+                select provider.resource_to_json(resc, $converter(spec_t))
+                from
+                    accessible_resources resc join
+                    spec spec_t on (resc.r).id = spec_t.resource
+                order by $sortBy $sortDirection
+            """,
+        ).rows
+    }
+
+    protected fun accessibleResourcesOld(
         actor: Actor,
         permissionsOneOf: Collection<Permission>,
         resourceId: Long? = null,
@@ -1071,7 +1480,7 @@ abstract class ResourceService<
                     (flags?.filterProviderIds ?: simpleFlags?.filterProviderIds)?.split(",")
                 )
                 setParameter(
-                    "filter_ids", 
+                    "filter_ids",
                     (flags?.filterIds ?: simpleFlags?.filterIds)?.let { ids ->
                         ids.split(",").mapNotNull { it.toLongOrNull() }
                     }
@@ -1207,65 +1616,88 @@ abstract class ResourceService<
         sortFlags: SortFlags?,
         pagination: NormalizedPaginationRequestV2,
         useProject: Boolean,
-        ctx: DBContext?
+        query: String?,
+        ctx: DBContext?,
     ): PageV2<Res> {
-        val (params, query) = partialQuery
+        val resolvedActorAndProject =
+            if (personalResource) ActorAndProject(actorAndProject.actor, null) else actorAndProject
+        val (params, sqlQuery) = partialQuery
         val converter = sqlJsonConverter.verify({ db.openSession() }, { db.closeSession(it) })
         val columnToSortBy = computedSortColumns[sortFlags?.sortBy ?: ""] ?: defaultSortColumn
         var sortBy = columnToSortBy.verify({ db.openSession() }, { db.closeSession(it) })
-        if (sortBy == "created_by") {
-            sortBy = "(resc.r).created_by"
-        } else if (sortBy == "created_at") {
-            sortBy = "(resc.r).created_at"
-        }
 
         val sortDirection = when (sortFlags?.sortDirection ?: defaultSortDirection) {
             SortDirection.ascending -> "asc"
             SortDirection.descending -> "desc"
         }
 
+        val offset = (pagination.itemsToSkip ?: 0L) + ((pagination.next ?: "").toIntOrNull() ?: 0)
+        val next = (offset + pagination.itemsPerPage).toString()
+
         val (resourceParams, resourceQuery) = accessibleResources(
-            actorAndProject.actor,
+            resolvedActorAndProject.actor,
             permissionsOneOf,
-            projectFilter = if (useProject) actorAndProject.project else "",
+            projectFilter = if (useProject) resolvedActorAndProject.project else "",
             flags = flags,
+            limit = pagination.itemsPerPage.toLong(),
+            offset = offset,
+            sort = sortFlags,
+            query = query
         )
 
-        @Suppress("SqlResolve")
-        return (ctx ?: db).paginateV2(
-            actorAndProject.actor,
-            pagination,
-            create = { session ->
-                session.sendPreparedStatement(
-                    {
+        val rows = (ctx ?: db).withSession { session ->
+            when (browseStrategy) {
+                ResourceBrowseStrategy.OLD -> {
+                    if (sortBy == "created_by") {
+                        sortBy = "(resc.r).created_by"
+                    } else if (sortBy == "created_at") {
+                        sortBy = "(resc.r).created_at"
+                    }
+
+                    session.sendPreparedStatement(
+                        {
+                            resourceParams()
+                            params()
+                        },
+                        """
+                            with
+                                accessible_resources as ($resourceQuery),
+                                spec as ($sqlQuery)
+                            select provider.resource_to_json(resc, $converter(spec))
+                            from
+                                accessible_resources resc join
+                                spec on (resc.r).id = spec.resource
+                            order by
+                                $sortBy $sortDirection, resc.category, resc.name 
+                            limit ${pagination.itemsPerPage}
+                            offset $offset
+                        """,
+                    ).rows
+                }
+
+                ResourceBrowseStrategy.NEW -> {
+                    fetchResourcesNew(session, resourceQuery, sqlQuery, converter) {
                         resourceParams()
                         params()
-                    },
-                    """
-                        declare c cursor for
-                        with
-                            accessible_resources as ($resourceQuery),
-                            spec as ($query)
-                        select provider.resource_to_json(resc, $converter(spec))
-                        from
-                            accessible_resources resc join
-                            spec on (resc.r).id = spec.resource
-                        order by
-                            $sortBy $sortDirection, resc.category, resc.name 
-                    """,
-                )
-            },
-            mapper = { _, rows ->
-                rows.mapNotNull {
-                    try {
-                        defaultMapper.decodeFromString(serializer, it.getString(0)!!)
-                    } catch (ex: Throwable) {
-                        log.warn("Caught exception while browsing resource: ${it.getString(0)}")
-                        log.warn(ex.stackTraceToString())
-                        null
                     }
-                }.attachExtra(flags)
-            },
+                }
+            }
+        }
+
+        val items = rows.mapNotNull {
+            try {
+                defaultMapper.decodeFromString(serializer, it.getString(0)!!)
+            } catch (ex: Throwable) {
+                log.warn("Caught exception while browsing resource: ${it.getString(0)}")
+                log.warn(ex.stackTraceToString())
+                null
+            }
+        }.attachExtra(actorAndProject.actor, flags)
+
+        return PageV2(
+            pagination.itemsPerPage,
+            items,
+            if (items.size < pagination.itemsPerPage) null else next
         )
     }
 

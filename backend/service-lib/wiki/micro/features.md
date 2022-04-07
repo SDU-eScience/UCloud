@@ -1,5 +1,3 @@
-# Micro Features
-
 This document describes the features which hook into Micro. Micro acts as a "service loader". Each individual feature
 provides new functionality to Micro. Many features of Micro are loaded by default. You can install additional features
 in the `initializeServer` function of your `Service` (`Main.kt`):

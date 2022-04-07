@@ -1,7 +1,5 @@
 package dk.sdu.cloud.app.kubernetes.rpc
 
-import dk.sdu.cloud.app.kubernetes.api.KubernetesCompute
-import dk.sdu.cloud.app.kubernetes.api.KubernetesNetworkIP
 import dk.sdu.cloud.app.kubernetes.services.JobAndRank
 import dk.sdu.cloud.app.kubernetes.services.JobManagement
 import dk.sdu.cloud.app.kubernetes.services.K8LogService
@@ -18,13 +16,13 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.*
 import kotlin.collections.HashMap
 
 class AppKubernetesController(
+    private val providerId: String,
     private val jobManagement: JobManagement,
     private val logService: K8LogService,
     private val webService: WebService,
@@ -36,31 +34,32 @@ class AppKubernetesController(
 
     @OptIn(ExperimentalCoroutinesApi::class, ExperimentalStdlibApi::class)
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        implement(KubernetesCompute.create) {
+        val computeApi = JobsProvider(providerId)
+        implement(computeApi.create) {
             jobManagement.create(request)
             ok(BulkResponse(request.items.map { null }))
         }
 
-        implement(KubernetesCompute.terminate) {
+        implement(computeApi.terminate) {
             jobManagement.cancel(request)
             ok(BulkResponse(request.items.map { Unit }))
         }
 
-        implement(KubernetesCompute.extend) {
+        implement(computeApi.extend) {
             jobManagement.extend(request)
             ok(BulkResponse(request.items.map { }))
         }
 
-        implement(KubernetesCompute.suspend) {
+        implement(computeApi.suspend) {
             throw RPCException("UCloud/Compute does not support job suspension", HttpStatusCode.BadRequest)
         }
 
-        implement(KubernetesCompute.verify) {
+        implement(computeApi.verify) {
             jobManagement.verifyJobs(request.items)
             ok(Unit)
         }
 
-        implement(KubernetesCompute.openInteractiveSession) {
+        implement(computeApi.openInteractiveSession) {
             val shellJobs = request.items.filter { it.sessionType == InteractiveSessionType.SHELL }.map {
                 JobAndRank(it.job, it.rank)
             }
@@ -91,15 +90,15 @@ class AppKubernetesController(
             ))
         }
 
-        implement(KubernetesCompute.retrieveProducts) {
+        implement(computeApi.retrieveProducts) {
             ok(jobManagement.retrieveProductsTemporary())
         }
 
-        implement(KubernetesCompute.updateAcl) {
+        implement(computeApi.updateAcl) {
             ok(BulkResponse(request.items.map {  }))
         }
 
-        implement(KubernetesCompute.follow) {
+        implement(computeApi.follow) {
             when (val request = request) {
                 is JobsProviderFollowRequest.Init -> {
                     val streamId = UUID.randomUUID().toString()
@@ -137,7 +136,7 @@ class AppKubernetesController(
             }
         }
 
-        implement(KubernetesCompute.retrieveUtilization) {
+        implement(computeApi.retrieveUtilization) {
             ok(JobsProviderUtilizationResponse(
                 utilizationService.retrieveCapacity(),
                 utilizationService.retrieveUsedCapacity(),

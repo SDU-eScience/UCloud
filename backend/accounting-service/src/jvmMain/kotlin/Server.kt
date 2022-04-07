@@ -1,14 +1,7 @@
 package dk.sdu.cloud.accounting
 
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.rpc.AccountingController
-import dk.sdu.cloud.accounting.rpc.FavoritesController
-import dk.sdu.cloud.accounting.rpc.GroupController
-import dk.sdu.cloud.accounting.rpc.IntegrationController
-import dk.sdu.cloud.accounting.rpc.MembershipController
-import dk.sdu.cloud.accounting.rpc.ProductController
-import dk.sdu.cloud.accounting.rpc.ProjectController
-import dk.sdu.cloud.accounting.rpc.ProviderController
+import dk.sdu.cloud.accounting.rpc.*
 import dk.sdu.cloud.accounting.services.grants.GiftService
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
@@ -25,6 +18,7 @@ import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.accounting.util.ProviderComms
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -37,8 +31,6 @@ import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import kotlinx.coroutines.runBlocking
-import kotlin.system.exitProcess
 
 class Server(
     override val micro: Micro,
@@ -50,6 +42,7 @@ class Server(
         val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
         val productService = ProductService(db)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingService = AccountingService(db, simpleProviders)
@@ -57,9 +50,12 @@ class Server(
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer)
-        val projectGroups = ProjectGroupService(projectService, eventProducer)
+        val projectService = ProjectService(client, eventProducer, projectCache)
+        val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
+        val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache)
+        val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
+            .ProviderNotificationService(projectsV2, db, simpleProviders)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
@@ -68,11 +64,12 @@ class Server(
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 
+
         val providerProviders =
             dk.sdu.cloud.accounting.util.Providers<ProviderComms>(client) { it }
         val providerSupport = dk.sdu.cloud.accounting.util.ProviderSupport<ProviderComms, Product, ProviderSupport>(
             providerProviders, client, fetchSupport = { emptyList() })
-        val providerService = ProviderService(db, providerProviders, providerSupport, client)
+        val providerService = ProviderService(projectCache, db, providerProviders, providerSupport, client)
         val providerIntegrationService = ProviderIntegrationService(
             db, providerService, client,
             micro.developmentModeEnabled
@@ -106,6 +103,12 @@ class Server(
                 ProjectController(db, projectService, projectQueryService),
                 ProviderController(providerService, micro.developmentModeEnabled || micro.commandLineArguments.contains("--allow-provider-approval")),
             )
+
+            if (micro.developmentModeEnabled || micro.commandLineArguments.contains("--projects-v2")) {
+                configureControllers(
+                    ProjectsControllerV2(projectsV2, projectNotifications),
+                )
+            }
         }
 
         startServices()

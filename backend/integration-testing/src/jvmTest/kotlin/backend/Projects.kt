@@ -13,6 +13,8 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.withProject
+import dk.sdu.cloud.calls.HttpStatusCode
+
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
@@ -22,7 +24,6 @@ import dk.sdu.cloud.project.favorite.api.ToggleFavoriteRequest
 import dk.sdu.cloud.service.db.async.PostgresErrorCodes
 import dk.sdu.cloud.service.db.async.errorCode
 import dk.sdu.cloud.service.test.assertThatInstance
-import io.ktor.http.*
 import kotlinx.coroutines.runBlocking
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue

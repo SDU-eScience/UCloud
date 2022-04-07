@@ -17,12 +17,13 @@ import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
 
 abstract class JobBoundResource<Res, Spec, Update, Flags, Status, Prod, Support, Comms, Val>(
+    projectCache: ProjectCache,
     db: AsyncDBSessionFactory,
     providers: Providers<Comms>,
     support: ProviderSupport<Comms, Prod, Support>,
     serviceClient: AuthenticatedClient,
     protected val orchestrator: JobOrchestrator
-) : ResourceService<Res, Spec, Update, Flags, Status, Prod, Support, Comms>(db, providers, support, serviceClient)
+) : ResourceService<Res, Spec, Update, Flags, Status, Prod, Support, Comms>(projectCache, db, providers, support, serviceClient)
         where Res : Resource<Prod, Support>, Spec : ResourceSpecification, Update : JobBoundUpdate<*>,
               Flags : ResourceIncludeFlags, Status : JobBoundStatus<Prod, Support>, Prod : Product,
               Support : ProductSupport, Comms : ProviderComms, Val : WithStringId {

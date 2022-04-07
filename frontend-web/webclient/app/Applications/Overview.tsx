@@ -45,7 +45,8 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "MACS2",
         "Salmon",
         "SAMtools",
-        "Seqtk"
+        "Seqtk",
+        "nf-core"
     ];
 
     const featuredTags = [

@@ -18,6 +18,7 @@ data class UFileIncludeFlags(
     val includeSizes: Boolean?,
     val includeUnixInfo: Boolean?,
     val includeMetadata: Boolean?,
+    val includeSyncStatus: Boolean?,
     val filterCreatedBy: String?,
     val filterCreatedAfter: Long?,
     val filterCreatedBefore: Long?,
@@ -25,6 +26,7 @@ data class UFileIncludeFlags(
     val filterProductId: String?,
     val filterProductCategory: String?,
     val filterProviderIds: String?,
+    val filterByFileExtension: String?,
     val path: String?,
     val allowUnsupportedInclude: Boolean?,
     val filterHiddenFiles: Boolean?,
@@ -141,6 +143,17 @@ data class UFileIncludeFlags(
 
 <details>
 <summary>
+<code>includeSyncStatus</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>filterCreatedBy</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
@@ -208,6 +221,17 @@ data class UFileIncludeFlags(
 <details>
 <summary>
 <code>filterProviderIds</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> Filters by the provider ID. The value is comma-separated.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterByFileExtension</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

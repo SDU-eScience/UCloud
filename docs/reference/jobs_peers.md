@@ -32,6 +32,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = "my-database", 
+        openedFile = null, 
         parameters = mapOf("dataStore" to AppParameterValue.File(
             path = "/123/acme-database", 
             readOnly = false, 
@@ -74,6 +75,7 @@ Jobs.create.call(
             version = "1.0.0", 
         ), 
         name = "my-web-app", 
+        openedFile = null, 
         parameters = null, 
         product = ProductReference(
             category = "example-compute", 
@@ -143,7 +145,8 @@ await callAPI(JobsApi.create(
                     }
                 },
                 "resources": null,
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -193,7 +196,8 @@ await callAPI(JobsApi.create(
                         "jobId": "4101"
                     }
                 ],
-                "timeAllocation": null
+                "timeAllocation": null,
+                "openedFile": null
             }
         ]
     }
@@ -256,7 +260,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             },
             "resources": null,
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'
@@ -301,7 +306,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "jobId": "4101"
                 }
             ],
-            "timeAllocation": null
+            "timeAllocation": null,
+            "openedFile": null
         }
     ]
 }'

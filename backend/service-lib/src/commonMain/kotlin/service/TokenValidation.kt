@@ -14,6 +14,7 @@ sealed class TokenValidationException(why: String, statusCode: HttpStatusCode) :
 
 interface TokenValidation<TokenType> {
     // val tokenType: Class<TokenType>
+    fun canHandleToken(token: Any?): Boolean
 
     fun decodeToken(token: TokenType): SecurityPrincipalToken
 

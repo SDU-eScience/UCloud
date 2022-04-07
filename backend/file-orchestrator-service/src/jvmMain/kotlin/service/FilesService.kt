@@ -156,18 +156,46 @@ class FilesService(
                 }
             }
 
+            val syncFolderJob = async {
+                if (request.flags.includeSyncStatus == true) {
+                    db.withSession { session ->
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("filter_user", actorAndProject.actor.username)
+                                setParameter("filter_parent", request.flags.path)
+                            },
+                            """
+                                select ('/' || f.collection || f.sub_path) as path
+                                from file_orchestrator.sync_folders f
+                                join provider.resource r on f.resource = r.id
+                                where
+                                    ('/' || f.collection || f.sub_path) like (:filter_parent || '/%') and
+                                    ('/' || f.collection || f.sub_path) not like (:filter_parent || '/%/%') and
+                                    :filter_user = r.created_by
+                            """
+                        )
+                    }
+                } else {
+                    null
+                }
+            }
+
             val browse = browseJob.await()
             val metadata = metadataJob.await()
+            val syncFolder = syncFolderJob.await()?.rows?.map {
+                it.getString("path").orEmpty()
+            }
 
             browse.mapItems {
-                it.toUFile(resolvedCollection, metadata)
+                it.toUFile(resolvedCollection, metadata, syncFolder)
             }
         }
     }
 
     private suspend fun PartialUFile.toUFile(
         resolvedCollection: FileCollection,
-        metadata: MetadataService.RetrieveWithHistory?
+        metadata: MetadataService.RetrieveWithHistory?,
+        syncedPaths: List<String>? = null
     ): UFile {
         val metadataHistory = if (metadata != null) {
             val inheritedMetadata = id.parents().asReversed().mapNotNull { parent ->
@@ -231,6 +259,8 @@ class FilesService(
             null
         }
 
+        val synced = syncedPaths?.contains(id) == true
+
         return UFile(
             id,
             UFileSpecification(
@@ -238,9 +268,9 @@ class FilesService(
                 resolvedCollection.specification.product
             ),
             createdAt,
-            status.copy(metadata = metadataHistory),
+            status.copy(metadata = metadataHistory, synced = synced),
             owner ?: resolvedCollection.owner,
-            permissions ?: resolvedCollection.permissions
+            permissions ?: resolvedCollection.permissions,
         )
     }
 

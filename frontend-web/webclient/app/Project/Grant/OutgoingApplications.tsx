@@ -10,13 +10,14 @@ import {GrantApplicationList} from "./IngoingApplications";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import VerticalButtonGroup from "@/ui-components/VerticalButtonGroup";
-import {Box, Button, Flex, Label, Link} from "@/ui-components";
+import {Box, Button, Flex, Link} from "@/ui-components";
 import {Center} from "@/UtilityComponents";
 import {TextP} from "@/ui-components/Text";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import styled from "styled-components";
 import {PageV2} from "@/UCloud";
 import {useEffectSkipMount} from "@/UtilityFunctions";
+import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
+import {BrowseType} from "@/Resource/BrowseType";
 
 export const FilterTrigger = styled.div`
     user-select: none;
@@ -27,21 +28,41 @@ export const FilterTrigger = styled.div`
 export const OutgoingApplications: React.FunctionComponent = () => {
     const [scrollGeneration, setScrollGeneration] = useState(0);
     const [outgoingInvites, setParams] = useCloudAPI<PageV2<GrantApplication>>({noop: true}, emptyPageV2);
-    const [filter, setFilter] = useState<GrantApplicationFilter>(GrantApplicationFilter.ACTIVE);
+    const [filters, setFilters] = useState<Record<string, string>>({});
+
     useSidebarPage(SidebarPages.Projects);
     useTitle("Grant Applications");
 
     const loadMore = useCallback(() => {
-        setParams(listOutgoingApplications({itemsPerPage: 50, next: outgoingInvites.data.next, filter}));
-    }, [outgoingInvites.data, filter]);
+        setParams(listOutgoingApplications({
+            itemsPerPage: 50,
+            next: outgoingInvites.data.next,
+            filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
+        }));
+    }, [outgoingInvites.data, filters]);
 
     useEffect(() => {
-        setParams(listOutgoingApplications({itemsPerPage: 25, filter}));
-    }, [filter]);
+        setParams(listOutgoingApplications({
+            itemsPerPage: 25,
+            filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
+        }));
+    }, [filters]);
 
     useEffectSkipMount(() => {
         setScrollGeneration(prev => prev + 1);
-    }, [filter]);
+    }, [filters]);
+
+
+    const onSortUpdated = React.useCallback((dir: "ascending" | "descending", column?: string) => { }, []);
+
+    const [widget, pill] = EnumFilter("cubeSolid", "filterType", "Grant status", Object
+        .keys(GrantApplicationFilter)
+        .map(it => ({
+            icon: "tags",
+            title: grantApplicationFilterPrettify(it as GrantApplicationFilter),
+            value: it
+        }))
+    );
 
     return (
         <MainContainer
@@ -51,19 +72,16 @@ export const OutgoingApplications: React.FunctionComponent = () => {
                 <VerticalButtonGroup>
                     <Link to={`/projects/browser/new`}><Button>Create Application</Button></Link>
 
-                    <Label>Filter</Label>
-                    <ClickableDropdown
-                        chevron
-                        trigger={<FilterTrigger>{grantApplicationFilterPrettify(filter)}</FilterTrigger>}
-                        options={
-                            Object
-                                .keys(GrantApplicationFilter)
-                                .map(it => ({
-                                    text: grantApplicationFilterPrettify(it as GrantApplicationFilter),
-                                    value: it
-                                }))
-                        }
-                        onChange={(value: GrantApplicationFilter) => setFilter(value)}
+                    <ResourceFilter
+                        browseType={BrowseType.MainContent}
+                        pills={[pill]}
+                        sortEntries={[]}
+                        sortDirection={"ascending"}
+                        filterWidgets={[widget]}
+                        onSortUpdated={onSortUpdated}
+                        readOnlyProperties={{}}
+                        properties={filters}
+                        setProperties={setFilters}
                     />
                 </VerticalButtonGroup>
             }
@@ -102,7 +120,7 @@ export const OutgoingApplications: React.FunctionComponent = () => {
     );
 
     function pageRenderer(items: GrantApplication[]): JSX.Element {
-        return <GrantApplicationList applications={items}/>;
+        return <GrantApplicationList applications={items} />;
     }
 };
 

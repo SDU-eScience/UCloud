@@ -1,7 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services
 
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -53,9 +52,15 @@ fun <T : PathLike<T>> T.components(): List<String> = path.components()
 fun <T : PathLike<T>> T.fileName(): String = path.fileName()
 
 class PathConverter(
+    providerId: String,
+    productCategory: String,
     private val rootDirectory: InternalFile,
     private val serviceClient: AuthenticatedClient,
 ) {
+    val productReference = ProductReference(productCategory, productCategory, providerId)
+    val projectHomeProductReference = ProductReference("project-home", productCategory, providerId)
+    val shareProductReference = ProductReference("share", productCategory, providerId)
+
     val collectionCache = SimpleCache<String, FileCollection>(
         maxAge = 60_000 * 10L,
         lookup = { collectionId ->
@@ -235,7 +240,8 @@ class PathConverter(
                     PROJECT_DIRECTORY -> {
                         if (components.size < 3) throw RPCException("Not a valid UCloud file", HttpStatusCode.InternalServerError, INVALID_FILE_ERROR_CODE)
                         if (components.size > 3 && components[2] == PERSONAL_REPOSITORY) {
-                            val collectionId = lookupCollectionFromInternalId("$COLLECTION_PROJECT_MEMBER_PREFIX" +
+                            val collectionId = lookupCollectionFromInternalId(
+                                COLLECTION_PROJECT_MEMBER_PREFIX +
                                     "${components[1]}/${components[3]}").id
                             append(collectionId)
                             startIdx = 4
@@ -288,9 +294,6 @@ class PathConverter(
         const val PERSONAL_REPOSITORY = "Members' Files"
         const val INVALID_FILE_ERROR_CODE = "INVALID_FILE"
 
-        val PRODUCT_REFERENCE = ProductReference("u1-cephfs", "u1-cephfs", UCLOUD_PROVIDER)
-        val PRODUCT_PM_REFERENCE = ProductReference("project-home", "u1-cephfs", UCLOUD_PROVIDER)
-        val PRODUCT_SHARE_REFERENCE = ProductReference("share", "u1-cephfs", UCLOUD_PROVIDER)
     }
 }
 

@@ -16,7 +16,8 @@ data class CreatedUser(
     val client: AuthenticatedClient,
     val username: String,
     val password: String,
-    val email: String
+    val email: String,
+    val organization: String?
 )
 
 suspend fun createUser(
@@ -29,7 +30,7 @@ suspend fun createUser(
 ): CreatedUser {
     val refreshToken = UserDescriptions.createNewUser.call(
         listOf(
-            CreateSingleUserRequest(username, password, email, role, organization)
+            CreateSingleUserRequest(username, password, email, role, orgId = organization)
         ),
         serviceClient
     ).orThrow().single().refreshToken
@@ -50,6 +51,7 @@ suspend fun createUser(
         client,
         username,
         password,
-        email
+        email,
+        organization
     )
 }

@@ -17,4 +17,3 @@ __Implementation requirements:__ Mandatory
 For more information, see the end-user API ([`jobs.terminate`](/docs/reference/jobs.terminate.md))
 
 
-

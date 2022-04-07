@@ -4,7 +4,6 @@ import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.alerting.AlertingService
-import dk.sdu.cloud.app.aau.AppAauService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
 import dk.sdu.cloud.app.orchestrator.AppOrchestratorService
 import dk.sdu.cloud.app.store.AppStoreService
@@ -20,7 +19,9 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
+import dk.sdu.cloud.slack.SlackService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -33,6 +34,7 @@ import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
+import dk.sdu.cloud.sync.mounter.SyncMounterService
 import dk.sdu.cloud.task.TaskService
 import io.ktor.application.*
 import io.ktor.http.*
@@ -50,6 +52,7 @@ object Launcher : Loggable {
 }
 
 val services = setOf<Service>(
+    SyncMounterService,
     AccountingService,
     AppOrchestratorService,
     AppStoreService,
@@ -65,13 +68,68 @@ val services = setOf<Service>(
     FileOrchestratorService,
     FileUcloudService,
     SupportService,
-    AppAauService,
     AppKubernetesService,
     TaskService,
-    AlertingService
+    AlertingService,
+    SlackService
 )
 
+enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Boolean) {
+    Full("full", { true }),
+
+    FullNoProviders("no-providers", { it != AppKubernetesService && it != FileUcloudService }),
+
+    Core("core", { svc ->
+        when (svc) {
+            AuditIngestionService,
+            AuthService,
+            AvatarService,
+            ContactBookService,
+            ElasticManagementService,
+            MailService,
+            NewsService,
+            NotificationService,
+            AlertingService,
+            PasswordResetService,
+            SupportService,
+            TaskService -> true
+            else -> false
+        }
+    }),
+
+    AccountingAndProjectManagement("apm", { svc ->
+        when (svc) {
+            AccountingService -> true
+            else -> false
+        }
+    }),
+
+    Orchestrators("orchestrators", { svc ->
+        when (svc) {
+            AppOrchestratorService,
+            FileOrchestratorService -> true
+            else -> false
+        }
+    }),
+
+    Providers("providers", { svc ->
+        when (svc) {
+            AppKubernetesService,
+            FileUcloudService -> true
+            else -> false
+        }
+    }),
+}
+
 suspend fun main(args: Array<String>) {
+    val loadedConfig = Micro().apply {
+        commandLineArguments = args.toList()
+        isEmbeddedService = false
+        serviceDescription = PlaceholderServiceDescription
+
+        install(ConfigurationFeature)
+    }.configuration
+
     if (args.contains("--run-script") && args.contains("spring-gen")) {
         generateSpringMvcCode()
         exitProcess(0)
@@ -83,28 +141,28 @@ suspend fun main(args: Array<String>) {
     }
 
     if (args.contains("--run-script") && args.contains("migrate-db")) {
-        val micro = Micro().apply {
-            initWithDefaultFeatures(object : ServiceDescription {
-                override val name: String = "launcher"
-                override val version: String = "1"
-            }, args)
-        }
-
-        micro.databaseConfig.migrateAll()
+        val reg = ServiceRegistry(args, PlaceholderServiceDescription)
+        reg.rootMicro.install(DatabaseConfigurationFeature)
+        reg.rootMicro.install(FlywayFeature)
+        reg.rootMicro.databaseConfig.migrateAll()
         exitProcess(0)
     }
 
-    val loadedConfig = Micro().apply {
-        commandLineArguments = args.toList()
-        isEmbeddedService = false
-        serviceDescription = PlaceholderServiceDescription
+    val presetArg = args.getOrNull(0)?.takeIf { !it.startsWith("--") }
+    val preset = if (presetArg == null) {
+        LauncherPreset.Full
+    } else {
+        LauncherPreset.values().find { it.flag == presetArg }
+            ?: error(
+                "Unknown preset: $presetArg (available options: ${
+                    LauncherPreset.values().joinToString(", ") { it.flag }
+                })")
+    }
 
-        install(ConfigurationFeature)
-    }.configuration
+    val shouldInstall = loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
+            loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
 
-    if (args.contains("--dev") && loadedConfig.tree.elements().asSequence().toList().isEmpty() ||
-        loadedConfig.requestChunkAtOrNull<Boolean>("installing") == true
-    ) {
+    if (args.contains("--dev") && shouldInstall && preset == LauncherPreset.Full) {
         println("UCloud is now ready to be installed!")
         println("Visit http://localhost:8080/i in your browser")
         runInstaller(loadedConfig.configDirs.first())
@@ -113,9 +171,7 @@ suspend fun main(args: Array<String>) {
 
     val reg = ServiceRegistry(args, PlaceholderServiceDescription)
 
-    val loader = Launcher::class.java.classLoader
-
-    services.forEach { objectInstance ->
+    services.filter { preset.serviceFilter(it) }.forEach { objectInstance ->
         try {
             Launcher.log.trace("Registering ${objectInstance.javaClass.canonicalName}")
             reg.register(objectInstance)
@@ -165,6 +221,23 @@ suspend fun main(args: Array<String>) {
                 ),
                 client
             ).orThrow().id
+
+            Grants.setEnabledStatus.call(
+                SetEnabledStatusRequest(project, true),
+                userClient
+            ).orThrow()
+
+            Grants.uploadRequestSettings.call(
+                UploadRequestSettingsRequest(
+                    automaticApproval = AutomaticApprovalSettings(
+                        from = emptyList(),
+                        maxResources = emptyList()
+                    ),
+                    allowRequestsFrom = listOf<UserCriteria>(UserCriteria.Anyone()),
+                    excludeRequestsFrom = emptyList()
+                ),
+                userClient.withProject(project)
+            )
 
             val providerId = "ucloud"
             val createdId = Providers.create.call(
@@ -219,26 +292,45 @@ suspend fun main(args: Array<String>) {
                         "u1-cephfs",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
                     Product.Storage(
                         "home",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
                     Product.Storage(
                         "project-home",
                         1L,
                         ProductCategoryId("u1-cephfs", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
                         freeToUse = false,
                         description = "An example product for development use",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA
                     ),
+                    Product.Synchronization(
+                        "u1-sync",
+                        1L,
+                        ProductCategoryId("u1-sync", providerId),
+                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
+                        freeToUse = true,
+                        description = "An example product for development use"
+                    ),
+                    Product.Storage(
+                        "share",
+                        1,
+                        ProductCategoryId("u1-cephfs", providerId),
+                        "Shares for UCloud (personal workspaces only)",
+                        chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT
+                    )
                 ),
                 userClient
             ).orThrow()
@@ -248,7 +340,7 @@ suspend fun main(args: Array<String>) {
                     RootDepositRequestItem(
                         ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.Project(project),
-                        1_000_000L * 1000_000L,
+                        1_000_000L,
                         "Root deposit"
                     ),
                     RootDepositRequestItem(
@@ -260,7 +352,7 @@ suspend fun main(args: Array<String>) {
                     RootDepositRequestItem(
                         ProductCategoryId("u1-cephfs", providerId),
                         WalletOwner.User("user"),
-                        1_000_000L * 1000_000L,
+                        1_000,
                         "Root deposit"
                     ),
                     RootDepositRequestItem(
@@ -272,6 +364,8 @@ suspend fun main(args: Array<String>) {
                 ),
                 client
             ).orThrow()
+
+
 
             ToolStore.create.call(
                 Unit,

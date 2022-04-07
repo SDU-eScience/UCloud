@@ -1,3 +1,4 @@
+/*
 package dk.sdu.cloud.plugins.projects
 
 import dk.sdu.cloud.FindByStringId
@@ -8,6 +9,7 @@ import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonObject
 import platform.posix.getuid
 import kotlin.system.exitProcess
 
@@ -22,7 +24,7 @@ private object DirectProjectMapperIpc : IpcContainer("directprojects") {
 }
 
 class DirectProjectMapperPlugin : ProjectMapperPlugin {
-    override suspend fun PluginContext.initialize(pluginConfig: Unit) {
+    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
         val ipc = ipcServerOptional
         if (ipc != null) {
             ipc.addHandler(DirectProjectMapperIpc.create.handler { user, request ->
@@ -128,3 +130,4 @@ class DirectProjectMapperPlugin : ProjectMapperPlugin {
         private const val GET_LOCAL_COMMAND = "get-local"
     }
 }
+ */

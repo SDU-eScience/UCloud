@@ -1,0 +1,65 @@
+version: "3.9"
+services:
+  redis:
+    image: redis:5.0.9
+    volumes:
+      - redisData:/data
+    hostname: redis
+    ports:
+    - ${REDIS_PORT:-6379}:6379
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.10.2
+    environment:
+      - discovery.type=single-node
+    volumes:
+      - elasticData:/usr/share/elasticsearch/data
+    ports:
+    - ${ELASTIC_PORT:-9200}:9200
+    hostname: elasticsearch
+
+  postgres:
+    image: postgres:13.3
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+    volumes:
+      - ${PWD}/.compose/postgres:/var/lib/postgresql/data
+      - ${PWD}/backend:/opt/ucloud
+    ports:
+    - ${POSTGRES_PORT:-35432}:5432
+    hostname: postgres
+
+  k3s:
+    image: rancher/k3s:v1.21.6-rc2-k3s1
+    privileged: true
+    tmpfs:
+      - /run
+      - /var/run
+    environment:
+      - K3S_KUBECONFIG_OUTPUT=/output/kubeconfig.yaml
+      - K3S_KUBECONFIG_MODE=666
+    volumes:
+    - /mnt/ceph:/mnt/cephfs
+    - /tmp:/tmp
+    - k3sConfig:/output
+    - k3sData:/var/lib/rancher/k3s
+    - k3sCni:/var/lib/cni
+    - k3sKubelet:/var/lib/kubelet
+    - k3sEtc:/etc/rancher
+    ports:
+    - ${K3S_PORT:-6443}:6443
+    command:
+      - server
+    hostname: k3s
+
+volumes:
+  postgresData: {}
+  redisData: {}
+  elasticData: {}
+  k3sConfig: {}
+  k3sData: {}
+  k3sCni: {}
+  k3sKubelet: {}
+  k3sEtc: {}
+
+

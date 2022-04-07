@@ -1,20 +1,31 @@
-# Writing your first service
-
 In this guide we will go through creating your first micro-service for UCloud. At the end of this guide you will have 
 created a small Twitter-like service, where users of UCloud can post small messages.
 
 We assume that you are already familiar with the
 [Kotlin](https://kotlinlang.org/) programming language.
 
+---
+
+__⚠️ WARNING:__ This document is not fully up-to-date. 
+
+Items to be updated:
+
+- Some paths might not be correct due to multi-platform setup
+- Use of `Actor` instead of `ActorAndProject`
+- Use of `Page` instead of `PageV2`
+- Use of detailed HTTP description instead of utility methods, such as `httpUpdate` and `httpBrowse`
+
+---
+
 ## Before You Start
 
 We expect that you have the following tools installed:
 
 - IntelliJ IDEA (Ultimate or CE)
-- The tools listed [here](getting_started.md)
+- The tools listed [here](getting-started.md)
 
 You should add `infrastructure/scripts` to your `PATH`. Before you can test services you should also follow 
-[this guide](getting_started.md).
+[this guide](getting-started.md).
 
 ## Creating the Service
 
@@ -40,11 +51,11 @@ microblog-service/
 ├── k8.kts
 ├── api/
 └── src
-    ├── main
+    ├── jvmMain
     │   ├── kotlin
     │   │   └── microblog/
     │   └── resources
-    └── test
+    └── jvmTest
         ├── kotlin
         │   └── microblog/
         └── resources
@@ -56,12 +67,12 @@ The most important files are:
 - `build.gradle.kts`: Gradle configuration files. Gradle controls the build of our service, including management of code dependencies
 - ``k8.kts``: Contains configuration of `Kubernetes <https://kubernetes.io/>`__ resources
 - `src/`: Contains the source code for this service
-- `src/main/kotlin/`: Contains the implementation of the micro-service.
-- `src/test/kotlin`: Contains test code for this micro-service.
+- `src/jvmMain/kotlin/`: Contains the implementation of the micro-service.
+- `src/n`: Contains test code for this micro-service.
 - `api/`: Subproject containing shared API interfaces of this micro-service
 
-You will be spending most of your time in `src/main/kotlin` and
-`src/test/kotlin`. You can read more about the internal of a UCloud micro-service [here](./microservice_structure.md).
+You will be spending most of your time in `src/jvmMain/kotlin` and
+`src/jvmTest/kotlin`. You can read more about the internal of a UCloud micro-service [here](./architecture.md).
 
 ## Implementing the RPC Interface of our Micro Blog
 
@@ -234,7 +245,7 @@ class PostDao {
 }
 ```
 
-In `src/main/resources/db/migration` add the following file `V1__Initial.sql`:
+In `src/jvmMain/resources/db/migration` add the following file `V1__Initial.sql`:
 
 ```sql
 create sequence post_sequence start 0 increment 1;

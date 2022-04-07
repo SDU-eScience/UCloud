@@ -6,6 +6,7 @@
 [![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
+_Sends an email to an end-user based on a pre-defined template_
 
 | Request | Response | Error |
 |---------|----------|-------|

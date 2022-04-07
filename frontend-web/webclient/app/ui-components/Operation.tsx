@@ -31,6 +31,7 @@ export interface Operation<T, R = undefined> {
     onClick: (selected: T[], extra: R, all?: T[]) => void;
     enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
     icon?: IconName;
+    iconRotation?: number;
     color?: ThemeColor;
     hoverColor?: ThemeColor;
     outline?: boolean;
@@ -110,7 +111,7 @@ const OperationComponent: React.FunctionComponent<{
         {...extraProps}
     >
         {As === ConfirmationButton ? null : <>
-            {op.icon ? <Icon size={20} mr="1em" name={op.icon} /> : null}
+            {op.icon ? <Icon size={20} mr="1em" name={op.icon} rotation={op.iconRotation} /> : null}
             <span>{op.text}</span>
         </>}
     </As>;

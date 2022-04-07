@@ -54,7 +54,8 @@ class UserController(
                                         role = user.role ?: Role.USER,
                                         password = user.password
                                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                        email = email
+                                        email = email,
+                                        organization = user.orgId
                                     )
                                 } else {
                                     personService.createUserByPassword(
@@ -64,7 +65,8 @@ class UserController(
                                         role = user.role ?: Role.USER,
                                         password = user.password
                                             ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest),
-                                        email = email
+                                        email = email,
+                                        organization = user.orgId
                                     )
                                 }
                             }

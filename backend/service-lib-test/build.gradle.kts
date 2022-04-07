@@ -11,9 +11,7 @@ repositories {
 }
 
 kotlin {
-    val jacksonVersion = "2.10.0.pr3"
     val ktorVersion = "1.6.2-native-mm-eap-196"
-    val jasyncVersion = "1.1.3"
 
     jvm {
         withJava()

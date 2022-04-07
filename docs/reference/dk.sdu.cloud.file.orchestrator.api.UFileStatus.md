@@ -20,6 +20,7 @@ data class UFileStatus(
     val unixOwner: Int?,
     val unixGroup: Int?,
     val metadata: FileMetadataHistory?,
+    val synced: Boolean?,
     val resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>?,
     val resolvedProduct: Product.Storage?,
 )
@@ -132,6 +133,17 @@ data class UFileStatus(
 <details>
 <summary>
 <code>metadata</code>: <code><code><a href='#filemetadatahistory'>FileMetadataHistory</a>?</code></code> User-defined metadata for this file. See `FileMetadataTemplate` for details.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>synced</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> If the file is added to synchronization or not
 </summary>
 
 

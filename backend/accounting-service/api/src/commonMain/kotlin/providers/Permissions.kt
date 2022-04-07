@@ -62,10 +62,10 @@ enum class Permission(val canBeGranted: Boolean) {
 @Serializable
 data class ResourcePermissions(
     @UCloudApiDoc("The permissions that the requesting user has access to")
-    val myself: List<Permission>,
+    var myself: List<Permission>,
     @UCloudApiDoc("The permissions that other users might have access to\n\n" +
         "This value typically needs to be included through the `includeFullPermissions` flag")
-    val others: List<ResourceAclEntry>?
+    var others: List<ResourceAclEntry>?
 )
 
 @Serializable

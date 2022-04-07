@@ -1,9 +1,7 @@
-# Serialization
-
 ---
 
-__📝 NOTE:__ This page is currently out-of-date due to a reason change to the kotlinx.serialization library. The same
-principals as menitoned here are still true.
+__📝 NOTE:__ This page is currently out-of-date due to a reason change to the `kotlinx.serialization` library. The same
+principals as mentioned here are still true.
 
 ---
 

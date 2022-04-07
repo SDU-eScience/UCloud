@@ -10,11 +10,11 @@ private const val DEFAULT_PORT = 8080
 
 class KtorServerProviderFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
+        val port = ctx.configuration.requestChunkAtOrNull("servicePort") ?: DEFAULT_PORT
         ctx.serverProvider = { module ->
             embeddedServer(
                 Netty,
-                port = ctx.featureOrNull(ServiceDiscoveryOverrides)?.get(serviceDescription.name)?.port
-                    ?: DEFAULT_PORT,
+                port = port,
                 module = module,
                 configure = {
                     responseWriteTimeoutSeconds = 0
@@ -32,13 +32,6 @@ class KtorServerProviderFeature : MicroFeature {
             KtorServerProviderFeature()
 
         override val log = logger()
-
-        private val officialEngines = listOf(
-            "io.ktor.server.cio.CIO",
-            "io.ktor.server.jetty.Jetty",
-            "io.ktor.server.tomcat.Tomcat",
-            "io.ktor.server.netty.Netty"
-        )
 
         val serverProviderKey =
             MicroAttributeKey<HttpServerProvider>("ktor-server-provider-key")

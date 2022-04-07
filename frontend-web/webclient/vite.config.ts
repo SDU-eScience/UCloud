@@ -1,5 +1,6 @@
 import {defineConfig, UserConfigExport} from "vite";
 import reactRefresh from "@vitejs/plugin-react-refresh";
+//@ts-ignore
 import path from "path";
 import {DEV_SITE} from "./site.config.json";
 
@@ -46,6 +47,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
         plugins: [reactRefresh()],
         resolve: {
             alias: {
+                //@ts-ignore
                 "@": path.resolve(__dirname, "./app")
             }
         },
@@ -66,6 +68,7 @@ export default ({mode, ...rest}: {mode: Mode; command: string}): UserConfigExpor
                     target: "http://integration-module:8889",
                     ws: true,
                     changeOrigin: true,
+
                     headers: {
                         "Access-Control-Allow-Origin": "*",
                         "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, PATCH, OPTIONS",

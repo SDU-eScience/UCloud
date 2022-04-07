@@ -15,7 +15,6 @@ object ElasticManagementService : Service {
 
     override fun initializeServer(micro: Micro): CommonServer {
         micro.install(RefreshingJWTCloudFeature)
-        micro.install(ElasticFeature)
 
         val config = micro.configuration.requestChunkAtOrNull<Configuration>("elasticmanagement") ?:
             Configuration(

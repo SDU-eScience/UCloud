@@ -5,7 +5,6 @@ import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
-import dk.sdu.cloud.accounting.api.UCLOUD_PROVIDER
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJob
 import dk.sdu.cloud.app.kubernetes.services.volcano.VolcanoJobPhase
 import dk.sdu.cloud.app.kubernetes.services.volcano.volcanoJob
@@ -86,6 +85,7 @@ interface JobManagementPlugin {
 }
 
 class JobManagement(
+    private val providerId: String,
     val k8: K8Dependencies,
     private val distributedLocks: DistributedLockFactory,
     private val logService: K8LogService,
@@ -508,7 +508,7 @@ class JobManagement(
 
     private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
         Products.browse.call(
-            ProductsBrowseRequest(filterProvider = UCLOUD_PROVIDER, filterArea = ProductType.COMPUTE),
+            ProductsBrowseRequest(filterProvider = providerId, filterArea = ProductType.COMPUTE),
             k8.serviceClient
         ).orThrow().items.filterIsInstance<Product.Compute>()
     })
