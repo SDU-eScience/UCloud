@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
+import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.ucloud.api.AnyOf
 import dk.sdu.cloud.file.ucloud.api.Comparison
 import dk.sdu.cloud.file.ucloud.api.ComparisonOperator
@@ -176,6 +177,12 @@ class ElasticQueryService(
                             ElasticIndexedFileConstants.FILE_NAME_FIELD,
                             query
                         ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
+                    )
+                    add(
+                        QueryBuilders.termQuery(
+                            ElasticIndexedFileConstants.FILE_NAME_EXTENSION,
+                            query.substringAfterLast(".")
+                        )
                     )
                    /* if (isNumber) {
                         add(
