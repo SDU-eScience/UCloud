@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.Serializable
+import dk.sdu.cloud.FindByStringId
 
 @Serializable
 data class SlurmBrowseFlags(
@@ -132,4 +133,59 @@ object SlurmJobMapper {
             )
         }
     }
+
+
+    fun retrieveSession(
+        token: FindByStringId,
+        ctx: DBContext = dbConnection,
+    ): InteractiveSession? {
+
+        val result = ArrayList<InteractiveSession>()
+
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    select token, rank, ucloud_id
+                    from session_mapping
+                    where
+                        (token = :token)
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("token", token.id)
+                },
+                readRow = { row ->
+                    result.add(
+                        InteractiveSession(
+                            row.getString(0)!!, row.getInt(1)!!, row.getString(2)!!
+                        )
+                    )
+                }
+            )
+        }
+
+        return result.first()
+    }
+
+
+
+    fun registerSession(
+        iSession: InteractiveSession,
+        ctx: DBContext = dbConnection
+    ) {
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    insert or ignore into session_mapping (token, rank, ucloud_id) 
+                    values (:token, :rank, :ucloud_id)
+                """
+            ).useAndInvokeAndDiscard {
+                bindString("token", iSession.token)
+                bindInt("rank", iSession.rank)
+                bindString("ucloud_id", iSession.ucloud_id)
+            }
+        }
+    }
+
+
 }

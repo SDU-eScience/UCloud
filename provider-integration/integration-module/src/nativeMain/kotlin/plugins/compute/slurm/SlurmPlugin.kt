@@ -29,6 +29,7 @@ import platform.posix.kill
 import platform.posix.usleep
 import kotlin.native.concurrent.AtomicReference
 
+import dk.sdu.cloud.utils.secureToken
 import platform.posix.*
 // import kotlinx.coroutines.runBlocking
 // import kotlinx.coroutines.async
@@ -253,12 +254,14 @@ class SlurmPlugin : ComputePlugin {
         class OutputFile(val rank: Int, val out: NativeFile, val err: NativeFile)
 
         // TBD: error handling or move below
-        val fdList = (0..job.specification.replicas-1).map{ rank -> 
+        val fdList by lazy { 
+            (0..job.specification.replicas-1).map{ rank -> 
                 OutputFile( 
                             rank, 
                             NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.out", readOnly = true), 
                             NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
                 )
+            }
         }
 
         try {
@@ -330,22 +333,41 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
     ): OpenSession {
-        return OpenSession.Shell(job.job.id, job.rank, "testing")
+        println("OPENSESSIOnHERE $job")
+
+        val sessionId = secureToken(16)
+        ipcClient.sendRequest(SlurmSessionIpc.create, InteractiveSession(sessionId, job.rank, job.job.id))
+
+        return OpenSession.Shell(job.job.id, job.rank, sessionId)
     }
 
     override suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        return request.sessionIdentifier == "testing"
+        println("CANHANDLESESSION")
+        val session:InteractiveSession = ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier) )
+        println("MYSESSIONIS $session")
+        return request.sessionIdentifier == session.token
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         // DONE Start SSH session
-        println("INTERACTIVE SESSION RANK $request")
+        //Initialize(sessionIdentifier=testing, cols=94, rows=35)
+
+        val session:InteractiveSession = ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier) )
+
+        println("HANDLESESSION $session")
+
+        val node = when(session.rank){
+            0 -> "c1"
+            1 -> "c2"
+            else -> "c1"
+        }
+
         val process = startProcess(
             args = listOf(
                 "/usr/bin/ssh",
                 "-oStrictHostKeyChecking=accept-new",
                 "-tt",
-                "c1", 
+                "${node}", 
                 "([ -x /bin/bash ] && exec /bin/bash) || " +
                 "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
                 "([ -x /bin/zsh ] && exec /bin/zsh) || " +
@@ -361,6 +383,8 @@ class SlurmPlugin : ComputePlugin {
             nonBlockingStdout = true,
             nonBlockingStderr = true
         )
+
+
 
         // val process2 = startProcess(
         //     args = listOf(
@@ -395,7 +419,7 @@ class SlurmPlugin : ComputePlugin {
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
-                    println("USERINPUT: ${ userInput.data }")
+                    //println("USERINPUT: ${ userInput.data }")
                     process!!.stdin!!.write(  userInput.data.encodeToByteArray()  )
                 }
 
