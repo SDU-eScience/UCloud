@@ -70,7 +70,7 @@ begin
     select 'charge', now(), res.local_id, res.performed_by, -res.local_subtraction, res.description,
            res.leaf_id, res.product_id, res.periods, res.units, uuid_generate_v4(), res.transaction_id
     from ancestor_charges res
-    where free_to_use != true;
+    where free_to_use != true and local_subtraction != 0;
 
     return query select distinct request_index - 1 from failed_charges;
 end;
