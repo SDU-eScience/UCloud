@@ -18,6 +18,7 @@ import dk.sdu.cloud.file.ucloud.api.StatisticsResponse
 import dk.sdu.cloud.file.ucloud.api.toPartialUFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
+import io.ktor.util.*
 import kotlinx.coroutines.delay
 import kotlinx.serialization.decodeFromString
 import org.elasticsearch.ElasticsearchException
@@ -175,13 +176,13 @@ class ElasticQueryService(
                     add(
                         QueryBuilders.wildcardQuery(
                             ElasticIndexedFileConstants.FILE_NAME_FIELD,
-                            "*$query*"
+                            "*${query.toLowerCase()}*"
                         )
                     )
                     add(
                         QueryBuilders.termQuery(
                             ElasticIndexedFileConstants.FILE_NAME_EXTENSION,
-                            query.substringAfterLast(".")
+                            query.toLowerCase().substringAfterLast(".")
                         )
                     )
                    /* if (isNumber) {

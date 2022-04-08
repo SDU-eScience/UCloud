@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "file-ucloud"
-    version = "2022.1.38"
+    version = "2022.1.39"
 
     withAmbassador(null) {
         addSimpleMapping("/ucloud/ucloud/chunked")
