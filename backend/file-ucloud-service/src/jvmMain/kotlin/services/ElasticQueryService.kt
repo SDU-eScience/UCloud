@@ -173,10 +173,10 @@ class ElasticQueryService(
             QueryBuilders.boolQuery().apply {
                 should().apply {
                     add(
-                        QueryBuilders.matchPhrasePrefixQuery(
+                        QueryBuilders.wildcardQuery(
                             ElasticIndexedFileConstants.FILE_NAME_FIELD,
-                            query
-                        ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
+                            "*$query*"
+                        )
                     )
                     add(
                         QueryBuilders.termQuery(

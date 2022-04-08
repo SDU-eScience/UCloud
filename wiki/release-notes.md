@@ -10,7 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 07-04-22
 
 ```
-✅  Deployment(file-ucloud, 2022.1.37) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.38) (UP-TO-DATE)
 ```
 
 ## 30-03-22
