@@ -94,4 +94,4 @@ class Mapping {
 
 
 @Serializable
-data class InteractiveSession(val token: String, val rank: Int , val ucloud_id: String)
+data class InteractiveSession(val token: String, val rank: Int , val ucloudId: String)

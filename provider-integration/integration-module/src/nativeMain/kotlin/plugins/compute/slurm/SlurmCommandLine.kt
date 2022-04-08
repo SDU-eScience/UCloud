@@ -93,4 +93,71 @@ object SlurmCommandLine {
                 )
             }
     }
+
+
+    //Various cases to cover slurm compressed node format
+    //adev[1-2]
+    //adev[6,13,15]
+    //adev[7-8,14]
+    //adev7
+    // or any combination thereof
+
+    fun getJobNodeList(slurmId: String):Map<Int,String>{
+
+        val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
+            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            addArg("--jobs", slurmId)
+            addArg("--format", "nodelist")
+            addArg("--parsable2")
+            addArg("--allusers")
+            addArg("--allocations")
+        }
+
+        return expandNodeList(stdout)
+
+    }
+
+
+
+    fun expandNodeList(str: String):Map<Int,String> {
+
+    	var nodes:MutableList<String> = mutableListOf()
+    	
+        //match pattern c[001,3-5]
+        val regexCompressed = """([a-zA-Z]+)\[((\w[\,\-]*)+)\]""".toRegex()
+
+        //matches pattern c2
+        val regexSimple = """[a-zA-Z]+\d+""".toRegex()
+        
+        var matchResult = regexCompressed.findAll(str).iterator()
+        
+        if(!matchResult.hasNext()){
+            val simpleResult = regexSimple.find(str)
+            //c2
+            nodes.add(simpleResult!!.value)
+        } 
+        
+            //c[1,3-5]
+    	while( matchResult.hasNext() ) {
+            val match = matchResult.next()
+            val nodeName = match.groupValues[1] // c
+            val nodeNumbers = match.groupValues[2].split(",")  // [1,3-5]
+            
+            nodeNumbers.forEach{ seq -> 
+                if(seq.contains("-")) {
+                    val min = seq.split("-")[0].toInt()
+                    val max = seq.split("-")[1].toInt()
+                    for (i in min..max) nodes.add("${nodeName}${i}")
+                } else {
+                    nodes.add("${nodeName}${seq.toInt()}")
+                }
+            }  
+        } 
+
+        if(nodes.isEmpty()) throw Exception("Empty NodeList")
+        return nodes.mapIndexedNotNull{idx, item -> idx to item}.toMap()
+
+    }
+
+
 }

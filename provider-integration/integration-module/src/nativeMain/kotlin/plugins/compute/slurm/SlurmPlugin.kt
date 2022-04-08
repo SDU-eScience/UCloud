@@ -353,21 +353,19 @@ class SlurmPlugin : ComputePlugin {
         //Initialize(sessionIdentifier=testing, cols=94, rows=35)
 
         val session:InteractiveSession = ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier) )
+        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
+        val nodes:Map<Int,String> = SlurmCommandLine.getJobNodeList(slurmJob.slurmId)
+
 
         println("HANDLESESSION $session")
-
-        val node = when(session.rank){
-            0 -> "c1"
-            1 -> "c2"
-            else -> "c1"
-        }
+        println("NODIS ${nodes.get(session.rank)} ")
 
         val process = startProcess(
             args = listOf(
                 "/usr/bin/ssh",
-                "-oStrictHostKeyChecking=accept-new",
                 "-tt",
-                "${node}", 
+                "-oStrictHostKeyChecking=accept-new",
+                "${nodes.get(session.rank)}", 
                 "([ -x /bin/bash ] && exec /bin/bash) || " +
                 "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
                 "([ -x /bin/zsh ] && exec /bin/zsh) || " +

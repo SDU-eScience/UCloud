@@ -182,7 +182,7 @@ object SlurmJobMapper {
             ).useAndInvokeAndDiscard {
                 bindString("token", iSession.token)
                 bindInt("rank", iSession.rank)
-                bindString("ucloud_id", iSession.ucloud_id)
+                bindString("ucloud_id", iSession.ucloudId)
             }
         }
     }
