@@ -103,7 +103,7 @@ class SyncthingService(
         } else {
             val (job, jobWasCreated) = startJobIfNeeded(username, config, configFolder)
             if (!jobWasCreated) {
-                // TODO("Synchronize new mounts")
+                jobs.k8.updateMounts(job.id, config.folders.map { it.ucloudPath })
             } else {
                 // We don't need to do anything else. The mounts have already been added to the job.
             }

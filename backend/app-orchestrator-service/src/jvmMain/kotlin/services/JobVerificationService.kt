@@ -107,7 +107,7 @@ class JobVerificationService(
         }
     }
 
-    private suspend fun checkAndReturnValidFiles(
+    suspend fun checkAndReturnValidFiles(
         actorAndProject: ActorAndProject,
         files: List<AppParameterValue.File>
     ): List<AppParameterValue.File> {

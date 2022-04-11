@@ -190,10 +190,12 @@ class JobManagement(
                 }
             }
 
+            // TODO(Dan): A poorly timed double unsuspend will still cause the job to be in the queue, even though 
+            // it has been restarted correctly. On the bright side, it will quickly go away.
             if (jobAlreadyExists) {
                 unsuspendMutex.withLock {
                     if (!unsuspendQueue.any { it.job.id == verifiedJob.id }) {
-                        unsuspendQueue.add(UnsuspendItem(verifiedJob, queueExpiration ?: Time.now() + (1000L * 60 * 5)))
+                        unsuspendQueue.add(UnsuspendItem(verifiedJob, queueExpiration ?: Time.now() + (1000L * 60 * 2)))
                     }
                 }
                 return

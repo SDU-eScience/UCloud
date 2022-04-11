@@ -281,6 +281,7 @@ data class JobUpdate(
     val expectedDifferentState: Boolean? = null,
     val newTimeAllocation: Long? = null,
     val allowRestart: Boolean? = null,
+    val newMounts: List<String>? = null,
     override val timestamp: Long = 0L
 ) : ResourceUpdate {
     init {

@@ -80,4 +80,11 @@ data class K8Dependencies(
             serviceClient
         )
     }
+
+    suspend fun updateMounts(jobId: String, mounts: List<String>) {
+        JobsControl.update.call(
+            bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(newMounts = mounts))),
+            serviceClient
+        )
+    }
 }

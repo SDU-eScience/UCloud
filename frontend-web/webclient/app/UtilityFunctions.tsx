@@ -627,7 +627,7 @@ export function randomUUID(): string {
     const randomUUID = crypto["randomUUID"] 
     if (typeof randomUUID === "function") {
         // Does not work in IE
-        return randomUUID();
+        return (crypto as any).randomUUID();
     } else {
         // Should work in most versions of IE
         // This is a slightly less cryptic version of: https://stackoverflow.com/a/2117523

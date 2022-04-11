@@ -9,6 +9,7 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -22,6 +23,7 @@ import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -284,7 +286,8 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
-                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null ||
+                    update.newMounts != null
 
                 var updateToApply = update
 
@@ -293,20 +296,6 @@ class JobOrchestrator(
                         if (job.specification.restartOnExit == true && update.allowRestart == true) {
                             updateToApply = JobUpdate(
                                 JobState.SUSPENDED,
-                                status = buildString {
-                                    val providerStatus = update.status
-                                    if (providerStatus != null) {
-                                        appendLine(providerStatus)
-                                        appendLine()
-                                    }
-
-                                    append("Your job has terminated! UCloud will attempt restart this job soon. ")
-                                    if (newState != JobState.SUCCESS) {
-                                        appendLine("The provider claims this was caused by a failure.")
-                                    } else {
-                                        appendLine()
-                                    }
-                                },
                                 timestamp = Time.now(),
                                 allowRestart = true,
                             )
@@ -348,6 +337,26 @@ class JobOrchestrator(
                         """,
                         "job update"
                     )
+
+                    val newMounts = updateToApply.newMounts
+                    if (newMounts != null) {
+                        val allResources = job.specification.resources ?: emptyList()
+                        val nonMountResources = allResources.filter { it !is AppParameterValue.File }
+                        val validMountResources = verificationService.checkAndReturnValidFiles(
+                            job.owner.toActorAndProject(),
+                            newMounts.map { AppParameterValue.File(it) }
+                        )
+
+                        val newSpecification = job.specification.copy(
+                            resources = nonMountResources + validMountResources
+                        )
+
+                        insertResources(
+                            listOf(job.id.toLong() to newSpecification), 
+                            resetExistingResources = true,
+                            ctx = session,
+                        )
+                    }
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
                         "Ignoring job update for $jobId by ${job.specification.product.provider} " +
@@ -566,12 +575,16 @@ class JobOrchestrator(
         return BulkResponse(request.items.map { Unit })
     }
 
+    private fun ResourceOwner.toActorAndProject(): ActorAndProject {
+        return ActorAndProject(
+            Actor.SystemOnBehalfOfUser(createdBy),
+            project
+        )
+    }
+
     suspend fun performUnsuspension(jobs: List<Job>) {
         for (job in jobs) {
-            val actorAndProject = ActorAndProject(
-                Actor.SystemOnBehalfOfUser(job.owner.createdBy),
-                job.owner.project
-            )
+            val actorAndProject = job.owner.toActorAndProject()
 
             // NOTE(Dan): This will throw if the parameters are no longer OK. This will modify the specification if the
             // mounted resources are no longer OK.
