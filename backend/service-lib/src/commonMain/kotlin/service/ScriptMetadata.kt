@@ -33,6 +33,10 @@ sealed class WhenToStart {
             require(minute in 0..59)
         }
     }
+
+    @Serializable
+    @SerialName("never")
+    object Never: WhenToStart()
 }
 
 @Serializable
