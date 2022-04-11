@@ -124,10 +124,19 @@ object SlurmCommandLine {
     	var nodes:MutableList<String> = mutableListOf()
     	
         //match pattern c[001,3-5]
-        val regexCompressed = """([a-zA-Z]+)\[((\w[\,\-]*)+)\]""".toRegex()
+        //val regexCompressed = """([a-zA-Z]+)\[([0-9\,\-]+)\]""".toRegex()
+
+        val regexCompressed = """([a-z]+)           # group that matches set of at least one letter ex: nodename
+                                 \[                 # matches opening bracket ex: [
+                                 ([\d\,\-]+)        # group that matches set of digit, comma, minus, at least one occurence ex: 003,009-015
+                                 \]                 # matches closing bracket ex: ]
+                              """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
+        
 
         //matches pattern c2
-        val regexSimple = """[a-zA-Z]+\d+""".toRegex()
+        val regexSimple = """[a-z]+     # matches a set of at least one letter ex: nodename
+                             \d+        # matches at least one digit ex: 001
+                          """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
         
         var matchResult = regexCompressed.findAll(str).iterator()
         
@@ -139,11 +148,10 @@ object SlurmCommandLine {
         
             //c[1,3-5]
     	while( matchResult.hasNext() ) {
-            val match = matchResult.next()
-            val nodeName = match.groupValues[1] // c
-            val nodeNumbers = match.groupValues[2].split(",")  // [1,3-5]
-            
-            nodeNumbers.forEach{ seq -> 
+
+            val (nodeName, nodeNumbers) = matchResult.next()!!.destructured
+
+            nodeNumbers.split(",").forEach{ seq -> 
                 if(seq.contains("-")) {
                     val min = seq.split("-")[0].toInt()
                     val max = seq.split("-")[1].toInt()
@@ -151,12 +159,12 @@ object SlurmCommandLine {
                 } else {
                     nodes.add("${nodeName}${seq.toInt()}")
                 }
-            }  
+            }
+              
         } 
 
         if(nodes.isEmpty()) throw Exception("Empty NodeList")
         return nodes.mapIndexedNotNull{idx, item -> idx to item}.toMap()
-
     }
 
 
