@@ -161,8 +161,8 @@ class SyncthingService(
                     )
                 },
 
-                // No expiration
                 timeAllocation = null,
+                restartOnExit = true,
             ),
             username
         )

@@ -26,7 +26,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
     const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
 
     override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
-        log.info("Accounting because job has completed!")
+        log.trace("Accounting because job has completed!")
         val now = Time.now()
         val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt ?: run {
             log.warn("Found no last accounting timestamp for job with id $jobId")
@@ -48,11 +48,11 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
-                log.debug("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
+                log.trace("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
                 continue
             }
 
-            if (now - lastTs < 60_000) continue
+            if (now - lastTs < 60_000 * 15) continue
 
             account(k8.nameAllocator.jobNameToJobId(name), jobFromServer, lastTs, now)
         }
@@ -96,7 +96,7 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
         }
 
         try {
-            log.debug("Attaching accounting timestamp: $jobId $now")
+            log.trace("Attaching accounting timestamp: $jobId $now")
             k8.client.patchResource(
                 KubernetesResources.volcanoJob.withNameAndNamespace(
                     name,

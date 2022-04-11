@@ -1773,7 +1773,7 @@ export interface JobUpdate {
      * A timestamp referencing when UCloud received this update
      */
     timestamp: number /* int64 */,
-    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
     /**
      * A generic text message describing the current status of the `Resource`
      */
@@ -1815,7 +1815,7 @@ export interface JobStatus {
      *
      * This will match the latest state set in the `updates`
      */
-    state: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    state: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
     /**
      * Timestamp matching when the `Job` most recently transitioned to the `RUNNING` state.
      *
@@ -1946,7 +1946,7 @@ export interface JobsBrowseRequest {
     sortBy?: ("CREATED_AT" | "STATE" | "APPLICATION"),
     filterApplication?: string,
     filterLaunchedBy?: string,
-    filterState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    filterState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
     filterTitle?: string,
     filterBefore?: number /* int64 */,
     filterAfter?: number /* int64 */,
@@ -1981,12 +1981,12 @@ export interface JobsRetrieveProductsRequest {
 }
 export interface JobsControlUpdateRequestItem {
     jobId: string,
-    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    state?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
     status?: string,
     /**
      * Indicates that this request should be ignored if the current state does not match the expected state
      */
-    expectedState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    expectedState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
     /**
      * Indicates that this request should be ignored if the current state equals `state`
      */
@@ -3311,7 +3311,7 @@ export interface AauComputeRetrieveRequest {
 export interface AauComputeSendUpdateRequest {
     id: string,
     update: string,
-    newState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED"),
+    newState?: ("IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED"),
 }
 export interface DrainNodeRequest {
     node: string,

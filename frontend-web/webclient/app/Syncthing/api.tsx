@@ -33,6 +33,7 @@ function fetchConfigFake(): Promise<SyncthingConfig> {
 
     for (let i = 0; i < 5; i++) {
         const folder = {
+            id: "Cuda" + i,
             ucloudPath: "/4/Jobs/Coder CUDA" + i
         };
         folders.push(folder);

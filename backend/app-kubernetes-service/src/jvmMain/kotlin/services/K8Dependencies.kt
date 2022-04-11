@@ -22,6 +22,7 @@ data class K8Dependencies(
     val nameAllocator: NameAllocator,
     val dockerImageSizeQuery: DockerImageSizeQuery,
     val debug: DebugSystem?,
+    val jobCache: VerifiedJobCache,
 ) {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
@@ -43,11 +44,14 @@ data class K8Dependencies(
         state: JobState,
         newStatus: String? = null,
         expectedState: JobState? = null,
-        expectedDifferentState: Boolean = false
+        expectedDifferentState: Boolean = false,
+        allowRestart: Boolean? = null,
     ): Boolean {
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
-        if (last != messageAsString) {
+        val currentState = jobCache.findJob(jobId)?.status?.state ?: JobState.IN_QUEUE
+
+        if (currentState != state && last != messageAsString) {
             JobsControl.update.call(
                 bulkRequestOf(
                     ResourceUpdateAndId(
@@ -57,11 +61,13 @@ data class K8Dependencies(
                             status = newStatus,
                             expectedState = expectedState,
                             expectedDifferentState = expectedDifferentState,
+                            allowRestart = allowRestart,
                         )
                     )
                 ),
                 serviceClient
             )
+            jobCache.setExpectedState(jobId, state)
             lastMessage.insert(jobId, messageAsString)
             return true
         }

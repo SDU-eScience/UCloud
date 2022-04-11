@@ -131,7 +131,7 @@ class Server(override val micro: Micro) : CommonServer {
             licenseService
         )
 
-        if (!micro.developmentModeEnabled) runBlocking { jobMonitoring.initialize() }
+        runBlocking { jobMonitoring.initialize(!micro.developmentModeEnabled) }
 
         AppProcessor(
             streams,

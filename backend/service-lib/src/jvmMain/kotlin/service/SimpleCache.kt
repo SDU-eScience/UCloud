@@ -47,6 +47,13 @@ class SimpleCache<K, V : Any>(
         }
     }
 
+    suspend fun transformValue(key: K, transform: (value: V) -> V): V? {
+        val existing = get(key) ?: return null
+        val transformed = transform(existing)
+        insert(key, transformed)
+        return transformed
+    }
+
     fun getBlocking(key: K): V? {
         return runBlocking { get(key) }
     }

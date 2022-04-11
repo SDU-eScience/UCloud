@@ -94,7 +94,7 @@ sealed class KubernetesConfigurationSource {
 
                 val authenticationMethod = when {
                     cluster.cluster.certificateAuthorityData != null -> {
-                        log.debug("Using kubectl proxy method")
+                        log.trace("Using kubectl proxy method")
                         KubernetesAuthenticationMethod.Proxy(context, kubeConfigFile.absolutePath)
                     }
 

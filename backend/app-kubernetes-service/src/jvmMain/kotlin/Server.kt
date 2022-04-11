@@ -61,6 +61,7 @@ class Server(
 
         val debug = micro.featureOrNull(DebugSystem)
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
+        val jobCache = VerifiedJobCache(serviceClient)
         k8Dependencies = K8Dependencies(
             KubernetesClient(
                 if (configuration.kubernetesConfig != null) {
@@ -75,9 +76,9 @@ class Server(
             nameAllocator,
             DockerImageSizeQuery(),
             debug,
+            jobCache,
         )
 
-        val jobCache = VerifiedJobCache(k8Dependencies)
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
         val utilizationService = UtilizationService(k8Dependencies)
@@ -132,10 +133,7 @@ class Server(
             resourceCache,
             db,
             sessions,
-            // NOTE(Dan): The master lock can be annoying to deal with during development (when we only have one
-            // instance) In that case we can disable it via configuration. Note that this config will only be used if
-            // we are in development mode.
-            (configuration.disableMasterElection && micro.developmentModeEnabled),
+            micro.developmentModeEnabled,
         ).apply {
             register(TaskPlugin(
                 configuration.toleration,

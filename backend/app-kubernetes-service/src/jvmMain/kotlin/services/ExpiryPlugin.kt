@@ -70,10 +70,10 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
             val metadata = job.metadata ?: continue
             val name = metadata.name ?: error("no name")
             val namespace = metadata.namespace ?: error("no namespace")
-            log.debug("looking at $name")
+            log.trace("looking at $name")
             val expiry = (metadata.annotations?.get(EXPIRY_ANNOTATION) as? JsonPrimitive)?.content?.toLongOrNull()
                 ?: continue
-            log.debug("expiry in ${expiry - now}")
+            log.trace("expiry in ${expiry - now}")
             if (now >= expiry) {
                 k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
             }
