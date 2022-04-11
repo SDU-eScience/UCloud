@@ -11,7 +11,6 @@ data class ElasticIndexedFile(
     val path: String, //Also is ID in elastic
     val size: Long,
     val fileType: FileType,
-    val rctime: String? = null,
     val fileName: String,
     /**
     * Depth in the file hierarchy
@@ -19,35 +18,30 @@ data class ElasticIndexedFile(
     * Example: /a/b/c will have a depth of 3 and /a/b/c/d will have a depth of 4 and / will have a depth of 0
     */
     val fileDepth: Int,
-    val permission: List<Permission>,
     val createdAt: Long,
-    val collectionId: String,
     val owner: String,
-    val projectId: String? = null
+    val projectId: String? = null,
+    val scanTime: Long? = null
 )
 
 fun ElasticIndexedFile(
     path: String,
     size: Long,
     fileType: FileType,
-    rctime: String? = null,
-    permission: List<Permission>,
     createdAt: Long,
-    collectionId: String,
     owner: String,
-    projectId: String? = null
+    projectId: String? = null,
+    scanTime: Long? = null
 ) = ElasticIndexedFile(
     path = path,
     size = size,
     fileType = fileType,
-    rctime = rctime,
     fileName = path.normalize().fileName(),
     fileDepth = path.normalize().depth(),
-    permission = permission,
     createdAt = createdAt,
-    collectionId = collectionId,
     owner = owner,
-    projectId = projectId
+    projectId = projectId,
+    scanTime = scanTime
 )
 
 object ElasticIndexedFileConstants {
@@ -61,12 +55,11 @@ object ElasticIndexedFileConstants {
 
     const val FILE_TYPE_FIELD = "fileType"
     const val SIZE_FIELD = "size"
-    const val PERMISSION_FIELD = "permission"
-    const val PERMISSION_KEYWORD = "permission" + ".keyword"
     const val OWNER_FIELD = "owner"
     const val PROJECT_ID = "projectId"
     const val COLLECTION_ID_FIELD = "collectionId"
     const val CREATED_AT_FIELD = "createdAt"
+    const val SCAN_TIME = "scanTime"
 }
 
 fun ElasticIndexedFile.toPartialUFile(): PartialUFile {

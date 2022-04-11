@@ -199,20 +199,18 @@ class Server(
         // 4b. Optional indexing feature
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
+        if ( micro.featureOrNull(ElasticFeature) != null) {
+            elasticQueryService = ElasticQueryService(micro.elasticHighLevelClient, nativeFs, pathConverter)
+        }
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
-            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
-            elasticQueryService = ElasticQueryService(
-                micro.elasticHighLevelClient,
-                nativeFs,
-                pathConverter
-            )
+            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 4, numberOfReplicas = 0)
 
             scriptManager.register(
                 Script(
                     ScriptMetadata(
                         "ucloud-storage-index",
-                        "UCloud/Storage: Indexing",
-                        WhenToStart.Periodically(1000L * 60L * 60L * 96)
+                        "UCloud/Storage: Full Indexing",
+                        WhenToStart.Never
                     ),
                     script = {
                         FileScanner(
@@ -221,9 +219,28 @@ class Server(
                             db,
                             nativeFs,
                             pathConverter,
-                            cephStats,
-                            elasticQueryService
-                        ).runScan()
+                            cephStats
+                        ).runFullScan()
+                    }
+                )
+            )
+
+            scriptManager.register(
+                Script(
+                    ScriptMetadata(
+                        "ucloud-storage-index-fast",
+                        "UCloud/Storage: Active Indexing ",
+                        WhenToStart.Periodically(1000L * 60L * 10L)
+                    ),
+                    script = {
+                        FileScanner(
+                            micro.elasticHighLevelClient,
+                            authenticatedClient,
+                            db,
+                            nativeFs,
+                            pathConverter,
+                            cephStats
+                        ).runFastScan()
                     }
                 )
             )
