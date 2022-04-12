@@ -102,6 +102,11 @@ class UCloudConfigService(
 
             deviceIdFile.writeText(deviceId)
         }
+
+        val restartFile = File(configFolder, "restart.txt")
+        if (restartFile.exists()) {
+            restartFile.delete()
+        }
     }
 
     /*
@@ -114,6 +119,15 @@ class UCloudConfigService(
         var nextScan = System.currentTimeMillis()
         while (!requiresRestart) {
             if (System.currentTimeMillis() > nextScan) {
+                try {
+                    val restartFile = File(configFolder, "restart.txt")
+                    if (restartFile.exists()) {
+                        requiresRestart = true
+                    }
+                } catch (e: Throwable) {
+                    log.debug("Caught exception while monitoring for restart signal: ${ex.stackTraceToString()}")
+                }
+
                 try {
                     val newConfig = defaultMapper.decodeFromString<UCloudSyncthingConfig>(ucloudConfigFile.readText())
 

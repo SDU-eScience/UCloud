@@ -23,6 +23,10 @@ class SyncthingController(
             ok(service.resetConfiguration(actorAndProject, request))
         }
 
+        implement(Syncthing.restart) {
+            ok(service.restart(actorAndProject, request))
+        }
+
         return@with
     }
 }

@@ -12,7 +12,7 @@ web:
 allowMultiNode: false
 
 tool:
-  name: alpine
+  name: syncthing
   version: 1
 
 authors:
@@ -31,16 +31,9 @@ parameters:
     type: input_directory
 
 invocation:
-- sh
-- -c
-- >
-  echo "Hello, World!";
-  sleep 2;
-  echo "How are you doing?";
-  sleep 1;
-  echo "This is just me writing some stuff for testing purposes!";
-  sleep 1;
-  seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
+- /init
+- type: var
+  vars: stateFolder
 
 outputFileGlobs:
   - "*"

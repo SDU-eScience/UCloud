@@ -102,5 +102,19 @@ class SyncthingService(
             )
         )
     }
+
+    suspend fun restart(
+        actorAndProject: ActorAndProject,
+        request: IAppsRestartRequest<SyncthingConfig>
+    ): IAppsRestartResponse<SyncthingConfig> {
+        return providers.invokeCall(
+            request.providerId,
+            actorAndProject,
+            { SyncthingProvider(request.providerId).restart },
+            IAppsProviderRestartRequest(
+                ResourceOwner(actorAndProject.actor.safeUsername(), null),
+            )
+        )
+    }
 }
 

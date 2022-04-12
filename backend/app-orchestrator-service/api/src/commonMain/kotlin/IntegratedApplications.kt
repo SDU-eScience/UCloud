@@ -91,6 +91,30 @@ abstract class IntegratedApplicationApi<ConfigType>(
         errorType = CommonErrorMessage.serializer(),
         errorClass = typeOf<CommonErrorMessage>(),
     )
+
+    val restart: CallDescription<
+        IAppsRestartRequest<ConfigType>,
+        IAppsRestartResponse<ConfigType>,
+        CommonErrorMessage
+    > get() = call(
+        name = "restart",
+        handler = {
+            httpUpdate(
+                IAppsRestartRequest.serializer(configSerializer),
+                baseContext,
+                "restart",
+            )
+        },
+
+        requestType = IAppsRestartRequest.serializer(configSerializer),
+        requestClass = typeOf<IAppsRestartRequest<ConfigType>>(),
+
+        successType = IAppsRestartResponse.serializer(configSerializer),
+        successClass = typeOf<IAppsRestartResponse<ConfigType>>(),
+
+        errorType = CommonErrorMessage.serializer(),
+        errorClass = typeOf<CommonErrorMessage>(),
+    )
 }
 
 @Serializable
@@ -120,6 +144,14 @@ data class IAppsResetConfigRequest<ConfigType>(
 
 @Serializable
 class IAppsResetConfigResponse<ConfigType>()
+
+@Serializable
+data class IAppsRestartRequest<ConfigType>(
+    val providerId: String,
+)
+
+@Serializable
+class IAppsRestartResponse<ConfigType>()
 
 // Provider API
 // ====================================================================================================================
@@ -207,6 +239,32 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
         errorType = CommonErrorMessage.serializer(),
         errorClass = typeOf<CommonErrorMessage>(),
     )
+
+    val restart: CallDescription<
+        IAppsProviderRestartRequest<ConfigType>,
+        IAppsProviderRestartResponse<ConfigType>,
+        CommonErrorMessage
+    > get() = call(
+        name = "restart",
+        handler = {
+            httpUpdate(
+                IAppsProviderRestartRequest.serializer(configSerializer),
+                baseContext,
+                "restart",
+                roles = Roles.SERVICE,
+            )
+        },
+
+        requestType = IAppsProviderRestartRequest.serializer(configSerializer),
+        requestClass = typeOf<IAppsProviderRestartRequest<ConfigType>>(),
+
+        successType = IAppsProviderRestartResponse.serializer(configSerializer),
+        successClass = typeOf<IAppsProviderRestartResponse<ConfigType>>(),
+
+        errorType = CommonErrorMessage.serializer(),
+        errorClass = typeOf<CommonErrorMessage>(),
+    )
+
 }
 
 @Serializable
@@ -232,5 +290,12 @@ data class IAppsProviderResetConfigRequest<ConfigType>(
 )
 
 typealias IAppsProviderResetConfigResponse<ConfigType> = IAppsResetConfigResponse<ConfigType>
+
+@Serializable
+data class IAppsProviderRestartRequest<ConfigType>(
+    val principal: ResourceOwner,
+)
+
+typealias IAppsProviderRestartResponse<ConfigType> = IAppsRestartResponse<ConfigType>
 
 

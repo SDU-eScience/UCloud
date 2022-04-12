@@ -1,7 +1,6 @@
 FROM dreg.cloud.sdu.dk/ucloud/base:2021.3.0
 ARG syncthing_version=1.19.1
 COPY build/service /opt/service/
-COPY init /init
 USER 0
 RUN apt-get update
 RUN apt-get install bash # TODO Remove
@@ -16,5 +15,6 @@ RUN mv syncthing-linux-amd64-v1.19.1 syncthing
 USER 11042
 WORKDIR /
 
+COPY init /init
 # /opt/service/bin/service
 CMD ["/init"]

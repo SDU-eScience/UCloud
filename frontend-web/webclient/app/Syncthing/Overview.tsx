@@ -31,12 +31,12 @@ import { FilesBrowse } from "@/Files/Files";
 import { api as FilesApi } from "@/UCloud/FilesApi";
 import { randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount } from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
+import { buildQueryString } from "@/Utilities/URIUtilities";
+import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
-import {buildQueryString} from "@/Utilities/URIUtilities";
-import {callAPI} from "@/Authentication/DataHook";
 
 // UI state management
 // ================================================================================
@@ -500,6 +500,7 @@ const ServerRenderer: ItemRenderer<Job> = {
         switch (status) {
             case "IN_QUEUE":
             case "EXPIRED":
+            case "SUSPENDED":
             case "CANCELING": {
                 return <Flex alignItems="center">
                     <Spinner />
@@ -530,19 +531,34 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         text: "Open interface",
         icon: "open",
         enabled: selected => selected.length === 1,
-        onClick: doNothing
+        onClick: ([job]) => {
+            const element = document.createElement("a");
+            element.setAttribute("href", `/applications/web/${job.id}/0?hide-frame`);
+            element.setAttribute("target", "_blank");
+            element.style.display = "none";
+            document.body.appendChild(element);
+            element.click();
+            document.body.removeChild(element);
+        }
     },
     {
         text: "Show device ID",
         icon: "id",
         enabled: selected => selected.length === 1,
-        onClick: doNothing
+        onClick: ([job], cb) => {
+            const path = job.specification.parameters["stateFolder"]?.["path"];
+            if (path && typeof path === "string") {
+                cb.history.push(`/files/properties/${encodeURIComponent(`${path}/ucloud_device_id.txt`)}`);
+            }
+        }
     },
     {
         text: "View logs",
         icon: "fileSignatureSolid",
         enabled: selected => selected.length === 1,
-        onClick: doNothing
+        onClick: ([job], cb) => {
+            cb.history.push(`/jobs/properties/${job.id}`);
+        }
     },
     {
         text: "Restart",
@@ -550,18 +566,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({ type: "ExpectServerUpdate" });
-        }
-    },
-    {
-        text: "Pause",
-        icon: "pauseSolid",
-        enabled: selected => selected.length === 1 && 
-            selected[0].status.state !== "SUCCESS" &&
-            selected[0].status.state !== "FAILURE",
-        onClick: (selected, cb) => {
-            for (const server of selected) {
-                cb.dispatch({ type: "ExpectServerPause", serverId: server.id });
-            }
+            callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud"}));
         }
     },
     {
@@ -570,7 +575,10 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         confirm: true,
         color: "red",
         enabled: selected => selected.length === 1,
-        onClick: doNothing
+        onClick: (_, cb) => {
+            cb.dispatch({ type: "ExpectServerUpdate" });
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
+        }
     },
 ];
 

@@ -74,6 +74,24 @@ class SyncthingService(
         return IAppsProviderResetConfigResponse<SyncthingConfig>()
     }
 
+    suspend fun restart(
+        request: IAppsProviderRestartRequest<SyncthingConfig>
+    ): IAppsProviderRestartResponse<SyncthingConfig> {
+        val restartFile = InternalFile(
+            joinPath(
+                initializeConfigurationFolder(request.principal.createdBy).path,
+                "restart.txt",
+                isDirectory = false
+            )
+        )
+
+        val (_, fileOutput) = fs.openForWriting(restartFile, WriteConflictPolicy.REPLACE)
+        fileOutput.writer().use { w ->
+            w.write("Restart required")
+        }
+        return IAppsProviderRestartResponse<SyncthingConfig>()
+    }
+
     suspend fun updateConfiguration(
         request: IAppsProviderUpdateConfigRequest<SyncthingConfig>
     ): IAppsProviderUpdateConfigResponse<SyncthingConfig> {
@@ -137,7 +155,8 @@ class SyncthingService(
 
                 parameters = mapOf(
                     "stateFolder" to AppParameterValue.File(
-                        pathConverter.internalToUCloud(configFolder).path
+                        pathConverter.internalToUCloud(configFolder).path,
+                        readOnly = false,
                     )
                 ),
 

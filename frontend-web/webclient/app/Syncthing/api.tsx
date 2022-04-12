@@ -114,6 +114,10 @@ class Api {
     resetConfiguration(request: ResetConfigRequest): APICallParameters {
         return apiUpdate(request, this.baseContext, "reset");
     }
+
+    restart(request: RestartRequest): APICallParameters {
+        return apiUpdate(request, this.baseContext, "restart");
+    }
 }
 
 
@@ -131,6 +135,10 @@ export interface UpdateConfigRequest {
 export interface ResetConfigRequest {
     providerId: string;
     expectedETag?: string | null;
+}
+
+export interface RestartRequest {
+    providerId: string;
 }
 
 export const api = new Api();
