@@ -8,7 +8,6 @@ export enum ResourceTabOptions {
     PUBLIC_IP = "Public IPs",
     PUBLIC_LINKS = "Public Links",
     LICENSES = "Licenses",
-    // SYNC = "Synchronized Folders"
 }
 
 export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element | null {

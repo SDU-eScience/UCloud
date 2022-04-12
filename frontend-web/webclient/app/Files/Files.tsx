@@ -9,7 +9,7 @@ import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
-import {isLightThemeStored, joinToString, removeTrailingSlash, useEffectSkipMount} from "@/UtilityFunctions";
+import {isLightThemeStored, joinToString, removeTrailingSlash} from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
@@ -24,8 +24,6 @@ import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {ProductSyncFolder} from "@/Accounting";
-import SyncFolderApi, {SyncFolderSupport} from "@/UCloud/SyncFolderApi";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -52,7 +50,6 @@ export const FilesBrowse: React.FunctionComponent<{
     const additionalFilters = useMemo((() => {
         const base = {
             path, includeMetadata: "true",
-            includeSyncStatus: "true"
         };
 
         if (props.additionalFilters != null) {
@@ -66,9 +63,6 @@ export const FilesBrowse: React.FunctionComponent<{
     const history = useHistory();
     const [collection, fetchCollection] = useCloudAPI<FileCollection | null>({noop: true}, null);
     const [directory, fetchDirectory] = useCloudAPI<UFile | null>({noop: true}, null);
-    const [syncProducts, fetchSyncProducts] = useCloudAPI<
-        SupportByProvider<ProductSyncFolder, SyncFolderSupport> | undefined
-    >(SyncFolderApi.retrieveProducts(), undefined);
 
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
 
@@ -270,7 +264,6 @@ export const FilesBrowse: React.FunctionComponent<{
         collection: collection?.data ?? undefined,
         allowMoveCopyOverride: props.allowMoveCopyOverride,
         directory: directory?.data ?? undefined,
-        syncProducts: syncProducts?.data ?? undefined
     }), [collection.data, directory.data]);
 
     return <ResourceBrowse

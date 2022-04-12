@@ -34,7 +34,6 @@ import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.support.SupportService
-import dk.sdu.cloud.sync.mounter.SyncMounterService
 import dk.sdu.cloud.task.TaskService
 import io.ktor.application.*
 import io.ktor.http.*
@@ -52,7 +51,6 @@ object Launcher : Loggable {
 }
 
 val services = setOf<Service>(
-    SyncMounterService,
     AccountingService,
     AppOrchestratorService,
     AppStoreService,
@@ -314,14 +312,6 @@ suspend fun main(args: Array<String>) {
                         freeToUse = false,
                         description = "An example product for development use",
                         chargeType = ChargeType.DIFFERENTIAL_QUOTA
-                    ),
-                    Product.Synchronization(
-                        "u1-sync",
-                        1L,
-                        ProductCategoryId("u1-sync", providerId),
-                        unitOfPrice = ProductPriceUnit.CREDITS_PER_DAY,
-                        freeToUse = true,
-                        description = "An example product for development use"
                     ),
                     Product.Storage(
                         "share",

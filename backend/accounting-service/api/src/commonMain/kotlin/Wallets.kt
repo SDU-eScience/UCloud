@@ -129,18 +129,6 @@ data class Wallet(
                         ProductPriceUnit.UNITS_PER_DAY -> Pair("IP address days", 1.0)
                     }
                 }
-                ProductType.SYNCHRONIZATION -> {
-                    when (unit) {
-                        ProductPriceUnit.PER_UNIT -> Pair("Synchronization", 1.0)
-                        ProductPriceUnit.CREDITS_PER_UNIT -> Pair("DKK", 1 / 1_000_000.0)
-                        ProductPriceUnit.CREDITS_PER_MINUTE -> Pair("DKK", 1 / 1_000_000.0)
-                        ProductPriceUnit.CREDITS_PER_HOUR -> Pair("DKK", 1 / 1_000_000.0)
-                        ProductPriceUnit.CREDITS_PER_DAY -> Pair("DKK", 1 / 1_000_000.0)
-                        ProductPriceUnit.UNITS_PER_MINUTE -> Pair("Synchronization minutes", 1.0)
-                        ProductPriceUnit.UNITS_PER_HOUR -> Pair("Synchronization hours", 1.0)
-                        ProductPriceUnit.UNITS_PER_DAY -> Pair("Synchronization days", 1.0)
-                    }
-                }
             }
 
             return "${balance * normalizationFactor} $suffix"

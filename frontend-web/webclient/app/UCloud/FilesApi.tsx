@@ -39,8 +39,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
-import {ProductStorage, ProductSyncFolder} from "@/Accounting";
-import {SynchronizationSettings} from "@/Files/Synchronization";
+import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
@@ -53,7 +52,6 @@ import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/Meta
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
 import {useEffect, useState} from "react";
-import {SyncFolderSupport} from "./SyncFolderApi";
 import {getCookie} from "@/Login/Wayf";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
@@ -69,7 +67,6 @@ export interface UFileStatus extends ResourceStatus {
     unixOwner?: number;
     unixGroup?: number;
     metadata?: FileMetadataHistory;
-    synced?: boolean;
 }
 
 export interface UFileSpecification extends ResourceSpecification {
@@ -83,7 +80,6 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
     allowUnsupportedInclude?: boolean;
-    includeSyncStatus?: boolean;
     path?: string;
 }
 
@@ -134,7 +130,6 @@ interface ExtraCallbacks {
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
     // special case.
     allowMoveCopyOverride?: boolean;
-    syncProducts?: SupportByProvider<ProductSyncFolder, SyncFolderSupport>;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -244,11 +239,11 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             const sensitivity = useSensitivity(resource);
 
             return <Flex>
-                {resource.status.synced && getCookie("synchronization") ?
-                    <div style={{cursor: "pointer"}} onClick={() => addSynchronizationDialog(resource, callbacks)}>
+                {resource.status["synced"] && getCookie("synchronization") ?
+                    <div style={{cursor: "pointer"}} onClick={doNothing}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
-                : null }
+                : null}
                 <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
                     <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
                 </div>
@@ -586,25 +581,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "refresh",
-                text: "Synchronization",
-                enabled: (selected, cb) => {
-                    if (!getCookie("synchronization")) return false;
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if (!cb.syncProducts) return false;
-                    const provider = (support as FileCollectionSupport).product.provider;
-                    return cb.embedded !== true &&
-                        cb.syncProducts &&
-                        Object.keys(cb.syncProducts.productsByProvider).filter(it => it === provider).length > 0 &&
-                        selected.length === 1 &&
-                        selected[0].status.type === "DIRECTORY";
-                },
-                onClick: async (selected, cb) => {
-                    addSynchronizationDialog(selected[0], cb)
-                }
-            },
-            {
                 icon: "trash",
                 text: "Move to trash",
                 confirm: true,
@@ -908,21 +884,6 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
-}
-
-async function addSynchronizationDialog(file: UFile, cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): Promise<void> {
-    const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
-
-    if (provider) {
-        dialogStore.addDialog(
-            <SynchronizationSettings file={file} collection={cb.collection} provider={provider} onSuccess={() => cb.reload()} />,
-            () => undefined,
-            true
-            //this.fileSelectorModalStyle
-        );
-    } else {
-        snackbarStore.addFailure("Synchronization not supported by provider", false);
-    }
 }
 
 const api = new FilesApi();

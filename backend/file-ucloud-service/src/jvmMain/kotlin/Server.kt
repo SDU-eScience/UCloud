@@ -10,13 +10,11 @@ import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
-import dk.sdu.cloud.file.ucloud.rpc.SyncController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.sync.mounter.api.Mounts
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -26,8 +24,6 @@ class Server(
     override val micro: Micro,
     private val configuration: Configuration,
     private val cephConfig: CephConfiguration,
-    private val syncConfig: SyncConfiguration,
-    private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
     private val onKtorReadyCallbacks = ArrayList<suspend () -> Unit>()
@@ -65,17 +61,7 @@ class Server(
         val authenticator =
             RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
 
-        @Suppress("UNCHECKED_CAST")
-        micro.providerTokenValidation = TokenValidationChain(
-            buildList {
-                add(validation as TokenValidation<Any>)
-                if (syncMounterSharedSecret != null) {
-                    InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
-                } else {
-                    log.warn("Missing shared secret for file-ucloud-service and sync-mounter. Sync will not work")
-                }
-            }
-        )
+        micro.providerTokenValidation = validation as TokenValidation<Any>
 
         // 2. Core infrastructure (e.g. databases)
         // ===========================================================================================================
@@ -132,30 +118,7 @@ class Server(
             memberFiles
         )
 
-        // 4a. Optional sync-thing feature
-        // ===========================================================================================================
-        if (syncConfig.devices.isNotEmpty() && syncMounterSharedSecret != null) {
-            val mounterClient = RefreshingJWTAuthenticator(
-                micro.client,
-                JwtRefresherSharedSecret(syncMounterSharedSecret)
-            ).authenticateClient(OutgoingHttpCall)
-
-            val syncthingClient = SyncthingClient(syncConfig, db)
-            val syncService = SyncService(
-                configuration.providerId,
-                syncthingClient,
-                db,
-                authenticatedClient,
-                cephStats,
-                pathConverter,
-                nativeFs,
-                mounterClient
-            )
-
-            controllers.add(SyncController(configuration.providerId, syncService, syncMounterSharedSecret))
-        }
-
-        // 4b. Optional indexing feature
+        // 4a. Optional indexing feature
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
