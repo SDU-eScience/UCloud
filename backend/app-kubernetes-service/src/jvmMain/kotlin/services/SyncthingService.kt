@@ -4,9 +4,11 @@ import com.github.jasync.sql.db.ResultSet
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.k8.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.kubernetes.services.volcano.*
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.app.store.api.*
@@ -19,6 +21,7 @@ import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.provider.api.Permission
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.*
 import java.util.*
 
 class SyncthingService(
@@ -31,7 +34,7 @@ class SyncthingService(
     private val fs: NativeFS,
 
     private val serviceClient: AuthenticatedClient,
-) {
+) : JobManagementPlugin {
     suspend fun retrieveConfiguration(
         request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
     ): IAppsProviderRetrieveConfigResponse<SyncthingConfig> {
@@ -243,6 +246,82 @@ class SyncthingService(
             path = "/work/${ucloudPath.fileName()}",
             id = if (id != "") id else UUID.randomUUID().toString()
         )
+    }
+
+    // Job management plugin
+    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+        // NOTE(Dan): This plugin is designed to run after all the normal plugins have already run. As a result, this
+        // plugin has full range to do whatever modifications it desires. Of course, this plugin is only interested in
+        // syncthing related jobs, so we start by verifying that we are on the correct product.
+
+        run {
+            // Check if this is an interesting job
+            val product = job.specification.product
+            val isSyncthing = product.id == productId && product.category == productCategory
+            if (!isSyncthing) return
+        }
+
+        run {
+            // Verify that only the syncthing application will run on this product
+            if (job.specification.application != syncthingApplication) {
+                throw RPCException(
+                    "This product can only be used to launch Syncthing for synchronization purposes",
+                    HttpStatusCode.BadRequest,
+                )
+            }
+        }
+
+        run {
+            // Verify that we are only running on a single node (orchestrator should also verify this, this is only a
+            // sanity check)
+            if (job.specification.replicas != 1) {
+                throw RPCException(
+                    "Syncthing can only be run with a single replica",
+                    HttpStatusCode.BadRequest
+                )
+            }
+        }
+
+        // NOTE(Dan): Next, we make some modifications to the scheduling parameters. This ensures that we have better
+        // utilization of our cluster resources.
+        val vSpec = builder.spec ?: error("no volcano job spec")
+        val tasks = (vSpec.tasks ?: emptyList())
+
+        run {
+            // Schedule with fewer resources attached
+            tasks.forEach { task ->
+                val containers = task?.template?.spec?.containers ?: emptyList()
+                containers.forEach { c -> 
+                    // TODO(Dan): Re-evaluate these numbers based on some proper tests. I am very much guessing at
+                    // what the values should be.
+                    c.resources = Pod.Container.ResourceRequirements(
+                        requests = JsonObject(mapOf(
+                            "cpu" to JsonPrimitive("100m"),
+                            "memory" to JsonPrimitive("200Mi")
+                        )),
+                        limits = JsonObject(mapOf(
+                            "cpu" to JsonPrimitive("2000m"),
+                            "memory" to JsonPrimitive("500Mi")
+                        ))
+                    )
+                }
+            }
+        }
+
+        run {
+            // Reduce shared memory
+            tasks.forEach { task ->
+                val volumes = task?.template?.spec?.volumes ?: emptyList()
+                volumes.forEach { v ->
+                    if (v.name == SharedMemoryPlugin.SHARED_MEMORY_VOLUME) {
+                        v.emptyDir = Volume.EmptyDirVolumeSource(
+                            medium = "Memory",
+                            sizeLimit = "200Mi"
+                        )
+                    }
+                }
+            }
+        }
     }
 
     companion object : Loggable {

@@ -222,7 +222,9 @@ class Server(
             memberFiles, 
             fs,
             serviceClient
-        )
+        ).also {
+            jobManagement.register(it)
+        }
 
         configureControllers(
             *buildList {
