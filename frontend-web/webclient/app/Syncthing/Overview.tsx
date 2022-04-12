@@ -175,9 +175,14 @@ async function onAction(state: UIState, action: UIAction, cb: ActionCallbacks): 
         case "AddFolder":
         case "AddDevice": {
             cb.pureDispatch({ type: "ExpectServerUpdate" });
+            cb.requestJobReloader();
             break;
         }
 
+        case "ExpectServerUpdate": {
+            cb.requestJobReloader();
+            break;
+        }
     }
 }
 
@@ -185,6 +190,7 @@ interface ActionCallbacks {
     history: History;
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
+    requestJobReloader: () => void;
 }
 
 interface OperationCallbacks {
@@ -205,6 +211,7 @@ export const Overview: React.FunctionComponent = () => {
     const folderToggleSet = useToggleSet([]);
     const serverToggleSet = useToggleSet([]);
     const didUnmount = useDidUnmount();
+    const jobReloaderTimeout = useRef(-1);
 
     const devices = uiState?.devices ?? [];
     const folders = uiState?.folders ?? [];
@@ -223,10 +230,36 @@ export const Overview: React.FunctionComponent = () => {
         });
     }, [pureDispatch]);
 
+    const requestJobReloader = useCallback((awaitUpdatingAttemptsRemaining: number = 40) => {
+        if (jobReloaderTimeout.current !== -1) return;
+        Sync.fetchServers().then(servers => {
+            if (didUnmount.current) return;
+
+            let isUpdating = false;
+            for (const server of servers) {
+                if (server.status.state !== "RUNNING") {
+                    isUpdating = true;
+                }
+            }
+
+            if (isUpdating || awaitUpdatingAttemptsRemaining > 0) {
+                jobReloaderTimeout.current = setTimeout(() => {
+                    if (didUnmount.current) return;
+                    jobReloaderTimeout.current = -1;
+
+                    requestJobReloader(isUpdating ? 0 : awaitUpdatingAttemptsRemaining - 1);
+                }, awaitUpdatingAttemptsRemaining > 0 ? 500 : 3000);
+            } else {
+                pureDispatch({ type: "ReloadServers", servers });
+            }
+        });
+    }, []);
+
     const actionCb: ActionCallbacks = useMemo(() => ({
         history,
         pureDispatch,
-        requestReload: reload
+        requestReload: reload,
+        requestJobReloader,
     }), [history, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
