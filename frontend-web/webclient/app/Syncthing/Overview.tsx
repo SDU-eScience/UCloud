@@ -37,10 +37,11 @@ import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
+import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 
 // UI state management
 // ================================================================================
-type UIAction = 
+type UIAction =
     ReloadConfig | ReloadServers | ReloadDeviceWizard |
     RemoveDevice | RemoveFolder |
     AddDevice | AddFolder |
@@ -95,10 +96,11 @@ interface UIState {
     folders?: SyncthingFolder[];
     servers?: Job[];
     showDeviceWizard?: boolean;
+    didAddFolder?: boolean;
 }
 
 function uiReducer(state: UIState, action: UIAction): UIState {
-    const copy = deepCopy(state);  
+    const copy = deepCopy(state);
     switch (action.type) {
         case "ReloadServers": {
             copy.servers = action.servers;
@@ -137,8 +139,9 @@ function uiReducer(state: UIState, action: UIAction): UIState {
 
         case "AddFolder": {
             const folders = copy.folders ?? [];
-            folders.push({ id: randomUUID(), ucloudPath: action.folderPath });
+            folders.push({id: randomUUID(), ucloudPath: action.folderPath});
             copy.folders = folders;
+            copy.didAddFolder = true;
             return copy;
         }
 
@@ -169,12 +172,12 @@ function uiReducer(state: UIState, action: UIAction): UIState {
 async function onAction(state: UIState, action: UIAction, cb: ActionCallbacks): Promise<void> {
     state; // TODO(Dan): I forgot how to supress the unused warning
 
-    switch(action.type) {
+    switch (action.type) {
         case "RemoveFolder":
         case "RemoveDevice":
         case "AddFolder":
         case "AddDevice": {
-            cb.pureDispatch({ type: "ExpectServerUpdate" });
+            cb.pureDispatch({type: "ExpectServerUpdate"});
             cb.requestJobReloader();
             break;
         }
@@ -221,12 +224,12 @@ export const Overview: React.FunctionComponent = () => {
     const reload = useCallback(() => {
         Sync.fetchConfig().then(config => {
             if (didUnmount.current) return;
-            pureDispatch({ type: "ReloadConfig", config });
+            pureDispatch({type: "ReloadConfig", config});
         });
 
         Sync.fetchServers().then(servers => {
             if (didUnmount.current) return;
-            pureDispatch({ type: "ReloadServers", servers });
+            pureDispatch({type: "ReloadServers", servers});
         });
     }, [pureDispatch]);
 
@@ -250,7 +253,7 @@ export const Overview: React.FunctionComponent = () => {
                     requestJobReloader(isUpdating ? 0 : awaitUpdatingAttemptsRemaining - 1);
                 }, awaitUpdatingAttemptsRemaining > 0 ? 500 : 3000);
             } else {
-                pureDispatch({ type: "ReloadServers", servers });
+                pureDispatch({type: "ReloadServers", servers});
             }
         });
     }, []);
@@ -274,23 +277,23 @@ export const Overview: React.FunctionComponent = () => {
     }), [history, dispatch, reload]);
 
     const openWizard = useCallback(() => {
-        pureDispatch({ type: "ReloadDeviceWizard", visible: true });
+        pureDispatch({type: "ReloadDeviceWizard", visible: true});
     }, [pureDispatch]);
 
     const closeWizard = useCallback(() => {
-        pureDispatch({ type: "ReloadDeviceWizard", visible: false });
+        pureDispatch({type: "ReloadDeviceWizard", visible: false});
     }, [pureDispatch]);
 
     const onDeviceAdded = useCallback((device: SyncthingDevice) => {
-        dispatch({ type: "AddDevice", device });
+        dispatch({type: "AddDevice", device});
     }, [dispatch]);
 
     const onRemoveDevice = useCallback((deviceId: string) => {
-        dispatch({ type: "RemoveDevice", deviceId });
+        dispatch({type: "RemoveDevice", deviceId});
     }, [dispatch]);
-    
+
     const openFileSelector = useCallback(() => {
-        const pathRef = { current: "" };
+        const pathRef = {current: ""};
         dialogStore.addDialog(
             <FilesBrowse
                 browseType={BrowseType.Embedded}
@@ -298,7 +301,7 @@ export const Overview: React.FunctionComponent = () => {
                 onSelectRestriction={file => file.status.type === "DIRECTORY"}
                 onSelect={async (res) => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
-                    dispatch({ type: "AddFolder", folderPath: target });
+                    dispatch({type: "AddFolder", folderPath: target});
                     dialogStore.success();
                 }}
             />,
@@ -312,17 +315,17 @@ export const Overview: React.FunctionComponent = () => {
     useEffect(() => reload(), [reload]);
 
     useEffect(() => {
-        folderToggleSet.uncheckAll();   
+        folderToggleSet.uncheckAll();
     }, [folders]);
 
     useEffect(() => {
-        serverToggleSet.uncheckAll();   
+        serverToggleSet.uncheckAll();
     }, [servers]);
 
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             providerId: "ucloud",
-            config: { devices, folders }
+            config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length]);
 
@@ -331,8 +334,11 @@ export const Overview: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Files);
     useLoading(loading);
 
-    return <MainContainer
-        main={<>
+    let main: JSX.Element;
+    if (uiState.devices !== undefined && uiState.devices.length === 0) {
+        main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>;
+    } else {
+        main = <>
             {uiState.showDeviceWizard !== true ? null :
                 <ReactModal
                     isOpen={true}
@@ -341,7 +347,7 @@ export const Overview: React.FunctionComponent = () => {
                     ariaHideApp={false}
                     onRequestClose={closeWizard}
                 >
-                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard} />
+                    <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>
                 </ReactModal>
             }
 
@@ -351,7 +357,7 @@ export const Overview: React.FunctionComponent = () => {
                 color="blue"
                 subtitle={<Flex>
                     <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
-                        <Button><Icon name="open" mr="4px" size="14px" /> Download Syncthing</Button>
+                        <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
                     </ExternalLink>
                     <Button onClick={openWizard}>New Device</Button>
                 </Flex>}
@@ -367,32 +373,33 @@ export const Overview: React.FunctionComponent = () => {
             </HighlightedCard>
 
             <TwoPanelLayout>
-                <HighlightedCard
-                    className="servers"
-                    icon="globeEuropeSolid"
-                    title="Syncthing Servers"
-                    color="blue"
-                >
-                    <Text color="darkGray" fontSize={1}>
-                        We synchronize your files from this server. Monitor the health of your servers here.
-                    </Text>
+                {uiState.folders !== undefined && folders.length === 0 ? null :
+                    <HighlightedCard
+                        className="servers"
+                        icon="globeEuropeSolid"
+                        title="Syncthing Servers"
+                        color="blue"
+                    >
+                        <Text color="darkGray" fontSize={1}>
+                            We synchronize your files from this server. Monitor the health of your servers here.
+                        </Text>
 
-                    <List mt="16px">
-                        {servers.map(it => 
-                            <ItemRow
-                                item={it}
-                                key={it.id}
-                                browseType={BrowseType.Embedded}
-                                renderer={ServerRenderer}
-                                toggleSet={serverToggleSet}
-                                operations={serverOperations}
-                                callbacks={operationCb}
-                                itemTitle={"Server"}
-                            />
-                        )}
-                    </List>
-
-                </HighlightedCard>
+                        <List mt="16px">
+                            {servers.map(it =>
+                                <ItemRow
+                                    item={it}
+                                    key={it.id}
+                                    browseType={BrowseType.Embedded}
+                                    renderer={ServerRenderer}
+                                    toggleSet={serverToggleSet}
+                                    operations={serverOperations}
+                                    callbacks={operationCb}
+                                    itemTitle={"Server"}
+                                />
+                            )}
+                        </List>
+                    </HighlightedCard>
+                }
 
                 <HighlightedCard
                     className="folders"
@@ -408,25 +415,32 @@ export const Overview: React.FunctionComponent = () => {
                         Add a new folder to start synchronizing data.
                     </Text>
 
-                    <List mt="16px">
-                        {folders.map(it => 
-                            <ItemRow
-                                item={it}
-                                key={it.ucloudPath}
-                                browseType={BrowseType.Embedded}
-                                renderer={FolderRenderer}
-                                toggleSet={folderToggleSet}
-                                operations={folderOperations}
-                                callbacks={operationCb}
-                                itemTitle={"Folder"}
-                            />
-                        )}
-                    </List>
+                    {uiState.folders !== undefined && folders.length === 0 ?
+                        <EmptyFolders onAddFolder={openFileSelector}/> :
+                        <>
+                            {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector}/> : null}
+                            <List mt="16px">
+                                {folders.map(it =>
+                                    <ItemRow
+                                        item={it}
+                                        key={it.ucloudPath}
+                                        browseType={BrowseType.Embedded}
+                                        renderer={FolderRenderer}
+                                        toggleSet={folderToggleSet}
+                                        operations={folderOperations}
+                                        callbacks={operationCb}
+                                        itemTitle={"Folder"}
+                                    />
+                                )}
+                            </List>
+                        </>
+                    }
                 </HighlightedCard>
             </TwoPanelLayout>
+        </>;
+    }
 
-        </>}
-    />;
+    return <MainContainer main={main}/>;
 };
 
 // Secondary interface
@@ -455,14 +469,14 @@ const Device: React.FunctionComponent<{
         <HighlightedCard color="blue">
             <div className="device-spacer">
                 <Heading.h3>{device.label}</Heading.h3>
-                <Icon name="trash" color="red" cursor="pointer" onClick={cachedOnRemove} />
+                <Icon name="trash" color="red" cursor="pointer" onClick={cachedOnRemove}/>
             </div>
 
             <Text color="darkGray" fontSize={1} className="device-id">
-                {deviceIdPretty.map((part, idx) => 
+                {deviceIdPretty.map((part, idx) =>
                     <React.Fragment key={idx}>
                         {part}
-                        <br />
+                        <br/>
                     </React.Fragment>
                 )}
             </Text>
@@ -472,7 +486,7 @@ const Device: React.FunctionComponent<{
 
 const FolderRenderer: ItemRenderer<SyncthingFolder> = {
     Icon: ({size}) => {
-        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size} />;
+        return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size}/>;
     },
 
     MainTitle: ({resource}) => {
@@ -497,7 +511,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: ([file], cb) => {
             const path = file.ucloudPath;
-            cb.history.push(buildQueryString("/files", { path }));
+            cb.history.push(buildQueryString("/files", {path}));
         }
     },
     {
@@ -508,7 +522,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
         enabled: selected => selected.length >= 1,
         onClick: (selected, cb) => {
             for (const file of selected) {
-                cb.dispatch({ type: "RemoveFolder", folderPath: file.ucloudPath });
+                cb.dispatch({type: "RemoveFolder", folderPath: file.ucloudPath});
             }
         }
     }
@@ -517,7 +531,7 @@ const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
 const ServerRenderer: ItemRenderer<Job> = {
     Icon: ({resource, size}) => {
         if (!resource) return null;
-        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size} />;
+        return <AppToolLogo type="APPLICATION" name={resource.specification.application.name} size={size}/>;
     },
 
     MainTitle: ({resource}) => {
@@ -536,14 +550,14 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUSPENDED":
             case "CANCELING": {
                 return <Flex alignItems="center">
-                    <Spinner />
+                    <Spinner/>
                     <Box ml="8px">Updating...</Box>
                 </Flex>;
             }
 
             case "RUNNING": {
                 return <Flex alignItems="center">
-                    <Icon name="check" color="green" />
+                    <Icon name="check" color="green"/>
                     <Box ml="8px">Running</Box>
                 </Flex>
             }
@@ -551,7 +565,7 @@ const ServerRenderer: ItemRenderer<Job> = {
             case "SUCCESS":
             case "FAILURE": {
                 return <Flex alignItems="center">
-                    <Icon name="pauseSolid" color="purple" />
+                    <Icon name="pauseSolid" color="purple"/>
                     <Box ml="8px">Paused</Box>
                 </Flex>;
             }
@@ -598,7 +612,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         icon: "refresh",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
-            cb.dispatch({ type: "ExpectServerUpdate" });
+            cb.dispatch({type: "ExpectServerUpdate"});
             callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud"}));
         }
     },
@@ -609,11 +623,88 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         color: "red",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
-            cb.dispatch({ type: "ExpectServerUpdate" });
+            cb.dispatch({type: "ExpectServerUpdate"});
             callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
         }
     },
 ];
+
+const EmptyFolders: React.FunctionComponent<{
+    didAdd?: boolean;
+    onAddFolder: () => void;
+}> = ({onAddFolder, didAdd}) => {
+    return <>
+        {didAdd ? null :
+            <p>
+                Now that UCloud knows about your device, you will be able to add folders on UCloud to
+                synchronization.
+            </p>
+        }
+
+        {!didAdd ? null :
+            <p>
+                We are now applying your changes. To finish the configuration, you must accept the share from the
+                Syncthing application installed on your device.
+            </p>
+        }
+
+        <TutorialList>
+            {didAdd ? null :
+                <li>
+                    <p><b>Mark a folder for synchronization</b></p>
+
+                    <Flex justifyContent="center">
+                        <Button onClick={onAddFolder}>New Folder</Button>
+                    </Flex>
+                </li>
+            }
+
+            <li>
+                <Flex>
+                    <Box flexGrow={1}>
+                        <p><b>Open Syncthing</b></p>
+                        <p>
+                            A pop-up will appear, saying that UCloud wants to connect.
+                            Click the <i>Add device</i> button, then <i>Save</i> in the window that appears.
+                        </p>
+                    </Box>
+                    <Box pl={40}>
+                        <Screenshot src={syncthingScreen2}/>
+                    </Box>
+                </Flex>
+            </li>
+
+            <li>
+                <Flex>
+                    <Box flexGrow={1}>
+                        <p><b>A new pop-up will appear</b></p>
+
+                        <p>
+                            This states that UCloud wants to share a folder with you. Click <i>Add</i>, then select
+                            where you want Syncthing to synchronize the files to on your machine by changing{" "}
+                            <i>Folder Path</i>, then press <i>Save</i>.
+                        </p>
+                    </Box>
+
+                    <Box pl={40}>
+                        <Screenshot src={syncthingScreen3}/>
+                    </Box>
+                </Flex>
+            </li>
+
+            <li>
+                <p><b>Synchronization should start within a few seconds of clicking 'Add'</b></p>
+            </li>
+        </TutorialList>
+
+        <p>
+            For more details see the{" "}
+            <ExternalLink href="https://docs.cloud.sdu.dk/guide/syncthing.html">
+                UCloud documentation
+            </ExternalLink>.
+        </p>
+    </>
+};
 
 const AddDeviceWizard: React.FunctionComponent<{
     onDeviceAdded: (device: SyncthingDevice) => void;
@@ -621,9 +712,8 @@ const AddDeviceWizard: React.FunctionComponent<{
 }> = (props) => {
     const STEP_INTRO = 0;
     const STEP_ADD_DEVICE = 1;
-    const STEP_ACCEPT_DEVICE = 2;
 
-    const STEP_LAST = STEP_ACCEPT_DEVICE;
+    const STEP_LAST = STEP_ADD_DEVICE;
 
     const [tutorialStep, setTutorialStep] = useState(0);
 
@@ -632,7 +722,9 @@ const AddDeviceWizard: React.FunctionComponent<{
     const deviceIdRef = useRef<HTMLInputElement>(null);
     const [deviceIdError, setDeviceIdError] = useState<string | null>(null);
 
-    const tutorialNext = useCallback(() => {
+    const tutorialNext = useCallback((e?: React.SyntheticEvent) => {
+        e?.preventDefault();
+
         if (tutorialStep === STEP_ADD_DEVICE) {
             let hasErrors = false;
             const deviceName = (deviceNameRef.current?.value ?? "").trim();
@@ -640,7 +732,7 @@ const AddDeviceWizard: React.FunctionComponent<{
 
             if (deviceName.length === 0) {
                 setDeviceNameError(
-                    "You need to set a device name. This can any name to help you remember which device this is. " + 
+                    "You need to set a device name. This can any name to help you remember which device this is. " +
                     "For example: 'Work Phone'."
                 );
                 hasErrors = true;
@@ -661,7 +753,7 @@ const AddDeviceWizard: React.FunctionComponent<{
 
                 if (!deviceIdValid) {
                     setDeviceIdError(
-                        "The device ID you specified doesn't look valid. " + 
+                        "The device ID you specified doesn't look valid. " +
                         "Make sure you follow the steps described above to locate your device ID."
                     );
                     hasErrors = true;
@@ -671,7 +763,7 @@ const AddDeviceWizard: React.FunctionComponent<{
             }
 
             if (!hasErrors) {
-                props.onDeviceAdded({ deviceId, label: deviceName });
+                props.onDeviceAdded({deviceId, label: deviceName});
                 setTutorialStep(prev => prev + 1);
             }
         } else if (tutorialStep === STEP_LAST) {
@@ -690,12 +782,14 @@ const AddDeviceWizard: React.FunctionComponent<{
         case STEP_INTRO: {
             tutorialContent = (
                 <>
-                    <Heading.h3>Synchronization Tutorial - Installing Syncthing</Heading.h3>
+                    <Heading.h3>Installing Syncthing</Heading.h3>
                     <Box borderRadius="6px" backgroundColor="orange" color="white" p={16} mt={16}>
                         The synchronization feature is experimental. Please report any errors through the Support Form.
                     </Box>
                     <p>
-                        The synchronization feature allows you to synchronize folders between UCloud and your devices.
+                        The synchronization feature allows you to synchronize folders between UCloud <i>and</i> your
+                        devices. Changes you make on UCloud are automatically synchronized to your devices and vice
+                        versa.
                     </p>
                     <p>
                         For synchronization to work, you need to install the 3rd-party tool{" "}
@@ -703,23 +797,22 @@ const AddDeviceWizard: React.FunctionComponent<{
                     </p>
                     <TutorialList>
                         <li>
-                            Download Syncthing for your platform from{" "}
-                            <ExternalLink href="https://syncthing.net/downloads/">
-                                https://syncthing.net/downloads/
-                            </ExternalLink>{" "}
-                            or from the package manager on your system.
+                            <div><b>Download and install Syncthing for your platform</b></div>
+
+                            <Flex justifyContent="center" mt="8px">
+                                <ExternalLink href="https://syncthing.net/downloads/">
+                                    <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                                </ExternalLink>
+                            </Flex>
                         </li>
                         <li>
-                            Install Syncthing on your device. See the{" "}
-                            <ExternalLink href="https://docs.cloud.sdu.dk/guide/syncthing.html">
-                                UCloud documentation
-                            </ExternalLink>{" "}
-                            for details.
-                        </li>
-                        <li>
-                            Once Syncthing is installed and running on your device, you should be able to access the 
-                            Syncthing user interface from{" "}
-                            <ExternalLink href="http://localhost:8384/">http://localhost:8384/</ExternalLink>.
+                            <b>Open the Syncthing application</b><br/><br/>
+
+                            If you are using a desktop PC/laptop then your window should now look like this:<br/>
+
+                            <Flex justifyContent="center" mt="8px">
+                                <Screenshot src={syncthingScreen4}/>
+                            </Flex>
                         </li>
                     </TutorialList>
                 </>
@@ -730,111 +823,60 @@ const AddDeviceWizard: React.FunctionComponent<{
         case STEP_ADD_DEVICE: {
             tutorialContent = (
                 <>
-                    <Heading.h3>Synchronization Tutorial - Adding devices</Heading.h3>
+                    <Heading.h3>Adding devices</Heading.h3>
 
                     <p>
-                        Now that Syncthing is installed on your device, UCloud need to know the Device ID generated 
+                        Now that Syncthing is installed on your device, UCloud need to know the Device ID generated
                         by Syncthing to be able to synchronize your files.
                     </p>
 
                     <Flex>
                         <TutorialList>
-                            <li>
-                                Go to the Syncthing user interface:{" "}
-                                <ExternalLink href="http://localhost:8384/">http://localhost:8384/</ExternalLink>.
-                            </li>
+                            <li>Open Syncthing</li>
                             <li>
                                 In the <i>Actions</i> menu in the top-right corner, click the <i>Show ID</i> button:
                             </li>
                             <li>
-                                A window containing your Device ID, as well as a QR code will appear.<br />
+                                A window containing your Device ID, as well as a QR code will appear.<br/>
                                 Copy the Device ID and paste it into the field below:
                             </li>
                         </TutorialList>
 
                         <Box ml={"auto"}>
-                            <Image src={syncthingScreen1} />
+                            <Screenshot src={syncthingScreen1}/>
                         </Box>
                     </Flex>
 
-                    <Label>
-                        Device Name
-                        <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null} />
-                        {!deviceNameError ? null : 
-                            <Text color="red">{deviceNameError}</Text>
-                        }
-                    </Label>
+                    <form onSubmit={tutorialNext}>
+                        <Label>
+                            Device Name
+                            <Input ref={deviceNameRef} placeholder={"My phone"} error={deviceNameError !== null}/>
+                            {!deviceNameError ?
+                                <Text color="gray">
+                                    A name to help you remember which device this is. For example: "Work phone".
+                                </Text> :
+                                <Text color="red">{deviceNameError}</Text>
+                            }
+                        </Label>
 
-                    <Label mt="8px">
-                        My Device ID
-                        <Input 
-                            ref={deviceIdRef}
-                            placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
-                            error={deviceIdError !== null}
-                        />
-                        {!deviceIdError ? null : 
-                            <Text color="red">{deviceIdError}</Text>
-                        }
-                    </Label>
-                </>
-            );
-            break;
-        }
+                        <Label mt="8px">
+                            My Device ID
+                            <Input
+                                ref={deviceIdRef}
+                                placeholder="XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX-XXXXXXX"
+                                error={deviceIdError !== null}
+                            />
+                            {!deviceIdError ? null :
+                                <Text color="red">{deviceIdError}</Text>
+                            }
+                        </Label>
 
-        case STEP_ACCEPT_DEVICE: {
-            tutorialContent = (
-                <>
-                    <Heading.h3>Synchronization Tutorial - Synchronize folder</Heading.h3>
-                    <p>
-                        Now that UCloud knows about your device, you will be able to add folders on UCloud to 
-                        synchronization.
-                    </p>
-
-                    <TutorialList>
-                        <li>
-                            Toggle synchronization of your folder
-                        </li>
-                        <li>
-                            <Flex>
-                                <p>
-                                    Go to the Syncthing User Interface
-                                    at <ExternalLink href="http://localhost:8384/">http://localhost:8384/</ExternalLink>.
-                                    A pop-up will appear, saying that UCloud wants to connect. Click the 
-                                    <i>Add device</i> button, then <i>Save</i> in the window that appears.
-                                </p>
-                                <Box ml={"auto"} pl={40} width="80%">
-                                    <Image src={syncthingScreen2} />
-                                </Box>
-                            </Flex>
-                        </li>
-
-                        <li>
-                            <Flex>
-                                <p>
-                                    A new pop-up will appear, saying that UCloud wants to
-                                    share a folder with you. Click <i>Add</i>, then select
-                                    where you want Syncthing to synchronize the files to
-                                    on your machine by changing <i>Folder Path</i>, then
-                                    press <i>Save</i>.
-                                </p>
-                                <Box ml={"auto"} pl={40} width="100%">
-                                    <Image src={syncthingScreen3} />
-                                </Box>
-                            </Flex>
-                        </li>
-                    </TutorialList>
-
-                    <p>
-                        Synchronization should start within a few seconds and changes to files in the folder will be 
-                        synchronized automatically.
-                    </p>
-
-                    <p>
-                        For more details see the{" "}
-                        <ExternalLink href="https://docs.cloud.sdu.dk/guide/syncthing.html">
-                            UCloud documentation
-                        </ExternalLink>.
-                    </p>
+                        {/*
+                            NOTE(Dan): I am pretty sure this isn't actually needed, but I can't make it work without
+                            atm.
+                        */}
+                        <button type={"submit"} style={{display: "none"}}>Next step</button>
+                    </form>
                 </>
             );
             break;
@@ -859,64 +901,62 @@ const AddDeviceWizard: React.FunctionComponent<{
 // Styling
 // ================================================================================
 const DeviceWrapper = styled.div`
-    width: 300px;
-    text-align: center;
+  width: 300px;
+  text-align: center;
 
-    .device-spacer {
-        display: flex;
-    }
+  .device-spacer {
+    display: flex;
+  }
 
-    h3 {
-        flex-grow: 1;
-    }
+  h3 {
+    flex-grow: 1;
+  }
 
-    .device-id {
-        font-family: "Jetbrains Mono";
-        width: calc(100% - 32px);
-    }
-
-    svg {
-        display: absolute;
-    }
+  .device-id {
+    font-family: "Jetbrains Mono";
+    width: calc(100% - 32px);
+  }
 `;
 // TODO(Dan): Why do we not have a way of referencing the monospace font of the theme?
 
 const TwoPanelLayout = styled.div`
-    display: flex;
-    flex-flow: row wrap;
+  display: flex;
+  flex-flow: row wrap;
 
-    margin-top: 16px;
-    gap: 16px;
+  margin-top: 16px;
+  gap: 16px;
 
+  & > * {
+    flex-basis: 100%;
+  }
+
+  @media all and (min-width: 1000px) {
     & > * {
-        flex-basis: 100%;
+      flex-basis: 400px;
     }
-    
-    @media all and (min-width: 1000px) {
-        & > * {
-            flex-basis: 400px;
-        }
 
-        .folders {
-            order: 1;
-            flex-grow: 2;
-        }
-
-        .servers {
-            order: 2;
-            flex-grow: 1;
-        }
+    .folders {
+      order: 1;
+      flex-grow: 2;
     }
+
+    .servers {
+      order: 2;
+      flex-grow: 1;
+    }
+  }
 `;
 
 const TutorialList = styled.ol`
-    padding-top: 0.5em;
+  padding-top: 0.5em;
 
-    & > li {
-        padding: 0 0 1.5em 0.5em;
-        max-width: 1000px;
-    }
+  & > li {
+    padding: 0 0 1.5em 0.5em;
+  }
+`;
+
+const Screenshot = styled(Image)`
+    border: 3px solid var(--gray);
 `;
 
 export default Overview;
-

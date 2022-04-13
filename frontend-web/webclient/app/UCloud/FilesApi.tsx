@@ -51,8 +51,10 @@ import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import {useEffect, useState} from "react";
+import { useCallback, useEffect, useState } from "react";
 import {getCookie} from "@/Login/Wayf";
+import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
+import { useHistory } from "react-router";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -130,6 +132,8 @@ interface ExtraCallbacks {
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
     // special case.
     allowMoveCopyOverride?: boolean;
+    syncthingConfig?: SyncthingConfig;
+    toggleSynchronization?: (file: UFile) => void;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -238,9 +242,17 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = useSensitivity(resource);
 
+            const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
+            const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
+
+            const history = useHistory();
+            const openSync = useCallback(() => {
+                history.push("/syncthing");
+            }, []);
+
             return <Flex>
-                {resource.status["synced"] && getCookie("synchronization") ?
-                    <div style={{cursor: "pointer"}} onClick={doNothing}>
+                {isSynchronized ?
+                    <div style={{cursor: "pointer"}} onClick={openSync}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
                 : null}
@@ -581,32 +593,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "trash",
-                text: "Move to trash",
-                confirm: true,
-                color: "red",
-                enabled: (selected, cb) => {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if ((support as FileCollectionSupport).files.isReadOnly) {
-                        return "File system is read-only";
-                    }
-                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
-                        return false;
-                    }
-                    return selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
-                        && selected.every(f => f.specification.product)
-                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
-                },
-                onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload();
-                }
-            },
-            {
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
@@ -658,6 +644,51 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 },
             },
             {
+                // Item row synchronization
+                text: synchronizationOpText,
+                icon: "refresh",
+                enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
+                onClick: (selected, cb) => synchronizationOpOnClick(selected, cb)
+            },
+            {
+                // Folder synchronization
+                text: synchronizationOpText,
+                icon: "refresh",
+                primary: true,
+                canAppearInLocation: location => location === "SIDEBAR",
+                enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
+                onClick: (selected, cb) => {
+                    if (!cb.directory) return;
+                    synchronizationOpOnClick([cb.directory], cb);
+                }
+            },
+            {
+                icon: "trash",
+                text: "Move to trash",
+                confirm: true,
+                color: "red",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
+                        return false;
+                    }
+                    return selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
+                        && selected.every(f => f.specification.product)
+                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
+                },
+                onClick: async (selected, cb) => {
+                    await cb.invokeCommand(
+                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                    );
+                    cb.reload();
+                }
+            },
+            {
                 icon: "trash",
                 text: "Empty Trash",
                 confirm: true,
@@ -675,31 +706,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         this.emptyTrash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
                     );
                     cb.reload()
-                }
-            },
-            {
-                text: "Sync with device",
-                icon: "refresh",
-                primary: true,
-                enabled: (selected, cb) => {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-
-                    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
-                    if (!isUCloud) return false;
-
-                    if ((support as FileCollectionSupport).files.isReadOnly) {
-                        return "File system is read-only";
-                    }
-
-                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
-                        return false;
-                    }
-
-                    return true;
-                },
-                onClick: (selected, cb) => {
-                    cb.history.push("/syncthing");
                 }
             },
         ];
@@ -788,6 +794,58 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+}
+
+function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
+    const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
+    if (devices.length === 0) return "Configure sync";
+
+    const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
+    const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
+
+    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+    const allUnsynchronized = resolvedFiles.every(selected => synchronized.every(it => it.ucloudPath !== selected.id));
+
+    if (allSynchronized && !allUnsynchronized) {
+        return "Remove from sync";
+    } else if (!allSynchronized && allUnsynchronized) {
+        return "Add to sync";
+    } else {
+        return "Toggle sync status";
+    }
+}
+
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
+    const support = cb.collection?.status.resolvedSupport?.support;
+    if (!support) return false;
+
+    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
+    if (!isUCloud) return false;
+
+    if (cb.syncthingConfig === undefined) return false;
+    if (cb.toggleSynchronization === undefined) return false;
+
+    if (isDir && files.length !== 0) return false;
+    if (!isDir && files.length === 0) return false;
+
+    if ((support as FileCollectionSupport).files.isReadOnly) {
+        return "File system is read-only";
+    }
+
+    return true;
+}
+
+function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+    const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
+    if (devices.length === 0) {
+        cb.history.push("/syncthing");
+        return;
+    }
+
+    if (!cb.toggleSynchronization) return;
+    for (const file of files) {
+        cb.toggleSynchronization(file);
+    }
 }
 
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
