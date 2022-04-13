@@ -286,6 +286,17 @@ suspend fun main(args: Array<String>) {
                         freeToUse = false,
                         description = "An example product for development use",
                     ),
+                    Product.Compute(
+                        "syncthing",
+                        1L,
+                        ProductCategoryId("syncthing", providerId),
+                        cpu = 1,
+                        memoryInGigs = 1,
+                        gpu = 0,
+                        unitOfPrice = ProductPriceUnit.PER_UNIT,
+                        freeToUse = true,
+                        description = "Product used for file synchronization",
+                    ),
                     Product.Storage(
                         "u1-cephfs",
                         1L,

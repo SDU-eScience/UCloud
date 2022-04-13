@@ -22,14 +22,14 @@ delete from provider.resource where product in (select id from accounting.produc
 delete from accounting.products where name = 'u1-sync';
 delete from accounting.product_categories where category = 'u1-sync';
 
-drop function file_orchestrator.remove_sync_folders(ids bigint[]);
-drop function file_orchestrator.sync_device_to_json(device_in file_orchestrator.sync_devices);
-drop function file_orchestrator.sync_folder_to_json(sync_in file_orchestrator.sync_with_dependencies)
+drop function if exists file_orchestrator.remove_sync_folders(ids bigint[]);
+drop function if exists file_orchestrator.sync_device_to_json(device_in file_orchestrator.sync_devices);
+drop function if exists file_orchestrator.sync_folder_to_json(sync_in file_orchestrator.sync_with_dependencies);
 
 drop type file_orchestrator.sync_with_dependencies;
 
-drop table file_orchestrator.sync_devices;
-drop table file_orchestrator.sync_folders;
-drop table file_ucloud.sync_devices;
-drop table file_ucloud.sync_folders;
+drop table if exists file_orchestrator.sync_devices;
+drop table if exists file_orchestrator.sync_folders;
+drop table if exists file_ucloud.sync_devices;
+drop table if exists file_ucloud.sync_folders;
 
