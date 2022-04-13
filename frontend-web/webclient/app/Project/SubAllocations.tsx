@@ -455,6 +455,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                     width="100%"
                                     type="number"
                                     rightLabel
+                                    min={1}
                                     placeholder="Amount..."
                                     onChange={e => creationRows[index].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
                                 />
@@ -529,6 +530,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                     width="100%"
                     type="number"
                     rightLabel
+                    min={1}
                     placeholder={normalizeSuballocationBalanceForFrontend(entry)}
                     onChange={e => props.editEntries.current[entry.id].remaining = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit)}
                 />
