@@ -98,7 +98,7 @@ class SyncthingService(
         val username = request.principal.createdBy
         val configFile = findConfigFile(username)
         val configDir = configFile.parent()
-        val temporaryFile = InternalFile(joinPath(configDir.path, "ucloud_config_${Time.now()}.json"))
+        val temporaryFile = InternalFile(joinPath(configDir.path, "ucloud_config_${UUID.randomUUID()}.json"))
         val (_, fileOutput) = fs.openForWriting(temporaryFile, WriteConflictPolicy.REPLACE)
         fileOutput.writer().use { w ->
             w.write(defaultMapper.encodeToString(request.config.normalize()))
