@@ -228,6 +228,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
     const nonEmptyWallets = productTypes.filter(key => wallets[key].length > 0);
     return <>
         <Heading.h3>Allocations by product type</Heading.h3>
+        {nonEmptyWallets.length > 0 ? null : <Heading.h4 mb="12px">No Results.</Heading.h4> }
         {nonEmptyWallets.map((key, index) => {
             const walletsList: Wallet[] = wallets[key];
             const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
@@ -300,7 +301,7 @@ const SimpleWalletRowWrapper = styled.div`
         vertical-align: center;
         border-bottom: 1px solid #d3d3d3;
     }
-    
+
     & > ${SimpleAllocationRowWrapper} {
         margin-top: 12px;
         padding-bottom: 10px;
