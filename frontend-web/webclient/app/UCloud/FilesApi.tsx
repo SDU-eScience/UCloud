@@ -677,6 +677,31 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                     cb.reload()
                 }
             },
+            {
+                text: "Sync with device",
+                icon: "refresh",
+                primary: true,
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+
+                    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
+                    if (!isUCloud) return false;
+
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+
+                    if (!(selected.length === 0 && cb.onSelect === undefined)) {
+                        return false;
+                    }
+
+                    return true;
+                },
+                onClick: (selected, cb) => {
+                    cb.history.push("/syncthing");
+                }
+            },
         ];
 
         return ourOps.concat(base);
