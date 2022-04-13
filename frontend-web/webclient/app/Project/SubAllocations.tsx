@@ -276,6 +276,10 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                     />
                 </Box>
                 <ButtonGroup><Button onClick={async () => {
+                    if (!reason) {
+                        snackbarStore.addFailure("Reason can't be empty", false);
+                        return;
+                    }
                     mappedRows.forEach(it => it.description = reason);
                     try {
                         await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
