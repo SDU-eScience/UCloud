@@ -50,27 +50,6 @@ services:
       - server
     hostname: k3s
 
-  syncthing:
-    image: syncthing/syncthing:1.19
-    user: root
-    hostname: syncthing
-    environment:
-      - PUID=0
-      - PGID=0
-    volumes:
-      - syncthingConfig:/var/syncthing
-      - ucloudFiles:/mnt/cephfs
-      - type: bind
-        source: ${PWD}/syncfiles
-        target: /mnt/sync
-        bind:
-          propagation: slave
-    ports:
-      - ${SYNCTHING_API_PORT:-8384}:8384
-      - ${SYNCTHING_PORT:-22001}:22001/tcp
-      - ${SYNCTHING_PORT:-22001}:22001/udp
-    restart: unless-stopped
-
   backend:
     image: dreg.cloud.sdu.dk/ucloud/ucloud:2021.3.0-alpha1
     user: root
@@ -83,12 +62,6 @@ services:
       - ucloudData:/etc/ucloud
       - ucloudFiles:/mnt/cephfs
       - k3sConfig:/mnt/k3s
-      - type: bind
-        source: ${PWD}/syncfiles
-        target: /mnt/sync
-        bind:
-          propagation: shared
-      - syncthingConfig:/mnt/syncthing
     ports:
       - ${BACKEND_PORT:-8080}:8080
     restart: always
@@ -97,7 +70,6 @@ services:
       - postgres
       - elasticsearch
       - k3s
-      - syncthing
       - keycloak
     hostname: backend
 

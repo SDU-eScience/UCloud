@@ -15,10 +15,5 @@ services:
       - backendGradle:/root/.gradle
       - m2Repo:/root/.m2
       - ${PWD}/frontend-web/webclient:/opt/frontend
-      - type: bind
-        source: ${PWD}/syncfiles
-        target: /mnt/sync
-        bind:
-          propagation: shared
       - ${PWD}/.compose/home/:/home/
     hostname: backend
