@@ -102,9 +102,17 @@ class SimpleProjectPlugin : ProjectPlugin {
             calculateDiff(oldProject, newProject)
         }
 
+        println("Dispatching events")
         for (event in diff) {
-            dispatchEvent(event)
+            try {
+                dispatchEvent(event)
+            } catch (ex: Throwable) {
+                println("Failed to dispatch event: ${ex.message}")
+                ex.printStackTrace()
+            }
         }
+
+        println("Calculate missing uids")
 
         // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
         // that we can correctly enroll them into groups later.
@@ -135,6 +143,8 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
         }
 
+        println("missingUids: ${missingUids}")
+
         if (!missingUids.isEmpty()) {
             println("Added missing uids: ${missingUids}")
             dbConnection.withTransaction { session ->
@@ -157,13 +167,14 @@ class SimpleProjectPlugin : ProjectPlugin {
         }
     }
 
-    override fun onUserMappingInserted(ucloudId: String, localId: Int) {
+    override suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int) {
         fixMissingConnections(ucloudId, localId)
     }
 
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
     // events to the extension, fixing any missing connections between the user and projects/groups.
     fun fixMissingConnections(userId: String, localId: Int) {
+        println("Fixing missing connections for ${userId}")
         dbConnection.withTransaction { session ->
             var projects = mutableSetOf<Project>()
 
@@ -181,6 +192,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                     bindString("user_id", userId)
                 },
                 readRow = { row ->
+                    println(row)
                     val project: Project? = defaultMapper.decodeFromString(row.getString(0)!!)
                     if (project != null) {
                         println(project)
