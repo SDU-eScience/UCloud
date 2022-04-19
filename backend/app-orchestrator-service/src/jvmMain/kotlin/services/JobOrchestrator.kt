@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -477,6 +478,31 @@ class JobOrchestrator(
                 }
             }
         )
+    }
+
+    protected override suspend fun attachExtraInformation(resource: Job, actor: Actor, flags: JobIncludeFlags?): Job {
+        val needsProviderInfo = actor == Actor.System || actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)
+        if (!needsProviderInfo) return resource
+
+        val actorAndProject = resource.owner.toActorAndProject()
+
+        // NOTE(Dan): This will throw if the parameters are no longer OK. This will modify the specification if the
+        // mounted resources are no longer OK. We need this, since it will add information about the read/write status
+        // of mounts.
+
+        // TODO(Dan): Centralize some of these procedures, it seems insane that we have it in three different places. 
+
+        // TODO(Dan): Catching this, since it does not appear to be a good idea that we just throw in case of errors.
+
+        // TODO(Dan): Should we be re-inserting resources in case of modifications? Technically this should be done by
+        // the loop also, so it should be safe not to do it. But we run the risk of these being slightly out-of-date
+        // with each other.
+
+        runCatching {
+            verificationService.verifyOrThrow(actorAndProject, resource.specification)
+        }
+
+        return resource
     }
 
     suspend fun extendDuration(

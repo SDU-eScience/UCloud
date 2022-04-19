@@ -305,7 +305,12 @@ abstract class ResourceService<
                 status.resolvedProduct = support.retrieveProductSupport(specification.product).product
             }
         }
-        return this
+        return attachExtraInformation(this, actor, flags)
+    }
+
+    // NOTE(Dan): Invoked by the function above. Used by sub-classes to add their own logic to the mapping process.
+    protected open suspend fun attachExtraInformation(resource: Res, actor: Actor, flags: Flags?): Res {
+        return resource
     }
 
     private suspend fun verifyMembership(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
