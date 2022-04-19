@@ -97,12 +97,6 @@ object FilesIndex : Loggable {
                         "size": {
                             "type": "long"
                         },
-                        "rctime": {
-                            "type": "text"
-                        },
-                        "permission": {
-                            "type": "keyword"
-                        },
                         "createdAt" : {
                             "type": "long"
                         },
@@ -114,6 +108,9 @@ object FilesIndex : Loggable {
                         },
                         "projectId" : {
                             "type": "keyword"
+                        },
+                        "scanTime" : {
+                            "type": "long"
                         }
                     }
                 }

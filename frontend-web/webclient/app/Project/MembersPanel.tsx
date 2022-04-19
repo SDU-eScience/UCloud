@@ -62,18 +62,16 @@ const MembersPanel: React.FunctionComponent = () => {
         <SearchContainer>
             {!allowManagement ? null : (
                 <form onSubmit={onSubmit}>
-                    <Absolute>
-                        <Relative left="94px" top="8px">
-                            {showId && allowManagement ?
-                                <Tooltip tooltipContentWidth="160px" trigger={
-                                    <Circle>
-                                        <Text mt="-3px" ml="5px">?</Text>
-                                    </Circle>
-                                }>
-                                    <Text color="black" fontSize={12}>Your username can be found at the bottom of the sidebar next to <Icon name="id" />.</Text>
-                                </Tooltip> : null}
-                        </Relative>
-                    </Absolute>
+                    <Relative left="120px" top="8px">
+                        {showId && allowManagement ?
+                            <Tooltip tooltipContentWidth="160px" trigger={
+                                <Circle>
+                                    <Text mt="-3px" ml="5px">?</Text>
+                                </Circle>
+                            }>
+                                <Text color="black" fontSize={12}>Your username can be found at the bottom of the sidebar next to <Icon name="id" />.</Text>
+                            </Tooltip> : null}
+                    </Relative>
                     <Input
                         id="new-project-member"
                         placeholder="Username"
