@@ -274,11 +274,15 @@ class JobManagement(
     }
 
     suspend fun cancel(verifiedJob: Job) {
-        val exists = markJobAsComplete(verifiedJob.id, null)
-        cleanup(verifiedJob.id)
+        cancel(verifiedJob.id)
+    }
+
+    suspend fun cancel(jobId: String) {
+        val exists = markJobAsComplete(jobId, null)
+        cleanup(jobId)
         if (exists) {
             k8.changeState(
-                verifiedJob.id, 
+                jobId, 
                 JobState.SUCCESS, 
                 "Job has been cancelled",
                 allowRestart = false,

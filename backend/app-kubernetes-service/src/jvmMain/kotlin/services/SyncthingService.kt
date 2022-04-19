@@ -128,7 +128,10 @@ class SyncthingService(
         configFolder: InternalFile
     ) {
         if (config.devices.isEmpty() || config.folders.isEmpty()) {
-            // TODO("Shutdown job")
+            val job = findJobIfExists(username)
+            if (job != null) {
+                jobs.cancel(job)
+            }
         } else {
             val (job, jobWasCreated) = startJobIfNeeded(username, config, configFolder)
             if (!jobWasCreated) {
