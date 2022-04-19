@@ -36,7 +36,6 @@ class Server(override val micro: Micro) : CommonServer {
         val streams = micro.eventStreamService
         val distributedLocks = DistributedLockFactory(micro)
         val appStoreCache = AppStoreCache(serviceClient)
-        val exporter = ParameterExportService(db)
 
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
@@ -70,16 +69,14 @@ class Server(override val micro: Micro) : CommonServer {
             }
         )
 
-        val jobOrchestrator =
-            JobOrchestrator(
-                projectCache,
-                db,
-                altProviders,
-                jobSupport,
-                serviceClient,
-                appStoreCache,
-                exporter,
-            )
+        val jobOrchestrator = JobOrchestrator(
+            projectCache,
+            db,
+            altProviders,
+            jobSupport,
+            serviceClient,
+            appStoreCache,
+        )
 
         val ingressSupport = ProviderSupport<ComputeCommunication, Product.Ingress, IngressSupport>(
             altProviders,
@@ -90,6 +87,9 @@ class Server(override val micro: Micro) : CommonServer {
         )
 
         val ingressService = IngressService(projectCache, db, altProviders, ingressSupport, serviceClient, jobOrchestrator)
+
+        val exporter = ParameterExportService(db, ingressService)
+        jobOrchestrator.exporter = exporter // TODO(Dan): Cyclic-dependency hack
 
         val licenseSupport = ProviderSupport<ComputeCommunication, Product.License, LicenseSupport>(
             altProviders,

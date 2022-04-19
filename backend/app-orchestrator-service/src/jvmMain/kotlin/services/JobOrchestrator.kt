@@ -65,9 +65,11 @@ class JobOrchestrator(
     support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
     serviceClient: AuthenticatedClient,
     private val appService: AppStoreCache,
-    private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport, ComputeCommunication>(projectCache, db, providers, support, serviceClient) {
+
+    lateinit var exporter: ParameterExportService // TODO(Dan): Cyclic-dependency hack
+
     override val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.NEW
     private val storageProviders = Providers(serviceClient) {
         StorageCommunication(
@@ -147,10 +149,6 @@ class JobOrchestrator(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
-        val exports = idWithSpec.map { (_, spec) ->
-            exporter.exportParameters(spec)
-        }
-
         idWithSpec.forEach { (id, spec) ->
             verificationService.verifyOrThrow(actorAndProject, spec)
 
@@ -158,6 +156,10 @@ class JobOrchestrator(
             listeners.forEach {
                 it.onVerified(db, preliminaryJob)
             }
+        }
+
+        val exports = idWithSpec.map { (_, spec) ->
+            exporter.exportParameters(spec)
         }
 
         session.sendPreparedStatement(

@@ -828,6 +828,9 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     if (isDir && files.length !== 0) return false;
     if (!isDir && files.length === 0) return false;
 
+    if (files.length > 0 && files.every(it => it.status.type !== "DIRECTORY")) return false;
+    if (files.length > 0 && files.some(it => it.status.type !== "DIRECTORY")) return "You can only synchronize directories";
+
     if ((support as FileCollectionSupport).files.isReadOnly) {
         return "File system is read-only";
     }

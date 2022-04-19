@@ -41,11 +41,17 @@ data class ExportedParametersRequest(
 data class ExportedParameters(
     val siteVersion: Int,
     val request: ExportedParametersRequest,
+    val resolvedResources: Resources = Resources(),
 
     // Backwards compatible information
     @Contextual
     val machineType: JsonObject,
-)
+) {
+    @Serializable
+    data class Resources(
+        val ingress: Map<String, Ingress> = emptyMap()
+    )
+}
 
 @UCloudApiDoc("A value describing the current state of a Job", importance = 350)
 @Serializable
