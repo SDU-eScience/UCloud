@@ -9,7 +9,8 @@ import { useToggleSet } from "@/Utilities/ToggleSet";
 import { BrowseType } from "@/Resource/BrowseType";
 import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
 import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
-import { Label, Input, Image, Box, Flex, Grid, Icon, Text, Button, ExternalLink, FtIcon, List } from "@/ui-components";
+import { Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, 
+         List } from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
@@ -29,7 +30,7 @@ import { largeModalStyle } from "@/Utilities/ModalUtilities";
 import { dialogStore } from "@/Dialog/DialogStore";
 import { FilesBrowse } from "@/Files/Files";
 import { api as FilesApi } from "@/UCloud/FilesApi";
-import { randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount } from "@/UtilityFunctions";
+import { randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard } from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import { buildQueryString } from "@/Utilities/URIUtilities";
 import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
@@ -213,6 +214,7 @@ export const Overview: React.FunctionComponent = () => {
     const [uiState, pureDispatch] = useReducer(uiReducer, {});
     const folderToggleSet = useToggleSet([]);
     const serverToggleSet = useToggleSet([]);
+    const deviceToggleSet = useToggleSet([]);
     const didUnmount = useDidUnmount();
     const jobReloaderTimeout = useRef(-1);
 
@@ -288,10 +290,6 @@ export const Overview: React.FunctionComponent = () => {
         dispatch({type: "AddDevice", device});
     }, [dispatch]);
 
-    const onRemoveDevice = useCallback((deviceId: string) => {
-        dispatch({type: "RemoveDevice", deviceId});
-    }, [dispatch]);
-
     const openFileSelector = useCallback(() => {
         const pathRef = {current: ""};
         dialogStore.addDialog(
@@ -322,6 +320,11 @@ export const Overview: React.FunctionComponent = () => {
         serverToggleSet.uncheckAll();
     }, [servers]);
 
+    useEffect(() => {
+        deviceToggleSet.uncheckAll();
+    }, [devices]);
+
+
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             providerId: "ucloud",
@@ -338,7 +341,7 @@ export const Overview: React.FunctionComponent = () => {
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
         main = <AddDeviceWizard onDeviceAdded={onDeviceAdded} onWizardClose={closeWizard}/>;
     } else {
-        main = <>
+        main = <OverviewStyle>
             {uiState.showDeviceWizard !== true ? null :
                 <ReactModal
                     isOpen={true}
@@ -351,28 +354,40 @@ export const Overview: React.FunctionComponent = () => {
                 </ReactModal>
             }
 
-            <HighlightedCard
-                icon="hdd"
-                title="My Devices"
-                color="blue"
-                subtitle={<Flex>
-                    <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
-                        <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
-                    </ExternalLink>
-                    <Button onClick={openWizard}>New Device</Button>
-                </Flex>}
-            >
-                <Text color="darkGray" fontSize={1}>
-                    UCloud can synchronize files to any of your devices which run Syncthing.
-                    Download and install Syncthing to add one of your devices here.
-                </Text>
-
-                <Grid gridTemplateColumns={"repeat(auto-fit, 300px)"} gridGap="16px" mt="16px" mb="16px">
-                    {devices.map(it => <Device device={it} onRemove={onRemoveDevice} key={it.deviceId}/>)}
-                </Grid>
-            </HighlightedCard>
-
             <TwoPanelLayout>
+                <HighlightedCard
+                    icon="hdd"
+                    title="My Devices"
+                    color="blue"
+                    className="devices"
+                    subtitle={<Flex>
+                        <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
+                            <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
+                        </ExternalLink>
+                        <Button onClick={openWizard}>Add Device</Button>
+                    </Flex>}
+                >
+                    <Text color="darkGray" fontSize={1}>
+                        UCloud can synchronize files to any of your devices which run Syncthing.
+                        Download and install Syncthing to add one of your devices here.
+                    </Text>
+
+                    <List mt="16px">
+                        {devices.map(it =>
+                            <ItemRow
+                                item={it}
+                                key={it.deviceId}
+                                browseType={BrowseType.Embedded}
+                                renderer={DeviceRenderer}
+                                operations={deviceOperations}
+                                callbacks={operationCb}
+                                toggleSet={deviceToggleSet}
+                                itemTitle={"Device"}
+                            />
+                        )}
+                    </List>
+                </HighlightedCard>
+
                 {uiState.folders !== undefined && folders.length === 0 ? null :
                     <HighlightedCard
                         className="servers"
@@ -400,44 +415,44 @@ export const Overview: React.FunctionComponent = () => {
                         </List>
                     </HighlightedCard>
                 }
-
-                <HighlightedCard
-                    className="folders"
-                    icon="ftFolder"
-                    title="Synchronized Folders"
-                    color="blue"
-                    subtitle={<>
-                        <Button onClick={openFileSelector}>New Folder</Button>
-                    </>}
-                >
-                    <Text color="darkGray" fontSize={1}>
-                        These are the files which will be synchronized to your devices.
-                        Add a new folder to start synchronizing data.
-                    </Text>
-
-                    {uiState.folders !== undefined && folders.length === 0 ?
-                        <EmptyFolders onAddFolder={openFileSelector}/> :
-                        <>
-                            {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector}/> : null}
-                            <List mt="16px">
-                                {folders.map(it =>
-                                    <ItemRow
-                                        item={it}
-                                        key={it.ucloudPath}
-                                        browseType={BrowseType.Embedded}
-                                        renderer={FolderRenderer}
-                                        toggleSet={folderToggleSet}
-                                        operations={folderOperations}
-                                        callbacks={operationCb}
-                                        itemTitle={"Folder"}
-                                    />
-                                )}
-                            </List>
-                        </>
-                    }
-                </HighlightedCard>
             </TwoPanelLayout>
-        </>;
+
+            <HighlightedCard
+                className="folders"
+                icon="ftFolder"
+                title="Synchronized Folders"
+                color="blue"
+                subtitle={<>
+                    <Button onClick={openFileSelector}>Add Folder</Button>
+                </>}
+            >
+                <Text color="darkGray" fontSize={1}>
+                    These are the files which will be synchronized to your devices.
+                    Add a new folder to start synchronizing data.
+                </Text>
+
+                {uiState.folders !== undefined && folders.length === 0 ?
+                    <EmptyFolders onAddFolder={openFileSelector}/> :
+                    <>
+                        {uiState.didAddFolder ? <EmptyFolders didAdd onAddFolder={openFileSelector}/> : null}
+                        <List mt="16px">
+                            {folders.map(it =>
+                                <ItemRow
+                                    item={it}
+                                    key={it.ucloudPath}
+                                    browseType={BrowseType.Embedded}
+                                    renderer={FolderRenderer}
+                                    toggleSet={folderToggleSet}
+                                    operations={folderOperations}
+                                    callbacks={operationCb}
+                                    itemTitle={"Folder"}
+                                />
+                            )}
+                        </List>
+                    </>
+                }
+            </HighlightedCard>
+        </OverviewStyle>;
     }
 
     return <MainContainer main={main}/>;
@@ -445,44 +460,51 @@ export const Overview: React.FunctionComponent = () => {
 
 // Secondary interface
 // ================================================================================
-const Device: React.FunctionComponent<{
-    device: SyncthingDevice;
-    onRemove: (deviceId: string) => void;
-}> = ({device, onRemove}) => {
-    const deviceIdComponents = device.deviceId.split("-");
-    const deviceIdPretty: string[] = [];
-    const cachedOnRemove = useCallback(() => {
-        onRemove(device.deviceId);
-    }, [onRemove, device.deviceId]);
+const DeviceRenderer: ItemRenderer<SyncthingDevice> = {
+    Icon: ({size}) => {
+        return <Icon name="cubeSolid" size={size} />
+    },
 
-    for (let i = 0; i < deviceIdComponents.length; i += 2) {
-        const thisPart = deviceIdComponents[i];
-        const nextPart = (i + 1) < deviceIdComponents.length ? deviceIdComponents[i + 1] : null;
-        if (nextPart) {
-            deviceIdPretty.push(`${thisPart}-${nextPart}`);
-        } else {
-            deviceIdPretty.push(thisPart);
-        }
+    MainTitle: ({resource}) => {
+        if (!resource) return null;
+        return <>{resource.label}</>;
+    },
+
+    ImportantStats: ({resource}) => {
+        if (!resource) return null;
+
+        const doCopyId = useCallback((e: React.SyntheticEvent) => {
+            e.stopPropagation();
+            copyToClipboard({ value: resource.deviceId, message: "Device ID copied to clipboard!" });
+        }, [resource.deviceId]);
+
+        const trigger = <DeviceBox onClick={doCopyId}><code>{resource.deviceId.split("-")[0]}</code></DeviceBox>;
+        return <Tooltip trigger={trigger}>Copy to clipboard</Tooltip>;
     }
-
-    return <DeviceWrapper>
-        <HighlightedCard color="blue">
-            <div className="device-spacer">
-                <Heading.h3>{device.label}</Heading.h3>
-                <Icon name="trash" color="red" cursor="pointer" onClick={cachedOnRemove}/>
-            </div>
-
-            <Text color="darkGray" fontSize={1} className="device-id">
-                {deviceIdPretty.map((part, idx) =>
-                    <React.Fragment key={idx}>
-                        {part}
-                        <br/>
-                    </React.Fragment>
-                )}
-            </Text>
-        </HighlightedCard>
-    </DeviceWrapper>;
 };
+
+const deviceOperations: Operation<SyncthingDevice, OperationCallbacks>[] = [
+    {
+        text: "Copy device ID",
+        icon: "id",
+        enabled: selected => selected.length === 1,
+        onClick: ([device]) => {
+            copyToClipboard({ value: device.deviceId, message: "Device ID copied to clipboard!" });
+        },
+    },
+    {
+        text: "Remove",
+        icon: "trash",
+        color: "red",
+        confirm: true,
+        enabled: selected => selected.length > 0,
+        onClick: (selected, cb) => {
+            for (const device of selected) {
+                cb.dispatch({type: "RemoveDevice", deviceId: device.deviceId});
+            }
+        },
+    }
+];
 
 const FolderRenderer: ItemRenderer<SyncthingFolder> = {
     Icon: ({size}) => {
@@ -491,7 +513,8 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
 
     MainTitle: ({resource}) => {
         if (!resource) return null;
-        return <>{fileName(resource.ucloudPath)}</>;
+        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
+        return <>{fileName(prettyPath)}</>;
     },
 
     Stats: ({resource}) => {
@@ -654,7 +677,7 @@ const EmptyFolders: React.FunctionComponent<{
                     <p><b>Mark a folder for synchronization</b></p>
 
                     <Flex justifyContent="center">
-                        <Button onClick={onAddFolder}>New Folder</Button>
+                        <Button onClick={onAddFolder}>Add Folder</Button>
                     </Flex>
                 </li>
             }
@@ -724,9 +747,9 @@ const AddDeviceWizard: React.FunctionComponent<{
 
     const tutorialNext = useCallback((e?: React.SyntheticEvent) => {
         e?.preventDefault();
+        let hasErrors = false;
 
         if (tutorialStep === STEP_ADD_DEVICE) {
-            let hasErrors = false;
             const deviceName = (deviceNameRef.current?.value ?? "").trim();
             const deviceId = (deviceIdRef.current?.value ?? "").trim();
 
@@ -766,10 +789,14 @@ const AddDeviceWizard: React.FunctionComponent<{
                 props.onDeviceAdded({deviceId, label: deviceName});
                 setTutorialStep(prev => prev + 1);
             }
-        } else if (tutorialStep === STEP_LAST) {
-            props.onWizardClose();
-        } else {
-            setTutorialStep(prev => prev + 1);
+        }
+
+        if (!hasErrors) {
+            if (tutorialStep === STEP_LAST) {
+                props.onWizardClose();
+            } else {
+                setTutorialStep(prev => prev + 1);
+            }
         }
     }, [tutorialStep, props.onDeviceAdded, props.onWizardClose]);
 
@@ -900,30 +927,17 @@ const AddDeviceWizard: React.FunctionComponent<{
 
 // Styling
 // ================================================================================
-const DeviceWrapper = styled.div`
-  width: 300px;
-  text-align: center;
-
-  .device-spacer {
-    display: flex;
-  }
-
-  h3 {
-    flex-grow: 1;
-  }
-
-  .device-id {
-    font-family: "Jetbrains Mono";
-    width: calc(100% - 32px);
-  }
+const OverviewStyle = styled.div`
+    .row-left {
+        max-width: unset;
+    }
 `;
-// TODO(Dan): Why do we not have a way of referencing the monospace font of the theme?
 
 const TwoPanelLayout = styled.div`
   display: flex;
   flex-flow: row wrap;
 
-  margin-top: 16px;
+  margin-bottom: 16px;
   gap: 16px;
 
   & > * {
@@ -935,7 +949,7 @@ const TwoPanelLayout = styled.div`
       flex-basis: 400px;
     }
 
-    .folders {
+    .devices {
       order: 1;
       flex-grow: 2;
     }
@@ -957,6 +971,10 @@ const TutorialList = styled.ol`
 
 const Screenshot = styled(Image)`
     border: 3px solid var(--gray);
+`;
+
+const DeviceBox = styled(NoSelect)`
+    cursor: pointer;
 `;
 
 export default Overview;
