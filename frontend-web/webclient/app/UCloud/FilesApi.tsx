@@ -20,7 +20,8 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import {displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
+import { onDevSite, inDevEnvironment, displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, 
+        prettierString, removeTrailingSlash } from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -813,6 +814,9 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
+    const hasCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    if (!hasCookie) return false;
+
     const support = cb.collection?.status.resolvedSupport?.support;
     if (!support) return false;
 

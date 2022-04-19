@@ -14,7 +14,9 @@ import {
     isLightThemeStored,
     joinToString,
     randomUUID,
-    removeTrailingSlash
+    removeTrailingSlash,
+    onDevSite,
+    inDevEnvironment
 } from "@/UtilityFunctions";
 import { api as FileCollectionsApi, FileCollection } from "@/UCloud/FileCollectionsApi";
 import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
@@ -327,6 +329,8 @@ export const FilesBrowse: React.FunctionComponent<{
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject]);
 
+    const hasSyncCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+
     return <ResourceBrowse
         api={FilesApi}
         onSelect={props.onSelect}
@@ -351,9 +355,11 @@ export const FilesBrowse: React.FunctionComponent<{
         extraSidebar={
             <>
                 <Box flexGrow={1}/>
-                <Link to={"/syncthing"}>
-                    <Button>Manage Synchronization</Button>
-                </Link>
+                {!hasSyncCookie ? null :
+                    <Link to={"/syncthing"}>
+                        <Button>Manage Synchronization</Button>
+                    </Link>
+                }
             </>
         }
     />;
