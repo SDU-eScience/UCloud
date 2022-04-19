@@ -133,7 +133,7 @@ interface ExtraCallbacks {
     // special case.
     allowMoveCopyOverride?: boolean;
     syncthingConfig?: SyncthingConfig;
-    toggleSynchronization?: (file: UFile) => void;
+    setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -804,14 +804,11 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
 
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
-    const allUnsynchronized = resolvedFiles.every(selected => synchronized.every(it => it.ucloudPath !== selected.id));
 
-    if (allSynchronized && !allUnsynchronized) {
+    if (allSynchronized) {
         return "Remove from sync";
-    } else if (!allSynchronized && allUnsynchronized) {
-        return "Add to sync";
     } else {
-        return "Toggle sync status";
+        return "Add to sync";
     }
 }
 
@@ -823,7 +820,7 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     if (!isUCloud) return false;
 
     if (cb.syncthingConfig === undefined) return false;
-    if (cb.toggleSynchronization === undefined) return false;
+    if (cb.setSynchronization === undefined) return false;
 
     if (isDir && files.length !== 0) return false;
     if (!isDir && files.length === 0) return false;
@@ -839,15 +836,20 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
 }
 
 function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+    const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
+    const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
+    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
         cb.history.push("/syncthing");
         return;
     }
 
-    if (!cb.toggleSynchronization) return;
+    if (!cb.setSynchronization) return;
+
     for (const file of files) {
-        cb.toggleSynchronization(file);
+        cb.setSynchronization(file, !allSynchronized);
     }
 }
 

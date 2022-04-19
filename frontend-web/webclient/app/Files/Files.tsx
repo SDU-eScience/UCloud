@@ -113,18 +113,22 @@ export const FilesBrowse: React.FunctionComponent<{
         }
     }, [navigateToPath]);
 
-    const toggleSynchronization = useCallback((file: UFile) => {
+    const setSynchronization = useCallback((file: UFile, shouldAdd: boolean) => {
         setSyncthingConfig((conf) => {
             if (!conf) return conf;
             const newConf = deepCopy(conf);
 
             const folders = newConf?.folders ?? []
-            const filteredFolders = folders.filter(it => it.ucloudPath != file.id);
-            newConf.folders = filteredFolders;
 
-            const didRemove = filteredFolders.length !== folders.length;
-            if (!didRemove) {
-                filteredFolders.push({ id: randomUUID(), ucloudPath: file.id });
+            if (shouldAdd) {
+                const newFolders = [...folders];
+                newConf.folders = newFolders;
+
+                if (newFolders.every(it => it.ucloudPath !== file.id)) {
+                    newFolders.push({ id: randomUUID(), ucloudPath: file.id });
+                }
+            } else {
+                newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
             }
 
             invokeCommand(Sync.api.updateConfiguration({providerId: "ucloud", config: newConf}))
@@ -171,7 +175,7 @@ export const FilesBrowse: React.FunctionComponent<{
         allowMoveCopyOverride: props.allowMoveCopyOverride,
         directory: directory?.data ?? undefined,
         syncthingConfig: syncthingConfig ?? undefined,
-        toggleSynchronization
+        setSynchronization
     }), [collection.data, directory.data, syncthingConfig]);
 
     // Effects
