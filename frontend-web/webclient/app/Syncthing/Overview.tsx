@@ -45,6 +45,7 @@ import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
 type UIAction =
     ReloadConfig | ReloadServers | ReloadDeviceWizard |
     RemoveDevice | RemoveFolder |
+    ResetAll |
     AddDevice | AddFolder |
     ExpectServerUpdate | ExpectServerPause;
 
@@ -71,6 +72,10 @@ interface RemoveDevice {
 interface RemoveFolder {
     type: "RemoveFolder";
     folderPath: string;
+}
+
+interface ResetAll {
+    type: "ResetAll";
 }
 
 interface AddDevice {
@@ -167,6 +172,13 @@ function uiReducer(state: UIState, action: UIAction): UIState {
             copy.servers = servers;
             return copy;
         }
+
+        case "ResetAll": {
+            copy.servers = [];
+            copy.devices = [];
+            copy.folders = [];
+            return copy;
+        }
     }
 }
 
@@ -185,6 +197,11 @@ async function onAction(state: UIState, action: UIAction, cb: ActionCallbacks): 
 
         case "ExpectServerUpdate": {
             cb.requestJobReloader();
+            break;
+        }
+
+        case "ResetAll": {
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
             break;
         }
     }
@@ -399,20 +416,27 @@ export const Overview: React.FunctionComponent = () => {
                             We synchronize your files from this server. Monitor the health of your servers here.
                         </Text>
 
-                        <List mt="16px">
-                            {servers.map(it =>
-                                <ItemRow
-                                    item={it}
-                                    key={it.id}
-                                    browseType={BrowseType.Embedded}
-                                    renderer={ServerRenderer}
-                                    toggleSet={serverToggleSet}
-                                    operations={serverOperations}
-                                    callbacks={operationCb}
-                                    itemTitle={"Server"}
-                                />
-                            )}
-                        </List>
+                        {servers.length === 0 ? <>
+                            <Box mt="16px">
+                                <b>We are currently starting a Syncthing server for you. </b><br />
+                                If nothing happens, then you should try reloading this page.
+                            </Box>
+                        </> : <>
+                            <List mt="16px">
+                                {servers.map(it =>
+                                    <ItemRow
+                                        item={it}
+                                        key={it.id}
+                                        browseType={BrowseType.Embedded}
+                                        renderer={ServerRenderer}
+                                        toggleSet={serverToggleSet}
+                                        operations={serverOperations}
+                                        callbacks={operationCb}
+                                        itemTitle={"Server"}
+                                    />
+                                )}
+                            </List>
+                        </>}
                     </HighlightedCard>
                 }
             </TwoPanelLayout>
@@ -646,8 +670,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         color: "red",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
-            cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
+            cb.dispatch({type: "ResetAll"});
         }
     },
 ];
@@ -716,7 +739,7 @@ const EmptyFolders: React.FunctionComponent<{
             </li>
 
             <li>
-                <p><b>Synchronization should start within a few seconds of clicking 'Add'</b></p>
+                <p><b>Synchronization should start within a few seconds of clicking <i>Add</i></b></p>
             </li>
         </TutorialList>
 

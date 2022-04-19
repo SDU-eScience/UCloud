@@ -70,16 +70,25 @@ class SyncthingService(
     suspend fun resetConfiguration(
         request: IAppsProviderResetConfigRequest<SyncthingConfig>
     ): IAppsProviderResetConfigResponse<SyncthingConfig> {
-        fs.delete(initializeConfigurationFolder(request.principal.createdBy))
+        val configFolder = initializeConfigurationFolder(request.principal.createdBy)
+        fs.listFiles(configFolder).forEach { path ->
+            fs.delete(InternalFile(configFolder.path + "/" + path))
+        }
+        doRestart(configFolder)
         return IAppsProviderResetConfigResponse<SyncthingConfig>()
     }
 
     suspend fun restart(
         request: IAppsProviderRestartRequest<SyncthingConfig>
     ): IAppsProviderRestartResponse<SyncthingConfig> {
+        doRestart(initializeConfigurationFolder(request.principal.createdBy))
+        return IAppsProviderRestartResponse<SyncthingConfig>()
+    }
+
+    private fun doRestart(configFolder: InternalFile) {
         val restartFile = InternalFile(
             joinPath(
-                initializeConfigurationFolder(request.principal.createdBy).path,
+                configFolder.path,
                 "restart.txt",
                 isDirectory = false
             )
@@ -89,7 +98,6 @@ class SyncthingService(
         fileOutput.writer().use { w ->
             w.write("Restart required")
         }
-        return IAppsProviderRestartResponse<SyncthingConfig>()
     }
 
     suspend fun updateConfiguration(
