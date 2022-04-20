@@ -994,6 +994,7 @@ const TutorialList = styled.ol`
 
 const Screenshot = styled(Image)`
     border: 3px solid var(--gray);
+    max-height: 250px;
 `;
 
 const DeviceBox = styled(NoSelect)`
