@@ -36,6 +36,7 @@ import { SyncthingConfig } from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
 import { useDidUnmount } from "@/Utilities/ReactUtilities";
 import { deepCopy } from "@/Utilities/CollectionUtilities";
+import { getCookie } from "@/Login/Wayf";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
