@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.6.0"
-    kotlin("plugin.serialization") version "1.6.0"
+    kotlin("multiplatform") version "1.6.21"
+    kotlin("plugin.serialization") version "1.6.21"
 }
 
 group = "dk.sdu.cloud"
@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.32")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.43")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }

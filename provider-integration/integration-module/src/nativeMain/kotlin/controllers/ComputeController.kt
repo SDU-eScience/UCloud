@@ -148,12 +148,11 @@ class ComputeController(
         implement(api.suspend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
+            val result = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
                 with(plugin) { suspendBulk(request) }
-                BulkResponse(emptyList<Unit>())
             }
 
-            OutgoingCallResponse.Ok(Unit)
+            OutgoingCallResponse.Ok(result)
         }
 
         implement(api.terminate) {

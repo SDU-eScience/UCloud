@@ -18,6 +18,7 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, P
 
     suspend fun PluginContext.suspendBulk(request: JobsProviderSuspendRequest): JobsProviderSuspendResponse {
         request.items.forEach { suspendJob(it) }
+        return BulkResponse(request.items.map { Unit })
     }
 
     suspend fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem)
