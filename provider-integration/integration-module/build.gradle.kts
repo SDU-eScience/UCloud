@@ -75,9 +75,12 @@ kotlin {
                 includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
             }
 
-
             val libmbedtls by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
+            }
+
+            val libyaml by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libyaml"))
             }
         }
     }
