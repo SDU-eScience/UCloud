@@ -344,7 +344,7 @@ fun main(args: Array<String>) {
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
-            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli)
+            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, null)
             val plugins = PluginLoader(pluginContext).load()
             pluginContext.loadedPlugins = plugins
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)

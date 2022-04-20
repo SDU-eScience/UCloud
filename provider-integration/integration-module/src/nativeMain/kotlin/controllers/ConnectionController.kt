@@ -10,6 +10,7 @@ import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.ProcessWatcher
 import dk.sdu.cloud.plugins.ConnectionResponse
+import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
 import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
@@ -17,11 +18,13 @@ import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.NativeFile
 import dk.sdu.cloud.utils.ProcessStreams
 import dk.sdu.cloud.utils.startProcess
+import dk.sdu.cloud.plugins.ProjectPlugin
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import platform.posix.*
+import kotlinx.coroutines.runBlocking
 
 object ConnectionIpc : IpcContainer("connections") {
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
@@ -300,6 +303,7 @@ object UserMapping {
     fun insertMapping(
         ucloudId: String,
         localId: Int,
+        pluginContext: PluginContext,
         expiry: Long?,
         ctx: DBContext = dbConnection
     ) {
@@ -315,6 +319,16 @@ object UserMapping {
                     bindString("local_id", localId.toString())
                 },
             )
+        }
+
+        with(pluginContext) {
+            if (loadedPlugins != null) {
+                with(loadedPlugins?.projects) {
+                    if (this != null) {
+                        runBlocking { onUserMappingInserted(ucloudId, localId) }
+                    }
+                }
+            }
         }
     }
 

@@ -247,7 +247,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 log.debug("OIDC success! Subject is $subject")
 
                 val result = onOpenIdConnectCompleted.invoke(configuration.extensions.onOpenIdConnectCompleted, subject)
-                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, mappingExpiration())
+                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, this@initializeRpcServer, mappingExpiration())
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),

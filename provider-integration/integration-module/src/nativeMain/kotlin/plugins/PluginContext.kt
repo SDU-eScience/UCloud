@@ -12,7 +12,7 @@ interface PluginContext {
     val ipcClientOptional: IpcClient?
     val ipcServerOptional: IpcServer?
     val commandLineInterface: CommandLineInterface?
-    var loadedPlugins: LoadedPlugins = LoadedPlugins()
+    var loadedPlugins: LoadedPlugins?// = LoadedPlugins()
 }
 
 val PluginContext.rpcClient: AuthenticatedClient
@@ -30,5 +30,5 @@ class SimplePluginContext(
     override val ipcClientOptional: IpcClient?,
     override val ipcServerOptional: IpcServer?,
     override val commandLineInterface: CommandLineInterface?,
-    override var loadedPlugins: LoadedPlugins
+    override var loadedPlugins: LoadedPlugins? = null,
 ) : PluginContext
