@@ -1,39 +1,39 @@
 import * as React from "react";
-import { useHistory } from "react-router";
-import { useRef, useReducer, useCallback, useEffect, useMemo, useState } from "react";
-import { AppToolLogo } from "@/Applications/AppToolLogo";
-import { useTitle, useLoading } from "@/Navigation/Redux/StatusActions";
-import { ItemRenderer, ItemRow } from "@/ui-components/Browse";
-import { default as ReactModal } from "react-modal";
-import { useToggleSet } from "@/Utilities/ToggleSet";
-import { BrowseType } from "@/Resource/BrowseType";
-import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
-import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
-import { Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, 
-         List } from "@/ui-components";
+import {useHistory} from "react-router";
+import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
+import {AppToolLogo} from "@/Applications/AppToolLogo";
+import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
+import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
+import {default as ReactModal} from "react-modal";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {BrowseType} from "@/Resource/BrowseType";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {Label, Input, Image, Box, Flex, Tooltip, NoSelect, Icon, Text, Button, ExternalLink, FtIcon, 
+         List} from "@/ui-components";
 import MainContainer from "@/MainContainer/MainContainer";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import styled from "styled-components";
-import { History } from "history";
+import {History} from "history";
 import * as Heading from "@/ui-components/Heading";
-import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "./api";
+import {SyncthingConfig, SyncthingDevice, SyncthingFolder} from "./api";
 import * as Sync from "./api";
-import { Job } from "@/UCloud/JobsApi";
-import { removePrefixFrom } from "@/Utilities/TextUtilities";
-import { usePrettyFilePath } from "@/Files/FilePath";
-import { fileName } from "@/Utilities/FileUtilities";
-import { ListRowStat } from "@/ui-components/List";
-import { useDidUnmount } from "@/Utilities/ReactUtilities";
-import { Operation } from "@/ui-components/Operation";
-import { deepCopy } from "@/Utilities/CollectionUtilities";
-import { largeModalStyle } from "@/Utilities/ModalUtilities";
-import { dialogStore } from "@/Dialog/DialogStore";
-import { FilesBrowse } from "@/Files/Files";
-import { api as FilesApi } from "@/UCloud/FilesApi";
-import { randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard } from "@/UtilityFunctions";
+import {Job} from "@/UCloud/JobsApi";
+import {removePrefixFrom} from "@/Utilities/TextUtilities";
+import {usePrettyFilePath} from "@/Files/FilePath";
+import {fileName} from "@/Utilities/FileUtilities";
+import {ListRowStat} from "@/ui-components/List";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {Operation} from "@/ui-components/Operation";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {largeModalStyle} from "@/Utilities/ModalUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
+import {FilesBrowse} from "@/Files/Files";
+import {api as FilesApi} from "@/UCloud/FilesApi";
+import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import { buildQueryString } from "@/Utilities/URIUtilities";
-import { callAPI, callAPIWithErrorHandler } from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
@@ -340,7 +340,6 @@ export const Overview: React.FunctionComponent = () => {
     useEffect(() => {
         deviceToggleSet.uncheckAll();
     }, [devices]);
-
 
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({

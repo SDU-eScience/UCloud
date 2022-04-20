@@ -18,7 +18,7 @@ export interface SyncthingFolder {
     ucloudPath: string;
 }
 
-function fetchConfigFake(): Promise<SyncthingConfig> {
+export function fetchConfigFake(): Promise<SyncthingConfig> {
     const devices: SyncthingDevice[] = [];
 
     for (let i = 0; i < 10; i++) {
@@ -40,7 +40,7 @@ function fetchConfigFake(): Promise<SyncthingConfig> {
     }
 
     
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         resolve({devices, folders});
     });
 }
@@ -77,7 +77,7 @@ export function fetchServersFake(): Promise<Job[]> {
         }
     }];
 
-    return new Promise((resolve, reject) => resolve(servers));
+    return new Promise((resolve) => resolve(servers));
 }
 
 export async function fetchServers(): Promise<Job[]> {
