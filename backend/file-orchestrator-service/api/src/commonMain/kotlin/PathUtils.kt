@@ -4,7 +4,11 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 
 fun joinPath(vararg components: String, isDirectory: Boolean = false): String {
-    val basePath = components.joinToString("/") + (if (isDirectory) "/" else "").normalize()
+    val basePath = (
+        components.joinToString("/") { it.removeSuffix("/") } + 
+        (if (isDirectory) "/" else "")
+    ).normalize()
+
     return if (basePath.startsWith("/")) basePath
     else "/$basePath"
 }

@@ -305,7 +305,12 @@ abstract class ResourceService<
                 status.resolvedProduct = support.retrieveProductSupport(specification.product).product
             }
         }
-        return this
+        return attachExtraInformation(this, actor, flags)
+    }
+
+    // NOTE(Dan): Invoked by the function above. Used by sub-classes to add their own logic to the mapping process.
+    protected open suspend fun attachExtraInformation(resource: Res, actor: Actor, flags: Flags?): Res {
+        return resource
     }
 
     private suspend fun verifyMembership(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
@@ -965,17 +970,25 @@ abstract class ResourceService<
             val api = providerApi(comms)
 
             // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
-            for (attempt in 0 until 5) {
-                val resp =
-                    api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
+            loop@for (attempt in 0 until 5) {
+                try {
+                    val resp =
+                        api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
 
-                if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
-                    val im = IntegrationProvider(provider)
-                    im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
-                    delay(200L + (attempt * 500))
-                    continue
-                } else {
-                    break
+                    if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
+                        val im = IntegrationProvider(provider)
+                        im.init.call(IntegrationProviderInitRequest(owner.createdBy), comms.client).orThrow()
+                        delay(200L + (attempt * 500))
+                        continue@loop
+                    } else {
+                        break@loop
+                    }
+                } catch(ex: Throwable) {
+                    if (ex is RPCException && ex.httpStatusCode == HttpStatusCode.BadGateway) {
+                        if (attempt == 0) log.debug("Could not connect to provider: $provider")
+                    } else {
+                        log.info(ex.stackTraceToString())
+                    }
                 }
             }
         }

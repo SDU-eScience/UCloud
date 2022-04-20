@@ -7,6 +7,7 @@ import dk.sdu.cloud.app.kubernetes.services.UtilizationService
 import dk.sdu.cloud.app.kubernetes.services.proxy.VncService
 import dk.sdu.cloud.app.kubernetes.services.proxy.WebService
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -37,6 +38,11 @@ class AppKubernetesController(
         val computeApi = JobsProvider(providerId)
         implement(computeApi.create) {
             jobManagement.create(request)
+            ok(BulkResponse(request.items.map { null }))
+        }
+
+        implement(computeApi.unsuspend) {
+            jobManagement.create(BulkRequest(request.items.map { it.job }))
             ok(BulkResponse(request.items.map { null }))
         }
 

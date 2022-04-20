@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.orchestrator.services
 
 import dk.sdu.cloud.*
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.accounting.api.providers.SortDirection
@@ -9,6 +10,7 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -22,11 +24,13 @@ import dk.sdu.cloud.file.orchestrator.service.StorageCommunication
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
@@ -61,9 +65,11 @@ class JobOrchestrator(
     support: ProviderSupport<ComputeCommunication, Product.Compute, ComputeSupport>,
     serviceClient: AuthenticatedClient,
     private val appService: AppStoreCache,
-    private val exporter: ParameterExportService,
 ) : ResourceService<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
         Product.Compute, ComputeSupport, ComputeCommunication>(projectCache, db, providers, support, serviceClient) {
+
+    lateinit var exporter: ParameterExportService // TODO(Dan): Cyclic-dependency hack
+
     override val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.NEW
     private val storageProviders = Providers(serviceClient) {
         StorageCommunication(
@@ -143,10 +149,6 @@ class JobOrchestrator(
         session: AsyncDBConnection,
         allowDuplicates: Boolean
     ) {
-        val exports = idWithSpec.map { (_, spec) ->
-            exporter.exportParameters(spec)
-        }
-
         idWithSpec.forEach { (id, spec) ->
             verificationService.verifyOrThrow(actorAndProject, spec)
 
@@ -154,6 +156,10 @@ class JobOrchestrator(
             listeners.forEach {
                 it.onVerified(db, preliminaryJob)
             }
+        }
+
+        val exports = idWithSpec.map { (_, spec) ->
+            exporter.exportParameters(spec)
         }
 
         session.sendPreparedStatement(
@@ -165,6 +171,7 @@ class JobOrchestrator(
                 val resources = ArrayList<Long>().also { setParameter("resources", it) }
                 val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
                 val replicas = ArrayList<Int>().also { setParameter("replicas", it) }
+                val restartOnExit = ArrayList<Boolean>().also { setParameter("restart_on_exit", it) }
                 setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
@@ -175,6 +182,7 @@ class JobOrchestrator(
                     resources.add(id)
                     openedFiles.add(spec.openedFile)
                     replicas.add(spec.replicas)
+                    restartOnExit.add(spec.restartOnExit ?: false)
                 }
             },
             """
@@ -182,35 +190,21 @@ class JobOrchestrator(
                     select unnest(:application_names::text[]) app_name, unnest(:application_versions::text[]) app_ver,
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
                            unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
-                           unnest(:opened_file::text[]) opened_file, unnest(:replicas::int[]) replicas
+                           unnest(:opened_file::text[]) opened_file, unnest(:replicas::int[]) replicas,
+                           unnest(:restart_on_exit::bool[]) restart_on_exit
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
-                     output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas) 
-                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file, replicas
+                     output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas,
+                     restart_on_exit) 
+                select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file,
+                       replicas, restart_on_exit
                 from bulk_data
             """,
             "job spec create"
         )
 
-        session.sendPreparedStatement(
-            {
-                val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
-                val resources = ArrayList<String>().also { setParameter("resources", it) }
-
-                for ((id, spec) in idWithSpec) {
-                    for (resource in (spec.resources ?: emptyList())) {
-                        jobIds.add(id)
-                        resources.add(defaultMapper.encodeToString(resource))
-                    }
-                }
-            },
-            """
-                insert into app_orchestrator.job_resources (resource, job_id) 
-                select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
-            """,
-            "job resources create"
-        )
+        insertResources(idWithSpec, ctx = session)
 
         session.sendPreparedStatement(
             {
@@ -239,12 +233,53 @@ class JobOrchestrator(
         }
     }
 
+    suspend fun insertResources(
+        idWithSpec: List<Pair<Long, JobSpecification>>,
+        resetExistingResources: Boolean = false,
+        ctx: DBContext = db,
+    ) {
+        ctx.withSession { session ->
+            if (resetExistingResources) {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("job_ids", idWithSpec.map { it.first })
+                    },
+                    """
+                        delete from app_orchestrator.job_resources
+                        where job_id = some(:job_ids::bigint[])
+                    """,
+                    "job resource reset"
+                )
+            }
+
+            session.sendPreparedStatement(
+                {
+                    val jobIds = ArrayList<Long>().also { setParameter("job_ids", it) }
+                    val resources = ArrayList<String>().also { setParameter("resources", it) }
+
+                    for ((id, spec) in idWithSpec) {
+                        for (resource in (spec.resources ?: emptyList())) {
+                            jobIds.add(id)
+                            resources.add(defaultMapper.encodeToString(resource))
+                        }
+                    }
+                },
+                """
+                    insert into app_orchestrator.job_resources (resource, job_id) 
+                    select unnest(:resources::jsonb[]), unnest(:job_ids::bigint[])
+                """,
+                "job resources create"
+            )
+        }
+    }
+
     override suspend fun onUpdate(
         resources: List<Job>,
         updates: List<ResourceUpdateAndId<JobUpdate>>,
         session: AsyncDBConnection
     ) {
         val loadedJobs = resources.associateBy { it.id }
+        val jobsToRestart = ArrayList<Job>()
 
         for ((jobId, updatesForJob) in updates.groupBy { it.id }) {
             val job = loadedJobs[jobId] ?: error("Job not found, this should have failed earlier")
@@ -254,10 +289,24 @@ class JobOrchestrator(
                 if (update.expectedDifferentState == true && update.state == currentState) continue
 
                 val newState = update.state
-                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null
+                val didChange = newState != null || update.outputFolder != null || update.newTimeAllocation != null ||
+                    update.newMounts != null
+
+                var updateToApply = update
 
                 if (didChange && !currentState.isFinal()) {
                     if (newState != null && newState.isFinal()) {
+                        if (job.specification.restartOnExit == true && update.allowRestart == true) {
+                            updateToApply = JobUpdate(
+                                JobState.SUSPENDED,
+                                timestamp = Time.now(),
+                                allowRestart = true,
+                            )
+
+                            jobsToRestart.add(job)
+                        }
+
+                        // NOTE(Dan): We are running onTermination handlers regardless even if we are about to restart.
                         listeners.forEach {
                             try {
                                 it.onTermination(session, job)
@@ -269,9 +318,10 @@ class JobOrchestrator(
 
                     session.sendPreparedStatement(
                         {
-                            setParameter("new_state", newState?.name)
-                            setParameter("output_folder", update.outputFolder)
-                            setParameter("new_time_allocation", update.newTimeAllocation)
+                            setParameter("new_state", updateToApply.state?.name)
+                            setParameter("output_folder", updateToApply.outputFolder)
+                            setParameter("new_time_allocation", updateToApply.newTimeAllocation)
+                            setParameter("allow_restart", updateToApply.allowRestart)
                             setParameter("job_id", jobId)
                         },
                         """
@@ -284,17 +334,55 @@ class JobOrchestrator(
                                 end,
                                 last_update = now(),
                                 output_folder = coalesce(:output_folder::text, output_folder),
-                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis)
+                                time_allocation_millis = coalesce(:new_time_allocation, time_allocation_millis),
+                                allow_restart = coalesce(:allow_restart, allow_restart)
                             where resource = :job_id
                         """,
                         "job update"
                     )
+
+                    val newMounts = updateToApply.newMounts
+                    if (newMounts != null) {
+                        val allResources = job.specification.resources ?: emptyList()
+                        val nonMountResources = allResources.filter { it !is AppParameterValue.File }
+                        val validMountResources = verificationService.checkAndReturnValidFiles(
+                            job.owner.toActorAndProject(),
+                            newMounts.map { AppParameterValue.File(it) }
+                        )
+
+                        val newSpecification = job.specification.copy(
+                            resources = nonMountResources + validMountResources
+                        )
+
+                        insertResources(
+                            listOf(job.id.toLong() to newSpecification), 
+                            resetExistingResources = true,
+                            ctx = session,
+                        )
+                    }
                 } else if (newState != null && currentState.isFinal()) {
                     log.info(
                         "Ignoring job update for $jobId by ${job.specification.product.provider} " +
                                 "(bad state transition)"
                     )
                     continue
+                }
+            }
+        }
+
+        if (jobsToRestart.isNotEmpty()) {
+            GlobalScope.launch {
+                for (job in jobsToRestart) {
+                    try {
+                        val jobWithNewState = job.copy(
+                            status = job.status.copy(
+                                state = JobState.SUSPENDED
+                            )
+                        )
+                        performUnsuspension(listOf(jobWithNewState))
+                    } catch (ex: Throwable) {
+                        log.info("Failed to restart job: $job\n${ex.stackTraceToString()}")
+                    }
                 }
             }
         }
@@ -394,6 +482,31 @@ class JobOrchestrator(
         )
     }
 
+    protected override suspend fun attachExtraInformation(resource: Job, actor: Actor, flags: JobIncludeFlags?): Job {
+        val needsProviderInfo = actor == Actor.System || actor.safeUsername().startsWith(AuthProviders.PROVIDER_PREFIX)
+        if (!needsProviderInfo) return resource
+
+        val actorAndProject = resource.owner.toActorAndProject()
+
+        // NOTE(Dan): This will throw if the parameters are no longer OK. This will modify the specification if the
+        // mounted resources are no longer OK. We need this, since it will add information about the read/write status
+        // of mounts.
+
+        // TODO(Dan): Centralize some of these procedures, it seems insane that we have it in three different places. 
+
+        // TODO(Dan): Catching this, since it does not appear to be a good idea that we just throw in case of errors.
+
+        // TODO(Dan): Should we be re-inserting resources in case of modifications? Technically this should be done by
+        // the loop also, so it should be safe not to do it. But we run the risk of these being slightly out-of-date
+        // with each other.
+
+        runCatching {
+            verificationService.verifyOrThrow(actorAndProject, resource.specification)
+        }
+
+        return resource
+    }
+
     suspend fun extendDuration(
         actorAndProject: ActorAndProject,
         request: BulkRequest<JobsExtendRequestItem>
@@ -439,8 +552,83 @@ class JobOrchestrator(
                 service = this,
                 retrieveCall = { providerApi(it).terminate },
                 requestToId = { it.id },
-                resourceToRequest = { _, res -> res })
+                resourceToRequest = { _, res -> res }
+            )
         )
+    }
+
+    suspend fun suspendJob(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ): BulkResponse<Unit?> {
+        return proxy.bulkProxy(
+            actorAndProject,
+            request,
+            BulkProxyInstructions.pureProcedure(
+                service = this,
+                retrieveCall = { providerApi(it).suspend },
+                requestToId = { it.id },
+                resourceToRequest = { req, res -> JobsProviderSuspendRequestItem(res) },
+                verifyRequest = { req, res, support ->
+                    val job = (res as ProductRefOrResource.SomeResource).resource
+                    val application = appService.resolveApplication(job.specification.application)
+                        ?: throw RPCException("Unknown application", HttpStatusCode.BadRequest)
+                    val appBackend = application.invocation.tool.tool!!.description.backend
+
+                    val isSupported =
+                            (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.suspension == true)
+
+                    if (!isSupported) {
+                        throw RPCException(
+                            "Suspension of jobs are not supported. Please reload and try again.",
+                            HttpStatusCode.BadRequest,
+                            FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                        )
+                    }
+                }
+            )
+        )
+    }
+
+    suspend fun unsuspendJob(
+        actorAndProject: ActorAndProject,
+        request: BulkRequest<FindByStringId>
+    ): BulkResponse<Unit?> {
+        val jobs = retrieveBulk(
+            actorAndProject,
+            request.items.map { it.id },
+            permissionOneOf = listOf(Permission.EDIT)
+        )
+        performUnsuspension(jobs)
+        return BulkResponse(request.items.map { Unit })
+    }
+
+    private fun ResourceOwner.toActorAndProject(): ActorAndProject {
+        return ActorAndProject(
+            Actor.SystemOnBehalfOfUser(createdBy),
+            project
+        )
+    }
+
+    suspend fun performUnsuspension(jobs: List<Job>) {
+        for (job in jobs) {
+            val actorAndProject = job.owner.toActorAndProject()
+
+            // NOTE(Dan): This will throw if the parameters are no longer OK. This will modify the specification if the
+            // mounted resources are no longer OK.
+            verificationService.verifyOrThrow(actorAndProject, job.specification)
+
+            // NOTE(Dan): We reset the resources associated with the job. We also need to create a new session per job
+            // to ensure that we don't roll back changes for a job which has already been unsuspended.
+            insertResources(listOf(job.id.toLong() to job.specification), resetExistingResources = true)
+
+            providers.invokeCall(
+                job.specification.product.provider,
+                actorAndProject, // TODO This is going to cause issues with #3367
+                { it.api.unsuspend },
+                BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
+            )
+        }
     }
 
     suspend fun follow(

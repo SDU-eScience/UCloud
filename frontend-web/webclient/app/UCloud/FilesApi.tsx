@@ -20,7 +20,8 @@ import {
     readableUnixMode,
     sizeToString
 } from "@/Utilities/FileUtilities";
-import {displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, prettierString, removeTrailingSlash} from "@/UtilityFunctions";
+import { onDevSite, inDevEnvironment, displayErrorMessageOrDefault, doNothing, extensionFromPath, isLikelySafari, 
+        prettierString, removeTrailingSlash } from "@/UtilityFunctions";
 import {Operation} from "@/ui-components/Operation";
 import {UploadProtocol, WriteConflictPolicy} from "@/Files/Upload";
 import {bulkRequestOf, SensitivityLevelMap} from "@/DefaultObjects";
@@ -39,8 +40,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {OpenWith} from "@/Applications/OpenWith";
 import {FilePreview} from "@/Files/Preview";
 import {addStandardDialog, addStandardInputDialog, Sensitivity} from "@/UtilityComponents";
-import {ProductStorage, ProductSyncFolder} from "@/Accounting";
-import {SynchronizationSettings} from "@/Files/Synchronization";
+import {ProductStorage} from "@/Accounting";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListRowStat} from "@/ui-components/List";
 import SharesApi from "@/UCloud/SharesApi";
@@ -52,9 +52,10 @@ import {Spacer} from "@/ui-components/Spacer";
 import metadataNamespaceApi, {FileMetadataTemplateNamespace} from "@/UCloud/MetadataNamespaceApi";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import MetadataNamespaceApi from "@/UCloud/MetadataNamespaceApi";
-import {useEffect, useState} from "react";
-import {SyncFolderSupport} from "./SyncFolderApi";
+import { useCallback, useEffect, useState } from "react";
 import {getCookie} from "@/Login/Wayf";
+import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
+import { useHistory } from "react-router";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -69,7 +70,6 @@ export interface UFileStatus extends ResourceStatus {
     unixOwner?: number;
     unixGroup?: number;
     metadata?: FileMetadataHistory;
-    synced?: boolean;
 }
 
 export interface UFileSpecification extends ResourceSpecification {
@@ -83,7 +83,6 @@ export interface UFileIncludeFlags extends ResourceIncludeFlags {
     includeUnixInfo?: boolean;
     includeMetadata?: boolean;
     allowUnsupportedInclude?: boolean;
-    includeSyncStatus?: boolean;
     path?: string;
 }
 
@@ -134,7 +133,8 @@ interface ExtraCallbacks {
     // HACK(Jonas): This is because resource view is technically embedded, but is not in dialog, so it's allowed in 
     // special case.
     allowMoveCopyOverride?: boolean;
-    syncProducts?: SupportByProvider<ProductSyncFolder, SyncFolderSupport>;
+    syncthingConfig?: SyncthingConfig;
+    setSynchronization?: (file: UFile, shouldAdd: boolean) => void;
 }
 
 const FileSensitivityVersion = "1.0.0";
@@ -243,12 +243,20 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
             if (!resource) return null;
             const sensitivity = useSensitivity(resource);
 
+            const synchronizedFolders: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
+            const isSynchronized = synchronizedFolders.some(it => it.ucloudPath === resource.id);
+
+            const history = useHistory();
+            const openSync = useCallback(() => {
+                history.push("/syncthing");
+            }, []);
+
             return <Flex>
-                {resource.status.synced && getCookie("synchronization") ?
-                    <div style={{cursor: "pointer"}} onClick={() => addSynchronizationDialog(resource, callbacks)}>
+                {isSynchronized ?
+                    <div style={{cursor: "pointer"}} onClick={openSync}>
                         <Icon size={24} name="refresh" color="midGray" mt={7} mr={10} />
                     </div>
-                : null }
+                : null}
                 <div style={{cursor: "pointer"}} onClick={() => addFileSensitivityDialog(resource, callbacks.invokeCommand, callbacks.reload)}>
                     <Sensitivity sensitivity={sensitivity ?? "PRIVATE"} />
                 </div>
@@ -586,51 +594,6 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 }
             },
             {
-                icon: "refresh",
-                text: "Synchronization",
-                enabled: (selected, cb) => {
-                    if (!getCookie("synchronization")) return false;
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if (!cb.syncProducts) return false;
-                    const provider = (support as FileCollectionSupport).product.provider;
-                    return cb.embedded !== true &&
-                        cb.syncProducts &&
-                        Object.keys(cb.syncProducts.productsByProvider).filter(it => it === provider).length > 0 &&
-                        selected.length === 1 &&
-                        selected[0].status.type === "DIRECTORY";
-                },
-                onClick: async (selected, cb) => {
-                    addSynchronizationDialog(selected[0], cb)
-                }
-            },
-            {
-                icon: "trash",
-                text: "Move to trash",
-                confirm: true,
-                color: "red",
-                enabled: (selected, cb) => {
-                    const support = cb.collection?.status.resolvedSupport?.support;
-                    if (!support) return false;
-                    if ((support as FileCollectionSupport).files.isReadOnly) {
-                        return "File system is read-only";
-                    }
-                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
-                        return false;
-                    }
-                    return selected.length > 0 &&
-                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
-                        && selected.every(f => f.specification.product)
-                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
-                },
-                onClick: async (selected, cb) => {
-                    await cb.invokeCommand(
-                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
-                    );
-                    cb.reload();
-                }
-            },
-            {
                 text: "Change sensitivity",
                 icon: "sensitivity",
                 enabled(selected, cb) {
@@ -680,6 +643,51 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                         onCancel: doNothing,
                     });
                 },
+            },
+            {
+                // Item row synchronization
+                text: synchronizationOpText,
+                icon: "refresh",
+                enabled: (selected, cb) => synchronizationOpEnabled(false, selected, cb),
+                onClick: (selected, cb) => synchronizationOpOnClick(selected, cb)
+            },
+            {
+                // Folder synchronization
+                text: synchronizationOpText,
+                icon: "refresh",
+                primary: true,
+                canAppearInLocation: location => location === "SIDEBAR",
+                enabled: (selected, cb) => synchronizationOpEnabled(true, selected, cb),
+                onClick: (selected, cb) => {
+                    if (!cb.directory) return;
+                    synchronizationOpOnClick([cb.directory], cb);
+                }
+            },
+            {
+                icon: "trash",
+                text: "Move to trash",
+                confirm: true,
+                color: "red",
+                enabled: (selected, cb) => {
+                    const support = cb.collection?.status.resolvedSupport?.support;
+                    if (!support) return false;
+                    if ((support as FileCollectionSupport).files.isReadOnly) {
+                        return "File system is read-only";
+                    }
+                    if (cb.directory?.status.icon == "DIRECTORY_TRASH") {
+                        return false;
+                    }
+                    return selected.length > 0 &&
+                        selected.every(it => it.permissions.myself.some(p => p === "EDIT" || p === "ADMIN"))
+                        && selected.every(f => f.specification.product)
+                        && selected.every(f => f.status.icon !== "DIRECTORY_TRASH");
+                },
+                onClick: async (selected, cb) => {
+                    await cb.invokeCommand(
+                        this.trash(bulkRequestOf(...selected.map(it => ({id: it.id}))))
+                    );
+                    cb.reload();
+                }
             },
             {
                 icon: "trash",
@@ -787,6 +795,66 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
     }
 
     fileSelectorModalStyle = largeModalStyle;
+}
+
+function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
+    const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
+    if (devices.length === 0) return "Configure sync";
+
+    const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
+    const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
+
+    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+
+    if (allSynchronized) {
+        return "Remove from sync";
+    } else {
+        return "Add to sync";
+    }
+}
+
+function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
+    const hasCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    if (!hasCookie) return false;
+
+    const support = cb.collection?.status.resolvedSupport?.support;
+    if (!support) return false;
+
+    const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
+    if (!isUCloud) return false;
+
+    if (cb.syncthingConfig === undefined) return false;
+    if (cb.setSynchronization === undefined) return false;
+
+    if (isDir && files.length !== 0) return false;
+    if (!isDir && files.length === 0) return false;
+
+    if (files.length > 0 && files.every(it => it.status.type !== "DIRECTORY")) return false;
+    if (files.length > 0 && files.some(it => it.status.type !== "DIRECTORY")) return "You can only synchronize directories";
+
+    if ((support as FileCollectionSupport).files.isReadOnly) {
+        return "File system is read-only";
+    }
+
+    return true;
+}
+
+function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+    const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
+    const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
+    const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+
+    const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
+    if (devices.length === 0) {
+        cb.history.push("/syncthing");
+        return;
+    }
+
+    if (!cb.setSynchronization) return;
+
+    for (const file of files) {
+        cb.setSynchronization(file, !allSynchronized);
+    }
 }
 
 async function queryTemplateName(name: string, invokeCommand: InvokeCommand, next?: string): Promise<string> {
@@ -908,21 +976,6 @@ async function addFileSensitivityDialog(file: UFile, invokeCommand: InvokeComman
     }
 
     dialogStore.addDialog(<SensitivityDialog file={file} invokeCommand={invokeCommand} reload={reload} />, () => undefined, true);
-}
-
-async function addSynchronizationDialog(file: UFile, cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): Promise<void> {
-    const provider = cb.collection?.status.resolvedSupport?.product.category.provider;
-
-    if (provider) {
-        dialogStore.addDialog(
-            <SynchronizationSettings file={file} collection={cb.collection} provider={provider} onSuccess={() => cb.reload()} />,
-            () => undefined,
-            true
-            //this.fileSelectorModalStyle
-        );
-    } else {
-        snackbarStore.addFailure("Synchronization not supported by provider", false);
-    }
 }
 
 const api = new FilesApi();

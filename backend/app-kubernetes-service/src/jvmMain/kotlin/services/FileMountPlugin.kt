@@ -71,6 +71,8 @@ class FileMountPlugin(
         } catch (ex: FSException.NotFound) {
             log.warn("Unable to create directory, needed for file mounts: $file")
             throw ex
+        } catch (ex: FSException.AlreadyExists) {
+            // Ignored
         }
 
         val jobParameterJson = job.status.jobParametersJson
@@ -216,6 +218,8 @@ class FileMountPlugin(
 
                 try {
                     fs.delete(mountedDirectory, allowRecursion = false)
+                } catch (ex: FSException.NotFound) {
+                    // Ignored
                 } catch (ex: Throwable) {
                     log.info("Caught exception while cleaning up empty mount directories for:" +
                         "\n\tjob = $jobId" +

@@ -16,7 +16,7 @@ class MemberFiles(
     private val paths: PathConverter,
     private val serviceClient: AuthenticatedClient
 ) {
-    suspend fun initializeMemberFiles(username: String, project: String?) {
+    suspend fun initializeMemberFiles(username: String, project: String?): InternalFile {
         if (username.contains("..") || username.contains("/")) {
             throw IllegalArgumentException("Unexpected username: $username")
         }
@@ -37,7 +37,7 @@ class MemberFiles(
                 false
             }
 
-            if (exists) return
+            if (exists) return file
 
             try {
                 FileCollectionsControl.register.call(
@@ -60,6 +60,7 @@ class MemberFiles(
             }
 
             fs.createDirectories(file)
+            return file
         } else {
             val file = paths.relativeToInternal(
                 RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}")
@@ -72,7 +73,7 @@ class MemberFiles(
                 false
             }
 
-            if (exists) return
+            if (exists) return file
 
             try {
                 fs.createDirectories(
@@ -106,6 +107,8 @@ class MemberFiles(
             }
 
             fs.createDirectories(file)
+            return file
         }
     }
 }
+

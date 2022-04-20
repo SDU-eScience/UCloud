@@ -301,7 +301,7 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                     </Tooltip>
                 </SidebarTextLabel>
             </>}
-            {!Client.isLoggedIn ? null : (
+            {!Client.isLoggedIn ? null : (<Box style={{zIndex: -1}}>
                 <SidebarTextLabel
                     height="25px"
                     hover={false}
@@ -327,16 +327,16 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
                         Click to copy {Client.username} to clipboard
                     </Tooltip>
                 </SidebarTextLabel>
-            )}
+            </Box>)}
             {!CONF.SITE_DOCUMENTATION_URL ? null : (
-                <ExternalLink href={CONF.SITE_DOCUMENTATION_URL}>
+                <ExternalLink style={{zIndex: -2}} href={CONF.SITE_DOCUMENTATION_URL}>
                     <SidebarTextLabel height="25px" icon="docs" iconSize="1em" textSize={1} space=".5em">
                         {`${CONF.PRODUCT_NAME} Docs`}
                     </SidebarTextLabel>
                 </ExternalLink>
             )}
             {!CONF.DATA_PROTECTION_LINK ? null : (
-                <ExternalLink href={CONF.DATA_PROTECTION_LINK}>
+                <ExternalLink style={{zIndex: -2}} href={CONF.DATA_PROTECTION_LINK}>
                     <SidebarTextLabel height="25px" icon="verified" iconSize="1em" textSize={1} space=".5em">
                         {CONF.DATA_PROTECTION_TEXT}
                     </SidebarTextLabel>

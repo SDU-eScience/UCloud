@@ -227,6 +227,9 @@ class ScriptManager : MicroFeature {
                                 .withNano(0)
                             nowAsDate >= nextRunAt
                         }
+                        is WhenToStart.Never -> {
+                            false
+                        }
                     }
 
                     if (shouldRun) {

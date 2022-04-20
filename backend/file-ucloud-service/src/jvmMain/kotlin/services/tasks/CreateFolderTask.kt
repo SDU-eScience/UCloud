@@ -1,6 +1,6 @@
 package dk.sdu.cloud.file.ucloud.services.tasks
 
-import dk.sdu.cloud.debug.implementationDetail
+import dk.sdu.cloud.debug.detail
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.Files
 import dk.sdu.cloud.file.orchestrator.api.FilesCreateFolderRequest
@@ -37,7 +37,7 @@ class CreateFolderTask : TaskHandler {
             realRequest.items,
             doWork = doWork@{ nextItem ->
                 val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(nextItem.id))
-                debug.implementationDetail("Creating directory at: ${internalFile.path} (from ${nextItem.id})")
+                debug.detail("Creating directory at: ${internalFile.path} (from ${nextItem.id})")
                 try {
                     nativeFs.createDirectories(internalFile)
                 } catch (ex: FSException) {
