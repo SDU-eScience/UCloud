@@ -169,7 +169,7 @@ When this is used with an `Enumeration` it must match the value of one of the as
         A reference to an HTTP ingress, registered locally at the provider
     
         - __Compatible with:__ `ApplicationParameter.Ingress`
-        - __Mountable as a resource:__ ❌ No
+        - __Mountable as a resource:__ ✅ Yes
         - __Expands to:__ `${"$"}{id}`
         - __Side effects:__ Configures an HTTP ingress for the application's interactive web interface. This interface should
           not perform any validation, that is, the application should be publicly accessible.

@@ -21,7 +21,11 @@ fun main(args: Array<String>) {
 
     // Launch Syncthing process
     val syncthingProcess = ProcessBuilder().apply {
-        command("/opt/syncthing/syncthing", "--home", configFolder.path)
+        command(
+            "/opt/syncthing/syncthing", 
+            "--home", configFolder.path,
+            "--gui-address", "0.0.0.0:8384",
+        )
         redirectError(ProcessBuilder.Redirect.appendTo(File("/dev/stderr")))
         redirectOutput(ProcessBuilder.Redirect.appendTo(File("/dev/stdout")))
     }.start()

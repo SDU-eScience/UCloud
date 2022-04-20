@@ -2,7 +2,7 @@ import * as React from "react";
 import {useHistory} from "react-router";
 import {useRef, useReducer, useCallback, useEffect, useMemo, useState} from "react";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
-import {useTitle, useLoading} from "@/Navigation/Redux/StatusActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import {default as ReactModal} from "react-modal";
 import {useToggleSet} from "@/Utilities/ToggleSet";
@@ -98,6 +98,8 @@ interface ExpectServerPause {
 }
 
 interface UIState {
+    // NOTE(Dan): These are all potentially `undefined`. This makes it easier to define the default state. A value of
+    // `undefined` should generally be interpreted as "not yet loaded".
     devices?: SyncthingDevice[];
     folders?: SyncthingFolder[];
     servers?: Job[];
@@ -182,9 +184,7 @@ function uiReducer(state: UIState, action: UIAction): UIState {
     }
 }
 
-async function onAction(state: UIState, action: UIAction, cb: ActionCallbacks): Promise<void> {
-    state; // TODO(Dan): I forgot how to supress the unused warning
-
+async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Promise<void> {
     switch (action.type) {
         case "RemoveFolder":
         case "RemoveDevice":
@@ -227,7 +227,6 @@ export const Overview: React.FunctionComponent = () => {
     const history = useHistory();
 
     // UI state
-    let loading = false;
     const [uiState, pureDispatch] = useReducer(uiReducer, {});
     const folderToggleSet = useToggleSet([]);
     const serverToggleSet = useToggleSet([]);
@@ -351,7 +350,6 @@ export const Overview: React.FunctionComponent = () => {
     useTitle("File Synchronization");
     useRefreshFunction(reload);
     useSidebarPage(SidebarPages.Files);
-    useLoading(loading);
 
     let main: JSX.Element;
     if (uiState.devices !== undefined && uiState.devices.length === 0) {
@@ -445,9 +443,7 @@ export const Overview: React.FunctionComponent = () => {
                 icon="ftFolder"
                 title="Synchronized Folders"
                 color="blue"
-                subtitle={<>
-                    <Button onClick={openFileSelector}>Add Folder</Button>
-                </>}
+                subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
                 <Text color="darkGray" fontSize={1}>
                     These are the files which will be synchronized to your devices.
@@ -626,7 +622,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: ([job]) => {
             const element = document.createElement("a");
-            element.setAttribute("href", `/applications/web/${job.id}/0?hide-frame`);
+            element.setAttribute("href", `/app/applications/web/${job.id}/0?hide-frame`);
             element.setAttribute("target", "_blank");
             element.style.display = "none";
             document.body.appendChild(element);

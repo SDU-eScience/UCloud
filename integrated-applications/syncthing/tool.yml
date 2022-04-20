@@ -5,7 +5,7 @@ title: Syncthing
 name: syncthing
 version: 1
 
-container: dreg.cloud.sdu.dk/ucloud-apps/syncthing:0.3
+container: dreg.cloud.sdu.dk/ucloud-apps/syncthing:0.4
 
 authors:
 - Dan

@@ -78,6 +78,20 @@ class JobVerificationService(
             newResources.addAll(checkAndReturnValidFiles(actorAndProject, mounts))
         }
 
+        // Check ingress
+        run {
+            // NOTE(Dan): Already checked, just need to add the resources
+            val ingresses = resources.filterIsInstance<AppParameterValue.Ingress>()
+            newResources.addAll(ingresses)
+        }
+
+        // Check networks
+        run {
+            // NOTE(Dan): Already checked, just need to add the resources
+            val networks = resources.filterIsInstance<AppParameterValue.Network>()
+            newResources.addAll(networks)
+        }
+
         // Check parameters files
         val parameters = specification.parameters!!.values
         run {
