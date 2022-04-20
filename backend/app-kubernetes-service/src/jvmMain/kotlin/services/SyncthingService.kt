@@ -35,9 +35,50 @@ class SyncthingService(
 
     private val serviceClient: AuthenticatedClient,
 ) : JobManagementPlugin {
+    // NOTE(Dan): Syncthing is provided in UCloud as an integrated application. This essentially means that the
+    // orchestrator is providing a very limited API to us (the provider) centered around pushing configuration. The
+    // orchestrator expects us to use this configuration to update the storage and compute systems, in such a way that
+    // Syncthing responds to the requested changes.
+    //
+    // The orchestrator has the following assumptions about how we do this:
+    //
+    // 1. We must register a job with UCloud (through `JobsControl.register`).
+    //    a. It is assumed that every user gets their own job.
+    //    b. Currently, the frontend does a lot of the work in finding the jobs, but the orchestrator might change to
+    //       expose an endpoint which returns the relevant job IDs instead.
+    // 2. The application must have at least one parameter called "stateFolder" which should be an input directory.
+    // 3. The folder which has the state must contain a file called "ucloud_device_id.txt". This file must contain the
+    //    device ID of the Syncthing server (which we host).
+    //
+    // There are no other strict requirements and we have quite a lot of freedom in each step.
+    //
+    // This provider implements this in a fairly straight forward way. These are the keypoints:
+    //
+    // 1. Every user is allocated a single state folder (on-demand). This state folder lives in their personal
+    //    workspace. The folder is called "Syncthing". You can view the details of this in the
+    //    `initializeConfigurationFolder` function.
+    // 2. This state folder contains a configuration file called "ucloud_config.json". This file essentially contains
+    //    the configuration received by the orchestrator in JSON format. See `retrieveConfiguration` and
+    //    `updateConfiguration`.
+    // 3. Syncthing is started as a completely normal compute job and is managed by the normal compute capabilities of
+    //    this provider. The container consumes these configuration files and writes the device ID file (mentioned
+    //    above).
+    //    a. Some caveats apply to this job. See the `JobManagement.onCreate` function below.
+    //    b. We launch the job on demand, based on invocations of `updateConfiguration`.
+    // 4. Using a normal job simplifies the design tremendously. It means that the provider does not have to worry
+    //    about permission management and quotas. All of this is already taken care of by the existing systems. This
+    //    includes permission checking from the orchestrator and the accounting performed by the provider. This also
+    //    means that we get the same isolation that the rest of the compute system has, which should provide
+    //    good enough security guarantees.
+    // 5. We notify the orchestrator about new mounts when they appear. The container will automatically trigger a
+    //    restart based on the new configuration. See `synchronizeChangesWithJob` for details.
+
     suspend fun retrieveConfiguration(
         request: IAppsProviderRetrieveConfigRequest<SyncthingConfig>
     ): IAppsProviderRetrieveConfigResponse<SyncthingConfig> {
+        // NOTE(Dan): We store the configuration in a file in the user's config directory. We read this and attempt to
+        // parse it. If this file does not exist, then we will return a default configuration. If the file is corrupt,
+        // then we notify the end-user.
         val configFile = findConfigFile(request.principal.createdBy)
 
         try {
@@ -70,10 +111,16 @@ class SyncthingService(
     suspend fun resetConfiguration(
         request: IAppsProviderResetConfigRequest<SyncthingConfig>
     ): IAppsProviderResetConfigResponse<SyncthingConfig> {
+        // NOTE(Dan): Resetting the configuration is done in two steps. First we delete all the files in the config
+        // folder. But we _do not_ delete the configuration folder itself. This is important, since this folder might
+        // be mounted by a running job.
         val configFolder = initializeConfigurationFolder(request.principal.createdBy)
         fs.listFiles(configFolder).forEach { path ->
             fs.delete(InternalFile(configFolder.path + "/" + path))
         }
+
+        // NOTE(Dan): Following deletion of configuration, we perform a restart. This would not be possible if we had
+        // deleted the entire configuration folder.
         doRestart(configFolder)
         return IAppsProviderResetConfigResponse<SyncthingConfig>()
     }
@@ -86,6 +133,9 @@ class SyncthingService(
     }
 
     private fun doRestart(configFolder: InternalFile) {
+        // NOTE(Dan): Restarting works in collaboration with the application. The container will await a `restart.txt`
+        // file and restart if it exists. This file is deleted at start-up, so we don't have to worry about the job
+        // running when we create it.
         val restartFile = InternalFile(
             joinPath(
                 configFolder.path,
@@ -116,6 +166,9 @@ class SyncthingService(
         // know about the orchestrator info.
         synchronizeChangesWithJob(username, request.config, configDir)
 
+        // NOTE(Dan): We create a temporary file and then replace it with a move operation to ensure the container
+        // never sees a half-written file. This is because moves are guaranteed to be atomic. The container will
+        // either see the entirety of the old file  or the entirety of the new file.
         fs.move(temporaryFile, configFile, WriteConflictPolicy.REPLACE)
 
         return IAppsProviderUpdateConfigResponse<SyncthingConfig>()
@@ -128,11 +181,16 @@ class SyncthingService(
         configFolder: InternalFile
     ) {
         if (config.devices.isEmpty() || config.folders.isEmpty()) {
+            // NOTE(Dan): Cancel the job (if it exists) if we no devices or no folders. That is, the job is no longer
+            // needed.
             val job = findJobIfExists(username)
             if (job != null) {
                 jobs.cancel(job)
             }
         } else {
+            // NOTE(Dan): Otherwise, we make sure that the job is running and potentially notify the provider about
+            // new mounts. The orchestrator will verify the permissions of these mounts, and we don't have to worry
+            // about bad configuration.
             val (job, jobWasCreated) = startJobIfNeeded(username, config, configFolder)
             if (!jobWasCreated) {
                 jobs.k8.updateMounts(job.id, config.folders.map { it.ucloudPath })
