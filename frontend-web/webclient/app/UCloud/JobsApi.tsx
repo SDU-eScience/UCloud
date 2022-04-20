@@ -45,7 +45,7 @@ export interface JobSpecification extends ResourceSpecification {
     openedFile?: string;
 }
 
-export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED";
+export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED";
 export function isJobStateFinal(state: JobState): boolean {
     switch (state) {
         case "SUCCESS":

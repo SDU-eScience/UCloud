@@ -42,6 +42,7 @@ sealed class TransactionMode {
 }
 
 sealed class DBContext
+private const val DEBUG_ERRORS = false
 
 suspend fun <R> DBContext.withSession(
     remapExceptions: Boolean = false,
@@ -49,6 +50,19 @@ suspend fun <R> DBContext.withSession(
     restartTransactionsOnSerializationFailure: Boolean = true,
     block: suspend (session: AsyncDBConnection) -> R
 ): R {
+    var caller: StackWalker.StackFrame? = null
+    if (DEBUG_ERRORS) {
+        caller = StackWalker.getInstance().walk { sequence ->
+            sequence
+                .filter { 
+                    val className = it.getClassName()
+                    className.startsWith("dk.sdu.cloud") && !className.startsWith("dk.sdu.cloud.service.db.async")
+                }
+                .findFirst()
+                .orElse(null)
+        }
+    }
+
     var attempts = 0
     while (true) {
         try {
@@ -84,6 +98,10 @@ suspend fun <R> DBContext.withSession(
                         throw ex
                     }
                 }
+            }
+
+            if (DEBUG_ERRORS) {
+                println("Postgres error from: $caller")
             }
 
             throw ex

@@ -27,7 +27,7 @@ class EnvoyConfigurationService(
         require(routeConfiguration.extension == "yaml")
         require(clusterConfiguration.extension == "yaml")
 
-        log.debug("Envoy is configured at ${routeConfiguration.absolutePath} and ${clusterConfiguration.absolutePath}")
+        log.trace("Envoy is configured at ${routeConfiguration.absolutePath} and ${clusterConfiguration.absolutePath}")
         runCatching {
             routeConfiguration.parentFile.mkdirs()
             clusterConfiguration.parentFile.mkdirs()
@@ -37,7 +37,7 @@ class EnvoyConfigurationService(
             runBlocking {
                 routeConfiguration.writeText("{}")
                 clusterConfiguration.writeText("{}")
-                log.debug("Creating empty resources")
+                log.trace("Creating empty resources")
                 configure(emptyList(), emptyList())
             }
         }
@@ -46,7 +46,7 @@ class EnvoyConfigurationService(
     suspend fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
         lock.withLock {
             val dedupedRoutes = deduplicateRoutes(routes)
-            log.debug("Reconfiguring envoy with ${dedupedRoutes.size} routes and ${clusters.size} clusters")
+            log.trace("Reconfiguring envoy with ${dedupedRoutes.size} routes and ${clusters.size} clusters")
             val tempRouteFile = File("./envoy/temp-route-file.yaml").also {
                 it.writeText(yamlMapper.writeValueAsString(EnvoyResources(listOf(EnvoyRouteConfiguration(dedupedRoutes)))))
             }

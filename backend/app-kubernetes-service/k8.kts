@@ -2,7 +2,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "app-kubernetes"
-    version = "2022.1.23-bugfix"
+    version = "2022.1.40"
 
     val additionalConfig = config("additionalConfig", "Additional configuration (YAML)", "")
     val prefix: String = config("prefix", "Application name prefix (e.g. 'app-')", "app-")
@@ -27,6 +27,7 @@ bundle { ctx ->
         addSimpleMapping("/ucloud/ucloud/networkips")
         addSimpleMapping("/ucloud/ucloud/licenses")
         addSimpleMapping("/ucloud/ucloud/websocket")
+        addSimpleMapping("/ucloud/ucloud/iapps")
         // TODO This seems wrong
         addSimpleMapping("/ucloud/jobs.provider.ucloud/websocket")
     }

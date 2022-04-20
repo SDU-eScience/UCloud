@@ -181,7 +181,6 @@ class FileQueries(
                         // NOTE(Dan): File might have gone away between these two calls
                         didSkipFiles = true
                     } catch (ex: Throwable) {
-                        ex.printStackTrace()
                     }
                 }
                 else -> {

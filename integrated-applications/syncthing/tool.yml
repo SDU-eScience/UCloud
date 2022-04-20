@@ -1,0 +1,23 @@
+---
+tool: v1
+
+title: Syncthing
+name: syncthing
+version: 1
+
+container: dreg.cloud.sdu.dk/ucloud-apps/syncthing:0.4
+
+authors:
+- Dan
+  
+defaultTimeAllocation:
+  hours: 1
+  minutes: 0
+  seconds: 0
+
+description: All
+           
+defaultNumberOfNodes: 1 
+defaultTasksPerNode: 1
+
+backend: DOCKER

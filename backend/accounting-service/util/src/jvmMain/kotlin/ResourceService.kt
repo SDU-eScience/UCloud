@@ -305,7 +305,12 @@ abstract class ResourceService<
                 status.resolvedProduct = support.retrieveProductSupport(specification.product).product
             }
         }
-        return this
+        return attachExtraInformation(this, actor, flags)
+    }
+
+    // NOTE(Dan): Invoked by the function above. Used by sub-classes to add their own logic to the mapping process.
+    protected open suspend fun attachExtraInformation(resource: Res, actor: Actor, flags: Flags?): Res {
+        return resource
     }
 
     private suspend fun verifyMembership(actorAndProject: ActorAndProject, ctx: DBContext? = null) {
@@ -979,7 +984,11 @@ abstract class ResourceService<
                         break@loop
                     }
                 } catch(ex: Throwable) {
-                    log.info(ex.stackTraceToString())
+                    if (ex is RPCException && ex.httpStatusCode == HttpStatusCode.BadGateway) {
+                        if (attempt == 0) log.debug("Could not connect to provider: $provider")
+                    } else {
+                        log.info(ex.stackTraceToString())
+                    }
                 }
             }
         }

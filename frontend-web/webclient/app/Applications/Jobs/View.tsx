@@ -366,7 +366,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
 
             {!job || !status ? null : (
                 <CSSTransition
-                    in={status?.state === "IN_QUEUE" && dataAnimationAllowed}
+                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
                     timeout={{
                         enter: 1000,
                         exit: 0,
@@ -378,7 +378,7 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
                         <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
                             <div className={"fake-logo"} />
                             <div className={"header-text"}>
-                                <InQueueText job={job!} />
+                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
                             </div>
                         </Flex>
 

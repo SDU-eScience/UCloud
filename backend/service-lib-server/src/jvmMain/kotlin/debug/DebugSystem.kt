@@ -20,8 +20,10 @@ import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.serializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
@@ -31,23 +33,44 @@ import java.util.*
 import kotlin.collections.ArrayList
 import kotlin.collections.HashMap
 import kotlin.coroutines.coroutineContext
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
+
+class DebugCoroutineContext(
+    val context: DebugContext,
+) : AbstractCoroutineContextElement(DebugCoroutineContext) {
+    companion object Key : CoroutineContext.Key<DebugCoroutineContext>
+}
 
 @Serializable
 sealed class DebugContext {
     abstract val id: String
     abstract val parent: String?
+    abstract var depth: Int
 
     @SerialName("server")
     @Serializable
-    data class Server(override val id: String, override val parent: String? = null) : DebugContext()
+    data class Server(
+        override val id: String, 
+        override val parent: String? = null,
+        override var depth: Int = 0,
+    ) : DebugContext()
 
     @SerialName("client")
     @Serializable
-    data class Client(override val id: String, override val parent: String? = null) : DebugContext()
+    data class Client(
+        override val id: String, 
+        override val parent: String? = null,
+        override var depth: Int = 0,
+    ) : DebugContext()
 
     @SerialName("job")
     @Serializable
-    data class Job(override val id: String, override val parent: String? = null) : DebugContext()
+    data class Job(
+        override val id: String, 
+        override val parent: String? = null,
+        override var depth: Int = 0,
+    ) : DebugContext()
 }
 
 @Serializable
@@ -245,6 +268,7 @@ sealed class DebugListenRequest {
     class SetContextFilter(
         val ids: List<String>?,
         val minimumLevel: MessageImportance? = null,
+        val requireTopLevel: Boolean? = null,
         val types: List<MessageType>? = null,
         val query: String? = null,
     ) : DebugListenRequest()
@@ -312,7 +336,7 @@ class DebugSystem : MicroFeature {
                     DebugMessage.ClientRequest(
                         DebugContext.Client(
                             id,
-                            rpcContext()?.call?.jobIdOrNull
+                            parentContextId(),
                         ),
                         Time.now(),
                         null,
@@ -340,7 +364,7 @@ class DebugSystem : MicroFeature {
                     DebugMessage.ClientResponse(
                         DebugContext.Client(
                             id,
-                            rpcContext()?.call?.jobIdOrNull
+                            parentContextId(),
                         ),
                         Time.now(),
                         null,
@@ -429,6 +453,7 @@ class DebugSystem : MicroFeature {
         val streamId: String,
         val session: WSSession,
         var query: String? = null,
+        var requireTopLevel: Boolean = false,
         var filterTypes: List<MessageType> = listOf(MessageType.SERVER),
         var minimumLevel: MessageImportance = MessageImportance.THIS_IS_NORMAL,
         var interestedIn: List<String>? = null,
@@ -471,6 +496,7 @@ class DebugSystem : MicroFeature {
                             if (request.minimumLevel != null) debugSession.minimumLevel = request.minimumLevel
                             if (request.types != null) debugSession.filterTypes = request.types
                             if (request.query != null) debugSession.query = request.query
+                            if (request.requireTopLevel != null) debugSession.requireTopLevel = request.requireTopLevel
 
                             mutex.withLock {
                                 debugSession.session.sendMessage(debugSession.streamId, DebugSystemListenResponse.Clear,
@@ -505,6 +531,7 @@ class DebugSystem : MicroFeature {
     }
 
     private fun shouldSendMessage(session: DebugSession, message: DebugMessage): Boolean {
+        if (session.requireTopLevel && message.context.parent != null) return false
         val allIds = session.interestedIn?.flatMap { (reverseContext[it] ?: emptyList()) + it }?.toSet()
         if (allIds != null && message.context.id !in allIds) return false
         if (message.importance.ordinal < session.minimumLevel.ordinal) return false
@@ -546,6 +573,10 @@ class DebugSystem : MicroFeature {
 
                     contextGraph[message.context.id] = chain
                     reverseContext[message.context.id] = ArrayList()
+
+                    message.context.depth = chain.size - 1
+                } else {
+                    message.context.depth = existingEntry.size - 1
                 }
 
                 messages.add(message)
@@ -571,14 +602,18 @@ class DebugSystem : MicroFeature {
 }
 
 suspend inline fun rpcContext(): RpcCoroutineContext? = coroutineContext[RpcCoroutineContext]
+suspend inline fun parentContextId(): String? {
+    val ctx = coroutineContext
+    return ctx[DebugCoroutineContext]?.context?.id ?: rpcContext()?.call?.jobIdOrNull
+}
 
-private val logIdGenerator = AtomicInteger(0)
+val logIdGenerator = AtomicInteger(0)
 suspend fun DebugSystem.log(message: String, structured: JsonObject?, level: MessageImportance) {
     sendMessage(
         DebugMessage.Log(
             DebugContext.Job(
                 logIdGenerator.getAndIncrement().toString(),
-                rpcContext()?.call?.jobIdOrNull
+                parentContextId(),
             ),
             message,
             structured,
@@ -587,11 +622,11 @@ suspend fun DebugSystem.log(message: String, structured: JsonObject?, level: Mes
     )
 }
 
-suspend fun DebugSystem.tellMeEverything(message: String, structured: JsonObject? = null) {
+suspend fun DebugSystem.everything(message: String, structured: JsonObject? = null) {
     log(message, structured, MessageImportance.TELL_ME_EVERYTHING)
 }
 
-suspend fun DebugSystem.implementationDetail(message: String, structured: JsonObject? = null) {
+suspend fun DebugSystem.detail(message: String, structured: JsonObject? = null) {
     log(message, structured, MessageImportance.IMPLEMENTATION_DETAIL)
 }
 
@@ -610,3 +645,113 @@ suspend fun DebugSystem.wrong(message: String, structured: JsonObject? = null) {
 suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = null) {
     log(message, structured, MessageImportance.THIS_IS_DANGEROUS)
 }
+
+
+suspend inline fun <reified R> DebugSystem?.logD(
+    message: String, 
+    structured: R, 
+    level: MessageImportance, 
+    context: DebugContext? = null
+) {
+    if (this == null) return
+    val encoded = when (R::class) {
+        Array::class,
+        List::class,
+        Set::class,
+        Collection::class -> {
+            defaultMapper.encodeToJsonElement(
+                serializer<Map<String, R>>(),
+                mapOf("wrapper" to structured)
+            ) as JsonObject
+        }
+
+        else -> {
+            defaultMapper.encodeToJsonElement(
+                serializer<R>(),
+                structured
+            ) as JsonObject
+        }
+    }
+
+    sendMessage(
+        DebugMessage.Log(
+            context ?: DebugContext.Job(
+                logIdGenerator.getAndIncrement().toString(),
+                parentContextId(),
+            ),
+            message,
+            encoded,
+            level
+        )
+    )
+}
+
+suspend inline fun <reified R> DebugSystem?.everythingD(message: String, structured: R, context: DebugContext? = null) {
+    logD(message, structured, MessageImportance.TELL_ME_EVERYTHING, context)
+}
+
+suspend inline fun <reified R> DebugSystem?.detailD(message: String, structured: R, context: DebugContext? = null) {
+    logD(message, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
+}
+
+suspend inline fun <reified R> DebugSystem?.normalD(message: String, structured: R, context: DebugContext? = null) {
+    logD(message, structured, MessageImportance.THIS_IS_NORMAL, context)
+}
+
+suspend inline fun <reified R> DebugSystem?.oddD(message: String, structured: R, context: DebugContext? = null) {
+    logD(message, structured, MessageImportance.THIS_IS_ODD, context)
+}
+
+suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, structured: R, context: DebugContext? = null) {
+    logD(message, structured, MessageImportance.THIS_IS_DANGEROUS, context)
+}
+
+suspend inline fun <reified R> DebugSystem?.wrongD(message: String, structured: R) {
+    logD(message, structured, MessageImportance.THIS_IS_WRONG)
+}
+
+class DebugSystemLogContext(
+    val name: String,
+    val debug: DebugSystem?,
+    val debugContext: DebugContext,
+) {
+    suspend fun logExit(
+        message: String, 
+        data: JsonObject? = null, 
+        level: MessageImportance = MessageImportance.THIS_IS_NORMAL
+    ) {
+        if (debug == null) return
+        debug.sendMessage(
+            DebugMessage.Log(
+                debugContext, 
+                if (message.isBlank()) name else "$name: $message", 
+                data, 
+                level
+            )
+        )
+    }
+}
+
+suspend inline fun <R> DebugSystem?.enterContext(
+    name: String, 
+    crossinline block: suspend DebugSystemLogContext.() -> R
+): R {
+    val debug = this
+
+    val debugContext = DebugContext.Job(logIdGenerator.getAndIncrement().toString(), parentContextId())
+    val logContext = DebugSystemLogContext(name, debug, debugContext)
+    if (debug == null) return block(logContext)
+
+    return withContext(DebugCoroutineContext(debugContext)) {
+        debug.sendMessage(
+            DebugMessage.Log(
+                debugContext, 
+                "$name: Start", 
+                null, 
+                MessageImportance.IMPLEMENTATION_DETAIL
+            )
+        )
+        block(logContext)
+    }
+}
+

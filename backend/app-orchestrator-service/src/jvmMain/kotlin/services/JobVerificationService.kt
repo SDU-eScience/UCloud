@@ -42,6 +42,7 @@ class JobVerificationService(
 
         val verifiedParameters = verifyParameters(application, specification)
         val resources = specification.resources!!
+        val newResources = ArrayList<AppParameterValue>()
 
         // Check peers
         run {
@@ -49,8 +50,9 @@ class JobVerificationService(
                 .filterIsInstance<ApplicationParameter.Peer>()
                 .mapNotNull { verifiedParameters[it.name] as AppParameterValue.Peer? }
 
-            val allPeers =
-                resources.filterIsInstance<AppParameterValue.Peer>() + parameterPeers
+            val resourcePeers = resources.filterIsInstance<AppParameterValue.Peer>()
+
+            val allPeers = resourcePeers + parameterPeers
 
             val duplicatePeers = allPeers
                 .map { it.hostname }
@@ -63,48 +65,82 @@ class JobVerificationService(
                 )
             }
 
-            orchestrator.retrieveBulk(actorAndProject, allPeers.map { it.jobId }, listOf(Permission.EDIT))
+            if (parameterPeers.size != checkAndReturnValidPeers(actorAndProject, parameterPeers).size) {
+                throw JobException.VerificationError("You are not allowed to use one or more of your connected jobs")
+            }
+
+            newResources.addAll(checkAndReturnValidPeers(actorAndProject, resourcePeers))
         }
 
-        // Check files
+        // Check mounts
         run {
-            val files = resources.filterIsInstance<AppParameterValue.File>()
-            val requiredCollections = files.map { extractPathMetadata(it.path).collection }.toSet()
-            val retrievedCollections = try {
-                fileCollections
-                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ))
-                    .associateBy { it.id }
-            } catch (ex: RPCException) {
-                throw JobException.VerificationError("You are not allowed to use one or more of your files")
-            }
-
-            for (file in files) {
-                val perms = retrievedCollections[extractPathMetadata(file.path).collection]!!.permissions!!.myself
-                val allowWrite = perms.any { it == Permission.EDIT || it == Permission.ADMIN }
-                file.readOnly = !allowWrite
-            }
+            val mounts = resources.filterIsInstance<AppParameterValue.File>()
+            newResources.addAll(checkAndReturnValidFiles(actorAndProject, mounts))
         }
-        //Check parameters files
+
+        // Check ingress
+        run {
+            // NOTE(Dan): Already checked, just need to add the resources
+            val ingresses = resources.filterIsInstance<AppParameterValue.Ingress>()
+            newResources.addAll(ingresses)
+        }
+
+        // Check networks
+        run {
+            // NOTE(Dan): Already checked, just need to add the resources
+            val networks = resources.filterIsInstance<AppParameterValue.Network>()
+            newResources.addAll(networks)
+        }
+
+        // Check parameters files
         val parameters = specification.parameters!!.values
         run {
             val files = parameters.filterIsInstance<AppParameterValue.File>()
-            val requiredCollections = files.map { file ->
-                extractPathMetadata(file.path).collection
-            }.toSet()
-            val retrievedCollections = try {
-                fileCollections
-                    .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ))
-                    .associateBy { it.id }
-            } catch (ex: RPCException) {
+            val validFiles = checkAndReturnValidFiles(actorAndProject, files)
+            if (files.size != validFiles.size) {
                 throw JobException.VerificationError("You are not allowed to use one or more of your files")
             }
-
-            for (file in files) {
-                val perms = retrievedCollections[extractPathMetadata(file.path).collection]!!.permissions!!.myself
-                val allowWrite = perms.any { it == Permission.EDIT || it == Permission.ADMIN }
-                file.readOnly = !allowWrite
-            }
         }
+
+        specification.resources = newResources
+    }
+
+    private suspend fun checkAndReturnValidPeers(
+        actorAndProject: ActorAndProject,
+        peers: List<AppParameterValue.Peer>
+    ): List<AppParameterValue.Peer> {
+        val validPeers = orchestrator.retrieveBulk(
+            actorAndProject, 
+            peers.map { it.jobId }, 
+            listOf(Permission.EDIT), 
+            requireAll = false
+        )
+
+        return peers.filter { input ->
+            validPeers.any { valid -> valid.id == input.jobId }
+        }
+    }
+
+    suspend fun checkAndReturnValidFiles(
+        actorAndProject: ActorAndProject,
+        files: List<AppParameterValue.File>
+    ): List<AppParameterValue.File> {
+        val actualFiles = ArrayList<AppParameterValue.File>()
+
+        val requiredCollections = files.map { file -> extractPathMetadata(file.path).collection }.toSet()
+        val retrievedCollections = fileCollections
+            .retrieveBulk(actorAndProject, requiredCollections, listOf(Permission.READ), requireAll = false)
+            .associateBy { it.id }
+
+        for (file in files) {
+            val perms = retrievedCollections[extractPathMetadata(file.path).collection]?.permissions?.myself
+                ?: continue
+
+            val allowWrite = perms.any { it == Permission.EDIT || it == Permission.ADMIN }
+            file.readOnly = !allowWrite
+            actualFiles.add(file)
+        }
+        return actualFiles
     }
 
     private fun badValue(param: ApplicationParameter): Nothing {

@@ -47,7 +47,6 @@ class ChunkedUploadService(
             }
             return id
         } catch (ex: Throwable) {
-            ex.printStackTrace()
             throw ex
         }
     }

@@ -38,11 +38,14 @@ class JobMonitoringService(
     private val networkIPService: NetworkIPService,
     private val licenseService: LicenseService
 ) {
-    suspend fun initialize() {
+    suspend fun initialize(useDistributedLocks: Boolean) {
         scope.launch {
-            val lock = distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
+            val lock = 
+                if (useDistributedLocks) distributedLocks.create("app-orchestrator-watcher", duration = 60_000)
+                else null
+
             while (isActive) {
-                val didAcquire = lock.acquire()
+                val didAcquire = if (lock == null) true else lock.acquire()
                 if (didAcquire) {
                     try {
                         runMonitoringLoop(lock)
@@ -57,11 +60,11 @@ class JobMonitoringService(
         }
     }
 
-    private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock) {
+    private suspend fun CoroutineScope.runMonitoringLoop(lock: DistributedLock?) {
         var nextScan = 0L
 
         while (isActive) {
-            val now = Time.now() / 1000
+            val now = Time.now()
             if (now >= nextScan) {
                 db.withSession { session ->
                     val jobs = session
@@ -71,12 +74,10 @@ class JobMonitoringService(
                                     "nonFinalStates",
                                     JobState.values().filter { !it.isFinal() }.map { it.name }
                                 )
-                                setParameter("before", now - TIME_BETWEEN_SCANS)
-                                setParameter("now", now)
                             },
                             """
-                                update jobs
-                                set last_scan = to_timestamp(cast(:now as bigint))
+                                update app_orchestrator.jobs
+                                set last_scan = now()
                                 where
                                     resource in (
                                         select resource
@@ -84,8 +85,8 @@ class JobMonitoringService(
                                             app_orchestrator.jobs j join
                                             provider.resource r on r.id = j.resource
                                         where
-                                            current_state in (select unnest(:nonFinalStates::text[])) and
-                                            last_scan <= to_timestamp(cast(:before as bigint)) and
+                                            current_state = some(:nonFinalStates::text[]) and
+                                            last_scan <= now() - '30 seconds'::interval and
                                             r.confirmed_by_provider = true
                                         limit 100
                                     )
@@ -116,34 +117,47 @@ class JobMonitoringService(
                             if (!resp.statusCode.isSuccess()) {
                                 log.info("Failed to verify block in $provider. Jobs: ${jobs.map { it.id }}")
                             }
+
+                            val requiresRestart = jobs.filter { 
+                                it.status.state == JobState.SUSPENDED && it.status.allowRestart == true
+                            }
+                            if (requiresRestart.isNotEmpty()) {
+                                for (job in requiresRestart) {
+                                    try {
+                                        jobOrchestrator.performUnsuspension(listOf(job))
+                                    } catch (ex: Throwable) {
+                                        log.info("Failed to restart job: ${job.id}\n  Reason: ${ex.message}")
+                                    }
+                                }
+                            }
                         }
                     }
 
                     for (job in jobs) {
-                        log.debug("Checking permissions of ${job.id}")
-                        val (hasPermissions, files) = hasPermissionsForExistingMounts(
-                            job,
-                            session
-                        )
+                        // NOTE(Dan): Suspended jobs are re-verified when they are unsuspended. We don't verify them
+                        // right now.
+                        if (job.status.state == JobState.SUSPENDED) continue
+
+                        log.trace("Checking permissions of ${job.id}")
+                        val (hasPermissions, files) = hasPermissionsForExistingMounts(job, session)
                         if (!hasPermissions) {
                             terminateAndUpdateJob(job, files)
                         }
 
-                        val (resourceAvailable, resource) = hasResources(
-                            job, session
-                        )
+                        val (resourceAvailable, resource) = hasResources(job, session)
                         if (!resourceAvailable) {
                             terminateAndUpdateJob(job, resource)
                         }
                     }
                 }
-                nextScan = Time.now() + 30_000
+                nextScan = Time.now() + TIME_BETWEEN_SCANS / 2
             }
 
-            if (!lock.renew(90_000)) {
+            if (lock != null && !lock.renew(90_000)) {
                 log.warn("Lock was lost. We are no longer the master. Did update take too long?")
                 break
             }
+            delay(1000)
         }
     }
 
@@ -151,7 +165,7 @@ class JobMonitoringService(
         job: Job,
         lostPermissionTo: List<String>?
     ) {
-        log.debug("Permission check failed for ${job.id}")
+        log.trace("Permission check failed for ${job.id}")
         jobOrchestrator.terminate(
             ActorAndProject(Actor.System, null),
             bulkRequestOf(FindByStringId(job.id))
@@ -266,12 +280,12 @@ class JobMonitoringService(
                 resources.filterIsInstance<AppParameterValue.File>() +
                 outputFolder
 
-        log.debug("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
+        log.trace("ALL FILES: ${allFiles.map { extractPathMetadata(it.path).collection }}")
 
         val readOnlyFiles = allFiles.filter { it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
         val readWriteFiles = allFiles.filter { !it.readOnly }.map { extractPathMetadata(it.path).collection }.toSet()
 
-        log.debug("readonly: ${readOnlyFiles.size}, write: ${readWriteFiles.size}")
+        log.trace("readonly: ${readOnlyFiles.size}, write: ${readWriteFiles.size}")
 
         val permissionToRead = checkFiles(session, true, readOnlyFiles, job)
         if (!permissionToRead.hasPermission) {
@@ -299,8 +313,8 @@ class JobMonitoringService(
             requireAll = false,
             ctx = session
         )
-        log.debug(canAccess.joinToString())
-        log.debug("${canAccess.size} vs ${files.size}")
+        log.trace(canAccess.joinToString())
+        log.trace("${canAccess.size} vs ${files.size}")
         if (canAccess.size != files.size) {
             val accessibleFiles = canAccess.map { it.id }
             val lostPermissionTo = files.filterNot { accessibleFiles.contains(it) }
@@ -311,6 +325,6 @@ class JobMonitoringService(
 
     companion object : Loggable {
         override val log = logger()
-        private const val TIME_BETWEEN_SCANS = 1_000 * 60 * 5
+        private const val TIME_BETWEEN_SCANS = 10_000
     }
 }
