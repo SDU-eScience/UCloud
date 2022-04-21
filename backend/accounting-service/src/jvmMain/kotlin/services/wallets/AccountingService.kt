@@ -51,7 +51,7 @@ class AccountingService(
         }
 
         try {
-            db.withSession(remapExceptions = true, transactionMode) { session ->
+            db.withSession(remapExceptions = true, transactionMode, restartTransactionsOnSerializationFailure = true) { session ->
                 session.sendPreparedStatement(
                     packChargeRequests(request),
                     """
