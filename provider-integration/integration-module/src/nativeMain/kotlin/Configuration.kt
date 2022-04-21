@@ -3,6 +3,7 @@ package dk.sdu.cloud
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.utils.NativeFile
+import dk.sdu.cloud.utils.normalizeCertificate
 import dk.sdu.cloud.utils.readText
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -158,6 +159,9 @@ class IMConfiguration(
         val ipcDirectory: String? = null,
         // NOTE(Dan): If this is specified, this instance will never be launched
         val developmentInstance: DevelopmentInstance? = null,
+        // NOTE(Dan): Location where this integration module is publicly accessible, should match the configuration
+        // provided to UCloud/Core. Default value is `null` which will cause some plugins to not work.
+        val ownHost: Host? = null,
     ) {
         fun normalize(): Core {
             if (providerId != PLACEHOLDER_ID) {
@@ -169,14 +173,7 @@ class IMConfiguration(
 
                 return copy(
                     certificateFile = null,
-                    certificate = certificate.replace("\n", "")
-                        .replace("\r", "")
-                        .removePrefix("-----BEGIN PUBLIC KEY-----")
-                        .removeSuffix("-----END PUBLIC KEY-----")
-                        .chunked(64)
-                        .filter { it.isNotBlank() }
-                        .joinToString("\n")
-                        .let { "-----BEGIN PUBLIC KEY-----\n" + it + "\n-----END PUBLIC KEY-----" }
+                    certificate = normalizeCertificate(certificate),
                 )
             }
 
@@ -190,14 +187,13 @@ class IMConfiguration(
         val fileCollection: ProductBasedConfiguration? = null,
         val compute: ProductBasedConfiguration? = null,
         val connection: JsonObject? = null,
-        val identityMapper: JsonObject? = null,
         val projects: JsonObject? = null,
     )
 
     @Serializable
     data class Server(
         val refreshToken: String,
-        val ucloud: UCloud,
+        val ucloud: Host,
         val dbFile: String = "",
         val port: Int? = null,
     ) {
@@ -210,11 +206,18 @@ class IMConfiguration(
 
             return copy(dbFile = newDbFile)
         }
-
-        @Serializable
-        data class UCloud(val host: String, val scheme: String, val port: Int)
     }
 
+    @Serializable
+    data class Host(val host: String, val scheme: String, val port: Int) {
+        override fun toString() = buildString {
+            append(scheme)
+            append("://")
+            append(host)
+            append(":")
+            append(port)
+        }
+    }
 
     @Serializable
     data class FrontendProxy(

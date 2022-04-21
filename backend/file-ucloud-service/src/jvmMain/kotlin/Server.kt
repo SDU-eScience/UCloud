@@ -10,13 +10,11 @@ import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
-import dk.sdu.cloud.file.ucloud.rpc.SyncController
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import dk.sdu.cloud.sync.mounter.api.Mounts
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import java.io.File
@@ -26,8 +24,6 @@ class Server(
     override val micro: Micro,
     private val configuration: Configuration,
     private val cephConfig: CephConfiguration,
-    private val syncConfig: SyncConfiguration,
-    private val syncMounterSharedSecret: String?
 ) : CommonServer {
     override val log = logger()
     private val onKtorReadyCallbacks = ArrayList<suspend () -> Unit>()
@@ -65,17 +61,7 @@ class Server(
         val authenticator =
             RefreshingJWTAuthenticator(micro.client, JwtRefresher.Provider(refreshToken, OutgoingHttpCall))
 
-        @Suppress("UNCHECKED_CAST")
-        micro.providerTokenValidation = TokenValidationChain(
-            buildList {
-                add(validation as TokenValidation<Any>)
-                if (syncMounterSharedSecret != null) {
-                    InternalTokenValidationJWT.withSharedSecret(syncMounterSharedSecret)
-                } else {
-                    log.warn("Missing shared secret for file-ucloud-service and sync-mounter. Sync will not work")
-                }
-            }
-        )
+        micro.providerTokenValidation = validation as TokenValidation<Any>
 
         // 2. Core infrastructure (e.g. databases)
         // ===========================================================================================================
@@ -105,7 +91,6 @@ class Server(
         val chunkedUploadService = ChunkedUploadService(db, pathConverter, nativeFs)
         val downloadService = DownloadService(configuration.providerId, db, pathConverter, nativeFs)
         val memberFiles = MemberFiles(nativeFs, pathConverter, authenticatedClient)
-        val distributedLocks = DistributedLockFactory(micro)
 
         val shareService = ShareService(nativeFs, pathConverter, authenticatedClient)
         val taskSystem = TaskSystem(
@@ -133,86 +118,21 @@ class Server(
             memberFiles
         )
 
-        // 4a. Optional sync-thing feature
-        // ===========================================================================================================
-        if (syncConfig.devices.isNotEmpty() && syncMounterSharedSecret != null) {
-            val mounterClient = RefreshingJWTAuthenticator(
-                micro.client,
-                JwtRefresherSharedSecret(syncMounterSharedSecret)
-            ).authenticateClient(OutgoingHttpCall)
-
-            val lastWrite = AtomicLong(Time.now())
-            val syncthingClient = SyncthingClient(syncConfig, db, distributedLocks, lastWrite)
-            val syncService = SyncService(
-                configuration.providerId,
-                syncthingClient,
-                db,
-                authenticatedClient,
-                cephStats,
-                pathConverter,
-                mounterClient
-            )
-
-            controllers.add(SyncController(configuration.providerId, syncService, syncMounterSharedSecret))
-
-            Runtime.getRuntime().addShutdownHook(Thread {
-                runBlocking {
-                    syncthingClient.drainConfig()
-                }
-            })
-
-            onKtorReadyCallbacks.add {
-                try {
-                    val running: List<LocalSyncthingDevice> = syncConfig.devices.mapNotNull { device ->
-                        var foldersMounted = false
-                        var retryCount = 0
-
-                        while (!foldersMounted && retryCount < 5) {
-                            delay(1000L)
-                            retryCount += 1
-
-                            val ready = Mounts.ready.call(Unit, mounterClient)
-
-                            if (ready.statusCode == HttpStatusCode.OK) {
-                                if (ready.orThrow().ready) {
-                                    foldersMounted = true
-                                }
-                            }
-                        }
-
-                        if (foldersMounted) {
-                            device
-                        } else {
-                            null
-                        }
-                    }
-
-                    syncthingClient.writeConfig(running)
-                    syncthingClient.rescan(running)
-                } catch (ex: Throwable) {
-                    log.warn("Caught exception while trying to configure sync-thing (is it running?)")
-                    log.warn(ex.stackTraceToString())
-                }
-            }
-        }
-
-        // 4b. Optional indexing feature
+        // 4a. Optional indexing feature
         // ===========================================================================================================
         var elasticQueryService: ElasticQueryService? = null
+        if ( micro.featureOrNull(ElasticFeature) != null) {
+            elasticQueryService = ElasticQueryService(micro.elasticHighLevelClient, nativeFs, pathConverter)
+        }
         if (configuration.indexing.enabled && micro.featureOrNull(ElasticFeature) != null) {
-            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 2, numberOfReplicas = 5)
-            elasticQueryService = ElasticQueryService(
-                micro.elasticHighLevelClient,
-                nativeFs,
-                pathConverter
-            )
+            FilesIndex.create(micro.elasticHighLevelClient, numberOfShards = 4, numberOfReplicas = 0)
 
             scriptManager.register(
                 Script(
                     ScriptMetadata(
                         "ucloud-storage-index",
-                        "UCloud/Storage: Indexing",
-                        WhenToStart.Periodically(1000L * 60L * 60L * 96)
+                        "UCloud/Storage: Full Indexing",
+                        WhenToStart.Never
                     ),
                     script = {
                         FileScanner(
@@ -221,9 +141,28 @@ class Server(
                             db,
                             nativeFs,
                             pathConverter,
-                            cephStats,
-                            elasticQueryService
-                        ).runScan()
+                            cephStats
+                        ).runFullScan()
+                    }
+                )
+            )
+
+            scriptManager.register(
+                Script(
+                    ScriptMetadata(
+                        "ucloud-storage-index-fast",
+                        "UCloud/Storage: Active Indexing ",
+                        WhenToStart.Periodically(1000L * 60L * 10L)
+                    ),
+                    script = {
+                        FileScanner(
+                            micro.elasticHighLevelClient,
+                            authenticatedClient,
+                            db,
+                            nativeFs,
+                            pathConverter,
+                            cephStats
+                        ).runFastScan()
                     }
                 )
             )
@@ -232,6 +171,7 @@ class Server(
         // 4c. Optional accounting feature
         // ===========================================================================================================
         if (configuration.accounting.enabled) {
+            log.debug("Accounting is enabled!")
             val usageScan = UsageScan(pathConverter, nativeFs, cephStats, authenticatedClient, db)
             scriptManager.register(
                 Script(

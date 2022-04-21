@@ -3,6 +3,7 @@ package dk.sdu.cloud.file.ucloud.services
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.FilesProviderSearchRequest
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
+import dk.sdu.cloud.file.orchestrator.api.fileName
 import dk.sdu.cloud.file.ucloud.api.AnyOf
 import dk.sdu.cloud.file.ucloud.api.Comparison
 import dk.sdu.cloud.file.ucloud.api.ComparisonOperator
@@ -17,7 +18,10 @@ import dk.sdu.cloud.file.ucloud.api.StatisticsResponse
 import dk.sdu.cloud.file.ucloud.api.toPartialUFile
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.PageV2
+import io.ktor.util.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.decodeFromString
+import org.elasticsearch.ElasticsearchException
 import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.search.ClearScrollRequest
@@ -30,6 +34,7 @@ import org.elasticsearch.index.query.QueryBuilder
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.query.RangeQueryBuilder
 import org.elasticsearch.index.query.TermsQueryBuilder
+import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.search.aggregations.AggregationBuilders
 import org.elasticsearch.search.aggregations.Aggregations
 import org.elasticsearch.search.aggregations.metrics.Avg
@@ -40,6 +45,7 @@ import org.elasticsearch.search.aggregations.metrics.Sum
 import org.elasticsearch.search.aggregations.metrics.ValueCount
 import org.elasticsearch.search.builder.SearchSourceBuilder
 import org.elasticsearch.search.sort.SortOrder
+import java.net.SocketTimeoutException
 
 class ElasticQueryService(
     private val elasticClient: RestHighLevelClient,
@@ -48,74 +54,13 @@ class ElasticQueryService(
 ) {
     private val mapper = defaultMapper
 
-    fun queryForScan(
-        query: FileQuery,
-    ): List<ElasticIndexedFile> {
-        val searchRequest = SearchRequest(FILES_INDEX)
-        val source = SearchSourceBuilder()
-
-        source.query(
-            with(query) {
-                QueryBuilders.boolQuery().apply {
-                    should().apply {
-                        fileNameQuery?.forEach { q ->
-                            if (!q.isBlank()) {
-                                add(
-                                    QueryBuilders.matchPhrasePrefixQuery(
-                                        ElasticIndexedFileConstants.FILE_NAME_FIELD,
-                                        q
-                                    ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
-                                )
-                            }
-                        }
-                        filter().apply {
-                            val filteredRoots =
-                                roots.asSequence().filter { it != "/" }.map { it.removeSuffix("/") }.toList()
-                            if (filteredRoots.isNotEmpty()) {
-                                add(TermsQueryBuilder(ElasticIndexedFileConstants.PATH_FIELD, filteredRoots))
-                            }
-                            fileDepth.addClausesIfExists(this, ElasticIndexedFileConstants.FILE_DEPTH_FIELD)
-                        }
-                        if (should().isNotEmpty()) {
-                            minimumShouldMatch(1)
-                        }
-                    }
-                }
-            }
-        )
-        source.size(10000)
-        searchRequest.source(source)
-        searchRequest.scroll(TimeValue.timeValueMinutes(1))
-
-        var response = elasticClient.search(searchRequest, RequestOptions.DEFAULT)
-        var scrollId = response.scrollId
-        var hits = response.hits.hits
-
-        val elasticFiles = mutableListOf<ElasticIndexedFile>()
-
-        while (hits != null && hits.isNotEmpty()) {
-            hits.map {
-                elasticFiles.add(mapper.decodeFromString(it.sourceAsString))
-            }
-
-            val searchScrollRequest = SearchScrollRequest(scrollId)
-            searchScrollRequest.scroll(TimeValue.timeValueMinutes(1))
-            response = elasticClient.scroll(searchScrollRequest, RequestOptions.DEFAULT)
-            scrollId = response.scrollId
-            hits = response.hits.hits
-        }
-
-        val clearScrollRequest = ClearScrollRequest()
-        clearScrollRequest.addScrollId(scrollId)
-        elasticClient.clearScroll(clearScrollRequest, RequestOptions.DEFAULT)
-
-        return elasticFiles
-    }
-
     private suspend fun verifyAndUpdateIndex(hits: List<PartialUFile>): List<PartialUFile> {
+        //making sure that the results does not contain duplicates
+        val filteredHits = hits.toSet()
+
         val illegalIndices = mutableListOf<PartialUFile>()
 
-        val existingHits = hits.mapNotNull { partialUFile ->
+        val existingHits = filteredHits.mapNotNull { partialUFile ->
             try {
                 nativeFS.stat(pathConverter.ucloudToInternal(UCloudFile.createFromPreNormalizedString(partialUFile.id)))
                 partialUFile
@@ -129,14 +74,36 @@ class ElasticQueryService(
                 }
             }
         }
-
-        val bulk = BulkRequest()
+        // Deletes indices that do not exist anymore
         illegalIndices.forEach {
-            bulk.add(DeleteRequest(FILES_INDEX, it.id))
+            log.info("Deleting: ${it.id} from ES (does not exist anymore)")
+            val queryDeleteRequest = DeleteByQueryRequest(FileScanner.FILES_INDEX)
+            queryDeleteRequest.setConflicts("proceed")
+            queryDeleteRequest.setQuery(
+                QueryBuilders.matchQuery(
+                    ElasticIndexedFileConstants.PATH_FIELD,
+                    it.id
+                )
+            )
+            queryDeleteRequest.batchSize = 100
+            try {
+                var moreToDelete = true
+                while (moreToDelete) {
+                    try {
+                        val response = elasticClient.deleteByQuery(queryDeleteRequest, RequestOptions.DEFAULT)
+                        if (response.deleted == 0L) moreToDelete = false
+                    } catch (ex: SocketTimeoutException) {
+                        FileScanner.log.warn(ex.message)
+                        FileScanner.log.warn("Socket Timeout: Delay and try again")
+                        delay(2000)
+                    }
+                }
+            } catch (ex: ElasticsearchException) {
+                FileScanner.log.warn(ex.message)
+                FileScanner.log.warn("Deletion failed")
+            }
         }
-        if (illegalIndices.isNotEmpty()) {
-            elasticClient.bulk(bulk, RequestOptions.DEFAULT)
-        }
+
         return existingHits
     }
 
@@ -207,12 +174,18 @@ class ElasticQueryService(
             QueryBuilders.boolQuery().apply {
                 should().apply {
                     add(
-                        QueryBuilders.matchPhrasePrefixQuery(
+                        QueryBuilders.wildcardQuery(
                             ElasticIndexedFileConstants.FILE_NAME_FIELD,
-                            query
-                        ).maxExpansions(FILE_NAME_QUERY_MAX_EXPANSIONS)
+                            "*${query.toLowerCase()}*"
+                        )
                     )
-                    if (isNumber) {
+                    add(
+                        QueryBuilders.termQuery(
+                            ElasticIndexedFileConstants.FILE_NAME_EXTENSION,
+                            query.toLowerCase().substringAfterLast(".")
+                        )
+                    )
+                   /* if (isNumber) {
                         add(
                             QueryBuilders.matchQuery(
                                 ElasticIndexedFileConstants.CREATED_AT_FIELD,
@@ -225,7 +198,7 @@ class ElasticQueryService(
                                 query
                             )
                         )
-                    }
+                    }*/
                 }
                 filter().apply {
                     if (searchRequest.owner.project == null) {
@@ -493,6 +466,6 @@ class ElasticQueryService(
 
         private const val FILES_INDEX = FileScanner.FILES_INDEX
 
-        private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 10
+        private const val FILE_NAME_QUERY_MAX_EXPANSIONS = 50
     }
 }

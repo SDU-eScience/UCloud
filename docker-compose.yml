@@ -10,8 +10,6 @@ services:
     image: alpine:latest
   postgres:
     image: alpine:latest
-  syncthing:
-    image: alpine:latest
   backend:
     image: alpine:latest
     depends_on:
@@ -19,10 +17,19 @@ services:
       - k3s
       - elasticsearch
       - postgres
-      - syncthing
   gateway:
     image: alpine:latest
   frontend:
+    image: alpine:latest
+  keycloak:
+    image: alpine:latest
+    command:
+      - tail
+      - -f
+      - /dev/null
+    volumes:
+      - keycloak:/opt/keycloak/data
+  chrome:
     image: alpine:latest
   helper:
     image: alpine:latest
@@ -46,7 +53,6 @@ volumes:
   postgresData: {}
   redisData: {}
   elasticData: {}
-  syncthingConfig: {}
   ucloudData: {}
   ucloudFiles: {}
   k3sConfig: {}
@@ -60,6 +66,7 @@ volumes:
   backendKonan: {}
   backendGradle: {}
   m2Repo: {}
+  keycloak: {}
 
 # SLURM volumes
   etc_munge: {}

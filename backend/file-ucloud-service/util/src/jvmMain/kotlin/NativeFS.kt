@@ -5,7 +5,6 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugSystem
-import dk.sdu.cloud.debug.tellMeEverything
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
@@ -49,46 +48,46 @@ class NativeFS(
     var disableChown = false
     private val debug: DebugSystem? = micro?.feature(DebugSystem)
 
-    private fun openFile(file: InternalFile, flag: Int = 0): Int {
+    private fun openFile(file: InternalFile, flag: Int = 0): LinuxFileHandle {
         with(CLibrary.INSTANCE) {
             val components = file.components()
-            val fileDescriptors = IntArray(components.size) { -1 }
+            val fileDescriptors = Array<LinuxFileHandle?>(components.size) { null }
             try {
-                fileDescriptors[0] = open("/${components[0]}", O_NOFOLLOW, 0)
+                fileDescriptors[0] = LinuxFileHandle.createOrThrow(open("/${components[0]}", O_NOFOLLOW, 0)) {
+                    throw FSException.NotFound(
+                        // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
+                        runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
+                    )
+                }
+
                 for (i in 1 until fileDescriptors.size) {
-                    val previousFd = fileDescriptors[i - 1]
-                    if (previousFd < 0) {
-                        throw FSException.NotFound(
-                            // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
-                            runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
-                        )
-                    }
+                    val previousFd = fileDescriptors[i - 1] ?: error("Should never happen")
 
                     val opts =
                         if (i == fileDescriptors.lastIndex) O_NOFOLLOW or flag
                         else O_NOFOLLOW
-                    fileDescriptors[i] = openat(previousFd, components[i], opts, DEFAULT_FILE_MODE)
-                    close(previousFd)
+                    fileDescriptors[i] =
+                        LinuxFileHandle.createOrThrow(openat(previousFd.fd, components[i], opts, DEFAULT_FILE_MODE)) {
+                            throw FSException.NotFound(
+                                // NOTE(Dan): This might crash if the internal collection doesn't exist (yet)
+                                runCatching { pathConverter.internalToUCloud(file).path }.getOrNull()
+                            )
+                        }
+                    previousFd.close()
+                    fileDescriptors[i - 1] = null
                 }
             } catch (ex: Throwable) {
-                ex.printStackTrace()
                 fileDescriptors.closeAll()
                 throw ex
             }
 
-            if (fileDescriptors.last() < 0) {
-                throwExceptionBasedOnStatus(Native.getLastError())
-            }
-
-            return fileDescriptors.last()
+            return fileDescriptors.last() ?: throwExceptionBasedOnStatus(Native.getLastError())
         }
     }
 
-    private fun IntArray.closeAll() {
+    private fun Array<LinuxFileHandle?>.closeAll() {
         for (descriptor in this) {
-            if (descriptor > 0) {
-                CLibrary.INSTANCE.close(descriptor)
-            }
+            descriptor?.close()
         }
     }
 
@@ -104,7 +103,6 @@ class NativeFS(
                 val parentFile = destination.parent()
                 val destParentFd = openFile(parentFile)
                 try {
-                    if (sourceFd == -1 || destParentFd == -1) throw FSException.NotFound()
                     val sourceStat = nativeStat(sourceFd, autoClose = false)
                     val fileName = destination.fileName()
                     if (sourceStat.fileType == FileType.FILE) {
@@ -115,12 +113,11 @@ class NativeFS(
                             internalDestination = destination,
                             isDirectory = false
                         )
-                        if (destFd < 0) throw FSException.CriticalException("Unable to create file")
 
                         val ins = LinuxInputStream(sourceFd) // Closed later
                         LinuxOutputStream(destFd).use { outs ->
                             ins.copyTo(outs)
-                            fchmod(destFd, sourceStat.mode)
+                            fchmod(destFd.fd, sourceStat.mode)
                         }
                         return CopyResult.CreatedFile
                     } else if (sourceStat.fileType == FileType.DIRECTORY) {
@@ -133,9 +130,9 @@ class NativeFS(
                         )
 
                         try {
-                            if (owner != null) fchown(result.second, owner, owner)
+                            if (owner != null) fchown(result.second.fd, owner, owner)
                         } finally {
-                            close(result.second)
+                            result.second.close()
                         }
 
                         return CopyResult.CreatedDirectory(
@@ -145,8 +142,8 @@ class NativeFS(
                         return CopyResult.NothingToCreate
                     }
                 } finally {
-                    close(sourceFd)
-                    close(destParentFd)
+                    sourceFd.close()
+                    destParentFd.close()
                 }
             }
         } else {
@@ -165,15 +162,11 @@ class NativeFS(
     fun listFiles(file: InternalFile): List<String> {
         if (Platform.isLinux()) {
             with(CLibrary.INSTANCE) {
-                val fd = openFile(file)
-                if (fd < 0) {
-                    close(fd)
-                    throw FSException.NotFound()
-                }
+                val handle = openFile(file)
 
-                val dir = fdopendir(fd)
+                val dir = fdopendir(handle.fd)
                 if (dir == null) {
-                    close(fd)
+                    handle.close()
                     throw FSException.IsDirectoryConflict()
                 }
 
@@ -195,15 +188,14 @@ class NativeFS(
         }
     }
 
-    private fun nativeStat(fd: Int, autoClose: Boolean = true): NativeStat {
-        require(fd >= 0)
+    private fun nativeStat(handle: LinuxFileHandle, autoClose: Boolean): NativeStat {
         val st = stat()
         st.write()
-        val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
+        val err = CLibrary.INSTANCE.__fxstat64(1, handle.fd, st.pointer)
         st.read()
 
         if (autoClose) {
-            CLibrary.INSTANCE.close(fd)
+            handle.close()
         }
         if (err < 0) {
             throw FSException.NotFound()
@@ -220,13 +212,13 @@ class NativeFS(
     }
 
     private fun createAccordingToPolicy(
-        parentFd: Int,
+        parentFd: LinuxFileHandle,
         desiredFileName: String,
         conflictPolicy: WriteConflictPolicy,
         isDirectory: Boolean,
         internalDestination: InternalFile,
         truncate: Boolean = true,
-    ): Pair<String, Int> {
+    ): Pair<String, LinuxFileHandle> {
         val mode = if (isDirectory) DEFAULT_DIR_MODE else DEFAULT_FILE_MODE
         val fixedConflictPolicy = run {
             if (conflictPolicy != WriteConflictPolicy.RENAME) {
@@ -261,12 +253,14 @@ class NativeFS(
             }
         }
 
-        fun createDirAndOpen(name: String): Pair<String, Int>? {
+        fun createDirAndOpen(name: String): Pair<String, LinuxFileHandle>? {
             // If it doesn't exist everything is good. Create the directory and return the name + fd.
-            val status = CLibrary.INSTANCE.mkdirat(parentFd, name, DEFAULT_DIR_MODE)
+            val status = CLibrary.INSTANCE.mkdirat(parentFd.fd, name, DEFAULT_DIR_MODE)
             if (status >= 0) {
-                val fd = CLibrary.INSTANCE.openat(parentFd, name, O_NOFOLLOW, DEFAULT_DIR_MODE)
-                if (fd >= 0) return Pair(name, fd)
+                val fd = LinuxFileHandle.createOrNull(
+                    CLibrary.INSTANCE.openat(parentFd.fd, name, O_NOFOLLOW, DEFAULT_DIR_MODE)
+                )
+                if (fd != null) return Pair(name, fd)
 
                 // Very unexpected, but technically possible. Fall through to the naming step.
             }
@@ -284,21 +278,23 @@ class NativeFS(
             oflags = oflags or O_DIRECTORY
         }
 
-        val desiredFd = CLibrary.INSTANCE.openat(parentFd, desiredFileName, oflags, mode)
+        val desiredFd = LinuxFileHandle.createOrNull(
+            CLibrary.INSTANCE.openat(parentFd.fd, desiredFileName, oflags, mode)
+        )
         if (!isDirectory) {
-            if (desiredFd >= 0) return Pair(desiredFileName, desiredFd)
+            if (desiredFd != null) return Pair(desiredFileName, desiredFd)
         } else {
             // If it exists and we allow overwrite then just return the open directory
             if (
                 (fixedConflictPolicy == WriteConflictPolicy.REPLACE || fixedConflictPolicy == WriteConflictPolicy.MERGE_RENAME) &&
-                desiredFd >= 0
+                desiredFd != null
             ) {
                 return Pair(desiredFileName, desiredFd)
-            } else if (desiredFd < 0) {
+            } else if (desiredFd == null) {
                 val result = createDirAndOpen(desiredFileName)
                 if (result != null) return result
             } else {
-                CLibrary.INSTANCE.close(desiredFd) // We don't need this one
+                desiredFd.close() // We don't need this one
             }
 
             // We need to create a differently named directory (see below)
@@ -322,9 +318,16 @@ class NativeFS(
                     append(extension)
                 }
             }
-            val attemptedFd = CLibrary.INSTANCE.openat(parentFd, newName, oflags, mode)
+            val attemptedFd = LinuxFileHandle.createOrNull(CLibrary.INSTANCE.openat(parentFd.fd, newName, oflags, mode))
             if (!isDirectory) {
-                if (attemptedFd >= 0) return Pair(newName, attemptedFd)
+                if (attemptedFd != null) return Pair(newName, attemptedFd)
+                val errno = Native.getLastError()
+                if (errno != EEXIST) {
+                    // NOTE(Dan): This is unexpected error, bail out completely
+                    log.warn("Received an unexpected error code while renaming item: $errno " +
+                        "($parentFd, $desiredFileName, $conflictPolicy, $isDirectory, $internalDestination, $truncate)")
+                    throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+                }
             } else {
                 val result = createDirAndOpen(newName)
                 if (result != null) return result
@@ -335,13 +338,12 @@ class NativeFS(
     }
 
     private fun setMetadataForNewFile(
-        fd: Int,
+        handle: LinuxFileHandle,
         owner: Int? = LINUX_FS_USER_UID,
         permissions: Int?,
     ) {
-        require(fd >= 0)
-        if (owner != null) CLibrary.INSTANCE.fchown(fd, owner, owner)
-        if (permissions != null) CLibrary.INSTANCE.fchmod(fd, permissions)
+        if (owner != null) CLibrary.INSTANCE.fchown(handle.fd, owner, owner)
+        if (permissions != null) CLibrary.INSTANCE.fchmod(handle.fd, permissions)
     }
 
     fun openForWriting(
@@ -355,7 +357,6 @@ class NativeFS(
         if (Platform.isLinux()) {
             val parentFd = openFile(file.parent())
             try {
-                if (parentFd < 0) throw FSException.NotFound()
                 val (targetName, targetFd) = createAccordingToPolicy(
                     parentFd,
                     file.fileName(),
@@ -367,20 +368,20 @@ class NativeFS(
 
                 if (offset != null) {
                     if (!truncate) {
-                        CLibrary.INSTANCE.lseek(targetFd, offset, SEEK_SET)
+                        CLibrary.INSTANCE.lseek(targetFd.fd, offset, SEEK_SET)
                     } else {
                         error("truncate = true with offset != null")
                     }
                 } else {
                     if (!truncate) {
-                        CLibrary.INSTANCE.lseek(targetFd, 0, SEEK_END)
+                        CLibrary.INSTANCE.lseek(targetFd.fd, 0, SEEK_END)
                     }
                 }
 
                 setMetadataForNewFile(targetFd, owner, permissions)
                 return Pair(targetName, LinuxOutputStream(targetFd))
             } finally {
-                CLibrary.INSTANCE.close(parentFd)
+                parentFd.close()
             }
         } else {
             val options = HashSet<OpenOption>()
@@ -429,10 +430,9 @@ class NativeFS(
     fun delete(file: InternalFile, allowRecursion: Boolean = true) {
         if (Platform.isLinux()) {
             val fd = openFile(file.parent())
-            if (fd < 0) throw FSException.NotFound()
             try {
-                if (CLibrary.INSTANCE.unlinkat(fd, file.fileName(), AT_REMOVEDIR) < 0) {
-                    if (CLibrary.INSTANCE.unlinkat(fd, file.fileName(), 0) < 0) {
+                if (CLibrary.INSTANCE.unlinkat(fd.fd, file.fileName(), AT_REMOVEDIR) < 0) {
+                    if (CLibrary.INSTANCE.unlinkat(fd.fd, file.fileName(), 0) < 0) {
                         if (Native.getLastError() == ENOTEMPTY) {
                             throw FSException.BadRequest()
                         }
@@ -448,7 +448,7 @@ class NativeFS(
                     }
                 }
             } finally {
-                CLibrary.INSTANCE.close(fd)
+                fd.close()
             }
         } else {
             Files.delete(File(file.path).toPath())
@@ -457,11 +457,11 @@ class NativeFS(
 
     fun getExtendedAttribute(file: InternalFile, attribute: String): String {
         return if (Platform.isLinux()) {
-            val fd = openFile(file)
+            val handle = openFile(file)
             try {
-                getExtendedAttribute(fd, attribute)
+                getExtendedAttribute(handle.fd, attribute)
             } finally {
-                CLibrary.INSTANCE.close(fd)
+                handle.close()
             }
         } else {
             DefaultByteArrayPool.useInstance {
@@ -521,13 +521,12 @@ class NativeFS(
 
     fun readNativeFilePermissons(file: InternalFile): Int {
         return if (Platform.isLinux()) {
-            val fd = openFile(file)
-            if (fd < 0) throw FSException.NotFound()
+            val handle = openFile(file)
             val st = stat()
             st.write()
-            val err = CLibrary.INSTANCE.__fxstat64(1, fd, st.pointer)
+            val err = CLibrary.INSTANCE.__fxstat64(1, handle.fd, st.pointer)
             st.read()
-            CLibrary.INSTANCE.close(fd)
+            handle.close()
             if (err < 0) {
                 throw FSException.NotFound()
             }
@@ -541,8 +540,7 @@ class NativeFS(
     fun stat(file: InternalFile): NativeStat {
         if (Platform.isLinux()) {
             val fd = openFile(file)
-            if (fd < 0) throw FSException.NotFound()
-            return nativeStat(fd)
+            return nativeStat(fd, autoClose = true)
         } else {
             if (Files.isSymbolicLink(File(file.path).toPath())) throw FSException.NotFound()
 
@@ -566,32 +564,32 @@ class NativeFS(
 
     fun chmod(file: InternalFile, mode: Int) {
         if (!Platform.isLinux()) return
-        val fd = openFile(file)
+        val handle = openFile(file)
         try {
-            CLibrary.INSTANCE.fchmod(fd, mode)
+            CLibrary.INSTANCE.fchmod(handle.fd, mode)
         } finally {
-            CLibrary.INSTANCE.close(fd)
+            handle.close()
         }
     }
 
     fun chown(file: InternalFile, uid: Int, gid: Int) {
         if (!Platform.isLinux() || disableChown) return
-        val fd = openFile(file)
+        val handle = openFile(file)
         try {
-            CLibrary.INSTANCE.fchown(fd, uid, gid)
+            CLibrary.INSTANCE.fchown(handle.fd, uid, gid)
         } finally {
-            CLibrary.INSTANCE.close(fd)
+            handle.close()
         }
     }
 
     fun changeFilePermissions(file: InternalFile, mode: Int, uid: Int, gid: Int) {
         if (!Platform.isLinux()) return
-        val fd = openFile(file)
+        val handle = openFile(file)
         try {
-            CLibrary.INSTANCE.fchmod(fd, mode)
-            CLibrary.INSTANCE.fchown(fd, uid, gid)
+            CLibrary.INSTANCE.fchmod(handle.fd, mode)
+            CLibrary.INSTANCE.fchown(handle.fd, uid, gid)
         } finally {
-            CLibrary.INSTANCE.close(fd)
+            handle.close()
         }
     }
 
@@ -601,54 +599,53 @@ class NativeFS(
                 val components = file.components()
                 if (components.isEmpty()) throw IllegalArgumentException("Path is empty")
 
-                val fileDescriptors = IntArray(components.size - 1) { -1 }
+                val fileDescriptors = Array<LinuxFileHandle?>(components.size - 1) { null }
                 var didCreatePrevious = false
                 try {
-                    fileDescriptors[0] = open("/${components[0]}", O_NOFOLLOW, 0)
+                    fileDescriptors[0] = LinuxFileHandle.createOrThrow(open("/${components[0]}", O_NOFOLLOW, 0)) {
+                        throw FSException.NotFound()
+                    }
                     var i = 1
                     while (i < fileDescriptors.size) {
-                        val previousFd = fileDescriptors[i - 1]
-                        if (previousFd < 0) {
-                            throw FSException.NotFound()
-                        }
+                        val previousFd = fileDescriptors[i - 1] ?: error("Should never happen")
 
                         if (didCreatePrevious && owner != null) {
-                            fchown(previousFd, owner, owner)
+                            fchown(previousFd.fd, owner, owner)
                             didCreatePrevious = false
                         }
 
-                        fileDescriptors[i] = openat(fileDescriptors[i - 1], components[i], O_NOFOLLOW, 0)
+                        fileDescriptors[i] = LinuxFileHandle.createOrNull(
+                            openat(previousFd.fd, components[i], O_NOFOLLOW, 0)
+                        )
 
-                        if (fileDescriptors[i] < 0 && Native.getLastError() == ENOENT) {
-                            val err = mkdirat(fileDescriptors[i - 1], components[i], DEFAULT_DIR_MODE)
+                        if (fileDescriptors[i] == null && Native.getLastError() == ENOENT) {
+                            val err = mkdirat(previousFd.fd, components[i], DEFAULT_DIR_MODE)
                             if (err < 0) {
                                 log.debug("Could not create directories at $file")
                                 throw FSException.NotFound()
                             }
+                            didCreatePrevious = true
                         } else {
                             i++
                         }
                     }
 
-                    val finalFd = fileDescriptors.last()
-                    if (finalFd < 0) throwExceptionBasedOnStatus(Native.getLastError())
+                    val finalFd = fileDescriptors.last() ?: throwExceptionBasedOnStatus(Native.getLastError())
 
-                    val error = mkdirat(finalFd, components.last(), DEFAULT_DIR_MODE)
+                    val error = mkdirat(finalFd.fd, components.last(), DEFAULT_DIR_MODE)
                     if (error != 0) {
                         throwExceptionBasedOnStatus(Native.getLastError())
                     }
 
                     if (owner != null) {
-                        val fd = openat(finalFd, components.last(), 0, 0)
-                        fchown(fd, owner, owner)
-                        close(fd)
-                    }
-                } finally {
-                    for (descriptor in fileDescriptors) {
-                        if (descriptor > 0) {
-                            close(descriptor)
+                        val handle = LinuxFileHandle.createOrNull(openat(finalFd.fd, components.last(), 0, 0))
+                        if (handle != null) {
+                            fchown(handle.fd, owner, owner)
+                            handle.close()
                         }
                     }
+                } finally {
+                    fileDescriptors.closeAll()
                 }
             }
         } else {
@@ -664,21 +661,20 @@ class NativeFS(
             val destinationParent = openFile(destination.parent())
 
             try {
-                if (sourceParent == -1 || destinationParent == -1) {
-                    throw FSException.NotFound()
-                }
-
-                val sourceFd = CLibrary.INSTANCE.openat(sourceParent, source.fileName(), 0, DEFAULT_FILE_MODE)
-                if (sourceFd < 0) throw FSException.NotFound()
+                val sourceFd = LinuxFileHandle.createOrThrow(
+                    CLibrary.INSTANCE.openat(sourceParent.fd, source.fileName(), 0, DEFAULT_FILE_MODE)
+                ) { throw FSException.NotFound() }
                 val sourceStat = nativeStat(sourceFd, autoClose = true)
                 var shouldContinue = false
 
                 val desiredFileName = destination.fileName()
                 if (conflictPolicy == WriteConflictPolicy.MERGE_RENAME && sourceStat.fileType == FileType.DIRECTORY) {
-                    val destFd = CLibrary.INSTANCE.openat(destinationParent, desiredFileName, 0, 0)
-                    if (destFd >= 0) {
+                    val destFd = LinuxFileHandle.createOrNull(
+                        CLibrary.INSTANCE.openat(destinationParent.fd, desiredFileName, 0, 0)
+                    )
+                    if (destFd != null) {
                         shouldContinue = true
-                        CLibrary.INSTANCE.close(destFd)
+                        destFd.close()
                     }
                 }
 
@@ -691,7 +687,7 @@ class NativeFS(
                     sourceStat.fileType == FileType.DIRECTORY,
                     internalDestination = destination
                 )
-                CLibrary.INSTANCE.close(destinationFd)
+                destinationFd.close()
 
                 if (conflictPolicy == WriteConflictPolicy.MERGE_RENAME && desiredFileName == destinationName &&
                     sourceStat.fileType == FileType.DIRECTORY
@@ -701,9 +697,9 @@ class NativeFS(
                     // want in this specific instance.
                 } else {
                     val err = CLibrary.INSTANCE.renameat(
-                        sourceParent,
+                        sourceParent.fd,
                         source.fileName(),
-                        destinationParent,
+                        destinationParent.fd,
                         destinationName
                     )
 
@@ -711,8 +707,8 @@ class NativeFS(
                 }
                 return MoveShouldContinue(shouldContinue)
             } finally {
-                CLibrary.INSTANCE.close(sourceParent)
-                CLibrary.INSTANCE.close(destinationParent)
+                sourceParent.close()
+                destinationParent.close()
             }
         } else {
             val opts = run {
@@ -738,6 +734,7 @@ class NativeFS(
         private const val O_DIRECTORY = 0x10000
         private const val ENOENT = 2
         private const val ELOOP = 40
+        private const val EEXIST = 17
         private const val EISDIR = 21
         private const val ENOTEMPTY = 39
         const val DEFAULT_DIR_MODE = 488 // 0750

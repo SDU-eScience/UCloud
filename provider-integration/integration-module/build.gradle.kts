@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "dk.sdu.cloud"
-version = "2021.3.0-SNAPSHOT"
+version = "2022.1.0-SNAPSHOT"
 
 repositories {
     mavenLocal()
@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.4")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.23")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }

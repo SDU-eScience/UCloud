@@ -30,6 +30,9 @@ const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
+const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
+const ProjectDashboard2 = React.lazy(() => import("@/Project/Dashboard2"));
+const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
 const Search = React.lazy(() => import("@/Search/Search"));
 const ServiceLicenseAgreement = React.lazy(() => import("@/ServiceLicenseAgreement"));
 const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
@@ -51,6 +54,7 @@ const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
+const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -102,6 +106,8 @@ const Core = (): JSX.Element => (
                     <Route path={"/metadata"} component={requireAuth(MetadataNamespacesRouter)} />
                     <Route exact path={"/shares/outgoing"} component={requireAuth(SharesOutgoing)} />
                     <Route path={"/shares"} component={requireAuth(ShareRouter)} />
+
+                    <Route exact path={"/syncthing"} component={requireAuth(SyncthingOverview)} />
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
@@ -155,6 +161,10 @@ const Core = (): JSX.Element => (
                     <Route exact path="/users/avatar" component={requireAuth(AvataaarModification)} />
 
                     <Route exact path="/skus" component={Products} />
+
+                    <Route exact path="/projects2/" component={requireAuth(ProjectList2)} />
+                    <Route exact path="/projects2/:project" component={requireAuth(ProjectDashboard2)} />
+                    <Route exact path="/projects2/:project/members" component={requireAuth(ProjectMembers2)} />
 
                     <Route exact path="/projects/" component={requireAuth(ProjectList)} />
                     <Route exact path="/subprojects" component={requireAuth(SubprojectList)} />

@@ -9,5 +9,6 @@ data class Ticket(
     val principal: SecurityPrincipal,
     val userAgent: String,
     val subject: String,
-    val message: String
+    val message: String,
+    val project: String? = null,
 )

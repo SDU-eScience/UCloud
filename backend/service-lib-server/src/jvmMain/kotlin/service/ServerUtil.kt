@@ -73,6 +73,7 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
                         ktorApplicationEngine.application.install(CORS) {
                             // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
                             // with local backend.
+                            host("frontend:9000")
                             host("localhost:9000")
                             method(HttpMethod.Get)
                             method(HttpMethod.Post)

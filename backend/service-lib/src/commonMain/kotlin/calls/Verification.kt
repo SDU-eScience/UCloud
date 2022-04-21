@@ -2,17 +2,30 @@ package dk.sdu.cloud.calls
 
 import kotlin.reflect.KProperty
 
+private val noSpecialCharsRegex = Regex("[a-zA-Z0-9 æøåÆØÅ_-]+")
+
+fun checkNoSpecialCharacters(
+    property: KProperty<*>,
+    value: String
+) {
+    if (!value.matches(noSpecialCharsRegex)) {
+        throw RPCException("${property.name} cannot contain special characters!", HttpStatusCode.BadRequest)
+    }
+}
+
 fun checkSingleLine(
     property: KProperty<*>,
     value: String,
     allowBlanks: Boolean = false,
     minimumSize: Int = 1,
-    maximumSize: Int = 1024 * 16
+    maximumSize: Int = 1024 * 16,
+    allowSpecial: Boolean = true,
 ) {
     if (value.contains("\n")) throw RPCException("${property.name} cannot contain new-lines", HttpStatusCode.BadRequest)
     if (!allowBlanks && value.isBlank()) throw RPCException("${property.name} cannot be blank", HttpStatusCode.BadRequest)
     if (value.length < minimumSize) throw RPCException("${property.name} is too short", HttpStatusCode.BadRequest)
     if (value.length > maximumSize) throw RPCException("${property.name} is too long", HttpStatusCode.BadRequest)
+    if (!allowSpecial) checkNoSpecialCharacters(property, value)
 }
 
 fun checkNotBlank(property: KProperty<*>, value: String) {

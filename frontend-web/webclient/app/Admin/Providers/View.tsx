@@ -17,15 +17,13 @@ import {
     productTypeToJsonType, normalizeBalanceForBackend
 } from "@/Accounting";
 
-const productTypesWithoutSync: {value: ProductType, title: string}[] =
-    allProductTypes.filter(it => it !== "SYNCHRONIZATION").map(value => ({value, title: productTypeToTitle(value)}));
-
-type ProductTypeWithoutSync = Exclude<ProductType, "SYNCHRONIZATION">;
+const normalizedProductTypes: {value: ProductType, title: string}[] =
+    allProductTypes.map(value => ({value, title: productTypeToTitle(value)}));
 
 export const ProductCreationForm: React.FunctionComponent<{provider: Provider, onComplete: () => void}> = props => {
-    const [type, setType] = useState<ProductTypeWithoutSync>("COMPUTE");
-    const typeHolder = useRef<ProductTypeWithoutSync>(type);
-    const onTypeChange = useCallback(e => setType(e.target.value as ProductTypeWithoutSync), [setType]);
+    const [type, setType] = useState<ProductType>("COMPUTE");
+    const typeHolder = useRef<ProductType>(type);
+    const onTypeChange = useCallback(e => setType(e.target.value as ProductType), [setType]);
     const [licenseTagCount, setTagCount] = useState(1);
     const [, invokeCommand] = useCloudCommand();
     useEffect(() => {
@@ -47,7 +45,7 @@ export const ProductCreationForm: React.FunctionComponent<{provider: Provider, o
         <Label>
             Type
             <Select id={"type"} value={type} onChange={onTypeChange}>
-                {productTypesWithoutSync.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
+                {normalizedProductTypes.map(it => <option key={it.value} value={it.value}>{it.title}</option>)}
             </Select>
         </Label>
 

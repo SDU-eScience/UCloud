@@ -619,3 +619,23 @@ export function removeExpiredFileUploads(): void {
 
 /* As user agent is being deprecated, this might be the better approach. Not tested for handhelds. */
 export const isLikelySafari: boolean = navigator.vendor === "Apple Computer, Inc.";
+
+// NOTE(Dan): Generates a random unique identifier. This identifier is suitable for creating something which is
+// extremely likely to be unique. The backend should never trust these for security purposes. This function is also
+// not guaranteed to be cryptographically secure, but given its implementation it might be.
+export function randomUUID(): string {
+    const randomUUID = crypto["randomUUID"] 
+    if (typeof randomUUID === "function") {
+        // Does not work in IE
+        return (crypto as any).randomUUID();
+    } else {
+        // Should work in most versions of IE
+        // This is a slightly less cryptic version of: https://stackoverflow.com/a/2117523
+        return "10000000-1000-4000-8000-100000000000"
+            .replace(
+                /[018]/g, 
+                c => ((Number(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(c) / 4).toString(16))
+            );
+    }
+}
+

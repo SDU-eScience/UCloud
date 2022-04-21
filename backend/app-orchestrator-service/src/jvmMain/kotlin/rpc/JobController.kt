@@ -32,6 +32,14 @@ class JobController(
             ok(orchestrator.extendDuration(actorAndProject, request))
         }
 
+        implement(Jobs.suspend) {
+            ok(orchestrator.suspendJob(actorAndProject, request))
+        }
+
+        implement(Jobs.unsuspend) {
+            ok(orchestrator.unsuspendJob(actorAndProject, request))
+        }
+
         implement(Jobs.openInteractiveSession) {
             ok(orchestrator.openInteractiveSession(actorAndProject, request))
         }

@@ -12,6 +12,7 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.*
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -59,8 +60,9 @@ class FirewallPlugin(
             }
         }
 
+        val policyName = POLICY_PREFIX + job.id
         val newPolicy = NetworkPolicy().apply {
-            metadata = ObjectMeta(POLICY_PREFIX + job.id)
+            metadata = ObjectMeta(policyName)
 
             spec = NetworkPolicy.Spec().apply {
                 val ingress = ArrayList<NetworkPolicy.IngressRule>()
@@ -158,11 +160,25 @@ class FirewallPlugin(
             }
         }
 
-        @Suppress("BlockingMethodInNonBlockingContext")
-        k8.client.createResource(
-            KubernetesResources.networkPolicies.withNamespace(namespace),
-            defaultMapper.encodeToString(newPolicy)
-        )
+        for (attempt in 1..5) {
+            try {
+                @Suppress("BlockingMethodInNonBlockingContext")
+                k8.client.createResource(
+                    KubernetesResources.networkPolicies.withNamespace(namespace),
+                    defaultMapper.encodeToString(newPolicy)
+                )
+
+                break
+            } catch (ex: KubernetesException) {
+                if (ex.statusCode == HttpStatusCode.Conflict) {
+                    k8.client.deleteResource(
+                        KubernetesResources.networkPolicies.withNameAndNamespace(policyName, namespace)
+                    )
+                }
+
+                delay(500)
+            }
+        }
 
 
         for (peer in job.peers) {

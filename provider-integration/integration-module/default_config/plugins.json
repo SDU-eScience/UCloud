@@ -17,9 +17,6 @@
     },
     "connection": {
         "ticket": {}
-    },
-    "identityMapper": {
-        "direct": {}
     }
 }
 

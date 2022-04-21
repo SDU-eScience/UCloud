@@ -1,0 +1,13 @@
+{
+    "ucloudIdentity": "user",
+    "subject": "example-user",
+    "preferredUsername": null,
+    "givenName": null,
+    "familyName": null,
+    "middleName": null,
+    "nickname": null,
+    "email": null,
+    "emailVerified": false,
+    "phoneNumber": null,
+    "phoneNumberVerified": null
+}

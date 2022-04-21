@@ -156,7 +156,8 @@ class EnhancedPreparedStatement(
     ): QueryResult {
         val context = DebugContext.Job(
             session.context.id + "-" + queryCounter.getAndIncrement(),
-            session.context.id
+            session.context.id,
+            -1
         )
 
         val start = Time.now()

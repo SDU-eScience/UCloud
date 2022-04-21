@@ -41,11 +41,17 @@ data class ExportedParametersRequest(
 data class ExportedParameters(
     val siteVersion: Int,
     val request: ExportedParametersRequest,
+    val resolvedResources: Resources = Resources(),
 
     // Backwards compatible information
     @Contextual
     val machineType: JsonObject,
-)
+) {
+    @Serializable
+    data class Resources(
+        val ingress: Map<String, Ingress> = emptyMap()
+    )
+}
 
 @UCloudApiDoc("A value describing the current state of a Job", importance = 350)
 @Serializable
@@ -120,7 +126,14 @@ enum class JobState {
         This state should only be used if the [`timeAllocation`]($TYPE_REF_LINK JobSpecification) has expired. Any other
         form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
     """)
-    EXPIRED;
+    EXPIRED,
+
+    @UCloudApiDoc("""
+        A Job which might have previously run but is no longer running, this state is not final.
+
+        Unlike SUCCESS and FAILURE a Job can transition from this state to one of the active states again.
+    """)
+    SUSPENDED;
 
     fun isFinal(): Boolean =
         when (this) {
@@ -259,7 +272,9 @@ data class JobStatus(
 
     override var resolvedSupport: ResolvedSupport<Product.Compute, ComputeSupport>? = null,
 
-    override var resolvedProduct: Product.Compute? = null
+    override var resolvedProduct: Product.Compute? = null,
+
+    val allowRestart: Boolean = false,
 ) : ResourceStatus<Product.Compute, ComputeSupport>
 
 @Serializable
@@ -271,8 +286,29 @@ data class JobUpdate(
     val expectedState: JobState? = null,
     val expectedDifferentState: Boolean? = null,
     val newTimeAllocation: Long? = null,
+    val allowRestart: Boolean? = null,
+    val newMounts: List<String>? = null,
     override val timestamp: Long = 0L
-) : ResourceUpdate
+) : ResourceUpdate {
+    init {
+        if (allowRestart == true) {
+            when (state) {
+                JobState.SUCCESS,
+                JobState.FAILURE,
+                JobState.SUSPENDED -> {
+                    // This is OK
+                }
+
+                else -> {
+                    throw RPCException(
+                        "Cannot set `allowRestart` with a state of $state!",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+            }
+        }
+    }
+}
 
 @UCloudApiDoc("A specification of a Job", importance = 400)
 @Serializable
@@ -322,7 +358,7 @@ data class JobSpecification(
             " - `block_storage`\n" +
             " - `ingress`\n"
     )
-    val resources: List<AppParameterValue>? = null,
+    var resources: List<AppParameterValue>? = null,
 
     @UCloudApiDoc(
         "Time allocation for the job\n\n" +
@@ -345,6 +381,24 @@ data class JobSpecification(
         """
     )
     val openedFile: String? = null,
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiDoc(
+        """
+            A flag which indicates if this job should be restarted on exit.
+            
+            Not all providers support this feature and the Job will be rejected if not supported. This information can
+            also be queried through the product support feature.
+
+            If this flag is `true` then the Job will automatically be restarted when the provider notifies the
+            orchestrator about process termination. It is the responsibility of the orchestrator to notify the provider
+            about restarts. If the restarts are triggered by the provider, then the provider must not notify the
+            orchestrator about the termination. The orchestrator will trigger a new `create` request in a timely manner.
+            The orchestrator decides when to trigger a new `create`. For example, if a process is terminating often,
+            then the orchestrator might decide to wait before issuing a new `create`.
+        """
+    )
+    val restartOnExit: Boolean? = null,
 ) : ResourceSpecification {
     init {
         if (name != null && !name.matches(nameRegex)) {
@@ -438,8 +492,12 @@ data class JobsExtendRequestItem(
 )
 
 typealias JobsSuspendRequest = BulkRequest<JobsSuspendRequestItem>
-typealias JobsSuspendResponse = Unit
+typealias JobsSuspendResponse = BulkResponse<Unit?>
 typealias JobsSuspendRequestItem = FindByStringId
+
+typealias JobsUnsuspendRequest = BulkRequest<JobsUnsuspendRequestItem>
+typealias JobsUnsuspendResponse = BulkResponse<Unit?>
+typealias JobsUnsuspendRequestItem = FindByStringId
 
 val Job.files: List<AppParameterValue.File>
     get() {
@@ -1536,6 +1594,19 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             """.trimIndent()
         }
     }
+
+    val unsuspend = call<JobsUnsuspendRequest, JobsUnsuspendResponse, CommonErrorMessage>("unsuspend") {
+        httpUpdate(baseContext, "unsuspend")
+
+        documentation {
+            summary = "Unsuspends a job"
+            description = """
+                Reverses the effects of suspending a job. The job is expected to return back to an `IN_QUEUE` or
+                `RUNNING` state.
+            """.trimIndent()
+        }
+    }
+
 
     val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
         CommonErrorMessage>("openInteractiveSession") {

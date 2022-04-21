@@ -1,4 +1,4 @@
-version = "0.1.3"
+version = rootProject.file("./version.txt").readText().trim()
 
 application {
     mainClassName = "dk.sdu.cloud.extract.data.MainKt"

@@ -110,6 +110,7 @@ export const Machines: React.FunctionComponent<{
                         <tbody>
                             {props.machines.map(machine => {
                                 if (machine === null) return null;
+                                if (machine.name === "syncthing") return null;
                                 return <TableRow key={machine.name} onClick={() => setMachineReservation(machine)}>
                                     <TableCell pl="6px">{machine.name}</TableCell>
                                     <TableCell>{machine.cpu ?? "Unspecified"}</TableCell>

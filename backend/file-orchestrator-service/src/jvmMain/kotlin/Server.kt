@@ -60,21 +60,8 @@ class Server(override val micro: Micro) : CommonServer {
             fileCollections
         )
 
-        val syncProviders = Providers(serviceClient) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
-        val syncSupport = ProviderSupport<SimpleProviderCommunication, Product.Synchronization, SyncDeviceSupport>(
-            syncProviders,
-            serviceClient,
-        ) { comms ->
-            SyncFolderProvider(comms.provider.id).retrieveProducts.call(Unit, comms.client).orThrow().responses
-        }
-        val syncDeviceService = SyncDeviceService(projectCache, db, syncProviders, syncSupport, serviceClient)
-        val syncFolderService = SyncFolderService(projectCache, db, syncProviders, syncSupport, serviceClient,
-            filesService, fileCollections, DistributedLockFactory(micro), micro.backgroundScope)
-
         filesService.addMoveHandler(metadataService::onFilesMoved)
         filesService.addTrashHandler(metadataService::onFileMovedToTrash)
-
-        syncFolderService.initialize()
 
         configureControllers(
             FileMetadataController(metadataService),
@@ -82,8 +69,6 @@ class Server(override val micro: Micro) : CommonServer {
             FileCollectionController(fileCollections),
             FileMetadataTemplateController(metadataTemplateNamespaces),
             ShareController(shares),
-            syncDeviceService.asController(),
-            syncFolderService.asController()
         )
 
         startServices()

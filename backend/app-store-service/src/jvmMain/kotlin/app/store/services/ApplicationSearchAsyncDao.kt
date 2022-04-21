@@ -160,8 +160,8 @@ class ApplicationSearchAsyncDao(
                     WHERE (A.created_at) IN (
                         SELECT MAX(created_at)
                         FROM applications as B
-                        WHERE A.title = B.title
-                        GROUP BY title
+                        WHERE A.title = B.title 
+                        GROUP BY title 
                     ) AND $keywordsQuery AND (
                         (A.is_public = TRUE OR (
                             cast(:project as text) is null AND ?user IN (
@@ -245,31 +245,30 @@ class ApplicationSearchAsyncDao(
                     },
                     """
                         SELECT * 
-                        FROM applications AS A
+                        FROM app_store.applications AS A
                         WHERE (A.created_at) in (
                             SELECT max(B.created_at)
-                            FROM applications AS B
-                            WHERE A.title = B.title
+                            FROM app_store.applications AS B
+                            where A.title = B.title AND (
+                                :isAdmin OR 
+                                    (
+                                        B.is_public OR (
+                                            cast(:project as text) is null AND :user IN (
+                                                SELECT P1.username FROM app_store.permissions AS P1 WHERE P1.application_name = A.name
+                                            )
+                                        ) OR (
+                                            cast(:project as text) is not null AND exists (
+                                                SELECT P2.project_group FROM app_store.permissions AS P2 WHERE
+                                                    P2.application_name = A.name AND
+                                                    P2.project = cast(:project as text) AND
+                                                    P2.project_group IN (select unnest(:groups::text[]))
+                                             )
+                                        )
+                                    )
+                            )
                             GROUP BY title
-                        ) AND LOWER(A.title) LIKE '%' || :query || '%' AND (
-                            (
-                                A.is_public = TRUE
-                            ) OR (
-                                cast(:project as text) is null AND :user IN (
-                                    SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
-                                )
-                            ) OR (
-                                cast(:project as text) is not null AND exists (
-                                    SELECT P2.project_group FROM permissions AS P2 WHERE
-                                        P2.application_name = A.name AND
-                                        P2.project = cast(:project as text) AND
-                                        P2.project_group IN (select unnest(:groups::text[]))
-                                 )
-                            ) OR (
-                                :isAdmin
-                            ) 
-                        )
-                        ORDER BY A.title 
+                        ) AND LOWER(A.title) like '%' || :query || '%'
+                        ORDER BY A.title    
                     """
                 )
             }
