@@ -5,6 +5,8 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.config.loadConfiguration
+import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.http.OutgoingHttpCall
 import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
@@ -37,7 +39,9 @@ sealed class ServerMode {
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     if (true) {
-        testYamlParser()
+        val configSchema = loadConfiguration()
+        val verified = verifyConfiguration(ServerMode.Server, configSchema)
+        println(verified)
         exitProcess(0)
     }
 

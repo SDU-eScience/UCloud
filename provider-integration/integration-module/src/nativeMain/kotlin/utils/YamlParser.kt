@@ -4,12 +4,12 @@ import yaml.*
 import kotlinx.cinterop.*
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.addressOf
 import kotlinx.serialization.* import kotlinx.serialization.encoding.*
 import kotlinx.serialization.descriptors.*
 import kotlinx.serialization.modules.*
 
+@OptIn(ExperimentalSerializationApi::class)
 class YamlDecoder(
     private val parser: yaml_parser_t,
 ) : AbstractDecoder() {
@@ -39,6 +39,9 @@ class YamlDecoder(
     // conjunction with didJustCloseStruct, which is set to true immediately after consuming an EndStruct.
     private val sealedClassLocations = ArrayDeque<Int>()
     private var didJustCloseStruct = false
+
+    private var locationTagRequested = -1
+    var approximateLocation: Int = 0
 
     override val serializersModule: SerializersModule = EmptySerializersModule
 
@@ -77,6 +80,11 @@ class YamlDecoder(
     }
 
     override fun decodeInt(): Int {
+        if (locationTagRequested == 3) {
+            locationTagRequested = 4
+            return approximateLocation
+        }
+
         val scalar = (consumeEvent() as? YamlEvent.Scalar) ?: deserializationError("Expected an int")
         return scalar.value.toIntOrNull() ?: deserializationError("Expected a numeric value")
     }
@@ -112,8 +120,11 @@ class YamlDecoder(
     override fun decodeNull(): Nothing? = null
     
     override fun beginStructure(descriptor: SerialDescriptor): CompositeDecoder {
-        if (descriptor.kind == StructureKind.MAP) {
-            if (consumeEvent() != YamlEvent.BeginStruct) {
+        if (descriptor.serialName.endsWith("YamlLocationTag")) {
+            locationTagRequested = 3
+            return this
+        } else if (descriptor.kind == StructureKind.MAP) {
+            if (consumeEvent() !is YamlEvent.BeginStruct) {
                 deserializationError("Expect start of structure")
             }
 
@@ -121,12 +132,12 @@ class YamlDecoder(
             return this
         } else if (descriptor.kind == StructureKind.LIST) {
             listIdx = 0
-            if (consumeEvent() != YamlEvent.BeginSequence) {
+            if (consumeEvent() !is YamlEvent.BeginSequence) {
                 deserializationError("Expect start of structure")
             }
             return this
         } else if (descriptor.kind == PolymorphicKind.SEALED) {
-            if (consumeEvent() != YamlEvent.BeginStruct) {
+            if (consumeEvent() !is YamlEvent.BeginStruct) {
                 deserializationError("Expect start of structure")
             }
             sealedClassLocations.addLast(documentDepth)
@@ -137,15 +148,27 @@ class YamlDecoder(
         sealedTypeSearch = -1
         if (descriptor.kind != StructureKind.CLASS) return this
 
-        if (consumeEvent() != YamlEvent.BeginStruct) {
+        for (e in descriptor.elementDescriptors) {
+            if (e.serialName.endsWith("YamlLocationTag")) {
+                locationTagRequested = 1
+                break
+            }
+        }
+
+        if (consumeEvent() !is YamlEvent.BeginStruct) {
             deserializationError("Expect start of structure")
         }
         return this
     }
 
     override fun endStructure(descriptor: SerialDescriptor) {
+        if (locationTagRequested > 0) {
+            locationTagRequested = -1
+            return
+        }
+
         if (descriptor.kind != StructureKind.CLASS) return
-        if (consumeEvent() != YamlEvent.EndStruct) {
+        if (consumeEvent() !is YamlEvent.EndStruct) {
             deserializationError("Expect end of structure")
         }
     }
@@ -155,7 +178,7 @@ class YamlDecoder(
             val ev = fetchEvent()
             when (mapIdx) {
                 0 -> {
-                    if (ev == YamlEvent.EndStruct) return CompositeDecoder.DECODE_DONE
+                    if (ev is YamlEvent.EndStruct) return CompositeDecoder.DECODE_DONE
                     else if (ev == null) deserializationError("Expected a value")
                     mapIdx++
                     return 0
@@ -169,11 +192,24 @@ class YamlDecoder(
             }
         } else if (descriptor.kind == StructureKind.LIST) {
             val ev = fetchEvent() ?: return CompositeDecoder.DECODE_DONE
-            if (ev == YamlEvent.EndSequence) return CompositeDecoder.DECODE_DONE
+            if (ev is YamlEvent.EndSequence) return CompositeDecoder.DECODE_DONE
             return listIdx++
         } else if (sealedTypeSearch >= 0) {
             if (sealedTypeSearch == 1) fetchEvent()
             return sealedTypeSearch // decodeString() will increment this
+        }
+
+        if (locationTagRequested == 1) {
+            for ((index, e) in descriptor.elementDescriptors.withIndex()) {
+                if (e.serialName.endsWith("YamlLocationTag")) {
+                    locationTagRequested = 2
+                    return index
+                }
+            }
+        } else if (locationTagRequested == 3) {
+            return 0
+        } else if (locationTagRequested == 4) {
+            return CompositeDecoder.DECODE_DONE
         }
 
         while (true) {
@@ -187,7 +223,7 @@ class YamlDecoder(
 
             val ev = fetchEvent() ?: return CompositeDecoder.DECODE_DONE
 
-            if (ev == YamlEvent.EndStruct) {
+            if (ev is YamlEvent.EndStruct) {
                 didJustCloseStruct = true
                 return CompositeDecoder.DECODE_DONE
             }
@@ -204,7 +240,7 @@ class YamlDecoder(
     }
 
     private fun deserializationError(message: String): Nothing {
-        throw SerializationException(message)
+        throw YamlException(message, approximateLocation)
     }
 
     private var lastConsumedToken: YamlEvent? = null
@@ -214,7 +250,15 @@ class YamlDecoder(
             firstEvent = false
             return consumeEvent()
         }
+        if (lastConsumedToken == null) {
+            try {
+                error("BAD")
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
+            }
+        }
         val result = lastConsumedToken ?: error("lastConsumedToken should not be null")
+        approximateLocation = result.location
         lastConsumedToken = null
         return result
     }
@@ -227,7 +271,7 @@ class YamlDecoder(
         val initialSeqDepth = sequenceDepth
 
         val consumedEvents = ArrayList<YamlEvent>()
-        consumedEvents.add(YamlEvent.BeginStruct)
+        consumedEvents.add(YamlEvent.BeginStruct(approximateLocation))
         var result: String? = null
 
         while (result == null) {
@@ -309,34 +353,37 @@ class YamlDecoder(
         var result: YamlEvent? = null
         while (result == null) {
             if (yaml_parser_parse(parser.ptr, event.ptr) != 1) {
-                throw SerializationException("Invalid YAML document")
+                val yamlProblem = parser.problem?.toKString() ?: "Unknown parsing error"
+                throw YamlException(yamlProblem, parser.problem_mark.index.toInt())
             }
+
+            val location = parser.mark.index.toInt()
 
             when (event.type) {
                 yaml_event_type_e.YAML_SCALAR_EVENT -> {
                     val ev = event.data.scalar
                     val value = ev.value?.readBytes(ev.length.toInt())?.toKString() ?: ""
                     val isQuoted = ev.quoted_implicit
-                    result = YamlEvent.Scalar(value, isQuoted == 1)
+                    result = YamlEvent.Scalar(value, isQuoted == 1, location)
                 }
 
                 yaml_event_type_e.YAML_MAPPING_START_EVENT -> {
-                    result = YamlEvent.BeginStruct
+                    result = YamlEvent.BeginStruct(location)
                     documentDepth++
                 }
 
                 yaml_event_type_e.YAML_MAPPING_END_EVENT -> {
-                    result = YamlEvent.EndStruct
+                    result = YamlEvent.EndStruct(location)
                     documentDepth--
                 }
 
                 yaml_event_type_e.YAML_SEQUENCE_START_EVENT -> {
-                    result = YamlEvent.BeginSequence
+                    result = YamlEvent.BeginSequence(location)
                     sequenceDepth++
                 }
 
                 yaml_event_type_e.YAML_SEQUENCE_END_EVENT -> {
-                    result = YamlEvent.EndSequence
+                    result = YamlEvent.EndSequence(location)
                     sequenceDepth--
                 }
 
@@ -356,16 +403,22 @@ class YamlDecoder(
     }
 
     private sealed class YamlEvent {
-        data class Scalar(val value: String, val quoted: Boolean) : YamlEvent()
-        object BeginStruct : YamlEvent()
-        object EndStruct : YamlEvent()
-        object BeginSequence : YamlEvent()
-        object EndSequence : YamlEvent()
+        abstract val location: Int
+
+        data class Scalar(val value: String, val quoted: Boolean, override val location: Int) : YamlEvent()
+        data class BeginStruct(override val location: Int) : YamlEvent()
+        data class EndStruct(override val location: Int) : YamlEvent()
+        data class BeginSequence(override val location: Int) : YamlEvent()
+        data class EndSequence(override val location: Int) : YamlEvent()
     }
 }
 
 object Yaml {
-    fun <T> decodeFromString(deserializer: DeserializationStrategy<T>, string: String): T {
+    fun <T> decodeFromString(
+        deserializer: DeserializationStrategy<T>,
+        string: String,
+        locationRef: MutableRef<Int>? = null,
+    ): T {
         memScoped {
             val document = string.encodeToByteArray().toUByteArray().pin()
             defer { document.unpin() }
@@ -375,12 +428,22 @@ object Yaml {
             yaml_parser_set_input_string(parser.ptr, document.addressOf(0), document.get().size.toULong())
             defer { yaml_parser_delete(parser.ptr) }
 
-            return YamlDecoder(parser).decodeSerializableValue(deserializer)
+            val decoder = YamlDecoder(parser)
+            return try {
+                decoder.decodeSerializableValue(deserializer)
+            } finally {
+                if (locationRef != null) locationRef.value = decoder.approximateLocation
+            }
         }
     }
 }
 
 inline fun <reified T> Yaml.decodeFromString(string: String): T { return decodeFromString(serializer<T>(), string) }
+
+class YamlException(message: String, val approximateLocation: Int) : RuntimeException(message)
+
+@Serializable
+data class YamlLocationTag(val offset: Int)
 
 @Serializable
 data class ConfigWrapper(
