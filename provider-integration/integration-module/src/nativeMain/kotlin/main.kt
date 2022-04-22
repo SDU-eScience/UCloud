@@ -18,6 +18,7 @@ import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.utils.ProcessWatcher
+import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
@@ -35,6 +36,11 @@ sealed class ServerMode {
 
 @OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
+    if (true) {
+        testYamlParser()
+        exitProcess(0)
+    }
+
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
