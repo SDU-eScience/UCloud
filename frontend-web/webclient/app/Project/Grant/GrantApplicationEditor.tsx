@@ -60,7 +60,6 @@ import {
 } from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
@@ -82,6 +81,8 @@ import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Truncate} from "@/ui-components";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {Logo} from "./ProjectBrowser";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -142,6 +143,15 @@ const RequestFormContainer = styled.div`
     }
 `;
 
+function browseProjects(request: UCloud.PaginationRequestV2): APICallParameters {
+    return {
+        method: "GET",
+        context: "",
+        path: buildQueryString("/api/grant/browse-projects", request),
+        parameters: request
+    };
+}
+
 export enum RequestTarget {
     EXISTING_PROJECT = "existing",
     NEW_PROJECT = "new",
@@ -160,6 +170,7 @@ interface UseRequestInformation {
     targetProject?: string;
     documentRef: React.RefObject<HTMLTextAreaElement>;
     templates: APICallState<ReadTemplatesResponse>;
+    grantGivers: APICallState<UCloud.PageV2<ProjectWithTitle>>;
     recipient: GrantRecipient;
     editingApplication?: GrantApplication;
     comments: Comment[];
@@ -177,6 +188,13 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
     let comments: Comment[] = [];
     const avatars = useAvatars();
     let loading = false;
+
+    const dontFetchProjects = target === RequestTarget.VIEW_APPLICATION;
+    const [grantGivers] = useCloudAPI<UCloud.PageV2<ProjectWithTitle>>(
+        dontFetchProjects ?
+            {noop: true} :
+            browseProjects({itemsPerPage: 250}),
+        emptyPageV2);
 
     const {appId} = useParams<{appId?: string}>();
 
@@ -334,12 +352,20 @@ function useRequestInformation(target: RequestTarget): UseRequestInformation {
 
     return {
         productCategories, targetProject, documentRef, templates, recipient, editingApplication,
-        comments, avatars, reload, approver, loading
+        comments, avatars, reload, approver, loading, grantGivers
     };
 }
 
 function productCategoryId(pid: ProductCategoryId): string {
     return `${pid.name}/${pid.provider}`;
+}
+
+function productCategoryStartDate(pid: ProductCategoryId): string {
+    return `${productCategoryId(pid)}/start_date`;
+}
+
+function productCategoryStartDate(pid: ProductCategoryId): string {
+    return `${productCategoryId(pid)}/end_date`;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -349,6 +375,20 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     if (isNaN(parsed)) return undefined;
     return parsed;
 }
+
+/* FIXME(Jonas): Copy + pasted from elsewhere (MachineType dropdown) */
+const Wrapper = styled.div`
+    & > table {
+        margin-left: -9px;
+    }
+
+    & > table > tbody > ${TableRow}:hover {
+        cursor: pointer;
+        background-color: var(--lightGray, #f00);
+        color: var(--black, #f00);
+    }
+`;
+
 
 const GenericRequestCard: React.FunctionComponent<{
     wb: GrantProductCategory,
@@ -486,12 +526,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
 
+        const [grantProductCategories, setGrantProductCategories] = useState<{[key: string]: GrantProductCategory[]}>({});
+
         const [submitLoading, setSubmissionsLoading] = React.useState(false);
 
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
-            if (state.targetProject === undefined) {
-                snackbarStore.addFailure("Unknown target. Root level projects cannot apply for more resources.", false);
+            if (grantGiversInUse.length === 0) {
+                snackbarStore.addFailure("No grant giver selected. Please select one to submit.", false);
                 setSubmissionsLoading(false);
                 return;
             }
@@ -501,12 +543,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
             }
 
-            const requestedResources = state.productCategories.map(wb => {
+            const requestedResources = Object.keys(grantProductCategories).flatMap(entry => grantProductCategories[entry].map(wb => {
                 let creditsRequested = parseIntegerFromInput(
                     document.querySelector<HTMLInputElement>(
                         `input[data-target="${productCategoryId(wb.metadata.category)}"]`
                     )
                 );
+
                 if (creditsRequested) {
                     creditsRequested = normalizeBalanceForBackend(
                         creditsRequested,
@@ -523,10 +566,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     productCategory: wb.metadata.category.name,
                     productProvider: wb.metadata.category.provider
                 } as ResourceRequest;
-            }).filter(it => it !== null) as ResourceRequest[];
+            })).filter(it => it !== null) as ResourceRequest[];
 
             const newDocument = state.documentRef.current!.value;
             if (state.editingApplication === undefined) {
+                console.log(requestedResources);
+                if (Math.random()) {
+                    setSubmissionsLoading(false);
+                    return;
+                }
                 const response = await runWork<{id: number}>(submitGrantApplication({
                     document: newDocument,
                     resourcesOwnedBy: state.targetProject!,
@@ -609,6 +657,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 });
             }
         }, [state.editingApplication?.id]);
+
+        const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
 
         useEffect(() => {
             let timeout = 0;
@@ -695,6 +745,46 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [state.editingApplication, state.productCategories]);
 
         const [transferringApplication, setTransferringApplication] = useState(false);
+
+        const grantGiverDropdown = React.useMemo(() =>
+            target === RequestTarget.VIEW_APPLICATION || (state.grantGivers.data.items.length - grantGiversInUse.length) === 0 ? null :
+                <ClickableDropdown
+                    fullWidth
+                    colorOnHover={false}
+                    trigger="Select Grant Giver" chevron
+                >
+                    <Wrapper>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHeaderCell pl="6px">Name</TableHeaderCell>
+                                    <TableHeaderCell pl="6px">Description</TableHeaderCell>
+                                </TableRow>
+                            </TableHeader>
+                            <tbody>
+                                {state.grantGivers.data.items.map(grantGiver =>
+                                    <TableRow key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
+                                        <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
+                                        <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
+                                    </TableRow>
+                                )}
+                            </tbody>
+                        </Table>
+                    </Wrapper>
+                </ClickableDropdown>
+            , [state.grantGivers, grantGiversInUse])
+
+        const grantGiverEntries = React.useMemo(() =>
+            state.grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
+                <GrantGiver
+                    key={it.projectId}
+                    remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
+                    setGrantProductCategories={setGrantProductCategories}
+                    state={state}
+                    project={it}
+                    isLocked={isLocked}
+                />
+            ), [state.grantGivers, grantGiversInUse, isLocked]);
 
         return (
             <MainContainer
@@ -920,9 +1010,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
                             </Heading.h3>
 
-                            {productTypes.map(type => (
-                                <ProductCategorySection state={state} type={type} isLocked={isLocked} key={type} />
-                            ))}
+                            {grantGiverDropdown}
+
+                            {grantGiverEntries}
 
                             <CommentApplicationWrapper>
                                 <RequestFormContainer>
@@ -1001,6 +1091,131 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             />
         );
     };
+
+const projectDescriptionCache: {[projectId: string]: string | undefined} = {};
+
+function GrantGiverDescription(props: {projectId: string;}): JSX.Element {
+    const [description, fetchDescription] = useCloudAPI<RetrieveDescriptionResponse>(
+        {noop: true}, {description: projectDescriptionCache[props.projectId] ?? ""}
+    );
+
+    useEffect(() => {
+        if (projectDescriptionCache[props.projectId] == null) {
+            fetchDescription(retrieveDescription({
+                projectId: props.projectId,
+            }));
+        }
+    }, [props.projectId]);
+
+    useEffect(() => {
+        if (description.data.description != null) {
+            projectDescriptionCache[props.projectId] = description.data.description;
+        }
+    }, [description.data.description, projectDescriptionCache]);
+
+    return <Truncate>{description.data.description}</Truncate>;
+}
+
+function GrantGiver(props: {
+    project: ProjectWithTitle;
+    state: UseRequestInformation;
+    isLocked: boolean;
+    remove(): void;
+    setGrantProductCategories: React.Dispatch<React.SetStateAction<{[key: string]: GrantProductCategory[]}>>;
+}): JSX.Element {
+    const grantFinalized = isGrantFinalized(props.state.editingApplication?.status);
+    const {recipient} = props.state;
+
+    const recipientId =
+        recipient.type === "existing_project" ? recipient.projectId :
+            recipient.type === "new_project" ? recipient.projectTitle :
+                recipient.type === "personal" ? recipient.username : ""
+
+    const [products, fetchProducts] = useCloudAPI<{availableProducts: Product[]}>({noop: true}, {availableProducts: []});
+
+    React.useEffect(() => {
+        fetchProducts(grantApi.retrieveProducts({
+            projectId: props.project.projectId,
+            recipientType: props.state.recipient.type,
+            recipientId,
+            showHidden: false
+        }));
+    }, []);
+
+    /* FIXME: (Jonas) - Not DRY, copied from other point in file. */
+    const productCategories: GrantProductCategory[] = useMemo(() => {
+        const result: GrantProductCategory[] = [];
+        for (const product of products.data.availableProducts) {
+            const metadata: ProductMetadata = {
+                category: product.category,
+                freeToUse: product.freeToUse,
+                productType: product.productType,
+                chargeType: product.chargeType,
+                hiddenInGrantApplications: product.hiddenInGrantApplications,
+                unitOfPrice: product.unitOfPrice
+            };
+
+            if (result.find(it => productCategoryEquals(it.metadata.category, metadata.category)) === undefined) {
+                result.push({metadata});
+            }
+        }
+
+        if (props.state.editingApplication !== undefined) {
+            for (const request of props.state.editingApplication.requestedResources) {
+                const existing = result.find(it =>
+                    productCategoryEquals(
+                        it.metadata.category,
+                        {name: request.productCategory, provider: request.productProvider})
+                );
+
+                if (existing) {
+                    existing.requestedBalance = request.balanceRequested;
+                }
+            }
+        }
+        return result;
+    }, [products.data, props.state.editingApplication]);
+
+    React.useEffect(() => {
+        props.setGrantProductCategories(gpc => {
+            gpc[props.project.projectId] = productCategories;
+            return gpc;
+        });
+        return () => {
+            props.setGrantProductCategories(gpc => {
+                delete gpc[props.project.projectId];
+                return gpc;
+            });
+        };
+    }, [productCategories])
+
+    return React.useMemo(() =>
+        <Box mt="12px">
+            <Spacer
+                left={<Heading.h3>{props.project.title}</Heading.h3>}
+                right={<Flex cursor="pointer" onClick={props.remove}><Icon name="close" color="red" mr="8px" />Remove</Flex>}
+            />
+            {productTypes.flatMap(type => {
+                const filteredProductCategories = productCategories.filter(pc => pc.metadata.productType === type);
+                const noEntries = filteredProductCategories.length === 0;
+                return (<React.Fragment key={type}>
+                    <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
+                    {noEntries ? <Heading.h3 mt="12px">No products for type available.</Heading.h3> : <ResourceContainer>
+                        {filteredProductCategories.map((pc, idx) =>
+                            <GenericRequestCard
+                                key={idx}
+                                wb={pc}
+                                state={props.state}
+                                grantFinalized={grantFinalized}
+                                isLocked={props.isLocked}
+                            />
+                        )}
+                    </ResourceContainer>}
+                </React.Fragment>);
+            })}
+        </Box>
+        , [productCategories]);
+}
 
 const ProductCategorySection: React.FunctionComponent<{
     state: UseRequestInformation;
@@ -1164,27 +1379,27 @@ const CommentBox: React.FunctionComponent<{
 };
 
 const PostCommentWrapper = styled.form`
-  .wrapper {
-    display: flex;
+                .wrapper {
+                    display: flex;
   }
 
-  ${TextArea} {
-    flex-grow: 1;
-    margin-left: 6px;
+                ${TextArea} {
+                    flex - grow: 1;
+                margin-left: 6px;
   }
 
-  .buttons {
-    display: flex;
-    margin-top: 6px;
-    justify-content: flex-end;
+                .buttons {
+                    display: flex;
+                margin-top: 6px;
+                justify-content: flex-end;
   }
-`;
+                `;
 
 const HelpText = styled.p`
-  margin: 0;
-  font-size: ${theme.fontSizes[1]}px;
-  color: var(--gray, #f00);
-`;
+                margin: 0;
+                font-size: ${theme.fontSizes[1]}px;
+                color: var(--gray, #f00);
+                `;
 
 const PostCommentWidget: React.FunctionComponent<{
     applicationId: number,

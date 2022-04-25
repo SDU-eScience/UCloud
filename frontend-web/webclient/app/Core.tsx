@@ -24,7 +24,6 @@ const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
 const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
-const ProjectBrowser = React.lazy(() => import("@/Project/Grant/ProjectBrowser"));
 const ProjectDashboard = React.lazy(() => import("@/Project/ProjectDashboard"));
 const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
@@ -92,7 +91,7 @@ const Core = (): JSX.Element => (
         <Uploader />
         <Sidebar />
         <ErrorBoundary>
-            <React.Suspense fallback={<div>Loading</div>}>
+            <React.Suspense fallback={<MainContainer main={<div>Loading...</div>} />}>
                 <Switch>
                     <Route exact path="/login" component={LoginPage} />
                     <Route exact path="/loginSuccess" component={LoginSuccess} />
@@ -183,12 +182,12 @@ const Core = (): JSX.Element => (
                     />
                     <Route
                         exact
-                        path="/project/grants/personal/:projectId"
+                        path="/project/grants/personal"
                         component={requireAuth(GrantApplicationEditor(RequestTarget.PERSONAL_PROJECT))}
                     />
                     <Route
                         exact
-                        path="/project/grants/new/:projectId"
+                        path="/project/grants/new"
                         component={requireAuth(GrantApplicationEditor(RequestTarget.NEW_PROJECT))}
                     />
                     <Route
@@ -199,7 +198,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/members/:group?/:member?" component={requireAuth(ProjectMembers)} />
                     <Route exact path="/project/grants/ingoing" component={requireAuth(IngoingApplications)} />
                     <Route exact path="/project/grants/outgoing" component={requireAuth(OutgoingApplications)} />
-                    <Route exact path="/projects/browser/:action" component={requireAuth(ProjectBrowser)} />
 
                     <Route
                         exact
