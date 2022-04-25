@@ -41,6 +41,7 @@ class YamlDecoder(
     private var didJustCloseStruct = false
 
     private var locationTagRequested = -1
+    var locationOfLastStructStart: Int = 0
     var approximateLocation: Int = 0
 
     override val serializersModule: SerializersModule = EmptySerializersModule
@@ -120,6 +121,7 @@ class YamlDecoder(
     override fun decodeNull(): Nothing? = null
     
     override fun beginStructure(descriptor: SerialDescriptor): CompositeDecoder {
+        locationOfLastStructStart = approximateLocation
         if (descriptor.serialName.endsWith("YamlLocationTag")) {
             locationTagRequested = 3
             return this
@@ -240,7 +242,7 @@ class YamlDecoder(
     }
 
     private fun deserializationError(message: String): Nothing {
-        throw YamlException(message, approximateLocation)
+        throw YamlException(message, YamlLocationReference(locationOfLastStructStart, approximateLocation))
     }
 
     private var lastConsumedToken: YamlEvent? = null
@@ -354,7 +356,10 @@ class YamlDecoder(
         while (result == null) {
             if (yaml_parser_parse(parser.ptr, event.ptr) != 1) {
                 val yamlProblem = parser.problem?.toKString() ?: "Unknown parsing error"
-                throw YamlException(yamlProblem, parser.problem_mark.index.toInt())
+                throw YamlException(
+                    yamlProblem, 
+                    YamlLocationReference(locationOfLastStructStart, parser.problem_mark.index.toInt())
+                )
             }
 
             val location = parser.mark.index.toInt()
@@ -417,7 +422,7 @@ object Yaml {
     fun <T> decodeFromString(
         deserializer: DeserializationStrategy<T>,
         string: String,
-        locationRef: MutableRef<Int>? = null,
+        locationRef: MutableRef<YamlLocationReference>? = null,
     ): T {
         memScoped {
             val document = string.encodeToByteArray().toUByteArray().pin()
@@ -432,7 +437,12 @@ object Yaml {
             return try {
                 decoder.decodeSerializableValue(deserializer)
             } finally {
-                if (locationRef != null) locationRef.value = decoder.approximateLocation
+                if (locationRef != null) {
+                    locationRef.value = YamlLocationReference(
+                        decoder.locationOfLastStructStart,
+                        decoder.approximateLocation
+                    )
+                }
             }
         }
     }
@@ -440,10 +450,36 @@ object Yaml {
 
 inline fun <reified T> Yaml.decodeFromString(string: String): T { return decodeFromString(serializer<T>(), string) }
 
-class YamlException(message: String, val approximateLocation: Int) : RuntimeException(message)
+data class YamlLocationReference(val approximateStart: Int = 0, val approximateEnd: Int = 0)
+class YamlException(message: String, val location: YamlLocationReference) : RuntimeException(message)
 
 @Serializable
-data class YamlLocationTag(val offset: Int)
+data class YamlLocationTag(
+    val offset: Int
+) {
+    fun toReference(): YamlLocationReference = YamlLocationReference(offset, offset)
+}
+
+@Serializable(with = YamlStringSerializer::class)
+data class YamlString(
+    val tag: YamlLocationTag,
+    val value: String,
+)
+
+object YamlStringSerializer : KSerializer<YamlString> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("YamlString", PrimitiveKind.STRING)
+
+    override fun serialize(encoder: Encoder, value: YamlString) {
+        encoder.encodeString(value.value)
+    }
+
+    override fun deserialize(decoder: Decoder): YamlString {
+        val yamlDecoder = decoder as? YamlDecoder
+        val tag = if (yamlDecoder != null) YamlLocationTag(yamlDecoder.approximateLocation) else YamlLocationTag(0)
+        val value = decoder.decodeString()
+        return YamlString(tag, value)
+    }
+}
 
 @Serializable
 data class ConfigWrapper(

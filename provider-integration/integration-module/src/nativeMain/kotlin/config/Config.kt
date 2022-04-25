@@ -30,6 +30,10 @@ data class ConfigSchema(
         var yamlDocument: String
     }
 
+    interface WithYamlTag {
+        val tag: YamlLocationTag
+    }
+
     @Serializable
     data class Core(
         val providerId: String,
@@ -42,25 +46,27 @@ data class ConfigSchema(
     ) : WithYamlDocument {
         @Serializable
         data class Hosts(
+            override val tag: YamlLocationTag,
             val ucloud: Host,
             val self: Host? = null,
-        )
+        ) : WithYamlTag
 
         @Serializable
         data class Ipc(
-            val tag: YamlLocationTag,
+            override val tag: YamlLocationTag,
             val directory: String,
-        )
+        ) : WithYamlTag
 
         @Serializable
         data class Logs(
+            override val tag: YamlLocationTag,
             val directory: String,
-        )
+        ) : WithYamlTag
     }
 
     @Serializable
     data class Server(
-        val refreshToken: String,
+        val refreshToken: YamlString,
         val network: Network? = null,
         val developmentMode: DevelopmentMode? = null,
         @Transient
@@ -68,20 +74,23 @@ data class ConfigSchema(
     ) : WithYamlDocument {
         @Serializable
         data class Network(
+            override val tag: YamlLocationTag,
             val listenAddress: String? = null,
             val listenPort: Int? = null,
-        )
+        ) : WithYamlTag
 
         @Serializable
         data class DevelopmentMode(
+            override val tag: YamlLocationTag,
             val predefinedUserInstances: List<UserInstance> = emptyList(),
-        ) {
+        ) : WithYamlTag {
             @Serializable
             data class UserInstance(
+                override val tag: YamlLocationTag,
                 val username: String,
                 val userId: Int,
                 val port: Int,
-            )
+            ) : WithYamlTag
         }
     }
 
@@ -151,24 +160,30 @@ data class Host(val host: String, val scheme: String, val port: Int) {
     }
 }
 
-fun TerminalMessageDsl.yamlDocumentContext(document: String, offset: Int) {
-    var problematicLineNumber = 0
+fun TerminalMessageDsl.yamlDocumentContext(document: String, startOffset: Int, endOffset: Int) {
+    var problematicLineNumberStart = 0
+    var problematicLineNumberEnd = 0
     var cursor = 0
     val lines = document.split("\n")
     for ((index, line) in lines.withIndex()) {
-        if (offset in cursor..(cursor + line.length)) {
-            problematicLineNumber = index
-            break
+        if (startOffset in cursor..(cursor + line.length)) {
+            // NOTE(Dan): Usually off by one, so move one back to make the error message easier
+            problematicLineNumberStart = index - 1 
+            if (problematicLineNumberStart < 0) problematicLineNumberStart = 0
+        }
+
+        if (endOffset in cursor..(cursor + line.length)) {
+            problematicLineNumberEnd = index
         }
 
         cursor += line.length + 1
     }
 
-    val firstVisibleLine = max(0, problematicLineNumber - 5)
+    val firstVisibleLine = max(0, problematicLineNumberEnd - 5)
     lines.drop(firstVisibleLine).take(10).forEachIndexed { index, line ->
         val lineNo = (firstVisibleLine + index + 1).toString().padStart(4, ' ')
 
-        val isProblematic = firstVisibleLine + index == problematicLineNumber
+        val isProblematic = firstVisibleLine + index in problematicLineNumberStart..problematicLineNumberEnd
         if (isProblematic) {
             red {
                 inline(lineNo)
@@ -190,89 +205,110 @@ fun loadConfiguration(): ConfigSchema {
 
     fun <T : ConfigSchema.WithYamlDocument> parse(file: String, serializer: KSerializer<T>): T? {
         val text = runCatching { NativeFile.open("$configDir/$file", readOnly = true).readText() }.getOrNull()
-        val locationRef = MutableRef(0)
+        val locationRef = MutableRef(YamlLocationReference())
         return if (text == null) {
             null
         } else {
             try {
                 Yaml.decodeFromString(serializer, text, locationRef).also { it.yamlDocument = text }
-            } catch (ex: YamlException) {
+            } catch (ex: Throwable) {
+                val exMsg = ex.message ?: ""
                 sendTerminalMessage {
                     red { bold { inline("Configuration error! ") } }
                     code { line("$configDir/$file") }
 
-                    inline("We could not parse the YAML document. This is what the parser told us: ")
-                    code { line(ex.message ?: "") }
+                    when {
+                        ex is YamlException -> {
+                            inline("We could not parse the YAML document. This is what the parser told us: ")
+                            code { line(ex.message ?: "") }
 
-                    line()
+                            line()
 
-                    line("The error occured approximately here:")
-                    yamlDocumentContext(text, ex.approximateLocation)
-                }
+                            line("The error occured approximately here:")
+                            yamlDocumentContext(text, ex.location.approximateStart, ex.location.approximateEnd)
+                        }
 
-                exitProcess(1)
-            } catch (ex: SerializationException) {
-                val message = ex.message
-                if (message != null && message.contains("is not registered for polymorphic serialization")) {
-                    sendTerminalMessage {
-                        red { bold { inline("Configuration error! ") } }
-                        code { line("$configDir/$file") }
+                        ex is SerializationException && exMsg.contains("is not registered for poly") == true -> {
+                            line("It looks like you have requested a configuration block which does not exist.")
+                            line()
 
-                        inline("It looks like you have requested a configuration block which does not exist.")
+                            line("The error occured approximately here:")
+                            yamlDocumentContext(text, locationRef.value.approximateStart,
+                                locationRef.value.approximateEnd)
 
-                        line("The error occured approximately here:")
-                        yamlDocumentContext(text, locationRef.value)
+                            val errorMessageRegex = Regex("Class '(.+)' is not registered for polymorphic " + 
+                                "serialization in the scope of '(.+)'\\.")
+                            val shortMessage = exMsg.lines()[0]
+                            val matched = errorMessageRegex.matchEntire(shortMessage)
+                            if (matched != null) {
+                                val inputSerial = matched.groups[1]?.value
+                                val targetSerial = matched.groups[2]?.value
 
-                        val errorMessageRegex = Regex("Class '(.+)' is not registered for polymorphic serialization in the scope of '(.+)'\\.")
-                        val shortMessage = message.lines()[0]
-                        val matched = errorMessageRegex.matchEntire(shortMessage)
-                        if (matched != null) {
-                            val inputSerial = matched.groups[1]?.value
-                            val targetSerial = matched.groups[2]?.value
+                                var alternatives: List<String>? = null
+                                when (targetSerial) {
+                                    "Connection" -> alternatives = listOf("OpenIdConnect", "Simple")
+                                }
 
-                            var alternatives: List<String>? = null
-                            when (targetSerial) {
-                                "Connection" -> alternatives = listOf("OpenIdConnect", "Simple")
-                            }
-
-                            if (alternatives != null) {
-                                line()
-                                line("Perhaps you meant one of the following instead of '$inputSerial':")
-                                for (alternative in alternatives) {
-                                    line(" - $alternative")
+                                if (alternatives != null) {
+                                    line()
+                                    line("Perhaps you meant one of the following instead of '$inputSerial':")
+                                    for (alternative in alternatives) { line(" - $alternative")
+                                    }
+                                } else {
+                                    line()
+                                    line("'$inputSerial' is not a recognized configuration block.")
                                 }
                             }
                         }
+
+                        ex is SerializationException && exMsg.contains("required for type with serial") == true -> {
+                            line("It looks like you are missing some mandatory configuration.")
+
+                            val errorRegex = Regex("Fields? ['\\[](.+)['\\]] (is|are) required for type with serial " +
+                                "name '(.+)', but (it was|they were) missing")
+
+                            val matched = errorRegex.matchEntire(exMsg)
+                            if (matched != null) {
+                                val fieldsMissing = (matched.groups[1]?.value ?: "").split(",").map { it.trim() }
+                                val typeName = (matched.groups[3]?.value ?: "").substringAfterLast(".")
+                                if (fieldsMissing.isNotEmpty()) {
+                                    line()
+
+                                    inline("The properties are missing from the type: ")
+                                    code { line(typeName) }
+                                    line()
+
+                                    line("These properties are marked as mandatory and must be provided. See the " + 
+                                        "documentation for more details.")
+                                    for (field in fieldsMissing) {
+                                        line("- $field")
+                                    }
+                                }
+                            }
+
+                            line()
+                            line("The error occured approximately here:")
+                            yamlDocumentContext(text, locationRef.value.approximateStart,
+                                locationRef.value.approximateEnd)
+                        }
+
+                        else -> {
+                            inline("A generic error has occured! ")
+                            code { line(ex.message ?: "") }
+
+                            inline("Error type: ")
+                            code { line(ex::class.toString()) }
+
+                            line()
+
+                            line("The error occured approximately here:")
+                            yamlDocumentContext(text, locationRef.value.approximateStart,
+                                locationRef.value.approximateEnd)
+
+                            line()
+                            line("Unfortunately, there is not much else we can tell you.")
+                        }
                     }
-
-                    exitProcess(1)
-                } else {
-                    sendTerminalMessage {
-                        red { bold { inline("Configuration error! ") } }
-                        code { line("$configDir/$file") }
-
-                        inline("A generic error has occured! ")
-                        code { line(ex.message ?: "") }
-
-                        line()
-
-                        line("The error occured approximately here:")
-                        yamlDocumentContext(text, locationRef.value)
-                    }
-                    exitProcess(1)
-                }
-            } catch (ex: Throwable) {
-                sendTerminalMessage {
-                    red { bold { inline("Configuration error! ") } }
-                    code { line("$configDir/$file") }
-
-                    inline("A generic error has occured! ")
-                    code { line(ex.message ?: "") }
-
-                    line()
-
-                    line("The error occured approximately here:")
-                    yamlDocumentContext(text, locationRef.value)
                 }
 
                 exitProcess(1)

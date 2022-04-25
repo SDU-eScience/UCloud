@@ -170,6 +170,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
     val core: VerifiedConfig.Core = run {
         // Verify the core section
         val core = config.core!!
+        val baseReference = ConfigurationReference(
+            config.configurationDirectory + "/" + ConfigSchema.FILE_CORE, 
+            core.yamlDocument, 
+            YamlLocationReference(0, 0),
+        )
 
         // NOTE(Dan): Provider ID is verified later together with products
         val providerId = core.providerId
@@ -187,7 +192,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         val ipc = run {
             val directory = handleVerificationResultStrict(
-                verifyFile(core.ipc?.directory ?: "/var/run/ucloud", FileType.DIRECTORY)
+                verifyFile(
+                    core.ipc?.directory ?: "/var/run/ucloud", 
+                    FileType.DIRECTORY,
+                    baseReference.useLocationAndProperty(core.ipc?.tag, "ipc/directory")
+                )
             )
 
             VerifiedConfig.Core.Ipc(directory)
@@ -195,7 +204,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         val logs = run {
             val directory = handleVerificationResultStrict(
-                verifyFile(core.logs?.directory ?: "/var/log/ucloud", FileType.DIRECTORY)
+                verifyFile(
+                    core.logs?.directory ?: "/var/log/ucloud", 
+                    FileType.DIRECTORY,
+                    baseReference.useLocationAndProperty(core.logs?.tag, property = "logs/directory")
+                )
             )
 
             VerifiedConfig.Core.Logs(directory)
@@ -207,11 +220,22 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
     val server: VerifiedConfig.Server? = if (config.server == null) {
         null
     } else {
+        val baseReference = ConfigurationReference(
+            config.configurationDirectory + "/" + ConfigSchema.FILE_CORE, 
+            config.server.yamlDocument, 
+            YamlLocationReference(0, 0),
+        )
+
         val refreshToken = run {
-            val tok = config.server.refreshToken.trim()
+            val tok = config.server.refreshToken.value.trim()
 
             if (tok.isBlank() || tok.length < 10 || tok.contains("\n")) {
-                emitError("The refresh token supplied for the server does not look valid.")
+                emitError(
+                    VerifyResult.Error<Unit>(
+                        "The refresh token supplied for the server does not look valid.",
+                        baseReference.useLocationAndProperty(config.server.refreshToken.tag, "refreshToken")
+                    )
+                )
             }
 
             tok
@@ -231,12 +255,20 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
                 certText
             } catch (ex: Throwable) {
-                emitError(
-                    "Could not load certificate used for authentication with UCloud. " +
-                        "The UCloud service should be able to read it at at '$certPath'. " +
-                        "This certificate is issued by UCloud during the registration process. " +
-                        "You can try downloading the certificate from UCloud at ${core.hosts.ucloud}/app/providers."
-                )
+                sendTerminalMessage {
+                    red { bold { line("Configuration error!") } }
+                    line("Could not load certificate used for authentication with UCloud.")
+                    line()
+
+                    inline("We expected to be able to find the certificate here: ")
+                    code { line(certPath) }
+                    line()
+
+                    line("The ceritificate is issed by UCloud during the registration process. " +
+                        "You can try downloading a new certificate from UCloud at: ")
+                    code { line("${core.hosts.ucloud}/app/providers") }
+                }
+                exitProcess(1)
             }
         }
 
@@ -428,21 +460,108 @@ private fun insecureFile(file: String): Nothing {
 }
 
 private fun emitWarning(warning: String) {
-    // TODO
-    println("WARNING: $warning")
+    emitWarning(VerifyResult.Warning<Unit>(warning))
+}
+
+private fun emitWarning(result: VerifyResult.Warning<*>) {
+    if (result.ref == null) {
+        println("GENERIC WARNING: ${result.message}")
+    } else {
+        sendTerminalMessage {
+            yellow { bold { inline("Configuration warning! ") } } 
+            code { line(result.ref.file) }
+
+            line(result.message)
+            line()
+            
+            if (result.ref.location != null) {
+                inline("The warning occured approximately here")
+            } else if (result.ref.property != null) {
+                inline("The warning occured")
+            }
+
+            if (result.ref.property != null) {
+                inline(" in property ")
+                code { inline(result.ref.property) }
+            }
+
+            if (result.ref.location != null) {
+                line(":")
+                yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
+                    result.ref.location.approximateEnd)
+            } else {
+                line()
+            }
+        }
+    }
 }
 
 private fun emitError(error: String): Nothing {
-    // TODO
-    println("ERROR: $error")
+    emitError(VerifyResult.Error<Unit>(error))
+}
+
+private fun emitError(result: VerifyResult.Error<*>): Nothing {
+    if (result.ref == null) {
+        println("GENERIC ERROR: ${result.message}")
+    } else {
+        sendTerminalMessage {
+            red { bold { inline("Configuration error! ") } } 
+            code { line(result.ref.file) }
+
+            line(result.message)
+            line()
+            
+            if (result.ref.location != null) {
+                inline("The error occured approximately here")
+            } else if (result.ref.property != null) {
+                inline("The error occured")
+            }
+
+            if (result.ref.property != null) {
+                inline(" in property ")
+                code { inline(result.ref.property) }
+            }
+
+            if (result.ref.location != null) {
+                line(":")
+                yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
+                    result.ref.location.approximateEnd)
+            } else {
+                line()
+            }
+
+            if (result.ref.location?.approximateStart == 0 && result.ref.location?.approximateEnd == 0) {
+                line()
+                line("The above value was computed value/default value. You can try specifying the value explicitly " +
+                    "in the configuration.")
+            }
+        }
+    }
     exitProcess(1)
 }
 
 // General verification procedures
+data class ConfigurationReference(
+    val file: String, 
+    val document: String, 
+    // NOTE(Dan): A value of null or (0, 0) indicates that this value was comptued
+    val location: YamlLocationReference?,
+    val property: String? = null,
+) {
+    fun useLocation(tag: YamlLocationTag?): ConfigurationReference {
+        return if (tag == null) this
+        else copy(location = tag.toReference())
+    }
+
+    fun useLocationAndProperty(tag: YamlLocationTag?, property: String): ConfigurationReference {
+        return useLocation(tag).copy(property = property)
+    }
+}
+
 sealed class VerifyResult<T> {
     data class Ok<T>(val result: T) : VerifyResult<T>()
-    data class Warning<T>(val message: String) : VerifyResult<T>()
-    data class Error<T>(val message: String) : VerifyResult<T>()
+    data class Warning<T>(val message: String, val ref: ConfigurationReference? = null) : VerifyResult<T>()
+    data class Error<T>(val message: String, val ref: ConfigurationReference? = null) : VerifyResult<T>()
 }
 
 private fun <T> handleVerificationResultStrict(result: VerifyResult<T>): T {
@@ -462,9 +581,9 @@ private fun <T> handleVerificationResult(
 
         is VerifyResult.Error -> {
             if (!errorsAreWarnings) {
-                emitError(result.message)
+                emitError(result)
             } else {
-                emitWarning(result.message)
+                emitWarning(VerifyResult.Warning<T>(result.message, result.ref))
                 null
             }
         }
@@ -481,7 +600,11 @@ private fun verifyHost(host: Host): VerifyResult<Host> {
     return VerifyResult.Ok(host)
 }
 
-private fun verifyFile(path: String, typeRequirement: FileType?): VerifyResult<String> {
+private fun verifyFile(
+    path: String, 
+    typeRequirement: FileType?,
+    ref: ConfigurationReference? = null,
+): VerifyResult<String> {
     val isOk = when (typeRequirement) {
         FileType.FILE -> fileExists(path) && !fileIsDirectory(path)
         FileType.DIRECTORY -> fileExists(path) && fileIsDirectory(path)
@@ -490,10 +613,10 @@ private fun verifyFile(path: String, typeRequirement: FileType?): VerifyResult<S
 
     if (!isOk) {
         return when (typeRequirement) {
-            FileType.DIRECTORY -> VerifyResult.Error<String>("No directory exists at '$path'")
-            null -> VerifyResult.Error<String>("No file exists at '$path'")
+            FileType.DIRECTORY -> VerifyResult.Error<String>("No directory exists at '$path'", ref)
+            null -> VerifyResult.Error<String>("No file exists at '$path'", ref)
             else -> {
-                VerifyResult.Error<String>("No file exists at '$path'")
+                VerifyResult.Error<String>("No file exists at '$path'", ref)
             }
         }
     } else {
