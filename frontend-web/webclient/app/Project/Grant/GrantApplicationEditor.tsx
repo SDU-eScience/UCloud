@@ -52,6 +52,8 @@ import {
     ReadTemplatesResponse,
     rejectGrantApplication,
     ResourceRequest,
+    retrieveDescription,
+    RetrieveDescriptionResponse,
     submitGrantApplication, transferApplication,
     viewGrantApplication,
     ViewGrantApplicationResponse
@@ -59,25 +61,27 @@ import {
 import {useHistory, useParams} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
-import Table, {TableCell, TableRow} from "@/ui-components/Table";
+import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {loadingAction} from "@/Loading";
 import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
+import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {emptyPage} from "@/DefaultObjects";
+import {emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {Truncate} from "@/ui-components";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -455,7 +459,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         const history = useHistory();
-        const dispatch = useDispatch();
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
         switch (target) {
@@ -473,13 +476,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 break;
         }
 
-        dispatch(setRefreshFunction(state.reload));
-        dispatch(loadingAction(state.loading));
-        useEffect(() => {
-            return () => {
-                dispatch(setRefreshFunction(undefined));
-            };
-        }, []);
+        useRefreshFunction(state.reload);
+        useLoading(state.loading);
 
         const discardChanges = useCallback(async () => {
             state.reload();
