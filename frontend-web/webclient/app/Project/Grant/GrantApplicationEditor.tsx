@@ -364,7 +364,7 @@ function productCategoryStartDate(pid: ProductCategoryId): string {
     return `${productCategoryId(pid)}/start_date`;
 }
 
-function productCategoryStartDate(pid: ProductCategoryId): string {
+function productCategoryEndDate(pid: ProductCategoryId): string {
     return `${productCategoryId(pid)}/end_date`;
 }
 
