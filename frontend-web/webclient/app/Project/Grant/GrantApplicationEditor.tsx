@@ -61,7 +61,7 @@ import {
 import {useHistory, useParams} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {dateToString} from "@/Utilities/DateUtilities";
+import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
@@ -83,6 +83,8 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
+import {format, parse} from "date-fns";
+import {DatePicker} from "@/ui-components/DatePicker";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -376,6 +378,17 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     return parsed;
 }
 
+function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
+    console.log("parseDateFromInput");
+    if (!input) return undefined;
+    const rawValue = input.value.replace(/\//g, "-");
+    console.log(rawValue);
+    const parsed = Date.parse(rawValue);
+    console.log(parsed);
+    if (isNaN(parsed)) return undefined;
+    return parsed;
+}
+
 /* FIXME(Jonas): Copy + pasted from elsewhere (MachineType dropdown) */
 const Wrapper = styled.div`
     & > table {
@@ -396,6 +409,10 @@ const GenericRequestCard: React.FunctionComponent<{
     grantFinalized: boolean,
     isLocked: boolean
 }> = ({wb, grantFinalized, isLocked}) => {
+
+    const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
+    const [endDate, setEndDate] = useState<Date | null>(null);
+
     if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color={"blue"} isLoading={false}>
@@ -478,6 +495,29 @@ const GenericRequestCard: React.FunctionComponent<{
                                             wb.metadata.unitOfPrice)}
                                     </div>
                                 </Flex>
+                                <Flex width="283px">
+                                    <DatePicker
+                                        selectsStart
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        py="8px"
+                                        borderWidth="1px"
+                                        value={format(startDate, "dd/MM/yy")}
+                                        onChange={(date: Date) => setStartDate(date!)}
+                                        className={productCategoryStartDate(wb.metadata.category)}
+                                    />
+                                    <DatePicker
+                                        selectsEnd
+                                        isClearable={endDate != null}
+                                        borderWidth="1px"
+                                        py="8px"
+                                        value={endDate ? format(endDate, "dd/MM/yy") : undefined}
+                                        startDate={startDate}
+                                        endDate={endDate}
+                                        onChange={(date: Date | null) => setEndDate(date)}
+                                        className={productCategoryEndDate(wb.metadata.category)}
+                                    />
+                                </Flex>
                             </td>
                         </tr>
                     </tbody>
@@ -549,6 +589,19 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         `input[data-target="${productCategoryId(wb.metadata.category)}"]`
                     )
                 );
+
+                // FIXME(Jonas): Doesn't work. Other solution required.
+                const first = document.getElementsByClassName(
+                    productCategoryStartDate(wb.metadata.category)
+                )?.[0] as HTMLInputElement;
+                const start = parseDateFromInput(first);
+
+                const second = document.getElementsByClassName(
+                    productCategoryStartDate(wb.metadata.category)
+                )?.[0] as HTMLInputElement;
+                const end = parseDateFromInput(second);
+
+                console.log(start, end);
 
                 if (creditsRequested) {
                     creditsRequested = normalizeBalanceForBackend(
