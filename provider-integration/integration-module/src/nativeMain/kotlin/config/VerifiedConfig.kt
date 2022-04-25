@@ -221,7 +221,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         null
     } else {
         val baseReference = ConfigurationReference(
-            config.configurationDirectory + "/" + ConfigSchema.FILE_CORE, 
+            config.configurationDirectory + "/" + ConfigSchema.FILE_SERVER, 
             config.server.yamlDocument, 
             YamlLocationReference(0, 0),
         )
@@ -264,7 +264,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     code { line(certPath) }
                     line()
 
-                    line("The ceritificate is issed by UCloud during the registration process. " +
+                    line("The ceritificate is issued by UCloud during the registration process. " +
                         "You can try downloading a new certificate from UCloud at: ")
                     code { line("${core.hosts.ucloud}/app/providers") }
                 }
@@ -281,11 +281,22 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         run {
             if (!network.listenAddress.matches(Regex("""\d\d?\d?\.\d\d?\d?\.\d\d?\d?\.\d\d?\d?"""))) {
-                emitWarning("The listen address specified for the server '${network.listenAddress}' does not look " +
-                    "like a valid IPv4 address. The integration module will attempt to use this address regardless.")
+                emitWarning(
+                    VerifyResult.Warning<Unit>(
+                        "The listen address specified for the server '${network.listenAddress}' does not look " +
+                            "like a valid IPv4 address. The integration module will attempt to use this address " + 
+                            "regardless.",
+                        baseReference.useLocationAndProperty(config.server.network?.tag, "network/listenAddress")
+                    )
+                )
             }
             if (network.listenPort <= 0 || network.listenPort >= 65536) {
-                emitError("The listen port specified for the server '${network.listenPort}' is not valid.")
+                emitError(
+                    VerifyResult.Error<Unit>(
+                        "The listen port specified for the server '${network.listenPort}' is not valid.",
+                        baseReference.useLocationAndProperty(config.server.network?.tag, "network/listenPort")
+                    )
+                )
             }
         }
 
@@ -294,6 +305,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 VerifiedConfig.Server.DevelopmentMode(emptyList())
             } else {
                 val portsInUse = HashSet<Int>()
+                val usernamesInUse = HashSet<String>()
 
                 val instances = config.server.developmentMode.predefinedUserInstances.mapIndexed { idx, instance ->
                     val username = instance.username.trim()
@@ -301,23 +313,32 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     val port = instance.port
 
                     val path = "server/developmentMode/predefinedUserInstances[$idx]"
+                    val ref = baseReference.useLocationAndProperty(instance.tag, path)
 
-                    if (username.isBlank()) emitError("$path has a blank username")
-                    if (username.contains("\n")) emitError("$path has an invalid username with newlines")
+                    if (username.isBlank()) emitError("Username cannot be blank", ref)
+                    if (username.contains("\n")) emitError("Username cannot contain newlines", ref)
+                    if (username in usernamesInUse) {
+                        emitError("Username '$username' is already in use by a different instance.", ref)
+                    }
 
-                    if (userId < 0) emitError("$path has an invalid unix user id (UID)")
-                    if (userId == 0) emitError("$path has an invalid unix user id (UID). It is not possible " +
-                        "to run the integration module as root.")
+                    if (userId < 0) emitError("Invalid unix user id (UID)", ref)
+                    if (userId == 0) emitError("Invalid unix user id (UID). It is not possible " +
+                        "to run the integration module as root.", ref)
 
                     if (port in portsInUse) {
-                        emitError("$path is using a port $port which is already in use.")
+                        emitError("Port $port is already in use by a different instance.", ref)
                     }
 
                     if (port == network.listenPort) {
-                        emitError("$path is using the same port as the server itself ($port).")
+                        emitError("Development instance is using the same port as the server itself ($port).", ref)
+                    }
+
+                    if (port <= 0 || port >= 65536) {
+                        emitError("Invalid port specified ($port).", ref)
                     }
 
                     portsInUse.add(port)
+                    usernamesInUse.add(username)
 
                     VerifiedConfig.Server.DevelopmentMode.UserInstance(username, userId, port)
                 }
@@ -496,8 +517,8 @@ private fun emitWarning(result: VerifyResult.Warning<*>) {
     }
 }
 
-private fun emitError(error: String): Nothing {
-    emitError(VerifyResult.Error<Unit>(error))
+private fun emitError(error: String, ref: ConfigurationReference? = null): Nothing {
+    emitError(VerifyResult.Error<Unit>(error, ref))
 }
 
 private fun emitError(result: VerifyResult.Error<*>): Nothing {

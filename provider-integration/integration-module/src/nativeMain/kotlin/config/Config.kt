@@ -176,6 +176,11 @@ fun TerminalMessageDsl.yamlDocumentContext(document: String, startOffset: Int, e
             problematicLineNumberEnd = index
         }
 
+        if (startOffset == endOffset && problematicLineNumberStart != problematicLineNumberEnd) {
+            // Don't subtract 1 if the two have equal offsets
+            problematicLineNumberStart = problematicLineNumberEnd
+        }
+
         cursor += line.length + 1
     }
 
