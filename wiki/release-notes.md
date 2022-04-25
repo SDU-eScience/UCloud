@@ -7,6 +7,17 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 25-04-22
+
+```
+✅  Deployment(webclient, 2022.1.45) (UP-TO-DATE)
+✅  Deployment(accounting, 2022.1.45) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.45) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.45) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.45) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.46) (UP-TO-DATE)
+```
+
 ## 08-04-22
 
 ```

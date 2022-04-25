@@ -32,7 +32,7 @@ class WebService(
     private val prefix: String,
     private val domain: String,
     private val ingressService: IngressService?,
-    private val devMode: Boolean = false
+    private val devMode: Boolean = false,
 ) {
     private val api = JobsProvider(providerId)
     // Relatively low maxAge to make sure that we renew the session id regularly
