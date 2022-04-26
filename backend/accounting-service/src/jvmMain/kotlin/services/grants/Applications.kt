@@ -305,6 +305,45 @@ class GrantApplicationService(
         applicationId: Long,
         resources: List<ResourceRequest>
     ) {
+        val allocationsApproved = session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                resources.split {
+                    into("source_allocations") { it.sourceAllocation }
+                    into("categories") { it.productCategory }
+                    into("providers") { it.productProvider }
+                }
+            },
+            """
+                with requests as (
+                    select
+                        :id application_id,
+                        unnest(:categories::text[]) category,
+                        unnest(:providers::text[]) provider_id,
+                        unnest(:source_allocations::bigint[]) source_allocation
+                ),
+                requested_inserts as (
+                    SELECT req.source_allocation, pc.category, pc.provider
+                    FROM 
+                        requests req
+                        join accounting.wallet_allocations wall on wall.id = req.source_allocation
+                        join accounting.wallets w on wall.associated_wallet = w.id
+                        join accounting.product_categories pc on w.category = pc.id
+                        join accounting.wallet_owner wo on w.owned_by = wo.id
+                        join "grant".applications app on req.application_id = app.id
+                    where pc.category = req.category and pc.provider = req.provider_id and app.resources_owned_by = wo.project_id
+                )
+                
+                select (select count(*) from requests) - (select count(*) from requested_inserts) as totalCount
+            """
+        ).rows
+            .single()
+            .getLong(0)!! == 0L
+        if (!allocationsApproved) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
+        }
+
+
         session.sendPreparedStatement(
             {
                 setParameter("id", applicationId)
@@ -312,20 +351,22 @@ class GrantApplicationService(
                     into("credits_requested") { it.balanceRequested }
                     into("categories") { it.productCategory }
                     into("providers") { it.productProvider }
+                    into("source_allocations") { it.sourceAllocation}
                 }
             },
             """
                     insert into "grant".requested_resources
-                        (application_id, credits_requested, product_category) 
+                        (application_id, credits_requested, product_category, source_allocation) 
                     with requests as (
                         select
                             :id application_id,
                             unnest(:credits_requested::bigint[]) credits_requested,
                             unnest(:categories::text[]) category,
-                            unnest(:providers::text[]) provider_id
+                            unnest(:providers::text[]) provider_id,
+                            unnest(:source_allocations::text[]) source_allocation
                     )
                     select
-                        req.application_id, req.credits_requested, pc.id
+                        req.application_id, req.credits_requested, pc.id, req.source_allocation
                     from
                         requests req join
                         accounting.product_categories pc on

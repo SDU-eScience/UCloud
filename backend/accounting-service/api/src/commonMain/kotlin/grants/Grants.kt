@@ -302,6 +302,7 @@ data class ResourceRequest(
     val productCategory: String,
     val productProvider: String,
     val balanceRequested: Long? = null,
+    val sourceAllocation: Long? = null,
 ) {
     init {
         if (balanceRequested != null && balanceRequested < 0) {
