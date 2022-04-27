@@ -357,9 +357,6 @@ class SlurmPlugin : ComputePlugin {
         val nodes:Map<Int,String> = SlurmCommandLine.getJobNodeList(slurmJob.slurmId)
 
 
-        println("HANDLESESSION $session")
-        println("NODIS ${nodes.get(session.rank)} ")
-
         val process = startProcess(
             args = listOf(
                 "/usr/bin/ssh",
@@ -382,29 +379,6 @@ class SlurmPlugin : ComputePlugin {
             nonBlockingStderr = true
         )
 
-
-
-        // val process2 = startProcess(
-        //     args = listOf(
-        //         "/usr/bin/ssh",
-        //         "-oStrictHostKeyChecking=accept-new",
-        //         "-t",
-        //         "c2", 
-        //         "([ -x /bin/bash ] && exec /bin/bash) || " +
-        //         "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
-        //         "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-        //         "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
-        //         "([ -x /bin/fish ] && exec /bin/fish) || " +
-        //         "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-        //         "exec /bin/bash "
-        //     ),
-        //     envs = listOf("TERM=xterm-256color"),
-        //     attachStdin = true,
-        //     attachStdout = true,
-        //     attachStderr = true,
-        //     nonBlockingStdout = true,
-        //     nonBlockingStderr = true
-        // )
 
         val pStatus:ProcessStatus = process.retrieveStatus(false)
 

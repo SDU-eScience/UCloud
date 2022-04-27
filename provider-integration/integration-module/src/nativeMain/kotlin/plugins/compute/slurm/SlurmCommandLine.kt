@@ -97,7 +97,7 @@ object SlurmCommandLine {
 
     //Various cases to cover slurm compressed node format
     //adev[1-2]
-    //adev[6,13,15]
+    //adev[6,13,15]  
     //adev[7-8,14]
     //adev7
     // or any combination thereof
@@ -119,52 +119,60 @@ object SlurmCommandLine {
 
 
 
-    fun expandNodeList(str: String):Map<Int,String> {
+   fun expandNodeList(str: String):Map<Int,String> {
 
-    	var nodes:MutableList<String> = mutableListOf()
-    	
-        //match pattern c[001,3-5]
-        //val regexCompressed = """([a-zA-Z]+)\[([0-9\,\-]+)\]""".toRegex()
+            var nodes:MutableList<String> = mutableListOf()
+            
+            //match single node c2, c3
+            val regexSingleNode = """[a-z]+\d+""".toRegex(setOf(RegexOption.IGNORE_CASE))
 
-        val regexCompressed = """([a-z]+)           # group that matches set of at least one letter ex: nodename
-                                 \[                 # matches opening bracket ex: [
-                                 ([\d\,\-]+)        # group that matches set of digit, comma, minus, at least one occurence ex: 003,009-015
-                                 \]                 # matches closing bracket ex: ]
-                              """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
-        
-
-        //matches pattern c2
-        val regexSimple = """[a-z]+     # matches a set of at least one letter ex: nodename
-                             \d+        # matches at least one digit ex: 001
-                          """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
-        
-        var matchResult = regexCompressed.findAll(str).iterator()
-        
-        if(!matchResult.hasNext()){
-            val simpleResult = regexSimple.find(str)
-            //c2
-            nodes.add(simpleResult!!.value)
-        } 
-        
+            //match pattern c[001,3-5,0010]
+            val regexCompressed = """([a-z]+)           # group that matches set of at least one letter ex: nodename
+                                     \[                 # matches opening bracket ex: [
+                                     ([\d\,\-]+)        # group that matches set of digit, comma, minus, at least one occurence ex: 003,009-015
+                                     \]                 # matches closing bracket ex: ]
+                                  """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
+            
+            //match pattern c[001,3-5,0010]
+            val regexAny = """${regexCompressed}             # adev[1-5,8,9] c[1-2]
+                              |  							 # OR
+                              ${regexSingleNode}			 # c2 c6 c7
+                           """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
+            
+            
+            var iterator = regexAny.findAll(str).iterator()
+            
+    
             //c[1,3-5]
-    	while( matchResult.hasNext() ) {
+            while( iterator.hasNext() ) {
+                
+                val match = iterator.next()
+                val matchValue = match.value
+                val (nodeName, nodeNumbers) = match.destructured
+                
+                if( matchValue.matches(regexSingleNode) ) {
+                    
+                    nodes.add(matchValue)
+                    
+                } else if ( matchValue.matches(regexCompressed) )  {
 
-            val (nodeName, nodeNumbers) = matchResult.next()!!.destructured
+                    nodeNumbers.split(",").forEach{ seq -> 
+                        if(seq.contains("-")) {
+                            val min = seq.split("-")[0].toInt()
+                            val max = seq.split("-")[1].toInt()
+                            for (i in min..max) nodes.add("${nodeName}${i}")
+                        } else {
+                            nodes.add("${nodeName}${seq.toInt()}")
+                        }
+                    }
+                    
+                } else throw Exception("Unhandled pattern")
 
-            nodeNumbers.split(",").forEach{ seq -> 
-                if(seq.contains("-")) {
-                    val min = seq.split("-")[0].toInt()
-                    val max = seq.split("-")[1].toInt()
-                    for (i in min..max) nodes.add("${nodeName}${i}")
-                } else {
-                    nodes.add("${nodeName}${seq.toInt()}")
-                }
-            }
-              
-        } 
+            } 
 
-        if(nodes.isEmpty()) throw Exception("Empty NodeList")
-        return nodes.mapIndexedNotNull{idx, item -> idx to item}.toMap()
+            if(nodes.isEmpty()) throw Exception("Empty NodeList")
+            return nodes.mapIndexedNotNull{idx, item -> idx to item}.toMap()
+
     }
 
 
