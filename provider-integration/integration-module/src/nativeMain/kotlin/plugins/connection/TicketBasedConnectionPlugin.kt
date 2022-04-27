@@ -64,6 +64,8 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             HttpStatusCode.BadRequest
                         )
 
+                        // TODO(Brian) Warn if user does not exist
+
                         UserMapping.insertMapping(
                             capturedId,
                             uid,

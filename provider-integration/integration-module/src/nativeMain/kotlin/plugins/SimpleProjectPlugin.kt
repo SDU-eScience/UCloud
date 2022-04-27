@@ -62,7 +62,7 @@ class SimpleProjectPlugin : ProjectPlugin {
     override suspend fun PluginContext.onProjectUpdated(newProject: Project) {
         val oldProject = run {
             var oldProject: Project? = null
-            dbConnection.withTransaction { session ->
+            dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
                         select project_as_json
@@ -102,17 +102,13 @@ class SimpleProjectPlugin : ProjectPlugin {
             calculateDiff(oldProject, newProject)
         }
 
-        println("Dispatching events")
         for (event in diff) {
             try {
                 dispatchEvent(event)
             } catch (ex: Throwable) {
                 println("Failed to dispatch event: ${ex.message}")
-                ex.printStackTrace()
             }
         }
-
-        println("Calculate missing uids")
 
         // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
         // that we can correctly enroll them into groups later.
@@ -143,11 +139,8 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
         }
 
-        println("missingUids: ${missingUids}")
-
         if (!missingUids.isEmpty()) {
-            println("Added missing uids: ${missingUids}")
-            dbConnection.withTransaction { session ->
+            dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
                         with changes as (
@@ -174,9 +167,8 @@ class SimpleProjectPlugin : ProjectPlugin {
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
     // events to the extension, fixing any missing connections between the user and projects/groups.
     fun fixMissingConnections(userId: String, localId: Int) {
-        println("Fixing missing connections for ${userId}")
-        dbConnection.withTransaction { session ->
-            var projects = mutableSetOf<Project>()
+        val projects = mutableSetOf<Project>()
+        dbConnection.withSession { session ->
 
             // Fetch missing connections
             session.prepareStatement(
@@ -192,18 +184,14 @@ class SimpleProjectPlugin : ProjectPlugin {
                     bindString("user_id", userId)
                 },
                 readRow = { row ->
-                    println(row)
                     val project: Project? = defaultMapper.decodeFromString(row.getString(0)!!)
                     if (project != null) {
-                        println(project)
                         if (project.status.members!!.map { it.username }.contains(userId)) {
                             projects.add(project)
                         }
                     }
                 }
             )
-
-            println("Mapping to ${projects.size} projects")
 
             // Dispatch events
             projects.forEach { project ->
@@ -221,7 +209,6 @@ class SimpleProjectPlugin : ProjectPlugin {
 
                 dispatchEvent(event)
 
-                println("Mapping to ${project.status.groups!!.size} groups:")
                 project.status.groups!!.forEach { group ->
                     if (group.status.members!!.contains(userId)) {
                         val event = ProjectDiff.MembersAddedToGroup(
@@ -240,7 +227,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 }
             }
 
-            // Delete the missing connections
+            // Clean up (the user is no longer missing)
             session.prepareStatement(
                 """
                     delete from 
@@ -260,7 +247,7 @@ class SimpleProjectPlugin : ProjectPlugin {
     // The group IDs are allocated by this function, if a mapping does not exist. After which the mapping will
     // be used for eternity. The group IDs are allocated starting at a number specified in the configuration.
     private fun ucloudProjectIdToUnixGroupId(projectId: String): Int {
-        return dbConnection.withTransaction { session ->
+        return dbConnection.withSession { session ->
             var result: Int? = null
             session.prepareStatement(
                 """
@@ -277,7 +264,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 }
             )
 
-            if (result != null) return@withTransaction result!! + pluginConfig.groupNamespaceId
+            if (result != null) return@withSession result!! + pluginConfig.groupNamespaceId
 
             session.prepareStatement(
                 """
@@ -293,7 +280,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             )
 
             check(result != null) { "Unable to allocate group ID! This should not happen." }
-            return@withTransaction result!! + pluginConfig.groupNamespaceId
+            return@withSession result!! + pluginConfig.groupNamespaceId
         }
     }
 
