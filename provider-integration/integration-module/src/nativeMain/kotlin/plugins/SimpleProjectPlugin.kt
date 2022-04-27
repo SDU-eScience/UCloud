@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.SerialName
@@ -11,32 +12,6 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
-
-@Serializable
-data class SimpleProjectPluginConfiguration(
-    val groupNamespaceId: Int,
-    val extensions: Extensions = Extensions()
-) {
-    @Serializable
-    data class Extensions(
-        val projectRenamed: String? = null,
-
-        val membersAddedToProject: String? = null,
-        val membersRemovedFromProject: String? = null,
-
-        val membersRemovedFromGroup: String? = null,
-        val membersAddedToGroup: String? = null,
-
-        val projectArchived: String? = null,
-        val projectUnarchived: String? = null,
-
-        val roleChanged: String? = null,
-
-        val groupCreated: String? = null,
-        val groupRenamed: String? = null,
-        val groupDeleted: String? = null,
-    )
-}
 
 // NOTE(Dan, Brian): This plugin is responsible for taking the raw updates, coming in from UCloud/Core, and
 // translating them into a diff. This diff is then passed on to operator defined extensions which are responsible
@@ -47,12 +22,12 @@ data class SimpleProjectPluginConfiguration(
 // This plugin is also responsible for allocating unique group IDs, which are suitable for use as UNIX group IDs. The
 // extensions are not required to use the allocated group IDs, but they may choose to use them if they wish.
 class SimpleProjectPlugin : ProjectPlugin {
-    private lateinit var pluginConfig: SimpleProjectPluginConfiguration
+    private lateinit var pluginConfig: SimpleProjectConfiguration
     private lateinit var extensions: Extensions
 
-    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
-        this@SimpleProjectPlugin.pluginConfig = defaultMapper.decodeFromJsonElement(pluginConfig)
-        this@SimpleProjectPlugin.extensions = Extensions(this@SimpleProjectPlugin.pluginConfig)
+    override fun configure(config: ConfigSchema.Plugins.Projects) {
+        this.pluginConfig = config as SimpleProjectConfiguration
+        this.extensions = Extensions(this.pluginConfig)
     }
 
     // NOTE(Dan): Invoked whenever an update arrives from UCloud/Core. The update simply contains the new state of a
@@ -277,7 +252,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 }
             )
 
-            if (result != null) return@withTransaction result!! + pluginConfig.groupNamespaceId
+            if (result != null) return@withTransaction result!! + pluginConfig.unixGroupNamespace
 
             session.prepareStatement(
                 """
@@ -293,7 +268,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             )
 
             check(result != null) { "Unable to allocate group ID! This should not happen." }
-            return@withTransaction result!! + pluginConfig.groupNamespaceId
+            return@withTransaction result!! + pluginConfig.unixGroupNamespace
         }
     }
 
@@ -589,7 +564,7 @@ class SimpleProjectPlugin : ProjectPlugin {
     // NOTE(Dan): Right now we need to use the ProjectDiff serializer in the extension rather than the more specific
     // type they will actually receive. This is simply to make sure that the "type" property is actually added by
     // `kotlinx.serialization`.
-    private class Extensions(pluginConfig: SimpleProjectPluginConfiguration) {
+    private class Extensions(pluginConfig: SimpleProjectConfiguration) {
         private val e = pluginConfig.extensions
 
         val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.projectRenamed)

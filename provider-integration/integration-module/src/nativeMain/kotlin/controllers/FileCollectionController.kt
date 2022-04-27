@@ -6,21 +6,17 @@ import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
 import dk.sdu.cloud.file.orchestrator.api.FileCollectionsProvider
 import dk.sdu.cloud.plugins.FileCollectionPlugin
-import dk.sdu.cloud.plugins.ProductBasedPlugins
 
 class FileCollectionController(
     controllerContext: ControllerContext
 ) : BaseResourceController<Product.Storage, FSSupport, FileCollection, FileCollectionPlugin, FileCollectionsProvider>(
     controllerContext
 ) {
-    override fun retrievePlugins(): ProductBasedPlugins<FileCollectionPlugin>? =
-        controllerContext.plugins.fileCollection
-
-    override fun retrieveApi(providerId: String): FileCollectionsProvider =
-        FileCollectionsProvider(providerId)
+    override fun retrievePlugins() = controllerContext.configuration.plugins.fileCollections.values
+    override fun retrieveApi(providerId: String): FileCollectionsProvider = FileCollectionsProvider(providerId)
 
     override fun RpcServer.configureCustomEndpoints(
-        plugins: ProductBasedPlugins<FileCollectionPlugin>,
+        plugins: Collection<FileCollectionPlugin>,
         api: FileCollectionsProvider
     ) {
         // TODO Add rename here

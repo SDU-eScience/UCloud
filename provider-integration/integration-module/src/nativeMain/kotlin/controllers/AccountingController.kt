@@ -2,6 +2,7 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.ServerMode
+import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.accounting.api.DepositNotification
 import dk.sdu.cloud.accounting.api.DepositNotifications
 import dk.sdu.cloud.accounting.api.DepositNotificationsMarkAsReadRequestItem
@@ -12,7 +13,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
-import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.plugins.rpcClient
 import kotlinx.coroutines.runBlocking
@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 class AccountingController(
     private val controllerContext: ControllerContext,
 ) : Controller {
+    private val log = Logger("AccountingController")
     override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
 
@@ -33,7 +34,11 @@ class AccountingController(
 
         // NOTE(Dan): We will immediately trigger a pullAndNotify to retrieve anything we might have in the backlog
         runBlocking {
-            pullAndNotify()
+            try {
+                pullAndNotify()
+            } catch (ex: Throwable) {
+                log.info(ex.stackTraceToString())
+            }
         }
     }
 
@@ -47,10 +52,10 @@ class AccountingController(
 
         val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
 
-        with(controllerContext.plugins) {
-            if (fileCollection != null) dispatchToPlugin(batch.responses, fileCollection, output)
-            if (files != null) dispatchToPlugin(batch.responses, files, output)
-            if (compute != null) dispatchToPlugin(batch.responses, compute, output)
+        with(controllerContext.configuration.plugins) {
+            dispatchToPlugin(batch.responses, fileCollections.values, output)
+            dispatchToPlugin(batch.responses, files.values, output)
+            dispatchToPlugin(batch.responses, jobs.values, output)
         }
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
@@ -71,18 +76,18 @@ class AccountingController(
         ).orThrow()
     }
 
-    private suspend fun dispatchToPlugin(
+    private suspend fun <P : ResourcePlugin<*, *, *, *>> dispatchToPlugin(
         batch: List<DepositNotification>,
-        plugins: ProductBasedPlugins<*>,
+        plugins: Collection<P>,
         output: Array<OnResourceAllocationResult?>
     ) {
         data class IndexAndNotification(val index: Int, val notification: DepositNotification)
-        val pluginToNotifications = HashMap<ResourcePlugin<*, *, *, *>, ArrayList<IndexAndNotification>>()
+        val pluginToNotifications = HashMap<P, ArrayList<IndexAndNotification>>()
 
         for ((index, notification) in batch.withIndex()) {
-            val responsiblePlugin = runCatching {
-                plugins.lookup(ProductReferenceWithoutProvider("unknown", notification.category.name))
-            }.getOrNull() ?: continue
+            val responsiblePlugin = plugins.find { plugin ->
+                plugin.productAllocation.any { it.category == notification.category.name }
+            } ?: continue
 
             responsiblePlugin as? ResourcePlugin<*, *, *, *> ?: error("Expected a resource based plugin from $plugins")
 
@@ -104,3 +109,4 @@ class AccountingController(
         }
     }
 }
+

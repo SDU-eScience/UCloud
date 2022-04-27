@@ -21,10 +21,9 @@ import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
 fun runInstaller(
-    core: IMConfiguration.Core,
-    server: IMConfiguration.Server,
     ownExecutable: String,
 ) {
+    /*
     println(
         "Welcome to the UCloud/IM installer. This installation process will register an integration module with " +
             "a UCloud/Core instance."
@@ -162,8 +161,12 @@ fun runInstaller(
 
     envoy.start(port)
     h2oServer.start()
+    */
+
+    TODO()
 }
 
+/*
 private fun runShutdownWorker(
     ownExecutable: String,
     refreshToken: String,
@@ -206,3 +209,4 @@ private fun runShutdownWorker(
     println("UCloud/IM has been configured successfully. UCloud/IM will now restart...")
     replaceThisProcess(listOf(ownExecutable, "server"), ProcessStreams())
 }
+*/

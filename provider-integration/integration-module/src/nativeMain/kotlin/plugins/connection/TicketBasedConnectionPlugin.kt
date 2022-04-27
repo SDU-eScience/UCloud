@@ -5,6 +5,7 @@ import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
@@ -28,7 +29,13 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
+    private lateinit var pluginConfig: TicketBasedConnectionConfiguration
+
+    override fun configure(config: ConfigSchema.Plugins.Connection) {
+        this.pluginConfig = config as TicketBasedConnectionConfiguration
+    }
+
+    override suspend fun PluginContext.initialize() {
         val log = Log("TicketBasedConnectionPlugin")
         if (config.serverMode == ServerMode.Server) {
             ipcServer.addHandler(

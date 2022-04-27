@@ -10,6 +10,7 @@ import kotlin.system.exitProcess
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
 
 data class VerifiedConfig(
+    val serverMode: ServerMode,
     val coreOrNull: Core?,
     val serverOrNull: Server?,
     val pluginsOrNull: Plugins?,
@@ -29,7 +30,8 @@ data class VerifiedConfig(
         val logs: Logs,
     ) {
         data class Hosts(
-            val ucloud: Host, val self: Host?,
+            val ucloud: Host,
+            val self: Host?,
         )
 
         data class Ipc(
@@ -45,7 +47,8 @@ data class VerifiedConfig(
         val certificate: String,
         val refreshToken: String,
         val network: Network,
-        val developmentMode: DevelopmentMode
+        val developmentMode: DevelopmentMode,
+        val database: Database,
     ) {
         data class Network(
             val listenAddress: String,
@@ -61,6 +64,10 @@ data class VerifiedConfig(
                 val port: Int
             )
         }
+
+        data class Database(
+            val file: String,
+        )
     }
 
     data class Plugins(
@@ -275,7 +282,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         val network: VerifiedConfig.Server.Network = run {
             VerifiedConfig.Server.Network(
                 config.server.network?.listenAddress ?: "127.0.0.1",
-                config.server.network?.listenPort ?: 42000
+                config.server.network?.listenPort ?: 8889
             )
         }
 
@@ -347,7 +354,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
         }
 
-        VerifiedConfig.Server(certificate, refreshToken, network, developmentMode)
+        val database: VerifiedConfig.Server.Database = run {
+            VerifiedConfig.Server.Database(config.configurationDirectory + "/ucloud.sqlite3")
+        }
+
+        VerifiedConfig.Server(certificate, refreshToken, network, developmentMode, database)
     }
 
     val products: VerifiedConfig.Products? = run {
@@ -413,12 +424,14 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    return VerifiedConfig(core, server,  plugins, products, frontendProxy)
+    return VerifiedConfig(mode, core, server, plugins, products, frontendProxy)
 }
 
 // Plugin loading
-private fun <Cfg> loadPlugin(config: Cfg): Plugin<Cfg> {
-    TODO()
+private fun <Cfg : Any> loadPlugin(config: Cfg): Plugin<Cfg> {
+    val result = instansiatePlugin(config)
+    result.configure(config)
+    return result
 }
 
 private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
@@ -462,6 +475,17 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
         } else {
             partitionedProducts[bestMatch] = (partitionedProducts[bestMatch] ?: emptyList()) + product
         }
+    }
+
+    for ((id, pluginConfig) in plugins) {
+        val products = partitionedProducts[id] ?: emptyList()
+        val plugin = instansiatePlugin(pluginConfig)
+        if (plugin is ResourcePlugin<*, *, *, *>) {
+            plugin.pluginName = id
+            plugin.productAllocation = products
+        }
+        plugin.configure(pluginConfig)
+        result[id] = plugin
     }
 
     return result
