@@ -12,14 +12,7 @@ fun Long.creditsToDKK(): Long = this / 1_000_000
 
 @Serializable
 data class UploadTemplatesRequest(
-    @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
-    val personalProject: String,
-
-    @UCloudApiDoc("The template provided for new grant applications when the grant requester is a new project")
-    val newProject: String,
-
-    @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
-    val existingProject: String
+    val form: GrantApplication.Form
 )
 
 typealias UploadTemplatesResponse = Unit
@@ -117,7 +110,7 @@ sealed class UserCriteria {
 @Serializable
 data class AutomaticApprovalSettings(
     val from: List<UserCriteria>,
-    val maxResources: List<ResourceRequest>
+    val maxResources: List<GrantApplication.AllocationRequest>
 )
 
 @UCloudApiDoc("""
@@ -145,7 +138,7 @@ data class ApproveApplicationRequest(val requestId: Long)
 typealias ApproveApplicationResponse = Unit
 
 @Serializable
-data class RejectApplicationRequest(val requestId: Long, val notify: Boolean? = true)
+data class RejectApplicationRequest(val requestId: Long, val notify: Boolean? = true) //TODO()
 typealias RejectApplicationResponse = Unit
 
 @Serializable
@@ -153,7 +146,7 @@ data class CloseApplicationRequest(val requestId: Long)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
-data class TransferApplicationRequest(val applicationId: Long, val transferToProjectId: String)
+data class TransferApplicationRequest(val applicationId: Long, val transferToProjectId: String) //TODO()
 typealias TransferApplicationResponse = Unit
 
 @Serializable
@@ -179,12 +172,10 @@ data class IngoingApplicationsRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-typealias IngoingApplicationsResponse = PageV2<Application>
+typealias IngoingApplicationsResponse = PageV2<GrantApplication>
 
 @Serializable
-data class Comment(val id: Long, val postedBy: String, val postedAt: Long, val comment: String)
-@Serializable
-data class ApplicationWithComments(val application: Application, val comments: List<Comment>, val approver: Boolean)
+data class ApplicationWithComments(val application: GrantApplication, val comments: List<GrantApplication.Comment>, val approver: Boolean)
 
 @Serializable
 data class OutgoingApplicationsRequest(
@@ -194,7 +185,7 @@ data class OutgoingApplicationsRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-typealias OutgoingApplicationsResponse = PageV2<Application>
+typealias OutgoingApplicationsResponse = PageV2<GrantApplication>
 
 typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
@@ -257,102 +248,207 @@ typealias EditReferenceIdResponse = Unit
 
 @Serializable
 data class EditApplicationRequest(
-    val id: Long,
-    val newDocument: String,
-    val newResources: List<ResourceRequest>
+    val document: GrantApplication.Document
 )
 typealias EditApplicationResponse = Unit
 
-@Serializable
-enum class ApplicationStatus {
-    APPROVED,
-    REJECTED,
-    CLOSED,
-    IN_PROGRESS
-}
 
-@Serializable
-sealed class GrantRecipient {
-    @Serializable
-    @SerialName(GrantRecipient.PERSONAL_TYPE)
-    data class PersonalProject(val username: String) : GrantRecipient()
 
-    @Serializable
-    @SerialName(GrantRecipient.EXISTING_PROJECT_TYPE)
-    data class ExistingProject(val projectId: String) : GrantRecipient()
-
-    @Serializable
-    @SerialName(GrantRecipient.NEW_PROJECT_TYPE)
-    data class NewProject(val projectTitle: String) : GrantRecipient() {
-        init {
-            CreateProjectRequest(projectTitle, null) // Trigger validation
-        }
-    }
-
-    companion object {
-        const val PERSONAL_TYPE = "personal"
-        const val EXISTING_PROJECT_TYPE = "existing_project"
-        const val NEW_PROJECT_TYPE = "new_project"
-    }
-}
-
-@Serializable
-@UCloudApiOwnedBy(Grants::class)
-data class ResourceRequest(
-    val productCategory: String,
-    val productProvider: String,
-    val balanceRequested: Long? = null,
-    val sourceAllocation: Long? = null,
-) {
-    init {
-        if (balanceRequested != null && balanceRequested < 0) {
-            throw RPCException("Cannot request a negative amount of resources", HttpStatusCode.BadRequest)
-        }
-    }
-
-    companion object {
-        fun fromProduct(product: Product.Compute, credits: Long): ResourceRequest {
-            return ResourceRequest(product.category.name, product.category.provider, credits)
-        }
-
-        fun fromProduct(product: Product.Storage, credits: Long, quota: Long): ResourceRequest {
-            return ResourceRequest(product.category.name, product.category.provider, credits)
-        }
-    }
-}
 
 @Serializable
 data class CreateApplication(
-    val resourcesOwnedBy: String, // Project ID of the project owning the resources
-    val grantRecipient: GrantRecipient,
-    val document: String,
-    val requestedResources: List<ResourceRequest> // This is _always_ additive to existing resources
+    val document: GrantApplication.Document
 ) {
     init {
-        if (requestedResources.isEmpty()) {
+        if (document.allocationRequests.isEmpty()) {
             throw RPCException("You must request at least one resource", HttpStatusCode.BadRequest)
         }
     }
 }
 
 @Serializable
-data class Application(
-    val status: ApplicationStatus,
-    val resourcesOwnedBy: String, // Project ID of the project owning the resources
-    val requestedBy: String, // Username of user submitting the request
-    val grantRecipient: GrantRecipient,
-    val document: String,
-    val requestedResources: List<ResourceRequest>, // This is _always_ additive to existing resources
-    val id: Long,
-    val resourcesOwnedByTitle: String,
-    val grantRecipientPi: String,
-    val grantRecipientTitle: String,
-    val createdAt: Long,
-    val updatedAt: Long,
-    val statusChangedBy: String? = null,
-    val referenceId: String? = null
-)
+data class GrantApplication(
+    @UCloudApiDoc("""
+        A unique identifier representing a GrantApplication
+    
+        The ID is used for all requests which manipulate the application. The ID is issued by UCloud/Core when the
+        initial revision is submitted. The ID is never re-used by the system, even if a previous version has been
+        closed.
+    """)
+    val id: String,
 
+    @UCloudApiDoc("Username of the user who originially submitted the application")
+    val createdBy: String,
+    @UCloudApiDoc("Timestamp representing when the application was originially submitted")
+    val createdAt: Long,
+    @UCloudApiDoc("Timestamp representing when the application was last updated")
+    val updatedAt: Long,
+
+    @UCloudApiDoc("Information about the current revision")
+    val currentRevision: Revision,
+
+    @UCloudApiDoc("Status information about the application in its entireity")
+    val status: Status,
+) {
+    @UCloudApiDoc(
+        """
+            Contains information about a specific revision of the application.
+        
+            The primary contents of the revision is stored in the document. The document describes the contents of the
+            application, including which resource allocations are requested and by whom. Every time a change is made to
+            the application, a new revision is created. Each revision contains the full document. Changes between versions
+            can be computed by comparing with the previous revision.
+        """
+    )
+
+    @Serializable
+    @SerialName("revision")
+    data class Revision(
+        @UCloudApiDoc("Timestamp indicating when this revision was made")
+        val createdAt: Long,
+
+        @UCloudApiDoc("Username of the user who created this revision")
+        val updatedBy: String,
+
+        @UCloudApiDoc(
+            """
+        A number indicating which revision this is
+
+        Revision numbers are guaranteed to be unique and always increasing. The first revision number must be 0.
+        The backend does not guarantee that revision numbers are issued without gaps. Thus it is allowed for the
+        first revision to be 0 and the second revision to be 10.
+    """
+        )
+        val revisionNumber: Int,
+
+        @UCloudApiDoc("Contains the application form from the end-user")
+        val document: Document
+    )
+    @Serializable
+    @SerialName("document")
+    data class Document(
+        @UCloudApiDoc(
+            """
+        Describes the recipient of resources, should the application be accepted
+
+        Updateable by: Original creator (createdBy of application)
+        Immutable after creation: Yes
+    """
+        )
+        val recipient: Recipient,
+
+        @UCloudApiDoc(
+            """
+        Describes the allocations for resources which are requested by this application
+
+        Updateable by: Original creator and grant givers
+        Immutable after creation: No
+    """
+        )
+        val allocationRequests: List<AllocationRequest>,
+
+        @UCloudApiDoc(
+            """
+        A form describing why these resources are being requested
+
+        Updateable by: Original creator
+        Immutable after creation: No
+    """
+        )
+        val form: Form,
+
+        @UCloudApiDoc(
+            """
+        A reference used for out-of-band book-keeping
+
+        Updateable by: Grant givers
+        Immutable after creation: No
+    """
+        )
+        val referenceId: String? = null,
+
+        @UCloudApiDoc(
+            """
+        A comment describing why this change was made
+
+        Update by: Original creator and grant givers
+        Immutable after creation: No. First revision must always be null.
+    """
+        )
+        val revisionComment: String? = null,
+    )
+    @Serializable
+    @SerialName("form")
+    sealed class Form {
+
+        @Serializable
+        @SerialName("plain_text")
+        class PlainText(
+            @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
+            val personalProject: String,
+
+            @UCloudApiDoc("The template provided for new grant applications when the grant requester is a new project")
+            val newProject: String,
+
+            @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
+            val existingProject: String
+        )
+    }
+    @Serializable
+    @SerialName("recipient")
+    sealed class Recipient {
+        data class ExistingProject(val id: String) : Recipient()
+        data class NewProject(val title: String) : Recipient()
+        data class PersonalWorkspace(val username: String) : Recipient()
+    }
+    @Serializable
+    @SerialName("allocation_request")
+    data class AllocationRequest(
+        val category: String,
+        val provider: String,
+        val grantGiver: String,
+        val balanceRequested: Long? = null,
+        val sourceAllocation: String? = null,
+        val period: Period,
+    )
+    @Serializable
+    @SerialName("period")
+    data class Period(
+        val start: Long?,
+        val end: Long?,
+    )
+    @Serializable
+    @SerialName("status")
+    data class Status(
+        val overallState: State,
+        val stateBreakdown: List<GrantGiverApprovalState>,
+        val comments: List<Comment>,
+        val revisions: List<Revision>,
+    )
+    @Serializable
+    @SerialName("grant_giver_approval_state")
+    data class GrantGiverApprovalState(
+        val id: String,
+        val title: String,
+        val state: State,
+    )
+    @Serializable
+    @SerialName("state")
+    enum class State {
+        APPROVED,
+        REJECTED,
+        CLOSED,
+        IN_PROGRESS
+    }
+    @Serializable
+    @SerialName("comment")
+    data class Comment(
+        val id: String,
+        val username: String,
+        val createdAt: Long,
+        val comment: String,
+    )
+}
 @Serializable
 data class ViewApplicationRequest(val id: Long)
 typealias ViewApplicationResponse = ApplicationWithComments
@@ -538,21 +634,11 @@ ${ApiConventions.nonConformingApiWarning}
      * @see isEnabled
      * @see setEnabledStatus
      */
-    val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"upload-templates"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+    val uploadTemplates = call<BulkRequest<UploadTemplatesRequest>, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
+        httpUpdate(
+            baseContext,
+            "upload-templates"
+        )
 
         documentation {
             summary = "Uploads templates used for new grant Applications"
@@ -562,21 +648,11 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     val uploadRequestSettings =
-        call<UploadRequestSettingsRequest, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"request-settings"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
+        call<BulkRequest<UploadRequestSettingsRequest>, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
+            httpUpdate(
+                baseContext,
+                "request-settings"
+            )
 
             documentation {
                 summary = "Uploads [ProjectApplicationSettings] to be associated with a project. The project must be " +
@@ -632,21 +708,11 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     val submitApplication =
-        call<SubmitApplicationRequest, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"submit-application"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
+        call<BulkRequest<SubmitApplicationRequest>, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
+            httpCreate(
+                baseContext,
+                "submit-application"
+            )
 
             documentation {
                 summary = "Submits an [Application] to a project"
@@ -658,93 +724,53 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
     val commentOnApplication =
-        call<CommentOnApplicationRequest, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
-            auth {
-                access = AccessRight.READ_WRITE
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"comment"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
+        call<BulkRequest<CommentOnApplicationRequest>, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
+            httpCreate(
+                baseContext,
+                "comment"
+            )
 
             documentation {
-                summary = "Adds a comment to an existing [Application]"
+                summary = "Adds a comment to an existing [GrantApplication]"
                 description = """
-                    Only the [Application] creator and [Application] reviewers are allowed to comment on the 
-                    [Application].
+                    Only the [GrantApplication] creator and [GrantApplication] reviewers are allowed to comment on the 
+                    [GrantApplication].
                 """.trimIndent()
             }
         }
 
-    val deleteComment = call<DeleteCommentRequest, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
+    val deleteComment = call<BulkRequest<DeleteCommentRequest>, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
+        httpDelete(
+            "$baseContext/comment"
+        )
 
-        http {
-            method = HttpMethod.Delete
-
-            path {
-                using(baseContext)
-                +"comment"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
 
         documentation {
-            summary = "Deletes a comment from an existing [Application]"
+            summary = "Deletes a comment from an existing [GrantApplication]"
             description = """
                 The comment can only be deleted by the author of the comment.
             """.trimIndent()
         }
     }
 
-    val approveApplication = call<ApproveApplicationRequest, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
+    val approveApplication = call<BulkRequest<ApproveApplicationRequest>, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
+        httpUpdate(
+            baseContext,
+            "approve"
+        )
 
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"approve"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
-
-        documentation {
-            summary = "Approves an existing [Application] this will trigger granting of resources to the " +
-                "[Application.grantRecipient]"
+       documentation {
+            summary = "Approves an existing [GrantApplication] this will trigger granting of resources to the " +
+                "[GrantApplication.Document.recipient ]"
             description = "Only the grant reviewer can perform this action."
         }
     }
 
-    val rejectApplication = call<RejectApplicationRequest, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"reject"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+    val rejectApplication = call<BulkRequest<RejectApplicationRequest>, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
+        httpUpdate(
+            baseContext,
+            "reject"
+        )
 
         documentation {
             summary = "Rejects an [Application]"
@@ -757,79 +783,54 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
+    val editApplication = call<BulkRequest<EditApplicationRequest>, EditApplicationResponse, CommonErrorMessage>(
         "editApplication"
     ) {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"edit"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(
+            baseContext,
+            "edit"
+        )
 
         documentation {
-            summary = "Performs an edit to an existing [Application]"
+            summary = "Performs an edit to an existing [GrantApplication]"
             description = "Both the creator and any of the grant reviewers are allowed to edit the application."
         }
     }
 
-    val editReferenceId = call<EditReferenceIdRequest, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
+    val editReferenceId = call<BulkRequest<EditReferenceIdRequest>, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
         httpUpdate(baseContext, "editReference")
+
+        documentation {
+            summary = "Performs an edit to an existing [referenceId]"
+            description = "Any of the grant reviewers are allowed to edit the reference id."
+        }
     }
 
     val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
         "closeApplication"
     ) {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"close"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(
+            baseContext,
+            "close"
+        )
 
         documentation {
-            summary = "Closes an existing [Application]"
+            summary = "Closes an existing [GrantApplication]"
             description = "This action is identical to [rejectApplication] except it can be performed by the " +
-                "[Application] creator."
+                "[GrantApplication] creator."
         }
     }
 
     val transferApplication =
-        call<TransferApplicationRequest, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
-            auth {
-                access = AccessRight.READ_WRITE
-                roles = Roles.AUTHENTICATED
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"transfer"
-                }
-
-                body { bindEntireRequestFromBody()}
-            }
+        call<BulkRequest<TransferApplicationRequest>, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
+            httpUpdate(
+                baseContext,
+                "transfer",
+                Roles.AUTHENTICATED
+            )
 
             documentation {
-                summary = "Transfers application to other root project"
+                summary = "Transfers allocation request to other root project"
             }
         }
 
@@ -858,7 +859,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             documentation {
-                summary = "Lists active [Application]s which are 'ingoing' (received by) to a project"
+                summary = "Lists active [GrantApplication]s which are 'ingoing' (received by) to a project"
             }
         }
 
@@ -886,27 +887,17 @@ ${ApiConventions.nonConformingApiWarning}
             }
 
             documentation {
-                summary = "Lists all active [Application]s made by the calling user"
+                summary = "Lists all active [GrantApplication]s made by the calling user"
             }
         }
 
     val setEnabledStatus =
-        call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
-            auth {
-                access = AccessRight.READ_WRITE
-                roles = Roles.PRIVILEGED
-            }
-
-            http {
-                method = HttpMethod.Post
-
-                path {
-                    using(baseContext)
-                    +"set-enabled"
-                }
-
-                body { bindEntireRequestFromBody() }
-            }
+        call<BulkRequest<SetEnabledStatusRequest>, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
+            httpUpdate(
+                baseContext,
+                "set-enabled",
+                Roles.PRIVILEGED
+            )
 
             documentation {
                 summary = "Enables a project to receive [Application]"

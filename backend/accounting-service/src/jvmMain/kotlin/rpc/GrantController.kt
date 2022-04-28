@@ -10,13 +10,7 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
-import dk.sdu.cloud.grant.api.ApplicationStatus
-import dk.sdu.cloud.grant.api.FetchDescriptionResponse
-import dk.sdu.cloud.grant.api.Grants
-import dk.sdu.cloud.grant.api.GrantsRetrieveProductsResponse
-import dk.sdu.cloud.grant.api.IsEnabledResponse
-import dk.sdu.cloud.grant.api.SubmitApplicationResponse
-import dk.sdu.cloud.grant.api.ViewApplicationRequest
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.application.*
@@ -36,17 +30,17 @@ class GrantController(
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Grants.approveApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.APPROVED, true)
+            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.APPROVED, true)
             ok(Unit)
         }
 
         implement(Grants.rejectApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.REJECTED, request.notify)
+            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.REJECTED, request.notify)
             ok(Unit)
         }
 
         implement(Grants.closeApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, ApplicationStatus.CLOSED, false)
+            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.CLOSED, false)
             ok(Unit)
         }
 
@@ -159,7 +153,7 @@ class GrantController(
         implement(Grants.retrieveAffiliations) {
             val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
             ok(settings.browse(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application.requestedBy), null),
+                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application), null),
                 request
             ))
         }
