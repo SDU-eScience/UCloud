@@ -11,6 +11,7 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // =========================================================================
     OpenIdConnectConfiguration::class to { OpenIdConnectPlugin() },
     TicketBasedConnectionConfiguration::class to { TicketBasedConnectionPlugin() },
+    UCloudConnectionConfiguration::class to { UCloudConnectionPlugin() },
 
     // Projects
     // =========================================================================

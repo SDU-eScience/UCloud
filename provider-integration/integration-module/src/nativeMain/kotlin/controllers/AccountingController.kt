@@ -37,7 +37,7 @@ class AccountingController(
             try {
                 pullAndNotify()
             } catch (ex: Throwable) {
-                log.info(ex.stackTraceToString())
+                // Ignored
             }
         }
     }
@@ -61,7 +61,8 @@ class AccountingController(
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
         for ((index, res) in output.withIndex()) {
             if (res == null) {
-                throw IllegalStateException("Could not find plugin for ${batch.responses[index].category}")
+                log.warn("Could not find plugin for ${batch.responses[index].category}")
+                continue
             }
 
             items.add(DepositNotificationsMarkAsReadRequestItem(

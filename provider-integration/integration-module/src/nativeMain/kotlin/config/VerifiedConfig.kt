@@ -6,6 +6,8 @@ import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
 import kotlin.system.exitProcess
+import kotlinx.cinterop.*
+import platform.posix.*
 
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
 
@@ -147,12 +149,12 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
     run {
         // Verify that sections required by the mode are available.
 
-        if (config.core == null) missingFile(ConfigSchema.FILE_CORE) // Required for all
+        if (config.core == null) missingFile(config, ConfigSchema.FILE_CORE) // Required for all
 
         when (mode) {
             ServerMode.FrontendProxy -> {
-                if (config.frontendProxy == null) missingFile(ConfigSchema.FILE_FRONTEND_PROXY)
-                if (config.server != null) insecureFile(ConfigSchema.FILE_SERVER)
+                if (config.frontendProxy == null) missingFile(config, ConfigSchema.FILE_FRONTEND_PROXY)
+                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER)
             }
 
             is ServerMode.Plugin -> {
@@ -160,16 +162,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
 
             ServerMode.Server -> {
-                if (config.plugins == null) missingFile(ConfigSchema.FILE_PLUGINS)
-                if (config.server == null) missingFile(ConfigSchema.FILE_SERVER)
-                if (config.products == null) missingFile(ConfigSchema.FILE_PRODUCTS)
+                if (config.plugins == null) missingFile(config, ConfigSchema.FILE_PLUGINS)
+                if (config.server == null) missingFile(config, ConfigSchema.FILE_SERVER)
+                if (config.products == null) missingFile(config, ConfigSchema.FILE_PRODUCTS)
             }
 
             ServerMode.User -> {
-                if (config.server != null) insecureFile(ConfigSchema.FILE_SERVER)
-                if (config.plugins == null) missingFile(ConfigSchema.FILE_PLUGINS)
-                if (config.products == null) missingFile(ConfigSchema.FILE_PRODUCTS)
-                if (config.frontendProxy != null) insecureFile(ConfigSchema.FILE_FRONTEND_PROXY)
+                if (config.server != null) insecureFile(config, ConfigSchema.FILE_SERVER)
+                if (config.plugins == null) missingFile(config, ConfigSchema.FILE_PLUGINS)
+                if (config.products == null) missingFile(config, ConfigSchema.FILE_PRODUCTS)
+                if (config.frontendProxy != null) insecureFile(config, ConfigSchema.FILE_FRONTEND_PROXY)
             }
         }
     }
@@ -187,9 +189,15 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         val providerId = core.providerId
 
         val hosts = run {
-            val ucloud = handleVerificationResultStrict(verifyHost(core.hosts.ucloud))
+            val ucloud = handleVerificationResultStrict(verifyHost(
+                core.hosts.ucloud, 
+                baseReference.useLocationAndProperty(core.hosts.ucloud.tag, "hosts/ucloud")
+            ))
             val self = if (core.hosts.self != null) {
-                handleVerificationResultWeak(verifyHost(core.hosts.self)) ?: core.hosts.self
+                handleVerificationResultWeak(verifyHost(
+                    core.hosts.self,
+                    baseReference.useLocationAndProperty(core.hosts.self.tag, "hosts/self")
+                )) ?: core.hosts.self
             } else {
                 null
             }
@@ -366,7 +374,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             null
         } else {
             // NOTE(Dan): Products are verified later (against UCloud/Core)
-            VerifiedConfig.Products(config.products.compute, config.products.storage)
+            VerifiedConfig.Products(
+                config.products.compute?.mapValues { (_, v) -> v.map { it.value } }, 
+                config.products.storage?.mapValues { (_, v) -> v.map { it.value } }
+            )
         }
     }
 
@@ -374,15 +385,30 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         if (config.frontendProxy == null) {
             null
         } else {
+            val baseReference = ConfigurationReference(
+                config.configurationDirectory + "/" + ConfigSchema.FILE_FRONTEND_PROXY, 
+                config.frontendProxy.yamlDocument,
+                YamlLocationReference(0, 0),
+            )
+
             val remote = if (mode == ServerMode.FrontendProxy) {
-                handleVerificationResultStrict(verifyHost(config.frontendProxy.remote))
+                handleVerificationResultStrict(verifyHost(
+                    config.frontendProxy.remote,
+                    baseReference.useLocationAndProperty(config.frontendProxy.remote.tag, "remote")
+                ))
             } else {
-                handleVerificationResultWeak(verifyHost(config.frontendProxy.remote)) ?: config.frontendProxy.remote
+                handleVerificationResultWeak(verifyHost(
+                    config.frontendProxy.remote,
+                    baseReference.useLocationAndProperty(config.frontendProxy.remote.tag, "remote")
+                )) ?: config.frontendProxy.remote
             }
 
             val sharedSecret = config.frontendProxy.sharedSecret.trim()
             if (sharedSecret.isBlank() || sharedSecret.contains("\n")) {
-                emitError("Shared secret for frontend proxy is not valid.")
+                emitError(
+                    "Shared secret for frontend proxy is not valid.",
+                    baseReference.useLocationAndProperty(null, "sharedSecret")
+                )
             }
 
             VerifiedConfig.FrontendProxy(sharedSecret, remote)
@@ -393,6 +419,18 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         if (config.plugins == null) {
             null
         } else {
+            val productReference = ConfigurationReference(
+                config.configurationDirectory + "/" + ConfigSchema.FILE_PRODUCTS, 
+                config.products?.yamlDocument ?: "",
+                YamlLocationReference(0, 0),
+            )
+
+            val pluginReference = ConfigurationReference(
+                config.configurationDirectory + "/" + ConfigSchema.FILE_PLUGINS, 
+                config.plugins.yamlDocument,
+                YamlLocationReference(0, 0),
+            )
+
             val connection: ConnectionPlugin? = if (config.plugins.connection == null) {
                 null
             } else {
@@ -407,17 +445,23 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
                 config.products?.compute ?: emptyMap(),
-                config.plugins.jobs ?: emptyMap()
+                config.plugins.jobs ?: emptyMap(),
+                productReference.useLocationAndProperty(null, "compute"),
+                pluginReference.useLocationAndProperty(null, "jobs")
             ) as Map<String, ComputePlugin>
 
             val files: Map<String, FilePlugin> = loadProductBasedPlugins(
                 config.products?.storage ?: emptyMap(),
-                config.plugins.files ?: emptyMap()
+                config.plugins.files ?: emptyMap(),
+                productReference.useLocationAndProperty(null, "storage"),
+                pluginReference.useLocationAndProperty(null, "files")
             ) as Map<String, FilePlugin>
 
             val fileCollections: Map<String, FileCollectionPlugin> = loadProductBasedPlugins(
                 config.products?.storage ?: emptyMap(),
-                config.plugins.fileCollections ?: emptyMap()
+                config.plugins.fileCollections ?: emptyMap(),
+                productReference.useLocationAndProperty(null, "storage"),
+                pluginReference.useLocationAndProperty(null, "fileCollections")
             ) as Map<String, FileCollectionPlugin>
 
             VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections)
@@ -435,16 +479,18 @@ private fun <Cfg : Any> loadPlugin(config: Cfg): Plugin<Cfg> {
 }
 
 private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
-    products: Map<String, List<String>>,
-    plugins: Map<String, Cfg>
+    products: Map<String, List<YamlString>>,
+    plugins: Map<YamlString, Cfg>,
+    productRef: ConfigurationReference,
+    pluginRef: ConfigurationReference
 ): Map<String, Plugin<Cfg>> {
     val result = HashMap<String, Plugin<Cfg>>()
     val relevantProducts = products.entries.flatMap { (category, products) ->
-        products.map { ProductReferenceWithoutProvider(it, category) }
+        products.map { Pair(ProductReferenceWithoutProvider(it.value, category), it.tag) }
     }
 
     val partitionedProducts = HashMap<String, List<ProductReferenceWithoutProvider>>()
-    for (product in relevantProducts) {
+    for ((product, productTag) in relevantProducts) {
         var bestScore = -1
         var bestMatch: String? = null
         for ((id, pluginConfig) in plugins) {
@@ -457,20 +503,25 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
                 emitError(
                     "Could not allocate product '$product' to a plugin. Both '$id' and '$bestMatch' " +
                         "target the product with identical specificity. Resolve this conflict by " +
-                        "creating a more specific matcher."
+                        "creating a more specific matcher.",
+                    pluginRef
                 )
             }
 
             if (score > bestScore) {
                 bestScore = score
-                bestMatch = id
+                bestMatch = id.value
             }
         }
 
         if (bestMatch == null) {
             emitWarning(
                 "Could not allocate product '$product' to a plugin. No plugins match it, " +
-                    "the integration module will ignore all requests for this product!"
+                    "the integration module will ignore all requests for this product!",
+                    productRef.useLocationAndProperty(
+                        productTag, 
+                        (productRef.property ?: "") + "/" + product.category + "/" + product.id
+                    )
             )
         } else {
             partitionedProducts[bestMatch] = (partitionedProducts[bestMatch] ?: emptyList()) + product
@@ -478,65 +529,92 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     }
 
     for ((id, pluginConfig) in plugins) {
-        val products = partitionedProducts[id] ?: emptyList()
+        val products = partitionedProducts[id.value] ?: emptyList()
         val plugin = instansiatePlugin(pluginConfig)
         if (plugin is ResourcePlugin<*, *, *, *>) {
-            plugin.pluginName = id
+            plugin.pluginName = id.value
             plugin.productAllocation = products
+            if (products.isEmpty()) {
+                emitWarning(
+                    "Could not allocate any products to the plugin '$id'. This plugin will never run!",
+                    pluginRef.useLocationAndProperty(id.tag, (pluginRef.property ?: "") + "/" + id.value)
+                )
+            }
         }
         plugin.configure(pluginConfig)
-        result[id] = plugin
+        result[id.value] = plugin
     }
 
     return result
 }
 
 // End-user feedback
-private fun missingFile(file: String): Nothing {
-    // TODO
-    println("Missing file at $file")
+private fun missingFile(config: ConfigSchema, file: String): Nothing {
+    sendTerminalMessage {
+        bold { red { inline("Missing file! ") } }
+        code { 
+            inline(config.configurationDirectory)
+            inline("/")
+            line(file) 
+        }
+        line()
+        line("This file is required when running the ingration module in this mode. Please make sure that the file ")
+        line("exists and is readable by the appropiate users. We refer to the documentation for more information.")
+
+        line()
+        bold { inline("NOTE: ") }
+        line("The integration module requires precise file names and extensions. Make sure the file exists exactly " +
+            "as specified above")
+
+    }
     exitProcess(1)
 }
 
-private fun insecureFile(file: String): Nothing {
-    // TODO
-    println("Insecure file $file")
+private fun insecureFile(config: ConfigSchema, file: String): Nothing {
+    sendTerminalMessage {
+        bold { red { inline("Insecure file! ") } }
+        code { 
+            inline(config.configurationDirectory)
+            inline("/")
+            line(file) 
+        }
+        line()
+        line("This file is not supposed to be readable in the configuration, yet it was. ")
+        line("We refer to the documentation for more information about this error.")
+    }
+
     exitProcess(1)
 }
 
-private fun emitWarning(warning: String) {
-    emitWarning(VerifyResult.Warning<Unit>(warning))
+private fun emitWarning(warning: String, ref: ConfigurationReference? = null) {
+    emitWarning(VerifyResult.Warning<Unit>(warning, ref))
 }
 
 private fun emitWarning(result: VerifyResult.Warning<*>) {
-    if (result.ref == null) {
-        println("GENERIC WARNING: ${result.message}")
-    } else {
-        sendTerminalMessage {
-            yellow { bold { inline("Configuration warning! ") } } 
-            code { line(result.ref.file) }
+    sendTerminalMessage {
+        yellow { bold { inline("Configuration warning! ") } } 
+        if (result.ref != null) code { line(result.ref.file) }
 
-            line(result.message)
+        line(result.message)
+        line()
+        
+        if (result.ref?.location != null) {
+            inline("The warning occured approximately here")
+        } else if (result.ref?.property != null) {
+            inline("The warning occured")
+        }
+
+        if (result.ref?.property != null) {
+            inline(" in property ")
+            code { inline(result.ref.property) }
+        }
+
+        if (result.ref?.location != null) {
+            line(":")
+            yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
+                result.ref.location.approximateEnd)
+        } else {
             line()
-            
-            if (result.ref.location != null) {
-                inline("The warning occured approximately here")
-            } else if (result.ref.property != null) {
-                inline("The warning occured")
-            }
-
-            if (result.ref.property != null) {
-                inline(" in property ")
-                code { inline(result.ref.property) }
-            }
-
-            if (result.ref.location != null) {
-                line(":")
-                yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
-                    result.ref.location.approximateEnd)
-            } else {
-                line()
-            }
         }
     }
 }
@@ -546,40 +624,36 @@ private fun emitError(error: String, ref: ConfigurationReference? = null): Nothi
 }
 
 private fun emitError(result: VerifyResult.Error<*>): Nothing {
-    if (result.ref == null) {
-        println("GENERIC ERROR: ${result.message}")
-    } else {
-        sendTerminalMessage {
-            red { bold { inline("Configuration error! ") } } 
-            code { line(result.ref.file) }
+    sendTerminalMessage {
+        red { bold { inline("Configuration error! ") } } 
+        if (result.ref != null) code { line(result.ref.file) }
 
-            line(result.message)
+        line(result.message)
+        line()
+        
+        if (result.ref?.location != null) {
+            inline("The error occured approximately here")
+        } else if (result.ref?.property != null) {
+            inline("The error occured")
+        }
+
+        if (result.ref?.property != null) {
+            inline(" in property ")
+            code { inline(result.ref.property) }
+        }
+
+        if (result.ref?.location != null) {
+            line(":")
+            yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
+                result.ref.location.approximateEnd)
+        } else {
             line()
-            
-            if (result.ref.location != null) {
-                inline("The error occured approximately here")
-            } else if (result.ref.property != null) {
-                inline("The error occured")
-            }
+        }
 
-            if (result.ref.property != null) {
-                inline(" in property ")
-                code { inline(result.ref.property) }
-            }
-
-            if (result.ref.location != null) {
-                line(":")
-                yamlDocumentContext(result.ref.document, result.ref.location.approximateStart,
-                    result.ref.location.approximateEnd)
-            } else {
-                line()
-            }
-
-            if (result.ref.location?.approximateStart == 0 && result.ref.location?.approximateEnd == 0) {
-                line()
-                line("The above value was computed value/default value. You can try specifying the value explicitly " +
-                    "in the configuration.")
-            }
+        if (result.ref?.location?.approximateStart == 0 && result.ref?.location?.approximateEnd == 0) {
+            line()
+            line("The above value was computed value/default value. You can try specifying the value explicitly " +
+                "in the configuration.")
         }
     }
     exitProcess(1)
@@ -614,7 +688,7 @@ private fun <T> handleVerificationResultStrict(result: VerifyResult<T>): T {
 }
 
 private fun <T> handleVerificationResultWeak(result: VerifyResult<T>): T? {
-    return handleVerificationResult(result, errorsAreWarnings = false)
+    return handleVerificationResult(result, errorsAreWarnings = true)
 }
 
 private fun <T> handleVerificationResult(
@@ -634,14 +708,33 @@ private fun <T> handleVerificationResult(
         }
 
         is VerifyResult.Warning -> {
-            emitWarning(result.message)
+            emitWarning(result)
             null
         }
     }
 }
 
-private fun verifyHost(host: Host): VerifyResult<Host> {
-    // TODO
+fun verifyHost(host: Host, ref: ConfigurationReference? = null): VerifyResult<Host> {
+    memScoped {
+        val hints = alloc<addrinfo>()
+        memset(hints.ptr, 0, sizeOf<addrinfo>().toULong())
+        hints.ai_family = AF_UNSPEC
+        hints.ai_socktype = SOCK_STREAM // TCP, please.
+        hints.ai_flags = 0
+        hints.ai_protocol = 0
+
+        // Next, we use these hints to retrieve information about our requested host at the specified port
+        val result = allocPointerTo<addrinfo>()
+        if (getaddrinfo(host.host, host.port.toString(), hints.ptr, result.ptr) != 0) {
+            return VerifyResult.Error<Host>(
+                "The following host appears to be invalid: $host. Validate that the host name is correct and that " +
+                    "you are able to connect to it.",
+                ref
+            )
+        }
+
+        freeaddrinfo(result.value)
+    }
     return VerifyResult.Ok(host)
 }
 

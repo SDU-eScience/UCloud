@@ -57,8 +57,6 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         this.authEndpoint = this.configuration.endpoints.auth.removeSuffix("?").removeSuffix("/")
     }
 
-
-
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private value class UCloudUsername(val username: String)
     private value class OidcState(val state: String)

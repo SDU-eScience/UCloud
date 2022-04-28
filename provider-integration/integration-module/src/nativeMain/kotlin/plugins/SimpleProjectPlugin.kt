@@ -567,22 +567,22 @@ class SimpleProjectPlugin : ProjectPlugin {
     private class Extensions(pluginConfig: SimpleProjectConfiguration) {
         private val e = pluginConfig.extensions
 
-        val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.projectRenamed)
+        val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectRenamed)
 
-        val membersAddedToProject = optionalExtension<ProjectDiff, Unit>(e.membersAddedToProject)
-        val membersRemovedFromProject = optionalExtension<ProjectDiff, Unit>(e.membersRemovedFromProject)
+        val membersAddedToProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToProject)
+        val membersRemovedFromProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromProject)
 
-        val membersRemovedFromGroup = optionalExtension<ProjectDiff, Unit>(e.membersRemovedFromGroup)
-        val membersAddedToGroup = optionalExtension<ProjectDiff, Unit>(e.membersAddedToGroup)
+        val membersRemovedFromGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromGroup)
+        val membersAddedToGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToGroup)
 
-        val projectArchived = optionalExtension<ProjectDiff, Unit>(e.projectArchived)
-        val projectUnarchived = optionalExtension<ProjectDiff, Unit>(e.projectUnarchived)
+        val projectArchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectArchived)
+        val projectUnarchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectUnarchived)
 
-        val roleChanged = optionalExtension<ProjectDiff, Unit>(e.roleChanged)
+        val roleChanged = optionalExtension<ProjectDiff, Unit>(e.all ?: e.roleChanged)
 
-        val groupCreated = optionalExtension<ProjectDiff, Unit>(e.groupCreated)
-        val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.groupRenamed)
-        val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.groupDeleted)
+        val groupCreated = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupCreated)
+        val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupRenamed)
+        val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupDeleted)
     }
 }
 

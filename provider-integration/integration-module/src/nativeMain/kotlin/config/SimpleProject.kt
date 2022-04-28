@@ -10,6 +10,8 @@ data class SimpleProjectConfiguration(
 ) : ConfigSchema.Plugins.Projects() {
     @Serializable
     data class Extensions(
+        val all: String? = null,
+
         val projectRenamed: String? = null,
 
         val membersAddedToProject: String? = null,

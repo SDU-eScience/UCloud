@@ -125,26 +125,23 @@ fun main(args: Array<String>) {
             // The configuration process will detect if we have not completed the initial setup process. This includes
             // not having any valid API tokens for UCloud/Core. If that is the case, we will run the installer which
             // guides the operator through this initial setup phase.
-            val config = try {
+            val config = run {
                 val schema = loadConfiguration()
-                verifyConfiguration(serverMode, schema)
-            } catch (ex: ConfigurationException.IsBeingInstalled) {
-                /*
-                if (getuid() == 0U) {
-                    throw IllegalStateException(
-                        "Refusing to start as root. The integration module needs to be " +
-                            "started as a dedicated 'ucloud' (service) user."
-                    )
+
+                val runInstaller = with(schema) {
+                    core == null &&
+                        server == null &&
+                        plugins == null &&
+                        products == null &&
+                        frontendProxy == null
                 }
 
-                runInstaller(ex.core, ex.server, ownExecutable)
-                exitProcess(0)
-                */
+                if (runInstaller) {
+                    runInstaller(ownExecutable)
+                    exitProcess(0)
+                }
 
-                TODO()
-            } catch (ex: ConfigurationException.BadConfiguration) {
-                println(ex.message)
-                exitProcess(1)
+                verifyConfiguration(serverMode, schema)
             }
 
             run {

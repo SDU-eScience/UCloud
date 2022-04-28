@@ -33,7 +33,7 @@ class ProjectController(
             try {
                 pullAndNotify()
             } catch (ex: Throwable) {
-                log.info(ex.stackTraceToString())
+                // Ignored
             }
         }
     }

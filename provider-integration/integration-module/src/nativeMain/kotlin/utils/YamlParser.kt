@@ -464,7 +464,9 @@ data class YamlLocationTag(
 data class YamlString(
     val tag: YamlLocationTag,
     val value: String,
-)
+) {
+    override fun toString() = value
+}
 
 object YamlStringSerializer : KSerializer<YamlString> {
     override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("YamlString", PrimitiveKind.STRING)

@@ -98,9 +98,9 @@ data class ConfigSchema(
     data class Plugins(
         val connection: Connection? = null,
         val projects: Projects? = null,
-        val jobs: Map<String, Jobs>? = null,
-        val files: Map<String, Files>? = null,
-        val fileCollections: Map<String, FileCollections>? = null,
+        val jobs: Map<YamlString, Jobs>? = null,
+        val files: Map<YamlString, Files>? = null,
+        val fileCollections: Map<YamlString, FileCollections>? = null,
         @Transient
         override var yamlDocument: String = ""
     ) : WithYamlDocument {
@@ -126,8 +126,8 @@ data class ConfigSchema(
 
     @Serializable
     data class Products(
-        val compute: Map<String, List<String>>? = null,
-        val storage: Map<String, List<String>>? = null,
+        val compute: Map<String, List<YamlString>>? = null,
+        val storage: Map<String, List<YamlString>>? = null,
         @Transient
         override var yamlDocument: String = ""
     ) : WithYamlDocument
@@ -150,7 +150,7 @@ data class ConfigSchema(
 }
 
 @Serializable
-data class Host(val host: String, val scheme: String, val port: Int) {
+data class Host(val host: String, val scheme: String, val port: Int, val tag: YamlLocationTag = YamlLocationTag(0)) {
     override fun toString() = buildString {
         append(scheme)
         append("://")
