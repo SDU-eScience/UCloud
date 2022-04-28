@@ -16,10 +16,14 @@ import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
+import kotlinx.cinterop.pointed
+import kotlinx.cinterop.toKStringFromUtf8
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import platform.posix.geteuid
+import platform.posix.getpwuid
 
 @Serializable
 data class TicketApprovalRequest(
@@ -65,6 +69,12 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                         )
 
                         // TODO(Brian) Warn if user does not exist
+                        val systemUid = getpwuid(uid.toUInt())?.pointed?.pw_name?.toKStringFromUtf8()
+
+                        if (systemUid == null) {
+                            log.warn("User with uid $uid was not found on the system. A mapping between the recently " +
+                                "connected UCloud user and the uid will however still be made.")
+                        }
 
                         UserMapping.insertMapping(
                             capturedId,
