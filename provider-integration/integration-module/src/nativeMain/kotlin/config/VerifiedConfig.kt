@@ -145,6 +145,11 @@ data class VerifiedConfig(
     )
 }
 
+// NOTE(Dan): Make sure you understand `loadConfiguration()` of `Config.kt` before you read this function. This
+// function takes, as input the output of `loadConfiguration()`. The job is then to read the raw configuration from
+// the user, and determine if it is valid and fetch additional information if required. This usually involves checking
+// if additional files exists, making sure hosts are valid and so on. Once this function is done, then the
+// configuration should be valid and no plugins/other code should crash as a result of bad configuration.
 fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig {
     run {
         // Verify that sections required by the mode are available.

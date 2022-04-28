@@ -1,20 +1,28 @@
----
-# core.yaml
+# Configuration
 
+This document contains a complete reference for the configuration which UCloud/IM accepts. This document is broken
+into several sections, one for each configuration file.
+
+## `core.yaml`
+
+```yaml
 # The core contains information which is relevant regardless of server mode. This also means that we cannot put any
 # potentially sensitive information in this configuration file.
-# Contains the ID of the provider as registered with UCloud/Core
+
+# (Mandatory) Contains the ID of the provider as registered with UCloud/Core
 providerId: sophia
 
 # (Optional) Inter-process communication
 ipc:
+  # (Mandatory) The directory to use for IPC
   directory: /var/run/ucloud
 
 # (Optional) Logging configuration
 logs:
+  # (Mandatory) The directory to use for logs
   directory: /var/log/ucloud
 
-# Relevant hosts used for networking
+# (Mandatory) Relevant hosts used for networking
 hosts:
   # (Optional) Ourselves, this is optional but some plugins require it to be specified
   self:
@@ -22,48 +30,58 @@ hosts:
     scheme: http
     port: 80
 
-  # The location of the UCloud/Core server used
+  # (Mandatory) The location of the UCloud/Core server used
   ucloud:
     host: cloud.sdu.dk
     scheme: https
     port: 443
 
----
-# server.yaml
+```
 
+## `server.yaml`
+
+```yaml
 # Server: This mode receives traffic which is not bound to a specific user. This mode is also responsible
 #         for providing core services to the other modes. This includes: access to the database, routing
 #         of traffic and launching user instances. Other instances communicate with the server instance
 #         through inter-process communication (IPC).
 
-# The refresh token used for communication with UCloud/Core. It is exchanged between the orchestrator and the
-# provider during the registration step. For more information see:
+# (Mandatory) The refresh token used for communication with UCloud/Core. It is exchanged between the orchestrator and 
+# the provider during the registration step. For more information see:
 # https://docs.cloud.sdu.dk/dev/docs/developer-guide/accounting-and-projects/providers.html#example-registering-a-provider
 refreshToken: foo-bar-baz
 
+# (Optional) Network configuration of the server
 network:
-  # Address used for listening (HTTP traffic)
+  # (Optional) Address used for listening (HTTP traffic)
   listenAddress: 0.0.0.0
-  # Port used for listening (HTTP traffic)
+  # (Optional) Port used for listening (HTTP traffic)
   listenPort: 42000
 
-# Contains configuration which is helpful for development but should not be used for production.
+# (Optional) Contains configuration which is helpful for development but should not be used for production.
 developmentMode:
-  # Contains a list of predefined user instances which should be started by the developer
+  # (Optional) Contains a list of predefined user instances which should be started by the developer
   predefinedUserInstances:
-  - username: "FooBar#1234" # UCloud username
-    userId: 1000            # Unix UID
-    port: 41230             # Port of the user mode instance
+  - username: "FooBar#1234" # (Mandatory) UCloud username
+    userId: 1000            # (Mandatory) Unix UID
+    port: 41230             # (Mandatory) Port of the user mode instance
 
----
-# plugins.yaml
+```
 
+## `plugins.yaml`
+
+```yaml
 # Plugin configuration used for all plugins. This configuration file is readable by users also. The configuration file
 # contains several sections for different plugin types. Some plugins are based on a product configuration, in these
 # cases multiple instances of a single copy can run, targeting different products.
 
-# The connection plugin is used to manage the connection between a UCloud user and a local user. This plugin is
-# system-wide and is used to resolve the local user which is required for launching a new user instance.
+#######################################################################################################################
+# (Optional) Connection plugins
+#######################################################################################################################
+
+# ---------------------------------------------------------------------------------------------------------------------
+# OpenIdConnect: Used for integrating with OIDC
+# ---------------------------------------------------------------------------------------------------------------------
 connection:
   # Specifies the plugin type. The remaining configuration is specific to this plugin.
   type: OpenIdConnect
@@ -91,7 +109,31 @@ connection:
     # Invoked when the connection has completed.
     onConnectionComplete: /opt/ucloud/extensions/oidc-complete
 
+# ---------------------------------------------------------------------------------------------------------------------
+# UCloud: Uses UCloud as an identity provider
+# ---------------------------------------------------------------------------------------------------------------------
+connection:
+  type: UCloud
+
+  redirectTo: http://localhost:9000/app
+  extensions:
+    onConnectionComplete: /opt/ucloud/example-extensions/ucloud-connection
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Ticket: A manual connection plugin. Useful if users are normally created by hand.
+# ---------------------------------------------------------------------------------------------------------------------
+connection:
+  type: Ticket
+
+#######################################################################################################################
+# (Optional) Connection plugins
+#
 # Plugin for managing mapping between UCloud projects and local projects.
+#######################################################################################################################
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Simple: A project plugin delegating all responsibilities to extension scripts
+# ---------------------------------------------------------------------------------------------------------------------
 projects:
   # Specifies the plugin type. The remaining configuration is specific to this plugin.
   type: Simple
@@ -102,6 +144,8 @@ projects:
 
   # Extensions which will be invoked by the plugin when certain events occur.
   extensions:
+    all: /opt/ucloud/extensions/project-handler # (Optional) Can be used to capture all events
+
     projectRenamed: /opt/ucloud/extensions/project-handler
 
     membersAddedToProject: /opt/ucloud/extensions/project-handler
@@ -116,11 +160,19 @@ projects:
     groupRenamed: /opt/ucloud/extensions/project-handler
     groupDeleted: /opt/ucloud/extensions/project-handler
 
+#######################################################################################################################
+# (Optional) Job plugins
+#
 # Plugins which manage jobs (compute). Multiple job plugin instances can run in a single integration module, each
 # instance targets a different sub-set of products. Each key of the "jobs" section refers to a name for the
 # instance. Each instance must specify the plugin type and which products they match.
 #
 # The "matches" selector is validated against the compute products specified in `products.yaml`.
+#######################################################################################################################
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Slurm
+# ---------------------------------------------------------------------------------------------------------------------
 jobs:
   standard:
     type: Slurm          # Use Slurm
@@ -139,10 +191,26 @@ jobs:
     matches: * # Match any product which isn't covered by another plugin
     partition: default
 
+#######################################################################################################################
+# (Optional) File plugins
+#######################################################################################################################
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Posix
+# ---------------------------------------------------------------------------------------------------------------------
+
 files:
   default:
     type: Posix
     matches: *
+
+#######################################################################################################################
+# (Optional) File collection plugins
+#######################################################################################################################
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Posix
+# ---------------------------------------------------------------------------------------------------------------------
 
 fileCollections:
   default:
@@ -156,9 +224,11 @@ fileCollections:
     extensions:
       additionalCollections: /opt/ucloud/extensions/collections
 
----
-# products.yaml
+```
 
+## `products.yaml`
+
+```yaml
 # Contains a list of products which are known to the provider. These products must be registered in UCloud/Core also.
 # No details are placed in the configuration and are instead sent from the orchestrator.
 compute:
@@ -188,12 +258,16 @@ storage:
   u1-cephfs:
   - u1-cephfs
 
+```
 
----
-# frontend_proxy.yaml
+## `frontend_proxy.yaml`
+
+```yaml
 sharedSecret: foo-bar-baz-bar-baz
 remote:
   host: internal-node-aa-01
   port: 42000
   scheme: http
+
+```
 
