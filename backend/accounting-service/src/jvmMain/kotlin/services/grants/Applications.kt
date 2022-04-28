@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
@@ -80,11 +81,13 @@ class GrantApplicationService(
 
     suspend fun submit(
         actorAndProject: ActorAndProject,
-        request: CreateApplication
+        request: BulkRequest<CreateApplication>
     ): Long {
-        val recipient = request.grantRecipient
-        if (recipient is GrantRecipient.PersonalProject && recipient.username != actorAndProject.actor.safeUsername()) {
-            throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
+        request.items.forEach { createRequest ->
+            val recipient = createRequest.document.recipient
+            if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
+                throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
+            }
         }
         val (appId, notification) = db.withSession(remapExceptions = true) { session ->
             val applicationId = session.sendPreparedStatement(
@@ -507,20 +510,23 @@ class GrantApplicationService(
 
     suspend fun updateStatus(
         actorAndProject: ActorAndProject,
-        id: Long,
-        newStatus: ApplicationStatus,
-        notifyChange: Boolean? = true
+        request: BulkRequest<UpdateApplicationState>
     ) {
-        require(newStatus != ApplicationStatus.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
+        request.items.forEach { update ->
+            require(update.newState != GrantApplication.State.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
+        }
         db.withSession(remapExceptions = true) { session ->
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("id", id)
-                    setParameter("status", newStatus.name)
-                    setParameter("should_be_approver", newStatus != ApplicationStatus.CLOSED)
-                },
-                """
+            request.items.forEach { update ->
+                val id = update.applicationId
+                val newState = update.newState
+                val success = session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("id", id)
+                        setParameter("status", newState)
+                        setParameter("should_be_approver", newState != GrantApplication.State.CLOSED)
+                    },
+                    """
                     with
                         permission_check as (
                             select app.id, pm.username is not null as is_approver
@@ -548,78 +554,78 @@ class GrantApplicationService(
                     from update_table ut
                     where app.id = ut.id
                 """,
-            ).rowsAffected > 0L
+                ).rowsAffected > 0L
 
-            if (!success) {
-                throw RPCException(
-                    "Unable to update the status. Has the application already been closed?",
-                    HttpStatusCode.BadRequest
-                )
-            }
-
-            if (newStatus == ApplicationStatus.APPROVED) {
-                onApplicationApprove(session, actorAndProject.actor.safeUsername(), id)
-            }
-
-            if (notifyChange == true) {
-                val statusTitle = when (newStatus) {
-                    ApplicationStatus.APPROVED -> "Approved"
-                    ApplicationStatus.REJECTED -> "Rejected"
-                    ApplicationStatus.CLOSED -> "Closed"
-                    ApplicationStatus.IN_PROGRESS -> "In Progress"
-                }
-                notifications.notify(
-                    actorAndProject.actor.safeUsername(),
-                    GrantNotification(
-                        id,
-                        adminMessage =
-                        AdminGrantNotificationMessage(
-                            { "Grant application updated ($statusTitle)" },
-                            GRANT_APP_RESPONSE,
-                            {
-                                Mail.GrantApplicationStatusChangedToAdmin(
-                                    newStatus.name,
-                                    projectTitle,
-                                    requestedBy,
-                                    grantRecipientTitle
-                                )
-                            },
-                            meta = {
-                                JsonObject(
-                                    mapOf(
-                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
-                                        "appId" to JsonPrimitive(id),
-                                    )
-                                )
-                            }
-                        ),
-                        userMessage =
-                        UserGrantNotificationMessage(
-                            { "Grant application updated ($statusTitle)" },
-                            GRANT_APP_RESPONSE,
-                            {
-                                when (newStatus) {
-                                    ApplicationStatus.APPROVED -> Mail.GrantApplicationApproveMail(projectTitle)
-                                    ApplicationStatus.REJECTED -> Mail.GrantApplicationRejectedMail(projectTitle)
-                                    ApplicationStatus.CLOSED -> Mail.GrantApplicationWithdrawnMail(
-                                        projectTitle,
-                                        actorAndProject.actor.safeUsername()
-                                    )
-                                    else -> throw IllegalStateException()
-                                }
-                            },
-                            meta = {
-                                JsonObject(
-                                    mapOf(
-                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
-                                        "appId" to JsonPrimitive(id),
-                                    )
-                                )
-                            }
-                        )
-                    ),
-
+                if (!success) {
+                    throw RPCException(
+                        "Unable to update the status. Has the application already been closed?",
+                        HttpStatusCode.BadRequest
                     )
+                }
+
+                if (newState == GrantApplication.State.APPROVED) {
+                    onApplicationApprove(session, actorAndProject.actor.safeUsername(), update.requestId)
+                }
+
+                if (update.notify == true) {
+                    val statusTitle = when (newState) {
+                        GrantApplication.State.APPROVED -> "Approved"
+                        GrantApplication.State.REJECTED -> "Rejected"
+                        GrantApplication.State.CLOSED -> "Closed"
+                        GrantApplication.State.IN_PROGRESS -> "In Progress"
+                    }
+                    notifications.notify(
+                        actorAndProject.actor.safeUsername(),
+                        GrantNotification(
+                            id,
+                            adminMessage =
+                            AdminGrantNotificationMessage(
+                                { "Grant application updated ($statusTitle)" },
+                                GRANT_APP_RESPONSE,
+                                {
+                                    Mail.GrantApplicationStatusChangedToAdmin(
+                                        update.newState.name,
+                                        projectTitle,
+                                        requestedBy,
+                                        grantRecipientTitle
+                                    )
+                                },
+                                meta = {
+                                    JsonObject(
+                                        mapOf(
+                                            "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                            "appId" to JsonPrimitive(id),
+                                        )
+                                    )
+                                }
+                            ),
+                            userMessage =
+                            UserGrantNotificationMessage(
+                                { "Grant application updated ($statusTitle)" },
+                                GRANT_APP_RESPONSE,
+                                {
+                                    when (newState) {
+                                        GrantApplication.State.APPROVED -> Mail.GrantApplicationApproveMail(projectTitle)
+                                        GrantApplication.State.REJECTED -> Mail.GrantApplicationRejectedMail(projectTitle)
+                                        GrantApplication.State.CLOSED -> Mail.GrantApplicationWithdrawnMail(
+                                            projectTitle,
+                                            actorAndProject.actor.safeUsername()
+                                        )
+                                        else -> throw IllegalStateException()
+                                    }
+                                },
+                                meta = {
+                                    JsonObject(
+                                        mapOf(
+                                            "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
+                                            "appId" to JsonPrimitive(id),
+                                        )
+                                    )
+                                }
+                            )
+                        ),
+                    )
+                }
             }
         }
     }

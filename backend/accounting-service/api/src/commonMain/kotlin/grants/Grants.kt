@@ -134,15 +134,12 @@ data class ReadRequestSettingsRequest(val projectId: String)
 typealias ReadRequestSettingsResponse = ProjectApplicationSettings
 
 @Serializable
-data class ApproveApplicationRequest(val requestId: Long)
-typealias ApproveApplicationResponse = Unit
+data class UpdateApplicationState(val applicationId: Long, val newState: GrantApplication.State, val notify: Boolean = true)
+typealias UpdateApplicationStateResponse = Unit
+
 
 @Serializable
-data class RejectApplicationRequest(val requestId: Long, val notify: Boolean? = true) //TODO()
-typealias RejectApplicationResponse = Unit
-
-@Serializable
-data class CloseApplicationRequest(val requestId: Long)
+data class CloseApplicationRequest(val applicationId: Long)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
@@ -753,35 +750,19 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val approveApplication = call<BulkRequest<ApproveApplicationRequest>, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
+    val updateApplicationState = call<BulkRequest<UpdateApplicationState>, UpdateApplicationStateResponse, CommonErrorMessage>("updateApplicationState") {
         httpUpdate(
             baseContext,
-            "approve"
+            "update-state"
         )
 
        documentation {
-            summary = "Approves an existing [GrantApplication] this will trigger granting of resources to the " +
-                "[GrantApplication.Document.recipient ]"
+            summary = "Approves or rejects an existing [GrantApplication]. If accepted by all grant givers this will " +
+                "trigger granting of resources to the [GrantApplication.Document.recipient ]. "
             description = "Only the grant reviewer can perform this action."
         }
     }
 
-    val rejectApplication = call<BulkRequest<RejectApplicationRequest>, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
-        httpUpdate(
-            baseContext,
-            "reject"
-        )
-
-        documentation {
-            summary = "Rejects an [Application]"
-            description = """
-                 The [Application] cannot receive any new change to it and the [Application] creator must re-submit the
-                 [Application].
-                 
-                 Only the grant reviewer can perform this action.
-            """.trimIndent()
-        }
-    }
 
     val editApplication = call<BulkRequest<EditApplicationRequest>, EditApplicationResponse, CommonErrorMessage>(
         "editApplication"
@@ -806,7 +787,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
+    val closeApplication = call<BulkRequest<CloseApplicationRequest>, CloseApplicationResponse, CommonErrorMessage>(
         "closeApplication"
     ) {
         httpUpdate(

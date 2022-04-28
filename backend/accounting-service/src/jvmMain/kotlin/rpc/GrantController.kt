@@ -8,6 +8,7 @@ import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
 import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.grant.api.*
@@ -29,18 +30,14 @@ class GrantController(
     private val templates: GrantTemplateService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Grants.approveApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.APPROVED, true)
-            ok(Unit)
-        }
-
-        implement(Grants.rejectApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.REJECTED, request.notify)
+        implement(Grants.updateApplicationState) {
+            applications.updateStatus(actorAndProject, request )
             ok(Unit)
         }
 
         implement(Grants.closeApplication) {
-            applications.updateStatus(actorAndProject, request.requestId, GrantApplication.State.CLOSED, false)
+            val updates = bulkRequestOf(request.items.map { UpdateApplicationState(it.applicationId, GrantApplication.State.CLOSED, false) })
+            applications.updateStatus(actorAndProject, updates)
             ok(Unit)
         }
 
