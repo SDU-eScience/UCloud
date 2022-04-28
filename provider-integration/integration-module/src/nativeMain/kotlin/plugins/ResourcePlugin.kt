@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.FindByStringId
+import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.DepositNotification
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -17,6 +18,9 @@ sealed class OnResourceAllocationResult {
 }
 
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
+    var pluginName: String
+    var productAllocation: List<ProductReferenceWithoutProvider>
+
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init
      */

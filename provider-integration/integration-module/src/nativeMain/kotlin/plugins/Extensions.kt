@@ -56,4 +56,22 @@ class TypedExtension<Request, Response>(
 inline fun <reified Request, reified Response> extension(): TypedExtension<Request, Response> =
     TypedExtension(serializer(), serializer())
 
+class TypedExtensionWithExecutable<Request, Response>(
+    val extension: TypedExtension<Request, Response>,
+    val executable: String,
+)
+
+inline fun <reified Req, reified Resp> extension(executable: String): TypedExtensionWithExecutable<Req, Resp> =
+    TypedExtensionWithExecutable(extension(), executable)
+
+inline fun <reified Req, reified Resp> optionalExtension(executable: String?): TypedExtensionWithExecutable<Req, Resp>? =
+    if (executable == null) null
+    else TypedExtensionWithExecutable(extension(), executable)
+
+fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>.invoke(request: Req): Resp =
+    extension.invoke(executable, request)
+
+fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(request: Req): Resp? =
+    this?.invoke(request)
+
 class ExtensionException(message: String) : RuntimeException(message)

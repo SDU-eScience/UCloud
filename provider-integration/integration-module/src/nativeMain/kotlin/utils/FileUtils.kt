@@ -3,7 +3,6 @@ package dk.sdu.cloud.utils
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.storage.InternalFile
-import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
@@ -134,7 +133,7 @@ fun listFiles(internalFile: InternalFile): List<InternalFile> {
     val openedDirectory = try {
         NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
     } catch (ex: NativeFileException) {
-        PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
+        //PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
         throw RPCException("File not found", HttpStatusCode.NotFound)
     }
     try {
