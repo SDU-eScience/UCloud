@@ -68,7 +68,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             HttpStatusCode.BadRequest
                         )
 
-                        // TODO(Brian) Warn if user does not exist
+                        // NOTE(Brian): Warn if user does not exist
                         val systemUid = getpwuid(uid.toUInt())?.pointed?.pw_name?.toKStringFromUtf8()
 
                         if (systemUid == null) {
