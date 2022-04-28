@@ -4,6 +4,7 @@ import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.v2.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -106,7 +107,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             try {
                 dispatchEvent(event)
             } catch (ex: Throwable) {
-                println("Failed to dispatch event: ${ex.message}")
+                log.warn("Failed to dispatch event: ${ex.message}")
             }
         }
 
@@ -207,7 +208,13 @@ class SimpleProjectPlugin : ProjectPlugin {
                     )
                 )
 
-                dispatchEvent(event)
+                try {
+                    dispatchEvent(event)
+                } catch (ex: Throwable) {
+                    log.warn("Extension failed when attempting to add a user whom was recently connected to a UCloud " +
+                        "project. The plugin will proceed resolving other missing connections to projects and groups.")
+                    log.warn("${ex.message}")
+                }
 
                 project.status.groups!!.forEach { group ->
                     if (group.status.members!!.contains(userId)) {
@@ -222,7 +229,15 @@ class SimpleProjectPlugin : ProjectPlugin {
                                 )
                             )
                         )
-                        dispatchEvent(event)
+
+                        try {
+                            dispatchEvent(event)
+                        } catch (ex: Throwable) {
+                            log.warn("Extension failed when attempting to add a user whom was recently connected to " +
+                                "a UCloud project group. The plugin will proceed resolving other missing connections " +
+                                "to projects and groups.")
+                            log.warn("${ex.message}")
+                        }
                     }
                 }
             }
@@ -595,6 +610,10 @@ class SimpleProjectPlugin : ProjectPlugin {
         val groupCreated = optionalExtension<ProjectDiff, Unit>(e.groupCreated)
         val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.groupRenamed)
         val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.groupDeleted)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
