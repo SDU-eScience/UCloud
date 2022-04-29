@@ -36,6 +36,13 @@ object SlurmJobsIpc : IpcContainer("slurm.jobs") {
     val browse = browseHandler<SlurmBrowseFlags, List<SlurmJob>>()
 }
 
+
+object SlurmSessionIpc : IpcContainer("slurm.sessions") {
+    val create = createHandler<InteractiveSession, Unit>()
+    val retrieve = retrieveHandler<FindByStringId, InteractiveSession>()
+}
+
+
 object SlurmJobsIpcServer {
     val handlers = listOf(
         SlurmJobsIpc.create.handler { user, request ->
@@ -46,6 +53,13 @@ object SlurmJobsIpcServer {
         },
         SlurmJobsIpc.browse.handler { user, request ->
             SlurmJobMapper.browse(request)
+        }
+        ,
+        SlurmSessionIpc.create.handler {user, request ->
+            SlurmJobMapper.registerSession(request)
+        },
+        SlurmSessionIpc.retrieve.handler { user, request ->
+            SlurmJobMapper.retrieveSession(request) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     )
 }

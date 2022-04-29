@@ -16,10 +16,10 @@ services:
 
 
   slurmdbd:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
+      target: slurm-ssh-openmpi
     command: ["slurmdbd", "sshd"]
     hostname: slurmdbd
     volumes:
@@ -35,10 +35,10 @@ services:
 
       
   slurmctld:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
+      target: slurm-ssh-openmpi
     command: ["slurmctld", "sshd"]
     hostname: slurmctld
     volumes:
@@ -55,10 +55,10 @@ services:
     
 
   c1:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
+      target: slurm-ssh-openmpi
     command: ["slurmd", "sshd"]
     hostname: c1
     volumes:
@@ -75,10 +75,10 @@ services:
     
 
   c2:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
+      target: slurm-ssh-openmpi
     command: ["slurmd", "sshd"]
     hostname: c2
     volumes:

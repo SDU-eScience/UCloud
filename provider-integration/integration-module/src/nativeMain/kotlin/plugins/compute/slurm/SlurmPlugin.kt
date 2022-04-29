@@ -23,10 +23,7 @@ import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromJsonElement
-import platform.posix.ceil
-import platform.posix.mkdir
-import platform.posix.sleep
-import platform.posix.usleep
+import platform.posix.*
 import kotlin.native.concurrent.AtomicReference
 
 class SlurmPlugin : ComputePlugin {
@@ -52,7 +49,7 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.create(resource: Job): FindByStringId? {
         val config = config(resource)
         val mountpoint = config.mountpoint
-        mkdir("${mountpoint}/${resource.id}", "0770".toUInt(8))
+        mkdir("${mountpoint}/${resource.id}", "0700".toUInt(8))
 
         val sbatch = createSbatchFile(this, resource, config)
 
@@ -223,10 +220,23 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
+
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
+
         val config = config(job)
-        var stdout: NativeFile? = null
-        var stderr: NativeFile? = null
+        class OutputFile(val rank: Int, val out: NativeFile, val err: NativeFile)
+
+        // TBD: error handling or move below
+        val fdList by lazy { 
+            (0..job.specification.replicas-1).map{ rank -> 
+                OutputFile( 
+                            rank, 
+                            NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.out", readOnly = true), 
+                            NativeFile.open(path = "${config.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
+                )
+            }
+        }
+
         try {
             // NOTE(Dan): Don't open the files until the job looks like it is running
             var currentStatus = getStatus(job.id)
@@ -238,18 +248,19 @@ class SlurmPlugin : ComputePlugin {
             // NOTE(Dan): If the job is done, then don't attempt to read the logs
             if (currentStatus.isFinal) return
 
-            stdout = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.out", readOnly = true)
-            stderr = NativeFile.open(path = "${config.mountpoint}/${job.id}/std.err", readOnly = true)
 
             while (isActive()) {
+
                 val check: UcloudStateInfo = getStatus(job.id)
-
                 if (check.state == JobState.RUNNING) {
-                    val line = stdout.readText(autoClose = false)
-                    if (line.isNotEmpty()) emitStdout(0, line)
 
-                    val err = stderr.readText(autoClose = false)
-                    if (err.isNotEmpty()) emitStderr(0, err)
+                    fdList.forEach{ file ->
+                        val line = file.out.readText(autoClose = false)
+                        if (line.isNotEmpty()) emitStdout(file.rank, line)
+
+                        val err = file.err.readText(autoClose = false)
+                        if (err.isNotEmpty()) emitStderr(file.rank, err)
+                    }
 
                 } else break
 
@@ -257,8 +268,12 @@ class SlurmPlugin : ComputePlugin {
             }
 
         } finally {
-            stdout?.close()
-            stderr?.close()
+
+            fdList.forEach{ file -> 
+                file.out?.close()
+                file.err?.close()
+            }
+
         }
     }
 
@@ -291,26 +306,87 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
     ): OpenSession {
-        return OpenSession.Shell(job.job.id, job.rank, "testing")
+        println("OPENSESSIOnHERE $job")
+
+        val sessionId = secureToken(16)
+        ipcClient.sendRequest(SlurmSessionIpc.create, InteractiveSession(sessionId, job.rank, job.job.id))
+
+        return OpenSession.Shell(job.job.id, job.rank, sessionId)
     }
 
     override suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        return request.sessionIdentifier == "testing"
+        println("CANHANDLESESSION")
+        val session:InteractiveSession = ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier) )
+        println("MYSESSIONIS $session")
+        return request.sessionIdentifier == session.token
     }
 
-    override suspend fun ComputePlugin.ShellContext.handleShellSession(cols: Int, rows: Int) {
-        // TODO Start SSH session
+    override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        // DONE Start SSH session
+        //Initialize(sessionIdentifier=testing, cols=94, rows=35)
 
-        while (isActive()) {
+        val session:InteractiveSession = ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier) )
+        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
+        val nodes:Map<Int,String> = SlurmCommandLine.getJobNodeList(slurmJob.slurmId)
+
+
+        val process = startProcess(
+            args = listOf(
+                "/usr/bin/ssh",
+                "-tt",
+                "-oStrictHostKeyChecking=accept-new",
+                "${nodes.get(session.rank)}", 
+                "([ -x /bin/bash ] && exec /bin/bash) || " +
+                "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+                "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+                "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+                "([ -x /bin/fish ] && exec /bin/fish) || " +
+                "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+                "exec /bin/sh"
+            ),
+            envs = listOf("TERM=xterm-256color"),
+            attachStdin = true,
+            attachStdout = true,
+            attachStderr = true,
+            nonBlockingStdout = true,
+            nonBlockingStderr = true
+        )
+
+
+        val pStatus:ProcessStatus = process.retrieveStatus(false)
+
+        //process!!.stdin!!.write(" \n stty cols $cols rows $rows \n ".encodeToByteArray())
+        val buffer = ByteArray(4096)
+
+
+        readloop@ while (  isActive() && pStatus.isRunning ) {
             val userInput = receiveChannel.tryReceive().getOrNull()
             when (userInput) {
                 is ShellRequest.Input -> {
                     // Forward input to SSH session
-                    emitData(userInput.data)
+                    //println("USERINPUT: ${ userInput.data }")
+                    process!!.stdin!!.write(  userInput.data.encodeToByteArray()  )
                 }
 
                 is ShellRequest.Resize -> {
                     // Send resize event to SSH session
+                    println("RESIZE EVENT: ${ userInput } ")
+                    //ps -q 5458 -o tty=
+                     val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
+                        addArg("-q", "${process.pid}")
+                        addArg("-o", "tty=")
+                    }
+
+                    println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
+
+                    //stty rows 50 cols 50 --file /dev/pts/0
+                     val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
+                        addArg("rows", "700")
+                        addArg("cols", "700")
+                        addArg("--file", "/dev/${device.trim()}")
+                    }
+
+
                 }
 
                 else -> {
@@ -326,8 +402,35 @@ class SlurmPlugin : ComputePlugin {
             }
              */
 
+
+            val bytesRead:ReadResult = process.stdout!!.read(buffer)
+            if (bytesRead.isError )  {
+
+                when(bytesRead.getErrorOrThrow()) {
+                    platform.posix.EAGAIN -> {
+                        delay(15)
+                        continue@readloop
+                    }
+                    else -> break@readloop
+                }
+                
+            } 
+
+            if (! bytesRead.isEof) {
+                val decodedString = buffer.decodeToString(0, bytesRead.getOrThrow() )
+                emitData(decodedString)
+            }
+            
             delay(15)
         }
+
+        if (! isActive() ) kill(process.pid, SIGINT) 
+        //TODO: investigate
+        // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
+        // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
+        // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
+
+    
     }
 
     companion object {

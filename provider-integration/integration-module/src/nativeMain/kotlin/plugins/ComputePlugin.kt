@@ -67,7 +67,7 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
         val emitData: (data: String) -> Unit,
     ) : PluginContext by delegate
 
-    suspend fun ShellContext.handleShellSession(cols: Int, rows: Int) {
+    suspend fun ShellContext.handleShellSession(request: ShellRequest.Initialize) {
         // Do nothing
     }
 }

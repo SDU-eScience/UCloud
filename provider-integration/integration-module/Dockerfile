@@ -27,6 +27,7 @@ RUN chown -R ucloud: /var/run/ucloud
 RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
 
 
+
 FROM base AS development
 
 RUN useradd --user-group testuser 
@@ -41,8 +42,13 @@ WORKDIR /opt/ucloud
 FROM development AS ucloud-im
 RUN apt-get -qq -y install munge slurm-client ssh python3
 RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
+
 WORKDIR /opt/ucloud
 
+
+
+
+### SLURM RELATED ###
 FROM giovtorres/slurm-docker-cluster:latest AS slurm-base
 RUN useradd --user-group testuser
 
@@ -67,3 +73,9 @@ RUN cd /etc/ssh && ssh-keygen -A
 COPY default_config/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chown  root:root /usr/local/bin/docker-entrypoint.sh
 RUN chmod 760 /usr/local/bin/docker-entrypoint.sh
+
+COPY default_config/slurm.conf /etc/slurm/slurm.conf
+
+
+FROM slurm-base-ssh as slurm-ssh-openmpi
+RUN yum -y install openmpi-devel Lmod

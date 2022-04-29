@@ -17,6 +17,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlin.random.Random
 import kotlin.random.nextULong
 
+
 class EnvoyConfigurationService(
     private val configDir: String,
 ) {
@@ -154,11 +155,19 @@ static_resources:
         private const val rdsFile = "rds.yaml"
         private const val clustersFile = "clusters.yaml"
         private const val configFile = "config.yaml"
+        private var wsRoutes: MutableList<EnvoyRoute> = mutableListOf()
 
         private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
+
+            //TODO: refactor later, also handle wsRoutes lifecycle
+            wsRoutes.addAll(routes.filter{ r -> r is EnvoyRoute.ShellSession})
+            var allRoutes: MutableList<EnvoyRoute> = mutableListOf()
+            allRoutes.addAll(routes)
+            allRoutes.addAll(wsRoutes)
+
             val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
             NativeFile.open(tempRouteFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes))))
+                defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(allRoutes))))
             )
 
             val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
@@ -168,6 +177,8 @@ static_resources:
 
             renameFile(tempRouteFile, "$configDir/$rdsFile", 0u)
             renameFile(tempClusterFile, "$configDir/$clustersFile", 0u)
+
+            
         }
     }
 }
@@ -183,6 +194,7 @@ data class EnvoyResources<T>(
         append(Random.nextULong().toString(16))
     }
 )
+
 
 sealed class EnvoyRoute {
     abstract val cluster: String
@@ -211,6 +223,7 @@ sealed class EnvoyRoute {
     ) : EnvoyRoute()
 }
 
+
 @Serializable
 class EnvoyRouteConfiguration(
     @SerialName("@type")
@@ -221,6 +234,7 @@ class EnvoyRouteConfiguration(
 ) {
     companion object {
         fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
+
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.

@@ -52,6 +52,11 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfig):
         "${resolvedProduct.memoryInGigs ?: 1}G"
     }
 
+    /*
+     *   https://slurm.schedmd.com/sbatch.html
+     *   %n - Node identifier relative to current job (e.g. "0" is the first node of the running job) This will create a separate IO file per node.
+     */
+
     return buildString {
         appendLine("#!/usr/bin/env bash")
         appendLine("#")
@@ -68,10 +73,11 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfig):
         appendLine("#SBATCH --parsable")
         appendLine("#SBATCH --output=std.out")
         appendLine("#SBATCH --error=std.err")
+        appendLine("#SBATCH --get-user-env")
         appendLine("#")
         appendLine("# POSTFIX END")
         appendLine("#")
-        appendLine(cliInvocation)
+        appendLine("srun --output='std-%n.out' --error='std-%n.err' " + cliInvocation)
         appendLine("#EOF")
     }
 }
