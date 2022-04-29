@@ -11,10 +11,3 @@ data class ProductReferenceWithoutProvider(
         return "$id / $category"
     }
 }
-
-sealed class ConfigurationException(message: String) : RuntimeException(message) {
-    class IsBeingInstalled() : ConfigurationException("UCloud/IM is currently being installed")
-
-    class BadConfiguration(message: String) : ConfigurationException(message)
-}
-

@@ -222,6 +222,13 @@ fun runInstaller(
 
         envoy.start(port)
         server.start()
+    } else {
+        sendTerminalMessage {
+            bold { red { line("No configuration detected!") } }
+            line()
+            line("Development setup not detected - Manual configuration is required!")
+            line("See documentation for more details.")
+        }
     }
 }
 

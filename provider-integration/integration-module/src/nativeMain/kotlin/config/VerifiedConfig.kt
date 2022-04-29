@@ -657,7 +657,7 @@ private fun emitError(result: VerifyResult.Error<*>): Nothing {
 
         if (result.ref?.location?.approximateStart == 0 && result.ref?.location?.approximateEnd == 0) {
             line()
-            line("The above value was computed value/default value. You can try specifying the value explicitly " +
+            line("The above value was a computed value/default value. You can try specifying the value explicitly " +
                 "in the configuration.")
         }
     }
