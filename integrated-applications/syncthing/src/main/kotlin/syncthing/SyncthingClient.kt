@@ -114,9 +114,6 @@ class SyncthingClient(private val apiKey: String) {
         }
     }
 
-    /*
-     *
-     */
     suspend fun configureOptions() {
         val resp = httpClient.put<HttpResponse>(
             deviceEndpoint("/rest/config/options"),
