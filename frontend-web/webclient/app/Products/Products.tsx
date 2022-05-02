@@ -23,8 +23,6 @@ import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
 
-type ProductAreaWithoutSync = "STORAGE" | "COMPUTE" | "INGRESS" | "LICENSE" | "NETWORK_IP";
-
 function Products(): JSX.Element {
     const main = (
         <ContainerForText>
@@ -68,7 +66,7 @@ const DetailedView = styled(Table)`
     }
 `;
 
-const MachineView: React.FunctionComponent<{area: ProductAreaWithoutSync, provider: string}> = ({area, provider}) => {
+const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}> = ({area, provider}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
         UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}),
         emptyPage

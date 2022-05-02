@@ -1,5 +1,6 @@
 package dk.sdu.cloud.syncthing
 
+import kotlin.system.exitProcess
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -101,6 +102,11 @@ class UCloudConfigService(
 
             deviceIdFile.writeText(deviceId)
         }
+
+        val restartFile = File(configFolder, "restart.txt")
+        if (restartFile.exists()) {
+            restartFile.delete()
+        }
     }
 
     /*
@@ -110,26 +116,35 @@ class UCloudConfigService(
     fun start() {
         val ucloudConfigFile = File(configFolder, "ucloud_config.json")
 
-        var nextScan = System.currentTimeMillis()
         while (!requiresRestart) {
-            if (System.currentTimeMillis() > nextScan) {
-                try {
-                    val newConfig = defaultMapper.decodeFromString<UCloudSyncthingConfig>(ucloudConfigFile.readText())
-
-                    val validatedNewConfig = validate(newConfig)
-
-                    if (validatedNewConfig != config) {
-                        log.info("Using new config")
-                        apply(validatedNewConfig)
-                    }
-                } catch (e: Throwable) {
-                    log.debug("Unable to use new config: ${e.message}")
+            try {
+                val restartFile = File(configFolder, "restart.txt")
+                if (restartFile.exists()) {
+                    requiresRestart = true
                 }
-                nextScan = System.currentTimeMillis() + 5000
+            } catch (e: Throwable) {
+                log.debug("Caught exception while monitoring for restart signal: ${e.stackTraceToString()}")
             }
+
+            try {
+                val newConfig = defaultMapper.decodeFromString<UCloudSyncthingConfig>(ucloudConfigFile.readText())
+
+                val validatedNewConfig = validate(newConfig)
+
+                if (validatedNewConfig != config) {
+                    log.info("Using new config")
+                    apply(validatedNewConfig)
+                }
+            } catch (e: Throwable) {
+                log.debug("Unable to use new config: ${e.message}")
+            }
+
+            Thread.sleep(5000)
         }
 
         flushPreviouslyObservedToDisk()
+
+        exitProcess(0)
     }
 
     /*
@@ -199,3 +214,4 @@ class UCloudConfigService(
         val log = LoggerFactory.getLogger("UCloudConfigService")
     }
 }
+

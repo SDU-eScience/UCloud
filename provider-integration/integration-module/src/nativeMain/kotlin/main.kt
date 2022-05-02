@@ -5,19 +5,21 @@ import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.config.loadConfiguration
+import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.http.OutgoingHttpCall
 import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
-import dk.sdu.cloud.plugins.PluginLoader
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
 import dk.sdu.cloud.utils.ProcessWatcher
+import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
@@ -106,7 +108,7 @@ fun main(args: Array<String>) {
 
             // NOTE(Dan): The interrupt handler will attempt to shutdown all relevant children and then proceed to
             // shut itself off.
-            signal(SIGINT, staticCFunction { p ->
+            signal(SIGINT, staticCFunction { _ ->
                 ProcessWatcher.killAll()
                 exitProcess(0)
             })
@@ -123,21 +125,23 @@ fun main(args: Array<String>) {
             // The configuration process will detect if we have not completed the initial setup process. This includes
             // not having any valid API tokens for UCloud/Core. If that is the case, we will run the installer which
             // guides the operator through this initial setup phase.
-            val config = try {
-                IMConfiguration.load(serverMode)
-            } catch (ex: ConfigurationException.IsBeingInstalled) {
-                if (getuid() == 0U) {
-                    throw IllegalStateException(
-                        "Refusing to start as root. The integration module needs to be " +
-                            "started as a dedicated 'ucloud' (service) user."
-                    )
+            val config = run {
+                val schema = loadConfiguration()
+
+                val runInstaller = with(schema) {
+                    core == null &&
+                        server == null &&
+                        plugins == null &&
+                        products == null &&
+                        frontendProxy == null
                 }
 
-                runInstaller(ex.core, ex.server, ownExecutable)
-                exitProcess(0)
-            } catch (ex: ConfigurationException.BadConfiguration) {
-                println(ex.message)
-                exitProcess(1)
+                if (runInstaller) {
+                    runInstaller(ownExecutable)
+                    exitProcess(0)
+                }
+
+                verifyConfiguration(serverMode, schema)
             }
 
             run {
@@ -147,20 +151,6 @@ fun main(args: Array<String>) {
                 when (serverMode) {
                     ServerMode.FrontendProxy -> {
                         if (uid == 0U) throw IllegalStateException("Refusing the start the frontend proxy as root")
-
-                        if (config.server != null) {
-                            throw IllegalStateException(
-                                "Misconfiguration of file permissions! The frontend proxy should " +
-                                    "not be able to read server.json"
-                            )
-                        }
-
-                        if (config.frontendProxy == null) {
-                            throw IllegalStateException(
-                                "Misconfiguration of file permissions! The frontend proxy should " +
-                                    "be able to read frontend_proxy.json"
-                            )
-                        }
                     }
 
                     is ServerMode.Plugin -> {
@@ -173,19 +163,6 @@ fun main(args: Array<String>) {
 
                     ServerMode.User -> {
                         if (uid == 0U) throw IllegalStateException("Refusing the start a user instance as root")
-
-                        if (config.server != null) {
-                            throw IllegalStateException(
-                                "Misconfiguration of file permissions. A user should not be able " +
-                                    "to read server.json"
-                            )
-                        }
-                        if (config.frontendProxy != null) {
-                            throw IllegalStateException(
-                                "Misconfiguration of file permissions. A user should not be able " +
-                                    "to read frontend_proxy.json"
-                            )
-                        }
                     }
                 }
             }
@@ -203,8 +180,8 @@ fun main(args: Array<String>) {
 
             // Database services
             // -------------------------------------------------------------------------------------------------------
-            if (config.server != null && serverMode == ServerMode.Server) {
-                databaseConfig.getAndSet(config.server.dbFile)
+            if (config.serverOrNull != null && serverMode == ServerMode.Server) {
+                databaseConfig.getAndSet(config.server.database.file)
 
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
@@ -218,7 +195,7 @@ fun main(args: Array<String>) {
 
             // Inter Process Communication Client (IPC)
             // -------------------------------------------------------------------------------------------------------
-            val ipcSocketDirectory = config.core.ipcDirectory ?: config.configLocation
+            val ipcSocketDirectory = config.core.ipc.directory
             val ipcClient = when (serverMode) {
                 ServerMode.Server, ServerMode.FrontendProxy -> null
                 else -> IpcClient(ipcSocketDirectory)
@@ -231,8 +208,13 @@ fun main(args: Array<String>) {
             // NOTE(Dan): The JWT validation is responsible for validating all communication we receive from
             // UCloud/Core. This service is constructed fairly early, since both the RPC client and RPC server
             // requires this.
-            val validation = NativeJWTValidation(config.core.certificate ?: error("Missing certificate"))
-            loadMiddleware(config, validation)
+            val validation = if (serverMode == ServerMode.Server) {
+                val validation = NativeJWTValidation(config.server.certificate)
+                loadMiddleware(config, validation)
+                validation
+            } else {
+                null
+            }
 
             // Remote Procedure Calls (RPC)
             // -------------------------------------------------------------------------------------------------------
@@ -250,16 +232,15 @@ fun main(args: Array<String>) {
             val rpcClient: AuthenticatedClient? = run {
                 when (serverMode) {
                     ServerMode.Server -> {
-                        val serverConfig = config.server ?: error("Could not find server configuration")
                         val client = RpcClient().also { client ->
                             OutgoingHttpRequestInterceptor()
                                 .install(
                                     client,
                                     FixedOutgoingHostResolver(
                                         HostInfo(
-                                            serverConfig.ucloud.host,
-                                            serverConfig.ucloud.scheme,
-                                            serverConfig.ucloud.port
+                                            config.core.hosts.ucloud.host,
+                                            config.core.hosts.ucloud.scheme,
+                                            config.core.hosts.ucloud.port
                                         )
                                     )
                                 )
@@ -267,9 +248,9 @@ fun main(args: Array<String>) {
 
                         val authenticator = RefreshingJWTAuthenticator(
                             client,
-                            JwtRefresher.Provider(serverConfig.refreshToken, OutgoingHttpCall),
+                            JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
                             becomesInvalidSoon = { accessToken ->
-                                val expiresAt = validation.validateOrNull(accessToken)?.expiresAt
+                                val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt
                                 (expiresAt ?: return@RefreshingJWTAuthenticator true) +
                                     (1000 * 120) >= Time.now()
                             }
@@ -285,16 +266,16 @@ fun main(args: Array<String>) {
                     }
 
                     ServerMode.FrontendProxy -> {
-                        val cfg = config.frontendProxy ?: error("Could not find frontend proxy configuration")
+                        val cfg = config.frontendProxy
                         val client = RpcClient().also { client ->
                             OutgoingHttpRequestInterceptor()
                                 .install(
                                     client,
                                     FixedOutgoingHostResolver(
                                         HostInfo(
-                                            cfg.remoteHost,
-                                            cfg.remoteScheme,
-                                            cfg.remotePort
+                                            cfg.remote.host,
+                                            cfg.remote.scheme,
+                                            cfg.remote.port
                                         )
                                     )
                                 )
@@ -314,7 +295,7 @@ fun main(args: Array<String>) {
             val ipcServer = when (serverMode) {
                 ServerMode.Server, ServerMode.FrontendProxy -> IpcServer(
                     ipcSocketDirectory,
-                    config.frontendProxy ?: error("Could not find frontend proxy configuration"),
+                    config.frontendProxyOrNull,
                     rpcClient!!,
                     rpcServer
                 )
@@ -344,10 +325,21 @@ fun main(args: Array<String>) {
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
-            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, null)
-            val plugins = PluginLoader(pluginContext).load()
-            pluginContext.loadedPlugins = plugins
-            val controllerContext = ControllerContext(ownExecutable, config, pluginContext, plugins)
+            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli)
+            val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
+
+            if (config.pluginsOrNull != null) {
+                val plugins = config.plugins
+                with(pluginContext) {
+                    // NOTE(Dan): Initialization order is important. Do not change it without a good reason.
+
+                    plugins.connection?.apply { initialize() }
+                    plugins.projects?.apply { initialize() }
+                    for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.files) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
+                }
+            }
 
             // 4. Transferring control to services:
             // =======================================================================================================
@@ -359,11 +351,13 @@ fun main(args: Array<String>) {
             if (ipcServer != null && rpcClient != null) ProcessingScope.launch { ipcServer.runServer() }
             ipcClient?.connect()
             ipcPingPong.start() // Depends on ipcClient being initialized first
-            envoyConfig?.start(config.server?.port)
+            envoyConfig?.start(config.serverOrNull?.network?.listenPort)
             processWatcher?.initialize()
 
-            if (config.serverMode == ServerMode.Server || config.serverMode == ServerMode.User) {
-                plugins.compute?.plugins?.values?.forEach { plugin ->
+            if (config.pluginsOrNull != null) {
+                val plugins = config.plugins
+
+                for ((_, plugin) in plugins.jobs) {
                     ProcessingScope.launch {
                         with(pluginContext) {
                             with(plugin) {

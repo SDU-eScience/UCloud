@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.orchestrator.services
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.app.orchestrator.api.ExportedParameters
-import dk.sdu.cloud.app.orchestrator.api.ExportedParametersRequest
-import dk.sdu.cloud.app.orchestrator.api.JobSpecification
-import dk.sdu.cloud.app.store.api.NameAndVersion
-import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
@@ -24,6 +24,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 
 class ParameterExportService(
     private val db: DBContext,
+    private val ingresses: IngressService,
 ) {
     private val productCache = SimpleCache<ProductReference, Product.Compute>(
         maxAge = 60_000 * 15L,
@@ -73,6 +74,38 @@ class ParameterExportService(
                 } ?: emptyList(),
                 parameters.timeAllocation
             ),
+            ExportedParameters.Resources(
+                ingress = runCatching {
+                    val result = HashMap<String, Ingress>()
+                    val allIngress = ArrayList<String>()
+
+                    for (param in (parameters.parameters ?: emptyMap()).values) {
+                        if (param !is AppParameterValue.Ingress) continue
+                        allIngress.add(param.id)
+                    }
+
+                    for (param in (parameters.resources ?: emptyList())) {
+                        if (param !is AppParameterValue.Ingress) continue
+                        allIngress.add(param.id)
+                    }
+
+                    val resolvedIngress = ingresses.retrieveBulk(
+                        // NOTE(Dan): Permissions have already been checked by the verification service. Skip the
+                        // check for performance reasons.
+                        ActorAndProject(Actor.System, null),
+                        allIngress,
+                        setOf(Permission.READ),
+                        requireAll = false,
+                        useProject = false,
+                    )
+
+                    for (ingress in resolvedIngress) {
+                        result[ingress.id] = ingress
+                    }
+
+                    result
+                }.getOrNull() ?: emptyMap()
+            ),
             JsonObject(mapOf(
                 "cpu" to JsonPrimitive(resolvedProduct.cpu ?: 1),
                 "memoryInGigs" to JsonPrimitive(resolvedProduct.memoryInGigs ?: 1),
@@ -85,3 +118,4 @@ class ParameterExportService(
         const val VERSION = 3
     }
 }
+

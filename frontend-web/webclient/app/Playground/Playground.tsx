@@ -43,13 +43,13 @@ export const ProjectPlayground: React.FunctionComponent = () => {
     const projectId = useProjectId();
     const [project, fetchProject] = useCloudAPI<Project | null>({noop: true}, null);
     useEffect(() => {
-        fetchProject(ProjectApi.retrieve({id: projectId, includeMembers: true, includeGroups: true, includeFavorite: true}));
+        fetchProject(ProjectApi.retrieve({id: projectId ?? "", includeMembers: true, includeGroups: true, includeFavorite: true}));
     }, [projectId]);
 
     if (project.data) {
         return <>Title: {project.data.specification.title}</>;
     } else {
-        return "Project is still loading...";
+        return <>Project is still loading...</>;
     }
 }
 

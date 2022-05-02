@@ -34,7 +34,7 @@ object SharedMemoryPlugin : JobManagementPlugin {
             (spec.volumes?.toMutableList() ?: ArrayList()).let { volumes ->
                 volumes.add(
                     Volume(
-                        name = "shm",
+                        name = SHARED_MEMORY_VOLUME,
                         emptyDir = Volume.EmptyDirVolumeSource(
                             medium = "Memory",
                             sizeLimit = "${sizeInGigs}Gi"
@@ -45,4 +45,6 @@ object SharedMemoryPlugin : JobManagementPlugin {
             }
         }
     }
+
+    const val SHARED_MEMORY_VOLUME = "shm"
 }

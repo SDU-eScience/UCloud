@@ -64,9 +64,10 @@ class ConnectionController(
 
     override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        val config = controllerContext.configuration
 
-        val providerId = controllerContext.configuration.core.providerId
-        val plugin = controllerContext.plugins.connection ?: return
+        val providerId = config.core.providerId
+        val plugin = config.plugins.connection ?: return
         val pluginContext = controllerContext.pluginContext
 
         with(pluginContext) {
@@ -166,12 +167,13 @@ class ConnectionController(
 
                 // Allocate a port, if the IM/User does not have a static port allocated.
                 // Static ports are used only for development purposes.
-                val devInstance = controllerContext.configuration.core.developmentInstance
+                val devInstances = config.server.developmentMode.predefinedUserInstances
+                val devInstance = devInstances.find { it.username == request.username }
                 val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
 
                 // Launch the IM/User instance
-                if (devInstance?.userId != uid) {
-                    val logFilePath = controllerContext.configuration.core.logDirectory!! + "/user_${uid}.log"
+                if (devInstance == null) {
+                    val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
                     val uimPid = startProcess(
                         listOf(
                             "/usr/bin/sudo",
@@ -322,11 +324,10 @@ object UserMapping {
         }
 
         with(pluginContext) {
-            if (loadedPlugins != null) {
-                with(loadedPlugins?.projects) {
-                    if (this != null) {
-                        runBlocking { onUserMappingInserted(ucloudId, localId) }
-                    }
+            val projectPlugin = config.plugins.projects
+            if (projectPlugin != null) {
+                with(projectPlugin) {
+                    runBlocking { onUserMappingInserted(ucloudId, localId) }
                 }
             }
         }

@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -28,34 +29,19 @@ import platform.posix.sleep
 import platform.posix.usleep
 import kotlin.native.concurrent.AtomicReference
 
-@Serializable
-data class SlurmConfiguration(
-    val partition: String,
-    val mountpoint: String,
-    val useFakeMemoryAllocations: Boolean = false
-)
-
 class SlurmPlugin : ComputePlugin {
-    private val pluginConfig = AtomicReference<ProductBasedConfiguration?>(null)
+    override var pluginName: String = "Unknown"
+    override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
+    private lateinit var pluginConfig: SlurmConfig
 
-    private fun config(product: ProductReference): SlurmConfiguration {
-        val globalConfig = pluginConfig.value ?: error("Configuration not yet ready!")
-        val ref = ProductReferenceWithoutProvider(product.id, product.category)
-        val relevantConfig = globalConfig.plugins.find { config -> config.activeFor.any { it.matches(ref) } }
-            ?.configuration ?: error("No configuration found for product: $ref")
+    private fun config(product: ProductReference): SlurmConfig = pluginConfig
+    private fun config(job: Job): SlurmConfig = pluginConfig
 
-        return try {
-            defaultMapper.decodeFromJsonElement(relevantConfig)
-        } catch (ex: Throwable) {
-            throw IllegalStateException("Invalid Slurm configuration found for $ref", ex)
-        }
+    override fun configure(config: ConfigSchema.Plugins.Jobs) {
+        this.pluginConfig = config as SlurmConfig
     }
 
-    private fun config(job: Job): SlurmConfiguration = config(job.specification.product)
-
-    override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
-        this@SlurmPlugin.pluginConfig.value = pluginConfig
-
+    override suspend fun PluginContext.initialize() {
         if (config.serverMode == ServerMode.Server) {
             for (handler in SlurmJobsIpcServer.handlers) {
                 ipcServer.addHandler(handler)

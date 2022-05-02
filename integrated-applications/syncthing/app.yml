@@ -1,0 +1,40 @@
+application: v1
+
+title: Syncthing
+name: syncthing
+version: 1
+
+applicationType: WEB
+
+web:
+  port: 8384
+
+allowMultiNode: false
+
+tool:
+  name: syncthing
+  version: 1
+
+authors:
+- Dan
+
+container:
+  runAsRoot: true
+ 
+description: An application for synchronizing your files between your devices and UCloud. Powered by Syncthing.
+
+parameters:
+  stateFolder:
+    optional: false
+    title: "Folder to store state in"
+    description: "This is where Syncthing will store its configuration and additional data"
+    type: input_directory
+
+invocation:
+- /init
+- type: var
+  vars: stateFolder
+
+outputFileGlobs:
+  - "*"
+

@@ -75,6 +75,8 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
 
     onResourcesLoaded?: (newItems: Res[]) => void;
     shouldFetch?: () => boolean;
+
+    extraSidebar?: JSX.Element;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {
@@ -334,7 +336,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             props.inlineSuffix(selectedProductWithSupport) : null}
                     />;
             } else {
-                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} /> : null;
+                return NormalMainTitle ? <NormalMainTitle browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null;
             }
         };
         renderer.Stats = props.withDefaultStats !== false ? ({resource}) => (<>
@@ -375,7 +377,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             <ListRowStat>{resource.permissions.others.length == 1 ? "" : resource.permissions.others.length - 1} {resource.permissions.others.length > 2 ? "groups" : "group"}</ListRowStat>
                 }
             </>}
-            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} /> : null}
+            {RemainingStats ? <RemainingStats browseType={props.browseType} resource={resource} callbacks={callbacks} /> : null}
         </>) : renderer.Stats;
         return renderer;
     }, [api, props.withDefaultStats, props.inlinePrefix, props.inlineSuffix, products, onProductSelected,
@@ -533,20 +535,23 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
             header={props.header}
             headerSize={props.headerSize}
             main={main}
-            sidebar={
-                inlineInspecting ? null :
+            sidebar={<Flex flexDirection={"column"} height={"100%"} pb={"16px"}>
+                {inlineInspecting ? null :
                     <>
                         <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                            entityNameSingular={api.title} entityNamePlural={api.titlePlural}
-                            extra={callbacks} operations={operations} />
+                                    entityNameSingular={api.title} entityNamePlural={api.titlePlural}
+                                    extra={callbacks} operations={operations}/>
 
                         <ResourceFilter pills={allPills} filterWidgets={api.filterWidgets}
-                            sortEntries={api.sortEntries} sortDirection={sortDirection}
-                            onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
-                            browseType={props.browseType}
-                            readOnlyProperties={props.additionalFilters} />
+                                        sortEntries={api.sortEntries} sortDirection={sortDirection}
+                                        onSortUpdated={onSortUpdated} properties={filters} setProperties={setFilters}
+                                        browseType={props.browseType}
+                                        readOnlyProperties={props.additionalFilters}/>
                     </>
-            }
+                }
+
+                {!props.extraSidebar ? null : props.extraSidebar}
+            </Flex>}
         />
     }
 }

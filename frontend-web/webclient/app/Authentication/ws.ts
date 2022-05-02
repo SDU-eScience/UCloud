@@ -143,7 +143,9 @@ export class WebSocketConnection {
                     e({type: "response", status: 503, streamId: "unknown"});
                 });
                 this.handlers.clear();
-                this.resetSocket(socketFactory);
+                setTimeout(() => {
+                    this.resetSocket(socketFactory);
+                }, 500);
             } else {
                 this.close();
             }

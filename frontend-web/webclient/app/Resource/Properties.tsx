@@ -276,7 +276,7 @@ export function ResourceProperties<Res extends Resource>(
             <div className={`logo-wrapper`}>
                 <div className="logo-scale">
                     <div className={"logo"}>
-                        {!renderer.Icon ? null : <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} />}
+                        {!renderer.Icon ? null : <renderer.Icon browseType={BrowseType.MainContent} resource={resource} size={"200px"} callbacks={{}} />}
                     </div>
                 </div>
             </div>
@@ -289,7 +289,7 @@ export function ResourceProperties<Res extends Resource>(
                         <div>
                             <Heading.h2>
                                 {!renderer.MainTitle ? null : <>
-                                    <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} />
+                                    <renderer.MainTitle browseType={BrowseType.MainContent} resource={resource} callbacks={{}} />
                                 </>}
                             </Heading.h2>
                             <Heading.h3>{props.api.title}</Heading.h3>

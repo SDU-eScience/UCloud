@@ -1,6 +1,6 @@
 import {IconName} from "@/ui-components/Icon";
 import {Box, Button, Divider, Flex, Icon, OutlineButton, Tooltip} from "@/ui-components/index";
-import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useMemo, useRef, useState} from "react";
+import {EventHandler, MouseEvent, PropsWithChildren, useCallback, useRef, useState} from "react";
 import * as React from "react";
 import styled, {StyledComponent} from "styled-components";
 import {TextSpan} from "@/ui-components/Text";
@@ -27,7 +27,7 @@ export type OperationLocation = "SIDEBAR" | "IN_ROW" | "TOPBAR";
 export type OperationEnabled = boolean | string;
 
 export interface Operation<T, R = undefined> {
-    text: string;
+    text: string | ((selected: T[], extra: R) => string);
     onClick: (selected: T[], extra: R, all?: T[]) => void;
     enabled: (selected: T[], extra: R, all?: T[]) => OperationEnabled;
     icon?: IconName;
@@ -70,7 +70,8 @@ const OperationComponent: React.FunctionComponent<{
     reasonDisabled?: string;
     location: OperationLocation;
     onAction: () => void;
-}> = ({As, op, selected, all, extra, reasonDisabled, location, onAction}) => {
+    text: string;
+}> = ({As, op, selected, all, extra, reasonDisabled, location, onAction, text}) => {
     const onClick = useCallback((e?: React.SyntheticEvent) => {
         if (op.primary === true) e?.stopPropagation();
         if (reasonDisabled !== undefined) return;
@@ -84,7 +85,7 @@ const OperationComponent: React.FunctionComponent<{
     if (As === ConfirmationButton) {
         extraProps["onAction"] = onClick;
         extraProps["asSquare"] = !op.primary || location === "SIDEBAR";
-        extraProps["actionText"] = op.text;
+        extraProps["actionText"] = text;
         extraProps["hoverColor"] = op.hoverColor;
         if (op.primary && location === "IN_ROW") {
             extraProps["align"] = "center";
@@ -103,7 +104,7 @@ const OperationComponent: React.FunctionComponent<{
         color={reasonDisabled === undefined ? op.color : "gray"}
         alignItems="center"
         onClick={onClick}
-        data-tag={`${op.text.replace(/\./g, "").replace(/ /g, "_")}-action`}
+        data-tag={`${text.replace(/\./g, "").replace(/ /g, "_")}-action`}
         disabled={reasonDisabled !== undefined}
         fullWidth={!op.primary || location !== "TOPBAR"}
         height={"38px"}
@@ -112,7 +113,7 @@ const OperationComponent: React.FunctionComponent<{
     >
         {As === ConfirmationButton ? null : <>
             {op.icon ? <Icon size={20} mr="1em" name={op.icon} rotation={op.iconRotation} /> : null}
-            <span>{op.text}</span>
+            <span>{text}</span>
         </>}
     </As>;
 
@@ -180,12 +181,13 @@ export const Operations: OperationsType = props => {
             }
             if (enabled === false) return null;
 
+            const text = typeof op.text === "string" ? op.text : op.text(selected, props.extra);
             const opTypeFn = op.operationType ?? ((a, b) => defaultOperationType(a, b, op));
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const As = opTypeFn(props.location, props.operations) as StyledComponent<any, any>;
-            const elem = <OperationComponent key={op.text} As={As} op={op} extra={props.extra} selected={selected}
+            const elem = <OperationComponent key={text} As={As} op={op} extra={props.extra} selected={selected}
                 reasonDisabled={reasonDisabled} location={props.location} all={props.all}
-                onAction={closeDropdown} />;
+                onAction={closeDropdown} text={text} />;
             const priority = As === OutlineButton ? 0 : As === Button ? 0 : As === Box ? 2 : 2;
             return {elem, priority, primary: op.primary === true};
         })

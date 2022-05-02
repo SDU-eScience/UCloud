@@ -64,9 +64,19 @@ data class JobsProviderExtendRequestItem(
     val requestedTime: SimpleDuration,
 )
 
+@Serializable
+data class JobsProviderSuspendRequestItem(
+    val job: Job,
+) 
 typealias JobsProviderSuspendRequest = BulkRequest<JobsProviderSuspendRequestItem>
-typealias JobsProviderSuspendResponse = Unit
-typealias JobsProviderSuspendRequestItem = Job
+typealias JobsProviderSuspendResponse = BulkResponse<Unit?>
+
+@Serializable
+data class JobsProviderUnsuspendRequestItem(
+    val job: Job,
+)
+typealias JobsProviderUnsuspendRequest = BulkRequest<JobsProviderUnsuspendRequestItem>
+typealias JobsProviderUnsuspendResponse = BulkResponse<Unit?>
 
 @Serializable
 @UCloudApiDoc("A request to start/stop a follow session")
@@ -850,6 +860,21 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         documentation {
             providerDescription(
                 Jobs.suspend,
+                ProviderApiRequirements.List(
+                    listOf(
+                        "[`virtualMachine.suspension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"
+                    )
+                )
+            )
+        }
+    }
+
+    val unsuspend = call<JobsProviderUnsuspendRequest, JobsProviderUnsuspendResponse, CommonErrorMessage>("unsuspend") {
+        httpUpdate(baseContext, "unsuspend", roles = Roles.PRIVILEGED)
+
+        documentation {
+            providerDescription(
+                Jobs.unsuspend,
                 ProviderApiRequirements.List(
                     listOf(
                         "[`virtualMachine.suspension = true`]($TYPE_REF_LINK ComputeSupport.VirtualMachine)"

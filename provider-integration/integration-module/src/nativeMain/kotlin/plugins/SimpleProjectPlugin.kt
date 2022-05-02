@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
@@ -13,32 +14,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 
-@Serializable
-data class SimpleProjectPluginConfiguration(
-    val groupNamespaceId: Int,
-    val extensions: Extensions = Extensions()
-) {
-    @Serializable
-    data class Extensions(
-        val projectRenamed: String? = null,
-
-        val membersAddedToProject: String? = null,
-        val membersRemovedFromProject: String? = null,
-
-        val membersRemovedFromGroup: String? = null,
-        val membersAddedToGroup: String? = null,
-
-        val projectArchived: String? = null,
-        val projectUnarchived: String? = null,
-
-        val roleChanged: String? = null,
-
-        val groupCreated: String? = null,
-        val groupRenamed: String? = null,
-        val groupDeleted: String? = null,
-    )
-}
-
 // NOTE(Dan, Brian): This plugin is responsible for taking the raw updates, coming in from UCloud/Core, and
 // translating them into a diff. This diff is then passed on to operator defined extensions which are responsible
 // for acting on these changes. These extensions are defined in the configuration (see above). In practice, this means
@@ -48,12 +23,12 @@ data class SimpleProjectPluginConfiguration(
 // This plugin is also responsible for allocating unique group IDs, which are suitable for use as UNIX group IDs. The
 // extensions are not required to use the allocated group IDs, but they may choose to use them if they wish.
 class SimpleProjectPlugin : ProjectPlugin {
-    private lateinit var pluginConfig: SimpleProjectPluginConfiguration
+    private lateinit var pluginConfig: SimpleProjectConfiguration
     private lateinit var extensions: Extensions
 
-    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
-        this@SimpleProjectPlugin.pluginConfig = defaultMapper.decodeFromJsonElement(pluginConfig)
-        this@SimpleProjectPlugin.extensions = Extensions(this@SimpleProjectPlugin.pluginConfig)
+    override fun configure(config: ConfigSchema.Plugins.Projects) {
+        this.pluginConfig = config as SimpleProjectConfiguration
+        this.extensions = Extensions(this.pluginConfig)
     }
 
     // NOTE(Dan): Invoked whenever an update arrives from UCloud/Core. The update simply contains the new state of a
@@ -279,7 +254,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 }
             )
 
-            if (result != null) return@withSession result!! + pluginConfig.groupNamespaceId
+            if (result != null) return@withSession result!! + pluginConfig.unixGroupNamespace
 
             session.prepareStatement(
                 """
@@ -295,7 +270,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             )
 
             check(result != null) { "Unable to allocate group ID! This should not happen." }
-            return@withSession result!! + pluginConfig.groupNamespaceId
+            return@withSession result!! + pluginConfig.unixGroupNamespace
         }
     }
 
@@ -591,25 +566,25 @@ class SimpleProjectPlugin : ProjectPlugin {
     // NOTE(Dan): Right now we need to use the ProjectDiff serializer in the extension rather than the more specific
     // type they will actually receive. This is simply to make sure that the "type" property is actually added by
     // `kotlinx.serialization`.
-    private class Extensions(pluginConfig: SimpleProjectPluginConfiguration) {
+    private class Extensions(pluginConfig: SimpleProjectConfiguration) {
         private val e = pluginConfig.extensions
 
-        val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.projectRenamed)
+        val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectRenamed)
 
-        val membersAddedToProject = optionalExtension<ProjectDiff, Unit>(e.membersAddedToProject)
-        val membersRemovedFromProject = optionalExtension<ProjectDiff, Unit>(e.membersRemovedFromProject)
+        val membersAddedToProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToProject)
+        val membersRemovedFromProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromProject)
 
-        val membersRemovedFromGroup = optionalExtension<ProjectDiff, Unit>(e.membersRemovedFromGroup)
-        val membersAddedToGroup = optionalExtension<ProjectDiff, Unit>(e.membersAddedToGroup)
+        val membersRemovedFromGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromGroup)
+        val membersAddedToGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToGroup)
 
-        val projectArchived = optionalExtension<ProjectDiff, Unit>(e.projectArchived)
-        val projectUnarchived = optionalExtension<ProjectDiff, Unit>(e.projectUnarchived)
+        val projectArchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectArchived)
+        val projectUnarchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectUnarchived)
 
-        val roleChanged = optionalExtension<ProjectDiff, Unit>(e.roleChanged)
+        val roleChanged = optionalExtension<ProjectDiff, Unit>(e.all ?: e.roleChanged)
 
-        val groupCreated = optionalExtension<ProjectDiff, Unit>(e.groupCreated)
-        val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.groupRenamed)
-        val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.groupDeleted)
+        val groupCreated = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupCreated)
+        val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupRenamed)
+        val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupDeleted)
     }
 
     companion object : Loggable {

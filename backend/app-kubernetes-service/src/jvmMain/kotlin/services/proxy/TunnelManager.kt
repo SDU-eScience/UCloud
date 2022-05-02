@@ -117,7 +117,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                         podName,
                         "$localPortSuggestion:$remotePort"
                     )
-                    log.debug("Running command: $cmd")
+                    log.trace("Running command: $cmd")
                     command(cmd)
                 }.start()
             }
@@ -134,7 +134,7 @@ class TunnelManager(private val k8: K8Dependencies) {
                 }
             }
 
-            log.info("Port forwarding $jobId to $localPortSuggestion")
+            log.trace("Port forwarding $jobId to $localPortSuggestion")
             return Tunnel(
                 jobId = jobId,
                 ipAddress = "127.0.0.1",
@@ -151,7 +151,7 @@ class TunnelManager(private val k8: K8Dependencies) {
         } else {
             val ipAddress =
                 pod.status?.podIP ?: throw RPCException("Application not found", HttpStatusCode.NotFound)
-            log.debug("Running inside of kubernetes going directly to pod at $ipAddress")
+            log.trace("Running inside of kubernetes going directly to pod at $ipAddress")
             return Tunnel(
                 jobId = jobId,
                 ipAddress = ipAddress,

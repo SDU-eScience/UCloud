@@ -30,14 +30,18 @@ class ProjectController(
 
         // NOTE(Dan): We will immediately trigger a pullAndNotify to retrieve anything we might have in the backlog
         runBlocking {
-            pullAndNotify()
+            try {
+                pullAndNotify()
+            } catch (ex: Throwable) {
+                // Ignored
+            }
         }
     }
 
     private suspend fun pullAndNotify() {
         // NOTE(Dan): If we don't have a project plugin, then let's just assume that we don't care about
         // projects in our system.
-        val projectPlugin = controllerContext.plugins.projects ?: return
+        val projectPlugin = controllerContext.configuration.plugins.projects ?: return
 
         // NOTE(Dan): Fetch another batch of notifications from the server
         val batch = ProjectNotifications.retrieve.call(

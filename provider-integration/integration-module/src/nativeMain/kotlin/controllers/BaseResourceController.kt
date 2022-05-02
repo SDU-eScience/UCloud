@@ -1,6 +1,5 @@
 package dk.sdu.cloud.controllers
 
-import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
@@ -13,7 +12,6 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import kotlinx.coroutines.runBlocking
@@ -22,15 +20,25 @@ abstract class BaseResourceController<
     P : Product,
     Sup : ProductSupport,
     Res : Resource<P, Sup>,
-    Plugin : ResourcePlugin<P, Sup, Res, ProductBasedConfiguration>,
+    Plugin : ResourcePlugin<P, Sup, Res, *>,
     Api : ResourceProviderApi<Res, *, *, *, *, P, Sup>>(
     protected val controllerContext: ControllerContext,
 ) : Controller {
-    protected abstract fun retrievePlugins(): ProductBasedPlugins<Plugin>?
+    protected abstract fun retrievePlugins(): Collection<Plugin>?
     protected abstract fun retrieveApi(providerId: String): Api
 
+    protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
+        return retrievePlugins()?.find { plugin ->
+            plugin.productAllocation.any { it.id == product.id && it.category == product.category }
+        } 
+    }
+
+    protected fun lookupPlugin(product: ProductReference): Plugin {
+        return lookupPluginOrNull(product) ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+    }
+
     protected fun <Request : Any, Response> dispatchToPlugin(
-        plugins: ProductBasedPlugins<Plugin>,
+        plugins: Collection<Plugin>,
         items: List<Request>,
         selector: (Request) -> Res,
         dispatcher: suspend PluginContext.(plugin: Plugin, request: BulkRequest<Request>) -> BulkResponse<Response>
@@ -54,14 +62,15 @@ abstract class BaseResourceController<
     protected data class ReorderedItem<T>(val originalIndex: Int, val item: T)
 
     protected fun <T> groupResources(
-        plugins: ProductBasedPlugins<Plugin>,
+        plugins: Collection<Plugin>,
         items: List<T>,
         selector: (T) -> Res,
     ): Map<Plugin, List<ReorderedItem<T>>> {
         val result = HashMap<Plugin, ArrayList<ReorderedItem<T>>>()
         for ((index, item) in items.withIndex()) {
             val job = selector(item)
-            val plugin = plugins.lookup(job.specification.product)
+            val product = job.specification.product
+            val plugin = lookupPluginOrNull(product) ?: continue
             val existing = result[plugin] ?: ArrayList()
             existing.add(ReorderedItem(index, item))
             result[plugin] = existing
@@ -69,7 +78,7 @@ abstract class BaseResourceController<
         return result
     }
 
-    protected abstract fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<Plugin>, api: Api)
+    protected abstract fun RpcServer.configureCustomEndpoints(plugins: Collection<Plugin>, api: Api)
 
     override fun RpcServer.configure() {
         val plugins = retrievePlugins()
@@ -95,18 +104,17 @@ abstract class BaseResourceController<
             runBlocking {
                 OutgoingCallResponse.Ok(
                     BulkResponse(
-                        plugins.allProducts
-                            .map { it to plugins.lookup(it) }
-                            .groupBy { it.second }
-                            .flatMap { (plugin, products) ->
+                        plugins
+                            .flatMap { plugin ->
+                                val products = plugin.productAllocation
                                 with(controllerContext.pluginContext) {
                                     with(plugin) {
                                         val providerId = controllerContext.configuration.core.providerId
                                         retrieveProducts(
-                                            products.map {
+                                            products.map { product ->
                                                 ProductReference(
-                                                    it.first.id,
-                                                    it.first.category,
+                                                    product.id,
+                                                    product.category,
                                                     providerId
                                                 )
                                             }
@@ -145,7 +153,7 @@ abstract class BaseResourceController<
 
         implement(api.init) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            plugins.plugins.forEach { (_, plugin) ->
+            plugins.forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         init(request.principal)
@@ -159,3 +167,4 @@ abstract class BaseResourceController<
         configureCustomEndpoints(plugins, api)
     }
 }
+

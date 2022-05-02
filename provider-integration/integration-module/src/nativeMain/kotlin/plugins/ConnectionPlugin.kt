@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.http.RpcServer
@@ -39,7 +40,7 @@ value class HTML(val html: String) {
     }
 }
 
-interface ConnectionPlugin : Plugin<JsonObject> {
+interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
     fun PluginContext.initiateConnection(username: String): ConnectionResponse
 
     fun PluginContext.initializeRpcServer(server: RpcServer) {

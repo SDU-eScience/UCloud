@@ -21,6 +21,7 @@ export const HighlightedCard: React.FunctionComponent<{
     minWidth?: string;
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
+    className?: string;
 }> = ({
     title,
     subtitle,
@@ -34,7 +35,8 @@ export const HighlightedCard: React.FunctionComponent<{
     minHeight,
     width = "100%",
     minWidth,
-    onContextMenu
+    onContextMenu,
+    className
 }) => (
         <Card
             onClick={onClick}
@@ -47,6 +49,7 @@ export const HighlightedCard: React.FunctionComponent<{
             borderRadius={6}
             minHeight={minHeight}
             onContextMenu={onContextMenu}
+            className={className}
         >
             <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
             <Box px={3} py={1} height={"calc(100% - 5px)"}>

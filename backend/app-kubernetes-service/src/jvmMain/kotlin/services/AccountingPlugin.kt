@@ -15,6 +15,7 @@ import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.deleteResource
 import dk.sdu.cloud.service.k8.patchResource
 import io.ktor.http.*
+import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -24,9 +25,10 @@ import kotlinx.serialization.json.jsonPrimitive
 object AccountingPlugin : JobManagementPlugin, Loggable {
     override val log = logger()
     const val LAST_PERFORMED_AT_ANNOTATION = "ucloud.dk/lastAccountingTs"
+    const val TIME_BETWEEN_ACCOUNTING = 1000L * 60 * 15
 
     override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
-        log.info("Accounting because job has completed!")
+        log.trace("Accounting because job has completed!")
         val now = Time.now()
         val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt ?: run {
             log.warn("Found no last accounting timestamp for job with id $jobId")
@@ -48,11 +50,11 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
             val name = jobFromServer.metadata?.name ?: continue
             val lastTs = jobFromServer.lastAccountingTs ?: jobFromServer.jobStartedAt
             if (lastTs == null) {
-                log.debug("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
+                log.trace("Found no last accounting timestamp for job with name '$name' (Job might not have started yet)")
                 continue
             }
 
-            if (now - lastTs < 60_000) continue
+            if (now - lastTs < TIME_BETWEEN_ACCOUNTING) continue
 
             account(k8.nameAllocator.jobNameToJobId(name), jobFromServer, lastTs, now)
         }
@@ -78,55 +80,64 @@ object AccountingPlugin : JobManagementPlugin, Loggable {
                 kotlin.math.max(1, (cpuString.removeSuffix("m").toIntOrNull() ?: 1000) / 1000)
             }
 
-            val insufficientFunds = JobsControl.chargeCredits.call(
-                bulkRequestOf(
-                    ResourceChargeCredits(
-                        jobId,
-                        jobId + "_" + lastTs.toString(),
-                        replicas * virtualCpus,
-                        kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
-                    )
-                ),
-                k8.serviceClient
-            ).orThrow().insufficientFunds.isNotEmpty()
-
-            if (insufficientFunds) {
-                k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
-            }
-        }
-
-        try {
-            log.debug("Attaching accounting timestamp: $jobId $now")
-            k8.client.patchResource(
-                KubernetesResources.volcanoJob.withNameAndNamespace(
-                    name,
-                    namespace
-                ),
-                defaultMapper.encodeToString(
-                    // http://jsonpatch.com/
-                    listOf(
-                        JsonObject(
-                            mapOf(
-                                "op" to JsonPrimitive("add"),
-                                // https://tools.ietf.org/html/rfc6901#section-3
-                                "path" to JsonPrimitive("/metadata/annotations/${
-                                    LAST_PERFORMED_AT_ANNOTATION.replace("/",
-                                        "~1")
-                                }"),
-                                "value" to JsonPrimitive(now.toString())
-                            )
+            k8.scope.launch {
+                // NOTE(Dan): Pushing this into a separate coroutine since we have seen quite bad performance from the
+                // accounting system. Doing this, we run the risk of things happening in a surprising order. For
+                // example, we might perform accounting of job completion and then perform accounting of the job. We
+                // choose to accept this risk and not attempt to handle it. Instead, we rely solely on the duplicate
+                // transaction detection to save us from charging too much. We live with the risk of charging too
+                // little.
+                val insufficientFunds = JobsControl.chargeCredits.call(
+                    bulkRequestOf(
+                        ResourceChargeCredits(
+                            jobId,
+                            jobId + "_" + lastTs.toString(),
+                            replicas * virtualCpus,
+                            kotlin.math.ceil(timespent / (1000 * 60.0)).toLong()
                         )
+                    ),
+                    k8.serviceClient
+                ).orThrow().insufficientFunds.isNotEmpty()
+
+                if (insufficientFunds) {
+                    k8.client.deleteResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+                }
+
+                try {
+                    log.trace("Attaching accounting timestamp: $jobId $now")
+                    k8.client.patchResource(
+                        KubernetesResources.volcanoJob.withNameAndNamespace(
+                            name,
+                            namespace
+                        ),
+                        defaultMapper.encodeToString(
+                            // http://jsonpatch.com/
+                            listOf(
+                                JsonObject(
+                                    mapOf(
+                                        "op" to JsonPrimitive("add"),
+                                        // https://tools.ietf.org/html/rfc6901#section-3
+                                        "path" to JsonPrimitive(
+                                            "/metadata/annotations/${LAST_PERFORMED_AT_ANNOTATION.replace("/", "~1")}"
+                                        ),
+                                        "value" to JsonPrimitive(now.toString())
+                                    )
+                                )
+                            )
+                        ),
+                        ContentType("application", "json-patch+json")
                     )
-                ),
-                ContentType("application", "json-patch+json")
-            )
-        } catch (ex: KubernetesException) {
-            if (ex.statusCode == HttpStatusCode.NotFound) {
-                // Ignored
-            } else {
-                throw ex
+                } catch (ex: KubernetesException) {
+                    if (ex.statusCode == HttpStatusCode.NotFound) {
+                        // Ignored
+                    } else {
+                        throw ex
+                    }
+                }
             }
         }
+
+        
     }
 
     private val VolcanoJob.lastAccountingTs: Long?

@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
@@ -101,7 +102,7 @@ private object IpcToIntegrationModuleApi : CallDescriptionContainer("ipcproxy") 
 
 class IpcServer(
     private val ipcSocketDirectory: String,
-    private val frontendProxyConfig: IMConfiguration.FrontendProxy,
+    private val frontendProxyConfig: VerifiedConfig.FrontendProxy?,
     private val rpcClient: AuthenticatedClient,
     private val rpcServer: RpcServer?,
 ) {
@@ -150,6 +151,7 @@ class IpcServer(
     private fun registerRpcHandler() {
         // If the rpcServer is null, then we are in the frontend proxy, and we don't need to do anything
         if (rpcServer == null) return
+        if (frontendProxyConfig == null) return
 
         rpcServer.implement(IpcToIntegrationModuleApi.proxy) {
             val sctx = (ctx.serverContext as? HttpContext) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
