@@ -114,6 +114,16 @@ class SyncthingClient(private val apiKey: String) {
         }
     }
 
+    /*
+     *
+     */
+    suspend fun configureOptions() {
+        val resp = httpClient.put<HttpResponse>(
+            deviceEndpoint("/rest/config/options"),
+            apiRequestWithBody(SyncthingOptions())
+        )
+    }
+
     private fun apiRequest(): HttpRequestBuilder.() -> Unit {
         return apiRequestWithBody<Unit>(null)
     }
@@ -230,7 +240,7 @@ data class SyncthingLdap(
 data class SyncthingOptions(
     val alwaysLocalNets: List<String> = emptyList(),
     val announceLANAddresses: Boolean = false,
-    val autoUpgradeIntervalH: Int = 12,
+    val autoUpgradeIntervalH: Int = 0,
     val cacheIgnoredFiles: Boolean = false,
     val connectionLimitEnough: Int = 0,
     val connectionLimitMax: Int = 0,
