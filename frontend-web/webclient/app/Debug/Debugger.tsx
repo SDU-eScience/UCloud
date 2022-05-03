@@ -10,8 +10,8 @@ import {getQueryParam} from "@/Utilities/URIUtilities";
 import {Toggle} from "@/ui-components/Toggle";
 import {Icon, Input, Label, Select} from "@/ui-components";
 import {formatDuration} from "date-fns";
-import { BigJsonViewerDom } from "big-json-viewer";
-import { buildQueryString } from "@/Utilities/URIUtilities";
+import {BigJsonViewerDom} from "big-json-viewer";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 
 type MessageImportance = "TELL_ME_EVERYTHING" | "IMPLEMENTATION_DETAIL" | "THIS_IS_NORMAL" | "THIS_IS_ODD" |
@@ -355,32 +355,32 @@ export const Debugger: React.FunctionComponent = () => {
     return <DebugStyle>
         <div className="control">
             <div>
-                <b onClick={toggleShowServer}>Server:</b><br/>
-                <Toggle onChange={toggleShowServer} checked={showServer}/>
+                <b onClick={toggleShowServer}>Server:</b><br />
+                <Toggle onChange={toggleShowServer} checked={showServer} />
             </div>
 
             <div>
-                <b onClick={toggleShowClient}>Client:</b><br/>
-                <Toggle onChange={toggleShowClient} checked={showClient}/>
+                <b onClick={toggleShowClient}>Client:</b><br />
+                <Toggle onChange={toggleShowClient} checked={showClient} />
             </div>
 
             <div>
-                <b onClick={toggleShowDatabase}>Database:</b><br/>
-                <Toggle onChange={toggleShowDatabase} checked={showDatabase}/>
+                <b onClick={toggleShowDatabase}>Database:</b><br />
+                <Toggle onChange={toggleShowDatabase} checked={showDatabase} />
             </div>
 
             <div>
-                <b onClick={toggleShowLogs}>Logs:</b><br/>
-                <Toggle onChange={toggleShowLogs} checked={showLogs}/>
+                <b onClick={toggleShowLogs}>Logs:</b><br />
+                <Toggle onChange={toggleShowLogs} checked={showLogs} />
             </div>
 
             <Label>
-                Search<br/>
+                Search<br />
                 <Input value={query} onChange={onQueryUpdate} />
             </Label>
 
             <Label>
-                Log level<br/>
+                Log level<br />
                 <Select value={logLevel} onChange={onLogLevelUpdate}>
                     <option value="TELL_ME_EVERYTHING">Tell me everything</option>
                     <option value="IMPLEMENTATION_DETAIL">Implementation details</option>
@@ -390,8 +390,8 @@ export const Debugger: React.FunctionComponent = () => {
                 </Select>
             </Label>
 
-            <Icon cursor={"pointer"} name={"home"} onClick={goHome} size={32} mt={23} color={"red"}/>
-            <Icon cursor={"pointer"} name={"trash"} onClick={doClear} size={32} mt={23} color={"red"}/>
+            <Icon cursor={"pointer"} name={"home"} onClick={goHome} size={32} mt={23} color={"red"} />
+            <Icon cursor={"pointer"} name={"trash"} onClick={doClear} size={32} mt={23} color={"red"} />
         </div>
         <div className={"stats"}>
             <div>{messagesInView} messages in-view</div>

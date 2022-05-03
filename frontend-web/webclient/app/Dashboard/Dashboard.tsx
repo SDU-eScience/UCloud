@@ -1,5 +1,4 @@
 import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@/DefaultObjects";
-import {History} from "history";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
@@ -58,7 +57,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 
-function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
+function Dashboard(props: DashboardProps): JSX.Element {
     const history = useHistory();
     useSearch(defaultSearch);
     const projectNames = getProjectNames(useProjectStatus());
@@ -125,7 +124,7 @@ function Dashboard(props: DashboardProps & {history: History}): JSX.Element {
     } = props;
 
     const onNotificationAction = (notification: Notification): void =>
-        UF.onNotificationAction(props.history, props.setActiveProject, notification, projectNames, props.notificationRead);
+        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames, props.notificationRead);
 
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>

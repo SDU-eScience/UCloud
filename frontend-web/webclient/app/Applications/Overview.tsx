@@ -43,10 +43,10 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "HOMER",
         "Kallisto",
         "MACS2",
+        "nf-core",
         "Salmon",
         "SAMtools",
         "Seqtk",
-        "nf-core"
     ];
 
     const featuredTags = [

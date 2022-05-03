@@ -256,7 +256,8 @@ const colors = {
     wayfGreen: "#66b340",
     appCard,
     projectHighlight: "#dfffee",
-    yellow
+    yellow,
+    lightOrange: "#ffc107"
 };
 
 export const invertedColors = {

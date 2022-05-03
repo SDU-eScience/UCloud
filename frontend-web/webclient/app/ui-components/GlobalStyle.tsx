@@ -155,6 +155,7 @@ html {
     --invertedThemeColor: #fff;
     --fixedBlack: #000;
     --activeSpreadsheet: #dcebf6;
+    --lightOrange: #ffc107;
     
     /* TODO This is not currently enforced in the header */
     --headerHeight: 48px;

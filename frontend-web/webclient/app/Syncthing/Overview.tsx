@@ -264,7 +264,7 @@ export const Overview: React.FunctionComponent = () => {
             }
 
             if (isUpdating || awaitUpdatingAttemptsRemaining > 0) {
-                jobReloaderTimeout.current = setTimeout(() => {
+                jobReloaderTimeout.current = window.setTimeout(() => {
                     if (didUnmount.current) return;
                     jobReloaderTimeout.current = -1;
 
