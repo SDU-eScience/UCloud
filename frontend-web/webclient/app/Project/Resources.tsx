@@ -8,9 +8,10 @@ import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
-import {capitalized, doNothing, timestampUnixMs} from "@/UtilityFunctions";
+import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
 import {Box, Flex, Grid, Icon, Link, Text} from "@/ui-components";
+import * as Heading from "@/ui-components/Heading";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import {formatDistance} from "date-fns";
@@ -35,7 +36,13 @@ import {
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SubAllocationViewer} from "./SubAllocations";
+import {Accordion} from "@/ui-components/Accordion";
+import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {format} from "date-fns/esm";
+import {Spacer} from "@/ui-components/Spacer";
+import {Toggle} from "@/ui-components/Toggle";
+
+const FORMAT = "dd/MM/yyyy";
 
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
@@ -78,6 +85,17 @@ const Resources: React.FunctionComponent = () => {
     const pastMonthEnd = new Date(timestampUnixMs()).getTime();
     const pastMonthStart = pastMonthEnd - (30 * 1000 * 60 * 60 * 24);
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
+
+    React.useEffect(() => {
+        if (filters.filterStartDate == null && filters.filterEndDate == null) {
+            setFilters({
+                ...filters,
+                filterStartDate: pastMonthStart.toString(),
+                filterEndDate: pastMonthEnd.toString()
+            });
+        }
+    }, [filters]);
+
     const filterStart = format(parseInt(filters.filterStartDate ?? pastMonthStart), "dd/MM/yyyy");
     const filterEnd = format(parseInt(filters.filterEndDate ?? pastMonthEnd), "dd/MM/yyyy");
     const [usage, fetchUsage] = useCloudAPI<{charts: UsageChart[]}>({noop: true}, {charts: []});
@@ -120,72 +138,203 @@ const Resources: React.FunctionComponent = () => {
 
     const onSubAllocationQuery = useCallback((query: string) => {
         fetchAllocations(searchSubAllocations({query, itemsPerPage: 250}));
+        setAllocationGeneration(prev => prev + 1);
     }, []);
 
     useTitle("Usage");
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
-    useEffect(reloadPage, [reloadPage]);
+    useEffect(() => {
+        if (filters.filterStartDate != null && filters.filterEndDate != null) {
+            reloadPage();
+        }
+    }, [reloadPage]);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     return (
         <MainContainer
-            header={<>
-                <ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />
-                Viewing usage from {filterStart} to {filterEnd}
+            header={<Spacer
+                width={"calc(100% - var(--sidebarWidth))"}
+                left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
+                right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
+            />}
+            sidebar={<ResourceFilter
+                browseType={BrowseType.MainContent}
+                pills={filterPills}
+                filterWidgets={filterWidgets}
+                sortEntries={[]}
+                properties={filters}
+                setProperties={setFilters}
+                sortDirection={"ascending"}
+                onSortUpdated={doNothing}
+            />}
+            main={<>
+                <ResourcesGrid>
+                    <Grid gridGap={"16px"}>
+                        {maximizedUsage == null ? null :
+                            <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                                onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
+                        }
+                        {maximizedUsage != null ? null :
+                            <>
+                                <VisualizationSection>
+                                    {usage.data.charts.map((it, idx) =>
+                                        <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
+                                    )}
+                                </VisualizationSection>
+                                <VisualizationSection>
+                                    {breakdowns.data.charts.map((it, idx) =>
+                                        <DonutChart key={idx} chart={it} />
+                                    )}
+                                </VisualizationSection>
+                            </>
+                        }
+                    </Grid>
+                </ResourcesGrid>
+                <Wallets wallets={wallets.data.items} />
+                {managementStatus.allowManagement ?
+                    <SubAllocationViewer
+                        allocations={allocations}
+                        generation={allocationGeneration}
+                        loadMore={loadMoreAllocations}
+                        filterByAllocation={filterByAllocation}
+                        filterByWorkspace={filterByWorkspace} wallets={wallets}
+                        onQuery={onSubAllocationQuery} />
+                    : null}
             </>}
-            headerSize={98}
-            sidebar={<>
-                <ResourceFilter
-                    browseType={BrowseType.MainContent}
-                    pills={filterPills}
-                    filterWidgets={filterWidgets}
-                    sortEntries={[]}
-                    properties={filters}
-                    setProperties={setFilters}
-                    sortDirection={"ascending"}
-                    onSortUpdated={doNothing}
-                />
-            </>}
-            main={<ResourcesGrid>
-                <Grid gridGap={"16px"}>
-                    {maximizedUsage == null ? null : <>
-                        <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
-                    </>}
-                    {maximizedUsage != null ? null :
-                        <>
-                            <VisualizationSection>
-                                {usage.data.charts.map((it, idx) =>
-                                    <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
-                                )}
-                            </VisualizationSection>
-                            <VisualizationSection>
-                                {breakdowns.data.charts.map((it, idx) =>
-                                    <DonutChart key={idx} chart={it} />
-                                )}
-                            </VisualizationSection>
-                            <VisualizationSection>
-                                {wallets.data.items.map((it, idx) =>
-                                    <WalletViewer key={idx} wallet={it} />
-                                )}
-                            </VisualizationSection>
-
-                            {managementStatus.allowManagement ?
-                                <SubAllocationViewer allocations={allocations} generation={allocationGeneration}
-                                    loadMore={loadMoreAllocations}
-                                    filterByAllocation={filterByAllocation}
-                                    filterByWorkspace={filterByWorkspace} wallets={wallets}
-                                    onQuery={onSubAllocationQuery} />
-                                : null}
-                        </>
-                    }
-                </Grid>
-            </ResourcesGrid>}
         />
     );
 };
 
+type WalletStore = {
+    [key in keyof typeof productTypes]: Wallet[]
+};
+
+const VERY_HIGH_DATE_VALUE = 99999999999999;
+function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
+    const [wallets, setWallets] = React.useState<WalletStore>({} as WalletStore);
+    const [advancedToggles, setAdvancedToggles] = useState<string[]>([]);
+    React.useEffect(() => {
+        const dividedWallets = {};
+        productTypes.forEach(key => dividedWallets[key] = []);
+        props.wallets.forEach(wallet => {
+            const productType = wallet.productType;
+            dividedWallets[productType].push(wallet);
+        });
+        setWallets(dividedWallets as WalletStore);
+    }, [props.wallets]);
+
+    if (Object.keys(wallets).length === 0) return null;
+    const nonEmptyWallets = productTypes.filter(key => wallets[key].length > 0);
+    return <>
+        <Heading.h3>Allocations by product type</Heading.h3>
+        {nonEmptyWallets.length > 0 ? null : <Heading.h4 mb="12px">No Results.</Heading.h4> }
+        {nonEmptyWallets.map((key, index) => {
+            const walletsList: Wallet[] = wallets[key];
+            const asPercent = resultAsPercent(totalUsageFromMultipleWallets(walletsList));
+
+            let earliestExpiration = VERY_HIGH_DATE_VALUE;
+            walletsList.forEach(it => it.allocations.forEach(alloc => {
+                if (alloc.endDate && alloc.endDate < earliestExpiration) earliestExpiration = alloc.endDate;
+            }));
+
+            const expirationText = earliestExpiration === VERY_HIGH_DATE_VALUE ?
+                "" : `Earliest expiration: ${format(earliestExpiration, FORMAT)}`;
+
+            return <Accordion
+                key={key}
+                icon={productTypeToIcon(key)}
+                title={prettierString(key)}
+                noBorder={nonEmptyWallets.length - 1 === index}
+                titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
+            >
+                <Border>
+                    <Flex>
+                        <Text mt="-4px" mr="12px">Advanced view</Text>
+                        <Toggle checked={advancedToggles.includes(key)} onChange={() => {
+                            if (advancedToggles.includes(key)) {
+                                setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
+                            } else {
+                                setAdvancedToggles([...advancedToggles, key]);
+                            }
+                        }} />
+                    </Flex>
+                    <SimpleWalletView wallets={walletsList} advancedView={advancedToggles.includes(key)} />
+                </Border>
+            </Accordion>
+        })}
+    </>;
+}
+
+const Border = styled.div`
+    &:not(:last-child) {
+        border-bottom: 1px solid lightGrey;
+    }
+    padding: 12px;
+`;
+
+function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): JSX.Element {
+    return <SimpleWalletRowWrapper>
+        {props.wallets.map(wallet => {
+            const asPercent = resultAsPercent(totalUsageFromWallet(wallet));
+            const expiration = wallet.allocations.reduce((lowest, wallet) =>
+                wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
+            );
+            const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
+            return (
+                <SimpleAllocationRowWrapper key={wallet.paysFor.name + wallet.paysFor.provider + wallet.paysFor.title}>
+                    <Spacer
+                        px="30px"
+                        left={<Text color="text" mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
+                        right={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
+                    />
+                    {props.advancedView ? <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection> : null}
+                </SimpleAllocationRowWrapper>
+            );
+        })}
+    </SimpleWalletRowWrapper>;
+}
+
+const SimpleAllocationRowWrapper = styled.div``;
+const SimpleWalletRowWrapper = styled.div`
+    & > ${SimpleAllocationRowWrapper}:not(&:last-child) {
+        vertical-align: center;
+        border-bottom: 1px solid #d3d3d3;
+    }
+
+    & > ${SimpleAllocationRowWrapper} {
+        margin-top: 12px;
+        padding-bottom: 10px;
+        border-bottom: 0px solid black;
+    }
+`;
+
+interface UsageFromWallet {
+    balance: number;
+    initialBalance: number;
+}
+
+function totalUsageFromMultipleWallets(wallets: Wallet[]): UsageFromWallet {
+    return wallets.reduce((acc, wallet) => {
+        const usage = totalUsageFromWallet(wallet);
+        acc.balance += usage.balance;
+        acc.initialBalance += usage.initialBalance;
+        return acc;
+    }, {balance: 0, initialBalance: 0});
+
+}
+
+function resultAsPercent(usage: UsageFromWallet): number {
+    if (usage.balance < 0) return 100;
+    return 100 - (usage.balance / usage.initialBalance * 100);
+}
+
+function totalUsageFromWallet(wallet: Wallet): UsageFromWallet {
+    return wallet.allocations.reduce(
+        (acc, it) => ({balance: acc.balance + it.balance, initialBalance: acc.initialBalance + it.initialBalance}),
+        {balance: 0, initialBalance: 0}
+    );
+}
 
 const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     return <>
@@ -193,26 +342,29 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
-const AllocationViewer: React.FunctionComponent<{
+export const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
-}> = ({wallet, allocation}) => {
+    simple?: boolean;
+}> = ({wallet, allocation, simple = true}) => {
     const url = "/project/grants/view/" + allocation.grantedIn;
     return <HighlightedCard color={"red"} width={"400px"}>
         <Flex flexDirection={"row"} alignItems={"center"} height={"100%"}>
             <Icon name={wallet.productType ? productTypeToIcon(wallet.productType) : "cubeSolid"}
                 size={"54px"} mr={"16px"} />
             <Flex flexDirection={"column"} height={"100%"} width={"100%"}>
-                <Flex alignItems={"center"} mr={"-16px"}>
-                    <div><b>[{allocation.id}] {wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
+                {simple ? <Flex alignItems={"center"} mr={"-16px"}>
+                    <div><b>Allocation ID: {allocation.id}</b></div>
                     <Box flexGrow={1} />
-                </Flex>
+                </Flex> : <Flex alignItems={"center"} mr={"-16px"}>
+                    <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
+                    <Box flexGrow={1} />
+                </Flex>}
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
-                <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : <> Unknown
-                    Grant </>}  </div>
+                <div> {allocation.grantedIn != null ? <><Link to={url}> Show Grant </Link> </> : null}  </div>
             </Flex>
         </Flex>
     </HighlightedCard>;
@@ -226,23 +378,25 @@ const ExpiresIn: React.FunctionComponent<{startDate: number, endDate?: number | 
         return <>No expiration</>;
     } else if (now < endDate) {
         return <>Expires in {formatDistance(new Date(endDate), new Date(now))}</>;
+    } else if (now > endDate) {
+        return <>Expired</>;
     } else {
         return <>Expires soon</>;
     }
 };
 
 const VisualizationSection = styled.div`
-  display: grid;
-  grid-gap: 16px;
-  padding: 10px 0;
-  grid-template-columns: repeat(auto-fill, 400px);
+    display: grid;
+    grid-gap: 16px;
+    padding: 10px 0;
+    grid-template-columns: repeat(auto-fill, 400px);
 `;
 
 const UsageChartStyle = styled.div`
-  .usage-chart {
-    width: calc(100% + 32px) !important;
-    margin: -16px;
-  }
+    .usage-chart {
+        width: calc(100% + 32px) !important;
+        margin: -16px;
+    }
 `;
 
 const UsageChartViewer: React.FunctionComponent<{
@@ -354,33 +508,32 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
         >
             <Text color="darkGray" fontSize={1}>Usage across different products</Text>
 
-            <Flex justifyContent={"center"}>
-                <PieChart width={215} height={215}>
-                    <Pie
-                        data={props.chart.chart.points}
-                        fill="#8884d8"
-                        dataKey="value"
-                        innerRadius={55}
-                    >
-                        {props.chart.chart.points.map((_, index) => (
-                            <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
-                        ))}
-                    </Pie>
-                </PieChart>
-            </Flex>
-
-            <Flex pb="12px" style={{overflowX: "auto"}} justifyContent={"center"}>
-                {props.chart.chart.points.map((it, index) =>
-                    <Box mx="4px" width="auto" style={{whiteSpace: "nowrap"}} key={it.name}>
-                        <ChartPointName name={it.name} />
-                        <Text
-                            textAlign="center"
-                            color={getCssVar(COLORS[index % COLORS.length])}
+            <Flex>
+                <Flex mt="12px">
+                    <PieChart width={215} height={215}>
+                        <Pie
+                            data={props.chart.chart.points}
+                            fill="#8884d8"
+                            dataKey="value"
+                            innerRadius={55}
                         >
-                            {toPercentageString(it.value / totalUsage)}
-                        </Text>
-                    </Box>
-                )}
+                            {props.chart.chart.points.map((_, index) => (
+                                <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
+                            ))}
+                        </Pie>
+                    </PieChart>
+                </Flex>
+
+                <Box ml="4px" textAlign="center" width="100%" height="330px" pb="12px" style={{overflowY: "auto"}} justifyContent={"center"}>
+                    {props.chart.chart.points.map((it, index) =>
+                        <Box mb="4px" width="100%" style={{whiteSpace: "nowrap"}} key={it.name}>
+                            <ChartPointName name={it.name} />
+                            <Text textAlign="center" color={getCssVar(COLORS[index % COLORS.length])}>
+                                {toPercentageString(it.value / totalUsage)}
+                            </Text>
+                        </Box>
+                    )}
+                </Box>
             </Flex>
         </HighlightedCard>
     )
@@ -390,16 +543,16 @@ function ChartPointName({name}: {name: string}): JSX.Element {
     const [first, second, third] = name.split(" / ");
     return (
         <div>
-            <Text textAlign="center" fontSize="14px">{first}</Text>
-            <SubText>{second} / {third}</SubText>
+            <Text fontSize="14px">{first}</Text>
+            <SubText>{second}{third ? ` / ${third}` : null}</SubText>
         </div>
     );
 }
 
 const SubText = styled.div`
-  color: var(--gray);
-  text-decoration: none;
-  font-size: 10px;
+    color: var(--gray);
+    text-decoration: none;
+    font-size: 10px;
 `;
 
 export default Resources;
