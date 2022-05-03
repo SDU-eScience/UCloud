@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -20,7 +21,8 @@ import kotlinx.serialization.json.encodeToJsonElement
 class GrantApplicationService(
     private val db: DBContext,
     private val notifications: GrantNotificationService,
-    private val providers: Providers<SimpleProviderCommunication>
+    private val providers: Providers<SimpleProviderCommunication>,
+    private val projectNotifications: ProviderNotificationService,
 ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
@@ -752,6 +754,13 @@ class GrantApplicationService(
             },
             """select "grant".approve_application(:approved_by, :id)"""
         )
+
+        val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
+            .map { it.getString(0)!! }.singleOrNull()
+
+        if (createdProject != null) {
+            projectNotifications.notifyChange(listOf(createdProject), session)
+        }
 
         val providerIds = session.sendPreparedStatement(
             { setParameter("id", applicationId) },
