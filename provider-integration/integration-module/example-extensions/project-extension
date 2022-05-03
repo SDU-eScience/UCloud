@@ -81,6 +81,14 @@ def delete_group(gid):
     return result.returncode == 0
 
 def add_user_to_group(uid, gid):
+    if get_group_by_gid(gid) is None:
+        print("{} error: Non-existing group with id {}".format(request_type,gid))
+        exit(1)
+
+    if get_username_by_uid(uid) is None:
+        print("{} error: Non-existing user with id {}".format(request_type,uid))
+        exit(1)
+
     result = subprocess.run(['/usr/sbin/usermod', '-a', '-G', get_group_by_gid(gid), get_username_by_uid(uid)],
                             stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return result.returncode == 0
