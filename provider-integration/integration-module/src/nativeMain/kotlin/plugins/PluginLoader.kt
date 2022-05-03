@@ -4,6 +4,7 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.compute.slurm.*
 import dk.sdu.cloud.plugins.connection.*
 import dk.sdu.cloud.plugins.storage.posix.*
+import dk.sdu.cloud.plugins.allocations.*
 import kotlin.reflect.KClass
 
 private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
@@ -16,6 +17,10 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // Projects
     // =========================================================================
     SimpleProjectConfiguration::class to { SimpleProjectPlugin() },
+
+    // Allocations
+    // =========================================================================
+    ExtensionAllocationConfig::class to { PosixCollectionPlugin() },
 
     // Jobs
     // =========================================================================

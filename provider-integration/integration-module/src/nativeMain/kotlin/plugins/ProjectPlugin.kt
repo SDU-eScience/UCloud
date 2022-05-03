@@ -2,7 +2,6 @@ package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.project.api.v2.Project
-import kotlinx.serialization.json.JsonObject
 
 interface ProjectPlugin : Plugin<ConfigSchema.Plugins.Projects> {
     suspend fun PluginContext.onProjectUpdated(newProject: Project)

@@ -2,6 +2,7 @@ package dk.sdu.cloud.config
 
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.ServerMode
+import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
@@ -77,7 +78,8 @@ data class VerifiedConfig(
         val projects: ProjectPlugin?,
         val jobs: Map<String, ComputePlugin>,
         val files: Map<String, FilePlugin>,
-        val fileCollections: Map<String, FileCollectionPlugin>
+        val fileCollections: Map<String, FileCollectionPlugin>,
+        val allocations: Map<ProductType, AllocationPlugin>,
     ) {
         interface ProductBased {
             val matches: ProductMatcher
@@ -448,6 +450,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 loadPlugin(config.plugins.projects) as ProjectPlugin
             }
 
+            val allocations: Map<ProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
+                emptyMap()
+            } else {
+                val result = HashMap<ProductType, AllocationPlugin>()
+                for ((productType, config) in config.plugins.allocations) {
+                    result[productType] = loadPlugin(config) as AllocationPlugin
+                }
+                result
+            }
+
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
                 config.products?.compute ?: emptyMap(),
                 config.plugins.jobs ?: emptyMap(),
@@ -469,7 +481,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 pluginReference.useLocationAndProperty(null, "fileCollections")
             ) as Map<String, FileCollectionPlugin>
 
-            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections)
+            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, allocations)
         }
     }
 

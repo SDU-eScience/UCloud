@@ -52,6 +52,7 @@ class AccountingController(
 
         val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
 
+        /*
         with(controllerContext.configuration.plugins) {
             dispatchToPlugin(batch.responses, fileCollections.values, output)
             dispatchToPlugin(batch.responses, files.values, output)
@@ -75,8 +76,10 @@ class AccountingController(
             BulkRequest(items),
             controllerContext.pluginContext.rpcClient
         ).orThrow()
+        */
     }
 
+    /*
     private suspend fun <P : ResourcePlugin<*, *, *, *>> dispatchToPlugin(
         batch: List<DepositNotification>,
         plugins: Collection<P>,
@@ -109,5 +112,6 @@ class AccountingController(
             }
         }
     }
+    */
 }
 

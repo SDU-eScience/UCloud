@@ -1,6 +1,7 @@
 package dk.sdu.cloud.config
 
 import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.accounting.api.ProductType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -101,6 +102,7 @@ data class ConfigSchema(
         val jobs: Map<YamlString, Jobs>? = null,
         val files: Map<YamlString, Files>? = null,
         val fileCollections: Map<YamlString, FileCollections>? = null,
+        val allocations: Map<ProductType, Allocations>? = null,
         @Transient
         override var yamlDocument: String = ""
     ) : WithYamlDocument {
@@ -109,6 +111,9 @@ data class ConfigSchema(
 
         @Serializable
         sealed class Projects
+
+        @Serializable
+        sealed class Allocations
 
         @Serializable
         sealed class Jobs : ProductBased
@@ -157,6 +162,17 @@ data class Host(val host: String, val scheme: String, val port: Int, val tag: Ya
         append(host)
         append(":")
         append(port)
+    }
+
+    fun toStringOmitDefaultPort(): String {
+        val isDefaultPort = (scheme == "http" && port == 80) || (scheme == "https" && port == 443)
+        return if (isDefaultPort) buildString {
+            append(scheme)
+            append("://")
+            append(host)
+        } else {
+            toString()
+        }
     }
 }
 
