@@ -3,11 +3,13 @@ package dk.sdu.cloud
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.config.loadConfiguration
 import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.http.*
 import dk.sdu.cloud.http.OutgoingHttpCall
 import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.http.RpcServer
@@ -18,15 +20,15 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.Sqlite3Driver
-import dk.sdu.cloud.utils.ProcessWatcher
-import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.sql.migrations.loadMigrations
+import dk.sdu.cloud.utils.*
+import dk.sdu.cloud.utils.ProcessWatcher
+import kotlin.coroutines.CoroutineContext
+import kotlin.system.exitProcess
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import kotlinx.coroutines.*
 import platform.posix.*
-import kotlin.coroutines.CoroutineContext
-import kotlin.system.exitProcess
 
 sealed class ServerMode {
     object User : ServerMode()
@@ -218,6 +220,23 @@ fun main(args: Array<String>) {
 
             // Remote Procedure Calls (RPC)
             // -------------------------------------------------------------------------------------------------------
+            val cors = CorsSettings(
+                allowOrigins = listOf(config.core.hosts.ucloud.toStringOmitDefaultPort()),
+                allowMethods = listOf(HttpMethod.Get, HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete),
+                maxAgeSeconds = 1800,
+                allowHeaders = listOf(
+                    "chunked-upload-offset",
+                    "chunked-upload-token",
+                    "upload-name",
+                    "content-type",
+                    "DNT",
+                    "user-agent",
+                    "x-requested-with",
+                    "if-modified-since",
+                    "cache-control",
+                    "range",
+                )
+            )
             val rpcServerPort = when (serverMode) {
                 is ServerMode.Plugin, ServerMode.FrontendProxy -> null
                 ServerMode.Server -> UCLOUD_IM_PORT
@@ -225,7 +244,10 @@ fun main(args: Array<String>) {
             }
 
             val rpcServer = when (serverMode) {
-                ServerMode.Server, ServerMode.User -> RpcServer(rpcServerPort ?: error("Missing rpcServerPort"))
+                ServerMode.Server, ServerMode.User -> RpcServer(
+                    rpcServerPort ?: error("Missing rpcServerPort"), 
+                    cors = cors
+                )
                 else -> null
             }
 

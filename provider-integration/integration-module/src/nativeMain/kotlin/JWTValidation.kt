@@ -5,7 +5,7 @@ import kotlinx.cinterop.*
 import libjwt.*
 import platform.posix.time
 
-class NativeJWTValidation(certificate: String) {
+class NativeJWTValidation(private val certificate: String) {
     private val arena = Arena()
     private val length = certificate.encodeToByteArray().size
     private val frozenCertificate = certificate.cstr.placeTo(arena)

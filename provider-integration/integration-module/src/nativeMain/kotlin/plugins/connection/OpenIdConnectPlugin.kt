@@ -72,7 +72,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Token validator used to verify tokens returned by the OpenID provider (explained below).
-        val accessTokenValidator = NativeJWTValidation(configuration.certificate)
+        val accessTokenValidator = NativeJWTValidation(normalizeCertificate(configuration.certificate))
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {

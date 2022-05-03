@@ -641,7 +641,8 @@ class PosixFilesPlugin : FilePlugin {
 
         ctx.session.sendHttpResponseWithFile(
             pluginData,
-            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\""))
+            listOf(Header("Content-Disposition", "attachment; filename=\"${pluginData.safeFileName()}\"")) +
+                (ctx.cors?.headers ?: emptyList())
         )
     }
 
