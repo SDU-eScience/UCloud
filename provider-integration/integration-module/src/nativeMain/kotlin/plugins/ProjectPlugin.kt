@@ -6,4 +6,6 @@ import dk.sdu.cloud.project.api.v2.Project
 interface ProjectPlugin : Plugin<ConfigSchema.Plugins.Projects> {
     suspend fun PluginContext.onProjectUpdated(newProject: Project)
     suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int)
+    suspend fun PluginContext.lookupLocalId(ucloudId: String): Int?
 }
+

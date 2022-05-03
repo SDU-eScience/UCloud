@@ -6,6 +6,11 @@ import kotlinx.serialization.*
 @Serializable
 @SerialName("Extension")
 data class ExtensionAllocationConfig(
-    val script: YamlString,
-) : ConfigSchema.Plugins.Allocations()
+    val extensions: Extensions,
+) : ConfigSchema.Plugins.Allocations() {
+    @Serializable
+    data class Extensions(
+        val onAllocation: YamlString,
+    )
+}
 

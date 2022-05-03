@@ -400,8 +400,7 @@ fun main(args: Array<String>) {
                     FileCollectionController(controllerContext),
                     ComputeController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
-                    AccountingController(controllerContext),
-                    ProjectController(controllerContext)
+                    NotificationController(controllerContext),
                 )
                 
                 rpcServer.start() 

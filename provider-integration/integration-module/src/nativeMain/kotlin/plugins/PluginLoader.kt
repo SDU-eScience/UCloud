@@ -20,7 +20,7 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
 
     // Allocations
     // =========================================================================
-    ExtensionAllocationConfig::class to { PosixCollectionPlugin() },
+    ExtensionAllocationConfig::class to { ExtensionAllocationPlugin() },
 
     // Jobs
     // =========================================================================

@@ -137,11 +137,16 @@ class TerminalMessageDsl {
         background(7, block)
     }
 
+    fun reset() {
+        sgr(0)
+    }
+
     fun sgr(n: Int) {
         builder.append("\u001B[${n}m")
     }
 
     fun print() {
+        reset() // NOTE(Dan): Make sure we reset back to normal style after printing.
         println(builder)
     }
 }

@@ -4,7 +4,6 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.*
-import dk.sdu.cloud.plugins.AllocationPlugin
 
 class ExtensionAllocationPlugin : AllocationPlugin {
     private lateinit var pluginConfig: ExtensionAllocationConfig
@@ -14,13 +13,17 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     }
 
     override suspend fun PluginContext.onResourceAllocation(
-        notifications: BulkRequest<DepositNotification>
+        notifications: List<AllocationNotification>
     ): List<OnResourceAllocationResult> {
-        TODO()
+        val results = ArrayList<OnResourceAllocationResult>()
+        for (notification in notifications) {
+            results.add(onAllocation.invoke(pluginConfig.extensions.onAllocation.value, notification))
+        }
+        return results
     }
 
     private companion object Extensions {
-        val onAllocation = extension<DepositNotification, OnResourceAllocationResult>()
+        val onAllocation = extension<AllocationNotification, OnResourceAllocationResult>()
     }
 }
 

@@ -140,9 +140,30 @@ class SimpleProjectPlugin : ProjectPlugin {
         fixMissingConnections(ucloudId, localId)
     }
 
+    override suspend fun PluginContext.lookupLocalId(ucloudId: String): Int? {
+        var result: Int? = null
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select local_id
+                    from simple_project_group_mapper
+                    where ucloud_id = :ucloud_id
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("ucloud_id", ucloudId)
+                },
+                readRow = { row ->
+                    result = row.getInt(0)
+                }
+            )
+        }
+        return result
+    }
+
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
     // events to the extension, fixing any missing connections between the user and projects/groups.
-    fun fixMissingConnections(userId: String, localId: Int) {
+    private fun fixMissingConnections(userId: String, localId: Int) {
         val projects = mutableSetOf<Project>()
         dbConnection.withSession { session ->
 
