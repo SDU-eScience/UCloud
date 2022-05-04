@@ -3,22 +3,19 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequestBlocking
+import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.utils.ProcessWatcher
-import dk.sdu.cloud.plugins.ConnectionResponse
-import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
-import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
 import dk.sdu.cloud.sql.*
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.ProcessStreams
-import dk.sdu.cloud.utils.startProcess
-import dk.sdu.cloud.plugins.ProjectPlugin
+import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -26,7 +23,21 @@ import kotlinx.serialization.Serializable
 import platform.posix.*
 import kotlinx.coroutines.runBlocking
 
+@Serializable
+data class ConnectionEntry(
+    val username: String,
+    val uid: Int,
+)
+
+@Serializable
+data class FindByUsername(
+    val username: String
+)
+
 object ConnectionIpc : IpcContainer("connections") {
+    val browse = browseHandler<PaginationRequestV2, PageV2<ConnectionEntry>>()
+    val registerConnection = updateHandler<ConnectionEntry, Unit>("registerConnection")
+    val removeConnection = updateHandler<FindByUsername, Unit>("removeConnection")
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
 }
 
@@ -59,6 +70,27 @@ class ConnectionController(
                 ),
                 null,
             )
+        })
+
+        server.addHandler(ConnectionIpc.browse.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            UserMapping.browseMappings(request)
+        })
+
+        server.addHandler(ConnectionIpc.registerConnection.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            UserMapping.insertMapping(request.username, request.uid, controllerContext.pluginContext, null)
+
+            IntegrationControl.approveConnection.callBlocking(
+                IntegrationControlApproveConnectionRequest(request.username),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        })
+
+        server.addHandler(ConnectionIpc.removeConnection.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            UserMapping.clearMappingByUCloudId(request.username)
         })
     }
 
@@ -253,6 +285,29 @@ object UserMapping {
         }
 
         return result
+    }
+
+    fun browseMappings(request: PaginationRequestV2): PageV2<ConnectionEntry> {
+        val items = ArrayList<ConnectionEntry>()
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select ucloud_id, local_identity
+                    from user_mapping
+                """
+            ).useAndInvoke(
+                prepare = {},
+                readRow = { row ->
+                    val ucloudUsername = row.getString(0)!!
+                    val uid = row.getString(1)!!.toIntOrNull()
+                    if (uid != null) {
+                        items.add(ConnectionEntry(ucloudUsername, uid))
+                    }
+                }
+            )
+        }
+
+        return PageV2(items.size, items, null)
     }
 
     fun ucloudIdToLocalId(ucloudId: String): Int? {

@@ -1,6 +1,7 @@
 package dk.sdu.cloud.cli
 
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.controllers.ControllerContext
 import kotlin.system.exitProcess
 
 class CliHandler(val plugin: String, val handler: (args: List<String>) -> Unit)
@@ -31,4 +32,8 @@ class CommandLineInterface(private val args: List<String>) {
         println("Unknown plugin: $plugin")
         exitProcess(1)
     }
+}
+
+fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
+    ConnectionCommandLine(controllerContext)
 }

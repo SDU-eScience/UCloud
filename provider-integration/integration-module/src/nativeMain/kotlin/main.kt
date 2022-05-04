@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
 import dk.sdu.cloud.config.loadConfiguration
 import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.*
@@ -391,7 +392,10 @@ fun main(args: Array<String>) {
                 }
             }
 
-            if (serverMode is ServerMode.Plugin) cli?.execute(serverMode.name)
+            if (serverMode is ServerMode.Plugin) {
+                registerAlwaysOnCommandLines(controllerContext)
+                cli?.execute(serverMode.name)
+            }
 
             if (rpcServer != null) {
                 rpcServer.configureControllers(
