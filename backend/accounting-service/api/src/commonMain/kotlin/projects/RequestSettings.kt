@@ -85,7 +85,7 @@ typealias UploadRequestSettingsResponse = Unit
 data class RetrieveRequestSettingsRequest(val projectId: String)
 typealias RetrieveRequestSettingsResponse = ProjectApplicationSettings
 
-object Grants : CallDescriptionContainer("grant") {
+object GrantSettings : CallDescriptionContainer("grantSettings") {
     val baseContext = "/api/project/grantsettings"
 
     init {

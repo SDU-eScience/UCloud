@@ -4,6 +4,7 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper

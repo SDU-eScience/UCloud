@@ -14,11 +14,11 @@ data class DeleteCommentRequest(val commentId: Long)
 typealias DeleteCommentResponse = Unit
 
 
-object Grants : CallDescriptionContainer("grant") {
+object GrantComments : CallDescriptionContainer("grantComments") {
     val baseContext = "/api/grant/comment"
 
     init {
-        title = "Grant Applications"
+        title = "Grant Comments"
         description = """
             Comments are used as a grant application specific communication. All comments are associated with a single 
             specific grant application. 

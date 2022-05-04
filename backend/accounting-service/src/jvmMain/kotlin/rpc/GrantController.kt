@@ -2,6 +2,10 @@ package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.grants.GrantComments
+import dk.sdu.cloud.accounting.api.grants.GrantTemplates
+import dk.sdu.cloud.accounting.api.grants.GrantsReference
+import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
 import dk.sdu.cloud.accounting.services.grants.GrantSettingsService
@@ -30,6 +34,7 @@ class GrantController(
     private val templates: GrantTemplateService,
 ) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
+        //GRANTS
         implement(Grants.updateApplicationState) {
             applications.updateStatus(actorAndProject, request )
             ok(Unit)
@@ -50,30 +55,28 @@ class GrantController(
             ok(Unit)
         }
 
-        implement(Grants.editReferenceId) {
-            applications.editReferenceID(actorAndProject, request)
-            ok(Unit)
-        }
-
-        implement(Grants.ingoingApplications) {
+        implement(Grants.browseApplications) {
             ok(applications.browseIngoingApplications(actorAndProject, request, request.filter))
         }
 
-        implement(Grants.outgoingApplications) {
-            ok(applications.browseOutgoingApplications(actorAndProject, request, request.filter))
+        implement(Grants.browseProducts) {
+            ok(GrantsBrowseProductsResponse(applications.retrieveProducts(actorAndProject, request)))
         }
 
-        implement(Grants.retrieveProducts) {
-            ok(GrantsRetrieveProductsResponse(applications.retrieveProducts(actorAndProject, request)))
+        implement(Grants.browseProjects) {
+            ok(settings.browse(actorAndProject, request))
         }
 
-        implement(Grants.commentOnApplication) {
-            comments.postComment(actorAndProject, request)
-            ok(Unit)
+        implement(Grants.browseAffiliations) {
+            val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
+            ok(settings.browse(
+                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application), null),
+                request
+            ))
         }
 
-        implement(Grants.deleteComment) {
-            comments.deleteComment(actorAndProject, request)
+        implement(Grants.transferApplication) {
+            applications.transferApplication(actorAndProject, request)
             ok(Unit)
         }
 
@@ -81,29 +84,45 @@ class GrantController(
             ok(comments.viewComments(actorAndProject, request))
         }
 
-        implement(Grants.uploadRequestSettings) {
+        //COMMENTS
+        implement(GrantComments.createComment) {
+            comments.postComment(actorAndProject, request)
+            ok(Unit)
+        }
+
+        implement(GrantComments.deleteComment) {
+            comments.deleteComment(actorAndProject, request)
+            ok(Unit)
+        }
+
+        //GRANT REFERENCE ID
+        implement(GrantsReference.updateReferenceId) {
+            applications.editReferenceID(actorAndProject, request)
+            ok(Unit)
+        }
+
+        //PROJECT GRANT SETTINGS
+        implement(GrantSettings.uploadRequestSettings) {
             settings.uploadRequestSettings(actorAndProject, request)
             ok(Unit)
         }
 
-        implement(Grants.readRequestSettings) {
+        implement(GrantSettings.retrieveRequestSettings) {
             ok(settings.fetchSettings(actorAndProject, request.projectId))
         }
 
-        implement(Grants.setEnabledStatus) {
+        //PROJECT ENABLED STATUS
+        implement(ProjectEnabled.setEnabledStatus) {
             settings.setEnabledStatus(actorAndProject, request.projectId, request.enabledStatus)
             ok(Unit)
         }
 
-        implement(Grants.isEnabled) {
+        implement(ProjectEnabled.isEnabled) {
             ok(IsEnabledResponse(settings.isEnabled(request.projectId)))
         }
 
-        implement(Grants.browseProjects) {
-            ok(settings.browse(actorAndProject, request))
-        }
-
-        implement(Grants.fetchLogo) {
+        //PROJECT LOGO
+        implement(ProjectLogo.retrieveLogo) {
             val logo = settings.fetchLogo(request.projectId)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
@@ -118,7 +137,7 @@ class GrantController(
             okContentAlreadyDelivered()
         }
 
-        implement(Grants.uploadLogo) {
+        implement(ProjectLogo.uploadLogo) {
             ok(
                 settings.uploadLogo(
                     actorAndProject,
@@ -129,35 +148,25 @@ class GrantController(
             )
         }
 
-        implement(Grants.uploadDescription) {
+        //PROJECT DESCRIPTIONS
+        implement(ProjectTextDescription.uploadDescription) {
             settings.uploadDescription(actorAndProject, request.projectId, request.description)
             ok(Unit)
         }
 
-        implement(Grants.fetchDescription) {
-            ok(FetchDescriptionResponse(settings.fetchDescription(request.projectId)))
+        implement(ProjectTextDescription.retrieveDescription) {
+            ok(RetrieveDescriptionResponse(settings.fetchDescription(request.projectId)))
         }
 
-        implement(Grants.uploadTemplates) {
+        //GRANT TEMPLATES
+        implement(GrantTemplates.uploadTemplates) {
             templates.uploadTemplates(actorAndProject, request)
             ok(Unit)
         }
 
-        implement(Grants.readTemplates) {
+        implement(GrantTemplates.retrieveTemplates) {
             ok(templates.fetchTemplates(actorAndProject, request.projectId))
         }
 
-        implement(Grants.retrieveAffiliations) {
-            val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
-            ok(settings.browse(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application), null),
-                request
-            ))
-        }
-
-        implement(Grants.transferApplication) {
-            applications.transferApplication(actorAndProject, request)
-            ok(Unit)
-        }
     }
 }
