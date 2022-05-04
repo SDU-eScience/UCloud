@@ -40,7 +40,7 @@ COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy
 WORKDIR /opt/ucloud
 
 FROM development AS ucloud-im
-RUN apt-get -qq -y install munge slurm-client ssh python3
+RUN apt-get update && apt-get -qq -y install munge slurm-client ssh python3
 RUN mkdir --parents -m 700 /home/testuser/.ssh && ssh-keygen -t ed25519 -C "testuser@im.dtu.dk" -f /home/testuser/.ssh/id_ed25519 -N '' && chown -R testuser:testuser /home/testuser
 
 WORKDIR /opt/ucloud

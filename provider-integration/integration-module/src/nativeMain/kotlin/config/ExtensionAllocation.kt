@@ -11,6 +11,7 @@ data class ExtensionAllocationConfig(
     @Serializable
     data class Extensions(
         val onAllocation: YamlString,
+        val onSynchronization: YamlString,
     )
 }
 

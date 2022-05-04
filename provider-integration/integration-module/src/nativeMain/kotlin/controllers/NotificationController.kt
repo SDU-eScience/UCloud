@@ -17,10 +17,10 @@ import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.atomicfu.atomic
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 
 class NotificationController(
     private val controllerContext: ControllerContext,
@@ -35,16 +35,20 @@ class NotificationController(
         val allocationApi = DepositNotificationsProvider(provider)
 
         implement(projectApi.pullRequest) {
-            nextPull.value = 0L // Trigger a new pull
+            triggerPullRequest()
             OutgoingCallResponse.Ok(Unit)
         }
 
         implement(allocationApi.pullRequest) {
-            nextPull.value = 0L // Trigger a new pull
+            triggerPullRequest()
             OutgoingCallResponse.Ok(Unit)
         }
 
         startLoop()
+    }
+
+    private fun triggerPullRequest() {
+        nextPull.value = 0L
     }
 
     private fun startLoop() {
@@ -53,6 +57,9 @@ class NotificationController(
                 val now = Time.now()
                 if (now >= nextPull.value) {
                     try {
+                        // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
+                        // how the pull requests arrive at the provider. We must know about a new project _before_ any
+                        // allocations are processed.
                         processProjects()
                         processAllocations()
                     } catch (ex: Throwable) {
@@ -64,6 +71,24 @@ class NotificationController(
                     nextPull.value = now + 60_000L
                 }
                 delay(1000)
+            }
+        }
+
+        ProcessingScope.launch {
+            var nextRescan = 0L
+            while (isActive) {
+                val now = Time.now()
+                try {
+                    if (now >= nextRescan) {
+                        scanAllocations()
+                        nextRescan = now + (1000L * 60 * 60 * 3)
+                    }
+                    delay(1000)
+                } catch (ex: Throwable) {
+                    log.info("Caught an exception while scanning allocations. We will retry again in a minute: " +
+                        ex.stackTraceToString())
+                    nextRescan = now + (1000L * 60)
+                }
             }
         }
     }
@@ -109,16 +134,6 @@ class NotificationController(
     // Allocations
     // ================================================================================================================
     private suspend fun processAllocations() {
-        fun findProductType(category: ProductCategoryId): ProductType? {
-            val products = controllerContext.configuration.products ?: return null
-            return when {
-                category.name in (products.compute ?: emptyMap()) -> ProductType.COMPUTE
-                category.name in (products.storage ?: emptyMap()) -> ProductType.STORAGE
-                else -> null
-            }
-        }
-
-        val projectPlugin = controllerContext.configuration.plugins?.projects
         val batch = DepositNotifications.retrieve.call(
             Unit,
             controllerContext.pluginContext.rpcClient
@@ -130,59 +145,37 @@ class NotificationController(
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
 
         outer@for ((idx, notification) in batch.responses.withIndex()) {
-            val productType = findProductType(notification.category) ?: continue@outer
+            val providerSummary = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(
+                    filterOwnerId = when (val owner = notification.owner) {
+                        is WalletOwner.User -> owner.username
+                        is WalletOwner.Project -> owner.projectId
+                    },
+                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
+                    filterCategory = notification.category.name
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow().items.singleOrNull() ?: continue
+
+            val productType = providerSummary.productType
 
             val list = notificationsByType[productType] ?: ArrayList()
             notificationsByType[productType] = list
 
-            val notification = AllocationNotification(
-                notification.balance,
-                when (val owner = notification.owner) {
-                    is WalletOwner.User -> {
-                        val username = owner.username
-                        AllocationNotification.Owner.User(
-                            username,
-                            UserMapping.ucloudIdToLocalId(username) ?: continue@outer
-                        )
-                    }
-
-                    is WalletOwner.Project -> {
-                        val projectId = owner.projectId
-                        if (projectPlugin == null) continue@outer
-
-                        val gid = with(controllerContext.pluginContext) {
-                            with(projectPlugin) {
-                                lookupLocalId(projectId)
-                            }
-                        }
-
-                        if (gid == null) {
-                            log.info("Could not find GID for $projectId")
-                            continue@outer
-                        }
-
-                        AllocationNotification.Owner.Project(projectId, gid)
-                    }
-                },
-                notification.id,
-                notification.category.name,
-                productType
-            )
-
-            list.add(Pair(idx, notification))
+            list.add(Pair(idx, prepareAllocationNotification(providerSummary) ?: continue@outer))
         }
 
         for ((type, list) in notificationsByType) {
-            val plugin = controllerContext.configuration.plugins?.allocations?.get(type) ?: continue
+            val plugin = controllerContext.configuration.plugins.allocations[type] ?: continue
 
             with(controllerContext.pluginContext) {
                 val response = with(plugin) {
                     onResourceAllocation(list.map { it.second })
                 }
 
-                for ((request, response) in list.zip(response)) {
+                for ((request, pluginResponse) in list.zip(response)) {
                     val (origIdx, _) = request
-                    output[origIdx] = response
+                    output[origIdx] = pluginResponse
                 }
             }
         }
@@ -200,10 +193,81 @@ class NotificationController(
             )
         }
 
-        DepositNotifications.markAsRead.call(
-            BulkRequest(items),
-            controllerContext.pluginContext.rpcClient
-        ).orThrow()
+        if (items.isNotEmpty()) {
+            DepositNotifications.markAsRead.call(
+                BulkRequest(items),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        }
+    }
+
+    private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotification? {
+        val projectPlugin = controllerContext.configuration.plugins.projects
+        return AllocationNotification(
+            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+            when (val owner = summary.owner) {
+                is WalletOwner.User -> {
+                    val username = owner.username
+                    val uid = UserMapping.ucloudIdToLocalId(username)
+
+                    if (uid == null) {
+                        log.info("Could not find UID for $username")
+                        return null
+                    }
+
+                    AllocationNotification.Owner.User(username, uid)
+                }
+
+                is WalletOwner.Project -> {
+                    val projectId = owner.projectId
+                    if (projectPlugin == null) return null
+
+                    val gid = with(controllerContext.pluginContext) {
+                        with(projectPlugin) {
+                            lookupLocalId(projectId)
+                        }
+                    }
+
+                    if (gid == null) {
+                        log.info("Could not find GID for $projectId")
+                        return null
+                    }
+
+                    AllocationNotification.Owner.Project(projectId, gid)
+                }
+            },
+            summary.id,
+            summary.categoryId.name,
+            summary.productType
+        )
+    }
+
+    private suspend fun scanAllocations() {
+        var next: String? = null
+        while (currentCoroutineContext().isActive) {
+            val providerSummaryResponse = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(next = next),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+
+            next = providerSummaryResponse.next
+
+            val providerSummary = providerSummaryResponse.items
+            if (providerSummary.isEmpty()) break
+
+            val notificationsByType = providerSummary.groupBy { it.productType }
+
+            for ((type, list) in notificationsByType) {
+                val plugin = controllerContext.configuration.plugins.allocations[type] ?: continue
+
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        val items = list.mapNotNull { prepareAllocationNotification(it) }
+                        if (items.isNotEmpty()) onResourceSynchronization(items)
+                    }
+                }
+            }
+        }
     }
 
     companion object : Loggable {

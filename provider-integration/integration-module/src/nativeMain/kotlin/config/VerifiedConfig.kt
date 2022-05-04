@@ -81,10 +81,6 @@ data class VerifiedConfig(
         val fileCollections: Map<String, FileCollectionPlugin>,
         val allocations: Map<ProductType, AllocationPlugin>,
     ) {
-        interface ProductBased {
-            val matches: ProductMatcher
-        }
-
         sealed class ProductMatcher {
             abstract fun match(product: ProductReferenceWithoutProvider): Int
 
@@ -422,7 +418,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    val plugins: VerifiedConfig.Plugins? = run {
+    @Suppress("UNCHECKED_CAST") val plugins: VerifiedConfig.Plugins? = run {
         if (config.plugins == null) {
             null
         } else {
@@ -454,12 +450,13 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 emptyMap()
             } else {
                 val result = HashMap<ProductType, AllocationPlugin>()
-                for ((productType, config) in config.plugins.allocations) {
-                    result[productType] = loadPlugin(config) as AllocationPlugin
+                for ((productType, cfg) in config.plugins.allocations) {
+                    result[productType] = loadPlugin(cfg) as AllocationPlugin
                 }
                 result
             }
 
+            @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
                 config.products?.compute ?: emptyMap(),
                 config.plugins.jobs ?: emptyMap(),
@@ -467,6 +464,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 pluginReference.useLocationAndProperty(null, "jobs")
             ) as Map<String, ComputePlugin>
 
+            @Suppress("unchecked_cast")
             val files: Map<String, FilePlugin> = loadProductBasedPlugins(
                 config.products?.storage ?: emptyMap(),
                 config.plugins.files ?: emptyMap(),
@@ -474,6 +472,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 pluginReference.useLocationAndProperty(null, "files")
             ) as Map<String, FilePlugin>
 
+            @Suppress("unchecked_cast")
             val fileCollections: Map<String, FileCollectionPlugin> = loadProductBasedPlugins(
                 config.products?.storage ?: emptyMap(),
                 config.plugins.fileCollections ?: emptyMap(),
@@ -546,12 +545,12 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     }
 
     for ((id, pluginConfig) in plugins) {
-        val products = partitionedProducts[id.value] ?: emptyList()
+        val pluginProducts = partitionedProducts[id.value] ?: emptyList()
         val plugin = instansiatePlugin(pluginConfig)
         if (plugin is ResourcePlugin<*, *, *, *>) {
             plugin.pluginName = id.value
-            plugin.productAllocation = products
-            if (products.isEmpty()) {
+            plugin.productAllocation = pluginProducts
+            if (pluginProducts.isEmpty()) {
                 emitWarning(
                     "Could not allocate any products to the plugin '$id'. This plugin will never run!",
                     pluginRef.useLocationAndProperty(id.tag, (pluginRef.property ?: "") + "/" + id.value)
@@ -667,7 +666,7 @@ private fun emitError(result: VerifyResult.Error<*>): Nothing {
             line()
         }
 
-        if (result.ref?.location?.approximateStart == 0 && result.ref?.location?.approximateEnd == 0) {
+        if (result.ref?.location?.approximateStart == 0 && result.ref.location.approximateEnd == 0) {
             line()
             line("The above value was a computed value/default value. You can try specifying the value explicitly " +
                 "in the configuration.")
@@ -743,7 +742,7 @@ fun verifyHost(host: Host, ref: ConfigurationReference? = null): VerifyResult<Ho
         // Next, we use these hints to retrieve information about our requested host at the specified port
         val result = allocPointerTo<addrinfo>()
         if (getaddrinfo(host.host, host.port.toString(), hints.ptr, result.ptr) != 0) {
-            return VerifyResult.Error<Host>(
+            return VerifyResult.Error(
                 "The following host appears to be invalid: $host. Validate that the host name is correct and that " +
                     "you are able to connect to it.",
                 ref
@@ -768,10 +767,10 @@ private fun verifyFile(
 
     if (!isOk) {
         return when (typeRequirement) {
-            FileType.DIRECTORY -> VerifyResult.Error<String>("No directory exists at '$path'", ref)
-            null -> VerifyResult.Error<String>("No file exists at '$path'", ref)
+            FileType.DIRECTORY -> VerifyResult.Error("No directory exists at '$path'", ref)
+            null -> VerifyResult.Error("No file exists at '$path'", ref)
             else -> {
-                VerifyResult.Error<String>("No file exists at '$path'", ref)
+                VerifyResult.Error("No file exists at '$path'", ref)
             }
         }
     } else {

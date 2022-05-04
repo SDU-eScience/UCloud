@@ -1,7 +1,5 @@
 package dk.sdu.cloud.plugins.allocations
 
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.*
 
@@ -22,8 +20,14 @@ class ExtensionAllocationPlugin : AllocationPlugin {
         return results
     }
 
+    override suspend fun PluginContext.onResourceSynchronization(notifications: List<AllocationNotification>) {
+        for (notification in notifications) {
+            onSynchronization.invoke(pluginConfig.extensions.onSynchronization.value, notification)
+        }
+    }
+
     private companion object Extensions {
         val onAllocation = extension<AllocationNotification, OnResourceAllocationResult>()
+        val onSynchronization = extension<AllocationNotification, Unit>()
     }
 }
-

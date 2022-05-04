@@ -249,7 +249,7 @@ fun loadConfiguration(): ConfigSchema {
                             yamlDocumentContext(text, ex.location.approximateStart, ex.location.approximateEnd)
                         }
 
-                        ex is SerializationException && exMsg.contains("is not registered for poly") == true -> {
+                        ex is SerializationException && exMsg.contains("is not registered for poly") -> {
                             line("It looks like you have requested a configuration block which does not exist.")
                             line()
 
@@ -282,7 +282,7 @@ fun loadConfiguration(): ConfigSchema {
                             }
                         }
 
-                        ex is SerializationException && exMsg.contains("required for type with serial") == true -> {
+                        ex is SerializationException && exMsg.contains("required for type with serial") -> {
                             line("It looks like you are missing some mandatory configuration.")
 
                             val errorRegex = Regex("Fields? ['\\[](.+)['\\]] (is|are) required for type with serial " +

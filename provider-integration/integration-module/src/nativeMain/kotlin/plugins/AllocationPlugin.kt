@@ -42,5 +42,10 @@ interface AllocationPlugin : Plugin<ConfigSchema.Plugins.Allocations> {
     ): List<OnResourceAllocationResult> {
         return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
     }
-}
 
+    suspend fun PluginContext.onResourceSynchronization(
+        notifications: List<AllocationNotification>
+    ) {
+        // Do nothing
+    }
+}
