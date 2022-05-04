@@ -3,135 +3,12 @@ package dk.sdu.cloud.grant.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.project.api.CreateProjectRequest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 val Int.DKK: Long get() = toLong() * 1_000_000
 fun Long.creditsToDKK(): Long = this / 1_000_000
 
-@Serializable
-data class UploadTemplatesRequest(
-    val form: GrantApplication.Form
-)
-
-typealias UploadTemplatesResponse = Unit
-
-@Serializable
-data class UploadLogoRequest(
-    val projectId: String,
-)
-
-typealias UploadLogoResponse = Unit
-
-@Serializable
-data class FetchLogoRequest(
-    val projectId: String
-)
-
-typealias FetchLogoResponse = Unit
-
-@Serializable
-data class UploadDescriptionRequest(
-    val projectId: String,
-    val description: String
-) {
-    init {
-        if (description.length > 240) {
-            throw RPCException("Description must not exceed 240 characters", HttpStatusCode.BadRequest)
-        }
-    }
-}
-typealias UploadDescriptionResponse = Unit
-
-@Serializable
-data class FetchDescriptionRequest(
-    val projectId: String
-)
-@Serializable
-data class FetchDescriptionResponse(
-    val description: String
-)
-
-@Serializable
-data class ReadTemplatesRequest(val projectId: String)
-typealias ReadTemplatesResponse = UploadTemplatesRequest
-
-@Serializable
-@UCloudApiDoc("""
-    Describes some criteria which match a user
-    
-    This is used in conjunction with actions that require authorization.
-""")
-@UCloudApiOwnedBy(Grants::class)
-sealed class UserCriteria {
-    @Serializable
-    @SerialName(UserCriteria.ANYONE_TYPE)
-    @UCloudApiDoc("Matches any user")
-    class Anyone : UserCriteria() {
-        override fun equals(other: Any?): Boolean {
-            return other is Anyone
-        }
-
-        override fun hashCode(): Int {
-            return this::class.hashCode()
-        }
-    }
-
-    @UCloudApiDoc("Matches any user with an email domain equal to `domain`")
-    @Serializable
-    @SerialName(UserCriteria.EMAIL_TYPE)
-    data class EmailDomain(val domain: String) : UserCriteria()
-
-    @UCloudApiDoc("""
-       Matches any user with an organization matching [org] 
-       
-       The organization is currently derived from the information we receive from WAYF.
-    """)
-    @Serializable
-    @SerialName(UserCriteria.WAYF_TYPE)
-    data class WayfOrganization(val org: String) : UserCriteria()
-
-    companion object {
-        const val ANYONE_TYPE = "anyone"
-        const val EMAIL_TYPE = "email"
-        const val WAYF_TYPE = "wayf"
-    }
-}
-
-@UCloudApiDoc("""
-    Settings which control if an Application should be automatically approved
-     
-    The `Application` will be automatically approved if the all of the following is true:
-    - The requesting user matches any of the criteria in `from`
-    - The user has only requested resources (`Application.requestedResources`) which are present in `maxResources`
-    - None of the resource requests exceed the numbers specified in `maxResources`
-""")
-@Serializable
-data class AutomaticApprovalSettings(
-    val from: List<UserCriteria>,
-    val maxResources: List<GrantApplication.AllocationRequest>
-)
-
-@UCloudApiDoc("""
-    Settings for grant Applications
-     
-    A user will be allowed to apply for grants to this project if they match any of the criteria listed in
-    `allowRequestsFrom`.
-""")
-@Serializable
-data class ProjectApplicationSettings(
-    val automaticApproval: AutomaticApprovalSettings,
-    val allowRequestsFrom: List<UserCriteria>,
-    val excludeRequestsFrom: List<UserCriteria>
-)
-
-typealias UploadRequestSettingsRequest = ProjectApplicationSettings
-typealias UploadRequestSettingsResponse = Unit
-
-@Serializable
-data class ReadRequestSettingsRequest(val projectId: String)
-typealias ReadRequestSettingsResponse = ProjectApplicationSettings
 
 @Serializable
 data class UpdateApplicationState(val applicationId: Long, val newState: GrantApplication.State, val notify: Boolean = true)
@@ -147,14 +24,6 @@ data class TransferApplicationRequest(val applicationId: Long, val transferToPro
 typealias TransferApplicationResponse = Unit
 
 @Serializable
-data class CommentOnApplicationRequest(val requestId: Long, val comment: String)
-typealias CommentOnApplicationResponse = Unit
-
-@Serializable
-data class DeleteCommentRequest(val commentId: Long)
-typealias DeleteCommentResponse = Unit
-
-@Serializable
 enum class GrantApplicationFilter {
     SHOW_ALL,
     ACTIVE,
@@ -162,95 +31,34 @@ enum class GrantApplicationFilter {
 }
 
 @Serializable
-data class IngoingApplicationsRequest(
-    val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = null,
-    override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
-typealias IngoingApplicationsResponse = PageV2<GrantApplication>
-
-@Serializable
 data class ApplicationWithComments(val application: GrantApplication, val comments: List<GrantApplication.Comment>, val approver: Boolean)
 
+interface BrowseApplicationFlags {
+    val includeIngoingApplications: Boolean
+    val includeOutgoingApplications: Boolean
+}
 @Serializable
-data class OutgoingApplicationsRequest(
+data class BrowseApplicationsRequest(
     val filter: GrantApplicationFilter = GrantApplicationFilter.ACTIVE,
+
+    override val includeIngoingApplications: Boolean = false,
+    override val includeOutgoingApplications: Boolean = false,
+
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2
-typealias OutgoingApplicationsResponse = PageV2<GrantApplication>
+) : WithPaginationRequestV2, BrowseApplicationFlags
+typealias BrowseApplicationsResponse = PageV2<GrantApplication>
 
 typealias SubmitApplicationRequest = CreateApplication
 typealias SubmitApplicationResponse = FindByLongId
-
-@Serializable
-data class EditReferenceIdRequest(
-    val id: Long,
-    val newReferenceId: String?
-) {
-    init {
-        val errorMessage = "DeiC is a reserved keyword."
-        val deicUniList = listOf("KU", "DTU", "AU", "SDU", "AAU", "RUC", "ITU", "CBS")
-        if (newReferenceId != null) {
-            if (newReferenceId.lowercase().startsWith("deic")) {
-                val splitId = newReferenceId.split("-")
-                when  {
-                    splitId.size != 4 -> {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            "$errorMessage It seems like you are not following request format. DeiC-XX-YY-NUMBER"
-                        )
-                    }
-                    splitId.first() != "DeiC" -> {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            "$errorMessage First part should be DeiC."
-                        )
-                    }
-                    !deicUniList.contains(splitId[1]) -> {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            "$errorMessage Uni value is not listed in DeiC. If you think this is a mistake, please contact UCloud"
-                        )
-                    }
-                    splitId[2].length != 2 -> {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            errorMessage + " Allocation category wrong fornat"
-                        )
-                    }
-                    !splitId[2].contains(Regex("""[LNSI][1-5]$""")) -> {
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            errorMessage + " Allocation category has wrong format."
-                        )
-                    }
-                    !splitId[3].contains(Regex("""^\d+$""")) ->
-                        throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            errorMessage + " Only supports numeric local ids"
-                        )
-                }
-            }
-        }
-    }
-}
-
-
-typealias EditReferenceIdResponse = Unit
 
 @Serializable
 data class EditApplicationRequest(
     val document: GrantApplication.Document
 )
 typealias EditApplicationResponse = Unit
-
-
-
 
 @Serializable
 data class CreateApplication(
@@ -451,15 +259,6 @@ data class ViewApplicationRequest(val id: Long)
 typealias ViewApplicationResponse = ApplicationWithComments
 
 @Serializable
-data class SetEnabledStatusRequest(val projectId: String, val enabledStatus: Boolean)
-typealias SetEnabledStatusResponse = Unit
-
-@Serializable
-data class IsEnabledRequest(val projectId: String)
-@Serializable
-data class IsEnabledResponse(val enabled: Boolean)
-
-@Serializable
 data class BrowseProjectsRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
@@ -471,17 +270,17 @@ typealias BrowseProjectsResponse = PageV2<ProjectWithTitle>
 data class ProjectWithTitle(val projectId: String, val title: String)
 
 @Serializable
-data class GrantsRetrieveAffiliationsRequest(
+data class GrantsBrowseAffiliationsRequest(
     val grantId: Long,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
-typealias GrantsRetrieveAffiliationsResponse = PageV2<ProjectWithTitle>
+typealias GrantsBrowseAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
-data class GrantsRetrieveProductsRequest(
+data class GrantsBrowseProductsRequest(
     val projectId: String,
     val recipientType: String,
     val recipientId: String,
@@ -489,7 +288,7 @@ data class GrantsRetrieveProductsRequest(
 )
 
 @Serializable
-data class GrantsRetrieveProductsResponse(
+data class GrantsBrowseProductsResponse(
     val availableProducts: List<Product>
 )
 
@@ -520,110 +319,6 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     /**
-     * Uploads a description of a project which is enabled
-     *
-     * Only project administrators of the project can upload a description
-     *
-     * @see setEnabledStatus
-     * @see isEnabled
-     */
-    val uploadDescription = call<UploadDescriptionRequest, UploadDescriptionResponse, CommonErrorMessage>("uploadDescription") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"uploadDescription"
-            }
-
-            body { bindEntireRequestFromBody() }
-
-        }
-    }
-
-    val fetchDescription = call<FetchDescriptionRequest, FetchDescriptionResponse, CommonErrorMessage>("fetchDescription") {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PUBLIC
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"description"
-            }
-
-            params {
-                +boundTo(FetchDescriptionRequest::projectId)
-            }
-        }
-
-        documentation {
-            summary = "Fetches a description of a project"
-        }
-    }
-
-    val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"uploadLogo"
-            }
-
-            headers {
-                +boundTo("Upload-Name", UploadLogoRequest::projectId)
-            }
-
-            /*
-            body {
-                bindToSubProperty(UploadLogoRequest::data)
-            }
-             */
-        }
-
-        documentation {
-            summary = "Uploads a logo for a project, which is enabled"
-            description = "Only project administrators of the project can upload a logo"
-        }
-    }
-
-    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
-        auth {
-            access = AccessRight.READ
-            roles = Roles.PUBLIC
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"logo"
-            }
-
-            params {
-                +boundTo(FetchLogoRequest::projectId)
-            }
-        }
-
-        documentation {
-            summary = "Fetches a logo for a project"
-        }
-    }
-
-    /**
      *
      *
      *
@@ -631,78 +326,6 @@ ${ApiConventions.nonConformingApiWarning}
      * @see isEnabled
      * @see setEnabledStatus
      */
-    val uploadTemplates = call<BulkRequest<UploadTemplatesRequest>, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
-        httpUpdate(
-            baseContext,
-            "upload-templates"
-        )
-
-        documentation {
-            summary = "Uploads templates used for new grant Applications"
-            description = "Only project administrators of the project can upload new templates. The project needs to be " +
-                "enabled."
-        }
-    }
-
-    val uploadRequestSettings =
-        call<BulkRequest<UploadRequestSettingsRequest>, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
-            httpUpdate(
-                baseContext,
-                "request-settings"
-            )
-
-            documentation {
-                summary = "Uploads [ProjectApplicationSettings] to be associated with a project. The project must be " +
-                    "enabled."
-            }
-        }
-
-    val readRequestSettings =
-        call<ReadRequestSettingsRequest, ReadRequestSettingsResponse, CommonErrorMessage>("readRequestSettings") {
-            auth {
-                access = AccessRight.READ
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"request-settings"
-                }
-
-                params {
-                    +boundTo(ReadRequestSettingsRequest::projectId)
-                }
-            }
-        }
-
-    val readTemplates = call<ReadTemplatesRequest, ReadTemplatesResponse, CommonErrorMessage>("readTemplates") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"read-templates"
-            }
-
-            params {
-                +boundTo(ReadTemplatesRequest::projectId)
-            }
-        }
-
-        documentation {
-            summary = "Reads the templates for a new grant [Application]"
-            description = """
-                User interfaces should display the relevant template, based on who will be the 
-                [Application.grantRecipient].
-            """.trimIndent()
-        }
-    }
 
     val submitApplication =
         call<BulkRequest<SubmitApplicationRequest>, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
@@ -720,35 +343,6 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val commentOnApplication =
-        call<BulkRequest<CommentOnApplicationRequest>, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
-            httpCreate(
-                baseContext,
-                "comment"
-            )
-
-            documentation {
-                summary = "Adds a comment to an existing [GrantApplication]"
-                description = """
-                    Only the [GrantApplication] creator and [GrantApplication] reviewers are allowed to comment on the 
-                    [GrantApplication].
-                """.trimIndent()
-            }
-        }
-
-    val deleteComment = call<BulkRequest<DeleteCommentRequest>, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
-        httpDelete(
-            "$baseContext/comment"
-        )
-
-
-        documentation {
-            summary = "Deletes a comment from an existing [GrantApplication]"
-            description = """
-                The comment can only be deleted by the author of the comment.
-            """.trimIndent()
-        }
-    }
 
     val updateApplicationState = call<BulkRequest<UpdateApplicationState>, UpdateApplicationStateResponse, CommonErrorMessage>("updateApplicationState") {
         httpUpdate(
@@ -775,15 +369,6 @@ ${ApiConventions.nonConformingApiWarning}
         documentation {
             summary = "Performs an edit to an existing [GrantApplication]"
             description = "Both the creator and any of the grant reviewers are allowed to edit the application."
-        }
-    }
-
-    val editReferenceId = call<BulkRequest<EditReferenceIdRequest>, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
-        httpUpdate(baseContext, "editReference")
-
-        documentation {
-            summary = "Performs an edit to an existing [referenceId]"
-            description = "Any of the grant reviewers are allowed to edit the reference id."
         }
     }
 
@@ -815,124 +400,25 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val ingoingApplications =
-        call<IngoingApplicationsRequest, IngoingApplicationsResponse, CommonErrorMessage>("ingoingApplications") {
-            auth {
-                access = AccessRight.READ
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"ingoing"
-                }
-
-                params {
-
-                    +boundTo(OutgoingApplicationsRequest::itemsPerPage)
-                    +boundTo(OutgoingApplicationsRequest::consistency)
-                    +boundTo(OutgoingApplicationsRequest::next)
-                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
-                    +boundTo(OutgoingApplicationsRequest::filter)
-                }
-            }
-
-            documentation {
-                summary = "Lists active [GrantApplication]s which are 'ingoing' (received by) to a project"
-            }
-        }
-
-    val outgoingApplications =
-        call<OutgoingApplicationsRequest, OutgoingApplicationsResponse, CommonErrorMessage>("outgoingApplications") {
-            auth {
-                access = AccessRight.READ
-            }
-
-            http {
-                method = HttpMethod.Get
-
-                path {
-                    using(baseContext)
-                    +"outgoing"
-                }
-
-                params {
-                    +boundTo(OutgoingApplicationsRequest::itemsPerPage)
-                    +boundTo(OutgoingApplicationsRequest::consistency)
-                    +boundTo(OutgoingApplicationsRequest::next)
-                    +boundTo(OutgoingApplicationsRequest::itemsToSkip)
-                    +boundTo(OutgoingApplicationsRequest::filter)
-                }
-            }
-
-            documentation {
-                summary = "Lists all active [GrantApplication]s made by the calling user"
-            }
-        }
-
-    val setEnabledStatus =
-        call<BulkRequest<SetEnabledStatusRequest>, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
-            httpUpdate(
-                baseContext,
-                "set-enabled",
-                Roles.PRIVILEGED
+    val browseApplications =
+        call<BrowseApplicationsRequest, BrowseApplicationsResponse, CommonErrorMessage>("browseApplications") {
+            httpBrowse(
+                baseContext
             )
 
             documentation {
-                summary = "Enables a project to receive [Application]"
-                description = """
-                     Note that a project will not be able to receive any applications until its
-                     [ProjectApplicationSettings.allowRequestsFrom] allow for it.
+                summary = "List active [GrantApplication]s"
+                description = """Lists active [GrantApplication]s which are relevant to a project. By using
+                    [BrowseApplicationFlags] it is possible to filter on ingoing and/or outgoing.
                 """.trimIndent()
             }
         }
 
-    val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"is-enabled"
-            }
-
-            params {
-                +boundTo(IsEnabledRequest::projectId)
-            }
-        }
-
-        documentation {
-            summary = "If this returns true then the project (as specified by [IsEnabledRequest.projectId]) can receive " +
-                "grant [Application]s."
-        }
-    }
-
     val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"browse-projects"
-            }
-
-            params {
-                +boundTo(BrowseProjectsRequest::itemsPerPage)
-                +boundTo(BrowseProjectsRequest::consistency)
-                +boundTo(BrowseProjectsRequest::next)
-                +boundTo(BrowseProjectsRequest::itemsToSkip)
-            }
-        }
+        httpBrowse(
+            baseContext,
+            "projects"
+        )
 
         documentation {
             summary = "Endpoint for users to browse projects which they can send grant [Application]s to"
@@ -943,54 +429,24 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrieveAffiliations = call<
-            GrantsRetrieveAffiliationsRequest,
-            GrantsRetrieveAffiliationsResponse,
+    val browseAffiliations = call<
+            GrantsBrowseAffiliationsRequest,
+            GrantsBrowseAffiliationsResponse,
             CommonErrorMessage
             >("retrieveAffiliations") {
-        auth {
-            access = AccessRight.READ
-        }
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"retrieveAffiliations"
-            }
-
-            params {
-                +boundTo(GrantsRetrieveAffiliationsRequest::grantId)
-                +boundTo(GrantsRetrieveAffiliationsRequest::itemsPerPage)
-                +boundTo(GrantsRetrieveAffiliationsRequest::next)
-                +boundTo(GrantsRetrieveAffiliationsRequest::itemsToSkip)
-                +boundTo(GrantsRetrieveAffiliationsRequest::consistency)
-            }
-        }
+        httpBrowse(
+            baseContext,
+            "affiliations"
+        )
     }
 
-    val retrieveProducts = call<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse, CommonErrorMessage>(
-        "retrieveProducts"
+    val browseProducts = call<GrantsBrowseProductsRequest, GrantsBrowseProductsResponse, CommonErrorMessage>(
+        "browseProducts"
     ) {
-        auth {
-            access = AccessRight.READ
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-                +"retrieveProducts"
-            }
-
-            params {
-                +boundTo(GrantsRetrieveProductsRequest::projectId)
-                +boundTo(GrantsRetrieveProductsRequest::recipientId)
-                +boundTo(GrantsRetrieveProductsRequest::recipientType)
-                +boundTo(GrantsRetrieveProductsRequest::showHidden)
-            }
-        }
+        httpBrowse(
+            baseContext,
+            "products"
+        )
     }
 
     // This needs to be last
