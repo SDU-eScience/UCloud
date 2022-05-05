@@ -1,32 +1,43 @@
 package dk.sdu.cloud.plugins.storage.posix
 
 import dk.sdu.cloud.ProductReferenceWithoutProvider
-import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.ServerMode
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.RpcClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
-import dk.sdu.cloud.file.orchestrator.api.FSCollectionSupport
-import dk.sdu.cloud.file.orchestrator.api.FSFileSupport
-import dk.sdu.cloud.file.orchestrator.api.FSProductStatsSupport
-import dk.sdu.cloud.file.orchestrator.api.FSSupport
+import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.extension
+import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.provider.api.ResourceOwner
-import kotlinx.cinterop.pointed
-import kotlinx.cinterop.toKStringFromUtf8
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import kotlinx.cinterop.*
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import platform.linux.statvfs
+import platform.posix.errno
 import platform.posix.geteuid
 import platform.posix.getpwuid
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    private lateinit var pathConverter: PathConverter
     private lateinit var pluginConfig: PosixFileCollectionsConfiguration
-    private var initializedProjects = HashSet<String?>()
+    private var initializedProjects = HashMap<ResourceOwner, List<PathConverter.Collection>>()
     private val mutex = Mutex()
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
@@ -34,11 +45,17 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     override suspend fun PluginContext.init(owner: ResourceOwner) {
-        pathConverter = PathConverter(this)
+        locateAndRegisterCollections(owner)
+    }
+
+    private suspend fun PluginContext.locateAndRegisterCollections(
+        owner: ResourceOwner
+    ): List<PathConverter.Collection> {
+        val pathConverter = PathConverter(this)
         val project = owner.project
         mutex.withLock {
-            if (project in initializedProjects) return
-            if (!initializedProjects.add(project)) return
+            val cached = initializedProjects[owner]
+            if (cached != null) return cached
         }
 
         data class CollWithProduct(
@@ -48,8 +65,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         )
 
         val homes = HashMap<String, CollWithProduct>()
-        val projects = HashMap<String, CollWithProduct>()
-
         val collections = ArrayList<PathConverter.Collection>()
 
         run {
@@ -89,9 +104,17 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             }
         }
 
+        mutex.withLock {
+            val cached = initializedProjects[owner]
+            if (cached != null) return cached
+            initializedProjects[owner] = collections
+        }
+
         if (collections.isNotEmpty()) {
             pathConverter.registerCollectionWithUCloud(collections)
         }
+
+        return collections
     }
 
     override suspend fun PluginContext.retrieveProducts(
@@ -107,10 +130,134 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         })
     }
 
-    private companion object Extensions {
-        val retrieveCollections = extension<ResourceOwner, List<PosixCollectionFromExtension>>()
+    private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient) {
+        if (isEmpty()) return
+        FileCollectionsControl.chargeCredits.call(BulkRequest(this), client).orThrow()
+        clear()
+    }
+
+    private suspend fun ArrayList<ResourceChargeCredits>.addToBatch(
+        client: AuthenticatedClient,
+        item: ResourceChargeCredits
+    ) {
+        add(item)
+        if (size >= 100) sendBatch(client)
+    }
+
+    override suspend fun PluginContext.runMonitoringLoop() {
+        if (config.serverMode != ServerMode.Server) return
+        if (pluginConfig.accounting == null) return
+
+        val pathConverter = PathConverter(this)
+        val productCategories = productAllocation.map { it.category }.toSet()
+
+        var nextScan = 0L
+
+        while (currentCoroutineContext().isActive) {
+            try {
+                val now = Time.now()
+                if (now >= nextScan) {
+                    val batchBuilder = ArrayList<ResourceChargeCredits>()
+
+                    for (category in productCategories) {
+                        var next: String? = null
+                        while (currentCoroutineContext().isActive) {
+                            val summary = Wallets.retrieveProviderSummary.call(
+                                WalletsRetrieveProviderSummaryRequest(
+                                    filterCategory = category,
+                                    itemsPerPage = 250,
+                                    next = next,
+                                ),
+                                rpcClient
+                            ).orThrow()
+
+                            for (item in summary.items) {
+                                val owner = when (val owner = item.owner) {
+                                    is WalletOwner.User -> ResourceOwner(owner.username, null)
+                                    is WalletOwner.Project -> ResourceOwner("_ucloud", owner.projectId)
+                                }
+
+                                val colls = locateAndRegisterCollections(owner)
+                                    .filter { it.product.category == category }
+
+                                if (colls.isNotEmpty()) {
+                                    val bytesUsed = colls.sumOf { calculateUsage(it) }
+                                    val unitsUsed = bytesUsed / 1_000_000_000L
+                                    val coll = pathConverter.ucloudToCollection(
+                                        pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
+                                    )
+
+                                    batchBuilder.addToBatch(
+                                        rpcClient,
+                                        ResourceChargeCredits(
+                                            coll.id,
+                                            "$now-${coll.id}",
+                                            unitsUsed
+                                        )
+                                    )
+                                }
+                            }
+
+                            batchBuilder.sendBatch(rpcClient)
+
+                            next = summary.next
+                            if (next == null) break
+                        }
+                    }
+
+                    nextScan = now + (1000L * 60 * 60 * 4)
+                }
+
+                delay(5000)
+            } catch (ex: Throwable) {
+                log.info("Caught exception while monitoring Posix collections: ${ex.stackTraceToString()}")
+            }
+        }
+    }
+
+    private fun calculateUsage(coll: PathConverter.Collection): Long {
+        return when (val cfg = pluginConfig.accounting) {
+            "DeviceQuota" -> {
+                memScoped {
+                    val buf = alloc<statvfs>()
+                    if (statvfs(coll.localPath, buf.ptr) != 0) {
+                        error("statvfs failed $errno $coll")
+                    }
+
+                    val quota = buf.f_blocks * buf.f_frsize
+                    val available = buf.f_favail * buf.f_bsize
+
+                    // TODO(Dan): These numbers seem correct, but different from the numbers reported by df. Not
+                    //  sure what is going on.
+                    (quota - available).toLong()
+                }
+            }
+
+            null -> 0
+
+            else -> {
+                calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
+            }
+        }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+
+        private val retrieveCollections = extension<ResourceOwner, List<PosixCollectionFromExtension>>()
+        private val calculateUsage = extension<CalculateUsageRequest, CalculateUsageResponse>()
     }
 }
+
+@Serializable
+data class CalculateUsageRequest(
+    val path: String,
+)
+
+@Serializable
+data class CalculateUsageResponse(
+    val bytesUsed: Long,
+)
 
 @Serializable
 private data class PosixCollectionFromExtension(

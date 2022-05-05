@@ -16,6 +16,7 @@ import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.http.loadMiddleware
 import dk.sdu.cloud.ipc.*
+import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.DBContext
@@ -380,7 +381,12 @@ fun main(args: Array<String>) {
             if (config.pluginsOrNull != null) {
                 val plugins = config.plugins
 
-                for ((_, plugin) in plugins.jobs) {
+                val allResourcePlugins = ArrayList<ResourcePlugin<*, *, *, *>>()
+                allResourcePlugins.addAll(plugins.jobs.values)
+                allResourcePlugins.addAll(plugins.files.values)
+                allResourcePlugins.addAll(plugins.fileCollections.values)
+
+                for (plugin in allResourcePlugins) {
                     ProcessingScope.launch {
                         with(pluginContext) {
                             with(plugin) {
@@ -388,7 +394,6 @@ fun main(args: Array<String>) {
                             }
                         }
                     }
-
                 }
             }
 

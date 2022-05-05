@@ -182,4 +182,3 @@ class PathConverter(private val ctx: PluginContext) {
         )
     }
 }
-

@@ -183,10 +183,7 @@ class NotificationController(
 
         val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
         for ((index, res) in output.withIndex()) {
-            if (res == null) {
-                log.warn("Could not find plugin for ${batch.responses[index].category}")
-                continue
-            }
+            if (res == null) continue
 
             items.add(DepositNotificationsMarkAsReadRequestItem(
                 batch.responses[index].id,
