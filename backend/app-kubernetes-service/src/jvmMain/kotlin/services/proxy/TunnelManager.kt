@@ -55,36 +55,28 @@ class TunnelManager(private val k8: K8Dependencies) {
         cleanupExecutor.shutdownNow()
     }
 
-    suspend fun createOrUseExistingTunnel(id: String, remotePort: Int, rank: Int): Tunnel {
+    suspend fun createOrRecreateTunnel(id: String, remotePort: Int, rank: Int): Tunnel {
         mutex.withLock {
             val key = Key(JobIdAndRank(id, rank), remotePort)
             val existing = openTunnels[key]
-            val alive = existing?.tunnel?.isAlive() ?: false
-            if (existing != null && !alive) {
-                existing.tunnel.close()
-            }
+            existing?.tunnel?.close()
 
-            return if (existing != null && alive) {
-                existing.lastUsed = Time.now()
-                existing.tunnel
-            } else {
-                val localPort: Int = run {
-                    while (true) {
-                        val localPort = Random.nextInt(30000, 64000)
-                        if (localPort !in usedPorts) {
-                            return@run localPort
-                        }
+            val localPort: Int = run {
+                while (true) {
+                    val localPort = Random.nextInt(30000, 64000)
+                    if (localPort !in usedPorts) {
+                        return@run localPort
                     }
-
-                    // Needed to compile code
-                    @Suppress("UNREACHABLE_CODE")
-                    return@run 1
                 }
 
-                val newTunnel = createTunnel(id, localPort, remotePort, rank)
-                openTunnels[key] = TunnelWithUsageTracking(newTunnel, Time.now())
-                newTunnel
+                // Needed to compile code
+                @Suppress("UNREACHABLE_CODE")
+                return@run 1
             }
+
+            val newTunnel = createTunnel(id, localPort, remotePort, rank)
+            openTunnels[key] = TunnelWithUsageTracking(newTunnel, Time.now())
+            return newTunnel
         }
     }
 
