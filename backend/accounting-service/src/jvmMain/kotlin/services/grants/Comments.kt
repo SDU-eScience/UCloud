@@ -1,6 +1,8 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.accounting.api.grants.CreateCommentRequest
+import dk.sdu.cloud.accounting.api.grants.DeleteCommentRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
@@ -15,7 +17,7 @@ class GrantCommentService(
 ) {
     suspend fun postComment(
         actorAndProject: ActorAndProject,
-        request: CommentOnApplicationRequest
+        request: CreateCommentRequest
     ) {
         db.withSession(remapExceptions = true) { session ->
             val success = session.sendPreparedStatement(

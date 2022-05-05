@@ -3,6 +3,7 @@ package dk.sdu.cloud.grant.api
 import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
@@ -28,7 +29,7 @@ interface Gift {
     /**
      * A list of resources which will be granted to users [Gifts.claimGift] this [Gift].
      */
-    val resources: List<ResourceRequest>
+    val resources: List<GrantApplication.AllocationRequest>
 
     /**
      * A reference to the project which owns these resources
@@ -48,7 +49,7 @@ data class GiftWithCriteria(
     override val resourcesOwnedBy: String,
     override val title: String,
     override val description: String,
-    override val resources: List<ResourceRequest>,
+    override val resources: List<GrantApplication.AllocationRequest>,
     val criteria: List<UserCriteria>
 ) : Gift {
     init {

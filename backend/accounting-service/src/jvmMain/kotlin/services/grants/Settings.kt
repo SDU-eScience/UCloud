@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.projects.ProjectApplicationSettings
+import dk.sdu.cloud.accounting.api.projects.UploadRequestSettingsRequest
 import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -66,8 +68,8 @@ class GrantSettingsService(
                     }
 
                     request.automaticApproval.maxResources.split {
-                        into("auto_approve_category") { it.productCategory }
-                        into("auto_approve_provider") { it.productProvider }
+                        into("auto_approve_category") { it.category }
+                        into("auto_approve_provider") { it.provider }
                         into("auto_approve_quota") { null }
                         into("auto_approve_credits") { it.balanceRequested }
                     }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.grants.UpdateReferenceIdRequest
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.BulkRequest
@@ -25,7 +26,7 @@ class GrantApplicationService(
 ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
-        request: GrantsRetrieveProductsRequest,
+        request: GrantsBrowseProductsRequest,
     ): List<Product> {
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
@@ -82,35 +83,38 @@ class GrantApplicationService(
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
-    ): Long {
+    ): List<Long> {
         request.items.forEach { createRequest ->
             val recipient = createRequest.document.recipient
             if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
                 throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
             }
         }
-        val (appId, notification) = db.withSession(remapExceptions = true) { session ->
-            val applicationId = session.sendPreparedStatement(
-                {
-                    setParameter("source", request.resourcesOwnedBy)
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("document", request.document)
-                    setParameter(
-                        "grant_recipient", when (recipient) {
-                            is GrantRecipient.ExistingProject -> recipient.projectId
-                            is GrantRecipient.NewProject -> recipient.projectTitle
-                            is GrantRecipient.PersonalProject -> recipient.username
-                        }
-                    )
-                    setParameter(
-                        "grant_recipient_type", when (recipient) {
-                            is GrantRecipient.ExistingProject -> GrantRecipient.EXISTING_PROJECT_TYPE
-                            is GrantRecipient.NewProject -> GrantRecipient.NEW_PROJECT_TYPE
-                            is GrantRecipient.PersonalProject -> GrantRecipient.PERSONAL_TYPE
-                        }
-                    )
-                },
-                """
+        val results = mutableListOf<Pair<Long, GrantNotification>>()
+        db.withSession(remapExceptions = true) { session ->
+            request.items.forEach {createRequest ->
+                val applicationId = session.sendPreparedStatement(
+                    {
+                        setParameter("source", request.resourcesOwnedBy)
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("document", createRequest.document.form.)
+                        val recipient = createRequest.document.recipient
+                        setParameter(
+                            "grant_recipient", when (recipient) {
+                                is GrantApplication.Recipient.ExistingProject -> recipient.id
+                                is GrantApplication.Recipient.NewProject -> recipient.title
+                                is GrantApplication.Recipient.PersonalWorkspace -> recipient.username
+                            }
+                        )
+                        setParameter(
+                            "grant_recipient_type", when (recipient) {
+                                is GrantApplication.Recipient.ExistingProject -> GrantApplication.Recipient.EXISTING_PROJECT_TYPE
+                                is GrantApplication.Recipient.NewProject -> GrantApplication.Recipient.NEW_PROJECT_TYPE
+                                is GrantApplication.Recipient.PersonalWorkspace -> GrantApplication.Recipient.PERSONAL_TYPE
+                            }
+                        )
+                    },
+                    """
                     insert into "grant".applications
                         (status, resources_owned_by, requested_by, grant_recipient, grant_recipient_type, document) 
                     select
@@ -119,39 +123,43 @@ class GrantApplicationService(
                         "grant".can_submit_application(:username, :source, :grant_recipient, :grant_recipient_type)
                     returning id
                 """
-            ).rows.singleOrNull()?.getLong(0)
-                ?: throw RPCException(
-                    "It looks like you are unable to submit a request to this affiliation. " +
-                        "Contact support if this problem persists.",
-                    HttpStatusCode.Forbidden
-                )
+                ).rows.singleOrNull()?.getLong(0)
+                    ?: throw RPCException(
+                        "It looks like you are unable to submit a request to this affiliation. " +
+                            "Contact support if this problem persists.",
+                        HttpStatusCode.Forbidden
+                    )
 
-            insertResources(session, applicationId, request.requestedResources)
+                insertResources(session, applicationId, createRequest.document.allocationRequests)
 
-            val responseNotification =
-                autoApprove(session, actorAndProject, request, applicationId) ?: GrantNotification(
-                    applicationId,
-                    adminMessage = AdminGrantNotificationMessage(
-                        { "New grant application to $projectTitle" },
-                        "NEW_GRANT_APPLICATION",
-                        { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), projectTitle) },
-                        meta = {
-                            JsonObject(
-                                mapOf(
-                                    "grantRecipient" to defaultMapper.encodeToJsonElement(request.grantRecipient),
-                                    "appId" to JsonPrimitive(applicationId),
+                val responseNotification =
+                    autoApprove(session, actorAndProject, createRequest, applicationId) ?: GrantNotification(
+                        applicationId,
+                        adminMessage = AdminGrantNotificationMessage(
+                            { "New grant application to $projectTitle" },
+                            "NEW_GRANT_APPLICATION",
+                            { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), projectTitle) },
+                            meta = {
+                                JsonObject(
+                                    mapOf(
+                                        "grantRecipient" to defaultMapper.encodeToJsonElement(createRequest.document.recipient),
+                                        "appId" to JsonPrimitive(applicationId),
+                                    )
                                 )
-                            )
-                        }
-                    ),
-                    userMessage = null
-                )
+                            }
+                        ),
+                        userMessage = null
+                    )
 
-            applicationId to responseNotification
+                results.add(applicationId to responseNotification)
+            }
         }
 
-        runCatching { notifications.notify(actorAndProject.actor.safeUsername(), notification) }
-        return appId
+        results.forEach { pair ->
+            val notification = pair.second
+            runCatching { notifications.notify(actorAndProject.actor.safeUsername(), notification) }
+        }
+        return results.map { it.first }
     }
 
     private suspend fun autoApprove(
@@ -160,6 +168,7 @@ class GrantApplicationService(
         request: CreateApplication,
         applicationId: Long,
     ): GrantNotification? {
+        //TODO()
         if (autoApproveApplicationCheck(
                 session,
                 request.requestedResources,
@@ -210,7 +219,7 @@ class GrantApplicationService(
                     GRANT_APP_RESPONSE,
                     {
                         Mail.GrantApplicationStatusChangedToAdmin(
-                            ApplicationStatus.APPROVED.name,
+                            GrantApplication.State.APPROVED.name,
                             projectTitle,
                             requestedBy,
                             grantRecipientTitle
@@ -248,14 +257,14 @@ class GrantApplicationService(
 
     private suspend fun autoApproveApplicationCheck(
         session: AsyncDBConnection,
-        requestedResources: List<ResourceRequest>,
+        requestedResources: List<GrantApplication.AllocationRequest>,
         receivingProjectId: String,
         applicantId: String
     ): Boolean {
         val numberOfAllowedToAutoApprove = session.sendPreparedStatement(
             {
-                setParameter("product_categories", requestedResources.map { it.productCategory })
-                setParameter("product_providers", requestedResources.map { it.productProvider })
+                setParameter("product_categories", requestedResources.map { it.category })
+                setParameter("product_providers", requestedResources.map { it.provider })
                 setParameter("balances_requested", requestedResources.map { it.balanceRequested })
                 setParameter("projectId", receivingProjectId)
                 setParameter("username", applicantId)
@@ -271,7 +280,7 @@ class GrantApplicationService(
                 select count(*)
                 from
                     requests req join
-                    product_categories pc on
+                    accounting.product_categories pc on
                         (req.product_provider = pc.provider and
                         req.product_category = pc.category) join
                     "grant".automatic_approval_limits aal on
@@ -306,15 +315,16 @@ class GrantApplicationService(
     private suspend fun insertResources(
         session: AsyncDBConnection,
         applicationId: Long,
-        resources: List<ResourceRequest>
+        resources: List<GrantApplication.AllocationRequest>
     ) {
+        //TODO()
         val allocationsApproved = session.sendPreparedStatement(
             {
                 setParameter("id", applicationId)
                 resources.split {
                     into("source_allocations") { it.sourceAllocation }
-                    into("categories") { it.productCategory }
-                    into("providers") { it.productProvider }
+                    into("categories") { it.category }
+                    into("providers") { it.provider }
                 }
             },
             """
@@ -352,8 +362,8 @@ class GrantApplicationService(
                 setParameter("id", applicationId)
                 resources.split {
                     into("credits_requested") { it.balanceRequested }
-                    into("categories") { it.productCategory }
-                    into("providers") { it.productProvider }
+                    into("categories") { it.category }
+                    into("providers") { it.provider }
                     into("source_allocations") { it.sourceAllocation}
                 }
             },
@@ -381,19 +391,28 @@ class GrantApplicationService(
 
     suspend fun editReferenceID(
         actorAndProject: ActorAndProject,
-        request: EditReferenceIdRequest
+        request: BulkRequest<UpdateReferenceIdRequest>
     ) {
-        if (request.newReferenceId == null) {
+        val filteredRequests = request.items.mapNotNull { editRequest ->
+            if (editRequest.newReferenceId == null) {
+                null
+            } else {
+                editRequest
+            }
+        }
+        if (filteredRequests.isEmpty()) {
             return
         }
+
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("id", request.id)
-                    setParameter("newReference", request.newReferenceId)
-                },
-                """
+            filteredRequests.forEach { req ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername()) //TODO() IS THIS FINE?
+                        setParameter("id", req.id)
+                        setParameter("newReference", req.newReferenceId)
+                    },
+                    """
                     with
                         permission_check as (
                             select app.id, pm.username is not null as is_approver
@@ -413,7 +432,8 @@ class GrantApplicationService(
                     from permission_check pc
                     where app.id = pc.id and pc.is_approver
                 """
-            )
+                )
+            }
         }
     }
 
@@ -421,6 +441,7 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         request: EditApplicationRequest
     ) {
+        //TODO() USE REVISION
         db.withSession(remapExceptions = true) { session ->
             val success = session.sendPreparedStatement(
                 {
@@ -523,7 +544,7 @@ class GrantApplicationService(
                     {
                         setParameter("username", actorAndProject.actor.safeUsername())
                         setParameter("id", id)
-                        setParameter("status", newState)
+                        setParameter("status", newState.name)
                         setParameter("should_be_approver", newState != GrantApplication.State.CLOSED)
                     },
                     """
@@ -564,10 +585,10 @@ class GrantApplicationService(
                 }
 
                 if (newState == GrantApplication.State.APPROVED) {
-                    onApplicationApprove(session, actorAndProject.actor.safeUsername(), update.requestId)
+                    onApplicationApprove(session, actorAndProject.actor.safeUsername(), update.applicationId)
                 }
 
-                if (update.notify == true) {
+                if (update.notify) {
                     val statusTitle = when (newState) {
                         GrantApplication.State.APPROVED -> "Approved"
                         GrantApplication.State.REJECTED -> "Rejected"
@@ -648,11 +669,11 @@ class GrantApplicationService(
         }
     }
 
-    suspend fun browseIngoingApplications(
+    suspend fun browseApplications(
         actorAndProject: ActorAndProject,
         pagination: WithPaginationRequestV2,
         filter: GrantApplicationFilter
-    ): PageV2<Application> {
+    ): PageV2<GrantApplication> {
         return db.paginateV2(
             actorAndProject.actor,
             pagination.normalize(),
@@ -715,7 +736,7 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         pagination: WithPaginationRequestV2,
         filter: GrantApplicationFilter
-    ): PageV2<Application> {
+    ): PageV2<GrantApplication> {
         return db.paginateV2(
             actorAndProject.actor,
             pagination.normalize(),

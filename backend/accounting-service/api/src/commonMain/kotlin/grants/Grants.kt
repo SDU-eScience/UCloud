@@ -188,7 +188,7 @@ data class GrantApplication(
 
         @Serializable
         @SerialName("plain_text")
-        class PlainText(
+        data class PlainText(
             @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
             val personalProject: String,
 
@@ -197,7 +197,7 @@ data class GrantApplication(
 
             @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
             val existingProject: String
-        )
+        ): Form()
     }
     @Serializable
     @SerialName("recipient")
@@ -205,6 +205,12 @@ data class GrantApplication(
         data class ExistingProject(val id: String) : Recipient()
         data class NewProject(val title: String) : Recipient()
         data class PersonalWorkspace(val username: String) : Recipient()
+
+        companion object {
+            const val PERSONAL_TYPE = "personal"
+            const val EXISTING_PROJECT_TYPE = "existing_project"
+            const val NEW_PROJECT_TYPE = "new_project"
+        }
     }
     @Serializable
     @SerialName("allocation_request")

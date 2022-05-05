@@ -3,7 +3,7 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.grant.api.GrantRecipient
+import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.mail.api.*
 import dk.sdu.cloud.notification.api.CreateNotification
 import dk.sdu.cloud.notification.api.Notification
@@ -39,7 +39,7 @@ data class NotificationContext(
     val projectId: String,
     val requestedBy: String,
     val grantRecipientTitle: String,
-    val grantRecipient: GrantRecipient,
+    val grantRecipient: GrantApplication.Recipient
 )
 
 class GrantNotificationService(
@@ -56,7 +56,7 @@ class GrantNotificationService(
             val title: String,
             val projectId: String,
             val grantRecipientTitle: String,
-            val grantRecipient: GrantRecipient
+            val grantRecipient: GrantApplication.Recipient
         )
 
         val rows = db.withSession(remapExceptions = true) { session ->
@@ -93,14 +93,14 @@ class GrantNotificationService(
                     it.getString(3)!!,
                     it.getString(4)!!,
                     when (it.getString(5)!!) {
-                        GrantRecipient.NEW_PROJECT_TYPE -> {
-                            GrantRecipient.NewProject(it.getString(4)!!)
+                        GrantApplication.Recipient.NEW_PROJECT_TYPE -> {
+                            GrantApplication.Recipient.NewProject(it.getString(4)!!)
                         }
-                        GrantRecipient.PERSONAL_TYPE -> {
-                            GrantRecipient.PersonalProject(it.getString(4)!!)
+                        GrantApplication.Recipient.PERSONAL_TYPE -> {
+                            GrantApplication.Recipient.PersonalWorkspace(it.getString(4)!!)
                         }
-                        GrantRecipient.EXISTING_PROJECT_TYPE -> {
-                            GrantRecipient.ExistingProject(it.getString(4)!!)
+                        GrantApplication.Recipient.EXISTING_PROJECT_TYPE -> {
+                            GrantApplication.Recipient.ExistingProject(it.getString(4)!!)
                         }
                         else -> error("database consistency error")
                     }
