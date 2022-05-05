@@ -12,6 +12,7 @@ import {
     productTypeToIcon,
     productTypeToTitle,
     retrieveRecipient,
+    RetrieveRecipientResponse,
     updateAllocation,
     UpdateAllocationRequestItem,
     Wallet,
@@ -242,15 +243,25 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             return;
         }
 
-        const recipientName = recipient.ref.current?.value;
-        if (!recipientName) {
+        const recipientId = recipient.ref.current?.value;
+        if (!recipientId) {
             snackbarStore.addFailure("Recipient can't be empty.", false);
             return;
         }
+
+        var recipientTitle = recipientId;
         try {
-            await invokeCommand(retrieveRecipient({query: recipientName}), {defaultErrorHandler: false});
+            const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
+            if (result == null) return;
+            recipientTitle = result.id;
         } catch (err) {
-            displayErrorMessageOrDefault(err, "Failed to find project/user");
+            if (err?.request?.status === 404) {
+                if (recipient.isProject) {
+                    snackbarStore.addFailure("Could not find project. Did you provide the full path?", false);
+                }
+            } else {
+                displayErrorMessageOrDefault(err, "Failed to find project/user");
+            }
             return;
         }
 
@@ -272,7 +283,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             mappedRows.push({
                 amount: row.amount,
                 description: "",
-                recipient: recipient.isProject ? {type: "project", projectId: recipientName} : {type: "user", username: recipientName},
+                recipient: recipient.isProject ? {type: "project", projectId: recipientTitle} : {type: "user", username: recipientTitle},
                 sourceAllocation: row.allocationId,
                 startDate: row.startDate,
                 endDate: row.endDate,
@@ -306,6 +317,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     removeNewRecipientRow(recipient.id);
                     props.reload();
                     dialogStore.success();
+                    snackbarStore.addSuccess("Suballocations added.", false);
                 } catch (e) {
                     errorMessageOrDefault(e, "Failed to submit rows");
                 }
@@ -869,7 +881,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
             </Flex>}
             right={<>
                 {remainingBalance(entry)}
-                <Icon ml="12px" name="grant" cursor="pointer" onClick={() => dialogStore.addDialog(<div>TODO</div>, () => undefined, false)} />
+                <Icon ml="12px" name="grant" />
             </>}
         />
     );
