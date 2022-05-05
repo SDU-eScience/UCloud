@@ -2,7 +2,9 @@ package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.utils.DateDetails
 import dk.sdu.cloud.utils.executeCommandToText
+import dk.sdu.cloud.utils.gmtTime
 
 object SlurmCommandLine {
     const val SBATCH_EXE = "/usr/bin/sbatch"
@@ -175,5 +177,96 @@ object SlurmCommandLine {
 
     }
 
+    data class SlurmAccountingRow(
+        val jobId: Long,
+        val timeElappsedMs: Long,
+        val memoryRequestedInMegs: Long,
+        val cpusRequested: Int,
+        val uid: Int,
+        val slurmAccount: String,
+        val nodesRequested: Int,
+    )
 
+    fun retrieveAccountingData(
+        since: Long,
+        partition: String,
+    ): List<SlurmAccountingRow> {
+        val rows = executeCommandToText(SACCT_EXE) {
+            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+
+            addArg("-a")
+            addArg("-S", gmtTime(since).formatForSlurm())
+            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,Nodes")
+            addArg("-r", partition)
+            addArg("-X")
+            addArg("--parsable2")
+        }.stdout.lines().drop(1)
+
+        return rows.mapNotNull { row ->
+            val columns = row.split("|")
+            if (columns.size != 8) return@mapNotNull null
+
+            val cpusRequested = columns[3].toIntOrNull() ?: return@mapNotNull null
+            val nodesRequested = columns[7].toIntOrNull() ?: return@mapNotNull null
+
+            SlurmAccountingRow(
+                columns[0].toLongOrNull() ?: return@mapNotNull null,
+                columns[1].let { formattedTime ->
+                    val components = formattedTime.split(":")
+                    if (components.size != 3) return@mapNotNull null
+                    val hours = components[0].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
+                    val minutes = components[1].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
+                    val seconds = components[2].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
+
+                    (seconds * 1000L) + (minutes * 1000L * 60) + (hours * 1000L * 60 * 60)
+                },
+                columns[2].let { formatted ->
+                    val textValue = formatted.replace(memorySuffix, "")
+                    val value = textValue.toLongOrNull() ?: return@mapNotNull null
+                    val suffix = formatted.removePrefix(textValue)
+                    if (suffix.length != 2) return@mapNotNull null
+
+                    val unit = suffix[0]
+                    val type = suffix[1]
+
+                    val multiplierA = when (unit) {
+                        'K' -> 1_000L
+                        'M' -> 1_000_000L
+                        'G' -> 1_000_000_000L
+                        'T' -> 1_000_000_000_000L
+                        'P' -> 1_000_000_000_000_000L
+                        else -> return@mapNotNull null
+                    }
+
+                    val multiplierB = when (type) {
+                        'c' -> cpusRequested
+                        'n' -> nodesRequested
+                        else -> return@mapNotNull null
+                    }
+
+                    value * multiplierA * multiplierB
+                },
+                cpusRequested,
+                columns[4].toIntOrNull() ?: return@mapNotNull null,
+                columns[6],
+                nodesRequested,
+            )
+        }
+    }
+
+    private fun DateDetails.formatForSlurm(): String = buildString {
+        append(year.toString().padStart(4, '0'))
+        append('-')
+        append(month.numericValue.toString().padStart(2, '0'))
+        append('-')
+        append(dayOfMonth.toString().padStart(2, '0'))
+        append('T')
+        append(hours.toString().padStart(2, '0'))
+        append(':')
+        append(minutes.toString().padStart(2, '0'))
+        append(':')
+        append(seconds.toString().padStart(2, '0'))
+    }
+
+    private val memorySuffix = Regex("[KMGTP][cn]")
 }
