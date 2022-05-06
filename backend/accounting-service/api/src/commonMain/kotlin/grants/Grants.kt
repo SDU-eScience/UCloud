@@ -30,9 +30,6 @@ enum class GrantApplicationFilter {
     INACTIVE
 }
 
-@Serializable
-data class ApplicationWithComments(val application: GrantApplication, val comments: List<GrantApplication.Comment>, val approver: Boolean)
-
 interface BrowseApplicationFlags {
     val includeIngoingApplications: Boolean
     val includeOutgoingApplications: Boolean
@@ -83,7 +80,7 @@ data class GrantApplication(
     val id: String,
 
     @UCloudApiDoc("Username of the user who originially submitted the application")
-    val createdBy: String,
+    val requestedBy: String,
     @UCloudApiDoc("Timestamp representing when the application was originially submitted")
     val createdAt: Long,
     @UCloudApiDoc("Timestamp representing when the application was last updated")
@@ -239,8 +236,8 @@ data class GrantApplication(
     @Serializable
     @SerialName("grant_giver_approval_state")
     data class GrantGiverApprovalState(
-        val id: String,
-        val title: String,
+        val projectId: String,
+        val projectTitle: String,
         val state: State,
     )
     @Serializable
@@ -262,7 +259,7 @@ data class GrantApplication(
 }
 @Serializable
 data class ViewApplicationRequest(val id: Long)
-typealias ViewApplicationResponse = ApplicationWithComments
+typealias ViewApplicationResponse = GrantApplication
 
 @Serializable
 data class BrowseProjectsRequest(
