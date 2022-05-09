@@ -1,6 +1,5 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useRef, useState} from "react";
-import {useProjectManagementStatus} from "@/Project";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
@@ -11,7 +10,7 @@ import Card from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
 import Icon from "@/ui-components/Icon";
-import Input from "@/ui-components/Input";
+import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
 import Checkbox from "@/ui-components/Checkbox";
@@ -19,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import theme from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -33,41 +32,25 @@ import {
     explainAllocation,
     normalizeBalanceForBackend,
     normalizeBalanceForFrontendOpts,
+    browseWallets,
+    Wallet
 } from "@/Accounting";
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
-    approveGrantApplication,
-    closeGrantApplication,
-    Comment,
-    commentOnGrantApplication,
-    deleteGrantApplicationComment,
-    editGrantApplication, editReferenceId,
-    findAffiliations,
-    GrantApplication,
-    GrantApplicationStatus,
-    GrantRecipient, GrantsRetrieveAffiliationsResponse,
+    GrantsRetrieveAffiliationsResponse,
     isGrantFinalized,
-    readTemplates,
-    ReadTemplatesResponse,
-    rejectGrantApplication,
-    ResourceRequest,
     retrieveDescription,
     RetrieveDescriptionResponse,
-    submitGrantApplication, transferApplication,
-    viewGrantApplication,
-    ViewGrantApplicationResponse
 } from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
 import {Client} from "@/Authentication/HttpClientInstance";
-import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
-import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {setLoading, useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
@@ -83,8 +66,20 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
-import {format, parse} from "date-fns";
+import {format} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
+
+import {
+    GrantApplication,
+    AllocationRequest,
+    Comment,
+    State,
+    deleteGrantApplicationComment,
+    Recipient,
+    findAffiliations,
+    commentOnGrantApplication
+} from "./GrantApplicationTypes";
+import {useAvatars} from "@/AvataaarLib/hook";
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -96,7 +91,7 @@ export const RequestForSingleResourceWrapper = styled.div`
         height: 100%;
 
         .dashboard-card-inner {
-        padding: 16px;
+            padding: 16px;
         }
     }
 
@@ -167,197 +162,6 @@ interface GrantProductCategory {
     requestedBalance?: number;
 }
 
-interface UseRequestInformation {
-    productCategories: GrantProductCategory[];
-    targetProject?: string;
-    documentRef: React.RefObject<HTMLTextAreaElement>;
-    templates: APICallState<ReadTemplatesResponse>;
-    grantGivers: APICallState<UCloud.PageV2<ProjectWithTitle>>;
-    recipient: GrantRecipient;
-    editingApplication?: GrantApplication;
-    comments: Comment[];
-    avatars: AvatarHook;
-    reload: () => void;
-    approver: boolean;
-    loading: boolean;
-}
-
-function useRequestInformation(target: RequestTarget): UseRequestInformation {
-    let targetProject: string | undefined;
-    let recipient: GrantRecipient;
-    let editingApplication: GrantApplication | undefined;
-    let approver = false;
-    let comments: Comment[] = [];
-    const avatars = useAvatars();
-    let loading = false;
-
-    const dontFetchProjects = target === RequestTarget.VIEW_APPLICATION;
-    const [grantGivers] = useCloudAPI<UCloud.PageV2<ProjectWithTitle>>(
-        dontFetchProjects ?
-            {noop: true} :
-            browseProjects({itemsPerPage: 250}),
-        emptyPageV2);
-
-    const {appId} = useParams<{appId?: string}>();
-
-    const [grantApplication, fetchGrantApplication] = useCloudAPI<ViewGrantApplicationResponse>(
-        {noop: true},
-        {
-            application: {
-                document: "",
-                grantRecipient: {type: "personal", username: Client.username ?? ""},
-                requestedBy: Client.username ?? "",
-                requestedResources: [],
-                resourcesOwnedBy: "unknown",
-                status: GrantApplicationStatus.IN_PROGRESS,
-                grantRecipientPi: Client.username ?? "",
-                id: 0,
-                resourcesOwnedByTitle: "unknown",
-                grantRecipientTitle: "",
-                createdAt: 0,
-                updatedAt: 0
-            },
-            comments: [],
-            approver: false
-        }
-    );
-
-    const documentRef = useRef<HTMLTextAreaElement>(null);
-    const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
-        {noop: true},
-        {existingProject: "", newProject: "", personalProject: ""}
-    );
-
-    switch (target) {
-        case RequestTarget.EXISTING_PROJECT: {
-            const {projectId, projectDetails} = useProjectManagementStatus({isRootComponent: true});
-            targetProject = projectDetails.data.parent;
-            recipient = {type: "existing_project", projectId};
-            break;
-        }
-
-        case RequestTarget.NEW_PROJECT:
-        case RequestTarget.PERSONAL_PROJECT: {
-            const {projectId} = useParams<{projectId: string}>();
-            targetProject = projectId;
-            if (target === RequestTarget.NEW_PROJECT) {
-                recipient = {type: "new_project", projectTitle: "placeholder"};
-            } else {
-                recipient = {type: "personal", username: Client.username!};
-            }
-            break;
-        }
-
-        case RequestTarget.VIEW_APPLICATION: {
-            targetProject = grantApplication.data.application.resourcesOwnedBy;
-            recipient = grantApplication.data.application.grantRecipient;
-            comments = grantApplication.data.comments;
-            approver = grantApplication.data.approver;
-            editingApplication = grantApplication.data.application;
-
-            loading = loading || grantApplication.loading;
-            break;
-        }
-    }
-
-    const [products, fetchProducts] = useCloudAPI<{availableProducts: Product[]}>(
-        {noop: true},
-        {availableProducts: []}
-    );
-
-    const reloadProducts = useCallback(() => {
-        if (targetProject && targetProject !== "unknown") {
-            fetchProducts(grantApi.retrieveProducts({
-                projectId: targetProject,
-                recipientType: recipient.type,
-                recipientId:
-                    recipient.type === "existing_project" ? recipient.projectId :
-                        recipient.type === "new_project" ? recipient.projectTitle :
-                            recipient.type === "personal" ? recipient.username : "",
-                showHidden: false
-            }));
-        }
-    }, [targetProject, recipient.type]);
-
-    const productCategories: GrantProductCategory[] = useMemo(() => {
-        const result: GrantProductCategory[] = [];
-        for (const product of products.data.availableProducts) {
-            const metadata: ProductMetadata = {
-                category: product.category,
-                freeToUse: product.freeToUse,
-                productType: product.productType,
-                chargeType: product.chargeType,
-                hiddenInGrantApplications: product.hiddenInGrantApplications,
-                unitOfPrice: product.unitOfPrice
-            };
-
-            if (result.find(it => productCategoryEquals(it.metadata.category, metadata.category)) === undefined) {
-                result.push({metadata});
-            }
-        }
-
-        if (editingApplication !== undefined) {
-            for (const request of editingApplication.requestedResources) {
-                const existing = result.find(it =>
-                    productCategoryEquals(
-                        it.metadata.category,
-                        {name: request.productCategory, provider: request.productProvider})
-                );
-
-                if (existing) {
-                    existing.requestedBalance = request.balanceRequested;
-                }
-            }
-        }
-        return result;
-    }, [products.data, editingApplication]);
-
-    const reload = useCallback(() => {
-        if (targetProject && targetProject !== "unknown") {
-            fetchTemplates(readTemplates({projectId: targetProject}));
-            reloadProducts();
-        }
-
-        if (appId) {
-            fetchGrantApplication(viewGrantApplication({id: parseInt(appId, 10)}));
-        }
-    }, [targetProject, appId]);
-
-    useEffect(() => {
-        reload();
-    }, [targetProject, appId]);
-
-    useEffect(() => {
-        if (documentRef.current) {
-            switch (target) {
-                case RequestTarget.PERSONAL_PROJECT:
-                    documentRef.current.value = templates.data.personalProject;
-                    break;
-                case RequestTarget.EXISTING_PROJECT:
-                    documentRef.current.value = templates.data.existingProject;
-                    break;
-                case RequestTarget.NEW_PROJECT:
-                    documentRef.current.value = templates.data.newProject;
-                    break;
-                case RequestTarget.VIEW_APPLICATION:
-                    documentRef.current.value = editingApplication?.document ?? "";
-                    break;
-            }
-        }
-    }, [templates, documentRef.current, grantApplication]);
-
-    useEffect(() => {
-        const usernames = comments.map(it => it.postedBy);
-        usernames.push(Client.username!);
-        avatars.updateCache(usernames);
-    }, [comments]);
-
-    return {
-        productCategories, targetProject, documentRef, templates, recipient, editingApplication,
-        comments, avatars, reload, approver, loading, grantGivers
-    };
-}
-
 function productCategoryId(pid: ProductCategoryId): string {
     return `${pid.name}/${pid.provider}`;
 }
@@ -370,6 +174,10 @@ function productCategoryEndDate(pid: ProductCategoryId): string {
     return `${productCategoryId(pid)}/end_date`;
 }
 
+function productCategoryAllocation(pid: ProductCategoryId): string {
+    return `${productCategoryId(pid)}/allocation_id`;
+}
+
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
     if (!input) return undefined;
     const rawValue = input.value;
@@ -379,14 +187,17 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
 }
 
 function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
-    console.log("parseDateFromInput");
     if (!input) return undefined;
-    const rawValue = input.value.replace(/\//g, "-");
-    console.log(rawValue);
-    const parsed = Date.parse(rawValue);
-    console.log(parsed);
-    if (isNaN(parsed)) return undefined;
-    return parsed;
+    const rawValue = input.value;
+    const [day, month, year] = rawValue.split("/");
+    const d = getStartOfDay(new Date());
+    d.setDate(parseInt(day, 10));
+    d.setMonth(parseInt(month, 10) - 1);
+    // TODO(Jonas): Instead, just add '20' to the string here, so it isn't 20xx but just xx in the 
+    d.setFullYear(parseInt(`20${year}`, 10));
+    const time = d.getTime();
+    if (isNaN(time)) return undefined;
+    return time;
 }
 
 /* FIXME(Jonas): Copy + pasted from elsewhere (MachineType dropdown) */
@@ -404,19 +215,19 @@ const Wrapper = styled.div`
 
 
 const GenericRequestCard: React.FunctionComponent<{
-    wb: GrantProductCategory,
-    state: UseRequestInformation,
-    grantFinalized: boolean,
-    isLocked: boolean
-}> = ({wb, grantFinalized, isLocked}) => {
-
+    wb: GrantProductCategory;
+    grantFinalized: boolean;
+    isLocked: boolean;
+    showAllocationSelection: boolean;
+    wallets: Wallet[];
+}> = ({wb, grantFinalized, isLocked, wallets}) => {
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
 
     if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
-            <HighlightedCard color={"blue"} isLoading={false}>
-                <Flex flexDirection={"row"} alignItems={"center"}>
+            <HighlightedCard color="blue" isLoading={false}>
+                <Flex flexDirection="row" alignItems="center">
                     <Box flexGrow={1}>
                         <Label>
                             <Checkbox
@@ -495,24 +306,33 @@ const GenericRequestCard: React.FunctionComponent<{
                                             wb.metadata.unitOfPrice)}
                                     </div>
                                 </Flex>
-                                <Flex width="283px">
+                                <Flex mt="6px" width="280px">
                                     <DatePicker
                                         selectsStart
                                         startDate={startDate}
                                         endDate={endDate}
                                         py="8px"
-                                        borderWidth="1px"
+                                        borderWidth="2px"
+                                        required={false /* TODO state.approver */}
+                                        disabled={grantFinalized || isLocked}
+                                        mr="3px"
+                                        backgroundColor={isLocked ? "var(--lightGray)" : undefined}
+                                        placeholderText="Start date..."
                                         value={format(startDate, "dd/MM/yy")}
-                                        onChange={(date: Date) => setStartDate(date!)}
+                                        onChange={(date: Date | null) => setStartDate(date!)}
                                         className={productCategoryStartDate(wb.metadata.category)}
                                     />
                                     <DatePicker
                                         selectsEnd
                                         isClearable={endDate != null}
-                                        borderWidth="1px"
+                                        borderWidth="2px"
                                         py="8px"
+                                        ml="3px"
+                                        backgroundColor={isLocked ? "var(--lightGray)" : undefined}
+                                        placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
                                         startDate={startDate}
+                                        disabled={grantFinalized || isLocked}
                                         endDate={endDate}
                                         onChange={(date: Date | null) => setEndDate(date)}
                                         className={productCategoryEndDate(wb.metadata.category)}
@@ -522,10 +342,33 @@ const GenericRequestCard: React.FunctionComponent<{
                         </tr>
                     </tbody>
                 </table>
+                <AllocationSelection wallets={wallets} wb={wb} />
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     }
 };
+
+function AllocationSelection({wallets, wb}: {
+    wallets: Wallet[]; wb: GrantProductCategory;
+}): JSX.Element {
+    const [allocationId, setAllocationId] = useState("");
+    return <div>
+        <HiddenInputField value={allocationId} data-target={productCategoryAllocation(wb.metadata.category)} />
+    </div>;
+}
+
+function titleFromTarget(target: RequestTarget): string {
+    switch (target) {
+        case RequestTarget.EXISTING_PROJECT:
+            return "Viewing Project";
+        case RequestTarget.NEW_PROJECT:
+            return "Create Project";
+        case RequestTarget.PERSONAL_PROJECT:
+            return "My Workspace";
+        case RequestTarget.VIEW_APPLICATION:
+            return "Viewing Application";
+    }
+}
 
 // Note: target is baked into the component to make sure we follow the rules of hooks.
 //
@@ -533,36 +376,62 @@ const GenericRequestCard: React.FunctionComponent<{
 // the target property ensures a remount of the component.
 export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
-        const state = useRequestInformation(target);
-        const grantFinalized = isGrantFinalized(state.editingApplication?.status);
         const [loading, runWork] = useCloudCommand();
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         const history = useHistory();
+        useTitle(titleFromTarget(target));
+        const avatars = useAvatars();
+
+        const dontFetchProjects = target === RequestTarget.VIEW_APPLICATION;
+        const [grantGivers] = useCloudAPI<UCloud.PageV2<ProjectWithTitle>>(
+            dontFetchProjects ?
+                {noop: true} :
+                browseProjects({itemsPerPage: 250}),
+            emptyPageV2);
+
+        const {appId} = useParams<{appId?: string}>();
+
+        const documentRef = useRef<HTMLTextAreaElement>(null);
+
+        const [grantApplication, fetchGrantApplication] = useCloudAPI<GrantApplication>(
+            {noop: true},
+            {
+                createdAt: 0,
+                updatedAt: 0,
+                createdBy: "unknown",
+                currentRevision: {
+                    createdAt: 0,
+                    updatedBy: "",
+                    revisionNumber: 0,
+                    document: {
+                        allocationRequests: [],
+                        form: "",
+                        recipient: {
+                            username: "",
+                            type: "personal_workspace"
+                        },
+                        referenceId: "",
+                        revisionComment: "",
+                    }
+                },
+                id: "0",
+                status: {
+                    overallState: State.PENDING,
+                    comments: [],
+                    revisions: [],
+                    stateBreakdown: []
+                }
+            }
+        );
+
+        React.useEffect(() => {
+            console.log("Fetch application");
+        }, [appId]);
+
+        const grantFinalized = isGrantFinalized();
+
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-
-        switch (target) {
-            case RequestTarget.EXISTING_PROJECT:
-                useTitle("Viewing Project");
-                break;
-            case RequestTarget.NEW_PROJECT:
-                useTitle("Create Project");
-                break;
-            case RequestTarget.PERSONAL_PROJECT:
-                useTitle("My Workspace");
-                break;
-            case RequestTarget.VIEW_APPLICATION:
-                useTitle("Viewing Application");
-                break;
-        }
-
-        useRefreshFunction(state.reload);
-        useLoading(state.loading);
-
-        const discardChanges = useCallback(async () => {
-            state.reload();
-            setIsLocked(true);
-        }, [state.reload]);
 
         const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
 
@@ -578,233 +447,186 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
 
-            let grantRecipient: GrantRecipient = state.recipient;
-            if (target === RequestTarget.NEW_PROJECT) {
-                grantRecipient = {type: "new_project", projectTitle: projectTitleRef.current!.value};
-            }
-
-            const requestedResources = Object.keys(grantProductCategories).flatMap(entry => grantProductCategories[entry].map(wb => {
-                let creditsRequested = parseIntegerFromInput(
-                    document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
-                    )
-                );
-
-                // FIXME(Jonas): Doesn't work. Other solution required.
-                const first = document.getElementsByClassName(
-                    productCategoryStartDate(wb.metadata.category)
-                )?.[0] as HTMLInputElement;
-                const start = parseDateFromInput(first);
-
-                const second = document.getElementsByClassName(
-                    productCategoryStartDate(wb.metadata.category)
-                )?.[0] as HTMLInputElement;
-                const end = parseDateFromInput(second);
-
-                console.log(start, end);
-
-                if (creditsRequested) {
-                    creditsRequested = normalizeBalanceForBackend(
-                        creditsRequested,
-                        wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
+            const requestedResourcesByAffiliate = Object.keys(grantProductCategories).flatMap(entry =>
+                grantProductCategories[entry].map(wb => {
+                    let creditsRequested = parseIntegerFromInput(
+                        document.querySelector<HTMLInputElement>(
+                            `input[data-target="${productCategoryId(wb.metadata.category)}"]`
+                        )
                     );
-                }
 
-                if (creditsRequested === undefined) {
-                    return null;
-                }
+                    const first = document.getElementsByClassName(
+                        productCategoryStartDate(wb.metadata.category)
+                    )?.[0] as HTMLInputElement;
+                    const start = parseDateFromInput(first);
 
-                return {
-                    balanceRequested: creditsRequested,
-                    productCategory: wb.metadata.category.name,
-                    productProvider: wb.metadata.category.provider
-                } as ResourceRequest;
-            })).filter(it => it !== null) as ResourceRequest[];
+                    const second = document.getElementsByClassName(
+                        productCategoryEndDate(wb.metadata.category)
+                    )?.[0] as HTMLInputElement;
+                    const end = parseDateFromInput(second);
 
-            const newDocument = state.documentRef.current!.value;
-            if (state.editingApplication === undefined) {
-                console.log(requestedResources);
-                if (Math.random()) {
-                    setSubmissionsLoading(false);
-                    return;
-                }
-                const response = await runWork<{id: number}>(submitGrantApplication({
-                    document: newDocument,
-                    resourcesOwnedBy: state.targetProject!,
-                    requestedResources,
-                    grantRecipient
-                }));
+                    const allocation = document.querySelector<HTMLInputElement>(
+                        `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
+                    );
 
-                if (response) {
-                    history.push(`/project/grants/view/${response.id}`);
-                }
-            } else {
-                await runWork(editGrantApplication({
-                    id: state.editingApplication.id!,
-                    newDocument,
-                    newResources: requestedResources
-                }));
-                state.reload();
-                setIsLocked(true);
-            }
+                    if (creditsRequested) {
+                        creditsRequested = normalizeBalanceForBackend(
+                            creditsRequested,
+                            wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
+                        );
+                    }
+
+                    if (creditsRequested === undefined || creditsRequested <= 0) {
+                        return null;
+                    }
+
+                    return {
+                        category: wb.metadata.category.name,
+                        provider: wb.metadata.category.provider,
+                        grantGiver: entry,
+                        sourceAllocation: "TODO", // TODO(Jonas): null on initial request, required on the following.
+                        period: {
+                            start,
+                            end
+                        }
+                    } as AllocationRequest;
+                }).filter(it => it !== null)
+            ) as AllocationRequest[];
             setSubmissionsLoading(false);
-        }, [state.targetProject, state.documentRef, state.recipient, state.productCategories, projectTitleRef,
-        state.editingApplication?.id, state.reload]);
+        }, []);
 
         const updateReferenceID = useCallback(async () => {
-            await runWork(editReferenceId({id: state.editingApplication!.id, newReferenceId: projectReferenceIdRef.current?.value}))
-            setIsEditingProjectReference(false);
-            state.reload();
-        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+        }, []);
 
         const cancelEditOfRefId = useCallback(async () => {
-            setIsEditingProjectReference(false);
-            state.reload();
-        }, [state.editingApplication?.id, state.editingApplication?.referenceId]);
+        }, []);
 
         const approveRequest = useCallback(async () => {
-            if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Approve application?",
-                    message: "Are you sure you wish to approve this application?",
-                    onConfirm: async () => {
-                        await runWork(approveGrantApplication({requestId: state.editingApplication!.id}));
-                        state.reload();
-                    }
-                });
-            }
-        }, [state.editingApplication?.id]);
+        }, []);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
-            if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Reject application?",
-                    message: "Are you sure you wish to reject this application?",
-                    onConfirm: async () => {
-                        await runWork(rejectGrantApplication({requestId: state.editingApplication!.id, notify: notify}));
-                        state.reload();
-                    }
-                });
-            }
-        }, [state.editingApplication?.id]);
+        }, []);
 
         const transferRequest = useCallback(async (toProjectId: string) => {
-            if (state.editingApplication !== undefined) {
-                await runWork(transferApplication({
-                    applicationId: state.editingApplication!.id,
-                    transferToProjectId: toProjectId
-                }));
-                state.reload();
-            }
-        }, [state.editingApplication?.id]);
+        }, []);
 
         const closeRequest = useCallback(async () => {
-            if (state.editingApplication !== undefined) {
-                addStandardDialog({
-                    title: "Withdraw application?",
-                    message: "Are you sure you wish to withdraw this application?",
-                    onConfirm: async () => {
-                        await runWork(closeGrantApplication({requestId: state.editingApplication!.id}));
-                        state.reload();
-                    }
-                });
-            }
-        }, [state.editingApplication?.id]);
+        }, []);
+
+        const reload = useCallback(() => {
+            console.log("TODO");
+        }, []);
+
+        const discardChanges = useCallback(() => {
+
+        }, []);
 
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
 
         useEffect(() => {
             let timeout = 0;
-            if (state.editingApplication !== undefined) {
-                for (const resource of state.editingApplication.requestedResources) {
-                    const credits = resource.balanceRequested;
+            for (const resource of grantApplication.data.currentRevision.document.allocationRequests) {
+                const credits = resource.balanceRequested;
 
-                    // TODO(Dan): The following code is a terrible idea.
-                    // This code is in here only because we did not notice the error until it was already in production
-                    // and was causing a lot of crashes. A proper solution is tracked in #1928.
-                    //
-                    // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
-                    // the inputs before they are actually ready. We solve it in the code below by simply retrying
-                    // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
-                    // code should be refactored to avoid this. The error only manifests itself if the loading of network
-                    // resources occur in a specific order, an order which happens to occur often in production but for
-                    // some reason not in dev.
-                    let attempts = 0;
-                    const work = (): void => {
-                        let success = true;
-                        const creditsInput = document.querySelector<HTMLInputElement>(
-                            `input[data-target="${productCategoryId({
-                                provider: resource.productProvider,
-                                name: resource.productCategory
-                            })}"]`
-                        );
+                // TODO(Dan): The following code is a terrible idea.
+                // This code is in here only because we did not notice the error until it was already in production
+                // and was causing a lot of crashes. A proper solution is tracked in #1928.
+                //
+                // The code tends to crash because React has not yet rendered the inputs and we attempt to write to
+                // the inputs before they are actually ready. We solve it in the code below by simply retrying
+                // (via setTimeout) until React has rendered our input elements. This is obviously a bad idea and the
+                // code should be refactored to avoid this. The error only manifests itself if the loading of network
+                // resources occur in a specific order, an order which happens to occur often in production but for
+                // some reason not in dev.
+                let attempts = 0;
+                const work = (): void => {
+                    let success = true;
+                    const creditsInput = document.querySelector<HTMLInputElement>(
+                        `input[data-target="${productCategoryId({
+                            provider: resource.provider,
+                            name: resource.category
+                        })}"]`
+                    );
 
-                        const freeButRequireBalanceCheckbox = document.querySelector<HTMLInputElement>(
-                            `input[data-target="checkbox-${productCategoryId({
-                                provider: resource.productProvider,
-                                name: resource.productCategory
-                            })}"]`
-                        );
+                    const freeButRequireBalanceCheckbox = document.querySelector<HTMLInputElement>(
+                        `input[data-target="checkbox-${productCategoryId({
+                            provider: resource.provider,
+                            name: resource.category
+                        })}"]`
+                    );
 
-                        if (credits !== undefined) {
-                            if (creditsInput) {
-                                const category = state.productCategories.find(it =>
-                                    productCategoryEquals(
-                                        it.metadata.category,
-                                        {name: resource.productCategory, provider: resource.productProvider}
-                                    )
-                                );
+                    if (credits !== undefined) {
+                        if (creditsInput) {
+                            const category = ([] as GrantProductCategory[]).find(it =>
+                                productCategoryEquals(
+                                    it.metadata.category,
+                                    {name: resource.category, provider: resource.provider}
+                                )
+                            );
 
-                                if (category == null) {
-                                    success = false;
-                                } else {
-                                    const meta = category.metadata;
-                                    creditsInput.value = normalizeBalanceForFrontendOpts(
-                                        credits,
-                                        meta.productType, meta.chargeType, meta.unitOfPrice,
-                                        {
-                                            isPrice: false,
-                                            forceInteger: true
-                                        }
-                                    );
-                                }
-                            } else {
+                            if (category == null) {
                                 success = false;
-                            }
-                        }
-
-                        if (credits !== undefined) {
-                            if (freeButRequireBalanceCheckbox) {
-                                freeButRequireBalanceCheckbox.checked = credits > 0;
-                            }
-                        }
-
-                        if (!success) {
-                            if (attempts > 10) {
-                                return;
                             } else {
-                                attempts++;
-                                timeout = window.setTimeout(work, 500);
+                                const meta = category.metadata;
+                                creditsInput.value = normalizeBalanceForFrontendOpts(
+                                    credits,
+                                    meta.productType, meta.chargeType, meta.unitOfPrice,
+                                    {
+                                        isPrice: false,
+                                        forceInteger: true
+                                    }
+                                );
                             }
+                        } else {
+                            success = false;
                         }
-                    };
+                    }
 
-                    timeout = window.setTimeout(work, 0);
-                }
+                    if (credits !== undefined) {
+                        if (freeButRequireBalanceCheckbox) {
+                            freeButRequireBalanceCheckbox.checked = credits > 0;
+                        }
+                    }
+
+                    if (!success) {
+                        if (attempts > 10) {
+                            return;
+                        } else {
+                            attempts++;
+                            timeout = window.setTimeout(work, 500);
+                        }
+                    }
+                };
+
+                timeout = window.setTimeout(work, 0);
             }
             return () => {
                 clearTimeout(timeout);
             }
-        }, [state.editingApplication, state.productCategories]);
+        }, []);
 
         const [transferringApplication, setTransferringApplication] = useState(false);
 
+        const shouldShowWallets = "foo";/* grantApplication.data.currentRevision.document. */;
+        const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>(
+            shouldShowWallets ? browseWallets({itemsPerPage: 250}) : {noop: true}, emptyPage
+        );
+        React.useEffect(() => {
+            if (shouldShowWallets && !wallets.loading) {
+                /* TODO(Jonas): Find a different way of checking this. */
+                if (wallets.data.itemsPerPage !== 250) {
+                    fetchWallets(browseWallets({itemsPerPage: 250}));
+                }
+            }
+        }, [shouldShowWallets, wallets.loading]);
+
         const grantGiverDropdown = React.useMemo(() =>
-            target === RequestTarget.VIEW_APPLICATION || (state.grantGivers.data.items.length - grantGiversInUse.length) === 0 ? null :
+            target === RequestTarget.VIEW_APPLICATION || (grantGivers.data.items.length - grantGiversInUse.length) === 0 ? null :
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
-                    trigger="Select Grant Giver" chevron
+                    trigger="Select Grant Giver"
+                    chevron
                 >
                     <Wrapper>
                         <Table>
@@ -815,7 +637,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                                {state.grantGivers.data.items.map(grantGiver =>
+                                {grantGivers.data.items.map(grantGiver =>
                                     <TableRow key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
                                         <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
                                         <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
@@ -824,20 +646,23 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </tbody>
                         </Table>
                     </Wrapper>
-                </ClickableDropdown>
-            , [state.grantGivers, grantGiversInUse])
+                </ClickableDropdown>,
+            [grantGivers, grantGiversInUse])
 
         const grantGiverEntries = React.useMemo(() =>
-            state.grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
+            grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
                 <GrantGiver
                     key={it.projectId}
+                    grantApplication={grantApplication.data}
                     remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
                     setGrantProductCategories={setGrantProductCategories}
-                    state={state}
+                    wallets={wallets.data.items}
                     project={it}
                     isLocked={isLocked}
                 />
-            ), [state.grantGivers, grantGiversInUse, isLocked]);
+            ), [grantGivers, grantGiversInUse, isLocked, wallets]);
+
+        const recipient = grantApplication.data.currentRevision.document.recipient;
 
         return (
             <MainContainer
@@ -879,15 +704,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             <tbody>
                                                 <TableRow>
                                                     <TableCell>Application Approver</TableCell>
-                                                    <TableCell>{state.editingApplication!.resourcesOwnedByTitle}</TableCell>
+                                                    <TableCell>{"state.editingApplication!.resourcesOwnedByTitle"}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Project Title</TableCell>
-                                                    <TableCell>{state.editingApplication!.grantRecipientTitle}</TableCell>
+                                                    <TableCell>{"state.editingApplication!.grantRecipientTitle"}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
-                                                    <TableCell>{state.editingApplication!.grantRecipientPi}</TableCell>
+                                                    <TableCell>{"state.editingApplication!.grantRecipientPi"}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top">
@@ -899,25 +724,25 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                 <tr>
                                                                     <td>Personal</td>
                                                                     <td width="100%">
-                                                                        {state.recipient.type === "personal" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
+                                                                        {recipient.type === "personal_workspace" ?
+                                                                            <Icon name="check" color="green" /> :
+                                                                            <Icon name="close" color="red" />}
                                                                     </td>
                                                                 </tr>
                                                                 <tr>
                                                                     <td width="100%">New Project</td>
                                                                     <td>
-                                                                        {state.recipient.type === "new_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
+                                                                        {recipient.type === "new_project" ?
+                                                                            <Icon name="check" color="green" /> :
+                                                                            <Icon name="close" color="red" />}
                                                                     </td>
                                                                 </tr>
                                                                 <tr>
                                                                     <td width="100%">Existing Project</td>
                                                                     <td>
-                                                                        {state.recipient.type === "existing_project" ?
-                                                                            <Icon name={"check"} color={"green"} /> :
-                                                                            <Icon name={"close"} color={"red"} />}
+                                                                        {recipient.type === "existing_project" ?
+                                                                            <Icon name="check" color="green" /> :
+                                                                            <Icon name="close" color="red" />}
                                                                     </td>
                                                                 </tr>
                                                             </tbody>
@@ -928,7 +753,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {state.approver ?
+                                                    {"state.approver" ?
                                                         <TableCell>
                                                             <table>
                                                                 <tbody>
@@ -937,7 +762,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             <>
                                                                                 <td>
                                                                                     <Input
-                                                                                        placeholder={state.editingApplication?.referenceId != null ? state.editingApplication?.referenceId : "e.g. DeiC-SDU-L1-000001"}
+                                                                                        placeholder={"e.g. DeiC-SDU-L1-000001"}
                                                                                         ref={projectReferenceIdRef}
                                                                                     />
                                                                                 </td>
@@ -959,7 +784,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             </>) : (
                                                                             <>
                                                                                 <td>
-                                                                                    {state.editingApplication?.referenceId ?? "No ID given"}
+                                                                                    {"state.editingApplication?.referenceId" ?? "No ID given"}
                                                                                 </td>
                                                                                 <td>
                                                                                     <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
@@ -971,7 +796,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                             </table>
                                                         </TableCell> :
                                                         <TableCell>
-                                                            {state.editingApplication?.referenceId ?? "No ID given"}
+                                                            {grantApplication.data.currentRevision.document.referenceId ?? "No ID given"}
                                                         </TableCell>
                                                     }
                                                 </TableRow>
@@ -979,15 +804,16 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign={"top"} mt={32}>Current Status</TableCell>
                                                     <TableCell>
                                                         {
-                                                            state.editingApplication!.status === GrantApplicationStatus.IN_PROGRESS ? "In progress" :
-                                                                state.editingApplication!.status === GrantApplicationStatus.APPROVED ? (state.editingApplication?.statusChangedBy === null ? "Approved" : "Approved by " + state.editingApplication?.statusChangedBy) :
-                                                                    state.editingApplication!.status === GrantApplicationStatus.REJECTED ? (state.editingApplication?.statusChangedBy === null ? "Rejected" : "Rejected  by " + state.editingApplication?.statusChangedBy) :
-                                                                        (state.editingApplication?.statusChangedBy === null ? "Closed" : "Closed by " + state.editingApplication?.statusChangedBy)
+                                                            /* TODO(Jonas): Maybe not correct enum? */
+                                                            grantApplication.data.status.overallState === State.PENDING ? "In progress" :
+                                                                grantApplication.data.status.overallState === State.APPROVED ? (grantApplication.data.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.data.currentRevision.updatedBy) :
+                                                                    grantApplication.data.status.overallState === State.REJECTED ? (grantApplication.data.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.data.currentRevision.updatedBy) :
+                                                                        (grantApplication.data.currentRevision.updatedBy === null ? "Closed" : "Closed by " + grantApplication.data.currentRevision.updatedBy)
                                                         }
                                                         <ButtonGroup>
                                                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                                                 <>
-                                                                    {state.approver && !grantFinalized ?
+                                                                    {"state.approver" && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="green"
@@ -1018,7 +844,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                     text={"Reject without notify"}
                                                                                 />
                                                                             </ClickableDropdown>
-                                                                            {state.editingApplication?.grantRecipient!.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                            {recipient.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
                                                                                 <Button
                                                                                     color="blue"
                                                                                     onClick={() => setTransferringApplication(true)}
@@ -1029,7 +855,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             }
                                                                         </> : null
                                                                     }
-                                                                    {!state.approver && !grantFinalized ?
+                                                                    {!"state.approver" && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="red"
@@ -1067,41 +893,54 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                             {grantGiverEntries}
 
+                            {/* TODO(Jonas): This doesn't group by provider  */}
+                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                [...new Set(([] as GrantProductCategory[]).map(it => it.metadata.category.provider))].map((grantGiver: string) => <>
+                                    <Heading.h2 mt="12px">{grantGiver}</Heading.h2>
+                                    {productTypes.map(type => (
+                                        <ProductCategorySection
+                                            wallets={wallets.data.items}
+                                            grantGiver={grantGiver}
+                                            type={type}
+                                            isLocked={isLocked}
+                                            key={type}
+                                        />
+                                    ))}
+                                </>))}
+
                             <CommentApplicationWrapper>
                                 <RequestFormContainer>
                                     <Heading.h4>Application</Heading.h4>
                                     <TextArea
-                                        disabled={grantFinalized || isLocked || state.approver}
+                                        disabled={grantFinalized || isLocked /* TODO || state.approver */}
                                         rows={25}
-                                        ref={state.documentRef}
+                                        ref={documentRef}
                                     />
                                 </RequestFormContainer>
 
-                                {state.editingApplication === undefined ? null : (
-                                    <Box width="100%">
-                                        <Heading.h4>Comments</Heading.h4>
-                                        {state.comments.length > 0 ? null : (
-                                            <Box mt={16} mb={16}>
-                                                No comments have been posted yet.
-                                            </Box>
-                                        )}
+                                <Box width="100%">
+                                    <Heading.h4>Comments</Heading.h4>
+                                    {grantApplication.data.status.comments.length > 0 ? null : (
+                                        <Box mt={16} mb={16}>
+                                            No comments have been posted yet.
+                                        </Box>
+                                    )}
 
-                                        {state.comments.map(it => (
-                                            <CommentBox
-                                                key={it.id}
-                                                comment={it}
-                                                avatar={state.avatars.cache[it.postedBy] ?? defaultAvatar}
-                                                reload={state.reload}
-                                            />
-                                        ))}
-
-                                        <PostCommentWidget
-                                            applicationId={state.editingApplication.id!}
-                                            avatar={state.avatars.cache[Client.username!] ?? defaultAvatar}
-                                            reload={state.reload}
+                                    {grantApplication.data.status.comments.map(it => (
+                                        <CommentBox
+                                            key={it.id}
+                                            comment={it}
+                                            avatar={avatars.cache[it.username] ?? defaultAvatar}
+                                            reload={reload}
                                         />
-                                    </Box>
-                                )}
+                                    ))}
+
+                                    <PostCommentWidget
+                                        applicationId={grantApplication.data.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
+                                        avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                                        reload={reload}
+                                    />
+                                </Box>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
                                 {target !== RequestTarget.VIEW_APPLICATION ? (
@@ -1134,13 +973,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     </Flex>
                 }
                 additional={
-                    state.editingApplication != null && state.editingApplication.grantRecipientPi ?
-                        <TransferApplicationPrompt
-                            isActive={transferringApplication}
-                            close={() => setTransferringApplication(false)}
-                            transfer={transferRequest}
-                            grantId={state.editingApplication.id}
-                        /> : null}
+                    /* TODO: state.editingApplication != null && state.editingApplication.grantRecipientPi ? */
+                    <TransferApplicationPrompt
+                        isActive={transferringApplication}
+                        close={() => setTransferringApplication(false)}
+                        transfer={transferRequest}
+                        grantId={grantApplication.data.currentRevision.document.referenceId ?? ""}
+                    />}
             />
         );
     };
@@ -1169,27 +1008,31 @@ function GrantGiverDescription(props: {projectId: string;}): JSX.Element {
     return <Truncate>{description.data.description}</Truncate>;
 }
 
+function getRecipientId(recipient: Recipient): string {
+    return recipient.type === "existing_project" ? recipient.id :
+        recipient.type === "new_project" ? recipient.title :
+            recipient.type === "personal_workspace" ? recipient.username : ""
+}
+
 function GrantGiver(props: {
+    grantApplication: GrantApplication;
     project: ProjectWithTitle;
-    state: UseRequestInformation;
     isLocked: boolean;
     remove(): void;
+    wallets: Wallet[];
     setGrantProductCategories: React.Dispatch<React.SetStateAction<{[key: string]: GrantProductCategory[]}>>;
 }): JSX.Element {
-    const grantFinalized = isGrantFinalized(props.state.editingApplication?.status);
-    const {recipient} = props.state;
+    const {recipient} = props.grantApplication.currentRevision.document;
+    const grantFinalized = isGrantFinalized();
 
-    const recipientId =
-        recipient.type === "existing_project" ? recipient.projectId :
-            recipient.type === "new_project" ? recipient.projectTitle :
-                recipient.type === "personal" ? recipient.username : ""
+    const recipientId = getRecipientId(recipient);
 
+    /* TODO(Jonas): Why is this done over two parts instead of one?  */
     const [products, fetchProducts] = useCloudAPI<{availableProducts: Product[]}>({noop: true}, {availableProducts: []});
-
     React.useEffect(() => {
         fetchProducts(grantApi.retrieveProducts({
             projectId: props.project.projectId,
-            recipientType: props.state.recipient.type,
+            recipientType: recipient.type,
             recipientId,
             showHidden: false
         }));
@@ -1213,21 +1056,21 @@ function GrantGiver(props: {
             }
         }
 
-        if (props.state.editingApplication !== undefined) {
-            for (const request of props.state.editingApplication.requestedResources) {
-                const existing = result.find(it =>
-                    productCategoryEquals(
-                        it.metadata.category,
-                        {name: request.productCategory, provider: request.productProvider})
-                );
+        /* if (props.state.editingApplication !== undefined) { */
+        for (const request of props.grantApplication.currentRevision.document.allocationRequests) {
+            const existing = result.find(it =>
+                productCategoryEquals(
+                    it.metadata.category,
+                    {name: request.category, provider: request.provider})
+            );
 
-                if (existing) {
-                    existing.requestedBalance = request.balanceRequested;
-                }
+            if (existing) {
+                existing.requestedBalance = request.balanceRequested;
             }
         }
+        /* } */
         return result;
-    }, [products.data, props.state.editingApplication]);
+    }, []);
 
     React.useEffect(() => {
         props.setGrantProductCategories(gpc => {
@@ -1240,7 +1083,7 @@ function GrantGiver(props: {
                 return gpc;
             });
         };
-    }, [productCategories])
+    }, [productCategories]);
 
     return React.useMemo(() =>
         <Box mt="12px">
@@ -1251,56 +1094,90 @@ function GrantGiver(props: {
             {productTypes.flatMap(type => {
                 const filteredProductCategories = productCategories.filter(pc => pc.metadata.productType === type);
                 const noEntries = filteredProductCategories.length === 0;
+                const filteredWallets = props.wallets.filter(it => it.productType === type);
                 return (<React.Fragment key={type}>
                     <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
                     {noEntries ? <Heading.h3 mt="12px">No products for type available.</Heading.h3> : <ResourceContainer>
-                        {filteredProductCategories.map((pc, idx) =>
+                        {filteredProductCategories.map((pc, idx) => <>
                             <GenericRequestCard
                                 key={idx}
                                 wb={pc}
-                                state={props.state}
                                 grantFinalized={grantFinalized}
                                 isLocked={props.isLocked}
+                                wallets={filteredWallets.filter(it => it.paysFor.provider === pc.metadata.category.provider && it.paysFor.name === pc.metadata.category.name)}
+                                /* TODO(Jonas): This should require that it is being viewed by the grant approver, I think. Should a grant approver creating a  */
+                                showAllocationSelection={false /* TODO props.state.approver */}
                             />
-                        )}
+                            <GenericRequestCard
+                                key={`${idx}-n`}
+                                wb={pc}
+                                grantFinalized={grantFinalized}
+                                isLocked={props.isLocked}
+                                wallets={filteredWallets.filter(it => it.paysFor.provider === pc.metadata.category.provider && it.paysFor.name === pc.metadata.category.name)}
+                                /* This should require that it is being viewed by the grant approver, I think. Should a grant approver creating a  */
+                                showAllocationSelection={false /* TODO props.state.approver */}
+                            />
+                        </>)}
                     </ResourceContainer>}
                 </React.Fragment>);
             })}
         </Box>
-        , [productCategories]);
+        , [productCategories, props.wallets]);
 }
 
 const ProductCategorySection: React.FunctionComponent<{
-    state: UseRequestInformation;
     type: ProductType;
     isLocked: boolean;
-}> = ({state, type, isLocked}) => {
-    const grantFinalized = isGrantFinalized(state.editingApplication?.status);
+    grantGiver: string;
+    wallets: Wallet[];
+}> = ({type, isLocked, grantGiver, wallets}) => {
+
+    const grantFinalized = isGrantFinalized();
     const filtered = useMemo(
-        () => state.productCategories.filter(pc => pc.metadata.productType == type),
-        [state.productCategories, type]
+        /* TODO */
+        () => ([] as GrantProductCategory[]).filter(pc => pc.metadata.productType == type && pc.metadata.category.provider === grantGiver),
+        []
+    );
+
+    const filteredWallets = useMemo(
+        () => wallets.filter(w => w.productType == type && w.paysFor.provider === grantGiver),
+        [wallets, type, grantGiver]
     );
 
     if (filtered.length < 1) return null;
     return <>
         <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
         <ResourceContainer>
-            {filtered.map((it, idx) => (
-                <GenericRequestCard
-                    key={idx}
-                    wb={it}
-                    state={state}
-                    grantFinalized={grantFinalized}
-                    isLocked={isLocked}
-                />
-            ))}
+            {filtered.map((it, idx) => {
+                const walletsForCard = filteredWallets.filter(w => w.paysFor.name === it.metadata.category.name);
+                return (
+                    <>
+                        <GenericRequestCard
+                            key={idx}
+                            wb={it}
+                            grantFinalized={grantFinalized}
+                            showAllocationSelection={false /* TODO state.approver */}
+                            isLocked={isLocked}
+                            wallets={walletsForCard}
+                        />
+                        <GenericRequestCard
+                            key={`${idx}-n`}
+                            wb={it}
+                            grantFinalized={grantFinalized}
+                            showAllocationSelection={false /* TODO state.approver */}
+                            isLocked={isLocked}
+                            wallets={walletsForCard}
+                        />
+                    </>
+                )
+            })}
         </ResourceContainer>
     </>
 };
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
-    grantId: number;
+    grantId: string;
 
     close(): void;
 
@@ -1308,11 +1185,7 @@ interface TransferApplicationPromptProps {
 }
 
 function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(findAffiliations({
-        page: 0,
-        itemsPerPage: 100,
-        grantId
-    }), emptyPage);
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPage);
 
     const history = useHistory();
 
@@ -1418,12 +1291,12 @@ const CommentBox: React.FunctionComponent<{
         </div>
 
         <div className="body">
-            <p><strong>{comment.postedBy}</strong> says:</p>
+            <p><strong>{comment.username}</strong> says:</p>
             <p>{comment.comment}</p>
-            <time>{dateToString(comment.postedAt)}</time>
+            <time>{dateToString(comment.createdAt)}</time>
         </div>
 
-        {comment.postedBy === Client.username ? (
+        {comment.username === Client.username ? (
             <div>
                 <Icon cursor={"pointer"} name={"trash"} color={"red"} onClick={onDelete} />
             </div>
@@ -1432,30 +1305,30 @@ const CommentBox: React.FunctionComponent<{
 };
 
 const PostCommentWrapper = styled.form`
-                .wrapper {
-                    display: flex;
-  }
+    .wrapper {
+        display: flex;
+    }
 
-                ${TextArea} {
-                    flex - grow: 1;
-                margin-left: 6px;
-  }
+    ${TextArea} {
+        flex-grow: 1;
+        margin-left: 6px;
+    }
 
-                .buttons {
-                    display: flex;
-                margin-top: 6px;
-                justify-content: flex-end;
-  }
-                `;
+    .buttons {
+        display: flex;
+        margin-top: 6px;
+        justify-content: flex-end;
+    }
+`;
 
 const HelpText = styled.p`
-                margin: 0;
-                font-size: ${theme.fontSizes[1]}px;
-                color: var(--gray, #f00);
-                `;
+    margin: 0;
+    font-size: ${theme.fontSizes[1]}px;
+    color: var(--gray, #f00);
+`;
 
 const PostCommentWidget: React.FunctionComponent<{
-    applicationId: number,
+    applicationId: string,
     avatar: AvatarType,
     reload: () => void
 }> = ({applicationId, avatar, reload}) => {

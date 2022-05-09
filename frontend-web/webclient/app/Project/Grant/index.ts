@@ -182,7 +182,7 @@ export interface EditReferenceIDRequest {
 }
 
 export function editReferenceId(
-    request:EditReferenceIDRequest
+    request: EditReferenceIDRequest
 ): APICallParameters<EditReferenceIDRequest> {
     return {
         method: "POST",
@@ -447,7 +447,7 @@ export interface TransferApplicationRequest {
 export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
     return {
         method: "POST",
-        path:"/grant/transfer",
+        path: "/grant/transfer",
         parameters: request,
         payload: request,
         reloadId: Math.random()
