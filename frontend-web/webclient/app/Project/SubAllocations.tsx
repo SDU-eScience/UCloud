@@ -11,6 +11,8 @@ import {
     productTypes,
     productTypeToIcon,
     productTypeToTitle,
+    retrieveRecipient,
+    RetrieveRecipientResponse,
     updateAllocation,
     UpdateAllocationRequestItem,
     Wallet,
@@ -86,6 +88,9 @@ export const SubAllocationViewer: React.FunctionComponent<{
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
 
+
+        <NewRecipients wallets={wallets.data.items} reload={reload} />
+
         <ListV2
             infiniteScrollGeneration={generation}
             page={allocations.data}
@@ -95,6 +100,336 @@ export const SubAllocationViewer: React.FunctionComponent<{
         />
     </>;
 };
+
+interface Recipient {
+    id: number;
+    ref: React.RefObject<HTMLInputElement>;
+    isProject: boolean;
+    suballocations: SuballocationCreationRow[];
+}
+
+function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
+    const [newRecipients, setRecipients] = useState<Recipient[]>([]);
+
+    const newRecipientId = useRef(0);
+
+    /* Duplicate, so todo. (Move up?) */
+    const allocationsByProductTypes = useMemo((): {
+        [key: string]: {
+            wallet: Wallet;
+            allocations: WalletAllocation[];
+        }[]
+    } => ({
+        ["COMPUTE" as ProductType]: findValidAllocations(wallets, "COMPUTE"),
+        ["STORAGE" as ProductType]: findValidAllocations(wallets, "STORAGE"),
+        ["INGRESS" as ProductType]: findValidAllocations(wallets, "INGRESS"),
+        ["LICENSE" as ProductType]: findValidAllocations(wallets, "LICENSE"),
+        ["NETWORK_IP" as ProductType]: findValidAllocations(wallets, "NETWORK_IP")
+    }), [wallets]);
+
+    const toggleIsProject = useCallback((id: number, isProject: boolean) => {
+        const entry = newRecipients.find(it => it.id === id);
+        if (!entry) return;
+        entry.isProject = isProject;
+        return setRecipients([...newRecipients]);
+    }, [newRecipients]);
+
+    const addRecipientRow = useCallback(() => {
+        const firstProductTypeWithEntries = productTypes.find(it =>
+            hasValidAllocations(allocationsByProductTypes[it])
+        );
+        if (!firstProductTypeWithEntries) {
+            snackbarStore.addFailure("No allocations to get resources from.", false);
+            return;
+        }
+        setRecipients(existing => {
+            existing.push({
+                id: newRecipientId.current++,
+                ref: React.createRef<HTMLInputElement>(),
+                isProject: true,
+                suballocations: [{
+                    id: newRecipientId.current++,
+                    productType: firstProductTypeWithEntries,
+                    amount: undefined,
+                    endDate: undefined,
+                    startDate: startOfDay(new Date()).getTime(),
+                    wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
+                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
+                }]
+            });
+            return [...existing];
+        });
+    }, [wallets, allocationsByProductTypes]);
+
+    const removeNewRecipientRow = useCallback((id: number) => {
+        setRecipients(existing => {
+            return [...existing.filter(it => it.id !== id)];
+        });
+    }, []);
+
+    const addSubAllocation = useCallback((id: number) => {
+        const recipient = newRecipients.find(it => it.id === id);
+        if (!recipient) {
+            snackbarStore.addFailure("Something went very wrong.", false);
+            return newRecipients;
+        }
+        const firstProductTypeWithEntries = productTypes.find(it =>
+            hasValidAllocations(allocationsByProductTypes[it])
+        );
+
+        if (!firstProductTypeWithEntries) {
+            snackbarStore.addFailure("No available allocations to use", false);
+            return newRecipients;
+        }
+
+        const recipientIndex = newRecipients.findIndex(it => it.id === id);
+        newRecipients[recipientIndex].suballocations.push({
+            id: newRecipientId.current++,
+            productType: firstProductTypeWithEntries,
+            amount: undefined,
+            endDate: undefined,
+            startDate: startOfDay(new Date()).getTime(),
+            wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
+        });
+        return setRecipients([...newRecipients]);
+    }, [newRecipients, allocationsByProductTypes]);
+
+    const removeSubAllocation = useCallback((recipientId: number, suballocationId: number) => {
+        newRecipients[recipientId].suballocations = newRecipients[recipientId].suballocations.filter(it => it.id !== suballocationId);
+        return setRecipients([...newRecipients])
+    }, [newRecipients]);
+
+    const addRowButtonEnabled = React.useMemo(() => {
+        for (const pt of productTypes) {
+            if (hasValidAllocations(allocationsByProductTypes[pt])) {
+                return true;
+            }
+        }
+        return false;
+    }, [allocationsByProductTypes]);
+
+    const [loading, invokeCommand] = useCloudCommand();
+
+    const selectAllocation = React.useCallback((allocationAndWallets: {
+        wallet: Wallet;
+        allocations: WalletAllocation[];
+    }[], recipientId: number, allocationId: number) => {
+        dialogStore.addDialog(
+            <Box width="830px">
+                <Heading.h3>Available Allocations</Heading.h3>
+                <Grid gridTemplateColumns={`repeat(2 , 1fr)`} gridGap="15px">
+                    {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
+                        <Box key={allocation.allocationPath} height="120px" onClick={() => {
+                            setRecipients(recipients => {
+                                recipients[recipientId].suballocations[allocationId].wallet = it.wallet;
+                                recipients[recipientId].suballocations[allocationId].allocationId = allocation.id;
+                                return [...recipients];
+                            });
+                            dialogStore.success();
+                        }}>
+                            <AllocationViewer allocation={allocation} wallet={it.wallet} simple={false} />
+                        </Box>
+                    ))}
+                </Grid>
+            </Box>, () => undefined, false, largeModalStyle);
+    }, []);
+
+    const submitRows = useCallback(async (recipient: Recipient) => {
+        const mappedRows: DepositToWalletRequestItem[] = [];
+
+        if (recipient.suballocations.length === 0) {
+            snackbarStore.addFailure("No suballocations to submit.", false);
+            return;
+        }
+
+        const recipientId = recipient.ref.current?.value;
+        if (!recipientId) {
+            snackbarStore.addFailure("Recipient can't be empty.", false);
+            return;
+        }
+
+        var recipientTitle = recipientId;
+        try {
+            const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
+            if (result == null) return;
+            recipientTitle = result.id;
+        } catch (err) {
+            if (err?.request?.status === 404) {
+                if (recipient.isProject) {
+                    snackbarStore.addFailure("Could not find project. Did you provide the full path?", false);
+                }
+            } else {
+                displayErrorMessageOrDefault(err, "Failed to find project/user");
+            }
+            return;
+        }
+
+        for (const [index, row] of recipient.suballocations.entries()) {
+            if (row.allocationId == "") {
+                /* NOTE(Jonas): Should not be possible, but let's make sure it's handled. */
+                snackbarStore.addFailure(`Row #${index + 1} is missing an allocation selection`, false);
+                return;
+            }
+
+            if (row.amount == null || isNaN(row.amount)) {
+                snackbarStore.addFailure(`Row #${index + 1} is missing an amount`, false);
+                return;
+            } else if (row.amount < 1) {
+                snackbarStore.addFailure(`Row #${index + 1}'s amount must be more than 0.`, false);
+                return;
+            }
+
+            mappedRows.push({
+                amount: row.amount,
+                description: "",
+                recipient: recipient.isProject ? {type: "project", projectId: recipientTitle} : {type: "user", username: recipientTitle},
+                sourceAllocation: row.allocationId,
+                startDate: row.startDate,
+                endDate: row.endDate,
+            });
+        }
+
+        if (mappedRows.length === 0) {
+            snackbarStore.addFailure("No suballocations to submit. Shouldn't happen.", false);
+        }
+
+        let reason = "";
+
+        dialogStore.addDialog(<Box>
+            <Heading.h3>Reason for sub-allocations</Heading.h3>
+            <Box height="290px" mb="10px">
+                <TextArea
+                    placeholder="Explain the reasoning for the new suballocation..."
+                    style={{height: "100%"}}
+                    width="100%"
+                    onChange={e => reason = e.target.value}
+                />
+            </Box>
+            <ButtonGroup><Button onClick={async () => {
+                if (!reason) {
+                    snackbarStore.addFailure("Reason can't be empty", false);
+                    return;
+                }
+                mappedRows.forEach(it => it.description = reason);
+                try {
+                    await invokeCommand(deposit(bulkRequestOf(...mappedRows)));
+                    removeNewRecipientRow(recipient.id);
+                    props.reload();
+                    dialogStore.success();
+                    snackbarStore.addSuccess("Suballocations added.", false);
+                } catch (e) {
+                    errorMessageOrDefault(e, "Failed to submit rows");
+                }
+            }} color="green">Confirm</Button><Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
+        </Box>, () => undefined);
+    }, []);
+
+    return <>
+        <Spacer left={null} right={
+            addRowButtonEnabled ? <Button onClick={addRecipientRow}>New Recipient</Button> : <Tooltip trigger={<Button type="button" disabled={!addRowButtonEnabled}>New Recipient</Button>}>
+                No allocations to allocate from found.
+            </Tooltip>}
+        />
+
+        {newRecipients.map(recipient =>
+            <Accordion
+                key={recipient.id}
+                iconColor2="white"
+                title={<Flex>
+                    <Flex width="72px" mt="6px">
+                        <ClickableDropdown width="250px" chevron trigger={<Icon color2="white" name={recipient.isProject ? "projects" : "user"} />}>
+                            <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Project</Flex>
+                            <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
+                        </ClickableDropdown>
+                    </Flex>
+                    <Input ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
+                </Flex>}
+                titleContent={
+                    <Button ml="8px" mt="4px" height="32px" onClick={() => removeNewRecipientRow(recipient.id)}>Remove recipient</Button>
+                }
+                forceOpen
+                omitChevron
+            >
+                <Box px="12px">
+                    <Spacer my="4px"
+                        right={<>
+                            <Button ml="8px" mt="2px" height="32px" onClick={() => addSubAllocation(recipient.id)}>Add row</Button>
+                            {recipient.suballocations.length === 0 ? null : <Button ml="8px" mt="2px" disabled={loading || !addRowButtonEnabled} height="32px" onClick={() => submitRows(recipient)}>Submit new allocations</Button>}
+                        </>}
+                        left={null}
+                    />
+                    {recipient.suballocations.map(row => {
+                        const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
+                        const remainingProductTypes = productTypes.filter(it => it !== row.productType);
+                        const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
+                        const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
+                        return (
+                            <ListRow
+                                key={row.id}
+                                icon={<Box pl="20px">
+                                    <ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
+                                        {remainingProductTypes.map(pt => {
+                                            const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
+                                            return allowProductSelect ?
+                                                <Flex height="32px" key={pt} color="text" style={{alignItems: "center"}} onClick={() => {
+                                                    const {wallet, allocations} = allocationsByProductTypes[pt][0];
+                                                    newRecipients[recipientId].suballocations[suballocationId].productType = pt;
+                                                    newRecipients[recipientId].suballocations[suballocationId].wallet = wallet;
+                                                    newRecipients[recipientId].suballocations[suballocationId].allocationId = allocations[0].id;
+                                                    setRecipients([...newRecipients]);
+                                                }}>
+                                                    <Icon my="4px" mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}
+                                                </Flex> :
+                                                <Tooltip key={pt} trigger={<Flex height="32px" style={{alignItems: "center"}} color="gray" onClick={stopPropagationAndPreventDefault}>
+                                                    <Icon mr="8px" name={productTypeToIcon(pt)} />{productTypeToTitle(pt)}</Flex>}>
+                                                    No allocations for product type available
+                                                </Tooltip>
+                                        })}
+                                    </ClickableDropdown></Box>}
+                                left={<Flex>
+                                    <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
+                                        {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
+                                    </Flex>
+                                    <Flex color="var(--gray)" ml="12px">
+                                        <DatePicker
+                                            selectsRange
+                                            fontSize="18px"
+                                            py="0"
+                                            dateFormat="dd/MM/yy"
+                                            width="265px"
+                                            startDate={new Date(row.startDate)}
+                                            isClearable={row.endDate != null}
+                                            endDate={row.endDate != null ? new Date(row.endDate) : undefined}
+                                            onChange={(dates: [Date | null, Date | null]) => {
+                                                setRecipients(recipients => {
+                                                    if (dates[0]) recipients[recipientId].suballocations[suballocationId].startDate = dates[0].getTime();
+                                                    recipients[recipientId].suballocations[suballocationId].endDate = dates[1]?.getTime();
+                                                    return [...recipients];
+                                                });
+                                            }}
+                                        />
+                                    </Flex>
+                                </Flex>}
+                                right={row.wallet == null ? null : <Flex width={["NETWORK_IP", "INGRESS", "LICENSE"].includes(row.productType) ? "330px" : "280px"}>
+                                    <Input
+                                        width="100%"
+                                        type="number"
+                                        rightLabel
+                                        min={0}
+                                        placeholder="Amount..."
+                                        onChange={e => newRecipients[recipientId].suballocations[suballocationId].amount = normalizeBalanceForBackend(parseInt(e.target.value, 10), row.productType, row.wallet!.chargeType, row.wallet!.unit)}
+                                    />
+                                    <InputLabel textAlign="center" width={["INGRESS", "LICENSE"].includes(row.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(row.wallet)}</InputLabel>
+                                    <Icon mt="9px" ml="12px" name="close" color="red" cursor="pointer" onClick={() => removeSubAllocation(recipient.id, row.id)} />
+                                </Flex>}
+                            />);
+                    })}
+                </Box>
+            </Accordion>
+        )}
+    </>;
+}
 
 function SuballocationRows(props: {
     rows: SubAllocation[];
@@ -297,8 +632,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             // during a re-write of the code.
             snackbarStore.addFailure("No rows to submit", false);
         }
-
-    }, [])
+    }, []);
 
     const allocationsByProductTypes = useMemo((): {
         [key: string]: {
@@ -311,7 +645,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         ["INGRESS" as ProductType]: findValidAllocations(props.wallets, "INGRESS"),
         ["LICENSE" as ProductType]: findValidAllocations(props.wallets, "LICENSE"),
         ["NETWORK_IP" as ProductType]: findValidAllocations(props.wallets, "NETWORK_IP")
-    }), [props.wallets])
+    }), [props.wallets]);
 
     const idRef = useRef(0);
     const addNewRow = React.useCallback(() => setCreationRows(rows => {
@@ -547,7 +881,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
             </Flex>}
             right={<>
                 {remainingBalance(entry)}
-                <Icon ml="12px" name="grant" cursor="pointer" onClick={() => dialogStore.addDialog(<div>TODO</div>, () => undefined, false)} />
+                <Icon ml="12px" name="grant" />
             </>}
         />
     );
