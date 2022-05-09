@@ -83,7 +83,7 @@ class UCloudConfigService(
         val deviceIdFile = File(configFolder, "ucloud_device_id.txt")
         if (!deviceIdFile.exists()) {
             GlobalScope.launch {
-                log.info("Updating name of Syncthing instance")
+                log.info("Updating name of Syncthing instance and setting default configuration")
                 val timeout = System.currentTimeMillis() + 10_000
                 while (System.currentTimeMillis() < timeout) {
                     try {
@@ -92,6 +92,7 @@ class UCloudConfigService(
                                 UCloudSyncthingConfig.Device(deviceId, "UCloud")
                             )
                         )
+                        syncthingClient.configureOptions()
                         break
                     } catch (e: Throwable) {
                         // Do nothing

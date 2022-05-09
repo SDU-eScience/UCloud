@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.ApplicationParameter
 import dk.sdu.cloud.app.store.api.ArgumentBuilder
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.file.orchestrator.api.components
 import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.PluginContext
@@ -27,7 +28,7 @@ private fun escapeBash(value: String): String {
     }
 }
 
-suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfiguration): String {
+suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfig): String {
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
         ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
 

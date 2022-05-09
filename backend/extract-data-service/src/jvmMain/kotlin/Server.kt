@@ -55,7 +55,7 @@ class Server(override val micro: Micro) : CommonServer {
         val args = micro.commandLineArguments
 
         val postgresDataService = PostgresDataService(db)
-        val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient)
+        val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient, db)
         val deicReportService = DeicReportService(postgresDataService)
         val userActivityReport = UserActivityReport(elasticDataService, postgresDataService)
         if (args.contains("--data-collection")) {
@@ -110,6 +110,11 @@ class Server(override val micro: Micro) : CommonServer {
                             endDate = startDate.plusMonths(1)
                         }
 
+                        exitProcess(1)
+                    }
+                    args.contains("--downloads") -> {
+                        val projectList = emptyList<String>() //ADD projectIds for relevnat projects.
+                        elasticDataService.downloadsForProject(projectList)
                         exitProcess(1)
                     }
                     else -> {

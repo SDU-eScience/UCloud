@@ -1,6 +1,6 @@
 plugins {
-    kotlin("multiplatform") version "1.6.0"
-    kotlin("plugin.serialization") version "1.6.0"
+    kotlin("multiplatform") version "1.6.21"
+    kotlin("plugin.serialization") version "1.6.21"
 }
 
 group = "dk.sdu.cloud"
@@ -38,7 +38,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.23")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.44")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }
@@ -75,9 +75,12 @@ kotlin {
                 includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
             }
 
-
             val libmbedtls by creating {
                 includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
+            }
+
+            val libyaml by creating {
+                includeDirs.allHeaders(File(projectDir, "vendor/libyaml"))
             }
         }
     }

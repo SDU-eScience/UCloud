@@ -1,15 +1,15 @@
 package dk.sdu.cloud.plugins
 
-import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.config.*
 import kotlinx.coroutines.channels.ReceiveChannel
 
-interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ProductBasedConfiguration> {
+interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ConfigSchema.Plugins.Jobs> {
     suspend fun PluginContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse {
         return BulkResponse(request.items.map { extend(it) })
     }
@@ -18,6 +18,7 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, P
 
     suspend fun PluginContext.suspendBulk(request: JobsProviderSuspendRequest): JobsProviderSuspendResponse {
         request.items.forEach { suspendJob(it) }
+        return BulkResponse(request.items.map { Unit })
     }
 
     suspend fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem)

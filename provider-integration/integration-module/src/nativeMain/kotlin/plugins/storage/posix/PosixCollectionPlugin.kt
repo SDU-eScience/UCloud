@@ -1,10 +1,9 @@
 package dk.sdu.cloud.plugins.storage.posix
 
-import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.completeConfiguration
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.file.orchestrator.api.FSCollectionSupport
 import dk.sdu.cloud.file.orchestrator.api.FSFileSupport
 import dk.sdu.cloud.file.orchestrator.api.FSProductStatsSupport
@@ -22,49 +21,17 @@ import kotlinx.serialization.Serializable
 import platform.posix.geteuid
 import platform.posix.getpwuid
 
-@Serializable
-data class PredefinedCollection(
-    val title: String,
-    val prefix: String
-)
-
-@Serializable
-data class PosixPluginConfiguration(
-    /**
-     * Maps a simple home folder. Each string represents a parent directory, for example "/home". The plugin will use
-     * the local username to determine the actual collection.
-     *
-     * Example:
-     *
-     * ```kotlin
-     * // Given:
-     * val simpleHomeMapper = listOf(PredefinedCollection("Home", "/home"), PredefinedCollection("Fast Home", "/fast/home"))
-     * val localUsername = "DanThrane"
-     *
-     * // Will result in:
-     * val resolvedCollection = listOf("/home/DanThrane", "/fast/home/DanThrane")
-     * ```
-     */
-    val simpleHomeMapper: List<PredefinedCollection> = emptyList(),
-
-    /**
-     * Similar to [simpleHomeMapper] but uses the UCloud project ID instead of the local username.
-     */
-    val simpleProjectMapper: List<PredefinedCollection> = emptyList(),
-
-    val extensions: Extensions = Extensions()
-) {
-    @Serializable
-    data class Extensions(
-        val additionalCollections: String? = null,
-    )
-}
-
 class PosixCollectionPlugin : FileCollectionPlugin {
+    override var pluginName: String = "Unknown"
+    override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     private lateinit var pathConverter: PathConverter
-    private lateinit var pluginConfig: ProductBasedConfiguration
+    private lateinit var pluginConfig: PosixFileCollectionsConfiguration
     private var initializedProjects = HashSet<String?>()
     private val mutex = Mutex()
+
+    override fun configure(config: ConfigSchema.Plugins.FileCollections) {
+        this.pluginConfig = config as PosixFileCollectionsConfiguration
+    }
 
     override suspend fun PluginContext.init(owner: ResourceOwner) {
         pathConverter = PathConverter(this)
@@ -74,8 +41,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             if (!initializedProjects.add(project)) return
         }
 
-        val fullConfig = pluginConfig.completeConfiguration<PosixPluginConfiguration>()
-
         data class CollWithProduct(
             val title: String,
             val pathPrefix: String,
@@ -84,50 +49,55 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
         val homes = HashMap<String, CollWithProduct>()
         val projects = HashMap<String, CollWithProduct>()
-        fullConfig.forEach { (cfg, products) ->
-            val product = products.firstOrNull() ?: return@forEach
-            cfg.simpleHomeMapper.forEach { home ->
-                homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
+
+        val collections = ArrayList<PathConverter.Collection>()
+
+        run {
+            val product = productAllocation.firstOrNull() ?: return@run
+
+            run {
+                // Simple mappers
+                pluginConfig.simpleHomeMapper.forEach { home ->
+                    homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
+                }
+
+                if (project == null && homes.isNotEmpty()) {
+                    val username = run {
+                        val uid = geteuid()
+                        getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
+                    }
+
+                    homes.forEach { (_, coll) ->
+                        val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
+                        collections.add(
+                            PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
+                        )
+                    }
+                }
             }
-            cfg.simpleProjectMapper.forEach { project ->
-                homes[project.prefix] = CollWithProduct(project.title, project.prefix, product)
+
+            run {
+                // Extensions
+                val extension = pluginConfig.extensions.additionalCollections
+                if (extension != null) {
+                    retrieveCollections.invoke(extension, owner).forEach {
+                        collections.add(
+                            PathConverter.Collection(owner, it.title, it.path, product, it.balance)
+                        )
+                    }
+                }
             }
         }
 
-        val additionalCollectionFromExtensions = fullConfig.flatMap { (config, products) ->
-            val product = products.firstOrNull() ?: return@flatMap emptyList()
-            val extension = config.extensions.additionalCollections ?: return@flatMap emptyList()
-            retrieveCollections.invoke(extension, owner).map {
-                PathConverter.Collection(owner, it.title, it.path, product, it.balance)
-            }
+        if (collections.isNotEmpty()) {
+            pathConverter.registerCollectionWithUCloud(collections)
         }
-
-        val collectionsFromConfig = if (project == null && homes.isNotEmpty()) {
-            val username = run {
-                val uid = geteuid()
-                getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
-            }
-
-            homes.map { (_, coll) ->
-                val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
-                PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
-            }
-        } else if (project != null && projects.isNotEmpty()) {
-            projects.map { (_, coll) ->
-                val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + owner.project
-                PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
-            }
-        } else {
-            emptyList()
-        }
-
-        pathConverter.registerCollectionWithUCloud(collectionsFromConfig + additionalCollectionFromExtensions)
     }
 
     override suspend fun PluginContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
-        return BulkResponse(pluginConfig.products.map { ref ->
+        return BulkResponse(productAllocation.map { ref ->
             FSSupport(
                 ProductReference(ref.id, ref.category, config.core.providerId),
                 FSProductStatsSupport(),
@@ -135,10 +105,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 FSFileSupport()
             )
         })
-    }
-
-    override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
-        this@PosixCollectionPlugin.pluginConfig = pluginConfig
     }
 
     private companion object Extensions {

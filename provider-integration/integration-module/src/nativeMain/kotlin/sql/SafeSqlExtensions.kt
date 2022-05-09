@@ -1,6 +1,4 @@
-package dk.sdu.cloud.plugins.compute.slurm
-
-import dk.sdu.cloud.sql.PreparedStatement
+package dk.sdu.cloud.sql
 
 fun safeSqlParameterList(prefix: String, collection: List<*>): String {
     return collection.mapIndexed { idx, _ -> ":${prefix}_${idx}" }.joinToString(", ")

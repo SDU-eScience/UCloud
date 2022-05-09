@@ -2,9 +2,9 @@ package dk.sdu.cloud.plugins.storage.posix
 
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.ProcessingScope
-import dk.sdu.cloud.ProductBasedConfiguration
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.SortDirection
+import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -37,10 +37,12 @@ import platform.posix.*
 import kotlin.math.min
 
 class PosixFilesPlugin : FilePlugin {
+    override var pluginName: String = "Unknown"
+    override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     private lateinit var pathConverter: PathConverter
     private lateinit var taskSystem: PosixTaskSystem
 
-    override suspend fun PluginContext.initialize(pluginConfig: ProductBasedConfiguration) {
+    override suspend fun PluginContext.initialize() {
         pathConverter = PathConverter(this)
         taskSystem = PosixTaskSystem(this, pathConverter)
     }

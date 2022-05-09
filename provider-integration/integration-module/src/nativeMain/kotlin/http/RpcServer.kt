@@ -90,6 +90,7 @@ class RpcServer(
                     }
 
                     if (foundCall == null) {
+                        log.debug("$method $path 404 Not Found")
                         sendHttpResponse(404, defaultHeaders())
                         return
                     }
@@ -127,6 +128,7 @@ class RpcServer(
                                 }
                             }
                         } catch (ex: Throwable) {
+                            log.debug("Failed to parse request message.\n${ex.stackTraceToString().prependIndent("  ")}")
                             sendHttpResponse(400, defaultHeaders())
                             return
                         }
@@ -159,6 +161,8 @@ class RpcServer(
                                     } else {
                                         "{}"
                                     }).encodeToByteArray()
+
+                                    log.debug("Responding to: ${call.fullName} ${outgoingResult.statusCode.value}")
 
                                     sendHttpResponseWithData(
                                         outgoingResult.statusCode.value,

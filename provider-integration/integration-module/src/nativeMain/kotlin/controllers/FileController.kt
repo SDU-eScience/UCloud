@@ -51,7 +51,7 @@ class FileController(
     controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
 ) : BaseResourceController<Product.Storage, FSSupport, UFile, FilePlugin, FilesProvider>(controllerContext) {
-    override fun retrievePlugins(): ProductBasedPlugins<FilePlugin>? = controllerContext.plugins.files
+    override fun retrievePlugins() = controllerContext.configuration.plugins.files.values
     override fun retrieveApi(providerId: String): FilesProvider = FilesProvider(providerId)
 
     override fun configureIpc(server: IpcServer) {
@@ -214,7 +214,7 @@ class FileController(
         })
     }
 
-    override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<FilePlugin>, api: FilesProvider) {
+    override fun RpcServer.configureCustomEndpoints(plugins: Collection<FilePlugin>, api: FilesProvider) {
         val pathConverter = PathConverter(controllerContext.pluginContext)
         val providerId = controllerContext.configuration.core.providerId
 
@@ -253,7 +253,7 @@ class FileController(
             val path = request.browse.flags.path
                 ?: throw RPCException("Bad request from UCloud (no  path)", HttpStatusCode.BadRequest)
 
-            val plugin = plugins.lookup(request.resolvedCollection.specification.product)
+            val plugin = lookupPlugin(request.resolvedCollection.specification.product)
             with(controllerContext.pluginContext) {
                 with(plugin) {
                     OutgoingCallResponse.Ok(browse(UCloudFile.create(path), request))
@@ -262,7 +262,7 @@ class FileController(
         }
 
         implement(api.retrieve) {
-            val plugin = plugins.lookup(request.resolvedCollection.specification.product)
+            val plugin = lookupPlugin(request.resolvedCollection.specification.product)
             with(controllerContext.pluginContext) {
                 with(plugin) {
                     OutgoingCallResponse.Ok(retrieve(request))
@@ -274,7 +274,7 @@ class FileController(
             val result = request.items.map { createFolderRequest ->
                 val collection = pathConverter.ucloudToCollection(UCloudFile.create(createFolderRequest.id))
 
-                val plugin = plugins.lookup(collection.specification.product)
+                val plugin = lookupPlugin(collection.specification.product)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         createFolder(bulkRequestOf(createFolderRequest)).single()
@@ -288,7 +288,7 @@ class FileController(
             val result = request.items.map { moveRequest ->
                 val collection = moveRequest.resolvedNewCollection.specification.product
 
-                val plugin = plugins.lookup(collection)
+                val plugin = lookupPlugin(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         move(bulkRequestOf(moveRequest)).single()
@@ -301,7 +301,7 @@ class FileController(
         implement(api.copy) {
             val result = request.items.map { copyRequest ->
                 val collection = copyRequest.resolvedNewCollection.specification.product
-                val plugin = plugins.lookup(collection)
+                val plugin = lookupPlugin(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         copy(bulkRequestOf(copyRequest)).single()
@@ -315,7 +315,7 @@ class FileController(
             val result = request.items.map { request ->
                 val collection = request.resolvedCollection.specification.product
 
-                val plugin = plugins.lookup(collection)
+                val plugin = lookupPlugin(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         moveToTrash(bulkRequestOf(request)).single()
@@ -329,7 +329,7 @@ class FileController(
             val result = request.items.map { request ->
                 val collection = request.resolvedCollection.specification.product
 
-                val plugin = plugins.lookup(collection)
+                val plugin = lookupPlugin(collection)
                 with(controllerContext.pluginContext) {
                     with(plugin) {
                         emptyTrash(bulkRequestOf(request)).single()
@@ -343,7 +343,8 @@ class FileController(
             val sessions = ArrayList<FilesCreateDownloadResponseItem>()
 
             request.items.forEach { downloadRequest ->
-                val (name, plugin) = plugins.lookupWithName(downloadRequest.resolvedCollection.specification.product)
+                val plugin = lookupPlugin(downloadRequest.resolvedCollection.specification.product)
+                val name = plugin.pluginName
 
                 with(controllerContext.pluginContext) {
                     with(plugin) {
@@ -393,7 +394,8 @@ class FileController(
             val token = request.token
             with(controllerContext.pluginContext) {
                 val handler = ipcClient.sendRequest(FilesDownloadIpc.retrieve, FindByStringId(token))
-                val plugin = plugins.plugins[handler.pluginName]
+
+                val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
 
                 with(plugin) {
@@ -408,7 +410,8 @@ class FileController(
             val sessions = ArrayList<FilesCreateUploadResponseItem>()
 
             request.items.forEach { uploadRequest ->
-                val (name, plugin) = plugins.lookupWithName(uploadRequest.resolvedCollection.specification.product)
+                val plugin = lookupPlugin(uploadRequest.resolvedCollection.specification.product)
+                val name = plugin.pluginName
 
                 with(controllerContext.pluginContext) {
                     with(plugin) {
@@ -442,7 +445,7 @@ class FileController(
 
             with(controllerContext.pluginContext) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
-                val plugin = plugins.plugins[handler.pluginName]
+                val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)
 
                 with(plugin) {
@@ -465,3 +468,4 @@ class FileController(
         }
     }
 }
+

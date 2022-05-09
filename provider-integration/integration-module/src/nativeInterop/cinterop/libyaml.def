@@ -1,0 +1,6 @@
+package = yaml
+headers = yaml.h
+staticLibraries = libyaml.a
+libraryPaths = vendor/libyaml/linux
+
+---

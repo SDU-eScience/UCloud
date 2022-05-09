@@ -12,7 +12,6 @@ import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.wsContext
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ComputePlugin
-import dk.sdu.cloud.plugins.ProductBasedPlugins
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
@@ -31,10 +30,10 @@ import platform.posix.usleep
 class ComputeController(
     controllerContext: ControllerContext,
 ) : BaseResourceController<Product.Compute, ComputeSupport, Job, ComputePlugin, JobsProvider>(controllerContext) {
-    override fun retrievePlugins(): ProductBasedPlugins<ComputePlugin>? = controllerContext.plugins.compute
+    override fun retrievePlugins() = controllerContext.configuration.plugins.jobs.values
     override fun retrieveApi(providerId: String): JobsProvider = JobsProvider(providerId)
 
-    override fun RpcServer.configureCustomEndpoints(plugins: ProductBasedPlugins<ComputePlugin>, api: JobsProvider) {
+    override fun RpcServer.configureCustomEndpoints(plugins: Collection<ComputePlugin>, api: JobsProvider) {
         val serverMode = controllerContext.configuration.serverMode
         val shells = Shells(controllerContext.configuration.core.providerId)
 
@@ -56,7 +55,8 @@ class ComputeController(
 
             when (request) {
                 is JobsProviderFollowRequest.Init -> {
-                    val plugin = plugins.lookup(request.job.specification.product)
+                    val product = request.job.specification.product
+                    val plugin = lookupPlugin(request.job.specification.product)
 
                     val token = secureToken(64)
                     var streamId: Int? = null
@@ -148,12 +148,11 @@ class ComputeController(
         implement(api.suspend) {
             if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
+            val result = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
                 with(plugin) { suspendBulk(request) }
-                BulkResponse(emptyList<Unit>())
             }
 
-            OutgoingCallResponse.Ok(Unit)
+            OutgoingCallResponse.Ok(result)
         }
 
         implement(api.terminate) {
@@ -173,7 +172,7 @@ class ComputeController(
                 when (request) {
                     is ShellRequest.Initialize -> {
                         val pluginHandler = with(controllerContext.pluginContext) {
-                            plugins.plugins.values.find { plugin ->
+                            plugins.find { plugin ->
                                 with(plugin) { canHandleShellSession(request) }
                             }
                         } ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)

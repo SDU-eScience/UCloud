@@ -344,7 +344,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
                     <Flex alignItems={"center"}>
                         {editingLimit !== key ?
                             <Text width={350} textAlign={"right"}>
-                                {credits} {/* TODO */}
+                                {credits} {/* TODO(???) */}
                             </Text> : null}
                         {editingLimit !== key ?
                             <Button

@@ -100,6 +100,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "hpp":
         case "cpp":
         case "cxx":
+        case "jai":
         case "hxx":
         case "html":
         case "htm":
@@ -186,6 +187,7 @@ export function isExtPreviewSupported(ext: string): boolean {
         case "h++":
         case "hpp":
         case "cpp":
+        case "jai":
         case "cxx":
         case "hxx":
         case "html":

@@ -9,6 +9,7 @@ import dk.sdu.cloud.http.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.client.withFixedHost
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
@@ -25,53 +26,36 @@ import kotlinx.serialization.Serializable
 import libjwt.*
 
 class OpenIdConnectPlugin : ConnectionPlugin {
-    @Serializable
-    data class Configuration(
-        val certificate: String,
-        val authEndpoint: String,
-        val tokenEndpoint: String,
-        val clientId: String,
-        val clientSecret: String,
-        val extensions: Extensions,
+    private lateinit var ownHost: Host
+    private lateinit var configuration: OpenIdConnectConfiguration
+    private lateinit var tokenEndpoint: String
+    private lateinit var authEndpoint: String
+    private val log = Log("OpenIdConnect")
 
-        // NOTE(Dan): Redirect URL to use after connection has completed. Defaults to use the backend API. Can be
-        // changed if the backend is not served behind a gateway (e.g. during development).
-        val redirectUrl: String? = null,
-        val mappingLifetime: Long? = 1000L * 60 * 60 * 7 * 14,
-    ) {
-        fun hostInfo(): HostInfo {
-            val schema = when {
-                tokenEndpoint.startsWith("http://") -> "http"
-                tokenEndpoint.startsWith("https://") -> "https"
-                else -> error("Invalid tokendEndpoint supplied ('$tokenEndpoint')")
-            }
+    private fun OpenIdConnectConfiguration.hostInfo(): HostInfo {
+        val tokenEndpoint = endpoints.token
 
-            val endpointWithoutSchema = tokenEndpoint.removePrefix("$schema://")
-            val hostWithoutSchema = endpointWithoutSchema.substringBefore("/")
-            val host = hostWithoutSchema.substringBefore(":")
-            val portString = hostWithoutSchema.substringAfter(":", missingDelimiterValue = "")
-            val port = if (portString == "") null else portString.toIntOrNull()
-
-            return HostInfo(host, schema, port)
+        val schema = when {
+            tokenEndpoint.startsWith("http://") -> "http"
+            tokenEndpoint.startsWith("https://") -> "https"
+            else -> error("Invalid tokenEndpoint supplied ('$tokenEndpoint')")
         }
 
-        fun normalize(): Configuration {
-            return copy(
-                certificate = normalizeCertificate(certificate),
-                authEndpoint = authEndpoint.removeSuffix("?").removeSuffix("/"),
-                tokenEndpoint = tokenEndpoint.removeSuffix("?").removeSuffix("/"),
-            )
-        }
+        val endpointWithoutSchema = tokenEndpoint.removePrefix("$schema://")
+        val hostWithoutSchema = endpointWithoutSchema.substringBefore("/")
+        val host = hostWithoutSchema.substringBefore(":")
+        val portString = hostWithoutSchema.substringAfter(":", missingDelimiterValue = "")
+        val port = if (portString == "") null else portString.toIntOrNull()
 
-        @Serializable
-        data class Extensions(
-            val onOpenIdConnectCompleted: String
-        )
+        return HostInfo(host, schema, port)
+
     }
 
-    private lateinit var ownHost: IMConfiguration.Host
-    private lateinit var configuration: Configuration
-    private val log = Log("OpenIdConnect")
+    override fun configure(config: ConfigSchema.Plugins.Connection) {
+        this.configuration = config as OpenIdConnectConfiguration
+        this.tokenEndpoint = this.configuration.endpoints.token.removeSuffix("?").removeSuffix("/")
+        this.authEndpoint = this.configuration.endpoints.auth.removeSuffix("?").removeSuffix("/")
+    }
 
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private value class UCloudUsername(val username: String)
@@ -79,16 +63,11 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private val stateTableMutex = Mutex()
     private val stateTable = HashMap<OidcState, UCloudUsername>()
 
-    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
+    override suspend fun PluginContext.initialize() {
         if (config.serverMode != ServerMode.Server) return
 
-        // TODO(Dan): Why is the config not valid?
-        configuration = runCatching { 
-            defaultMapper.decodeFromJsonElement(Configuration.serializer(), pluginConfig)
-        }.getOrNull()?.normalize() ?: throw IllegalStateException("Configuration for OpenIdConnectPlugin is not valid")
-
-        ownHost = config.core.ownHost 
-            ?: throw IllegalStateException("The OpenIdConnectPlugin requires core.ownHost to be defined!")
+        ownHost = config.core.hosts.self 
+             ?: throw IllegalStateException("The OpenIdConnectPlugin requires core.ownHost to be defined!")
     }
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
@@ -125,7 +104,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
                 http {
                     method = HttpMethod.Post
-                    path { using(configuration.tokenEndpoint.removePrefix(configuration.hostInfo().toString())) }
+                    path { using(tokenEndpoint.removePrefix(configuration.hostInfo().toString())) }
                     body { bindEntireRequestFromBody() }
                 }
             }
@@ -153,10 +132,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         contentType = "application/x-www-form-urlencoded",
                         payload = buildString {
                             append("client_id=")
-                            append(configuration.clientId)
+                            append(configuration.client.id)
 
                             append("&client_secret=")
-                            append(configuration.clientSecret)
+                            append(configuration.client.secret)
 
                             append("&code=")
                             append(request.code)
@@ -191,14 +170,17 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     val azp = jwt_get_grant(jwt, "azp")?.toKStringFromUtf8()
 
                     if (returnedSessionState != request.session_state) {
+                        log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
-                    if (azp != null && azp != configuration.clientId) {
+                    if (azp != null && azp != configuration.client.id) {
+                        log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.client.id}")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
                     if (!type.equals("Bearer", ignoreCase = true)) {
+                        log.debug("OIDC failed due to the type not being equal to Bearer (it was $type)")
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
@@ -236,10 +218,15 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         phoneNumber,
                         phoneNumberVerified,
                     )
-                } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                } ?: run {
+                    log.debug("OIDC failed due to a bad token: ${tokenResponse.access_token}")
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
 
-                val result = onOpenIdConnectCompleted.invoke(configuration.extensions.onOpenIdConnectCompleted, subject)
-                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, mappingExpiration())
+                log.debug("OIDC success! Subject is $subject")
+
+                val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
+                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, this@initializeRpcServer, mappingExpiration())
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
@@ -249,7 +236,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 sctx.session.sendHttpResponse(
                     HttpStatusCode.Found.value,
                     listOf(
-                        Header("Location", configuration.redirectUrl ?: config.server!!.ucloud.toString()),
+                        Header("Location", configuration.redirectUrl ?: config.core.hosts.ucloud.toString()),
                         Header("Content-Length", "0"),
                     )
                 )
@@ -269,10 +256,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
         return ConnectionResponse.Redirect(
             buildString {
-                append(configuration.authEndpoint)
+                append(authEndpoint)
                 append('?')
                 append("response_type=code")
-                append("&client_id=${configuration.clientId}")
+                append("&client_id=${configuration.client.id}")
                 append("&scope=openid")
                 append("&state=")
                 append(token.state)
@@ -288,11 +275,18 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     }
 
     override fun PluginContext.mappingExpiration(): Long? {
-        return configuration.mappingLifetime
+        var acc = 0L
+        with (configuration.mappingTimeToLive) {
+            acc += days    * (1000L * 60 * 60 * 24)
+            acc += hours   * (1000L * 60 * 60)
+            acc += minutes * (1000L * 60)
+            acc += seconds * (1000L)
+        }
+        return acc
     }
 
     private companion object Extensions {
-        val onOpenIdConnectCompleted = extension<OpenIdConnectSubject, UidAndGid>()
+        val onConnectionComplete = extension<OpenIdConnectSubject, UidAndGid>()
     }
 }
 

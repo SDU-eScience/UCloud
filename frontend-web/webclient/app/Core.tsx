@@ -244,9 +244,11 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
 }
 
 const LoginSuccess = (props: {history: History}): null => {
-    dispatchUserAction(USER_LOGIN);
-    onLogin();
-    props.history.push("/");
+    React.useEffect(() => {
+        dispatchUserAction(USER_LOGIN);
+        onLogin();
+        props.history.push("/");
+    }, []);
     return null;
 };
 
