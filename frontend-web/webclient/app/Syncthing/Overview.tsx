@@ -547,6 +547,19 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         return <>
             <ListRowStat>{prettyPath}</ListRowStat>
         </>
+    },
+
+    ImportantStats: ({resource}) => {
+        // TODO(Brian): Add check for file permissions in folder
+
+        /*return <>
+            <Tooltip tooltipContentWidth="200px" trigger={
+                <Icon name="warning" color="red" />
+            }>
+                You do not have permission to synchronize some files in {resource?.ucloudPath}. These will be ignored.
+            </Tooltip>
+        </>*/
+        return null
     }
 };
 
@@ -660,7 +673,26 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         color: "red",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
-            cb.dispatch({type: "ResetAll"});
+            dialogStore.addDialog(
+                <Box maxWidth={600}>
+                    <Heading.h3>Factory reset Syncthing server?</Heading.h3>
+                    <p>
+                        This will reset the configuration of the Syncthing server completely.
+                        You probably only want to do this if Syncthing is not working, and/or your configuration is broken.
+                    </p>
+                    <p>
+                         All folders and devices will be removed from the Syncthing server.
+                    </p>
+                    <p>
+                         The device ID will no longer be available and should be removed from your local Syncthing devices.
+                         A new device ID will be generated if you decide to set up Synchronization again.
+                    </p>
+                    <Button mr="5px" onClick={() => dialogStore.success()}>Cancel</Button>
+                    <Button color="red" onClick={() => {
+                        cb.dispatch({type: "ResetAll"});
+                        dialogStore.success();
+                    }}>Confirm</Button>
+                </Box>, () => undefined, true);
         }
     },
 ];
