@@ -465,6 +465,7 @@ export const Overview: React.FunctionComponent = () => {
                                     operations={folderOperations}
                                     callbacks={operationCb}
                                     itemTitle={"Folder"}
+                                    disableSelection
                                 />
                             )}
                         </List>
@@ -530,10 +531,13 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size}/>;
     },
 
-    MainTitle: ({resource}) => {
+    MainTitle: ({resource, callbacks}) => {
         if (!resource) return null;
         const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <>{fileName(prettyPath)}</>;
+        return <Text cursor="pointer" onClick={() => {
+            const path = resource.ucloudPath;
+            callbacks.history.push(buildQueryString("/files", {path}));
+        }}>{fileName(prettyPath)}</Text>;
     },
 
     Stats: ({resource}) => {
@@ -548,16 +552,7 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
 
 const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
-        text: "Open folder",
-        icon: "open",
-        enabled: selected => selected.length === 1,
-        onClick: ([file], cb) => {
-            const path = file.ucloudPath;
-            cb.history.push(buildQueryString("/files", {path}));
-        }
-    },
-    {
-        text: "Remove",
+        text: "Remove from Sync",
         icon: "trash",
         color: "red",
         confirm: true,
