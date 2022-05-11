@@ -39,6 +39,7 @@ import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 // UI state management
 // ================================================================================
@@ -147,9 +148,13 @@ function uiReducer(state: UIState, action: UIAction): UIState {
 
         case "AddFolder": {
             const folders = copy.folders ?? [];
-            folders.push({id: randomUUID(), ucloudPath: action.folderPath});
-            copy.folders = folders;
-            copy.didAddFolder = true;
+            if (folders.map(it => it.ucloudPath).includes(action.folderPath)) {
+                snackbarStore.addFailure("Folder is already added to synchronization", false);
+            } else {
+                folders.push({id: randomUUID(), ucloudPath: action.folderPath});
+                copy.folders = folders;
+                copy.didAddFolder = true;
+            }
             return copy;
         }
 
