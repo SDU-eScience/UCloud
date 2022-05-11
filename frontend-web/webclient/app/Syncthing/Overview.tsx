@@ -337,7 +337,7 @@ export const Overview: React.FunctionComponent = () => {
             <FilesBrowse
                 browseType={BrowseType.Embedded}
                 pathRef={pathRef}
-                onSelectRestriction={file => file.status.type === "DIRECTORY"}
+                onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     dispatch({type: "AddFolder", folderPath: target});
