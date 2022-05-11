@@ -218,6 +218,7 @@ interface OperationCallbacks {
     history: History;
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
+    permissionProblems: string[];
 }
 
 // Primary user interface
@@ -276,6 +277,24 @@ export const Overview: React.FunctionComponent = () => {
         });
     }, []);
 
+    const [permissionProblems, setPermissionProblems] = useState<string[]>([]);
+    React.useEffect(() => {
+        if (folders.length === 0) return;
+        Promise.allSettled(folders.filter(it => it.ucloudPath != null).map(f => 
+            callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
+        )).then(promises => {
+            const result: string[] = [];
+            promises.forEach((p, index) => {
+                if (p.status === "fulfilled") {
+                    if (p.value.items.some(f => f.status.unixOwner !== 11042)) {
+                        result.push(folders[index].id);
+                    }
+                }
+            });
+            setPermissionProblems(result);
+        });
+    }, [folders.length]);
+
     const actionCb: ActionCallbacks = useMemo(() => ({
         history,
         pureDispatch,
@@ -291,8 +310,9 @@ export const Overview: React.FunctionComponent = () => {
     const operationCb: OperationCallbacks = useMemo(() => ({
         history,
         dispatch,
-        requestReload: reload
-    }), [history, dispatch, reload]);
+        requestReload: reload,
+        permissionProblems,
+    }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
         pureDispatch({type: "ReloadDeviceWizard", visible: true});
@@ -549,17 +569,18 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         </>
     },
 
-    ImportantStats: ({resource}) => {
-        // TODO(Brian): Add check for file permissions in folder
+    ImportantStats: ({resource, callbacks}) => {
+        if (resource == null) return null;
+        if (!callbacks.permissionProblems.includes(resource.id)) return null;
 
-        /*return <>
+        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
+        return <>
             <Tooltip tooltipContentWidth="200px" trigger={
                 <Icon name="warning" color="red" />
             }>
-                You do not have permission to synchronize some files in {resource?.ucloudPath}. These will be ignored.
+                Some files in {prettyPath} might not be synchronized due to lack of permissions.
             </Tooltip>
-        </>*/
-        return null
+        </>
     }
 };
 
