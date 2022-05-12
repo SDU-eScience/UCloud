@@ -58,7 +58,7 @@ ucloud_identity = request.get('ucloudIdentity') or request.get('username')
 
 ucloud_names = parse_ucloud_username(ucloud_identity)
 
-username = ucloud_identity.replace('#', '').replace('@', '').replace('.', '')
+username = ucloud_identity.replace('#', '').replace('@', '').replace('.', '').lower()
 first = request.get('givenName') or ucloud_names['first']
 last = request.get('familyName') or ucloud_names['last']
 mail = request.get('email') or 'unknown@localhost.local' # TODO(Dan): UCloud connection plugin will never return this info

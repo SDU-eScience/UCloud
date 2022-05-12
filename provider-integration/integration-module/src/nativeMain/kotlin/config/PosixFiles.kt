@@ -14,7 +14,7 @@ data class PosixFileCollectionsConfiguration(
     override val matches: String,
     val simpleHomeMapper: List<HomeMapper> = emptyList(),
     val extensions: Extensions = Extensions(),
-    val accounting: String?,
+    val accounting: String? = null,
 ) : ConfigSchema.Plugins.FileCollections() {
     @Serializable
     data class HomeMapper(

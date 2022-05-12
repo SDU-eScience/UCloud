@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.plugins.AllocationNotification
+import dk.sdu.cloud.plugins.ResourceOwnerWithId
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
@@ -213,7 +214,7 @@ class NotificationController(
                         return null
                     }
 
-                    AllocationNotification.Owner.User(username, uid)
+                    ResourceOwnerWithId.User(username, uid)
                 }
 
                 is WalletOwner.Project -> {
@@ -231,7 +232,7 @@ class NotificationController(
                         return null
                     }
 
-                    AllocationNotification.Owner.Project(projectId, gid)
+                    ResourceOwnerWithId.Project(projectId, gid)
                 }
             },
             summary.id,

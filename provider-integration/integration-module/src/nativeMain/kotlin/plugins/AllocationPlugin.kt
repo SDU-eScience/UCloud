@@ -19,21 +19,22 @@ sealed class OnResourceAllocationResult {
 @Serializable
 data class AllocationNotification(
    val balance: Long,
-   val owner: Owner,
+   val owner: ResourceOwnerWithId,
    val allocationId: String,
    val productCategory: String,
    val productType: ProductType,
-) {
-    @Serializable
-    sealed class Owner {
-        @Serializable
-        @SerialName("user")
-        data class User(val username: String, val uid: Int) : Owner()
+)
 
-        @Serializable
-        @SerialName("project")
-        data class Project(val projectId: String, val gid: Int) : Owner()
-    }
+// TODO(Dan): Move this to a different file
+@Serializable
+sealed class ResourceOwnerWithId {
+    @Serializable
+    @SerialName("user")
+    data class User(val username: String, val uid: Int) : ResourceOwnerWithId()
+
+    @Serializable
+    @SerialName("project")
+    data class Project(val projectId: String, val gid: Int) : ResourceOwnerWithId()
 }
 
 interface AllocationPlugin : Plugin<ConfigSchema.Plugins.Allocations> {

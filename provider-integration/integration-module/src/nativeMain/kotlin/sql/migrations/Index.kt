@@ -13,4 +13,6 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V1__SimpleProjectPluginInitial())
     migrationHandler.addScript(V2__SimpleProjectPlugin())
     migrationHandler.addScript(V1__SessionMapping())
+    migrationHandler.addScript(V1__SlurmAccountMapper())
 }
+

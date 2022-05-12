@@ -36,6 +36,7 @@ import platform.posix.getpwuid
 class PosixCollectionPlugin : FileCollectionPlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
+    override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: PosixFileCollectionsConfiguration
     private var initializedProjects = HashMap<ResourceOwner, List<PathConverter.Collection>>()
     private val mutex = Mutex()

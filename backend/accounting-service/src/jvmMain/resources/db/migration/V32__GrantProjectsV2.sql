@@ -56,7 +56,7 @@ begin
     limit 1;
 
     create temporary table grant_created_projects(project_id text primary key);
-    insert into grant_created_projects(project_id) select created_project;
+    insert into grant_created_projects(project_id) select created_project where created_project is not null;
 
     -- NOTE(Dan): Run the normal deposit procedure
     perform accounting.deposit(array_agg(req))

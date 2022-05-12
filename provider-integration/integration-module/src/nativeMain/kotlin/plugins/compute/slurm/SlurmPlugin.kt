@@ -1,35 +1,44 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Log
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
+import kotlin.native.concurrent.AtomicReference
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.datetime.Clock
 import kotlinx.datetime.Instant
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.decodeFromJsonElement
 import platform.posix.*
-import kotlin.native.concurrent.AtomicReference
 
 class SlurmPlugin : ComputePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
-    private lateinit var pluginConfig: SlurmConfig
+    override var productAllocationResolved: List<Product> = emptyList()
+    lateinit var pluginConfig: SlurmConfig
+        private set
 
     private fun config(product: ProductReference): SlurmConfig = pluginConfig
     private fun config(job: Job): SlurmConfig = pluginConfig
@@ -43,6 +52,9 @@ class SlurmPlugin : ComputePlugin {
             for (handler in SlurmJobsIpcServer.handlers) {
                 ipcServer.addHandler(handler)
             }
+
+            if (accountMapperOrNull == null) accountMapperOrNull = AccountMapper(config)
+            if (productEstimatorOrNull == null) productEstimatorOrNull = ProductEstimator(config)
         }
     }
 
@@ -148,78 +160,168 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.runMonitoringLoop() {
         if (config.serverMode != ServerMode.Server) return
 
-        while (true) {
+        var nextAccountingScan = 0L
+
+        while (currentCoroutineContext().isActive) {
+            val now = Time.now()
+
+            try {
+                monitorStates()
+            } catch (ex: Throwable) {
+                log.info("Caught exception while monitoring Slurm states: ${ex.stackTraceToString()}")
+            }
+
+            try {
+                monitorAccounting(now >= nextAccountingScan)
+            } catch (ex: Throwable) {
+                log.info("Caught exception while accounting Slurm jobs: ${ex.stackTraceToString()}")
+            }
+
+            if (now >= nextAccountingScan) nextAccountingScan = now + 60_000 * 15
+
             delay(5000)
-
-            val jobs = SlurmJobMapper.browse(SlurmBrowseFlags(filterIsActive = true))
-            if (jobs.isEmpty()) continue
-
-            val acctJobs = SlurmCommandLine.browseJobAllocations(jobs.map { it.slurmId })
-
-            // TODO(Dan): Everything should be more or less ready to do in bulk if needed
-            acctJobs.forEach { job ->
-                val dbState = jobs.first { it.slurmId == job.jobId }.lastKnown
-                val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
-                val uState = Mapping.uCloudStates[job.state] ?: return@forEach
-
-                if (uState.providerState != dbState) {
-                    val updateResponse = JobsControl.update.call(
-                        bulkRequestOf(
-                            ResourceUpdateAndId(
-                                ucloudId,
-                                JobUpdate(uState.state, status = uState.message)
-                            )
-                        ),
-                        rpcClient,
-                    )
-
-                    if (updateResponse is IngoingCallResponse.Ok<*, *>) {
-                        SlurmJobMapper.updateState(
-                            listOf(job.jobId),
-                            listOf(uState.state)
-                        )
-                    } else {
-                        log.warn("Caught an exception while updating job status: ${updateResponse}")
-                    }
-                }
-            }
-
-            val finishedJobs = acctJobs.mapNotNull { job ->
-                val ucloudId = jobs.first { it.slurmId == job.jobId }.ucloudId
-                val uState = Mapping.uCloudStates[job.state]
-
-                if (uState!!.isFinal) {
-                    val start = Instant.parse(job.start.plus("Z"))
-                    val end = Instant.parse(job.end.plus("Z"))
-                    val lastTs = Clock.System.now().toString()
-                    val uDuration = run { end - start }.let { SimpleDuration.fromMillis(it.inWholeMilliseconds) }
-
-                    val chargeResponse = JobsControl.chargeCredits.call(
-                        bulkRequestOf(
-                            ResourceChargeCredits(
-                                ucloudId,
-                                lastTs,
-                                // TODO(Dan): This is not always true. It depends on the product's payment model.
-                                ceil(uDuration.toMillis() / (1000L * 60.0)).toLong(),
-                            )
-                        ),
-                        rpcClient
-                    )
-
-                    if (chargeResponse !is IngoingCallResponse.Ok<*, *>) {
-                        log.warn("Caught an exception while charging credits for job: ${ucloudId}\n\t${chargeResponse}")
-                    }
-
-                    job.jobId
-                } else null
-            }
-
-            if (finishedJobs.isEmpty()) continue
-
-            SlurmJobMapper.markAsInactive(finishedJobs)
         }
     }
 
+    private var lastScan: Long = 0L
+    private suspend fun PluginContext.monitorAccounting(emitAccountingInfo: Boolean) {
+        // The job of this function is to monitor everything related to accounting. We run through two phases, each 
+        // running at different frequencies:
+        //
+        // 1. Retrieve and process Slurm accounting
+        //    - Invokes sacct to determine which jobs are in the system
+        //    - Importantly, this job will efficiently determine which jobs are _not_ currently known by UCloud and
+        //      register them into UCloud.
+        //    - It is important that we run this step frequently to ensure that jobs submitted outside of UCloud are
+        //      discovered quickly. This allows the end-user to track the job via the UCloud interface.
+        //
+        // 2. Send accounting information to UCloud
+        //    - Combines the output of phase 1 with locally stored information to create charge requests
+        //    - Register these charges with the accounting system of UCloud
+
+
+        // Retrieve and process Slurm accounting
+        // ------------------------------------------------------------------------------------------------------------
+        // In this section we will be performing the following steps:
+        // 
+        // 1. Retrieve accounting information (Using sacct)
+        // 2. Compare with list of known UCloud jobs
+        // 3. Register any unknown jobs (if possible, jobs are not required to be for a UCloud project)
+        // 4. Establish a mapping between Slurm jobs and UCloud jobs
+        val accountingRows = SlurmCommandLine.retrieveAccountingData(lastScan, pluginConfig.partition)
+        lastScan = Time.now()
+
+        // TODO(Dan): This loads the entire database every 5 seconds
+        val knownJobs = SlurmJobMapper.browse(SlurmBrowseFlags()) 
+        val unknownJobs = accountingRows.filter { row ->
+            knownJobs.all { it.ucloudId != row.jobId.toString() }
+        }
+
+        val jobsToRegister = ArrayList<ProviderRegisteredResource<JobSpecification>>()
+        for (job in unknownJobs) {
+            if (job.slurmAccount == null) continue
+            // TODO Register the job with UCloud and IM/DB
+            val potentialAccounts = accountMapper.lookupBySlurm(job.slurmAccount, pluginConfig.partition)
+            val (product, replicas, account) = productEstimator.estimateProduct(job, potentialAccounts) ?: continue
+
+            jobsToRegister.add(
+                ProviderRegisteredResource(
+                    JobSpecification(
+                        name = "${job.jobName} (Slurm: ${job.jobId})",
+                        application = unknownApplication,
+                        product = product,
+                        replicas = replicas,
+
+                        parameters = emptyMap(),
+                        resources = emptyList(),
+
+                        timeAllocation = SimpleDuration.fromMillis(job.timeAllocationMillis),
+                    ),
+                    "s-${job.jobId}",
+                    account.owner.createdBy,
+                    account.owner.project,
+                )
+            )
+        }
+
+        for (batch in jobsToRegister.chunked(100)) {
+            if (batch.isEmpty()) continue
+            val ids = JobsControl.register.call(
+                BulkRequest(batch),
+                rpcClient,
+            ).orNull()?.responses ?: continue
+
+            dbConnection.withSession { session ->
+                for (i in 0 until batch.size) {
+                    val jobSpecification = batch[i]
+                    val ucloudId = ids[0].id
+                    val slurmId = jobSpecification.providerGeneratedId?.removePrefix("s-") ?: continue
+
+                    SlurmJobMapper.registerJob(
+                        SlurmJob(
+                            ucloudId,
+                            slurmId,
+                            pluginConfig.partition
+                        ),
+                        session
+                    )
+                }
+            }
+        }
+
+
+        // Send accounting information to UCloud
+        // ------------------------------------------------------------------------------------------------------------
+        // In this section we will be performing the following steps:
+        //
+        // 1. Combine the two lists from the first phase to create batches of charge requests
+        // 2. For each batch, optionally process this through an extension which can modify the list
+        // 3. Send the batch to UCloud
+        if (!emitAccountingInfo) return
+
+        // TODO(Dan): this code needs to invoke markAsInactive not monitorStates
+    }
+
+    private suspend fun PluginContext.monitorStates() {
+        val jobs = SlurmJobMapper.browse(SlurmBrowseFlags(filterIsActive = true))
+        if (jobs.isEmpty()) return
+
+        val acctJobs = SlurmCommandLine.browseJobAllocations(jobs.map { it.slurmId })
+
+        // TODO(Dan): Everything should be more or less ready to do in bulk if needed
+        for (job in acctJobs) {
+            val dbState = jobs.firstOrNull { it.slurmId == job.jobId }?.lastKnown ?: continue
+            val ucloudId = jobs.firstOrNull { it.slurmId == job.jobId }?.ucloudId ?: continue
+            val uState = Mapping.uCloudStates[job.state] ?: continue
+
+            if (uState.providerState != dbState) {
+                val updateResponse = JobsControl.update.call(
+                    bulkRequestOf(
+                        ResourceUpdateAndId(
+                            ucloudId,
+                            JobUpdate(uState.state, status = uState.message)
+                        )
+                    ),
+                    rpcClient,
+                )
+
+                if (updateResponse is IngoingCallResponse.Ok<*, *>) {
+                    // TODO(Dan): There is no reason we couldn't merge these two calls. They are even updating the
+                    // same table.
+                    SlurmJobMapper.updateState(
+                        listOf(job.jobId),
+                        listOf(uState.state)
+                    )
+
+                    if (uState.state.isFinal()) {
+                        SlurmJobMapper.markAsInactive(listOf(job.jobId))
+                    }
+                } else {
+                    log.warn("Caught an exception while updating job status: ${updateResponse}")
+                }
+            }
+        }
+    }
 
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
 
@@ -435,5 +537,14 @@ class SlurmPlugin : ComputePlugin {
 
     companion object {
         private val log = Log("SlurmPlugin")
+
+        private val unknownApplication = NameAndVersion("unknown", "1")
+        private var productEstimatorOrNull: ProductEstimator? = null
+        private var accountMapperOrNull: AccountMapper? = null
+
+        private val productEstimator: ProductEstimator
+            get() = productEstimatorOrNull!!
+        private val accountMapper: AccountMapper
+            get() = accountMapperOrNull!!
     }
 }

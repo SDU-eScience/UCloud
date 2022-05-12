@@ -15,6 +15,7 @@ import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
     var pluginName: String
     var productAllocation: List<ProductReferenceWithoutProvider>
+    var productAllocationResolved: List<Product>
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init

@@ -183,8 +183,11 @@ object SlurmCommandLine {
         val memoryRequestedInMegs: Long,
         val cpusRequested: Int,
         val uid: Int,
-        val slurmAccount: String,
+        val slurmAccount: String?,
         val nodesRequested: Int,
+        val jobName: String,
+        val gpu: Int,
+        val timeAllocationMillis: Long,
     )
 
     fun retrieveAccountingData(
@@ -196,7 +199,7 @@ object SlurmCommandLine {
 
             addArg("-a")
             addArg("-S", gmtTime(since).formatForSlurm())
-            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,Nodes")
+            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit")
             addArg("-r", partition)
             addArg("-X")
             addArg("--parsable2")
@@ -204,22 +207,14 @@ object SlurmCommandLine {
 
         return rows.mapNotNull { row ->
             val columns = row.split("|")
-            if (columns.size != 8) return@mapNotNull null
+            if (columns.size != 10) return@mapNotNull null
 
             val cpusRequested = columns[3].toIntOrNull() ?: return@mapNotNull null
             val nodesRequested = columns[7].toIntOrNull() ?: return@mapNotNull null
 
             SlurmAccountingRow(
                 columns[0].toLongOrNull() ?: return@mapNotNull null,
-                columns[1].let { formattedTime ->
-                    val components = formattedTime.split(":")
-                    if (components.size != 3) return@mapNotNull null
-                    val hours = components[0].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
-                    val minutes = components[1].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
-                    val seconds = components[2].removePrefix("0").toIntOrNull() ?: return@mapNotNull null
-
-                    (seconds * 1000L) + (minutes * 1000L * 60) + (hours * 1000L * 60 * 60)
-                },
+                slurmDurationToMillis(columns[1]) ?: return@mapNotNull null,
                 columns[2].let { formatted ->
                     val textValue = formatted.replace(memorySuffix, "")
                     val value = textValue.toLongOrNull() ?: return@mapNotNull null
@@ -244,12 +239,16 @@ object SlurmCommandLine {
                         else -> return@mapNotNull null
                     }
 
-                    value * multiplierA * multiplierB
+                    val ramInBytes = value * multiplierA * multiplierB
+                    ramInBytes / 1_000_000L
                 },
                 cpusRequested,
                 columns[4].toIntOrNull() ?: return@mapNotNull null,
-                columns[6],
+                columns[6].takeIf { it.isNotBlank() },
                 nodesRequested,
+                columns[8],
+                0, // TODO(Dan): Parse the number of GPUs
+                slurmDurationToMillis(columns[9]) ?: return@mapNotNull null,
             )
         }
     }
@@ -266,6 +265,16 @@ object SlurmCommandLine {
         append(minutes.toString().padStart(2, '0'))
         append(':')
         append(seconds.toString().padStart(2, '0'))
+    }
+
+    private fun slurmDurationToMillis(duration: String): Long? {
+        val components = duration.split(":")
+        if (components.size != 3) return null
+        val hours = components[0].removePrefix("0").toIntOrNull() ?: return null
+        val minutes = components[1].removePrefix("0").toIntOrNull() ?: return null
+        val seconds = components[2].removePrefix("0").toIntOrNull() ?: return null
+
+        return (seconds * 1000L) + (minutes * 1000L * 60) + (hours * 1000L * 60 * 60)
     }
 
     private val memorySuffix = Regex("[KMGTP][cn]")

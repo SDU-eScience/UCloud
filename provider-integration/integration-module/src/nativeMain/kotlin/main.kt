@@ -1,5 +1,6 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
@@ -346,6 +347,56 @@ fun main(args: Array<String>) {
             // NOTE(Dan): The IPC Ping+Pong protocol ensures that user instances are only kept alive as long as their
             // parent process is still alive.
             val ipcPingPong = IpcPingPong(ipcServer, ipcClient)
+
+            // Collecting resource plugins
+            // -------------------------------------------------------------------------------------------------------
+            val allResourcePlugins = ArrayList<ResourcePlugin<*, *, *, *>>()
+            if (config.pluginsOrNull != null) {
+                allResourcePlugins.addAll(config.plugins.fileCollections.values)
+                allResourcePlugins.addAll(config.plugins.files.values)
+                allResourcePlugins.addAll(config.plugins.jobs.values)
+            }
+
+            // Resolving products for plugins
+            // -------------------------------------------------------------------------------------------------------
+            // NOTE(Dan): This will only work for server and user mode. User mode will use a proxy to the server mode
+            // to resolve the products.
+            if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
+                for (plugin in allResourcePlugins) {
+                    val resolvedProducts = ArrayList<Product>()
+                    for (product in plugin.productAllocation) {
+                        val resolvedProduct = Products.retrieve.call(
+                            ProductsRetrieveRequest(
+                                filterName = product.id,
+                                filterCategory = product.category,
+                                filterProvider = config.core.providerId
+                            ),
+                            rpcClient!!
+                        ).orNull()
+
+                        if (resolvedProduct == null) {
+                            sendTerminalMessage {
+                                red { bold { line("Configuration error!") } }
+                                inline("The product ")
+                                code { inline("${product.id} / ${product.category} ") }
+                                inline("requested by ")
+                                code { 
+                                    inline(plugin.pluginName) 
+                                    inline(" ")
+                                }
+                                line("is not recognized by UCloud")
+                                line()
+                                line("Please ensure that this product is correctly registered with UCloud")
+                            }
+                            exitProcess(1)
+                        }
+
+                        resolvedProducts.add(resolvedProduct)
+                    }
+
+                    plugin.productAllocationResolved = resolvedProducts
+                }
+            }
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------

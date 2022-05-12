@@ -18,6 +18,8 @@ services:
       - ${PWD}/provider-integration/integration-module:/opt/ucloud
       - m2Repo:/root/.m2
       - slurm_jobdir:/data
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
     volumes_from:
       - slurmdbd:ro
     command:

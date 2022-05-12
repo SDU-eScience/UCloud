@@ -23,9 +23,6 @@ data class SlurmJob(
 }
 
 @Serializable
-data class Criteria(val field: String, val condition: String)
-
-@Serializable
 data class SlurmAllocation(
     val jobId: String,
     val state: String,
@@ -33,20 +30,6 @@ data class SlurmAllocation(
     val start: String,
     val end: String
 )
-
-@Serializable
-data class JobsBrowseRequest(
-    val filters: List<Criteria>,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = PaginationRequestV2Consistency.REQUIRE,
-    override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2 {
-    fun toJson(): JsonObject {
-        return defaultMapper.encodeToJsonElement(this) as JsonObject
-    }
-}
-
 
 @Serializable
 data class UcloudStateInfo(val state: JobState, val providerState: String , val message: String, val isFinal: Boolean )
