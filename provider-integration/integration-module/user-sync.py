@@ -26,29 +26,28 @@ initial_group = open('/etc/group.orig', 'r').read()
 initial_shadow = open('/etc/shadow.orig', 'r').read()
 
 if is_pull:
+    last_passwd = ''
+    last_group = ''
+    last_shadow = ''
+
     while True:
-        last_passwd = ''
-        last_group = ''
-        last_shadow = ''
+        new_base_passwd = open(f'{directory}/passwd', 'r').read()
+        if last_passwd != new_base_passwd:
+            last_passwd = new_base_passwd
+            with open('/etc/passwd', 'w') as outfile:
+                outfile.write(initial_passwd + '\n' + new_base_passwd)
 
-        while True:
-            new_base_passwd = open(f'{directory}/passwd', 'r').read()
-            if last_passwd != new_base_passwd:
-                last_passwd = new_base_passwd
-                with open('/etc/passwd', 'w') as outfile:
-                    outfile.write(initial_passwd + '\n' + new_base_passwd)
+        new_base_group = open(f'{directory}/group', 'r').read()
+        if last_group != new_base_group:
+            last_group = new_base_group
+            with open('/etc/group', 'w') as outfile:
+                outfile.write(initial_group + '\n' + new_base_group)
 
-            new_base_group = open(f'{directory}/group', 'r').read()
-            if last_group != new_base_group:
-                last_group = new_base_group
-                with open('/etc/group', 'w') as outfile:
-                    outfile.write(initial_group + '\n' + new_base_group)
-
-            new_base_shadow = open(f'{directory}/shadow', 'r').read()
-            if last_shadow != new_base_shadow:
-                last_shadow = new_base_shadow
-                with open('/etc/shadow', 'w') as outfile:
-                    outfile.write(initial_shadow + '\n' + new_base_shadow)
+        new_base_shadow = open(f'{directory}/shadow', 'r').read()
+        if last_shadow != new_base_shadow:
+            last_shadow = new_base_shadow
+            with open('/etc/shadow', 'w') as outfile:
+                outfile.write(initial_shadow + '\n' + new_base_shadow)
 
         time.sleep(5)
 

@@ -28,7 +28,12 @@ private fun escapeBash(value: String): String {
     }
 }
 
-suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfig): String {
+suspend fun createSbatchFile(
+    ctx: PluginContext,
+    job: Job,
+    config: SlurmConfig,
+    account: String?,
+): String {
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
         ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
 
@@ -54,30 +59,36 @@ suspend fun createSbatchFile(ctx: PluginContext, job: Job, config: SlurmConfig):
 
     /*
      *   https://slurm.schedmd.com/sbatch.html
-     *   %n - Node identifier relative to current job (e.g. "0" is the first node of the running job) This will create a separate IO file per node.
+     *   %n - Node identifier relative to current job (e.g. "0" is the first node of the running job) This will create
+     *        a separate IO file per node.
      */
 
     return buildString {
         appendLine("#!/usr/bin/env bash")
         appendLine("#")
         appendLine("# POSTFIX START")
+
         appendLine("#")
-        appendLine("#SBATCH --chdir ${config.mountpoint}/${job.id}")
-        appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
-        appendLine("#SBATCH --mem $memoryAllocation")
-        appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
-        appendLine("#SBATCH --time $formattedTime")
-        appendLine("#SBATCH --nodes ${job.specification.replicas}")
-        appendLine("#SBATCH --job-name ${job.id}")
-        appendLine("#SBATCH --partition ${config.partition}")
-        appendLine("#SBATCH --parsable")
-        appendLine("#SBATCH --output=std.out")
-        appendLine("#SBATCH --error=std.err")
-        appendLine("#SBATCH --get-user-env")
+        run {
+            appendLine("#SBATCH --chdir ${config.mountpoint}/${job.id}")
+            appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
+            appendLine("#SBATCH --mem $memoryAllocation")
+            appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
+            appendLine("#SBATCH --time $formattedTime")
+            appendLine("#SBATCH --nodes ${job.specification.replicas}")
+            appendLine("#SBATCH --job-name ${job.id}")
+            appendLine("#SBATCH --partition ${config.partition}")
+            appendLine("#SBATCH --parsable")
+            appendLine("#SBATCH --output=std.out")
+            appendLine("#SBATCH --error=std.err")
+            appendLine("#SBATCH --get-user-env")
+            if (account != null) appendLine("#SBATCH --account=$account")
+        }
         appendLine("#")
+
         appendLine("# POSTFIX END")
         appendLine("#")
-        appendLine("srun --output='std-%n.out' --error='std-%n.err' " + cliInvocation)
+        appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
         appendLine("#EOF")
     }
 }

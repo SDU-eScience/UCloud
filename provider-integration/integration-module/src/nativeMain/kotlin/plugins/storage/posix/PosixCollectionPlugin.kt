@@ -212,6 +212,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 delay(5000)
             } catch (ex: Throwable) {
                 log.info("Caught exception while monitoring Posix collections: ${ex.stackTraceToString()}")
+                nextScan = Time.now() + (1000L * 60 * 60 * 4)
             }
         }
     }

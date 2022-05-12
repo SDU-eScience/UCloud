@@ -1,12 +1,12 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
-import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.plugins.extension
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -15,8 +15,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.*
 
 class AccountMapper(
-    private val config: VerifiedConfig,
+    private val ctx: PluginContext,
 ) {
+    private val config = ctx.config
     data class UCloudKey(val owner: ResourceOwner, val productCategory: String)
     data class SlurmKey(val account: String, val partition: String)
 
@@ -45,7 +46,7 @@ class AccountMapper(
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         if (owner.project == null) {
-                            bindString("username", owner.createdBy!!)
+                            bindString("username", owner.createdBy)
                             bindNull("project_id")
                         } else {
                             bindNull("username")
@@ -60,7 +61,7 @@ class AccountMapper(
         }
         return result
     }
-    
+
     private suspend fun lookupOrRefresh(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
         var account: String? = null
         dbConnection.withSession { session ->
@@ -77,12 +78,8 @@ class AccountMapper(
                 """
             ).useAndInvoke(
                 prepare = {
-                    if (owner.project == null) bindNull("project_id")
-                    else bindString("project_id", owner.project!!)
-
-                    if (owner.createdBy == null) bindNull("username")
-                    else bindString("username", owner.createdBy!!)
-
+                    bindStringNullable("project_id", owner.project)
+                    bindString("username", owner.createdBy)
                     bindString("partition", partition)
                 },
                 readRow = { row ->
@@ -108,14 +105,12 @@ class AccountMapper(
         return slurmKey
     }
 
-    private fun lookupFromScript(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
+    private suspend fun lookupFromScript(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
         val slurmPlugin = config.plugins.jobs.values
-            .filterIsInstance<SlurmPlugin>()
-            .filter { plugin ->
+            .filterIsInstance<SlurmPlugin>().singleOrNull { plugin ->
                 val cfg = plugin.pluginConfig
                 plugin.productAllocation.any { it.category == productCategory } && cfg.partition == partition
-            }
-            .singleOrNull() ?: return null
+            } ?: return null
 
         return when (val mapper = slurmPlugin.pluginConfig.accountMapper) {
             is SlurmConfig.AccountMapper.None -> {
@@ -124,7 +119,7 @@ class AccountMapper(
 
             is SlurmConfig.AccountMapper.Extension -> {
                 val request = LookupExtensionRequest(
-                    TODO(),
+                    ResourceOwnerWithId.load(owner, ctx) ?: return null,
                     productCategory,
                     partition
                 )
@@ -168,10 +163,12 @@ class AccountMapper(
                     val projectId = row.getString(1)
                     val category = row.getString(2)!!
 
-                    result.add(UCloudKey(
-                        ResourceOwner(username ?: "_ucloud", projectId),
-                        category
-                    ))
+                    result.add(
+                        UCloudKey(
+                            ResourceOwner(username ?: "_ucloud", projectId),
+                            category
+                        )
+                    )
                 }
             )
         }
@@ -196,4 +193,3 @@ class AccountMapper(
         private val lookupExtension = extension<LookupExtensionRequest, LookupExtensionResponse>()
     }
 }
-

@@ -1,8 +1,8 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import kotlinx.serialization.*
 
 @Serializable
@@ -18,24 +18,12 @@ sealed class OnResourceAllocationResult {
 
 @Serializable
 data class AllocationNotification(
-   val balance: Long,
-   val owner: ResourceOwnerWithId,
-   val allocationId: String,
-   val productCategory: String,
-   val productType: ProductType,
+    val balance: Long,
+    val owner: ResourceOwnerWithId,
+    val allocationId: String,
+    val productCategory: String,
+    val productType: ProductType,
 )
-
-// TODO(Dan): Move this to a different file
-@Serializable
-sealed class ResourceOwnerWithId {
-    @Serializable
-    @SerialName("user")
-    data class User(val username: String, val uid: Int) : ResourceOwnerWithId()
-
-    @Serializable
-    @SerialName("project")
-    data class Project(val projectId: String, val gid: Int) : ResourceOwnerWithId()
-}
 
 interface AllocationPlugin : Plugin<ConfigSchema.Plugins.Allocations> {
     suspend fun PluginContext.onResourceAllocation(

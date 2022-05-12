@@ -10,7 +10,6 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.plugins.AllocationNotification
-import dk.sdu.cloud.plugins.ResourceOwnerWithId
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
@@ -65,8 +64,10 @@ class NotificationController(
                         processProjects()
                         processAllocations()
                     } catch (ex: Throwable) {
-                        log.info("Caught exception while processing notifications from UCloud/Core: " +
-                            ex.stackTraceToString())
+                        log.info(
+                            "Caught exception while processing notifications from UCloud/Core: " +
+                                ex.stackTraceToString()
+                        )
                     }
 
                     // NOTE(Dan): We always pull once a minute, even if we aren't told to do so.
@@ -87,8 +88,10 @@ class NotificationController(
                     }
                     delay(1000)
                 } catch (ex: Throwable) {
-                    log.info("Caught an exception while scanning allocations. We will retry again in a minute: " +
-                        ex.stackTraceToString())
+                    log.info(
+                        "Caught an exception while scanning allocations. We will retry again in a minute: " +
+                            ex.stackTraceToString()
+                    )
                     nextRescan = now + (1000L * 60)
                 }
             }
@@ -118,8 +121,10 @@ class NotificationController(
                         onProjectUpdated(item.project)
                         output.add(FindByStringId(item.id))
                     } catch (ex: Throwable) {
-                        log.warn("Caught an exception while handling project update: ${item.project}\n" +
-                            ex.stackTraceToString())
+                        log.warn(
+                            "Caught an exception while handling project update: ${item.project}\n" +
+                                ex.stackTraceToString()
+                        )
                     }
                 }
             }
@@ -146,7 +151,7 @@ class NotificationController(
         val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
 
-        outer@for ((idx, notification) in batch.responses.withIndex()) {
+        outer@ for ((idx, notification) in batch.responses.withIndex()) {
             val providerSummary = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(
                     filterOwnerId = when (val owner = notification.owner) {
@@ -186,9 +191,11 @@ class NotificationController(
         for ((index, res) in output.withIndex()) {
             if (res == null) continue
 
-            items.add(DepositNotificationsMarkAsReadRequestItem(
-                batch.responses[index].id,
-                (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId)
+            items.add(
+                DepositNotificationsMarkAsReadRequestItem(
+                    batch.responses[index].id,
+                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
+                )
             )
         }
 
@@ -201,39 +208,11 @@ class NotificationController(
     }
 
     private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotification? {
-        val projectPlugin = controllerContext.configuration.plugins.projects
         return AllocationNotification(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
-            when (val owner = summary.owner) {
-                is WalletOwner.User -> {
-                    val username = owner.username
-                    val uid = UserMapping.ucloudIdToLocalId(username)
-
-                    if (uid == null) {
-                        log.info("Could not find UID for $username")
-                        return null
-                    }
-
-                    ResourceOwnerWithId.User(username, uid)
-                }
-
-                is WalletOwner.Project -> {
-                    val projectId = owner.projectId
-                    if (projectPlugin == null) return null
-
-                    val gid = with(controllerContext.pluginContext) {
-                        with(projectPlugin) {
-                            lookupLocalId(projectId)
-                        }
-                    }
-
-                    if (gid == null) {
-                        log.info("Could not find GID for $projectId")
-                        return null
-                    }
-
-                    ResourceOwnerWithId.Project(projectId, gid)
-                }
+            ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
+                log.info("Could not find UID/GID for ${summary.owner}")
+                return null
             },
             summary.id,
             summary.categoryId.name,

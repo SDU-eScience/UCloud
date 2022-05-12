@@ -24,4 +24,3 @@ data class SlurmConfig(
         data class Extension(val extension: String) : AccountMapper()
     }
 }
-

@@ -13,6 +13,7 @@ import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.service.Loggable
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -43,6 +44,19 @@ inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
             handler(user, mappedRequest)
         ) as JsonObject
     }
+}
+inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.suspendingHandler(
+    noinline block: suspend (user: IpcUser, request: Req) -> Resp
+): IpcHandler {
+    return handler { user, request ->
+        runBlocking {
+            block(user, request)
+        }
+    }
+}
+
+fun IpcHandler.register(server: IpcServer) {
+    server.addHandler(this)
 }
 
 abstract class IpcContainer(val namespace: String) {

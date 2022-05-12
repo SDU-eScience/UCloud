@@ -12,6 +12,7 @@ object SlurmCommandLine {
     const val SQUEUE_EXE = "/usr/bin/squeue"
     const val SINFO_EXE = "/usr/bin/sinfo"
     const val SACCT_EXE = "/usr/bin/sacct"
+    const val SCTL_EXE = "/usr/bin/scontrol"
     const val SLURM_CONF_KEY = "SLURM_CONF"
     const val SLURM_CONF_VALUE = "/etc/slurm/slurm.conf"
     const val SSH_EXE = "/usr/bin/ssh"
@@ -96,16 +97,7 @@ object SlurmCommandLine {
             }
     }
 
-
-    //Various cases to cover slurm compressed node format
-    //adev[1-2]
-    //adev[6,13,15]  
-    //adev[7-8,14]
-    //adev7
-    // or any combination thereof
-
-    fun getJobNodeList(slurmId: String):Map<Int,String>{
-
+    fun getJobNodeList(slurmId: String): Map<Int, String> {
         val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
             addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
             addArg("--jobs", slurmId)
@@ -116,65 +108,21 @@ object SlurmCommandLine {
         }
 
         return expandNodeList(stdout)
-
     }
 
+    private fun expandNodeList(str: String): Map<Int, String> {
+        val (code, stdout) = executeCommandToText(SCTL_EXE) {
+            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            addArg("show")
+            addArg("hostname")
+            addArg(str)
+        }
 
+        if (code != 0) error("Unknown exception when performing expandNodeList")
+        val nodes = stdout.lines()
+        if (nodes.isEmpty()) error("Empty NodeList")
 
-   fun expandNodeList(str: String):Map<Int,String> {
-
-            var nodes:MutableList<String> = mutableListOf()
-            
-            //match single node c2, c3
-            val regexSingleNode = """[a-z]+\d+""".toRegex(setOf(RegexOption.IGNORE_CASE))
-
-            //match pattern c[001,3-5,0010]
-            val regexCompressed = """([a-z]+)           # group that matches set of at least one letter ex: nodename
-                                     \[                 # matches opening bracket ex: [
-                                     ([\d\,\-]+)        # group that matches set of digit, comma, minus, at least one occurence ex: 003,009-015
-                                     \]                 # matches closing bracket ex: ]
-                                  """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
-            
-            //match pattern c[001,3-5,0010]
-            val regexAny = """${regexCompressed}             # adev[1-5,8,9] c[1-2]
-                              |  							 # OR
-                              ${regexSingleNode}			 # c2 c6 c7
-                           """.toRegex(setOf(RegexOption.COMMENTS, RegexOption.IGNORE_CASE))
-            
-            
-            var iterator = regexAny.findAll(str).iterator()
-            
-    
-            //c[1,3-5]
-            while( iterator.hasNext() ) {
-                
-                val match = iterator.next()
-                val matchValue = match.value
-                val (nodeName, nodeNumbers) = match.destructured
-                
-                if( matchValue.matches(regexSingleNode) ) {
-                    
-                    nodes.add(matchValue)
-                    
-                } else if ( matchValue.matches(regexCompressed) )  {
-
-                    nodeNumbers.split(",").forEach{ seq -> 
-                        if(seq.contains("-")) {
-                            val min = seq.split("-")[0].toInt()
-                            val max = seq.split("-")[1].toInt()
-                            for (i in min..max) nodes.add("${nodeName}${i}")
-                        } else {
-                            nodes.add("${nodeName}${seq.toInt()}")
-                        }
-                    }
-                    
-                } else throw Exception("Unhandled pattern")
-
-            } 
-
-            if(nodes.isEmpty()) throw Exception("Empty NodeList")
-            return nodes.mapIndexedNotNull{idx, item -> idx to item}.toMap()
-
+        return nodes.mapIndexed { idx, item -> idx to item }.toMap()
     }
 
     data class SlurmAccountingRow(
@@ -188,6 +136,7 @@ object SlurmCommandLine {
         val jobName: String,
         val gpu: Int,
         val timeAllocationMillis: Long,
+        val state: UcloudStateInfo,
     )
 
     fun retrieveAccountingData(
@@ -199,7 +148,7 @@ object SlurmCommandLine {
 
             addArg("-a")
             addArg("-S", gmtTime(since).formatForSlurm())
-            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit")
+            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit,State")
             addArg("-r", partition)
             addArg("-X")
             addArg("--parsable2")
@@ -207,7 +156,7 @@ object SlurmCommandLine {
 
         return rows.mapNotNull { row ->
             val columns = row.split("|")
-            if (columns.size != 10) return@mapNotNull null
+            if (columns.size != 11) return@mapNotNull null
 
             val cpusRequested = columns[3].toIntOrNull() ?: return@mapNotNull null
             val nodesRequested = columns[7].toIntOrNull() ?: return@mapNotNull null
@@ -249,6 +198,7 @@ object SlurmCommandLine {
                 columns[8],
                 0, // TODO(Dan): Parse the number of GPUs
                 slurmDurationToMillis(columns[9]) ?: return@mapNotNull null,
+                SlurmStateToUCloudState.slurmToUCloud[columns[10]] ?: return@mapNotNull null,
             )
         }
     }

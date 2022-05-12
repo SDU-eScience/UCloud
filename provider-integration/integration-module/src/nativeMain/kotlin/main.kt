@@ -348,6 +348,9 @@ fun main(args: Array<String>) {
             // parent process is still alive.
             val ipcPingPong = IpcPingPong(ipcServer, ipcClient)
 
+            ipcClient?.connect()
+            ipcPingPong.start() // Depends on ipcClient being initialized first
+
             // Collecting resource plugins
             // -------------------------------------------------------------------------------------------------------
             val allResourcePlugins = ArrayList<ResourcePlugin<*, *, *, *>>()
@@ -424,8 +427,6 @@ fun main(args: Array<String>) {
 
             if (ipcServer != null && rpcClient != null) IpcToUCloudProxyServer().init(ipcServer, rpcClient)
             if (ipcServer != null && rpcClient != null) ProcessingScope.launch { ipcServer.runServer() }
-            ipcClient?.connect()
-            ipcPingPong.start() // Depends on ipcClient being initialized first
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
             processWatcher?.initialize()
 

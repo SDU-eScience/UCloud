@@ -461,7 +461,7 @@ class YamlDecoder(
     }
 
     companion object {
-        const val SHOULD_TRACE = true
+        private const val SHOULD_TRACE = false
     }
 }
 

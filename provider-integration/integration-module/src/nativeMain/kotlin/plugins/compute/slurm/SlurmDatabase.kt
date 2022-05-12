@@ -13,7 +13,10 @@ data class SlurmBrowseFlags(
     val filterIsActive: Boolean? = null,
 )
 
-object SlurmJobMapper {
+@Deprecated("Renamed to SlurmDatabase")
+val SlurmJobMapper = SlurmDatabase
+
+object SlurmDatabase {
     fun registerJob(
         job: SlurmJob,
         ctx: DBContext = dbConnection
@@ -21,8 +24,8 @@ object SlurmJobMapper {
         ctx.withSession { session ->
             session.prepareStatement(
                 """
-                    insert into job_mapping (local_id, ucloud_id, partition, status, lastknown) 
-                    values (:local_id, :ucloud_id, :partition, :status, :last_known)
+                    insert into job_mapping (local_id, ucloud_id, partition, status, lastknown, elapsed)
+                    values (:local_id, :ucloud_id, :partition, :status, :last_known, :elapsed)
                 """
             ).useAndInvokeAndDiscard {
                 bindString("ucloud_id", job.ucloudId)
@@ -30,6 +33,7 @@ object SlurmJobMapper {
                 bindString("partition", job.partition)
                 bindInt("status", job.status)
                 bindString("last_known", job.lastKnown)
+                bindLong("elapsed", job.elapsed)
             }
         }
     }
@@ -80,6 +84,38 @@ object SlurmJobMapper {
         ctx: DBContext = dbConnection,
     ): SlurmJob? {
         return browse(SlurmBrowseFlags(filterUCloudId = ucloudId), ctx = ctx).firstOrNull()
+    }
+
+    fun updateElapsedByUCloudId(
+        ucloudId: List<String>,
+        newElapsed: List<Long>,
+        ctx: DBContext = dbConnection,
+    ) {
+        val table = ucloudId.zip(newElapsed).map { (id, elapsed) ->
+            mapOf<String, Any?>(
+                "ucloud_id" to id,
+                "new_elapsed" to elapsed
+            )
+        }
+
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    with update_table as (
+                        ${safeSqlTableUpload("update", table)}
+                    )
+                    update job_mapping as mapping
+                    set elapsed = u.new_elapsed
+                    from update_table as u
+                    where
+                        u.ucloud_id = mapping.ucloud_id;
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindTableUpload("update", table)
+                }
+            )
+        }
     }
 
     fun updateState(
@@ -134,12 +170,10 @@ object SlurmJobMapper {
         }
     }
 
-
     fun retrieveSession(
         token: FindByStringId,
         ctx: DBContext = dbConnection,
     ): InteractiveSession? {
-
         val result = ArrayList<InteractiveSession>()
 
         ctx.withSession { session ->
@@ -164,10 +198,8 @@ object SlurmJobMapper {
             )
         }
 
-        return result.first()
+        return result.firstOrNull()
     }
-
-
 
     fun registerSession(
         iSession: InteractiveSession,
@@ -186,7 +218,4 @@ object SlurmJobMapper {
             }
         }
     }
-
-
 }
-
