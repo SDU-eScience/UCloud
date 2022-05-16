@@ -28,6 +28,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import platform.posix.*
+import kotlin.math.max
 
 class SlurmPlugin : ComputePlugin {
     override var pluginName: String = "Unknown"
@@ -223,8 +224,6 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
     ): OpenSession {
-        println("OPENSESSIOnHERE $job")
-
         val sessionId = secureToken(16)
         ipcClient.sendRequest(SlurmSessionIpc.create, InteractiveSession(sessionId, job.rank, job.job.id))
 
@@ -232,10 +231,8 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        println("CANHANDLESESSION")
         val session: InteractiveSession =
             ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
-        println("MYSESSIONIS $session")
         return request.sessionIdentifier == session.token
     }
 
@@ -457,19 +454,24 @@ class SlurmPlugin : ComputePlugin {
         // TODO(Dan): This loads the entire database every 5 seconds
         val knownJobs = SlurmDatabase.browse(SlurmBrowseFlags())
         val unknownJobs = accountingRows.filter { row ->
-            knownJobs.all { it.ucloudId != row.jobId.toString() }
+            knownJobs.all { it.slurmId != row.jobId.toString() }
         }
 
         val jobsToRegister = ArrayList<ProviderRegisteredResource<JobSpecification>>()
         for (job in unknownJobs) {
-            if (job.slurmAccount == null) continue
+            if (job.slurmAccount == null) {
+                continue
+            }
             val potentialAccounts = accountMapper.lookupBySlurm(job.slurmAccount, pluginConfig.partition)
-            val (product, replicas, account) = productEstimator.estimateProduct(job, potentialAccounts) ?: continue
+            val estimateProduct = productEstimator.estimateProduct(job, potentialAccounts)
+            val (product, replicas, account) = estimateProduct ?: continue
 
+            val desiredName = "${job.jobName} (SlurmID: ${job.jobId})"
+            val safeName = desiredName.replace(jobNameUnsafeRegex, "")
             jobsToRegister.add(
                 ProviderRegisteredResource(
                     JobSpecification(
-                        name = "${job.jobName} (Slurm: ${job.jobId})",
+                        name = safeName,
                         application = unknownApplication,
                         product = product,
                         replicas = replicas,
@@ -479,7 +481,7 @@ class SlurmPlugin : ComputePlugin {
 
                         timeAllocation = SimpleDuration.fromMillis(job.timeAllocationMillis),
                     ),
-                    "s-${job.jobId}",
+                    "s-${job.jobId}", // TODO(Dan): Slurm job id wrap-around makes these not unique
                     account.owner.createdBy,
                     account.owner.project,
                 )
@@ -529,7 +531,7 @@ class SlurmPlugin : ComputePlugin {
             val timeSinceLastUpdate = row.timeElappsedMs - job.elapsed
             if (timeSinceLastUpdate <= 0) continue
 
-            val product = ucloudJob.status.resolvedSupport!!.product
+            val product = ucloudJob.status.resolvedProduct!!
             val periods = when (product.unitOfPrice) {
                 ProductPriceUnit.CREDITS_PER_UNIT,
                 ProductPriceUnit.PER_UNIT,
@@ -556,7 +558,7 @@ class SlurmPlugin : ComputePlugin {
                     job.ucloudId,
                     job.ucloudId + "_" + job.elapsed,
                     units,
-                    periods,
+                    max(1, periods),
                 )
             )
             accountingCharges.add(row)
@@ -606,7 +608,7 @@ class SlurmPlugin : ComputePlugin {
             val ucloudId = jobs.firstOrNull { it.slurmId == job.jobId }?.ucloudId ?: continue
             val uState = SlurmStateToUCloudState.slurmToUCloud[job.state] ?: continue
 
-            if (uState.providerState != dbState) {
+            if (uState.state.name != dbState) {
                 val updateResponse = JobsControl.update.call(
                     bulkRequestOf(
                         ResourceUpdateAndId(
@@ -645,7 +647,7 @@ class SlurmPlugin : ComputePlugin {
     companion object {
         private val log = Log("SlurmPlugin")
 
-        private val unknownApplication = NameAndVersion("unknown", "1")
+        private val unknownApplication = NameAndVersion("unknown", "unknown")
         private var productEstimatorOrNull: ProductEstimator? = null
         private var accountMapperOrNull: AccountMapper? = null
 
@@ -653,5 +655,7 @@ class SlurmPlugin : ComputePlugin {
             get() = productEstimatorOrNull!!
         private val accountMapper: AccountMapper
             get() = accountMapperOrNull!!
+
+        private val jobNameUnsafeRegex = Regex("""[^\w ():_-]""")
     }
 }

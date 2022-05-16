@@ -442,6 +442,13 @@ fun main(args: Array<String>) {
                     ProcessingScope.launch {
                         with(pluginContext) {
                             with(plugin) {
+                                // Delay execution of monitoring loop until rpcServer is reporting ready
+                                while (isActive) {
+                                    val isReady = rpcServer?.isReady ?: true
+                                    if (isReady) break
+                                    delay(50)
+                                }
+
                                 runMonitoringLoop()
                             }
                         }

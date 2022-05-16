@@ -56,5 +56,13 @@ fun V4__SlurmAccounting(): MigrationScript = MigrationScript("V4__SlurmAccountin
         """
             alter table job_mapping add column elapsed bigint not null default 0
         """
-    )
+    ).useAndInvokeAndDiscard()
+}
+
+fun V5__FixSlurmAccountMapper(): MigrationScript = MigrationScript("V5__FixSlurmAccountMapper") { conn ->
+    conn.prepareStatement(
+        """
+            alter table slurm_account_mapper add column slurm_account text not null
+        """
+    ).useAndInvokeAndDiscard()
 }

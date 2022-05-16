@@ -179,14 +179,16 @@ class YamlDecoder(
 
     override fun decodeElementIndex(descriptor: SerialDescriptor): Int {
         val res = decodeElementIndexReal(descriptor)
-        if (res >= 0) {
-            val n = descriptor.getElementName(res)
-            val d = descriptor.getElementDescriptor(res)
-            trace("Res = $n: $d")
-        } else {
-            trace("Res = $res")
+        if (SHOULD_TRACE) {
+            if (res >= 0) {
+                val n = descriptor.getElementName(res)
+                val d = descriptor.getElementDescriptor(res)
+                trace("Res = $n: $d")
+            } else {
+                trace("Res = $res")
+            }
+            trace("---")
         }
-        trace("---")
         return res
     }
 

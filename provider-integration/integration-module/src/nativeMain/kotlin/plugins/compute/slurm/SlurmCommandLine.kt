@@ -147,8 +147,8 @@ object SlurmCommandLine {
             addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
 
             addArg("-a")
-            addArg("-S", gmtTime(since).formatForSlurm())
-            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit,State")
+            if (since != 0L) addArg("-S", gmtTime(since).formatForSlurm())
+            addArg("-oJobID,Elapsed,ReqMem,ReqCPUS,Uid,State,Account,AllocNodes,JobName,Timelimit")
             addArg("-r", partition)
             addArg("-X")
             addArg("--parsable2")
@@ -156,49 +156,58 @@ object SlurmCommandLine {
 
         return rows.mapNotNull { row ->
             val columns = row.split("|")
-            if (columns.size != 11) return@mapNotNull null
+            if (columns.size != 10) return@mapNotNull null
 
             val cpusRequested = columns[3].toIntOrNull() ?: return@mapNotNull null
             val nodesRequested = columns[7].toIntOrNull() ?: return@mapNotNull null
 
+            val jobId = columns[0].toLongOrNull() ?: return@mapNotNull null
+            val timeElappsedMs = slurmDurationToMillis(columns[1]) ?: return@mapNotNull null
+            val memoryRequestedInMegs = columns[2].let { formatted ->
+                val textValue = formatted.replace(memorySuffix, "")
+                val value = textValue.toLongOrNull() ?: return@mapNotNull null
+                val suffix = formatted.removePrefix(textValue)
+                if (suffix.length != 2) return@mapNotNull null
+
+                val unit = suffix[0]
+                val type = suffix[1]
+
+                val multiplierA = when (unit) {
+                    'K' -> 1_000L
+                    'M' -> 1_000_000L
+                    'G' -> 1_000_000_000L
+                    'T' -> 1_000_000_000_000L
+                    'P' -> 1_000_000_000_000_000L
+                    else -> return@mapNotNull null
+                }
+
+                val multiplierB = when (type) {
+                    'c' -> cpusRequested
+                    'n' -> nodesRequested
+                    else -> return@mapNotNull null
+                }
+
+                val ramInBytes = value * multiplierA * multiplierB
+                ramInBytes / 1_000_000L
+            }
+            val uid = columns[4].toIntOrNull() ?: return@mapNotNull null
+            val slurmAccount = columns[6].takeIf { it.isNotBlank() }
+            val jobName = columns[8]
+            val timeAllocationMillis = slurmDurationToMillis(columns[9]) ?: return@mapNotNull null
+            val state = SlurmStateToUCloudState.slurmToUCloud[columns[5].substringBefore(' ')] ?: return@mapNotNull null
+
             SlurmAccountingRow(
-                columns[0].toLongOrNull() ?: return@mapNotNull null,
-                slurmDurationToMillis(columns[1]) ?: return@mapNotNull null,
-                columns[2].let { formatted ->
-                    val textValue = formatted.replace(memorySuffix, "")
-                    val value = textValue.toLongOrNull() ?: return@mapNotNull null
-                    val suffix = formatted.removePrefix(textValue)
-                    if (suffix.length != 2) return@mapNotNull null
-
-                    val unit = suffix[0]
-                    val type = suffix[1]
-
-                    val multiplierA = when (unit) {
-                        'K' -> 1_000L
-                        'M' -> 1_000_000L
-                        'G' -> 1_000_000_000L
-                        'T' -> 1_000_000_000_000L
-                        'P' -> 1_000_000_000_000_000L
-                        else -> return@mapNotNull null
-                    }
-
-                    val multiplierB = when (type) {
-                        'c' -> cpusRequested
-                        'n' -> nodesRequested
-                        else -> return@mapNotNull null
-                    }
-
-                    val ramInBytes = value * multiplierA * multiplierB
-                    ramInBytes / 1_000_000L
-                },
+                jobId,
+                timeElappsedMs,
+                memoryRequestedInMegs,
                 cpusRequested,
-                columns[4].toIntOrNull() ?: return@mapNotNull null,
-                columns[6].takeIf { it.isNotBlank() },
+                uid,
+                slurmAccount,
                 nodesRequested,
-                columns[8],
+                jobName,
                 0, // TODO(Dan): Parse the number of GPUs
-                slurmDurationToMillis(columns[9]) ?: return@mapNotNull null,
-                SlurmStateToUCloudState.slurmToUCloud[columns[10]] ?: return@mapNotNull null,
+                timeAllocationMillis,
+                state,
             )
         }
     }

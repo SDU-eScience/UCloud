@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
@@ -42,6 +43,8 @@ class RpcServer(
     private val handlerBuilder = ArrayList<CallWithHandler<*, *, *>>()
     val handlers: List<CallWithHandler<*, *, *>>
         get() = handlerBuilder
+    private val _isReady = atomic(false)
+    val isReady: Boolean get() = _isReady.value
 
     fun <R : Any, S : Any, E : Any> implement(
         call: CallDescription<R, S, E>,
@@ -64,6 +67,7 @@ class RpcServer(
         startServer(
             port,
             { ConnectionData(idGenerator.getAndIncrement()) },
+            isReadyHandle = _isReady,
             cors = cors,
             httpRequestHandler = object : HttpRequestHandler<ConnectionData> {
                 override fun HttpClientSession<ConnectionData>.handleRequest(

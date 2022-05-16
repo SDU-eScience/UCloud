@@ -414,7 +414,7 @@ data class JobSpecification(
     }
 
     companion object {
-        private val nameRegex = Regex("""[\w _-]+""")
+        private val nameRegex = Regex("""[\w ():_-]+""")
     }
 }
 

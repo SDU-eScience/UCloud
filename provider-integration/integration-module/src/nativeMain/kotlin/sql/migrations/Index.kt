@@ -15,4 +15,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V2__SessionMapping())
     migrationHandler.addScript(V3__SlurmAccountMapper())
     migrationHandler.addScript(V4__SlurmAccounting())
+    migrationHandler.addScript(V5__FixSlurmAccountMapper())
 }

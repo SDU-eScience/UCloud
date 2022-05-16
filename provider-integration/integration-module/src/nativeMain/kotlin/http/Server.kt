@@ -9,6 +9,7 @@ import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
+import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.withLock
@@ -289,6 +290,7 @@ fun <AppData> startServer(
     httpRequestHandler: HttpRequestHandler<AppData>? = null,
     webSocketRequestHandler: WebSocketRequestHandler<AppData>? = null,
     cors: CorsSettings? = null,
+    isReadyHandle: AtomicBoolean? = null,
 ) = memScoped {
     val log = Logger("Server")
     val websocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -310,6 +312,10 @@ fun <AppData> startServer(
 
     if (listen(serverHandle, 1024) == -1) {
         error("Could not bind to :$port")
+    }
+
+    if (isReadyHandle != null) {
+        isReadyHandle.value = true
     }
 
     while (true) {
