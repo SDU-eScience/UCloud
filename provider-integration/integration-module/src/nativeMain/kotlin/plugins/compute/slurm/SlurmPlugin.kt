@@ -162,18 +162,8 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
-        class OutputFile(val rank: Int, val out: NativeFile, val err: NativeFile)
-
-        // TBD: error handling or move below
-        val fdList by lazy {
-            (0 until job.specification.replicas).map { rank ->
-                OutputFile(
-                    rank,
-                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.out", readOnly = true),
-                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
-                )
-            }
-        }
+        class OutputFile(val rank: Int, val out: NativeFile?, val err: NativeFile?)
+        val openFiles = ArrayList<OutputFile>()
 
         try {
             // NOTE(Dan): Don't open the files until the job looks like it is running
@@ -186,26 +176,44 @@ class SlurmPlugin : ComputePlugin {
             // NOTE(Dan): If the job is done, then don't attempt to read the logs
             if (currentStatus.isFinal) return
 
+            for (rank in 0 until job.specification.replicas) {
+                val stdout = runCatching {
+                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.out", readOnly = true)
+                }.getOrNull()
+
+                val stderr = runCatching {
+                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
+                }.getOrNull()
+
+                if (stdout == null && stderr == null) {
+                    emitStdout(
+                        rank,
+                        "Unable to read logs. If the job was submitted outside of UCloud, then we won't be able to " +
+                            "read the logs automatically."
+                    )
+                }
+
+                openFiles.add(OutputFile(rank, stdout, stderr))
+            }
+
             while (isActive()) {
-                val check: UcloudStateInfo = getStatus(job.id)
-                if (check.state == JobState.RUNNING) {
+                val check = getStatus(job.id)
+                if (check.state != JobState.RUNNING) break
 
-                    fdList.forEach { file ->
-                        val line = file.out.readText(autoClose = false)
-                        if (line.isNotEmpty()) emitStdout(file.rank, line)
+                openFiles.forEach { file ->
+                    val line = file.out?.readText(autoClose = false) ?: ""
+                    if (line.isNotEmpty()) emitStdout(file.rank, line)
 
-                        val err = file.err.readText(autoClose = false)
-                        if (err.isNotEmpty()) emitStderr(file.rank, err)
-                    }
+                    val err = file.err?.readText(autoClose = false) ?: ""
+                    if (err.isNotEmpty()) emitStderr(file.rank, err)
+                }
 
-                } else break
-
-                sleep(5)
+                delay(5000)
             }
         } finally {
-            fdList.forEach { file ->
-                file.out.close()
-                file.err.close()
+            openFiles.forEach { file ->
+                file.out?.close()
+                file.err?.close()
             }
         }
     }
@@ -635,9 +643,9 @@ class SlurmPlugin : ComputePlugin {
                 ComputeSupport.Docker(
                     enabled = true,
                     logs = true,
-                    timeExtension = true,
+                    timeExtension = false,
                     terminal = true,
-                    utilization = true
+                    utilization = false,
                 )
             )
         })
