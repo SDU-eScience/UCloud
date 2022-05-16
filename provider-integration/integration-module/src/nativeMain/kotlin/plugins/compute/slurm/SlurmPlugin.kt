@@ -219,11 +219,9 @@ class SlurmPlugin : ComputePlugin {
 
                 openFiles.forEach { file ->
                     val line = file.out?.readText(charLimit = 1024, autoClose = false, allowLongMessage = true) ?: ""
-                    println("Line length is ${line.length}")
                     if (line.isNotEmpty()) emitStdout(file.rank, line)
 
                     val err = file.err?.readText(charLimit = 1024, autoClose = false, allowLongMessage = true) ?: ""
-                    println("Line err length is ${err.length}")
                     if (err.isNotEmpty()) emitStderr(file.rank, err)
                 }
 
