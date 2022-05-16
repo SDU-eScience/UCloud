@@ -177,19 +177,36 @@ class SlurmPlugin : ComputePlugin {
             if (currentStatus.isFinal) return
 
             for (rank in 0 until job.specification.replicas) {
-                val stdout = runCatching {
+                var stdout = runCatching {
                     NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.out", readOnly = true)
                 }.getOrNull()
 
-                val stderr = runCatching {
+                var stderr = runCatching {
                     NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
                 }.getOrNull()
 
                 if (stdout == null && stderr == null) {
+                    runCatching {
+                        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(job.id))
+                        val logFileLocation = SlurmCommandLine.readLogFileLocation(slurmJob.slurmId)
+
+                        if (logFileLocation.stdout != null) {
+                            stdout = runCatching { NativeFile.open(logFileLocation.stdout, readOnly = true) }
+                                .getOrNull()
+                        }
+
+                        if (logFileLocation.stderr != null) {
+                            stderr = runCatching { NativeFile.open(logFileLocation.stderr, readOnly = true) }
+                                .getOrNull()
+                        }
+                    }
+                }
+
+                if (stdout == null && stderr == null) {
                     emitStdout(
                         rank,
-                        "Unable to read logs. If the job was submitted outside of UCloud, then we won't be able to " +
-                            "read the logs automatically."
+                        "Unable to read logs. If the job was submitted outside of UCloud, then we might not be " +
+                            "able to read the logs automatically."
                     )
                 }
 
@@ -201,10 +218,12 @@ class SlurmPlugin : ComputePlugin {
                 if (check.state != JobState.RUNNING) break
 
                 openFiles.forEach { file ->
-                    val line = file.out?.readText(autoClose = false) ?: ""
+                    val line = file.out?.readText(charLimit = 1024, autoClose = false, allowLongMessage = true) ?: ""
+                    println("Line length is ${line.length}")
                     if (line.isNotEmpty()) emitStdout(file.rank, line)
 
-                    val err = file.err?.readText(autoClose = false) ?: ""
+                    val err = file.err?.readText(charLimit = 1024, autoClose = false, allowLongMessage = true) ?: ""
+                    println("Line err length is ${err.length}")
                     if (err.isNotEmpty()) emitStderr(file.rank, err)
                 }
 

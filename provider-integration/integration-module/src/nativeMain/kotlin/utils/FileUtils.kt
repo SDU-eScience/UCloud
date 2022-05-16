@@ -53,7 +53,10 @@ fun NativeFile.readText(
     charLimit: Long = 1024 * 1024 * 32L,
     bufferSize: Int = 1024 * 32,
     autoClose: Boolean = true,
+    allowLongMessage: Boolean = false,
 ): String {
+    require(!allowLongMessage || !autoClose) { "allowLongMessage can only be true if autoClose = false" }
+
     try {
         val builder = StringBuilder()
         ByteArray(bufferSize).usePinned { buf ->
@@ -63,7 +66,10 @@ fun NativeFile.readText(
                 if (read == 0L) break
                 // technically won't work if we end the read on the wrong byte
                 builder.append(buf.get().decodeToString(0, read.toInt()))
-                if (builder.length >= charLimit) throw IllegalStateException("Too long message")
+                if (builder.length >= charLimit) {
+                    if (allowLongMessage) break
+                    else throw IllegalStateException("Too long message")
+                }
             }
         }
         return builder.toString()

@@ -125,6 +125,27 @@ object SlurmCommandLine {
         return nodes.mapIndexed { idx, item -> idx to item }.toMap()
     }
 
+    data class SlurmLogFiles(val stdout: String?, val stderr: String?)
+    fun readLogFileLocation(jobId: String): SlurmLogFiles {
+        val (code, stdout) = executeCommandToText(SCTL_EXE) {
+            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            addArg("show", "job")
+            addArg(jobId)
+        }
+
+        val fields = stdout.lineSequence()
+            .map { it.trim() }
+            .filter { it.startsWith("StdOut=", ignoreCase = true) || it.startsWith("StdErr=", ignoreCase = true) }
+            .map { line ->
+                val key = line.substringBefore('=').lowercase()
+                val value = line.substringAfter('=').takeIf { it.isNotBlank() }
+                key to value
+            }
+            .toMap()
+
+        return SlurmLogFiles(fields["stdout"], fields["stderr"])
+    }
+
     data class SlurmAccountingRow(
         val jobId: Long,
         val timeElappsedMs: Long,
