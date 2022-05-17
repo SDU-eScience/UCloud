@@ -14,4 +14,3 @@ data class ExtensionAllocationConfig(
         val onSynchronization: YamlString,
     )
 }
-

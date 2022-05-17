@@ -17,6 +17,7 @@ import dk.sdu.cloud.avatar.AvatarService
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.contact.book.ContactBookService
+import dk.sdu.cloud.debug.DebuggerUserInterface
 import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.slack.SlackService
@@ -176,6 +177,13 @@ suspend fun main(args: Array<String>) {
         } catch (ex: Throwable) {
             Launcher.log.error("Caught error: ${ex.stackTraceToString()}")
         }
+    }
+
+    if (preset == LauncherPreset.Full) {
+        repeat(100) {
+            println("Starting user interface")
+        }
+        DebuggerUserInterface(emptyList()).start()
     }
 
     reg.rootMicro.feature(LogFeature).configureLevels(

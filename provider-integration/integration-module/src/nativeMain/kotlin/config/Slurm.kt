@@ -7,9 +7,9 @@ import kotlinx.serialization.*
 data class SlurmConfig(
     override val matches: String,
     val partition: String,
-    val mountpoint: String,
     val useFakeMemoryAllocations: Boolean = false,
     val accountMapper: AccountMapper = AccountMapper.None(),
+    val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
 ) : ConfigSchema.Plugins.Jobs() {
     @Serializable
     sealed class AccountMapper {

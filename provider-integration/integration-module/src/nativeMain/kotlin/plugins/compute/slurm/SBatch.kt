@@ -33,6 +33,7 @@ suspend fun createSbatchFile(
     job: Job,
     config: SlurmConfig,
     account: String?,
+    jobFolder: String?,
 ): String {
     @Suppress("DEPRECATION") val timeAllocation = job.specification.timeAllocation
         ?: job.status.resolvedApplication!!.invocation.tool.tool!!.description.defaultTimeAllocation
@@ -70,7 +71,7 @@ suspend fun createSbatchFile(
 
         appendLine("#")
         run {
-            appendLine("#SBATCH --chdir ${config.mountpoint}/${job.id}")
+            if (jobFolder != null) appendLine("#SBATCH --chdir $jobFolder")
             appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
             appendLine("#SBATCH --mem $memoryAllocation")
             appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")
@@ -81,6 +82,9 @@ suspend fun createSbatchFile(
             appendLine("#SBATCH --parsable")
             appendLine("#SBATCH --output=std.out")
             appendLine("#SBATCH --error=std.err")
+            // TODO(Dan): This definitely doesn't do anything meaningful on a real system, and I am not sure it
+            //  does anything on any system. It sounds like from the documentation that this only works if sbatch is
+            //  executed as root and run with --uid.
             appendLine("#SBATCH --get-user-env")
             if (account != null) appendLine("#SBATCH --account=$account")
         }
@@ -88,6 +92,7 @@ suspend fun createSbatchFile(
 
         appendLine("# POSTFIX END")
         appendLine("#")
+        appendLine("env")
         appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
         appendLine("#EOF")
     }

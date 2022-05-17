@@ -7,10 +7,10 @@ import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.RpcClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.PluginContext
@@ -96,10 +96,13 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 // Extensions
                 val extension = pluginConfig.extensions.additionalCollections
                 if (extension != null) {
-                    retrieveCollections.invoke(extension, owner).forEach {
-                        collections.add(
-                            PathConverter.Collection(owner, it.title, it.path, product, it.balance)
-                        )
+                    val resolvedOwner = ResourceOwnerWithId.load(owner, this)
+                    if (resolvedOwner != null) {
+                        retrieveCollections.invoke(extension, resolvedOwner).forEach {
+                            collections.add(
+                                PathConverter.Collection(owner, it.title, it.path, product)
+                            )
+                        }
                     }
                 }
             }
@@ -246,7 +249,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     companion object : Loggable {
         override val log = logger()
 
-        private val retrieveCollections = extension<ResourceOwner, List<PosixCollectionFromExtension>>()
+        private val retrieveCollections = extension<ResourceOwnerWithId, List<PosixCollectionFromExtension>>()
         private val calculateUsage = extension<CalculateUsageRequest, CalculateUsageResponse>()
     }
 }
@@ -265,5 +268,4 @@ data class CalculateUsageResponse(
 private data class PosixCollectionFromExtension(
     val path: String,
     val title: String,
-    val balance: Long? = null,
 )

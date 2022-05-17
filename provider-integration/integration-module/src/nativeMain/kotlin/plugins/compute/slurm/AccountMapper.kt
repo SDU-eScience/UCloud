@@ -26,14 +26,12 @@ class AccountMapper(
     private val mutex = Mutex()
 
     suspend fun lookupByUCloud(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
-        println("lookupByUCloud($owner, $productCategory, $partition)")
         val key = UCloudKey(owner, productCategory)
         val (hasCached, cached) = mutex.withLock {
             val hasCached = key in ucloudToSlurmCache
             Pair(hasCached, ucloudToSlurmCache[key])
         }
         if (hasCached) return cached
-        println("Not cached")
 
         val result = lookupOrRefresh(owner, productCategory, partition)
         if (result != null) {
@@ -108,14 +106,11 @@ class AccountMapper(
     }
 
     private suspend fun lookupFromScript(owner: ResourceOwner, productCategory: String, partition: String): SlurmKey? {
-        println("Attempting to lookupFromScript($owner, $productCategory, $partition)")
         val slurmPlugin = config.plugins.jobs.values
             .filterIsInstance<SlurmPlugin>().singleOrNull { plugin ->
                 val cfg = plugin.pluginConfig
                 plugin.productAllocation.any { it.category == productCategory } && cfg.partition == partition
             } ?: return null
-
-        println("Actually found a plugin: ${slurmPlugin.pluginConfig.accountMapper}")
 
         return when (val mapper = slurmPlugin.pluginConfig.accountMapper) {
             is SlurmConfig.AccountMapper.None -> {

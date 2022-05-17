@@ -2,27 +2,30 @@ package dk.sdu.cloud.plugins.compute.slurm
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.utils.CommandBuilder
 import dk.sdu.cloud.utils.DateDetails
 import dk.sdu.cloud.utils.executeCommandToText
 import dk.sdu.cloud.utils.gmtTime
+import kotlinx.cinterop.toKString
+import platform.posix.getenv
 
-object SlurmCommandLine {
-    const val SBATCH_EXE = "/usr/bin/sbatch"
-    const val SCANCEL_EXE = "/usr/bin/scancel"
-    const val SQUEUE_EXE = "/usr/bin/squeue"
-    const val SINFO_EXE = "/usr/bin/sinfo"
-    const val SACCT_EXE = "/usr/bin/sacct"
-    const val SCTL_EXE = "/usr/bin/scontrol"
-    const val SLURM_CONF_KEY = "SLURM_CONF"
-    const val SLURM_CONF_VALUE = "/etc/slurm/slurm.conf"
-    const val SSH_EXE = "/usr/bin/ssh"
-    const val STTY_EXE = "/usr/bin/stty"
-    const val PS_EXE = "/usr/bin/ps"
+class SlurmCommandLine(
+    private val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
+) {
+    private fun CommandBuilder.configureSlurm() {
+        if (modifySlurmConf != null) addEnv(SLURM_CONF_KEY, modifySlurmConf)
+    }
+
+    private val defaultPath = getenv("PATH")?.toKString()
 
     fun submitBatchJob(pathToFile: String): String {
         val (code, stdout, stderr) = executeCommandToText(SBATCH_EXE) {
             addArg(pathToFile)
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
+
+            // HACK(Dan): --get-user-env doesn't really do a lot for us. We need to submit the job with something
+            // that actually resembles the user's login shell and not whatever this hack is doing.
+            if (defaultPath != null) addEnv("PATH", defaultPath)
         }
 
         if (code != 0) {
@@ -40,7 +43,7 @@ object SlurmCommandLine {
             addArg("--partition", partition)
             addArg("--full")
             addArg(jobId)
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
         }
 
         if (resp.statusCode != 0) {
@@ -56,7 +59,7 @@ object SlurmCommandLine {
         partition: String? = null,
     ): List<SlurmAllocation> {
         val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
 
             addArg("--jobs", slurmIds.joinToString(","))
             addArg("--format", "jobid,state,exitcode,start,end")
@@ -99,7 +102,7 @@ object SlurmCommandLine {
 
     fun getJobNodeList(slurmId: String): Map<Int, String> {
         val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
             addArg("--jobs", slurmId)
             addArg("--format", "nodelist")
             addArg("--parsable2")
@@ -112,7 +115,7 @@ object SlurmCommandLine {
 
     private fun expandNodeList(str: String): Map<Int, String> {
         val (code, stdout) = executeCommandToText(SCTL_EXE) {
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
             addArg("show")
             addArg("hostname")
             addArg(str)
@@ -128,7 +131,7 @@ object SlurmCommandLine {
     data class SlurmLogFiles(val stdout: String?, val stderr: String?)
     fun readLogFileLocation(jobId: String): SlurmLogFiles {
         val (code, stdout) = executeCommandToText(SCTL_EXE) {
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
             addArg("show", "job")
             addArg(jobId)
         }
@@ -165,7 +168,7 @@ object SlurmCommandLine {
         partition: String,
     ): List<SlurmAccountingRow> {
         val rows = executeCommandToText(SACCT_EXE) {
-            addEnv(SLURM_CONF_KEY, SLURM_CONF_VALUE)
+            configureSlurm()
 
             addArg("-a")
             if (since != 0L) addArg("-S", gmtTime(since).formatForSlurm())
@@ -257,5 +260,14 @@ object SlurmCommandLine {
         return (seconds * 1000L) + (minutes * 1000L * 60) + (hours * 1000L * 60 * 60)
     }
 
-    private val memorySuffix = Regex("[KMGTP][cn]")
+    companion object {
+        const val SBATCH_EXE = "/usr/bin/sbatch"
+        const val SCANCEL_EXE = "/usr/bin/scancel"
+        const val SQUEUE_EXE = "/usr/bin/squeue"
+        const val SINFO_EXE = "/usr/bin/sinfo"
+        const val SACCT_EXE = "/usr/bin/sacct"
+        const val SCTL_EXE = "/usr/bin/scontrol"
+        const val SLURM_CONF_KEY = "SLURM_CONF"
+        private val memorySuffix = Regex("[KMGTP][cn]")
+    }
 }

@@ -64,6 +64,7 @@ services:
       - k3sConfig:/mnt/k3s
     ports:
       - ${BACKEND_PORT:-8080}:8080
+      - ${DEBUGGER_PORT:-42999}:42999
     restart: always
     depends_on:
       - redis

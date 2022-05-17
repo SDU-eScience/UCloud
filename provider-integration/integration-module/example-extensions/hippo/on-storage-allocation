@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+import re
+import sys
+import subprocess
+import urllib3
+import json
+
+sys.path.append('/opt/ucloud/hippo/lib')
+urllib3.disable_warnings()
+
+from ipa import *
+from ess import *
+from slurm import *
+from common import *
+
+# =====================================================================================================================
+# Utilities
+# =====================================================================================================================
+
+def get_group_by_gid(gid):
+    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+def get_username_by_uid(uid):
+    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+# =====================================================================================================================
+# Authenticate with services
+# =====================================================================================================================
+
+ess_config = json.loads(open('/etc/ucloud/ess.json').read())
+ess_auth_ok = ess_authenticate(ess_config['username'], ess_config['password'], ess_config['server'])
+if not ess_auth_ok:
+    print('Could not authenticate with ESS')
+    exit(1)
+
+# =====================================================================================================================
+# Loading request
+# =====================================================================================================================
+
+request = json.loads(open(sys.argv[1]).read())
+balance = request['balance']
+owner = request['owner']
+owner_type = owner['type']
+
+# =====================================================================================================================
+# Allocating resources
+# =====================================================================================================================
+
+args = {
+    'filesystem' : 'ess1',
+    'space' : f'{balance}G',
+    'files' : '0'
+}
+
+if owner_type == 'user':
+    username = get_username_by_uid(owner['uid'])
+    args['fileset'] = f'home-{username}'
+
+elif owner_type == 'project':
+    group_name = get_group_by_gid(owner['gid'])
+    args['fileset'] = f'work-{group_name}'
+
+else:
+    print(f'Unknown owner_type {owner_type}')
+    exit(1)
+
+ess_fileset_quota(args)
+
+print('{ "type": "ucloud_managed" }')

@@ -37,9 +37,11 @@ class SlurmPlugin : ComputePlugin {
     lateinit var pluginConfig: SlurmConfig
         private set
     private lateinit var jobCache: JobCache
+    private lateinit var cli: SlurmCommandLine
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
+        this.cli = SlurmCommandLine(config.modifySlurmConf)
     }
 
     override suspend fun PluginContext.initialize() {
@@ -124,9 +126,29 @@ class SlurmPlugin : ComputePlugin {
 
     // User Mode
     // =================================================================================================================
+    private fun findJobFolder(jobId: String): String? {
+        val homeDirectory = homeDirectory()
+        if (!fileExists(homeDirectory)) return null
+        val jobsDir = homeDirectory.removeSuffix("/") + "/.ucloud-jobs"
+        if (!fileExists(jobsDir)) {
+            if (mkdir(jobsDir, "700".toUInt(8)) != 0) {
+                return null
+            }
+        }
+
+        if (!fileIsDirectory(jobsDir)) return null
+        val jobDirectory = "${jobsDir}/${jobId}"
+        return if (fileIsDirectory(jobDirectory)) {
+            return jobDirectory
+        } else if (mkdir(jobDirectory, "700".toUInt(8)) != 0) {
+            null
+        } else {
+            jobDirectory
+        }
+    }
+
     override suspend fun PluginContext.create(resource: Job): FindByStringId? {
-        val mountpoint = pluginConfig.mountpoint
-        mkdir("${mountpoint}/${resource.id}", "0700".toUInt(8))
+        val jobFolder = findJobFolder(resource.id)
 
         val account = ipcClient.sendRequest(
             SlurmAccountIpc.retrieve,
@@ -137,11 +159,11 @@ class SlurmPlugin : ComputePlugin {
             )
         ).account
 
-        val sbatch = createSbatchFile(this, resource, pluginConfig, account)
+        val sbatch = createSbatchFile(this, resource, pluginConfig, account, jobFolder)
 
-        val pathToScript = "${mountpoint}/${resource.id}/job.sbatch"
-        NativeFile.open(path = pathToScript, readOnly = false).writeText(sbatch)
-        val slurmId = SlurmCommandLine.submitBatchJob(pathToScript)
+        val pathToScript = if (jobFolder != null) "${jobFolder}/job.sbatch" else "/tmp/${resource.id}.sbatch"
+        NativeFile.open(path = pathToScript, readOnly = false, mode = "600".toInt(8)).writeText(sbatch)
+        val slurmId = cli.submitBatchJob(pathToScript)
 
         ipcClient.sendRequest(SlurmJobsIpc.create, SlurmJob(resource.id, slurmId, pluginConfig.partition))
         return null
@@ -150,7 +172,7 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun PluginContext.terminate(resource: Job) {
         // NOTE(Dan): Everything else should be handled by the monitoring loop
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(resource.id))
-        SlurmCommandLine.cancelJob(slurmJob.partition, slurmJob.slurmId)
+        cli.cancelJob(slurmJob.partition, slurmJob.slurmId)
     }
 
     override suspend fun PluginContext.extend(request: JobsProviderExtendRequestItem) {
@@ -162,6 +184,8 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) {
+        val jobFolder = findJobFolder(job.id)
+
         class OutputFile(val rank: Int, val out: NativeFile?, val err: NativeFile?)
         val openFiles = ArrayList<OutputFile>()
 
@@ -178,17 +202,17 @@ class SlurmPlugin : ComputePlugin {
 
             for (rank in 0 until job.specification.replicas) {
                 var stdout = runCatching {
-                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.out", readOnly = true)
+                    NativeFile.open(path = "${jobFolder}/std-${rank}.out", readOnly = true)
                 }.getOrNull()
 
                 var stderr = runCatching {
-                    NativeFile.open(path = "${pluginConfig.mountpoint}/${job.id}/std-${rank}.err", readOnly = true)
+                    NativeFile.open(path = "${jobFolder}/std-${rank}.err", readOnly = true)
                 }.getOrNull()
 
                 if (stdout == null && stderr == null) {
                     runCatching {
                         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(job.id))
-                        val logFileLocation = SlurmCommandLine.readLogFileLocation(slurmJob.slurmId)
+                        val logFileLocation = cli.readLogFileLocation(slurmJob.slurmId)
 
                         if (logFileLocation.stdout != null) {
                             stdout = runCatching { NativeFile.open(logFileLocation.stdout, readOnly = true) }
@@ -238,7 +262,7 @@ class SlurmPlugin : ComputePlugin {
     private suspend fun PluginContext.getStatus(id: String): UcloudStateInfo {
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(id))
 
-        val allocationInfo = SlurmCommandLine.browseJobAllocations(listOf(slurmJob.slurmId)).firstOrNull()
+        val allocationInfo = cli.browseJobAllocations(listOf(slurmJob.slurmId)).firstOrNull()
             ?: throw RPCException("Unknown Slurm Job Status: $id ($slurmJob)", HttpStatusCode.InternalServerError)
 
         return SlurmStateToUCloudState.slurmToUCloud.getOrElse(allocationInfo.state) {
@@ -265,7 +289,7 @@ class SlurmPlugin : ComputePlugin {
         val session: InteractiveSession =
             ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
-        val nodes: Map<Int, String> = SlurmCommandLine.getJobNodeList(slurmJob.slurmId)
+        val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
 
         val process = startProcess(
             args = listOf(
@@ -302,6 +326,7 @@ class SlurmPlugin : ComputePlugin {
                 }
 
                 is ShellRequest.Resize -> {
+                    /*
                     // Send resize event to SSH session
                     println("RESIZE EVENT: ${userInput} ")
                     //ps -q 5458 -o tty=
@@ -318,6 +343,7 @@ class SlurmPlugin : ComputePlugin {
                         addArg("cols", "700")
                         addArg("--file", "/dev/${device.trim()}")
                     }
+                     */
                 }
 
                 else -> {
@@ -354,72 +380,7 @@ class SlurmPlugin : ComputePlugin {
     // Server Mode
     // =================================================================================================================
     override suspend fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
-        // Get pending cpu/mem jobs
-        var usedCpu = 0
-        var usedMem = 0
-        var pendingJobs = 0
-        var runningJobs = 0
-
-        run {
-            // Example output from Slurm:
-            // 26|50M|1|PENDING
-            // 27|50M|1|PENDING
-
-            val (_, jobs, _) = executeCommandToText(SlurmCommandLine.SQUEUE_EXE) {
-                addArg("--format", "%A|%m|%C|%T")
-                addArg("--noheader")
-                addArg("--noconvert")
-                addArg("--states", "running,pending")
-                addEnv(SlurmCommandLine.SLURM_CONF_KEY, SlurmCommandLine.SLURM_CONF_VALUE)
-            }
-
-            jobs.lineSequence().forEach {
-                val line = it.trim().split("|")
-                if (line.size < 4) return@forEach
-
-                when (line[3]) {
-                    "PENDING" -> {
-                        pendingJobs++
-                    }
-
-                    "RUNNING" -> {
-                        usedCpu += line[2].toInt()
-                        usedMem += line[1].replace("M", "").toInt()
-                        runningJobs++
-                    }
-                }
-            }
-        }
-
-        // Get cluster overall cpu/mem
-        var clusterCpu = 0
-        var clusterMem = 0
-
-        run {
-            // Example output from Slurm:
-            // c1|1|1000
-            // c2|1|1000
-
-            val (_, nodes, _) = executeCommandToText(SlurmCommandLine.SINFO_EXE) {
-                addArg("--format", "%n|%c|%m")
-                addArg("--noheader")
-                addArg("--noconvert")
-                addEnv(SlurmCommandLine.SLURM_CONF_KEY, SlurmCommandLine.SLURM_CONF_VALUE)
-            }
-
-            nodes.lineSequence().forEach {
-                val line = it.trim().split("|")
-                if (line.size < 3) return@forEach
-                clusterCpu += line[1].toInt()
-                clusterMem += line[2].replace("M", "").toInt()
-            }
-        }
-
-        return JobsProviderUtilizationResponse(
-            CpuAndMemory(clusterCpu.toDouble(), clusterMem.toLong()),
-            CpuAndMemory(usedCpu.toDouble(), usedMem.toLong()),
-            QueueStatus(runningJobs, pendingJobs)
-        )
+        throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
     override suspend fun PluginContext.runMonitoringLoop() {
@@ -473,7 +434,7 @@ class SlurmPlugin : ComputePlugin {
         // 2. Compare with list of known UCloud jobs
         // 3. Register any unknown jobs (if possible, jobs are not required to be for a UCloud project)
         // 4. Establish a mapping between Slurm jobs and UCloud jobs
-        val accountingRows = SlurmCommandLine.retrieveAccountingData(lastScan, pluginConfig.partition)
+        val accountingRows = cli.retrieveAccountingData(lastScan, pluginConfig.partition)
         lastScan = Time.now()
 
         // TODO(Dan): This loads the entire database every 5 seconds
@@ -625,7 +586,7 @@ class SlurmPlugin : ComputePlugin {
         val jobs = SlurmDatabase.browse(SlurmBrowseFlags(filterIsActive = true))
         if (jobs.isEmpty()) return
 
-        val acctJobs = SlurmCommandLine.browseJobAllocations(jobs.map { it.slurmId })
+        val acctJobs = cli.browseJobAllocations(jobs.map { it.slurmId })
 
         // TODO(Dan): Everything should be more or less ready to do in bulk if needed
         for (job in acctJobs) {
