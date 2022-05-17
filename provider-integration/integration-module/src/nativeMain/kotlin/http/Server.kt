@@ -206,23 +206,14 @@ fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer, timeoutSec
     }
 }
 
-inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, timeoutSeconds: Long = 120) {
+inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, timeoutSeconds: Int = 120) {
     memScoped {
-        val readFds = alloc<fd_set>()
-        val writeFds = alloc<fd_set>()
-        val exceptFds = alloc<fd_set>()
-        val timeout = alloc<timeval>()
-
-        fd_zero(readFds.ptr)
-        fd_zero(writeFds.ptr)
-        fd_zero(exceptFds.ptr)
-        fd_add(fd, readFds.ptr)
-
-        timeout.tv_sec = timeoutSeconds
-        timeout.tv_usec = 0
+        val pfdRead = alloc<pollfd>()
+        pfdRead.fd = fd
+        pfdRead.events = POLLIN.toShort()
 
         while (buffer.readerRemaining() < minimumBytes) {
-            val isReadyToRead = select(fd + 1, readFds.ptr, writeFds.ptr, exceptFds.ptr, timeout.ptr) == 1
+            val isReadyToRead = poll(pfdRead.ptr, 1, timeoutSeconds) == 1
             if (!isReadyToRead) throw TimeoutException()
 
             var writerSpaceRemaining = buffer.writerSpaceRemaining()

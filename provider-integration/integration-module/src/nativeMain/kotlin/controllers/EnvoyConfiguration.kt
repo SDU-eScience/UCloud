@@ -7,16 +7,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlin.random.Random
-import kotlin.random.nextULong
-
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
+import kotlin.random.*
 
 class EnvoyConfigurationService(
     private val configDir: String,
@@ -68,6 +61,8 @@ class EnvoyConfigurationService(
 
         val job = ProcessingScope.launch {
             val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster?>>()
+            val wsRoutes = ArrayList<EnvoyRoute.ShellSession>()
+
             run {
                 val id = "_UCloud"
                 entries[id] = Pair(
@@ -91,7 +86,14 @@ class EnvoyConfigurationService(
 
                 val routes = entries.values.map { it.first }
                 val clusters = entries.values.mapNotNull { it.second }
-                configure(configDir, routes, clusters)
+
+                // TODO(Roman): refactor later, also handle wsRoutes lifecycle
+                wsRoutes.addAll(routes.filterIsInstance<EnvoyRoute.ShellSession>())
+                val allRoutes: MutableList<EnvoyRoute> = mutableListOf()
+                allRoutes.addAll(routes)
+                allRoutes.addAll(wsRoutes)
+
+                configure(configDir, allRoutes, clusters)
             }
         }
 
@@ -118,6 +120,18 @@ node:
 
 admin:
   access_log_path: "/dev/stdout"
+  
+layered_runtime:
+  layers:
+  - name: static_layer_0
+    static_layer:
+      envoy:
+        resource_limits:
+          listener:
+            example_listener_name:
+              connection_limit: 10000
+      overload:
+        global_downstream_max_connections: 50000
 
 static_resources:
   listeners:
@@ -155,19 +169,11 @@ static_resources:
         private const val rdsFile = "rds.yaml"
         private const val clustersFile = "clusters.yaml"
         private const val configFile = "config.yaml"
-        private var wsRoutes: MutableList<EnvoyRoute> = mutableListOf()
 
         private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
-
-            //TODO: refactor later, also handle wsRoutes lifecycle
-            wsRoutes.addAll(routes.filter{ r -> r is EnvoyRoute.ShellSession})
-            var allRoutes: MutableList<EnvoyRoute> = mutableListOf()
-            allRoutes.addAll(routes)
-            allRoutes.addAll(wsRoutes)
-
             val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
             NativeFile.open(tempRouteFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(allRoutes))))
+                defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes))))
             )
 
             val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
@@ -177,8 +183,6 @@ static_resources:
 
             renameFile(tempRouteFile, "$configDir/$rdsFile", 0u)
             renameFile(tempClusterFile, "$configDir/$clustersFile", 0u)
-
-            
         }
     }
 }
@@ -281,9 +285,11 @@ class EnvoyRouteConfiguration(
                                                                 put("invert_match", JsonPrimitive(true))
                                                                 put("present_match", JsonPrimitive(true))
                                                             } else {
-                                                                put("exact_match", JsonPrimitive(
-                                                                    base64Encode(ucloudIdentity.encodeToByteArray())
-                                                                ))
+                                                                put(
+                                                                    "exact_match", JsonPrimitive(
+                                                                        base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                    )
+                                                                )
                                                             }
                                                         }
                                                     )
