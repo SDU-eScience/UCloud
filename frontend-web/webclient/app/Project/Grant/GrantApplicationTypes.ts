@@ -268,7 +268,6 @@ export function transferApplication(request: TransferApplicationRequest): APICal
 export function fetchGrantApplicationFake(request: FetchGrantApplicationRequest): Promise<GrantApplication> {
     const now = new Date().getTime();
 
-    console.log("returning this")
     const grantApplication: GrantApplication = {
         id: `${(Math.random() * 1000) | 0}`,
         createdAt: now - 100000,

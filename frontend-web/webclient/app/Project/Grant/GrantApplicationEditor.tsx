@@ -89,7 +89,7 @@ import {
     FetchGrantApplicationResponse
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {useProjectManagementStatus} from "..";
+import {listProjects, ProjectRole, useProjectManagementStatus, UserInProject, userProjectStatus, viewProject} from "..";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing",
@@ -181,6 +181,8 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     return parsed;
 }
 
+const milleniumAndCenturyPrefix = "20"
+
 function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
     if (!input) return undefined;
     const rawValue = input.value;
@@ -188,7 +190,7 @@ function parseDateFromInput(input?: HTMLInputElement | null): number | undefined
     const d = getStartOfDay(new Date());
     d.setDate(parseInt(day, 10));
     d.setMonth(parseInt(month, 10) - 1);
-    d.setFullYear(parseInt(`20${year}`, 10));
+    d.setFullYear(parseInt(`${milleniumAndCenturyPrefix}${year}`, 10));
     const time = d.getTime();
     if (isNaN(time)) return undefined;
     return time;
@@ -344,7 +346,7 @@ const GenericRequestCard: React.FunctionComponent<{
                     </tbody>
                 </table>
                 {showAllocationSelection ?
-                    <AllocationSelection wallets={wallets} wb={wb} />
+                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked || !isApprover} />
                     : null
                 }
             </HighlightedCard>
@@ -362,31 +364,34 @@ export async function fetchGrantApplication(request: FetchGrantApplicationReques
     return await new Promise(resolve => setTimeout(() => resolve(fetchGrantApplicationFake(request)), 250));
 }
 
-function AllocationSelection({wallets, wb}: {
-    wallets: Wallet[]; wb: GrantProductCategory;
+function AllocationSelection({wallets, wb, isLocked}: {
+    wallets: Wallet[];
+    wb: GrantProductCategory;
+    isLocked: boolean;
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
     return <div>
-        <HiddenInputField value={allocation ? allocation.allocation.id : ""} data-target={productCategoryAllocation(wb.metadata.category)} />
-        <ClickableDropdown width={"660px"} useMousePositioning chevron trigger={!allocation ? "No Allocation Selected" : `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name}`}>
-            <Table>
-                <TableHeader>
-                    <TableHeaderCell width="200px">Provider</TableHeaderCell>
-                    <TableHeaderCell width="200px">Name</TableHeaderCell>
-                    <TableHeaderCell width="200px">Balance</TableHeaderCell>
-                    <TableHeaderCell width="45px">ID</TableHeaderCell>
-                </TableHeader>
-                <tbody>
-                    {wallets.map(w =>
-                        <AllocationRows
-                            key={w.paysFor.provider + w.paysFor.name + w.paysFor.title}
-                            wallet={w}
-                            onClick={(wallet, allocation) => setAllocation({wallet, allocation})}
-                        />
-                    )}
-                </tbody>
-            </Table>
-        </ClickableDropdown>
+        <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
+        {!isLocked ?
+            <ClickableDropdown width={"660px"} useMousePositioning chevron trigger={!allocation ? "No allocation selected" : `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name}`}>
+                <Table>
+                    <TableHeader>
+                        <TableHeaderCell width="200px">Provider</TableHeaderCell>
+                        <TableHeaderCell width="200px">Name</TableHeaderCell>
+                        <TableHeaderCell width="200px">Balance</TableHeaderCell>
+                        <TableHeaderCell width="45px">ID</TableHeaderCell>
+                    </TableHeader>
+                    <tbody>
+                        {wallets.map(w =>
+                            <AllocationRows
+                                key={w.paysFor.provider + w.paysFor.name + w.paysFor.title}
+                                wallet={w}
+                                onClick={(wallet, allocation) => setAllocation({wallet, allocation})}
+                            />
+                        )}
+                    </tbody>
+                </Table>
+            </ClickableDropdown> : (allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name}` : "No allocation selected")}
     </div>;
 }
 
@@ -404,6 +409,7 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
 }
 
 function titleFromTarget(target: RequestTarget): string {
+    console.log("titleFromTarget");
     switch (target) {
         case RequestTarget.EXISTING_PROJECT:
             return "Viewing Project";
@@ -490,6 +496,29 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [submitLoading, setSubmissionsLoading] = React.useState(false);
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
         const [transferringApplication, setTransferringApplication] = useState(false);
+        const [approver, setApprovers] = useState<{[project: string]: boolean}>({});
+
+        React.useEffect(() => {
+            if (grantApplication.status.stateBreakdown.length > 0) {
+                const approver: {[project: string]: boolean} = {};
+                const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
+                    runWork<UserInProject>(viewProject({
+                        id: "da469561-0e73-4696-8034-756c98c78a71"
+                    }))
+                ));
+                promises.then(resolvedPromises => {
+                    for (const [index, promise] of resolvedPromises.entries()) {
+                        if (promise.status === "fulfilled") {
+                            approver[grantApplication.status.stateBreakdown[index].id] = (
+                                promise.value != null && [ProjectRole.ADMIN, ProjectRole.PI].includes(promise.value.whoami.role)
+                            )
+                            // const value = promise.value as UserInProject;
+                            // console.log(value);
+                        }
+                    }
+                });
+            }
+        }, [grantApplication.status.stateBreakdown]);
 
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
@@ -1216,7 +1245,7 @@ function GrantGiver(props: {
         <Box mt="12px">
             <Spacer
                 left={<Heading.h3>{props.project.title}</Heading.h3>}
-                right={<Flex cursor="pointer" onClick={props.remove}><Icon name="close" color="red" mr="8px" />Remove</Flex>}
+                right={props.remove ? <Flex cursor="pointer" onClick={props.remove}><Icon name="close" color="red" mr="8px" />Remove</Flex> : null}
             />
             {productTypes.map(type => {
                 const filteredProductCategories = productCategories.filter(pc => pc.metadata.productType === type);
