@@ -1,4 +1,9 @@
+import {ProductMetadata} from "@/Accounting";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
+import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
+import * as UCloud from "@/UCloud";
+import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 
 export interface GrantApplication {
 
@@ -46,10 +51,10 @@ export interface Document {
         Updateable by: Original creator
         Immutable after creation: No
     */
-    form: String,
+    form: string,
 
     /*
-        A reference used for out-of-band book - keeping
+        A reference used for out-of-band book-keeping
 
         Updateable by: Grant givers
         Immutable after creation: No
@@ -60,7 +65,7 @@ export interface Document {
         A comment describing why this change was made
 
         Update by: Original creator and grant givers
-        Immutable after creation: No.First revision must always be null.
+        Immutable after creation: No. First revision must always be null.
     */
     revisionComment: string | null,
 }
@@ -127,8 +132,8 @@ export interface Status {
 }
 
 export interface GrantGiverApprovalState {
-    id: String;
-    title: String;
+    id: string;
+    title: string;
     state: State;
 }
 
@@ -176,7 +181,7 @@ export interface CommentOnGrantApplicationRequest {
     comment: string;
 }
 
-export type CommentOnGrantApplicationResponse = {};
+export type CommentOnGrantApplicationResponse = Record<string, never>;
 
 export function commentOnGrantApplication(
     request: CommentOnGrantApplicationRequest
@@ -190,4 +195,212 @@ export function commentOnGrantApplication(
     };
 }
 
+interface RetrieveGrantApplicationRequest {
+    id: string;
+}
+
+type RetrieveGrantApplicationResponse = GrantApplication;
+
+export function retrieveGrantApplication(request: RetrieveGrantApplicationRequest): APICallParameters<RetrieveGrantApplicationRequest, RetrieveGrantApplicationResponse> {
+    snackbarStore.addInformation("Can't fetch grant application yet", false);
+    return {
+        method: "GET",
+        path: "",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    }
+};
+
+export interface RejectGrantApplicationRequest {
+    requestId: string;
+    notify?: boolean;
+}
+
+export function rejectGrantApplication(
+    request: RejectGrantApplicationRequest
+): APICallParameters<RejectGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/reject",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
 export type SubmitApplicationRequest = Document;
+
+export interface ApproveGrantApplicationRequest {
+    requestId: string;
+}
+
+export function approveGrantApplication(
+    request: ApproveGrantApplicationRequest
+): APICallParameters<ApproveGrantApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/approve",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+
+export interface TransferApplicationRequest {
+    applicationId: string;
+    transferToProjectId: string
+}
+
+export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
+    return {
+        method: "POST",
+        path: "/grant/transfer",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    };
+}
+
+
+// ========================= TEMPORARY ===================================
+export function fetchGrantApplicationFake(request: FetchGrantApplicationRequest): Promise<GrantApplication> {
+    const now = new Date().getTime();
+
+    console.log("returning this")
+    const grantApplication: GrantApplication = {
+        id: `${(Math.random() * 1000) | 0}`,
+        createdAt: now - 100000,
+        updatedAt: now - 11231,
+        createdBy: FlynnTaggart,
+        currentRevision: {
+            createdAt: now - 10,
+            updatedBy: FlynnTaggart,
+            revisionNumber: 0,
+            document: {
+                recipient: {
+                    type: "personal_workspace",
+                    username: FlynnTaggart
+                },
+                allocationRequests: [{
+                    balanceRequested: 500,
+                    category: "SSG",
+                    provider: "UAC",
+                    sourceAllocation: null,
+                    grantGiver: "UAC",
+                    period: {
+                        start: now - 12343456,
+                        end: undefined
+                    }
+                }],
+                form: "I believe that providing me with cannon resources (technically compute), I can achieve new academic heights.",
+                referenceId: "",
+                revisionComment: ""
+            }
+        },
+        status: {
+            overallState: State.PENDING,
+            stateBreakdown: [{
+                id: "just-some-id-we-cant-consider-valid",
+                title: "UAC",
+                state: State.APPROVED,
+            }, {
+                id: "just-some-other-id-we-cant-consider-valid",
+                title: "HELL",
+                state: State.REJECTED,
+            }, {
+                id: "the-final-one",
+                title: "Cultist Base",
+                state: State.PENDING
+            }],
+            comments: [{
+                id: "0",
+                username: FlynnTaggart,
+                createdAt: now - 12334,
+                comment: "It's imperative that I recieve the funding to get to Mars. I need to find the lost city of Hebeth."
+            }, {
+                id: "1",
+                username: DrSamHayden,
+                createdAt: now - 12300,
+                comment: "Using what?"
+            }, {
+                id: "2",
+                username: DrSamHayden,
+                createdAt: now - 12200,
+                comment: "The cannon?"
+            }, {
+                id: "3",
+                username: DrSamHayden,
+                createdAt: now - 12100,
+                comment: "That is a weapon, not a teleporter."
+            }],
+            revisions: []
+        }
+    };
+
+    return new Promise((resolve) => {
+        window.setTimeout(() => resolve(grantApplication), 200);
+    });
+}
+
+const FlynnTaggart = "FlynnTaggart#1777";
+const DrSamHayden = "SamuelHayden#1666";
+
+function browseProjects(request: PaginationRequestV2): APICallParameters {
+    return {
+        method: "GET",
+        context: "",
+        path: buildQueryString("/api/grant/browse-projects", request),
+        parameters: request
+    };
+}
+
+export interface GrantProductCategory {
+    metadata: ProductMetadata;
+    currentBalance?: number;
+    requestedBalance?: number;
+}
+
+interface FakeClient {
+    activeUsername: string;
+    username: string;
+    userInfo?: {
+        firstNames: string;
+        lastName: string;
+    }
+}
+
+export const Client: FakeClient = {
+    activeUsername: FlynnTaggart,
+    username: FlynnTaggart,
+    userInfo: {
+        firstNames: "Flynn",
+        lastName: "Taggart"
+    }
+}
+
+export interface FetchGrantApplicationRequest {
+    id: string;
+}
+
+export type FetchGrantApplicationResponse = GrantApplication;
+
+export function fetchGrantGiversFake(): PageV2<ProjectWithTitle> {
+    const items: ProjectWithTitle[] = [{
+        projectId: "just-some-id-we-cant-consider-valid",
+        title: "UAC",
+    }, {
+        projectId: "just-some-other-id-we-cant-consider-valid",
+        title: "HELL",
+    }, {
+        projectId: "the-final-one",
+        title: "Cultist Base",
+    }];
+
+    return {
+        items,
+        itemsPerPage: 250,
+        next: undefined
+    };
+}
