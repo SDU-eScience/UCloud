@@ -65,10 +65,9 @@ import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import {AvatarHook, useAvatars} from "@/AvataaarLib/hook";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
-import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
-import {loadingAction} from "@/Loading";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
@@ -455,7 +454,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         const history = useHistory();
-        const dispatch = useDispatch();
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
         switch (target) {
@@ -473,13 +471,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 break;
         }
 
-        dispatch(setRefreshFunction(state.reload));
-        dispatch(loadingAction(state.loading));
-        useEffect(() => {
-            return () => {
-                dispatch(setRefreshFunction(undefined));
-            };
-        }, []);
+        useRefreshFunction(state.reload);
+        useLoading(state.loading);
 
         const discardChanges = useCallback(async () => {
             state.reload();
