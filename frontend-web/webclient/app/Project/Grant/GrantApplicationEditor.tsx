@@ -92,6 +92,7 @@ import {
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {listProjects, ProjectRole, useProjectManagementStatus, UserInProject, userProjectStatus, viewProject} from "..";
+import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing",
@@ -652,8 +653,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
-                    trigger="Select Grant Giver"
-                    chevron
+                    trigger={<Flex><Heading.h3>Select grant giver</Heading.h3> <Icon name="chevronDownLight" size="1em" mt="12px" ml=".7em" color={"darkGray"} /></Flex>}
                 >
                     <Wrapper>
                         <Table>
@@ -896,9 +896,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </>
                             )}
 
-                            <Heading.h3 mt={32}>
+                            <Heading.h2 mt={32} mb={12}>
                                 {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
-                            </Heading.h3>
+                            </Heading.h2>
 
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
@@ -1158,8 +1158,7 @@ function GrantGiver(props: {
                                 isLocked={props.isLocked}
                                 allocationRequests={props.grantApplication.currentRevision.document.allocationRequests.filter(it => it.category === pc.metadata.category.name && it.provider === pc.metadata.category.provider)}
                                 wallets={filteredWallets.filter(it => it.paysFor.provider === pc.metadata.category.provider)}
-                                // TODO(Jonas): This should require that it is being viewed by the grant approver, I think. Should a grant approver creating a <-- ?? why does this just end?
-                                showAllocationSelection={props.isApprover}
+                                showAllocationSelection={props.isApprover && !props.isLocked}
                             />
                         )}
                     </ResourceContainer>}
@@ -1319,17 +1318,22 @@ const PostCommentWidget: React.FunctionComponent<{
     avatar: AvatarType,
     reload: () => void
 }> = ({applicationId, avatar, reload}) => {
+    // TODO(Jonas): Should this be disabled until grant is initially published?
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
-
-        await runWork(commentOnGrantApplication({
-            requestId: applicationId,
-            comment: commentBoxRef.current!.value
-        }));
-        reload();
-        if (commentBoxRef.current) commentBoxRef.current!.value = "";
+        try {
+            await runWork(commentOnGrantApplication({
+                requestId: applicationId,
+                comment: commentBoxRef.current!.value
+            }), {defaultErrorHandler: false});
+            // TODO(Jonas): Push comment to state
+            reload();
+            if (commentBoxRef.current) commentBoxRef.current!.value = "";
+        } catch (error) {
+            displayErrorMessageOrDefault(error, "Failed to post comment.");
+        }
     }, [runWork, applicationId, commentBoxRef.current]);
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
@@ -1347,20 +1351,20 @@ function getDocument(grantApplication: GrantApplication): Document {
 }
 
 function ProductLink(): JSX.Element {
-    return <Tooltip
-        trigger={<ExternalLink href="/app/skus"><Box style={{
-            cursor: "pointer",
-            border: "2px var(--black) solid",
-            borderRadius: "9999px",
-            width: "35px",
-            height: "35px",
-            marginLeft: "9px",
-            paddingLeft: "10px",
-            marginTop: "-2px"
-        }}> ?</Box></ExternalLink>}
-    >
+    return <Tooltip trigger={<ExternalLink href="/app/skus"><ProductLinkBox> ?</ProductLinkBox></ExternalLink>}>
         <Box width="100px">Click to view details for resources</Box>
     </Tooltip>
 }
+
+const ProductLinkBox = styled.div`
+    cursor: pointer;
+    border: 2px var(--black) solid;
+    border-radius: 9999px;
+    width: 35px;
+    height: 35px;
+    margin-left: 9px;
+    padding-left: 10px;
+    margin-top: -2px;
+`;
 
 export default GrantApplicationEditor;
