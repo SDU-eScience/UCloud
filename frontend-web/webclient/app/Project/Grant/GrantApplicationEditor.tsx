@@ -86,7 +86,9 @@ import {
     fetchGrantApplicationFake,
     fetchGrantGiversFake,
     FetchGrantApplicationRequest,
-    FetchGrantApplicationResponse
+    FetchGrantApplicationResponse,
+    editReferenceId,
+    fetchProducts
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {listProjects, ProjectRole, useProjectManagementStatus, UserInProject, userProjectStatus, viewProject} from "..";
@@ -208,6 +210,19 @@ const Wrapper = styled.div`
         color: var(--black, #f00);
     }
 `;
+
+// TODO(Jonas): Find better name for function. 
+function checkIsGrantRecipient(recipient: Recipient, username: string, projectId?: string): boolean {
+    if (recipient.type === "existing_project") {
+        return recipient.id === projectId;
+    } else if (recipient.type === "personal_workspace") {
+        return recipient.username === username;
+    } else {
+        // TODO(Jonas): handle
+        recipient.type === "new_project";
+        return false;
+    }
+}
 
 const GenericRequestCard: React.FunctionComponent<{
     wb: GrantProductCategory;
@@ -346,7 +361,7 @@ const GenericRequestCard: React.FunctionComponent<{
                     </tbody>
                 </table>
                 {showAllocationSelection ?
-                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked || !isApprover} />
+                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked} />
                     : null
                 }
             </HighlightedCard>
@@ -409,7 +424,6 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
 }
 
 function titleFromTarget(target: RequestTarget): string {
-    console.log("titleFromTarget");
     switch (target) {
         case RequestTarget.EXISTING_PROJECT:
             return "Viewing Project";
@@ -496,11 +510,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [submitLoading, setSubmissionsLoading] = React.useState(false);
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
         const [transferringApplication, setTransferringApplication] = useState(false);
-        const [approver, setApprovers] = useState<{[project: string]: boolean}>({});
+        const [approverMap, setApprovers] = useState<{[project: string]: boolean}>({});
 
         React.useEffect(() => {
             if (grantApplication.status.stateBreakdown.length > 0) {
-                const approver: {[project: string]: boolean} = {};
+                const approvers: {[project: string]: boolean} = {};
                 const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
                     runWork<UserInProject>(viewProject({
                         id: "da469561-0e73-4696-8034-756c98c78a71"
@@ -509,13 +523,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 promises.then(resolvedPromises => {
                     for (const [index, promise] of resolvedPromises.entries()) {
                         if (promise.status === "fulfilled") {
-                            approver[grantApplication.status.stateBreakdown[index].id] = (
+                            approvers[grantApplication.status.stateBreakdown[index].id] = (
                                 promise.value != null && [ProjectRole.ADMIN, ProjectRole.PI].includes(promise.value.whoami.role)
-                            )
-                            // const value = promise.value as UserInProject;
-                            // console.log(value);
+                            );
                         }
                     }
+                    setApprovers(approvers);
                 });
             }
         }, [grantApplication.status.stateBreakdown]);
@@ -583,7 +596,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantGiversInUse, grantProductCategories]);
 
         const updateReferenceID = useCallback(async () => {
-            console.log("updateReferenceID TODO");
+            const value = projectReferenceIdRef.current?.value;
+            if (!value) {
+                snackbarStore.addFailure("Project Reference ID can't be empty", false);
+            }
+            await runWork(editReferenceId({id: grantApplication.id, newReferenceId: value}));
+            setIsEditingProjectReference(false);
+            reload();
         }, []);
 
         const cancelEditOfRefId = useCallback(async () => {
@@ -625,8 +644,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const isAdminOrPi = ["ADMIN", "PI"].includes(status.projectDetails.data.whoami.role);
         const isAdminOrPiForAnything = isAdminOrPi && grantApplication.status.stateBreakdown.some(it => it.id === status.projectId);
         const isPersonalWorkspace = grantApplication.currentRevision.document.recipient.type === "personal_workspace";
-        const isGrantRecipient = (isAdminOrPi && grantApplication.createdBy === status.projectId) ||
-            (isPersonalWorkspace && grantApplication.createdBy === Client.activeUsername); /* TODO(Jonas): Doesn't handle personal project */
+        // TODO(Jonas): Is missing one case;
+        const isGrantRecipient = checkIsGrantRecipient(grantApplication.currentRevision.document.recipient, Client.username, status.projectId);
 
         const grantGiverDropdown = React.useMemo(() =>
             target === RequestTarget.VIEW_APPLICATION || (grantGivers.items.length - grantGiversInUse.length) === 0 ? null :
@@ -667,12 +686,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     wallets={wallets.data.items}
                     project={it}
                     isLocked={isLocked}
-                    isApprover={isAdminOrPi && status.projectId === it.projectId}
+                    isApprover={approverMap[it.projectId]}
                 />
             ), [grantGivers, grantGiversInUse, isLocked, wallets, isAdminOrPi]);
 
         const recipient = getDocument(grantApplication).recipient;
-        const isApproverForProject = false;
+        recipientTypeToText
         const allocationsById = React.useMemo(() => {
             const byId: {[id: string]: {allocation: WalletAllocation, wallet: Wallet}} = {};
             for (const wallet of wallets.data.items) {
@@ -889,13 +908,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 ))
                             }
 
-                            {/* TODO(Jonas): This doesn't group by provider  */}
+                            {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                 grantGivers.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
                                     <GrantGiver
-                                        isApprover={isAdminOrPi}
-                                        isLocked={isLocked || !isApproverForProject}
-                                        remove={() => undefined}
+                                        isApprover={approverMap[grantGiver.projectId]}
+                                        isLocked={isLocked}
                                         project={grantGiver}
                                         grantApplication={grantApplication}
                                         setGrantProductCategories={setGrantProductCategories}
@@ -1047,129 +1065,7 @@ function getAllocationRequests(grantApplication: GrantApplication): AllocationRe
     return getDocument(grantApplication).allocationRequests;
 }
 
-async function fetchProducts(
-    request: APICallParameters<UCloud.grant.GrantsRetrieveProductsRequest, UCloud.grant.GrantsRetrieveProductsResponse>
-): Promise<{availableProducts: Product[]}> {
-    switch (request.parameters?.projectId) {
-        // UAC
-        case "just-some-id-we-cant-consider-valid": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "UAC",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "compute",
-                    productType: "COMPUTE",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "Ballista",
-                        provider: "UAC",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-        // HELL
-        case "just-some-other-id-we-cant-consider-valid": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "HELL",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "compute",
-                    productType: "COMPUTE",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "PlasmaR",
-                        provider: "HELL",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-        // Cultist Base
-        case "the-final-one": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "Cultist Base",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "network_ip",
-                    productType: "NETWORK_IP",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "CyberD",
-                        provider: "Cultist Base",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-    }
-    return new Promise(resolve => resolve({
-        availableProducts: []
-    }));
-}
+
 
 function GrantGiver(props: {
     grantApplication: GrantApplication;

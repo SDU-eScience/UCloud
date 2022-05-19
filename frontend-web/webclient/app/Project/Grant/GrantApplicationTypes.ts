@@ -1,4 +1,4 @@
-import {ProductMetadata} from "@/Accounting";
+import {Product, ProductMetadata} from "@/Accounting";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -402,4 +402,145 @@ export function fetchGrantGiversFake(): PageV2<ProjectWithTitle> {
         itemsPerPage: 250,
         next: undefined
     };
+}
+
+export interface EditReferenceIDRequest {
+    id: string;
+    newReferenceId?: string
+}
+
+export function editReferenceId(
+    request: EditReferenceIDRequest
+): APICallParameters<EditReferenceIDRequest> {
+    return {
+        method: "POST",
+        path: "/grant/editReference",
+        parameters: request,
+        payload: request,
+        reloadId: Math.random()
+    }
+}
+
+export async function fetchProducts(
+    request: APICallParameters<UCloud.grant.GrantsRetrieveProductsRequest, UCloud.grant.GrantsRetrieveProductsResponse>
+): Promise<{availableProducts: Product[]}> {
+    switch (request.parameters?.projectId) {
+        // UAC
+        case "just-some-id-we-cant-consider-valid": {
+            return new Promise(resolve => resolve({
+                availableProducts: [{
+                    balance: 123123,
+                    category: {
+                        name: "SSG",
+                        provider: "UAC",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "compute",
+                    productType: "COMPUTE",
+                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
+                    priority: 0
+                }, {
+                    balance: 123123,
+                    category: {
+                        name: "Ballista",
+                        provider: "UAC",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "storage",
+                    productType: "STORAGE",
+                    description: "Efficient and noisy",
+                    priority: 0
+                }]
+            }));
+        }
+        // HELL
+        case "just-some-other-id-we-cant-consider-valid": {
+            return new Promise(resolve => resolve({
+                availableProducts: [{
+                    balance: 123123,
+                    category: {
+                        name: "SSG",
+                        provider: "HELL",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "compute",
+                    productType: "COMPUTE",
+                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
+                    priority: 0
+                }, {
+                    balance: 123123,
+                    category: {
+                        name: "PlasmaR",
+                        provider: "HELL",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "storage",
+                    productType: "STORAGE",
+                    description: "Efficient and noisy",
+                    priority: 0
+                }]
+            }));
+        }
+        // Cultist Base
+        case "the-final-one": {
+            return new Promise(resolve => resolve({
+                availableProducts: [{
+                    balance: 123123,
+                    category: {
+                        name: "SSG",
+                        provider: "Cultist Base",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "network_ip",
+                    productType: "NETWORK_IP",
+                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
+                    priority: 0
+                }, {
+                    balance: 123123,
+                    category: {
+                        name: "CyberD",
+                        provider: "Cultist Base",
+                    },
+                    chargeType: "DIFFERENTIAL_QUOTA",
+                    freeToUse: false,
+                    hiddenInGrantApplications: false,
+                    name: "name",
+                    pricePerUnit: 1203,
+                    unitOfPrice: "PER_UNIT",
+                    type: "storage",
+                    productType: "STORAGE",
+                    description: "Efficient and noisy",
+                    priority: 0
+                }]
+            }));
+        }
+    }
+    return new Promise(resolve => resolve({
+        availableProducts: []
+    }));
 }
