@@ -80,7 +80,16 @@ data class VerifiedConfig(
         val files: Map<String, FilePlugin>,
         val fileCollections: Map<String, FileCollectionPlugin>,
         val allocations: Map<ProductType, AllocationPlugin>,
+
+        // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
+        // ConnectionController. I don't have a good solution right now, so we will have to live with this weird
+        // thing.
+        val temporary: Temporary = Temporary(),
     ) {
+        data class Temporary(
+            val onConnectionCompleteHandlers: ArrayList<(ucloudId: String, localId: Int) -> Unit> = ArrayList(),
+        )
+
         fun resourcePlugins(): Iterator<ResourcePlugin<*, *, *, *>> {
             val iterators = arrayOf(
                 jobs.values.iterator(),

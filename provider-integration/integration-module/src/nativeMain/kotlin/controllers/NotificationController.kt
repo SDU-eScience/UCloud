@@ -16,12 +16,13 @@ import dk.sdu.cloud.project.api.v2.ProjectNotifications
 import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import kotlin.math.min
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.math.min
+import kotlinx.coroutines.runBlocking
 
 class NotificationController(
     private val controllerContext: ControllerContext,
@@ -30,6 +31,9 @@ class NotificationController(
 
     override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
+
+        controllerContext.configuration.plugins.temporary
+            .onConnectionCompleteHandlers.add(this@NotificationController::onConnectionComplete)
 
         val provider = controllerContext.configuration.core.providerId
         val projectApi = ProjectNotificationsProvider(provider)
@@ -191,17 +195,7 @@ class NotificationController(
             }
 
             for ((_, notification) in list) {
-                plugins.resourcePlugins().asSequence()
-                    .filter { plugin ->
-                        plugin.productAllocation.any { it.category == notification.productCategory }
-                    }
-                    .forEach { plugin ->
-                        with(controllerContext.pluginContext) {
-                            with(plugin) {
-                                onAllocationComplete(notification)
-                            }
-                        }
-                    }
+                notifyPlugins(notification)
             }
         }
 
@@ -222,6 +216,66 @@ class NotificationController(
                 BulkRequest(items),
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
+        }
+    }
+
+    private suspend fun notifyPlugins(notification: AllocationNotification) {
+        val plugins = controllerContext.configuration.plugins
+        plugins.resourcePlugins().asSequence()
+            .filter { plugin ->
+                plugin.productAllocation.any { it.category == notification.productCategory }
+            }
+            .forEach { plugin ->
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        onAllocationComplete(notification)
+                    }
+                }
+            }
+    }
+
+    private fun onConnectionComplete(ucloudId: String, localId: Int) {
+        runBlocking {
+            val notifications = ArrayList<AllocationNotification>()
+            var next: String? = null
+            while (true) {
+                val providerSummary = Wallets.retrieveProviderSummary.call(
+                    WalletsRetrieveProviderSummaryRequest(
+                        filterOwnerId = ucloudId,
+                        filterOwnerIsProject = false,
+                        itemsPerPage = 250,
+                        next = next,
+                    ),
+                    controllerContext.pluginContext.rpcClient
+                ).orThrow()
+
+                for (summary in providerSummary.items) {
+                    notifications.add(
+                        AllocationNotification(
+                            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+                            ResourceOwnerWithId.User(ucloudId, localId),
+                            summary.id,
+                            summary.categoryId.name,
+                            summary.productType,
+                        )
+                    )
+                }
+
+                next = providerSummary.next
+                if (next == null) break
+            }
+
+            for (notification in notifications) {
+                val plugins = controllerContext.configuration.plugins
+                val allocationPlugin = plugins.allocations[notification.productType] ?: continue
+                with(controllerContext.pluginContext) {
+                    val response = with(allocationPlugin) {
+                        onResourceAllocation(listOf(notification))
+                    }
+                }
+
+                notifyPlugins(notification)
+            }
         }
     }
 

@@ -386,6 +386,10 @@ object UserMapping {
                 }
             }
         }
+
+        pluginContext.config.plugins.temporary.onConnectionCompleteHandlers.forEach { handler ->
+            handler(ucloudId, localId)
+        }
     }
 
     fun clearMappingByUCloudId(ucloudId: String) {
