@@ -1,0 +1,62 @@
+#!/usr/bin/env python3
+import re
+import sys
+import subprocess
+import urllib3
+import json
+
+sys.path.append('/opt/ucloud/hippo/lib')
+urllib3.disable_warnings()
+
+from ipa import *
+from ess import *
+from slurm import *
+from common import *
+
+# =====================================================================================================================
+# Utilities
+# =====================================================================================================================
+
+def get_group_by_gid(gid):
+    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+def get_username_by_uid(uid):
+    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+# =====================================================================================================================
+# Loading request
+# =====================================================================================================================
+
+request = json.loads(open(sys.argv[1]).read())
+owner = request
+owner_type = owner['type']
+
+# =====================================================================================================================
+# Mapping
+# =====================================================================================================================
+
+if owner_type == 'user':
+    username = get_username_by_uid(owner['uid'])
+    response = {
+        'title' : 'Home',
+        'path' : f'/home/{username}'
+    }
+    print(json.dumps([response]))
+
+elif owner_type == 'project':
+    group_name = get_group_by_gid(owner['gid'])
+    response = {
+        'title' : 'Work',
+        'path' : f'/work/{group_name}'
+    }
+    print(json.dumps([response]))
+
+else:
+    print(f'Unknown owner type {owner_type}')
+    exit(1)

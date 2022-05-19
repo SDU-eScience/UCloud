@@ -55,12 +55,12 @@ class Server(
         val projectQueryService = ProjectQueryService(projectService)
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
-            .ProviderNotificationService(projectsV2, db, simpleProviders)
+            .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
-        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders)
+        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 

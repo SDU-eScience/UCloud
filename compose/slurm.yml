@@ -16,16 +16,19 @@ services:
 
 
   slurmdbd:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
-    command: ["slurmdbd", "sshd"]
+      target: slurm-ssh-openmpi
+    command: ["slurmdbd", "sshd", "user-sync"]
     hostname: slurmdbd
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
       - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}/provider-integration/integration-module:/opt/ucloud
     expose:
       - "6819"
     depends_on:
@@ -35,17 +38,20 @@ services:
 
       
   slurmctld:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
-    command: ["slurmctld", "sshd"]
+      target: slurm-ssh-openmpi
+    command: ["slurmctld", "sshd", "user-sync"]
     hostname: slurmctld
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}/provider-integration/integration-module:/opt/ucloud
     expose:
       - "6817"
     depends_on:
@@ -55,17 +61,20 @@ services:
     
 
   c1:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
-    command: ["slurmd", "sshd"]
+      target: slurm-ssh-openmpi
+    command: ["slurmd", "sshd", "user-sync"]
     hostname: c1
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}/provider-integration/integration-module:/opt/ucloud
     expose:
       - "6818"
     depends_on:
@@ -75,17 +84,20 @@ services:
     
 
   c2:
-    image: slurm-base-ssh:latest
+    image: slurm-ssh-openmpi:latest
     build: 
       context: ./provider-integration/integration-module
-      target: slurm-base-ssh
-    command: ["slurmd", "sshd"]
+      target: slurm-ssh-openmpi
+    command: ["slurmd", "sshd", "user-sync"]
     hostname: c2
     volumes:
       - etc_munge:/etc/munge
       - etc_slurm:/etc/slurm
       - slurm_jobdir:/data
       - var_log_slurm:/var/log/slurm
+      - ${PWD}/.compose/passwd:/mnt/passwd
+      - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}/provider-integration/integration-module:/opt/ucloud
     expose:
       - "6818"
     depends_on:

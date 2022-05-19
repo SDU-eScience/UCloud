@@ -5,6 +5,7 @@ import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
@@ -16,10 +17,14 @@ import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
+import kotlinx.cinterop.pointed
+import kotlinx.cinterop.toKStringFromUtf8
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
+import platform.posix.geteuid
+import platform.posix.getpwuid
 
 @Serializable
 data class TicketApprovalRequest(
@@ -28,7 +33,13 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
-    override suspend fun PluginContext.initialize(pluginConfig: JsonObject) {
+    private lateinit var pluginConfig: TicketBasedConnectionConfiguration
+
+    override fun configure(config: ConfigSchema.Plugins.Connection) {
+        this.pluginConfig = config as TicketBasedConnectionConfiguration
+    }
+
+    override suspend fun PluginContext.initialize() {
         val log = Log("TicketBasedConnectionPlugin")
         if (config.serverMode == ServerMode.Server) {
             ipcServer.addHandler(
@@ -64,7 +75,21 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             HttpStatusCode.BadRequest
                         )
 
-                        UserMapping.insertMapping(capturedId, uid, mappingExpiration(), ctx = connection)
+                        // NOTE(Brian): Warn if user does not exist
+                        val systemUid = getpwuid(uid.toUInt())?.pointed?.pw_name?.toKStringFromUtf8()
+
+                        if (systemUid == null) {
+                            log.warn("User with uid $uid was not found on the system. A mapping between the recently " +
+                                "connected UCloud user and the uid will however still be made.")
+                        }
+
+                        UserMapping.insertMapping(
+                            capturedId,
+                            uid,
+                            this,
+                            mappingExpiration(),
+                            ctx = connection,
+                        )
 
                         IntegrationControl.approveConnection.callBlocking(
                             IntegrationControlApproveConnectionRequest(capturedId),

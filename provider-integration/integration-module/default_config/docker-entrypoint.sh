@@ -1,7 +1,15 @@
 #!/bin/bash
 set -e
 
-if [ "$1" = "slurmdbd" ]
+if [[ "$*" = *"user-sync"* ]]
+then
+    echo "---> Starting Silly User Synchronization ..."
+    gosu root bash -c "/opt/ucloud/user-sync.py pull /mnt/passwd &"
+else
+    echo "---> Not Starting Silly User Synchronization ..."
+fi
+
+if [[ "$*" = *"slurmdbd"* ]]
 then
     echo "---> Starting the MUNGE Authentication service (munged) ..."
     gosu munge /usr/sbin/munged
@@ -22,7 +30,7 @@ then
     exec gosu slurm /usr/sbin/slurmdbd -Dvvv
 fi
 
-if [ "$1" = "slurmctld" ]
+if [[ "$*" = *"slurmctld"* ]]
 then
     echo "---> Starting the MUNGE Authentication service (munged) ..."
     gosu munge /usr/sbin/munged
@@ -41,7 +49,7 @@ then
     exec gosu slurm /usr/sbin/slurmctld -Dvvv
 fi
 
-if [ "$1" = "slurmd" ]
+if [[ "$*" = *"slurmd"* ]]
 then
     echo "---> Starting the MUNGE Authentication service (munged) ..."
     gosu munge /usr/sbin/munged
@@ -60,7 +68,7 @@ then
     exec /usr/sbin/slurmd -Dvvv
 fi
 
-if [ "$2" = "sshd" ]
+if [[ "$*" = *"sshd"* ]]
 then
     echo "---> Starting OpenSSH Authentication service (munged) ..."
     gosu root /usr/sbin/sshd

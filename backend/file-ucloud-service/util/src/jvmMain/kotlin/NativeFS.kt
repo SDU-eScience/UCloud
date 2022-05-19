@@ -5,6 +5,7 @@ import com.sun.jna.Platform
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.file.orchestrator.api.WriteConflictPolicy
 import dk.sdu.cloud.file.orchestrator.api.joinPath
@@ -46,7 +47,7 @@ class NativeFS(
     private val micro: Micro? = null,
 ) {
     var disableChown = false
-    private val debug: DebugSystem? = micro?.feature(DebugSystem)
+    private val debug: DebugSystem? = micro?.feature(DebugSystemFeature)
 
     private fun openFile(file: InternalFile, flag: Int = 0): LinuxFileHandle {
         with(CLibrary.INSTANCE) {

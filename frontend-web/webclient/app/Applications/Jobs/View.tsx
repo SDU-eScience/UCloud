@@ -477,11 +477,11 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} v{job.specification.application.version}</i>
+                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -684,7 +684,7 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                 <Heading.h3>
                     <i>
                         {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                        {" "}v{job.specification.application.version}
+                        {" "}{job.specification.application.version}
                     </i>
                 </Heading.h3>
             </Box>
@@ -1058,16 +1058,18 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
         <Heading.h3>
             <i>
                 {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}v{job.specification.application.version}
+                {" "}{job.specification.application.version}
             </i>
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>
-        <AltButtonGroup minButtonWidth={"200px"}>
-            <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
-                <Button>Run application again</Button>
-            </Link>
-        </AltButtonGroup>
+        {app.name === "unknown" ? null :
+            <AltButtonGroup minButtonWidth={"200px"}>
+                <Link to={buildQueryString(`/jobs/create`, {app: app.name, version: app.version})}>
+                    <Button>Run application again</Button>
+                </Link>
+            </AltButtonGroup>
+        }
     </CompletedTextWrapper>;
 };
 

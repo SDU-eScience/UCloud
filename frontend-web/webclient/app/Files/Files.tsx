@@ -1,14 +1,14 @@
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { api as FilesApi, UFile, UFileIncludeFlags } from "@/UCloud/FilesApi";
-import { ResourceBrowse } from "@/Resource/Browse";
-import { BrowseType } from "@/Resource/BrowseType";
-import { ResourceRouter } from "@/Resource/Router";
-import { useHistory, useLocation } from "react-router";
-import { buildQueryString, getQueryParamOrElse } from "@/Utilities/URIUtilities";
-import { useGlobal } from "@/Utilities/ReduxHooks";
-import { BreadCrumbsBase } from "@/ui-components/Breadcrumbs";
-import { getParentPath, pathComponents } from "@/Utilities/FileUtilities";
+import {useCallback, useEffect, useMemo, useState} from "react";
+import {api as FilesApi, UFile, UFileIncludeFlags} from "@/UCloud/FilesApi";
+import {ResourceBrowse} from "@/Resource/Browse";
+import {BrowseType} from "@/Resource/BrowseType";
+import {ResourceRouter} from "@/Resource/Router";
+import {useHistory, useLocation} from "react-router";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
+import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {
     defaultErrorHandler,
     isLightThemeStored,
@@ -18,25 +18,25 @@ import {
     onDevSite,
     inDevEnvironment
 } from "@/UtilityFunctions";
-import { api as FileCollectionsApi, FileCollection } from "@/UCloud/FileCollectionsApi";
-import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
-import { bulkRequestOf, emptyPage, emptyPageV2 } from "@/DefaultObjects";
+import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import * as H from "history";
-import { ResourceBrowseCallbacks } from "@/UCloud/ResourceApi";
-import { Box, Button, Flex, Icon, Link, List, Text } from "@/ui-components";
-import { PageV2 } from "@/UCloud";
-import { ListV2, List as ListV1 } from "@/Pagination";
+import {ResourceBrowseCallbacks} from "@/UCloud/ResourceApi";
+import {Box, Button, Flex, Icon, Link, List, Text} from "@/ui-components";
+import {PageV2} from "@/UCloud";
+import {ListV2, List as ListV1} from "@/Pagination";
 import styled from "styled-components";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import { getCssVar } from "@/Utilities/StyledComponentsUtilities";
-import { FilesSearchTabs } from "@/Files/FilesSearchTabs";
-import { UserInProject, ListProjectsRequest, listProjects } from "@/Project";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { SyncthingConfig } from "@/Syncthing/api";
+import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
+import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
+import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {SyncthingConfig} from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
-import { useDidUnmount } from "@/Utilities/ReactUtilities";
-import { deepCopy } from "@/Utilities/CollectionUtilities";
-import { getCookie } from "@/Login/Wayf";
+import {useDidUnmount} from "@/Utilities/ReactUtilities";
+import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {getCookie} from "@/Login/Wayf";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -95,8 +95,8 @@ export const FilesBrowse: React.FunctionComponent<{
     const [loading, invokeCommand] = useCloudCommand();
 
     const viewPropertiesInline = useCallback((file: UFile): boolean =>
-            browseType === BrowseType.Embedded &&
-            props.forceNavigationToPage !== true,
+        browseType === BrowseType.Embedded &&
+        props.forceNavigationToPage !== true,
         []
     );
 
@@ -128,7 +128,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 newConf.folders = newFolders;
 
                 if (newFolders.every(it => it.ucloudPath !== file.id)) {
-                    newFolders.push({ id: randomUUID(), ucloudPath: file.id });
+                    newFolders.push({id: randomUUID(), ucloudPath: file.id});
                 }
             } else {
                 newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
@@ -248,7 +248,7 @@ export const FilesBrowse: React.FunctionComponent<{
 
         return <Box backgroundColor={getCssVar("white")}>
             {props.isSearch !== true || browseType != BrowseType.MainContent ? null :
-                <FilesSearchTabs active={"FILES"}/>}
+                <FilesSearchTabs active={"FILES"} />}
             {browseType !== BrowseType.Embedded ? null : <Flex>
                 <DriveDropdown iconName="projects">
                     <ListV1
@@ -312,15 +312,15 @@ export const FilesBrowse: React.FunctionComponent<{
                     />
                 </DriveDropdown>
                 <BreadCrumbsBase embedded={browseType === BrowseType.Embedded}
-                                 className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
+                    className={browseType == BrowseType.MainContent ? "isMain" : undefined}>
                     {breadcrumbs.map((it, idx) => (
                         <span data-component={"crumb"} key={it} test-tag={it} title={it}
-                              onClick={() => {
-                                  navigateToPath(
-                                      history,
-                                      "/" + joinToString(components.slice(0, idx + 1), "/")
-                                  );
-                              }}
+                            onClick={() => {
+                                navigateToPath(
+                                    history,
+                                    "/" + joinToString(components.slice(0, idx + 1), "/")
+                                );
+                            }}
                         >
                             {it}
                         </span>
@@ -355,7 +355,7 @@ export const FilesBrowse: React.FunctionComponent<{
         shouldFetch={shouldFetch}
         extraSidebar={
             <>
-                <Box flexGrow={1}/>
+                <Box flexGrow={1} />
                 {!hasSyncCookie ? null :
                     <Link to={"/syncthing"}>
                         <Button>Manage Synchronization</Button>
@@ -373,14 +373,14 @@ const Router: React.FunctionComponent = () => {
     />;
 };
 
-const DriveDropdown: React.FunctionComponent<{ iconName: "hdd" | "projects" }> = props => {
+const DriveDropdown: React.FunctionComponent<{iconName: "hdd" | "projects"}> = props => {
     return (
         <ClickableDropdown
             colorOnHover={false}
             paddingControlledByContent={true}
             width={"450px"}
             trigger={<div style={{display: "flex"}}>
-                <Icon mt="8px" mr="6px" name={props.iconName} color2="white" size="24px"/>
+                <Icon mt="8px" mr="6px" name={props.iconName} color2="white" size="24px" />
                 <Icon
                     size="12px"
                     mr="8px"

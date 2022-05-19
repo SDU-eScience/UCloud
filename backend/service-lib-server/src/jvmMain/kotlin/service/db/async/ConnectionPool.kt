@@ -122,7 +122,7 @@ class AsyncDBSessionFactory(
     config: DatabaseConfig,
     private val debug: DebugSystem? = null
 ) : DBSessionFactory<AsyncDBConnection>, DBContext() {
-    constructor(micro: Micro) : this(micro.databaseConfig, micro.featureOrNull(DebugSystem))
+    constructor(micro: Micro) : this(micro.databaseConfig, micro.featureOrNull(DebugSystemFeature))
 
     private val schema = config.defaultSchema
 
@@ -173,7 +173,7 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        val context = DebugContext.Job(baseId + sessionId.getAndIncrement(), rpcContext()?.call?.jobIdOrNull)
+        val context = DebugContext.Job(baseId + sessionId.getAndIncrement(), parentContextId())
         val result = AsyncDBConnection(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
             context,

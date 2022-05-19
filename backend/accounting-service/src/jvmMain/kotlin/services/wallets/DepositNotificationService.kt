@@ -44,6 +44,8 @@ class DepositNotificationService(
                     from
                         accounting.deposit_notifications notification join
                         accounting.product_categories pc on notification.category_id = pc.id
+                    where
+                        pc.provider = :provider_id
                     order by notification.id
                     limit 50
                 """

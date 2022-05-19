@@ -13,6 +13,7 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
@@ -59,7 +60,7 @@ class Server(
         val nameAllocator = NameAllocator()
         val db = AsyncDBSessionFactory(micro)
 
-        val debug = micro.featureOrNull(DebugSystem)
+        val debug = micro.featureOrNull(DebugSystemFeature)
         val serviceClient = authenticator.authenticateClient(OutgoingHttpCall)
         val jobCache = VerifiedJobCache(serviceClient)
         k8Dependencies = K8Dependencies(

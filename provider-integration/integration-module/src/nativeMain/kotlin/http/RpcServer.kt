@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
+import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.serializer
@@ -22,6 +23,7 @@ data class HttpContext(
     val payload: ByteBuffer,
     val headers: List<Header>,
     val session: HttpClientSession<ConnectionData>,
+    val cors: CorsSettings?,
 )
 
 data class WebSocketContext<R : Any, S : Any, E : Any>(
@@ -36,10 +38,13 @@ data class WebSocketContext<R : Any, S : Any, E : Any>(
 class RpcServer(
     private val port: Int,
     private val showWelcomeMessage: Boolean = true,
+    private val cors: CorsSettings? = null,
 ) {
     private val handlerBuilder = ArrayList<CallWithHandler<*, *, *>>()
     val handlers: List<CallWithHandler<*, *, *>>
         get() = handlerBuilder
+    private val _isReady = atomic(false)
+    val isReady: Boolean get() = _isReady.value
 
     fun <R : Any, S : Any, E : Any> implement(
         call: CallDescription<R, S, E>,
@@ -62,6 +67,8 @@ class RpcServer(
         startServer(
             port,
             { ConnectionData(idGenerator.getAndIncrement()) },
+            isReadyHandle = _isReady,
+            cors = cors,
             httpRequestHandler = object : HttpRequestHandler<ConnectionData> {
                 override fun HttpClientSession<ConnectionData>.handleRequest(
                     method: HttpMethod,
@@ -90,7 +97,8 @@ class RpcServer(
                     }
 
                     if (foundCall == null) {
-                        sendHttpResponse(404, defaultHeaders())
+                        log.debug("$method $path 404 Not Found")
+                        sendHttpResponse(404, defaultHeaders(cors = cors))
                         return
                     }
 
@@ -106,7 +114,7 @@ class RpcServer(
 
                                 http.body is HttpBody.BoundToEntireRequest<*> -> {
                                     if (payload.readerRemaining() <= 0) {
-                                        sendHttpResponse(400, defaultHeaders())
+                                        sendHttpResponse(400, defaultHeaders(cors = cors))
                                         return
                                     }
 
@@ -127,13 +135,14 @@ class RpcServer(
                                 }
                             }
                         } catch (ex: Throwable) {
-                            sendHttpResponse(400, defaultHeaders())
+                            log.debug("Failed to parse request message.\n${ex.stackTraceToString().prependIndent("  ")}")
+                            sendHttpResponse(400, defaultHeaders(cors = cors))
                             return
                         }
 
                         log.debug("Incoming call: ${call.fullName}")
                         val context = CallHandler(
-                            IngoingCall(AttributeContainer(), HttpContext(path, payload, headers, this)),
+                            IngoingCall(AttributeContainer(), HttpContext(path, payload, headers, this, cors)),
                             requestMessage,
                             call
                         )
@@ -147,8 +156,8 @@ class RpcServer(
 
                                     sendHttpResponseWithData(
                                         200,
-                                        contentTypeJson,
-                                        encodedPayload
+                                        contentTypeJson + (cors?.headers ?: emptyList()),
+                                        encodedPayload,
                                     )
                                 }
 
@@ -160,9 +169,11 @@ class RpcServer(
                                         "{}"
                                     }).encodeToByteArray()
 
+                                    log.debug("Responding to: ${call.fullName} ${outgoingResult.statusCode.value}")
+
                                     sendHttpResponseWithData(
                                         outgoingResult.statusCode.value,
-                                        contentTypeJson,
+                                        contentTypeJson + (cors?.headers ?: emptyList()),
                                         encodedPayload
                                     )
                                 }
@@ -180,7 +191,7 @@ class RpcServer(
 
                             sendHttpResponseWithData(
                                 ex.httpStatusCode.value,
-                                contentTypeJson,
+                                contentTypeJson + (cors?.headers ?: emptyList()),
                                 defaultMapper
                                     .encodeToString(CommonErrorMessage(ex.why, ex.errorCode))
                                     .encodeToByteArray()
@@ -190,7 +201,7 @@ class RpcServer(
                                 "Caught an unexpected error in ${foundCall.call.fullName}\n" +
                                     ex.stackTraceToString()
                             )
-                            sendHttpResponse(500, defaultHeaders())
+                            sendHttpResponse(500, defaultHeaders(cors = cors))
                         }
                     }
                 }

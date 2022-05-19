@@ -39,7 +39,6 @@ class PathConverter(private val ctx: PluginContext) {
         val title: String,
         val localPath: String,
         val product: ProductReferenceWithoutProvider,
-        val balance: Long? = null,
     )
 
     val collectionCache = SimpleCache<String, FileCollection>(
@@ -77,28 +76,6 @@ class PathConverter(private val ctx: PluginContext) {
             ),
             ctx.rpcClient
         ).orThrow()
-
-        val registration = collections.mapNotNull { home ->
-            if (home.balance == null) return@mapNotNull null
-            RegisterWalletRequestItem(
-                if (home.owner.project != null) WalletOwner.Project(home.owner.project!!)
-                else WalletOwner.User(home.owner.createdBy),
-                buildString {
-                    append(home.owner.project ?: home.owner.createdBy)
-                    append('-')
-                    append(home.localPath)
-                },
-                home.product.category,
-                home.balance
-            )
-        }
-
-        if (registration.isNotEmpty()) {
-            Wallets.register.call(
-                BulkRequest(registration),
-                ctx.rpcClient
-            ).orThrow()
-        }
     }
 
     private fun lookupCollectionFromPath(internalFile: InternalFile): FileCollection {

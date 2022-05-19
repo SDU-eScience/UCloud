@@ -1,13 +1,7 @@
 package dk.sdu.cloud.plugins.compute.slurm
 
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.app.orchestrator.api.JobState
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.sql.ResultCursor
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 data class SlurmJob(
@@ -16,14 +10,8 @@ data class SlurmJob(
     val partition: String = "normal",
     val lastKnown: String = "init",
     val status: Int = 1,
-) {
-    fun toJson(): JsonObject {
-        return defaultMapper.encodeToJsonElement(this) as JsonObject
-    }
-}
-
-@Serializable
-data class Criteria(val field: String, val condition: String)
+    val elapsed: Long = 0L,
+)
 
 @Serializable
 data class SlurmAllocation(
@@ -35,59 +23,58 @@ data class SlurmAllocation(
 )
 
 @Serializable
-data class JobsBrowseRequest(
-    val filters: List<Criteria>,
-    override val itemsPerPage: Int? = null,
-    override val next: String? = null,
-    override val consistency: PaginationRequestV2Consistency? = PaginationRequestV2Consistency.REQUIRE,
-    override val itemsToSkip: Long? = null,
-) : WithPaginationRequestV2 {
-    fun toJson(): JsonObject {
-        return defaultMapper.encodeToJsonElement(this) as JsonObject
+data class UcloudStateInfo(
+    val state: JobState,
+    val providerState: String,
+    val message: String,
+    val isFinal: Boolean
+)
+
+@Deprecated("Renamed to SlurmStateToUCloudState")
+val Mapping = SlurmStateToUCloudState
+
+object SlurmStateToUCloudState {
+    private fun entry(slurmState: String, state: JobState, message: String): Pair<String, UcloudStateInfo> {
+        return slurmState to UcloudStateInfo(state, slurmState, message, state.isFinal())
     }
+
+    val slurmToUCloud: Map<String, UcloudStateInfo> = mapOf(
+        entry("PENDING", JobState.IN_QUEUE, "Job is queued"),
+        entry("CONFIGURING", JobState.IN_QUEUE, "Job is queued"),
+        entry("RESV_DEL_HOLD", JobState.IN_QUEUE, "Job is queued"),
+        entry("REQUEUE_FED", JobState.IN_QUEUE, "Job is queued"),
+        entry("SUSPENDED", JobState.IN_QUEUE, "Job is queued"),
+
+        entry("REQUEUE_HOLD", JobState.IN_QUEUE, "Job is held for requeue"),
+        entry("REQUEUED", JobState.IN_QUEUE, "Job is requeued"),
+        entry("RESIZING", JobState.IN_QUEUE, "Job is resizing"),
+
+        entry("RUNNING", JobState.RUNNING, "Job is running"),
+        entry("COMPLETING", JobState.RUNNING, "Job is running"),
+        entry("SIGNALING", JobState.RUNNING, "Job is running"),
+        entry("SPECIAL_EXIT", JobState.RUNNING, "Job is running"),
+        entry("STAGE_OUT", JobState.RUNNING, "Job is running"),
+
+        entry("STOPPED", JobState.RUNNING, "Job is stopped"),
+
+        entry("COMPLETED", JobState.SUCCESS, "Job is success"),
+        entry("CANCELLED", JobState.SUCCESS, "Job is success"),
+        entry("FAILED", JobState.SUCCESS, "Job is success"),
+
+        entry("OUT_OF_MEMORY", JobState.SUCCESS, "Out of memory"),
+
+        entry("BOOT_FAIL", JobState.FAILURE, "Job is failed"),
+        entry("NODE_FAIL", JobState.FAILURE, "Job is failed"),
+
+        entry("REVOKED", JobState.FAILURE, "Job is revoked"),
+        entry("PREEMPTED", JobState.FAILURE, "Preempted"),
+        entry("DEADLINE", JobState.EXPIRED, "Job is expired"),
+        entry("TIMEOUT", JobState.EXPIRED, "Job is expired")
+    )
+
+    @Deprecated("Renamed to slurmToUCloud")
+    val uCloudStates = slurmToUCloud
 }
 
-
 @Serializable
-data class UcloudStateInfo(val state: JobState, val providerState: String , val message: String, val isFinal: Boolean )
-
-@Serializable
-class Mapping {
-    companion object {
-        val uCloudStates : HashMap<String, UcloudStateInfo> = hashMapOf<String, UcloudStateInfo> (
-
-            "PENDING"       to UcloudStateInfo( JobState.IN_QUEUE, "PENDING"        , "Job is queued", false),
-            "CONFIGURING"   to UcloudStateInfo( JobState.IN_QUEUE, "CONFIGURING"    , "Job is queued", false),
-            "RESV_DEL_HOLD" to UcloudStateInfo( JobState.IN_QUEUE, "RESV_DEL_HOLD"  , "Job is queued", false),
-            "REQUEUE_FED"   to UcloudStateInfo( JobState.IN_QUEUE, "REQUEUE_FED"    , "Job is queued", false),
-            "SUSPENDED"     to UcloudStateInfo( JobState.IN_QUEUE, "SUSPENDED"      , "Job is queued", false),
-
-            "REQUEUE_HOLD"  to UcloudStateInfo( JobState.IN_QUEUE, "REQUEUE_HOLD"   , "Job is held for requeue", false),
-            "REQUEUED"      to UcloudStateInfo( JobState.IN_QUEUE, "REQUEUED"       , "Job is requeued", false),
-            "RESIZING"      to UcloudStateInfo( JobState.IN_QUEUE, "RESIZING"       , "Job is resizing", false),
-
-            "RUNNING"       to UcloudStateInfo( JobState.RUNNING, "RUNNING"         , "Job is running", false),
-            "COMPLETING"    to UcloudStateInfo( JobState.RUNNING, "COMPLETING"      , "Job is running", false),
-            "SIGNALING"     to UcloudStateInfo( JobState.RUNNING, "SIGNALING"       , "Job is running", false),
-            "SPECIAL_EXIT"  to UcloudStateInfo( JobState.RUNNING, "SPECIAL_EXIT"    , "Job is running", false),
-            "STAGE_OUT"     to UcloudStateInfo( JobState.RUNNING, "STAGE_OUT"       , "Job is running", false),
-
-            "STOPPED"       to UcloudStateInfo( JobState.RUNNING, "STOPPED"         , "Job is stopped", false),
-
-            "COMPLETED"     to UcloudStateInfo( JobState.SUCCESS, "COMPLETED"       , "Job is success", true),
-            "CANCELLED"     to UcloudStateInfo( JobState.SUCCESS, "CANCELLED"       , "Job is success", true),
-            "FAILED"        to UcloudStateInfo( JobState.SUCCESS, "FAILED"          , "Job is success", true),
-
-            "OUT_OF_MEMORY" to UcloudStateInfo( JobState.SUCCESS, "OUT_OF_MEMORY"   , "Out of memory", true),
-
-            "BOOT_FAIL"     to UcloudStateInfo( JobState.FAILURE, "BOOT_FAIL"       , "Job is failed", true),
-            "NODE_FAIL"     to UcloudStateInfo( JobState.FAILURE, "NODE_FAIL"       , "Job is failed", true),
-
-            "REVOKED"       to UcloudStateInfo( JobState.FAILURE, "REVOKED"         , "Job is revoked", true),
-            "PREEMPTED"     to UcloudStateInfo( JobState.FAILURE, "PREEMPTED"       , "Preempted", true),
-            "DEADLINE"      to UcloudStateInfo( JobState.EXPIRED, "DEADLINE"        , "Job is expired", true),
-            "TIMEOUT"       to UcloudStateInfo( JobState.EXPIRED, "TIMEOUT"         , "Job is expired", true)
-
-        )
-    }
-}
+data class InteractiveSession(val token: String, val rank: Int , val ucloudId: String)

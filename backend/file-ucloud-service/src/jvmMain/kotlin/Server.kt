@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
 import dk.sdu.cloud.file.ucloud.rpc.ShareController
@@ -99,7 +100,7 @@ class Server(
             nativeFs,
             micro.backgroundScope,
             authenticatedClient,
-            micro.feature(DebugSystem)
+            micro.feature(DebugSystemFeature)
         ).apply {
             install(CopyTask())
             install(DeleteTask())

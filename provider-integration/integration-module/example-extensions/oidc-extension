@@ -39,7 +39,7 @@ local_username = subject.replace('-', '')
 response = {}
 
 def lookup_user() -> int:
-    id_result = subprocess.run(['/usr/bin/id', '-u', local_username], capture_output=True)
+    id_result = subprocess.run(['/usr/bin/id', '-u', local_username], stdout=subprocess.PIPE)
     if id_result.returncode != 0:
         return None
     else:
@@ -52,7 +52,8 @@ if uid != None:
     response['gid'] = uid # TODO(Dan): This is overly simplified
 else:
     # We need to create a user.
-    useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], capture_output=True)
+    useradd_result = subprocess.run(['/usr/sbin/useradd', '-G', 'ucloud', '-m', local_username], stdout=subprocess.PIPE,
+                                    stderr=subprocess.PIPE)
     if useradd_result.returncode != 0:
         print("Failed to create a user!")
         print(useradd_result.stdout)
@@ -68,3 +69,4 @@ else:
     response['gid'] = uid
 
 print(json.dumps(response))
+

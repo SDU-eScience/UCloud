@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
@@ -12,6 +13,7 @@ import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.service.Loggable
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -30,7 +32,7 @@ data class TypedIpcHandler<Req, Resp>(
     val responseSerializer: KSerializer<Resp>,
 )
 
-inline fun <reified Req, reified Resp >TypedIpcHandler<Req, Resp>.handler(
+inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
     noinline handler: (user: IpcUser, request: Req) -> Resp
 ): IpcHandler {
     return IpcHandler(method) { user, request ->
@@ -42,6 +44,19 @@ inline fun <reified Req, reified Resp >TypedIpcHandler<Req, Resp>.handler(
             handler(user, mappedRequest)
         ) as JsonObject
     }
+}
+inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.suspendingHandler(
+    noinline block: suspend (user: IpcUser, request: Req) -> Resp
+): IpcHandler {
+    return handler { user, request ->
+        runBlocking {
+            block(user, request)
+        }
+    }
+}
+
+fun IpcHandler.register(server: IpcServer) {
+    server.addHandler(this)
 }
 
 abstract class IpcContainer(val namespace: String) {
@@ -101,7 +116,7 @@ private object IpcToIntegrationModuleApi : CallDescriptionContainer("ipcproxy") 
 
 class IpcServer(
     private val ipcSocketDirectory: String,
-    private val frontendProxyConfig: IMConfiguration.FrontendProxy,
+    private val frontendProxyConfig: VerifiedConfig.FrontendProxy?,
     private val rpcClient: AuthenticatedClient,
     private val rpcServer: RpcServer?,
 ) {
@@ -150,6 +165,7 @@ class IpcServer(
     private fun registerRpcHandler() {
         // If the rpcServer is null, then we are in the frontend proxy, and we don't need to do anything
         if (rpcServer == null) return
+        if (frontendProxyConfig == null) return
 
         rpcServer.implement(IpcToIntegrationModuleApi.proxy) {
             val sctx = (ctx.serverContext as? HttpContext) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

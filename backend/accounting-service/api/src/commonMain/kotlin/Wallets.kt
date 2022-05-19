@@ -275,6 +275,45 @@ data class WalletsRetrieveRecipientResponse(
     val numberOfMembers: Int,
 )
 
+@Serializable
+data class WalletsRetrieveProviderSummaryRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+
+    val filterOwnerId: String? = null,
+    val filterOwnerIsProject: Boolean? = null,
+
+    val filterCategory: String? = null,
+) : WithPaginationRequestV2
+
+@Serializable
+data class ProviderWalletSummary(
+    val id: String,
+    val owner: WalletOwner,
+    val categoryId: ProductCategoryId,
+    val productType: ProductType,
+    val chargeType: ChargeType,
+    val unitOfPrice: ProductPriceUnit,
+
+    @UCloudApiDoc("""
+        Maximum balance usable until a charge would fail
+        
+        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
+        in the tree.
+    """)
+    val maxUsableBalance: Long,
+
+    @UCloudApiDoc("""
+        Maximum balance usable as promised by a top-level grant giver 
+        
+        This balance is calculated when the data is requested and thus can immediately become invalid due to changes
+        in the tree.
+    """)
+    val maxPromisedBalance: Long,
+)
+
 object Wallets : CallDescriptionContainer("accounting.wallets") {
     const val baseContext = "/api/accounting/wallets"
 
@@ -383,6 +422,20 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
             description = """
                 You can use this endpoint to find information about a Workspace. This is useful when creating a 
                 sub-allocation.
+            """.trimIndent()
+        }
+    }
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    val retrieveProviderSummary = call<WalletsRetrieveProviderSummaryRequest, PageV2<ProviderWalletSummary>,
+        CommonErrorMessage>("retrieveProviderSummary") {
+        httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
+
+        documentation {
+            summary = "Retrieves a provider summary of relevant wallets"
+            description = """
+                This endpoint is only usable by providers. The endpoint will return a stable sorted summary of all
+                allocations that a provider currently has.
             """.trimIndent()
         }
     }

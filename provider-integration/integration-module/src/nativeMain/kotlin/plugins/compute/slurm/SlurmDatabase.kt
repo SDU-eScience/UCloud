@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.Serializable
+import dk.sdu.cloud.FindByStringId
 
 @Serializable
 data class SlurmBrowseFlags(
@@ -12,7 +13,10 @@ data class SlurmBrowseFlags(
     val filterIsActive: Boolean? = null,
 )
 
-object SlurmJobMapper {
+@Deprecated("Renamed to SlurmDatabase")
+val SlurmJobMapper = SlurmDatabase
+
+object SlurmDatabase {
     fun registerJob(
         job: SlurmJob,
         ctx: DBContext = dbConnection
@@ -20,8 +24,8 @@ object SlurmJobMapper {
         ctx.withSession { session ->
             session.prepareStatement(
                 """
-                    insert into job_mapping (local_id, ucloud_id, partition, status, lastknown) 
-                    values (:local_id, :ucloud_id, :partition, :status, :last_known)
+                    insert into job_mapping (local_id, ucloud_id, partition, status, lastknown, elapsed)
+                    values (:local_id, :ucloud_id, :partition, :status, :last_known, :elapsed)
                 """
             ).useAndInvokeAndDiscard {
                 bindString("ucloud_id", job.ucloudId)
@@ -29,6 +33,7 @@ object SlurmJobMapper {
                 bindString("partition", job.partition)
                 bindInt("status", job.status)
                 bindString("last_known", job.lastKnown)
+                bindLong("elapsed", job.elapsed)
             }
         }
     }
@@ -81,6 +86,38 @@ object SlurmJobMapper {
         return browse(SlurmBrowseFlags(filterUCloudId = ucloudId), ctx = ctx).firstOrNull()
     }
 
+    fun updateElapsedByUCloudId(
+        ucloudId: List<String>,
+        newElapsed: List<Long>,
+        ctx: DBContext = dbConnection,
+    ) {
+        val table = ucloudId.zip(newElapsed).map { (id, elapsed) ->
+            mapOf<String, Any?>(
+                "ucloud_id" to id,
+                "new_elapsed" to elapsed
+            )
+        }
+
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    with update_table as (
+                        ${safeSqlTableUpload("update", table)}
+                    )
+                    update job_mapping as mapping
+                    set elapsed = u.new_elapsed
+                    from update_table as u
+                    where
+                        u.ucloud_id = mapping.ucloud_id;
+                """
+            ).useAndInvokeAndDiscard(
+                prepare = {
+                    bindTableUpload("update", table)
+                }
+            )
+        }
+    }
+
     fun updateState(
         slurmIds: List<String>,
         newState: List<JobState>,
@@ -130,6 +167,55 @@ object SlurmJobMapper {
                     bindParameterList("job_id", slurmIds)
                 }
             )
+        }
+    }
+
+    fun retrieveSession(
+        token: FindByStringId,
+        ctx: DBContext = dbConnection,
+    ): InteractiveSession? {
+        val result = ArrayList<InteractiveSession>()
+
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    select token, rank, ucloud_id
+                    from session_mapping
+                    where
+                        (token = :token)
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("token", token.id)
+                },
+                readRow = { row ->
+                    result.add(
+                        InteractiveSession(
+                            row.getString(0)!!, row.getInt(1)!!, row.getString(2)!!
+                        )
+                    )
+                }
+            )
+        }
+
+        return result.firstOrNull()
+    }
+
+    fun registerSession(
+        iSession: InteractiveSession,
+        ctx: DBContext = dbConnection
+    ) {
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    insert or ignore into session_mapping (token, rank, ucloud_id) 
+                    values (:token, :rank, :ucloud_id)
+                """
+            ).useAndInvokeAndDiscard {
+                bindString("token", iSession.token)
+                bindInt("rank", iSession.rank)
+                bindString("ucloud_id", iSession.ucloudId)
+            }
         }
     }
 }

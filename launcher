@@ -36,7 +36,17 @@ slurm = False
 keycloak = False
 
 os.makedirs('.compose', exist_ok=True)
+os.makedirs('.compose/passwd', exist_ok=True)
+os.makedirs('.compose/cluster-home', exist_ok=True)
 os.makedirs('syncfiles', exist_ok=True)
+
+if not os.path.exists('.compose/passwd/passwd'):
+    with open('.compose/passwd/passwd', 'w') as outfile:
+        outfile.write('ucloud:x:998:998::/home/ucloud:/bin/sh')
+    with open('.compose/passwd/group', 'w') as outfile:
+        outfile.write('ucloud:x:998:')
+    with open('.compose/passwd/shadow', 'w') as outfile:
+        outfile.write('ucloud:!:19110::::::')
 
 def printCheckbox(value):
 	if value:
@@ -172,7 +182,7 @@ if slurm:
 	print()
 	print()
 	print("register and restart cluster with below command")
-	print(code("sudo docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && sudo docker-compose restart slurmdbd slurmctld"))
+	print(code("docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld"))
 	print()
 	print(header("Instructions:"))
 	print("Interact with " + code("docker-compose exec slurmctld bash") )

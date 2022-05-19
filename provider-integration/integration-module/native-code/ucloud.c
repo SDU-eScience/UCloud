@@ -68,4 +68,3 @@ void fd_add(int fd, fd_set *set) {
 void fd_zero(fd_set *set) {
     FD_ZERO(set);
 }
-

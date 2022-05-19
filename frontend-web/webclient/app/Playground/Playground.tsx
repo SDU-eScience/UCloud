@@ -3,7 +3,7 @@ import * as React from "react";
 import {useEffect} from "react";
 import {EveryIcon} from "@/ui-components/Icon";
 import {Grid, Box} from "@/ui-components";
-import {ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project} from "@/Project/Api";
@@ -31,12 +31,11 @@ export const Playground: React.FunctionComponent = () => {
                     />
                 ))}
             </Grid>
-
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
             <ProjectPlayground />
         </>
     );
-    return <MainContainer main={main}/>;
+    return <MainContainer main={main} />;
 };
 
 export const ProjectPlayground: React.FunctionComponent = () => {
@@ -53,10 +52,9 @@ export const ProjectPlayground: React.FunctionComponent = () => {
     }
 }
 
-const colors = [
+const colors: ThemeColor[] = [
     "black",
     "white",
-    "textBlack",
     "lightGray",
     "midGray",
     "gray",

@@ -9,6 +9,7 @@ import dk.sdu.cloud.plugins.storage.posix.S_ISREG
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
+import kotlinx.atomicfu.AtomicBoolean
 import kotlinx.atomicfu.atomic
 import kotlinx.atomicfu.locks.ReentrantLock
 import kotlinx.atomicfu.locks.withLock
@@ -205,23 +206,14 @@ fun SocketChannel.readUntilDelimiter(delim: Byte, buffer: ByteBuffer, timeoutSec
     }
 }
 
-inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, timeoutSeconds: Long = 120) {
+inline fun SocketChannel.readAtLeast(minimumBytes: Int, buffer: ByteBuffer, timeoutSeconds: Int = 120) {
     memScoped {
-        val readFds = alloc<fd_set>()
-        val writeFds = alloc<fd_set>()
-        val exceptFds = alloc<fd_set>()
-        val timeout = alloc<timeval>()
-
-        fd_zero(readFds.ptr)
-        fd_zero(writeFds.ptr)
-        fd_zero(exceptFds.ptr)
-        fd_add(fd, readFds.ptr)
-
-        timeout.tv_sec = timeoutSeconds
-        timeout.tv_usec = 0
+        val pfdRead = alloc<pollfd>()
+        pfdRead.fd = fd
+        pfdRead.events = POLLIN.toShort()
 
         while (buffer.readerRemaining() < minimumBytes) {
-            val isReadyToRead = select(fd + 1, readFds.ptr, writeFds.ptr, exceptFds.ptr, timeout.ptr) == 1
+            val isReadyToRead = poll(pfdRead.ptr, 1, timeoutSeconds) == 1
             if (!isReadyToRead) throw TimeoutException()
 
             var writerSpaceRemaining = buffer.writerSpaceRemaining()
@@ -268,12 +260,28 @@ const val NEW_LINE_DELIM = '\n'.code.toByte()
 @ThreadLocal
 private val readBuffer = allocateDirect(1024 * 1024 * 32)
 
+data class CorsSettings(
+    val allowOrigins: List<String>,
+    val allowMethods: List<HttpMethod>,
+    val maxAgeSeconds: Long,
+    val allowHeaders: List<String>,
+) {
+    val headers = listOf(
+        Header("Access-Control-Allow-Origin", allowOrigins.joinToString(", ")),
+        Header("Access-Control-Allow-Methods", allowMethods.joinToString(", ") { it.value }),
+        Header("Access-Control-Max-Age", "$maxAgeSeconds"),
+        Header("Access-Control-Allow-Headers", allowHeaders.joinToString(", ")),
+    )
+}
+
 @OptIn(ExperimentalUnsignedTypes::class)
 fun <AppData> startServer(
     port: Int,
     appDataFactory: () -> AppData,
     httpRequestHandler: HttpRequestHandler<AppData>? = null,
     webSocketRequestHandler: WebSocketRequestHandler<AppData>? = null,
+    cors: CorsSettings? = null,
+    isReadyHandle: AtomicBoolean? = null,
 ) = memScoped {
     val log = Logger("Server")
     val websocketGuid = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
@@ -295,6 +303,10 @@ fun <AppData> startServer(
 
     if (listen(serverHandle, 1024) == -1) {
         error("Could not bind to :$port")
+    }
+
+    if (isReadyHandle != null) {
+        isReadyHandle.value = true
     }
 
     while (true) {
@@ -581,10 +593,14 @@ fun <AppData> startServer(
                                 it.value.equals("close", ignoreCase = true)
                         }
 
-                        if (httpRequestHandler != null) {
-                            with(httpRequestHandler) {
-                                with(client) {
-                                    handleRequest(parsedMethod, path, requestHeaders, readBuffer)
+                        if (parsedMethod == HttpMethod.Options) {
+                            client.sendHttpResponse(204, defaultHeaders(payloadSize = 0, cors = cors))
+                        } else {
+                            if (httpRequestHandler != null) {
+                                with(httpRequestHandler) {
+                                    with(client) {
+                                        handleRequest(parsedMethod, path, requestHeaders, readBuffer)
+                                    }
                                 }
                             }
                         }
@@ -621,10 +637,11 @@ enum class WebSocketOpCode(val opcode: Int) {
     PONG(0xA)
 }
 
-fun defaultHeaders(payloadSize: Long = 0): List<Header> = listOf(
-    dateHeader(),
-    Header("Content-Length", payloadSize.toString())
-)
+fun defaultHeaders(payloadSize: Long = 0, cors: CorsSettings? = null): List<Header> = buildList {
+    add(dateHeader())
+    add(Header("Content-Length", payloadSize.toString()))
+    if (cors != null) addAll(cors.headers)
+}
 
 private fun dateHeader(): Header {
     memScoped {

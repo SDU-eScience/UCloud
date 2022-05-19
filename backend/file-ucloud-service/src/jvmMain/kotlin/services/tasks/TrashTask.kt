@@ -66,6 +66,7 @@ class TrashTask(
                         targetFile,
                         WriteConflictPolicy.RENAME
                     )
+
                 } catch (ex: FSException) {
                     if (log.isDebugEnabled) {
                         log.debug("Caught an exception while deleting files: ${ex.stackTraceToString()}")

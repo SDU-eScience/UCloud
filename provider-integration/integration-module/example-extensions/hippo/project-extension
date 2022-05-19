@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+import re
+import sys
+import subprocess
+import urllib3
+import json
+import shutil
+
+sys.path.append('/opt/ucloud/hippo/lib')
+urllib3.disable_warnings()
+
+from ipa import *
+from ess import *
+from slurm import *
+from common import *
+
+# =====================================================================================================================
+# Configuration
+# =====================================================================================================================
+
+FREE_CORE_HOURS = 10
+FREE_QUOTA_GIGS = 10
+
+ESS_FILE_SYSTEM = 'ess1'
+ESS_PATH_PREFIX = '/gpfs/ess1/work/'
+
+# =====================================================================================================================
+# Loading request
+# =====================================================================================================================
+
+request = json.loads(open(sys.argv[1]).read())
+request_type = request['type']
+
+# =====================================================================================================================
+# Utilities
+# =====================================================================================================================
+
+def generate_name(ucloud_title, allocated_gid):
+    return re.sub(r'[^a-z0-9]', '_', ucloud_title.lower()) + '_' + str(allocated_gid)
+
+def create_group(gid, name):
+    args = { 'group' : name, 'gid' : gid }
+    ipa_group_create(args)
+
+    args = { 'parent' : 'hippo_users', 'group' : name }
+    ipa_group_add_group(args)
+
+def delete_group(gid):
+    group_name = get_group_by_gid(gid)
+    if group_name is not None:
+        ipa_group_delete({ 'group' : group_name })
+
+def add_user_to_group(uid, gid):
+    group_name = get_group_by_gid(gid)
+    username = get_username_by_uid(uid)
+
+    if group_name is not None and username is not None:
+        ipa_group_add_user({ 'user' : username, 'group' : group_name })
+
+def remove_user_from_group(uid, gid):
+    group_name = get_group_by_gid(gid)
+    username = get_username_by_uid(uid)
+
+    if group_name is not None and username is not None:
+        ipa_group_remove_user({ 'user' : username, 'group' : group_name })
+    
+# NOTE(Dan): /usr/bin/getent works fine with FreeIPA so we will use it instead of the API since we cannot easily
+# lookup by UID/GID.
+
+def get_gid_by_group(group_name):
+    result = subprocess.run(['/usr/bin/getent', 'group', group_name], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return int(result.stdout.decode('UTF-8').split(':')[2])
+
+def get_group_by_gid(gid):
+    result = subprocess.run(['/usr/bin/getent', 'group', str(gid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+def get_username_by_uid(uid):
+    result = subprocess.run(['/usr/bin/getent', 'passwd', str(uid)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    if result.returncode != 0:
+        return None
+    return result.stdout.decode('UTF-8').split(':')[0]
+
+# =====================================================================================================================
+# Authenticate with services
+# =====================================================================================================================
+
+ess_config = json.loads(open('/etc/ucloud/ess.json').read())
+ess_auth_ok = ess_authenticate(ess_config['username'], ess_config['password'], ess_config['server'])
+if not ess_auth_ok:
+    print('Could not authenticate with ESS')
+    exit(1)
+
+ipa_config = json.loads(open('/etc/ucloud/ipa.json').read())
+ipa_auth_ok = ipa_authenticate(ipa_config['username'], ipa_config['password'], ipa_config['server'], ipa_config['cert'])
+if not ipa_auth_ok:
+    print('Could not authenticate with IPA')
+    exit(1)
+
+# =====================================================================================================================
+# Event handler
+# =====================================================================================================================
+
+if request_type == 'project_renamed':
+    gid = request['newProject']['localId']
+    if request['oldProject'] is None:
+        ucloud_project_id = request['newProject']['project']['id']
+        name = generate_name(request['newTitle'], gid)
+        create_group(gid, name)
+
+        args = {
+            'account' : name,
+            'credits' : FREE_CORE_HOURS * 60,
+            'description' : f'UCloud Project {ucloud_project_id}',
+            'organization' : 'ucloud'
+        }
+        slurm_account_create(args)
+
+        args = { 
+            'filesystem' : ESS_FILE_SYSTEM,
+            'fileset' : f'work-{name}',
+            'parent' : 'root',
+            'path' : f'{ESS_PATH_PREFIX}{name}',
+            'owner' : f'root:{name}',
+            'permissions' : '2770'
+        }
+        ess_fileset_create(args)
+
+        args = {
+            'filesystem' : ESS_FILE_SYSTEM,
+            'fileset' : f'work-{name}',
+            'space' : f'{FREE_QUOTA_GIGS}G',
+            'files' : '0'
+        }
+        ess_fileset_quota(args)
+
+elif request_type == 'group_created':
+    for group in request['groups']:
+        gid = group['localId']
+        create_group(gid, generate_name(group['group']['specification']['title'], gid))
+
+elif request_type == 'group_deleted':
+    for group in request['groups']:
+        delete_group(group['localId'])
+
+elif request_type == 'members_added_to_project':
+    gid = request['newProject']['localId']
+    for member in request['newMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        add_user_to_group(uid, gid)
+        account_name = generate_name(request['newProject']['project']['specification']['title'], gid)
+        slurm_user_create({ 'account' : account_name, 'user' : get_username_by_uid(uid) })
+
+elif request_type == 'members_removed_from_project':
+    gid = request['newProject']['localId']
+    for member in request['removedMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        remove_user_from_group(uid, gid)
+        account_name = generate_name(request['newProject']['project']['specification']['title'], gid)
+        slurm_user_delete_association({ 'account' : account_name, 'user' : get_username_by_uid(uid) })
+
+elif request_type == 'members_added_to_group':
+    gid = request['group']['localId']
+    for member in request['newMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        add_user_to_group(uid, gid)
+
+elif request_type == 'members_remove_from_group':
+    gid = request['group']['localId']
+    for member in request['removedMembers']:
+        uid = member['uid']
+        if uid is None: continue
+        remove_user_from_group(uid, gid)
+
+print('{}')

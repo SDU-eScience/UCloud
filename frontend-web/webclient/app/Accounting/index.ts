@@ -69,7 +69,19 @@ export interface TransferRecipient {
     numberOfMembers: number;
 }
 
-export function retrieveRecipient(request: { query: string }): APICallParameters {
+export interface RetrieveRecipientResponse {
+    id: string;
+    isProject: boolean;
+    title: string;
+    principalInvestigator: string;
+    numberOfMembers: number;
+}
+
+interface RetrieveRecipientRequest {
+    query: string;
+}
+
+export function retrieveRecipient(request: RetrieveRecipientRequest): APICallParameters<RetrieveRecipientRequest, RetrieveRecipientResponse> {
     return apiRetrieve(request, "/api/accounting/wallets", "recipient");
 }
 
@@ -127,7 +139,7 @@ export function rootDeposit(request: BulkRequest<RootDepositRequestItem>): APICa
     return apiUpdate(request, "/api/accounting", "rootDeposit");
 }
 
-export type WalletOwner = { type: "user"; username: string } | { type: "project"; projectId: string; };
+export type WalletOwner = {type: "user"; username: string} | {type: "project"; projectId: string;};
 
 export interface WalletAllocation {
     id: string;

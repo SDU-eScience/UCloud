@@ -7,15 +7,9 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlin.random.Random
-import kotlin.random.nextULong
+import kotlinx.serialization.*
+import kotlinx.serialization.json.*
+import kotlin.random.*
 
 class EnvoyConfigurationService(
     private val configDir: String,
@@ -44,9 +38,11 @@ class EnvoyConfigurationService(
     fun start(port: Int?) {
         writeConfigurationFile(port ?: 8889)
 
+        val logFile = "/tmp/envoy.log"
+
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
-        startProcess(
+        val envoyPid = startProcess(
             args = listOf(
                 "/usr/local/bin/getenvoy",
                 "run",
@@ -58,13 +54,15 @@ class EnvoyConfigurationService(
 
             createStreams = {
                 val devnull = NativeFile.open("/dev/null", readOnly = false)
-                val logFile = NativeFile.open("/tmp/envoy.log", readOnly = false, truncateIfNeeded = true)
+                val logFile = NativeFile.open(logFile, readOnly = false, truncateIfNeeded = false)
                 ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
             }
         )
 
-        ProcessingScope.launch {
+        val job = ProcessingScope.launch {
             val entries = hashMapOf<String, Pair<EnvoyRoute, EnvoyCluster?>>()
+            val wsRoutes = ArrayList<EnvoyRoute.ShellSession>()
+
             run {
                 val id = "_UCloud"
                 entries[id] = Pair(
@@ -88,8 +86,23 @@ class EnvoyConfigurationService(
 
                 val routes = entries.values.map { it.first }
                 val clusters = entries.values.mapNotNull { it.second }
-                configure(configDir, routes, clusters)
+
+                // TODO(Roman): refactor later, also handle wsRoutes lifecycle
+                wsRoutes.addAll(routes.filterIsInstance<EnvoyRoute.ShellSession>())
+                val allRoutes: MutableList<EnvoyRoute> = mutableListOf()
+                allRoutes.addAll(routes)
+                allRoutes.addAll(wsRoutes)
+
+                configure(configDir, allRoutes, clusters)
             }
+        }
+
+        ProcessWatcher.addWatchBlocking(envoyPid) { statusCode ->
+            log.warn("Envoy has died unexpectedly! It exited with $statusCode.")
+            log.warn("You might be able to read additional information from: $logFile")
+            log.warn("We will attempt to restart Envoy now!")
+            job.cancel()
+            start(port)
         }
     }
 
@@ -107,6 +120,18 @@ node:
 
 admin:
   access_log_path: "/dev/stdout"
+  
+layered_runtime:
+  layers:
+  - name: static_layer_0
+    static_layer:
+      envoy:
+        resource_limits:
+          listener:
+            example_listener_name:
+              connection_limit: 10000
+      overload:
+        global_downstream_max_connections: 50000
 
 static_resources:
   listeners:
@@ -174,6 +199,7 @@ data class EnvoyResources<T>(
     }
 )
 
+
 sealed class EnvoyRoute {
     abstract val cluster: String
 
@@ -201,6 +227,7 @@ sealed class EnvoyRoute {
     ) : EnvoyRoute()
 }
 
+
 @Serializable
 class EnvoyRouteConfiguration(
     @SerialName("@type")
@@ -211,6 +238,7 @@ class EnvoyRouteConfiguration(
 ) {
     companion object {
         fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
+
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
@@ -257,9 +285,11 @@ class EnvoyRouteConfiguration(
                                                                 put("invert_match", JsonPrimitive(true))
                                                                 put("present_match", JsonPrimitive(true))
                                                             } else {
-                                                                put("exact_match", JsonPrimitive(
-                                                                    base64Encode(ucloudIdentity.encodeToByteArray())
-                                                                ))
+                                                                put(
+                                                                    "exact_match", JsonPrimitive(
+                                                                        base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                    )
+                                                                )
                                                             }
                                                         }
                                                     )

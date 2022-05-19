@@ -1,7 +1,11 @@
 package dk.sdu.cloud
 
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.UCLOUD_IM_PORT
 import dk.sdu.cloud.http.OutgoingCallResponse
@@ -10,199 +14,270 @@ import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.LogLevel
 import dk.sdu.cloud.service.currentLogLevel
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.ProcessStreams
-import dk.sdu.cloud.utils.replaceThisProcess
-import dk.sdu.cloud.utils.writeText
+import dk.sdu.cloud.utils.*
 import kotlinx.serialization.encodeToString
-import platform.posix.sleep
+import kotlinx.cinterop.*
+import platform.posix.*
 import kotlin.native.concurrent.TransferMode
 import kotlin.native.concurrent.Worker
 import kotlin.system.exitProcess
 
 fun runInstaller(
-    core: IMConfiguration.Core,
-    server: IMConfiguration.Server,
     ownExecutable: String,
 ) {
-    println(
-        "Welcome to the UCloud/IM installer. This installation process will register an integration module with " +
-            "a UCloud/Core instance."
-    )
+    val isInComposeDev: Boolean = run {
+        val hasBackend = verifyHost(Host("backend", "http", 8080)) is VerifyResult.Ok<*>
+        val hasFrontend = verifyHost(Host("frontend", "http", 9000)) is VerifyResult.Ok<*>
 
-    if (server.ucloud.host == "backend") {
-        println("This setup has been detected as a local development setup, using the in-tree compose file.")
-    } else {
-        println("Not yet implemented for non-compose setups")
-        exitProcess(1)
+        hasBackend && hasFrontend
     }
 
-    val rpcClient = RpcClient()
-    OutgoingHttpRequestInterceptor().also {
-        it.install(
-            rpcClient, FixedOutgoingHostResolver(
-                HostInfo(
-                    server.ucloud.host,
-                    server.ucloud.scheme,
-                    server.ucloud.port
-                )
-            )
-        )
-    }
-
-    val authenticatedClient = AuthenticatedClient(rpcClient, OutgoingHttpCall) {}
-
-    val providerId = "development"
-    val port = 8889
-    val result = try {
-        Providers.requestApproval.callBlocking(
-            ProvidersRequestApprovalRequest.Information(
-                ProviderSpecification(
-                    providerId,
-                    "integration-module",
-                    false,
-                    port
-                )
-            ),
-            authenticatedClient
-        ).orThrow()
-    } catch (ex: Throwable) {
-        println()
-        println("UCloud/IM could not connect to UCloud/Core!")
-
-        println("  - If you are running a local setup, please make sure UCloud is running.")
-        println("  - If you are attempting to register a production system, make sure that UCloud/IM can connect to " +
-            "UCloud at ${server.ucloud.scheme}://${server.ucloud.host}:${server.ucloud.port}")
-
-        println()
-
-        runCatching {
-            val path = "/tmp/ucloud-im-error.log"
-            NativeFile.open(path, readOnly = false).writeText(ex.stackTraceToString())
-            println("Error log written to: $path")
+    if (isInComposeDev) {
+        sendTerminalMessage {
+            bold { blue { line("Welcome to the UCloud/IM installer.") } }
+            code { inline("./launcher") }
+            line(" usage detected!")
+            line()
+            line("This installation process will register the integration module with the UCloud/Core instance.")
+            line()
         }
 
-        exitProcess(1)
-    }
+        val rpcClient = RpcClient()
+        OutgoingHttpRequestInterceptor().also {
+            it.install(rpcClient, FixedOutgoingHostResolver(HostInfo("backend", "http", 8080)))
+        }
 
-    val token = when (result) {
-        is ProvidersRequestApprovalResponse.RequiresSignature -> result.token
-        is ProvidersRequestApprovalResponse.AwaitingAdministratorApproval -> result.token
-    }
+        val authenticatedClient = AuthenticatedClient(rpcClient, OutgoingHttpCall) {}
 
-    println()
-    println()
-
-    println(
-        "UCloud/IM has registered with UCloud/Core. Please finish the configuration by approving the connection" +
-            " here:"
-    )
-    println("http://localhost:9000/app/admin/providers/register?token=$token")
-
-    println()
-    println()
-
-    currentLogLevel = LogLevel.INFO
-    val envoy = EnvoyConfigurationService(ENVOY_CONFIG_PATH)
-    val h2oServer = RpcServer(UCLOUD_IM_PORT, showWelcomeMessage = false)
-
-    val ip = IntegrationProvider(providerId)
-    h2oServer.implement(ip.welcome) {
-        currentLogLevel = LogLevel.INFO
-
-        NativeFile.open(
-            "${IMConfiguration.CONFIG_PATH}/core.json",
-            readOnly = false,
-            truncateIfNeeded = true,
-            mode = "644".toInt(8)
-        ).writeText(
-            defaultMapper.encodeToString(
-                core.copy(
-                    providerId = providerId,
-                    certificateFile = "${IMConfiguration.CONFIG_PATH}/certificate.txt"
-                )
-            )
-        )
-
-        NativeFile.open(
-            "${IMConfiguration.CONFIG_PATH}/certificate.txt",
-            readOnly = false,
-            truncateIfNeeded = true,
-            mode = "644".toInt(8)
-        ).writeText(request.createdProvider.publicKey)
-
-        NativeFile.open(
-            "${IMConfiguration.CONFIG_PATH}/server.json",
-            readOnly = false,
-            truncateIfNeeded = true,
-            mode = "600".toInt(8)
-        ).writeText(
-            defaultMapper.encodeToString(
-                server.copy(
-                    refreshToken = request.createdProvider.refreshToken
-                )
-            )
-        )
-
-        data class ShutdownArgs(
-            val ownExecutable: String,
-            val refreshToken: String,
-            val server: IMConfiguration.Server,
-            val providerId: String
-        )
-        Worker.start(name = "Shutting down")
-            .execute(TransferMode.SAFE, {
-                ShutdownArgs(ownExecutable, request.createdProvider.refreshToken, server, providerId)
-            }) {
-                runShutdownWorker(it.ownExecutable, it.refreshToken, it.server, it.providerId)
+        val providerId = getenv("UCLOUD_PROVIDER_ID")?.toKString() ?: "development"
+        val port = 8889
+        val result = try {
+            Providers.requestApproval.callBlocking(
+                ProvidersRequestApprovalRequest.Information(
+                    ProviderSpecification(
+                        providerId,
+                        "integration-module",
+                        false,
+                        port
+                    )
+                ),
+                authenticatedClient
+            ).orThrow()
+        } catch (ex: Throwable) {
+            val path = "/tmp/ucloud-im-error.log"
+            sendTerminalMessage {
+                bold { red { line("UCloud/IM could not connect to UCloud/Core!") } }
+                line("Please make sure that the backend is running (see output of ./launcher for more information)")
+                line()
+                line("Error log written to: $path")
+            }
+            
+            runCatching {
+                NativeFile.open(path, readOnly = false).writeText(ex.stackTraceToString())
             }
 
-        OutgoingCallResponse.Ok(IntegrationProviderWelcomeResponse)
-    }
+            exitProcess(1)
+        }
 
-    envoy.start(port)
-    h2oServer.start()
+        val token = when (result) {
+            is ProvidersRequestApprovalResponse.RequiresSignature -> result.token
+            is ProvidersRequestApprovalResponse.AwaitingAdministratorApproval -> result.token
+        }
+
+        sendTerminalMessage {
+            bold { green { line("UCloud/IM has registered with UCloud/Core.") } }
+            line()
+            line("Please finish the configuration by approving the connection here:")
+            code { line("http://localhost:9000/app/admin/providers/register?token=$token") }
+            line()
+            bold { blue { line("Awaiting response from UCloud/Core. Please keep UCloud/IM running!") } }
+        }
+
+        currentLogLevel = LogLevel.INFO
+        val envoy = EnvoyConfigurationService(ENVOY_CONFIG_PATH)
+        val server = RpcServer(UCLOUD_IM_PORT, showWelcomeMessage = false)
+
+        val ip = IntegrationProvider(providerId)
+        server.implement(ip.welcome) {
+            currentLogLevel = LogLevel.INFO
+
+            NativeFile.open(
+                "/etc/ucloud/core.yaml",
+                readOnly = false,
+                truncateIfNeeded = true,
+                mode = "644".toInt(8)
+            ).writeText(
+                """
+                    providerId: $providerId
+
+                    hosts:
+                        self:
+                            host: integration-module
+                            scheme: http
+                            port: 8889
+
+                        ucloud:
+                            host: backend
+                            scheme: http
+                            port: 8080
+
+                """.trimIndent()
+            )
+
+            NativeFile.open(
+                "/etc/ucloud/ucloud_crt.pem",
+                readOnly = false,
+                truncateIfNeeded = true,
+                mode = "644".toInt(8)
+            ).writeText(request.createdProvider.publicKey)
+
+            NativeFile.open(
+                "/etc/ucloud/server.yaml",
+                readOnly = false,
+                truncateIfNeeded = true,
+                mode = "600".toInt(8)
+            ).writeText(
+                """
+                    refreshToken: ${request.createdProvider.refreshToken}
+                """.trimIndent()
+            )
+
+            NativeFile.open(
+                "/etc/ucloud/plugins.yaml",
+                readOnly = false,
+                truncateIfNeeded = true,
+                mode = "660".toInt(8)
+            ).writeText(
+                """
+                    connection:
+                        type: UCloud
+
+                        redirectTo: http://localhost:9000/app
+
+                        extensions:
+                            onConnectionComplete: /opt/ucloud/example-extensions/ucloud-connection
+
+                    projects:
+                        type: Simple
+                        
+                        unixGroupNamespace: 1000
+                        extensions:
+                            all: /opt/ucloud/example-extensions/project-extension
+
+                    jobs:
+                        default:
+                            type: Slurm
+                            matches: im-cpu
+                            partition: normal
+                            mountpoint: /data
+                            useFakeMemoryAllocations: true
+
+                    files:
+                        default:
+                            type: Posix
+                            matches: im-storage
+
+                    fileCollections:
+                        default:
+                            type: Posix
+                            matches: im-storage
+                            
+                            simpleHomeMapper:
+                            - title: Home
+                              prefix: /home
+                """.trimIndent()
+            )
+
+            NativeFile.open(
+                "/etc/ucloud/products.yaml",
+                readOnly = false,
+                truncateIfNeeded = true,
+                mode = "660".toInt(8)
+            ).writeText(
+                """
+                    compute:
+                        im-cpu:
+                        - im-cpu-1
+
+                    storage:
+                        im-storage:
+                        - im-storage
+                """.trimIndent()
+            )
+
+            data class ShutdownArgs(
+                val ownExecutable: String,
+                val refreshToken: String,
+                val providerId: String
+            )
+            Worker.start(name = "Shutting down")
+                .execute(TransferMode.SAFE, {
+                    ShutdownArgs(ownExecutable, request.createdProvider.refreshToken, providerId)
+                }) {
+                    runShutdownWorker(it.ownExecutable, it.refreshToken, it.providerId)
+                }
+
+            OutgoingCallResponse.Ok(IntegrationProviderWelcomeResponse)
+        }
+
+        envoy.start(port)
+        server.start()
+    } else {
+        sendTerminalMessage {
+            bold { red { line("No configuration detected!") } }
+            line()
+            line("Development setup not detected - Manual configuration is required!")
+            line("See documentation for more details.")
+        }
+    }
 }
 
 private fun runShutdownWorker(
     ownExecutable: String,
     refreshToken: String,
-    server: IMConfiguration.Server,
     providerId: String
 ) {
     sleep(1)
     val rpcClient = RpcClient()
     OutgoingHttpRequestInterceptor().also {
-        it.install(
-            rpcClient, FixedOutgoingHostResolver(
-                HostInfo(
-                    server.ucloud.host,
-                    server.ucloud.scheme,
-                    server.ucloud.port
-                )
-            )
-        )
+        it.install(rpcClient, FixedOutgoingHostResolver(HostInfo("backend", "http", 8080)))
     }
 
-    /*
+    val authenticateClient = RefreshingJWTAuthenticator(
+        rpcClient,
+        JwtRefresher.Provider(refreshToken, OutgoingHttpCall),
+        becomesInvalidSoon = { true }
+    ).authenticateClient(OutgoingHttpCall)
+
     @Suppress("UNCHECKED_CAST")
-    Products.createProduct.callBlocking(
-        Product.Compute(
-            "im1",
-            0L,
-            ProductCategoryId("im1", providerId),
-            "Example product",
-            cpu = 1,
-            memoryInGigs = 1,
-            gpu = 0
+    Products.create.callBlocking(
+        bulkRequestOf(
+            Product.Compute(
+                name = "im-cpu-1",
+                pricePerUnit = 1000L,
+                category = ProductCategoryId("im-cpu", providerId),
+                description = "Example product",
+                cpu = 1,
+                memoryInGigs = 1,
+                gpu = 0,
+            ),
+
+            Product.Storage(
+                name = "im-storage",
+                pricePerUnit = 1L,
+                category = ProductCategoryId("im-storage", providerId),
+                description = "Example product",
+                unitOfPrice = ProductPriceUnit.PER_UNIT,
+                chargeType = ChargeType.DIFFERENTIAL_QUOTA,
+            )
         ),
-        RefreshingJWTAuthenticator(
-            rpcClient,
-            JwtRefresher.Provider(refreshToken),
-            becomesInvalidSoon = { true }
-        ).authenticateClient(OutgoingHttpCall)
+        authenticateClient
     ).orThrow()
-     */
-    println("UCloud/IM has been configured successfully. UCloud/IM will now restart...")
+
+    sendTerminalMessage {
+        bold { green { line("UCloud/IM has been configured successfully. UCloud/IM will now restart...") } }
+    }
+
     replaceThisProcess(listOf(ownExecutable, "server"), ProcessStreams())
 }
+

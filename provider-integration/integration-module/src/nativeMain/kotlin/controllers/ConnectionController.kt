@@ -3,25 +3,41 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
-import dk.sdu.cloud.plugins.ConnectionResponse
-import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.provider.api.IntegrationProviderConnectResponse
-import dk.sdu.cloud.provider.api.IntegrationProviderRetrieveManifestResponse
+import dk.sdu.cloud.ipc.sendRequestBlocking
+import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.provider.api.*
+import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
-import dk.sdu.cloud.utils.NativeFile
-import dk.sdu.cloud.utils.ProcessStreams
-import dk.sdu.cloud.utils.startProcess
+import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import platform.posix.*
+import kotlinx.coroutines.runBlocking
+
+@Serializable
+data class ConnectionEntry(
+    val username: String,
+    val uid: Int,
+)
+
+@Serializable
+data class FindByUsername(
+    val username: String
+)
 
 object ConnectionIpc : IpcContainer("connections") {
+    val browse = browseHandler<PaginationRequestV2, PageV2<ConnectionEntry>>()
+    val registerConnection = updateHandler<ConnectionEntry, Unit>("registerConnection")
+    val removeConnection = updateHandler<FindByUsername, Unit>("removeConnection")
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
 }
 
@@ -55,13 +71,35 @@ class ConnectionController(
                 null,
             )
         })
+
+        server.addHandler(ConnectionIpc.browse.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            UserMapping.browseMappings(request)
+        })
+
+        server.addHandler(ConnectionIpc.registerConnection.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+            UserMapping.insertMapping(request.username, request.uid, controllerContext.pluginContext, null)
+
+            IntegrationControl.approveConnection.callBlocking(
+                IntegrationControlApproveConnectionRequest(request.username),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        })
+
+        server.addHandler(ConnectionIpc.removeConnection.handler { user, request ->
+            if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            UserMapping.clearMappingByUCloudId(request.username)
+        })
     }
 
     override fun RpcServer.configure() {
         if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        val config = controllerContext.configuration
 
-        val providerId = controllerContext.configuration.core.providerId
-        val plugin = controllerContext.plugins.connection ?: return
+        val providerId = config.core.providerId
+        val plugin = config.plugins.connection ?: return
         val pluginContext = controllerContext.pluginContext
 
         with(pluginContext) {
@@ -161,12 +199,14 @@ class ConnectionController(
 
                 // Allocate a port, if the IM/User does not have a static port allocated.
                 // Static ports are used only for development purposes.
-                val devInstance = controllerContext.configuration.core.developmentInstance
+                val devInstances = config.server.developmentMode.predefinedUserInstances
+                val devInstance = devInstances.find { it.username == request.username }
                 val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
 
                 // Launch the IM/User instance
-                if (devInstance?.userId != uid) {
-                    startProcess(
+                if (devInstance == null) {
+                    val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
+                    val uimPid = startProcess(
                         listOf(
                             "/usr/bin/sudo",
                             "-u",
@@ -178,10 +218,21 @@ class ConnectionController(
                         createStreams = {
                             val devnull = NativeFile.open("/dev/null", readOnly = false)
                             unlink("/tmp/ucloud_${uid}.log")
-                            val logFile = NativeFile.open("/tmp/ucloud_${uid}.log", readOnly = false)
+                            val logFile = NativeFile.open(logFilePath, readOnly = false)
                             ProcessStreams(devnull.fd, logFile.fd, logFile.fd)
                         }
                     )
+
+                    // NOTE(Dan): We do not wish to kill this process on exit, since we do not have permissions to
+                    // kill it. This is instead handled by the ping+pong protocol.
+                    ProcessWatcher.addWatch(uimPid, killOnExit = false) { statusCode ->
+                        log.warn("IM/User for uid=$uid terminated unexpectedly with statusCode=$statusCode")
+                        log.warn("You might be able to find more information in the log file: $logFilePath")
+                        log.warn("The instance will be automatically restarted when the user makes another request")
+                        uimMutex.withLock {
+                            uimLaunched.remove(request.username)
+                        }
+                    }
                 }
 
                 // Configure Envoy to route the relevant IM/User traffic to the newly launched instance
@@ -197,6 +248,10 @@ class ConnectionController(
 
             OutgoingCallResponse.Ok(Unit)
         }
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 
@@ -232,6 +287,29 @@ object UserMapping {
         return result
     }
 
+    fun browseMappings(request: PaginationRequestV2): PageV2<ConnectionEntry> {
+        val items = ArrayList<ConnectionEntry>()
+        dbConnection.withSession { session ->
+            session.prepareStatement(
+                """
+                    select ucloud_id, local_identity
+                    from user_mapping
+                """
+            ).useAndInvoke(
+                prepare = {},
+                readRow = { row ->
+                    val ucloudUsername = row.getString(0)!!
+                    val uid = row.getString(1)!!.toIntOrNull()
+                    if (uid != null) {
+                        items.add(ConnectionEntry(ucloudUsername, uid))
+                    }
+                }
+            )
+        }
+
+        return PageV2(items.size, items, null)
+    }
+
     fun ucloudIdToLocalId(ucloudId: String): Int? {
         var result: Int? = null
 
@@ -255,9 +333,34 @@ object UserMapping {
         return result
     }
 
+    fun ucloudIdToLocalIdBulk(ucloudIds: List<String>): Map<String, Int> {
+        val result = HashMap<String, Int>()
+        dbConnection.withTransaction { session ->
+            val queryTable = ucloudIds.map { mapOf("ucloud_id" to it) }
+            session.prepareStatement(
+                """
+                    with query as (
+                        ${safeSqlTableUpload("query", queryTable)}
+                    )
+                    select ucloud_id, local_identity
+                    from
+                        user_mapping um join
+                        query q on um.ucloud_id = q.ucloud_id
+                """
+            ).useAndInvoke(
+                prepare = { bindTableUpload("query", queryTable) },
+                readRow = { row ->
+                    result[row.getString(0)!!] = row.getString(1)!!.toInt()
+                }
+            )
+        }
+        return result
+    }
+
     fun insertMapping(
         ucloudId: String,
         localId: Int,
+        pluginContext: PluginContext,
         expiry: Long?,
         ctx: DBContext = dbConnection
     ) {
@@ -273,6 +376,15 @@ object UserMapping {
                     bindString("local_id", localId.toString())
                 },
             )
+        }
+
+        with(pluginContext) {
+            val projectPlugin = config.plugins.projects
+            if (projectPlugin != null) {
+                with(projectPlugin) {
+                    runBlocking { onUserMappingInserted(ucloudId, localId) }
+                }
+            }
         }
     }
 

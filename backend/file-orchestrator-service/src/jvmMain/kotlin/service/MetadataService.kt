@@ -19,15 +19,48 @@ class MetadataService(
     private val collections: FileCollectionService,
     private val templates: MetadataTemplateNamespaces,
 ) {
-    suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+
+    suspend fun onFileMovedToTrash(batch: List<FindByPath>) {
         db.withSession { session ->
+            val requestedPaths = batch.map { it.id }
+            val shareInfo = checkIfShareAndChangeCollectionId(requestedPaths, session)
+            val paths = shareInfo.map { shareInfo -> convertShareInfoToPaths(shareInfo, requestedPaths) }
+
             session.sendPreparedStatement(
                 {
                     val oldPaths by parameterList<String>()
+                    for (item in paths) {
+                        oldPaths.add(item.normalize())
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:old_paths::text[]) old_path
+                    )
+                    delete from file_orchestrator.metadata_documents as f 
+                    using entries as e
+                    where (f.path = e.old_path or f.path like e.old_path || '/%')
+                """
+            )
+        }
+    }
+
+    suspend fun onFilesMoved(batch: List<FilesMoveRequestItem>) {
+        db.withSession { session ->
+            val requestedOldPaths = batch.map { it.oldId }
+            val requestedNewPaths = batch.map { it.newId }
+            val oldPathsResolved = checkIfShareAndChangeCollectionId(requestedOldPaths, session).map { shareInfo -> convertShareInfoToPaths(shareInfo, requestedOldPaths) }
+            val newPathsResolved = checkIfShareAndChangeCollectionId(requestedNewPaths, session).map { shareInfo -> convertShareInfoToPaths(shareInfo, requestedNewPaths) }
+
+            session.sendPreparedStatement(
+                {
+                    val oldPaths by parameterList<String>()
+                    for (item in oldPathsResolved) {
+                        oldPaths.add(item.normalize())
+                    }
                     val newPaths by parameterList<String>()
-                    for (item in batch) {
-                        oldPaths.add(item.oldId.normalize())
-                        newPaths.add(item.newId.normalize())
+                    for (item in newPathsResolved) {
+                        newPaths.add(item.normalize())
                     }
                 },
                 """
@@ -46,22 +79,80 @@ class MetadataService(
         }
     }
 
-    suspend fun onFilesDeleted(batch: List<FindByStringId>) {
-        db.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    val paths by parameterList<String>()
-                    for (item in batch) paths.add(item.id.normalize())
-                },
-                """
-                    with entries as (
-                        select unnest(:paths::text[]) path
-                    )
-                    delete from file_orchestrator.metadata_documents d
-                    using entries e
-                    where
-                        (e.path = d.path or d.path like e.path || '/%')
-                """
+    private data class ShareInfo(
+        val resolvedId: String,
+        val shareId: String,
+        val sharePoint: String?
+    )
+
+    /*
+     * Takes a list of paths and checks if the file collection is a share. If this is the case it finds the original
+     * file collection ID to the file collection from which the share was made. It also finds the sharePoint.
+     * A sharePoint is the original path up to the location where the share was created.
+     * E.g /7/toShare/files/my.txt is a share where the original file is at /3/folders/toShare/files/my.txt
+     * this would return following
+     * ShareInfo(
+     *      resolvedId: "/3"
+     *      shareId: "/7"
+     *      sharePoint: "/3/folders"
+     * )
+     * 
+     * If the given path is not a share the resolvedId and shareId will be the same and the sharePoint will be null.
+     */
+    private suspend fun checkIfShareAndChangeCollectionId(paths: List<String>, session: AsyncDBConnection): List<ShareInfo> {
+        return session.sendPreparedStatement(
+            {
+                setParameter("ids", paths.map { "/" + extractPathMetadata(it).collection })
+            },
+            """
+                with ids as (
+                    select i.i id
+                    from unnest(:ids::text[]) i
+                )
+                select coalesce(substring(original_file_path, '^\/\d+'), id), id, original_file_path
+                from file_orchestrator.shares s right join ids i on available_at = i.id;
+            """, debug = true
+        ).rows
+            .map { row ->
+                ShareInfo(
+                    row.getString(0)!!,
+                    row.getString(1)!!,
+                    row.getString(2)
+                )
+            }
+
+    }
+
+    /*
+     * Takes a ShareInfo and a list of paths. If the ShareInfo is not a share the located path is return. If it is a 
+     * share then the located path is stripped of its filecollectionID and replaced with the share point. Returns the
+     * resolved path.
+     * Room for improvement
+     */
+    private fun convertShareInfoToPaths(info: ShareInfo, originalPaths: List<String>): String {
+        return if (info.shareId == info.resolvedId) {
+            originalPaths.find { extractPathMetadata(it).collection == info.shareId.drop(1) }!!
+        } else {
+            originalPaths.find { extractPathMetadata(it).collection == info.shareId.drop(1) }!!.replace(
+                Regex("""^\/\d+"""),
+                info.sharePoint!!
+            )
+        }
+    }
+
+
+    /*
+     * Takes a list of FileMetadataAddRequestItems and resolves the filepaths in the case of a share. Once resolved it
+     * adds the original metadata request to the resolved path.
+     * A modified version of the input list is return with the paths that where shares being resolved to point to the
+     * correct path.
+     */
+    private suspend fun checkIfShareAndChangeCollectionIdForMetadata(requests: List<FileMetadataAddRequestItem>, session: AsyncDBConnection): List<FileMetadataAddRequestItem> {
+        val shareInfos =  checkIfShareAndChangeCollectionId(requests.map { it.fileId }, session)
+        return shareInfos.map { shareInfo ->
+            FileMetadataAddRequestItem(
+                convertShareInfoToPaths(shareInfo, requests.map { it.fileId }),
+                requests.find { extractPathMetadata(it.fileId).collection == shareInfo.shareId.drop(1) }!!.metadata
             )
         }
     }
@@ -87,15 +178,15 @@ class MetadataService(
                 useProject = true
             )
 
+            val resolvedIds = checkIfShareAndChangeCollectionIdForMetadata(request.items, session)
             val templateVersions =
-                request.items.map { FileMetadataTemplateAndVersion(it.metadata.templateId, it.metadata.version) }
+                resolvedIds.map { FileMetadataTemplateAndVersion(it.metadata.templateId, it.metadata.version) }
             val templates = templates.retrieveTemplate(actorAndProject, BulkRequest(templateVersions), ctx = session)
                 .responses.associateBy { FileMetadataTemplateAndVersion(it.namespaceId, it.version) }
-
             // TODO(Dan): Performance could be made a lot better by batching requests together and making fewer
             //  sql queries
 
-            for ((index, reqItem) in request.items.withIndex()) {
+            for ((index, reqItem) in resolvedIds.withIndex()) {
                 val template = templates[templateVersions[index]]
                     ?: error("`templates` value is not correct! ${templates} ${templateVersions} $index")
                 val schema = jacksonMapper.readTree(defaultMapper.encodeToString(template.schema))
@@ -261,13 +352,34 @@ class MetadataService(
             val metadata = HashMap<String, HashMap<String, ArrayList<FileMetadataOrDeleted>>>()
             val templates = HashMap<String, FileMetadataTemplate>()
 
+            val collectionId = extractPathMetadata(normalizedParentPath).collection
+            val originalFilePath = session.sendPreparedStatement(
+                {
+                    setParameter("collectionPath", "/$collectionId")
+                },
+                """
+                    select original_file_path
+                    from provider.resource r
+                    join file_orchestrator.shares s on r.id = s.resource
+                    where s.available_at = :collectionPath;
+                """.trimIndent()
+            ).rows.singleOrNull()
+
+            val pathToUse = if (originalFilePath == null) {
+                normalizedParentPath
+            } else {
+                normalizedParentPath.replace(Regex("""^\/\d+"""), originalFilePath.getString(0)!!.normalize())
+            }
+            val isShare = originalFilePath != null
+
             session
                 .sendPreparedStatement(
                     {
-                        setParameter("paths", fileNames?.map { normalizedParentPath + it })
-                        setParameter("parents", parent.parents() + parent)
+                        setParameter("paths", fileNames?.map { pathToUse + it })
+                        setParameter("parents", pathToUse.parents() + pathToUse)
                         setParameter("username", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
+                        setParameter("isShare", isShare)
                     },
                     """
                         select 
@@ -293,6 +405,10 @@ class MetadataService(
                                     :project::text is not null and
                                     d.workspace = :project and
                                     d.is_workspace_project = true
+                                ) or 
+                                (
+                                    ns.namespace_type = 'COLLABORATORS'
+                                    or (ns.namespace_type = 'PER_USER' and d.created_by = :username)
                                 )
                             )
                             
@@ -315,7 +431,6 @@ class MetadataService(
                     existing[template.namespaceId] = existingHistory
                     metadata[path] = existing
                 }
-
             RetrieveWithHistory(templates, metadata)
         }
     }

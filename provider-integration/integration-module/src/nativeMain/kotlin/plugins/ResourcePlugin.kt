@@ -1,7 +1,7 @@
 package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.accounting.api.DepositNotification
+import dk.sdu.cloud.ProductReferenceWithoutProvider
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -11,16 +11,23 @@ import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 
-sealed class OnResourceAllocationResult {
-    object ManageThroughUCloud : OnResourceAllocationResult()
-    data class ManageThroughProvider(val uniqueId: String) : OnResourceAllocationResult()
-}
-
 interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Sup>, ConfigType> : Plugin<ConfigType> {
+    var pluginName: String
+    var productAllocation: List<ProductReferenceWithoutProvider>
+    var productAllocationResolved: List<Product>
+
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init
      */
     suspend fun PluginContext.init(owner: ResourceOwner): Unit {}
+
+    /**
+     * Invoked by the notification controller _after_ the allocation plugin has run. This method is run in the server
+     * context. If multiple plugins cover the same category then _all_ plugins will be invoked.
+     *
+     * This method is only invoked for the initial allocation not for re-synchronization.
+     */
+    suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts
@@ -66,10 +73,5 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
     }
 
     suspend fun PluginContext.runMonitoringLoop()
-
-    suspend fun PluginContext.onResourceAllocation(
-        notifications: BulkRequest<DepositNotification>
-    ): List<OnResourceAllocationResult> {
-        return notifications.items.map { OnResourceAllocationResult.ManageThroughUCloud }
-    }
 }
+

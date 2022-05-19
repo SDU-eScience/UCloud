@@ -2,6 +2,7 @@ package dk.sdu.cloud.service.test
 
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.micro.*
 import io.ktor.server.testing.TestApplicationEngine
 import java.nio.file.Files
@@ -80,6 +81,6 @@ fun initializeMicro(additionalArgs: List<String> = emptyList()): Micro {
         install(TokenValidationFeature)
         install(ServiceInstanceFeature)
         install(ServerFeature)
-        install(DebugSystem)
+        install(DebugSystemFeature)
     }
 }

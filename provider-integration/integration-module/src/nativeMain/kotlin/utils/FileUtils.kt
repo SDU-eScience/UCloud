@@ -3,7 +3,6 @@ package dk.sdu.cloud.utils
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.plugins.storage.InternalFile
-import dk.sdu.cloud.plugins.storage.posix.PosixFilesPlugin
 import dk.sdu.cloud.renameat2_kt
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
@@ -54,7 +53,10 @@ fun NativeFile.readText(
     charLimit: Long = 1024 * 1024 * 32L,
     bufferSize: Int = 1024 * 32,
     autoClose: Boolean = true,
+    allowLongMessage: Boolean = false,
 ): String {
+    require(!allowLongMessage || !autoClose) { "allowLongMessage can only be true if autoClose = false" }
+
     try {
         val builder = StringBuilder()
         ByteArray(bufferSize).usePinned { buf ->
@@ -64,7 +66,10 @@ fun NativeFile.readText(
                 if (read == 0L) break
                 // technically won't work if we end the read on the wrong byte
                 builder.append(buf.get().decodeToString(0, read.toInt()))
-                if (builder.length >= charLimit) throw IllegalStateException("Too long message")
+                if (builder.length >= charLimit) {
+                    if (allowLongMessage) break
+                    else throw IllegalStateException("Too long message")
+                }
             }
         }
         return builder.toString()
@@ -134,7 +139,7 @@ fun listFiles(internalFile: InternalFile): List<InternalFile> {
     val openedDirectory = try {
         NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
     } catch (ex: NativeFileException) {
-        PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
+        //PosixFilesPlugin.log.debug("Failed listing directory at $internalFile: ${ex.stackTraceToString()}")
         throw RPCException("File not found", HttpStatusCode.NotFound)
     }
     try {
