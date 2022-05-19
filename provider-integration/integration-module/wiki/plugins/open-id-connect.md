@@ -54,5 +54,5 @@ You should set `tokenEndpoint` to `http://keycloak:8080/realms/master/protocol/o
 
 You can retrieve the certificate by going to http://localhost:61241/realms/master/protocol/openid-connect/certs. This
 will return a number of keys encoded as JWK. You should copy the JSON object which has `"alg": "RS256"`, which is the
-key that will be used to sign responses. You will need to convert this key from JWK to PEM, for example using 
+key that will be used to sign responses. You will need to convert this key from JWK to PEM (PKCS#8), for example using 
 https://keytool.online/. The `certificate` should be set to the PEM version of the key.

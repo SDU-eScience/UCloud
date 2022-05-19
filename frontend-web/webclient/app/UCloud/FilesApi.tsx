@@ -823,6 +823,11 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
     if (!isUCloud) return false;
 
+    const isShare = cb.collection?.specification.product.id === "share";
+    if (isShare) {
+        return false;
+    }
+
     if (cb.syncthingConfig === undefined) return false;
     if (cb.setSynchronization === undefined) return false;
 

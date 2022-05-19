@@ -50,10 +50,11 @@ export const LoginPage: React.FC<RouterLocationProps & {initialState?: any}> = p
     const service = inDevEnvironment ? "dev-web" : "web";
     const resetToken = getQueryParam(props, "token");
 
-    if (Client.isLoggedIn) {
-        props.history.push("/");
-        return <div />;
-    }
+    React.useEffect(() => {
+        if (Client.isLoggedIn) {
+            props.history.push("/");
+        }
+    }, [Client.isLoggedIn]);
 
     async function attemptLogin(): Promise<void> {
         if (!(usernameInput.current?.value) || !(passwordInput.current?.value)) {

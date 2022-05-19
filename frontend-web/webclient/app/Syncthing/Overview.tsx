@@ -39,6 +39,7 @@ import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
 import syncthingScreen2 from "@/Assets/Images/syncthing/syncthing-2.png";
 import syncthingScreen3 from "@/Assets/Images/syncthing/syncthing-3.png";
 import syncthingScreen4 from "@/Assets/Images/syncthing/syncthing-4.png";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 // UI state management
 // ================================================================================
@@ -147,9 +148,13 @@ function uiReducer(state: UIState, action: UIAction): UIState {
 
         case "AddFolder": {
             const folders = copy.folders ?? [];
-            folders.push({id: randomUUID(), ucloudPath: action.folderPath});
-            copy.folders = folders;
-            copy.didAddFolder = true;
+            if (folders.map(it => it.ucloudPath).includes(action.folderPath)) {
+                snackbarStore.addFailure("Folder is already added to synchronization", false);
+            } else {
+                folders.push({id: randomUUID(), ucloudPath: action.folderPath});
+                copy.folders = folders;
+                copy.didAddFolder = true;
+            }
             return copy;
         }
 
@@ -218,6 +223,7 @@ interface OperationCallbacks {
     history: History;
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
+    permissionProblems: string[];
 }
 
 // Primary user interface
@@ -276,6 +282,24 @@ export const Overview: React.FunctionComponent = () => {
         });
     }, []);
 
+    const [permissionProblems, setPermissionProblems] = useState<string[]>([]);
+    React.useEffect(() => {
+        if (folders.length === 0) return;
+        Promise.allSettled(folders.filter(it => it.ucloudPath != null).map(f => 
+            callAPI(FilesApi.browse({path: f!.ucloudPath, itemsPerPage: 250}))
+        )).then(promises => {
+            const result: string[] = [];
+            promises.forEach((p, index) => {
+                if (p.status === "fulfilled") {
+                    if (p.value.items.some(f => f.status.unixOwner !== 11042)) {
+                        result.push(folders[index].id);
+                    }
+                }
+            });
+            setPermissionProblems(result);
+        });
+    }, [folders.length]);
+
     const actionCb: ActionCallbacks = useMemo(() => ({
         history,
         pureDispatch,
@@ -291,8 +315,9 @@ export const Overview: React.FunctionComponent = () => {
     const operationCb: OperationCallbacks = useMemo(() => ({
         history,
         dispatch,
-        requestReload: reload
-    }), [history, dispatch, reload]);
+        requestReload: reload,
+        permissionProblems,
+    }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
         pureDispatch({type: "ReloadDeviceWizard", visible: true});
@@ -312,7 +337,7 @@ export const Overview: React.FunctionComponent = () => {
             <FilesBrowse
                 browseType={BrowseType.Embedded}
                 pathRef={pathRef}
-                onSelectRestriction={file => file.status.type === "DIRECTORY"}
+                onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     dispatch({type: "AddFolder", folderPath: target});
@@ -465,6 +490,7 @@ export const Overview: React.FunctionComponent = () => {
                                     operations={folderOperations}
                                     callbacks={operationCb}
                                     itemTitle={"Folder"}
+                                    disableSelection
                                 />
                             )}
                         </List>
@@ -530,10 +556,13 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         return <FtIcon fileIcon={{type: "DIRECTORY", ext: ""}} size={size}/>;
     },
 
-    MainTitle: ({resource}) => {
+    MainTitle: ({resource, callbacks}) => {
         if (!resource) return null;
         const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
-        return <>{fileName(prettyPath)}</>;
+        return <Text cursor="pointer" onClick={() => {
+            const path = resource.ucloudPath;
+            callbacks.history.push(buildQueryString("/files", {path}));
+        }}>{fileName(prettyPath)}</Text>;
     },
 
     Stats: ({resource}) => {
@@ -543,21 +572,26 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
         return <>
             <ListRowStat>{prettyPath}</ListRowStat>
         </>
+    },
+
+    ImportantStats: ({resource, callbacks}) => {
+        if (resource == null) return null;
+        if (!callbacks.permissionProblems.includes(resource.id)) return null;
+
+        const prettyPath = usePrettyFilePath(resource?.ucloudPath ?? "/");
+        return <>
+            <Tooltip tooltipContentWidth="200px" trigger={
+                <Icon name="warning" color="red" />
+            }>
+                Some files in {prettyPath} might not be synchronized due to lack of permissions.
+            </Tooltip>
+        </>
     }
 };
 
 const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
-        text: "Open folder",
-        icon: "open",
-        enabled: selected => selected.length === 1,
-        onClick: ([file], cb) => {
-            const path = file.ucloudPath;
-            cb.history.push(buildQueryString("/files", {path}));
-        }
-    },
-    {
-        text: "Remove",
+        text: "Remove from Sync",
         icon: "trash",
         color: "red",
         confirm: true,
@@ -665,7 +699,26 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         color: "red",
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
-            cb.dispatch({type: "ResetAll"});
+            dialogStore.addDialog(
+                <Box maxWidth={600}>
+                    <Heading.h3>Factory reset Syncthing server?</Heading.h3>
+                    <p>
+                        This will reset the configuration of the Syncthing server completely.
+                        You probably only want to do this if Syncthing is not working, and/or your configuration is broken.
+                    </p>
+                    <p>
+                         All folders and devices will be removed from the Syncthing server.
+                    </p>
+                    <p>
+                         The device ID will no longer be available and should be removed from your local Syncthing devices.
+                         A new device ID will be generated if you decide to set up Synchronization again.
+                    </p>
+                    <Button mr="5px" onClick={() => dialogStore.success()}>Cancel</Button>
+                    <Button color="red" onClick={() => {
+                        cb.dispatch({type: "ResetAll"});
+                        dialogStore.success();
+                    }}>Confirm</Button>
+                </Box>, () => undefined, true);
         }
     },
 ];
