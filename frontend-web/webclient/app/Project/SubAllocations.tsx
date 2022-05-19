@@ -196,8 +196,11 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
     }, [newRecipients, allocationsByProductTypes]);
 
     const removeSubAllocation = useCallback((recipientId: number, suballocationId: number) => {
-        newRecipients[recipientId].suballocations = newRecipients[recipientId].suballocations.filter(it => it.id !== suballocationId);
-        return setRecipients([...newRecipients])
+        const index = newRecipients.findIndex(it => it.id === recipientId);
+        if (index !== -1) {
+            newRecipients[index].suballocations = newRecipients[index].suballocations.filter(it => it.id !== suballocationId);
+            return setRecipients([...newRecipients])
+        }
     }, [newRecipients]);
 
     const addRowButtonEnabled = React.useMemo(() => {
