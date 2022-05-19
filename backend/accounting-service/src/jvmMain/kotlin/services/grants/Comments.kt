@@ -6,7 +6,7 @@ import dk.sdu.cloud.accounting.api.grants.DeleteCommentRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.grant.api.ApplicationWithComments
+import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
@@ -91,7 +91,7 @@ class GrantCommentService(
     suspend fun viewComments(
         actorAndProject: ActorAndProject,
         request: ViewApplicationRequest
-    ): ApplicationWithComments {
+    ): GrantApplication {
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
                 {

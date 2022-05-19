@@ -47,16 +47,16 @@ class GrantController(
         }
 
         implement(Grants.submitApplication) {
-            ok(SubmitApplicationResponse(applications.submit(actorAndProject, request)))
+            ok(applications.submit(actorAndProject, request))
         }
 
         implement(Grants.editApplication) {
-            applications.editApplication(actorAndProject, request)
+            //applications.editApplication(actorAndProject, request)
             ok(Unit)
         }
 
         implement(Grants.browseApplications) {
-            ok(applications.browseIngoingApplications(actorAndProject, request, request.filter))
+            (applications.browseApplications(actorAndProject, request, request, request.filter))
         }
 
         implement(Grants.browseProducts) {
@@ -70,13 +70,14 @@ class GrantController(
         implement(Grants.browseAffiliations) {
             val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
             ok(settings.browse(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(app.application), null),
+                ActorAndProject(Actor.SystemOnBehalfOfUser(""//app.application
+                    ), null),
                 request
             ))
         }
 
         implement(Grants.transferApplication) {
-            applications.transferApplication(actorAndProject, request)
+            //applications.transferApplication(actorAndProject, request)
             ok(Unit)
         }
 
@@ -86,12 +87,12 @@ class GrantController(
 
         //COMMENTS
         implement(GrantComments.createComment) {
-            comments.postComment(actorAndProject, request)
+            //comments.postComment(actorAndProject, request)
             ok(Unit)
         }
 
         implement(GrantComments.deleteComment) {
-            comments.deleteComment(actorAndProject, request)
+            //comments.deleteComment(actorAndProject, request)
             ok(Unit)
         }
 
@@ -103,7 +104,7 @@ class GrantController(
 
         //PROJECT GRANT SETTINGS
         implement(GrantSettings.uploadRequestSettings) {
-            settings.uploadRequestSettings(actorAndProject, request)
+            //settings.uploadRequestSettings(actorAndProject, request)
             ok(Unit)
         }
 
@@ -113,7 +114,7 @@ class GrantController(
 
         //PROJECT ENABLED STATUS
         implement(ProjectEnabled.setEnabledStatus) {
-            settings.setEnabledStatus(actorAndProject, request.projectId, request.enabledStatus)
+           // settings.setEnabledStatus(actorAndProject, request.projectId, request.enabledStatus)
             ok(Unit)
         }
 
@@ -150,7 +151,7 @@ class GrantController(
 
         //PROJECT DESCRIPTIONS
         implement(ProjectTextDescription.uploadDescription) {
-            settings.uploadDescription(actorAndProject, request.projectId, request.description)
+            //settings.uploadDescription(actorAndProject, request.projectId, request.description)
             ok(Unit)
         }
 
@@ -160,7 +161,7 @@ class GrantController(
 
         //GRANT TEMPLATES
         implement(GrantTemplates.uploadTemplates) {
-            templates.uploadTemplates(actorAndProject, request)
+            //templates.uploadTemplates(actorAndProject, request)
             ok(Unit)
         }
 

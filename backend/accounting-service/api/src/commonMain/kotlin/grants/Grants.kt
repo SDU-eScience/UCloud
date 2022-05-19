@@ -49,7 +49,7 @@ data class BrowseApplicationsRequest(
 typealias BrowseApplicationsResponse = PageV2<GrantApplication>
 
 typealias SubmitApplicationRequest = CreateApplication
-typealias SubmitApplicationResponse = FindByLongId
+typealias SubmitApplicationResponse = List<FindByLongId>
 
 @Serializable
 data class EditApplicationRequest(
