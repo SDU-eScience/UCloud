@@ -189,6 +189,7 @@ const milleniumAndCenturyPrefix = "20"
 function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
     if (!input) return undefined;
     const rawValue = input.value;
+    if (!rawValue) return undefined;
     const [day, month, year] = rawValue.split("/");
     const d = getStartOfDay(new Date());
     d.setDate(parseInt(day, 10));
