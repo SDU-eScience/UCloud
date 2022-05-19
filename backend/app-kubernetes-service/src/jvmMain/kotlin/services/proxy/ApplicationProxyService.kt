@@ -36,7 +36,9 @@ class ApplicationProxyService(
         require(tunnels.all { it.jobId == id }) { "job ids must match" }
 
         lock.withLock {
-            if (entries.containsKey(id)) return
+            if (entries.containsKey(id)) {
+                entries.remove(id)
+            }
 
             if (tunnels.size == 1 && domains.isNotEmpty()) {
                 entries[id] = domains.mapIndexed { idx, domain ->
@@ -126,7 +128,7 @@ class ApplicationProxyService(
         val job = jobCache.findJob(incomingId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val application = resources.findResources(job).application
         val remotePort = application.invocation.web?.port ?: 80
-        return tunnelManager.createOrUseExistingTunnel(incomingId, remotePort, rank)
+        return tunnelManager.createOrRecreateTunnel(incomingId, remotePort, rank)
     }
 
     companion object : Loggable {
