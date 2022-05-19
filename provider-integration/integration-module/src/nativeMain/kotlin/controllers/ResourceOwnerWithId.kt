@@ -1,39 +1,56 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.PaginationRequestV2
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.provider.api.ResourceOwner
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import platform.posix.getuid
 
 @Serializable
 sealed class ResourceOwnerWithId {
+    abstract fun toResourceOwner(): ResourceOwner
+
     @Serializable
     @SerialName("user")
-    data class User(val username: String, val uid: Int) : ResourceOwnerWithId()
+    data class User(val username: String, val uid: Int) : ResourceOwnerWithId() {
+        override fun toResourceOwner(): ResourceOwner = ResourceOwner(username, null)
+    }
 
     @Serializable
     @SerialName("project")
-    data class Project(val projectId: String, val gid: Int) : ResourceOwnerWithId()
+    data class Project(val projectId: String, val gid: Int) : ResourceOwnerWithId() {
+        override fun toResourceOwner(): ResourceOwner = ResourceOwner("_ucloud", projectId)
+    }
 
     companion object {
-        fun loadFromUsername(username: String, ctx: PluginContext): User? {
+        suspend fun loadFromUsername(username: String, ctx: PluginContext): User? {
             when (ctx.config.serverMode) {
-                ServerMode.FrontendProxy -> TODO()
-                is ServerMode.Plugin -> TODO()
+                ServerMode.FrontendProxy -> throw IllegalStateException("Should not be invoked from a frontend proxy")
                 ServerMode.Server -> {
                     val uid = UserMapping.ucloudIdToLocalId(username) ?: return null
                     return User(username, uid)
                 }
-                ServerMode.User -> TODO()
+
+                is ServerMode.Plugin -> {
+                    return ctx.ipcClient.sendRequest(ConnectionIpc.browse, PaginationRequestV2(250))
+                        .items.find { it.username == username }
+                        ?.let { User(it.username, it.uid) }
+                }
+
+                ServerMode.User -> {
+                    return User(username, getuid().toInt())
+                }
             }
         }
 
         suspend fun loadFromProject(projectId: String, ctx: PluginContext): Project? {
             when (ctx.config.serverMode) {
-                ServerMode.FrontendProxy -> TODO()
-                is ServerMode.Plugin -> TODO()
+                ServerMode.FrontendProxy -> throw IllegalStateException("Should not be invoked from a frontend proxy")
                 ServerMode.Server -> {
                     val projectPlugin = ctx.config.plugins.projects ?: return null
 
@@ -45,7 +62,9 @@ sealed class ResourceOwnerWithId {
 
                     return Project(projectId, gid)
                 }
-                ServerMode.User -> TODO()
+
+                is ServerMode.Plugin,
+                ServerMode.User -> TODO("Not obvious if this should work or not")
             }
         }
 

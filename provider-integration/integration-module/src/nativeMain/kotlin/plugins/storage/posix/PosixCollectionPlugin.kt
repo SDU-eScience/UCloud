@@ -12,13 +12,9 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.file.orchestrator.api.*
-import dk.sdu.cloud.plugins.FileCollectionPlugin
-import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.plugins.extension
-import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
-import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.cinterop.*
@@ -38,22 +34,21 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: PosixFileCollectionsConfiguration
-    private var initializedProjects = HashMap<ResourceOwner, List<PathConverter.Collection>>()
+    private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
     private val mutex = Mutex()
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
         this.pluginConfig = config as PosixFileCollectionsConfiguration
     }
 
-    override suspend fun PluginContext.init(owner: ResourceOwner) {
-        locateAndRegisterCollections(owner)
+    override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {
+        locateAndRegisterCollections(notification.owner)
     }
 
     private suspend fun PluginContext.locateAndRegisterCollections(
-        owner: ResourceOwner
+        owner: ResourceOwnerWithId
     ): List<PathConverter.Collection> {
         val pathConverter = PathConverter(this)
-        val project = owner.project
         mutex.withLock {
             val cached = initializedProjects[owner]
             if (cached != null) return cached
@@ -77,7 +72,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                     homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
                 }
 
-                if (project == null && homes.isNotEmpty()) {
+                if (owner is ResourceOwnerWithId.User && homes.isNotEmpty()) {
                     val username = run {
                         val uid = geteuid()
                         getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
@@ -86,7 +81,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                     homes.forEach { (_, coll) ->
                         val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
                         collections.add(
-                            PathConverter.Collection(owner, coll.title, mappedPath, coll.product)
+                            PathConverter.Collection(owner.toResourceOwner(), coll.title, mappedPath, coll.product)
                         )
                     }
                 }
@@ -96,13 +91,10 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 // Extensions
                 val extension = pluginConfig.extensions.additionalCollections
                 if (extension != null) {
-                    val resolvedOwner = ResourceOwnerWithId.load(owner, this)
-                    if (resolvedOwner != null) {
-                        retrieveCollections.invoke(extension, resolvedOwner).forEach {
-                            collections.add(
-                                PathConverter.Collection(owner, it.title, it.path, product)
-                            )
-                        }
+                    retrieveCollections.invoke(extension, owner).forEach {
+                        collections.add(
+                            PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
+                        )
                     }
                 }
             }
@@ -176,12 +168,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                             ).orThrow()
 
                             for (item in summary.items) {
-                                val owner = when (val owner = item.owner) {
-                                    is WalletOwner.User -> ResourceOwner(owner.username, null)
-                                    is WalletOwner.Project -> ResourceOwner("_ucloud", owner.projectId)
-                                }
-
-                                val colls = locateAndRegisterCollections(owner)
+                                val resourceOwner = ResourceOwnerWithId.load(item.owner, this) ?: continue
+                                val colls = locateAndRegisterCollections(resourceOwner)
                                     .filter { it.product.category == category }
 
                                 if (colls.isNotEmpty()) {

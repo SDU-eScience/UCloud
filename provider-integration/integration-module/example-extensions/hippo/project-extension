@@ -4,6 +4,7 @@ import sys
 import subprocess
 import urllib3
 import json
+import shutil
 
 sys.path.append('/opt/ucloud/hippo/lib')
 urllib3.disable_warnings()
@@ -152,6 +153,8 @@ elif request_type == 'members_added_to_project':
         uid = member['uid']
         if uid is None: continue
         add_user_to_group(uid, gid)
+        account_name = generate_name(request['newProject']['project']['specification']['title'], gid)
+        slurm_user_create({ 'account' : account_name, 'user' : get_username_by_uid(uid) })
 
 elif request_type == 'members_removed_from_project':
     gid = request['newProject']['localId']
@@ -159,6 +162,8 @@ elif request_type == 'members_removed_from_project':
         uid = member['uid']
         if uid is None: continue
         remove_user_from_group(uid, gid)
+        account_name = generate_name(request['newProject']['project']['specification']['title'], gid)
+        slurm_user_delete_association({ 'account' : account_name, 'user' : get_username_by_uid(uid) })
 
 elif request_type == 'members_added_to_group':
     gid = request['group']['localId']

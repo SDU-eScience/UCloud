@@ -189,12 +189,12 @@ class SlurmCommandLine(
             val timeElappsedMs = slurmDurationToMillis(columns[1]) ?: return@mapNotNull null
             val memoryRequestedInMegs = columns[2].let { formatted ->
                 val textValue = formatted.replace(memorySuffix, "")
-                val value = textValue.toLongOrNull() ?: return@mapNotNull null
+                val value = textValue.toDoubleOrNull() ?: return@mapNotNull null
                 val suffix = formatted.removePrefix(textValue)
-                if (suffix.length != 2) return@mapNotNull null
+                if (suffix.isEmpty()) return@mapNotNull null
 
                 val unit = suffix[0]
-                val type = suffix[1]
+                val type = suffix.getOrNull(1)
 
                 val multiplierA = when (unit) {
                     'K' -> 1_000L
@@ -208,11 +208,11 @@ class SlurmCommandLine(
                 val multiplierB = when (type) {
                     'c' -> cpusRequested
                     'n' -> nodesRequested
-                    else -> return@mapNotNull null
+                    else -> 1
                 }
 
                 val ramInBytes = value * multiplierA * multiplierB
-                ramInBytes / 1_000_000L
+                (ramInBytes / 1_000_000L).toLong()
             }
             val uid = columns[4].toIntOrNull() ?: return@mapNotNull null
             val slurmAccount = columns[6].takeIf { it.isNotBlank() }
@@ -268,6 +268,6 @@ class SlurmCommandLine(
         const val SACCT_EXE = "/usr/bin/sacct"
         const val SCTL_EXE = "/usr/bin/scontrol"
         const val SLURM_CONF_KEY = "SLURM_CONF"
-        private val memorySuffix = Regex("[KMGTP][cn]")
+        private val memorySuffix = Regex("[KMGTP][cn]?")
     }
 }

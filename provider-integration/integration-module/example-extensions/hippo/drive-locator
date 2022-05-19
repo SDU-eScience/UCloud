@@ -47,7 +47,7 @@ if owner_type == 'user':
         'title' : 'Home',
         'path' : f'/home/{username}'
     }
-    print(json.dumps(response))
+    print(json.dumps([response]))
 
 elif owner_type == 'project':
     group_name = get_group_by_gid(owner['gid'])
@@ -55,7 +55,7 @@ elif owner_type == 'project':
         'title' : 'Work',
         'path' : f'/work/{group_name}'
     }
-    print(json.dumps(response))
+    print(json.dumps([response]))
 
 else:
     print(f'Unknown owner type {owner_type}')

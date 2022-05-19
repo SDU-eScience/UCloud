@@ -141,6 +141,9 @@ class NotificationController(
     // Allocations
     // ================================================================================================================
     private suspend fun processAllocations() {
+        // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
+        //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
+        //  where the batch is always full of items that we cannot handle/starvation problem.
         val batch = DepositNotifications.retrieve.call(
             Unit,
             controllerContext.pluginContext.rpcClient
@@ -173,10 +176,11 @@ class NotificationController(
         }
 
         for ((type, list) in notificationsByType) {
-            val plugin = controllerContext.configuration.plugins.allocations[type] ?: continue
+            val plugins = controllerContext.configuration.plugins
+            val allocationPlugin = plugins.allocations[type] ?: continue
 
             with(controllerContext.pluginContext) {
-                val response = with(plugin) {
+                val response = with(allocationPlugin) {
                     onResourceAllocation(list.map { it.second })
                 }
 
@@ -184,6 +188,20 @@ class NotificationController(
                     val (origIdx, _) = request
                     output[origIdx] = pluginResponse
                 }
+            }
+
+            for ((_, notification) in list) {
+                plugins.resourcePlugins().asSequence()
+                    .filter { plugin ->
+                        plugin.productAllocation.any { it.category == notification.productCategory }
+                    }
+                    .forEach { plugin ->
+                        with(controllerContext.pluginContext) {
+                            with(plugin) {
+                                onAllocationComplete(notification)
+                            }
+                        }
+                    }
             }
         }
 

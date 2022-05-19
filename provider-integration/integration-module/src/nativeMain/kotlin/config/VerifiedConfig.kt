@@ -81,6 +81,33 @@ data class VerifiedConfig(
         val fileCollections: Map<String, FileCollectionPlugin>,
         val allocations: Map<ProductType, AllocationPlugin>,
     ) {
+        fun resourcePlugins(): Iterator<ResourcePlugin<*, *, *, *>> {
+            val iterators = arrayOf(
+                jobs.values.iterator(),
+                files.values.iterator(),
+                fileCollections.values.iterator(),
+            )
+            var idx = 0
+
+            return object : Iterator<ResourcePlugin<*, *, *, *>> {
+                override fun hasNext(): Boolean {
+                    if (idx !in iterators.indices) return false
+                    val currHasNext = iterators[idx].hasNext()
+                    if (!currHasNext) {
+                        idx++
+                        if (idx !in iterators.indices) return false
+                        return iterators[idx].hasNext()
+                    }
+
+                    return true
+                }
+
+                override fun next(): ResourcePlugin<*, *, *, *> {
+                    return iterators.getOrNull(idx)?.next() ?: throw NoSuchElementException()
+                }
+            }
+        }
+
         sealed class ProductMatcher {
             abstract fun match(product: ProductReferenceWithoutProvider): Int
 

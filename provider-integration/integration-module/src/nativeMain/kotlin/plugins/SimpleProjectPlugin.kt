@@ -11,8 +11,6 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 // NOTE(Dan, Brian): This plugin is responsible for taking the raw updates, coming in from UCloud/Core, and
 // translating them into a diff. This diff is then passed on to operator defined extensions which are responsible
@@ -158,7 +156,8 @@ class SimpleProjectPlugin : ProjectPlugin {
                 }
             )
         }
-        return result
+        if (result == null) return null
+        return result!! + pluginConfig.unixGroupNamespace
     }
 
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup

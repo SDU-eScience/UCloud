@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.slurm
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.accounting.api.*
 import kotlin.math.floor
+import kotlin.math.max
 
 class ProductEstimator(
     private val config: VerifiedConfig,
@@ -63,7 +64,7 @@ class ProductEstimator(
         val estimationMultiplier = row.cpusRequested.toDouble() / (estimation.cpu ?: 1)
         return EstimatedProduct(
             estimation.toReference(),
-            floor(estimationMultiplier * row.nodesRequested).toInt(),
+            max(1, floor(estimationMultiplier * row.nodesRequested).toInt()),
             sortedAccounts.find { it.productCategory == estimation.category.name }
                 ?: error("Corrupt state in product estimator")
         )

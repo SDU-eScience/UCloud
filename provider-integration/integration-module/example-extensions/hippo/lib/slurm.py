@@ -389,9 +389,6 @@ def slurm_user_create(args):
     if not slurm_account_exists(account):
         raise NameError('slurm account does not exist')
 
-    if slurm_user_exists(user):
-        raise NameError('slurm user already exists')
-
     cmd.append(user)
     cmd.append('Account=%s' % account)
 
@@ -427,6 +424,39 @@ def slurm_user_delete(args):
     slurm_run_command(cmd)
     return rets
 
+"""
+slurm_user_delete_association()
+  deletes an association between a user and a slurm account
+function parameters
+  [m] account      : name of default account
+  [m] user         : username
+return values
+  none
+"""
+def slurm_user_delete_association(args):
+    rets = {}
+    user = args.get('user')
+    account = args.get('account')
+    cmd = ['sacctmgr', '-i', 'remove', 'user', 'where']
+
+    if not user:
+        raise ValueError('missing variable: user')
+
+    if not slurm_user_exists(user):
+        raise NameError('slurm user does not exist')
+
+    if not account:
+        raise ValueError('missing variable: account')
+
+    if not slurm_account_exists(account):
+        raise NameError('slurm account does not exist')
+
+    cmd.append(f'account={account}')
+    cmd.append('and')
+    cmd.append(f'user={user}')
+
+    slurm_run_command(cmd)
+    return rets
 
 """
 slurm_user_query()
