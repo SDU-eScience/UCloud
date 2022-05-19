@@ -141,7 +141,7 @@ export const ImportParameters: React.FunctionComponent<{
                         </div>
                     ))}
                 </>}
-            <Button ml="12px" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import Parameters</Button>
+            <Button ml="12px" mt="4px" height="45px" onClick={() => setImportDialogOpen(true)}>Import parameters</Button>
         </Flex>
 
         {messages.length === 0 ? null : (

@@ -196,8 +196,11 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
     }, [newRecipients, allocationsByProductTypes]);
 
     const removeSubAllocation = useCallback((recipientId: number, suballocationId: number) => {
-        newRecipients[recipientId].suballocations = newRecipients[recipientId].suballocations.filter(it => it.id !== suballocationId);
-        return setRecipients([...newRecipients])
+        const index = newRecipients.findIndex(it => it.id === recipientId);
+        if (index !== -1) {
+            newRecipients[index].suballocations = newRecipients[index].suballocations.filter(it => it.id !== suballocationId);
+            return setRecipients([...newRecipients])
+        }
     }, [newRecipients]);
 
     const addRowButtonEnabled = React.useMemo(() => {
@@ -327,7 +330,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
 
     return <>
         <Spacer left={null} right={
-            addRowButtonEnabled ? <Button onClick={addRecipientRow}>New Recipient</Button> : <Tooltip trigger={<Button type="button" disabled={!addRowButtonEnabled}>New Recipient</Button>}>
+            addRowButtonEnabled ? <Button onClick={addRecipientRow}>New recipient</Button> : <Tooltip trigger={<Button type="button" disabled={!addRowButtonEnabled}>New recipient</Button>}>
                 No allocations to allocate from found.
             </Tooltip>}
         />
@@ -346,7 +349,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     <Input ref={recipient.ref} placeholder={recipient.isProject ? "Projectname..." : "Username..."} />
                 </Flex>}
                 titleContent={
-                    <Button ml="8px" mt="4px" height="32px" onClick={() => removeNewRecipientRow(recipient.id)}>Remove recipient</Button>
+                    <Button ml="8px" mt="4px" height="32px" color="red" onClick={() => removeNewRecipientRow(recipient.id)}>Discard</Button>
                 }
                 forceOpen
                 omitChevron
@@ -719,8 +722,8 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             noBorder={props.isLast}
             titleContent={<Flex>{storageRemaining} {computeRemaining}</Flex>}
             titleContentOnOpened={<>
-                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New Row</Button> :
-                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New Row</Button>}>
+                {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New row</Button> :
+                    <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New row</Button>}>
                         No allocations available for use.
                     </Tooltip>
                 }
@@ -732,7 +735,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             </>}
         >
             <Box px="12px">
-                {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit New Rows</Button>} left={null} />}
+                {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
                 {creationRows.map((row, index) => {
                     const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
                     const remainingProductTypes = productTypes.filter(it => it !== row.productType);
