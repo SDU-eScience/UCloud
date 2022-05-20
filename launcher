@@ -12,7 +12,18 @@ if shutil.which("docker") == None:
 	print("https://www.docker.com/")
 	sys.exit(1)
 
-if shutil.which("docker-compose") == None:
+# detect docker compose
+command = []
+
+# classic docker-compose style
+if shutil.which("docker-compose"):
+	command = ["docker-compose"]
+
+# plugin style (takes precedence if both are available)
+if shutil.which("/usr/libexec/docker/cli-plugins/docker-compose"):
+	command = ["docker", "compose"]
+
+if len(command) == 0:
 	print("Docker Compose is required to run the quick launch script!")
 	print("Installation instructions are available here: https://docs.docker.com/compose/install/")
 	sys.exit(1)
@@ -106,7 +117,7 @@ except KeyboardInterrupt:
 
 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
-command = ["docker-compose", "-f", "docker-compose.yml", "-f", "compose/base.yml"]
+command.extend(["-f", "docker-compose.yml", "-f", "compose/base.yml"])
 if frontend:
 	command.append("-f")
 	command.append("compose/frontend.yml")
