@@ -2,8 +2,8 @@ package dk.sdu.cloud.utils
 
 class TerminalMessageDsl {
     private val builder: StringBuilder = StringBuilder()
-    private var color = 0
-    private var backgroundColor = 0
+    private var color = 9
+    private var backgroundColor = 9
 
     fun inline(message: String) {
         builder.append(message)
