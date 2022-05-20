@@ -7,6 +7,7 @@ import kotlinx.cinterop.*
 import platform.posix.*
 import kotlin.system.exitProcess
 import kotlinx.cinterop.ByteVar as KotlinxCinteropByteVar
+import dk.sdu.cloud.service.Loggable
 
 data class ProcessStreams(
     val stdin: Int? = null,
@@ -316,11 +317,23 @@ data class CommandBuilder(
     }
 
     fun executeToText(): ProcessResultText {
+        if (!fileIsExecutable(args[0])) {
+            log.warn("${args[0]} is not executable")
+        }
+
         return startProcessAndCollectToString(args, envs)
     }
 
     fun executeToBinary(): ProcessResult {
+        if (!fileIsExecutable(args[0])) {
+            log.warn("${args[0]} is not executable")
+        }
+
         return startProcessAndCollectToMemory(args, envs)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

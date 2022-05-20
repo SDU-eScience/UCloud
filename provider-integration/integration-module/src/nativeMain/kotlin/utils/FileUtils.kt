@@ -135,6 +135,11 @@ fun fileExists(path: String): Boolean = memScoped {
     return stat(path, st.ptr) == 0
 }
 
+fun fileIsExecutable(path: String): Boolean = memScoped {
+    val st = alloc<stat>()
+    return stat(path, st.ptr) == 0 && st.st_mode and S_IXUSR.toUInt() != 0u
+}
+
 fun listFiles(internalFile: InternalFile): List<InternalFile> {
     val openedDirectory = try {
         NativeFile.open(internalFile.path, readOnly = true, createIfNeeded = false)
