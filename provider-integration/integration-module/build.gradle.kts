@@ -37,7 +37,7 @@ kotlin {
 
         compilations["main"].dependencies {
             implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.52-devel-hippo")
+            implementation("dk.sdu.cloud:integration-module-support:2022.1.54-devel-hippo")
             implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
             implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
         }
