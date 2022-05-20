@@ -51,7 +51,7 @@ class GrantController(
         }
 
         implement(Grants.editApplication) {
-            //applications.editApplication(actorAndProject, request)
+            applications.editApplication(actorAndProject, request)
             ok(Unit)
         }
 

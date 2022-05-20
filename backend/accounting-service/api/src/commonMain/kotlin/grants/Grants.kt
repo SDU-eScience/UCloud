@@ -53,6 +53,7 @@ typealias SubmitApplicationResponse = List<FindByLongId>
 
 @Serializable
 data class EditApplicationRequest(
+    val applicationId: Long,
     val document: GrantApplication.Document
 )
 typealias EditApplicationResponse = Unit
@@ -178,6 +179,13 @@ data class GrantApplication(
     """
         )
         val revisionComment: String? = null,
+
+        @UCloudApiDoc(
+            """
+                When creating a new project the user should choose one of the affiliations to be its parent.
+            """
+        )
+        val parentProjectId: String? = null
     )
     @Serializable
     @SerialName("form")
