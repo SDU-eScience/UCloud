@@ -507,8 +507,9 @@ interface SuballocationCreationRow {
 function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType) {
     const byUnitAndChargeType = {ABSOLUTE: {}, DIFFERENTIAL_QUOTA: {}};
     for (const entry of suballocations) {
-        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = entry.remaining;
-        else byUnitAndChargeType[entry.chargeType][entry.unit] += entry.remaining;
+        const value = Math.max(entry.remaining, 0);
+        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = value;
+        else byUnitAndChargeType[entry.chargeType][entry.unit] += value;
     }
 
     const result = {
