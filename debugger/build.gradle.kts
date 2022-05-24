@@ -34,6 +34,7 @@ kotlin {
     sourceSets {
         val kotlinxHtmlVersion = "0.7.2"
         val kotlinxSerializationVersion = "1.3.3"
+        val ktorVersion = "2.0.1"
 
         val commonMain by getting {
             dependencies {
@@ -49,8 +50,9 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                implementation("io.ktor:ktor-server-netty:1.6.7")
-                implementation("io.ktor:ktor-html-builder:1.6.7")
+                implementation("io.ktor:ktor-server-netty:$ktorVersion")
+                implementation("io.ktor:ktor-server-websockets:$ktorVersion")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-html-jvm:${kotlinxHtmlVersion}")
             }
         }
@@ -77,15 +79,4 @@ tasks.named<Copy>("jvmProcessResources") {
 tasks.named<JavaExec>("run") {
     dependsOn(tasks.named<Jar>("jvmJar"))
     classpath(tasks.named<Jar>("jvmJar"))
-}
-
-tasks.register("cleanTheDistribution") {
-    doFirst {
-        File(projectDir, "build/distributions/debugger.js").delete()
-    }
-}
-
-tasks.register("compileTheJavaScript") {
-    dependsOn("cleanTheDistribution")
-    dependsOn("jsBrowserDistribution")
 }

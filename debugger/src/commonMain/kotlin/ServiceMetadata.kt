@@ -4,6 +4,6 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ServiceMetadata(
-    val id: String,
     val path: String,
+    var id: Int = 0,
 )

@@ -1,4 +1,5 @@
-import dk.sdu.cloud.debug.DebugMessage
+package dk.sdu.cloud.debug
+
 import dk.sdu.cluod.debug.defaultMapper
 import kotlinx.browser.document
 import kotlinx.html.div

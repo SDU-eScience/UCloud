@@ -1,3 +1,5 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.html.dom.append
 import kotlinx.html.js.style
 import kotlinx.html.unsafe

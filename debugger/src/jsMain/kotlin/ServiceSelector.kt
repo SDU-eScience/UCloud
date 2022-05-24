@@ -1,11 +1,11 @@
-import dk.sdu.cloud.debug.ServiceMetadata
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
-import kotlinx.html.dom.append
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
 import org.w3c.dom.HTMLElement
 
-class ServiceSelector {
+class ServiceSelector(private val client: Client) {
     lateinit var elem: HTMLElement
 
     sealed class Node {
@@ -32,9 +32,8 @@ class ServiceSelector {
     }
 
     private fun renderService(node: Node, depth: Int) {
-        println("Rendering $node")
         if (depth != 0) {
-            elem.append(document.create.div {
+            val rowElement = document.create.div {
                 inlineStyle {
                     marginLeft = (depth * 8).px
                     if (node is Node.Leaf) {
@@ -45,7 +44,15 @@ class ServiceSelector {
                 }
 
                 text(node.title)
-            })
+            }
+
+            if (node is Node.Leaf) {
+                rowElement.addEventListener("click", {
+                    client.send(ClientToServer.OpenService(node.service.id))
+                })
+            }
+
+            elem.append(rowElement)
         }
 
         if (node is Node.Internal) {
@@ -59,6 +66,7 @@ class ServiceSelector {
         val components = service.path.split("/")
         var node = root
         for (i in components.indices) {
+            val currentNode = node
             val isLeaf = i == components.lastIndex
             val childIdx = node.children.indexOfFirst { child -> child.title == components[i] }
             if ((childIdx == -1 || isLeaf) || (!isLeaf && childIdx != -1 && node.children[childIdx] !is Node.Internal)) {
@@ -71,7 +79,7 @@ class ServiceSelector {
                     node = newNode
                 }
 
-                node.children.sortBy { it.title }
+                currentNode.children.sortBy { it.title }
             } else {
                 node = node.children[childIdx] as Node.Internal
             }
@@ -88,7 +96,6 @@ class ServiceSelector {
                 display = "flex"
                 flexDirection = "column"
                 gap = 8.px
-
             }
         }
     }

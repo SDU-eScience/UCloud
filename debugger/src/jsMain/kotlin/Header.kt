@@ -1,9 +1,10 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
 import kotlinx.html.div
 import kotlinx.html.dom.create
 import kotlinx.html.img
 import kotlinx.html.js.div
-import kotlinx.html.style
 import org.w3c.dom.HTMLElement
 
 class Header {

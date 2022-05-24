@@ -1,3 +1,5 @@
+package dk.sdu.cloud.debug
+
 import org.w3c.dom.HTMLElement
 import kotlin.js.Promise
 

@@ -1,7 +1,8 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
 import kotlinx.html.div
 import kotlinx.html.dom.create
-import kotlinx.html.h1
 import kotlinx.html.h3
 import kotlinx.html.js.div
 import org.w3c.dom.HTMLElement
@@ -13,6 +14,8 @@ class Card {
     private lateinit var title: HTMLHeadingElement
 
     fun render(): HTMLElement {
+        if (this::root.isInitialized) return root
+
         style.mount()
         root = document.create.div(className) {
             div {

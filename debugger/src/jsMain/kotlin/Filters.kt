@@ -1,5 +1,7 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
-import kotlinx.html.div
+import kotlinx.html.*
 import kotlinx.html.dom.create
 import org.w3c.dom.HTMLElement
 
@@ -8,7 +10,36 @@ class Filters {
     fun render(): HTMLElement {
         style.mount()
         if (this::elem.isInitialized) return elem
-        elem = document.create.div(elemClass)
+        elem = document.create.div(elemClass) {
+            standardInput {}
+
+            div {
+                select {
+                    option(content = "Everything")
+                    option(content = "Details")
+                    option(content = "Normal")
+                    option(content = "Odd")
+                    option(content = "Wrong")
+                    option(content = "Dangerous")
+                }
+            }
+
+            div {
+                label {
+                    checkBoxInput {}
+                    text("Client")
+                }
+                label {
+                    checkBoxInput {}
+                    text("Server")
+                }
+
+                label {
+                    checkBoxInput {}
+                    text("Database")
+                }
+            }
+        }
         return elem
     }
 

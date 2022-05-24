@@ -1,3 +1,5 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
 import kotlinx.html.dom.create
 import kotlinx.html.js.div

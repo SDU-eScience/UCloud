@@ -1,10 +1,6 @@
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugMessage
-import dk.sdu.cloud.debug.MessageImportance
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
-import kotlinx.browser.window
-import kotlinx.html.ButtonType
-import kotlinx.html.button
 import kotlinx.html.div
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
@@ -63,10 +59,7 @@ class Log {
         })
 
         (elem.querySelector(".$clearButtonClass") as HTMLButtonElement).addEventListener("click", {
-            messages.clear()
-            scrollingElem.scrollTop = 0.0
-            scrollLock = false
-            rerender()
+            clear()
         })
 
         container = scrollingElem.querySelector(".$containerClass") as HTMLElement
@@ -84,23 +77,22 @@ class Log {
             rerender()
         })
 
-        val ctx = DebugContext.Job("foo")
-        var count = 0
-        addMessages((0 until 1000).map { DebugMessage.Log(ctx, "Hello, World: ${count++}") })
-        window.setInterval({
-            addMessages((0 until 1).map { DebugMessage.Log(ctx, "Hello, World: ${count++}") })
-        }, 50)
+//        val ctx = DebugContext.Job("foo")
+//        var count = 0
+//        window.setInterval({
+//            addMessages((0 until 1).map { DebugMessage.Log(ctx, "Hello, World: ${count++}") })
+//        }, 50)
 
         return elem
     }
 
     private fun findFirstVisibleRow(): Int {
-        return floor(scrollingElem.scrollTop / rowSize).toInt()
+        return max(0, floor(scrollingElem.scrollTop / rowSize).toInt() - 10)
     }
 
     private fun rerender() {
         scrollLockButton.disabled = scrollLock
-        container.style.height = (this.messages.size * rowSize).px
+        container.style.height = max(rows.size * rowSize, this.messages.size * rowSize).px
 
         val firstIdx = findFirstVisibleRow()
         val lastIdx = min(messages.size, firstIdx + rows.size) - 1
@@ -123,6 +115,13 @@ class Log {
                 dataViewer.update(message)
             }
         }
+    }
+
+    fun clear() {
+        messages.clear()
+        scrollingElem.scrollTop = 0.0
+        scrollLock = false
+        rerender()
     }
 
     fun addMessages(messages: List<DebugMessage>) {

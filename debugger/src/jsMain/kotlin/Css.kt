@@ -1,3 +1,5 @@
+package dk.sdu.cloud.debug
+
 import kotlinx.browser.document
 import kotlinx.html.CommonAttributeGroupFacade
 import kotlinx.html.STYLE
@@ -23,7 +25,7 @@ fun CommonAttributeGroupFacade.inlineStyle(builder: CssPropertyListBuilder.() ->
         root {
             builder()
         }
-    }).also { println(it) }
+    })
 }
 
 private fun generateCss(builder: CssBuilder.() -> Unit, useSelectors: Boolean = true): String {
@@ -155,8 +157,8 @@ class CSSDelegate(val name: String? = null) {
     }
 }
 
-fun Char.isUpperCase(): Boolean = toUpperCase() == this
-fun Char.isLowerCase(): Boolean = toLowerCase() == this
+fun Char.isUpperCase(): Boolean = uppercaseChar() == this
+fun Char.isLowerCase(): Boolean = lowercaseChar() == this
 
 data class CssSelector(val textValue: String)
 

@@ -1,77 +1,55 @@
-import dk.sdu.cloud.debug.ServiceMetadata
+package dk.sdu.cloud.debug
+
+import dk.sdu.cluod.debug.defaultMapper
 import kotlinx.browser.document
-import kotlinx.html.dom.append
-import kotlinx.html.dom.create
-import kotlinx.html.js.div
-import kotlinx.html.js.style
+import kotlinx.browser.window
+import org.w3c.dom.WebSocket
 
-val body inline get() = document.body!!
-val head inline get() = document.head!!
+class Client {
+    var onOpen: () -> Unit = {}
+    var onMessage: (message: ServerToClient) -> Unit = { }
+    var onClose: () -> Unit = { }
 
-fun main() {
-    cssReset()
-    head.append(
-        document.create.css {
-            importGoogleFont("Inter", listOf(100, 400, 700))
-            importGoogleFont("JetBrains Mono", listOf(100, 400, 700))
+    private var socket: WebSocket? = null
 
-            (byTag("html")) {
-                fontFamily = "'Inter', sans-serif"
-            }
+    fun start() {
+        if (socket != null) return
 
-            (byTag("h3")) {
-                cursor = "inherit"
-                fontSize = 24.px
-                margin = 0.px
-                fontWeight = "400"
-            }
+        val socket = WebSocket("ws://${document.location?.host ?: ""}")
+        this.socket = socket
+
+        socket.onopen = {
+            onOpen()
         }
-    )
 
-    val header = Header()
-    body.appendChild(header.render())
+        socket.onclose = {
+            onClose()
 
-    val sidebar = Sidebar().also { it.render() }
-    val serviceSelector = ServiceSelector().also { it.render() }
-    sidebar.elem.appendChild(serviceSelector.elem)
-    run {
-        serviceSelector.addService(ServiceMetadata("ucloud-core-aa", "UCloud/Core"))
-        serviceSelector.addService(ServiceMetadata("ucloud-core-bb", "UCloud/Core"))
-        serviceSelector.addService(ServiceMetadata("im-server-aa", "IM/Server"))
-        serviceSelector.addService(ServiceMetadata("im-user-1000-aa", "IM/User/1000"))
-        serviceSelector.addService(ServiceMetadata("im-user-1001-aa", "IM/User/1001"))
-    }
-    body.appendChild(sidebar.elem)
+            this@Client.socket = null
+            window.setTimeout({ start() }, 5000)
+        }
 
-    val content = document.create.div {
-        inlineStyle {
-            position = "fixed"
-            top = 48.px
-            left = 190.px
+        val onMessageReturn = true.asDynamic()
+        socket.onmessage = f@{ message ->
+            val data = message.data as? String ?: return@f onMessageReturn
 
-            height = "calc(100vh - 48px)"
-            width = "calc(100vw - 190px)"
+            val decodedMessage = try {
+                defaultMapper.decodeFromString(ServerToClient.serializer(), data)
+            } catch (ex: Throwable) {
+                println("Invalid message!" +
+                    "\n  Message: ${data.removeSuffix("\n")}" +
+                    "\n  ${ex::class.simpleName}: ${ex.message?.prependIndent("    ")?.trim()}")
+                null
+            }
 
-            overflow = "hidden"
+            if (decodedMessage != null) onMessage(decodedMessage)
 
-            paddingTop = 16.px
-            paddingLeft = 16.px
-            paddingRight = 16.px
-
-            display = "flex"
-            gap = 16.px
-            flexDirection = "column"
+            onMessageReturn
         }
     }
 
-    val statusCards = StatusCards()
-    content.appendChild(statusCards.render())
-
-    val filters = Filters()
-    content.appendChild(filters.render())
-
-    val log = Log()
-    content.appendChild(log.render())
-
-    body.appendChild(content)
+    fun send(message: ClientToServer) {
+        val socket = socket ?: return
+        socket.send(defaultMapper.encodeToString(ClientToServer.serializer(), message))
+    }
 }
