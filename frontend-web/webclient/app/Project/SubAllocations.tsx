@@ -7,7 +7,7 @@ import {
     deposit,
     DepositToWalletRequestItem,
     explainAllocation, normalizeBalanceForBackend,
-    normalizeBalanceForFrontend, ProductPriceUnit, ProductType,
+    normalizeBalanceForFrontend, Product, ProductPriceUnit, ProductType,
     productTypes,
     productTypeToIcon,
     productTypeToTitle,
@@ -258,9 +258,9 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             if (result == null) return;
             if (recipient.isProject != result.isProject) {
                 if (recipient.isProject) {
-                    snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);        
+                    snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);
                 } else { // !recipient.isProject 
-                    snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);        
+                    snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);
                 }
                 return;
             }
@@ -270,7 +270,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 if (recipient.isProject) {
                     snackbarStore.addFailure("Could not find project. Did you provide the full path?", false);
                 } else {
-                    snackbarStore.addFailure("Could not find the user. Did you provide the full user id?", false); 
+                    snackbarStore.addFailure("Could not find the user. Did you provide the full user id?", false);
                 }
             } else {
                 displayErrorMessageOrDefault(err, "Failed to find project/user");
@@ -504,33 +504,69 @@ interface SuballocationCreationRow {
     allocationId: string;
 }
 
-function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType) {
+interface InitialAndRemainingBalance {
+    initial: string;
+    remainingBalance: string;
+}
+
+interface EntriesByUnitAndChargeType {
+    ABSOLUTE: InitialAndRemainingBalance[];
+    DIFFERENTIAL_QUOTA: InitialAndRemainingBalance[];
+}
+
+function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType): EntriesByUnitAndChargeType {
     const byUnitAndChargeType = {ABSOLUTE: {}, DIFFERENTIAL_QUOTA: {}};
     for (const entry of suballocations) {
-        const value = Math.max(entry.remaining, 0);
-        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = value;
-        else byUnitAndChargeType[entry.chargeType][entry.unit] += value;
+        const remaining = Math.max(0, entry.remaining)
+        const initialBalance = entry.initialBalance ?? remaining;
+        if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = {
+            remaining,
+            initialBalance
+        };
+        else {
+            byUnitAndChargeType[entry.chargeType][entry.unit].initialBalance += initialBalance;
+            byUnitAndChargeType[entry.chargeType][entry.unit].remaining += remaining;
+        }
     }
 
     const result = {
-        ABSOLUTE: Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => normalizeBalanceForFrontend(
-            byUnitAndChargeType.ABSOLUTE[it],
-            productType,
-            "ABSOLUTE",
-            it,
-            false,
-            2
-        ) + " " + explainAllocation(productType, "ABSOLUTE", it)),
-        DIFFERENTIAL_QUOTA: Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => normalizeBalanceForFrontend(
-            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it],
-            productType,
-            "DIFFERENTIAL_QUOTA",
-            it,
-            false,
-            2
-        ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it))
+        ABSOLUTE: Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
+            initial: normalizeBalanceForFrontend(
+                byUnitAndChargeType.ABSOLUTE[it].initialBalance,
+                productType,
+                "ABSOLUTE",
+                it,
+                false,
+                2
+            ) + " " + explainAllocation(productType, "ABSOLUTE", it),
+            remainingBalance: normalizeBalanceForFrontend(
+                byUnitAndChargeType.ABSOLUTE[it].remaining,
+                productType,
+                "ABSOLUTE",
+                it,
+                false,
+                2
+            ) + " " + explainAllocation(productType, "ABSOLUTE", it),
+        })),
+        DIFFERENTIAL_QUOTA: Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
+            initial: normalizeBalanceForFrontend(
+                byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
+                productType,
+                "DIFFERENTIAL_QUOTA",
+                it,
+                false,
+                2
+            ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it),
+            remainingBalance: normalizeBalanceForFrontend(
+                byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
+                productType,
+                "DIFFERENTIAL_QUOTA",
+                it,
+                false,
+                2
+            ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it),
+        }))
     }
-
     return result;
 }
 
@@ -540,13 +576,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const storageRemaining = React.useMemo(() => {
         const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
         const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
-        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={e}><Icon mx="12px" name="hdd" />{e}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.initial} / {e.remainingBalance}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const computeRemaining = React.useMemo(() => {
         const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
         const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={e}><Icon mx="12px" name="cpu" />{e}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.initial} / {e.remainingBalance}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
