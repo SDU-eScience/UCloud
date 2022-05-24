@@ -18,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -42,6 +42,7 @@ import {
     isGrantFinalized,
     retrieveDescription,
     RetrieveDescriptionResponse,
+    submitGrantApplication,
 } from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
 // import {Client} from "@/Authentication/HttpClientInstance";
@@ -88,10 +89,11 @@ import {
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
     editReferenceId,
-    fetchProducts
+    fetchProducts,
+    debugWallet
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {listProjects, ProjectRole, useProjectManagementStatus, UserInProject, userProjectStatus, viewProject} from "..";
+import {ProjectRole, UserInProject, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 
 export enum RequestTarget {
@@ -100,6 +102,8 @@ export enum RequestTarget {
     PERSONAL_PROJECT = "personal",
     VIEW_APPLICATION = "view"
 }
+
+const DEBUGGING = true;
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -220,7 +224,7 @@ function checkIsGrantRecipient(recipient: Recipient, username: string, projectId
     } else if (recipient.type === "personal_workspace") {
         return recipient.username === username;
     } else {
-        // TODO(Jonas): handle
+        // TODO(Jonas): handle this case
         recipient.type === "new_project";
         return false;
     }
@@ -230,14 +234,13 @@ const GenericRequestCard: React.FunctionComponent<{
     wb: GrantProductCategory;
     grantFinalized: boolean;
     isLocked: boolean;
+    isApprover: boolean;
     showAllocationSelection: boolean;
     wallets: Wallet[];
     allocationRequests: AllocationRequest[];
-}> = ({wb, grantFinalized, isLocked, wallets, showAllocationSelection, allocationRequests}) => {
+}> = ({wb, grantFinalized, isLocked, wallets, ...props}) => {
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
-
-    if (allocationRequests.length !== 0) console.log(allocationRequests);
 
     if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
@@ -279,7 +282,7 @@ const GenericRequestCard: React.FunctionComponent<{
             </HighlightedCard>
         </RequestForSingleResourceWrapper>
     } else {
-        const defaultValue = allocationRequests.find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name)?.balanceRequested;
+        const defaultValue = props.allocationRequests.find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name)?.balanceRequested;
         // TODO(Jonas): This is probably not correct
         const isPrice = false;
         const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, isPrice) : undefined;
@@ -333,7 +336,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         endDate={endDate}
                                         py="8px"
                                         borderWidth="2px"
-                                        required={false /* TODO state.approver */}
+                                        required={props.isApprover}
                                         disabled={grantFinalized || isLocked}
                                         mr="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
@@ -362,9 +365,8 @@ const GenericRequestCard: React.FunctionComponent<{
                         </tr>
                     </tbody>
                 </table>
-                {showAllocationSelection ?
-                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked} />
-                    : null
+                {props.showAllocationSelection ?
+                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked} /> : null
                 }
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
@@ -390,7 +392,9 @@ function AllocationSelection({wallets, wb, isLocked}: {
     return <div>
         <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
         {!isLocked ?
-            <ClickableDropdown width={"660px"} useMousePositioning chevron trigger={!allocation ? "No allocation selected" : `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name}`}>
+            <ClickableDropdown colorOnHover={false} width="660px" useMousePositioning trigger={!allocation ?
+                <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
+                <>{allocation.wallet.paysFor.provider} @ {allocation.wallet.paysFor.name}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}>
                 <Table>
                     <TableHeader>
                         <TableHeaderCell width="200px">Provider</TableHeaderCell>
@@ -415,7 +419,7 @@ function AllocationSelection({wallets, wb, isLocked}: {
 function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
     return <>
         {wallet.allocations.map(a =>
-            <TableRow onClick={() => onClick(wallet, a)}>
+            <TableRow onClick={() => onClick(wallet, a)} cursor="pointer">
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">{a.localBalance}</TableCell>
@@ -438,6 +442,30 @@ function titleFromTarget(target: RequestTarget): string {
     }
 }
 
+// TODO(Jonas): Very much very very bad name.
+function useAsyncResult<RequestType, ResponseType, MappedType = ResponseType[]>(
+    requests: APICallParameters<RequestType>[],
+    initialValue: MappedType,
+    resultMapper: (requests: APICallParameters<RequestType>[], response: (ResponseType | null)[]) => MappedType
+): MappedType {
+    const [loading, invokeCommand] = useCloudCommand();
+    const [result, setResult] = useState<MappedType>(initialValue);
+    React.useEffect(() => {
+        Promise.allSettled(requests.map(it => invokeCommand<ResponseType>(it))).then(resolvedPromises => {
+            const result = [] as (ResponseType | null)[];
+            for (const promise of resolvedPromises) {
+                if (promise.status === "fulfilled") {
+                    result.push(promise.value);
+                }
+            }
+            setResult(resultMapper(requests, result));
+        });
+    }, [requests]);
+    return result;
+}
+
+type ApproverMap = Record<string, boolean>;
+
 // Note: target is baked into the component to make sure we follow the rules of hooks.
 //
 // We need to take wildly different paths depending on the target which causes us to use very different hooks. Baking
@@ -458,11 +486,77 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const {appId} = useParams<{appId?: string}>();
 
         const documentRef = useRef<HTMLTextAreaElement>(null);
+        const grantFinalized = isGrantFinalized();
 
-        const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>(
-            browseWallets({itemsPerPage: 250}), emptyPageV2
-        );
+        const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
+        const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
+
+        const [grantProductCategories, setGrantProductCategories] = useState<{[key: string]: GrantProductCategory[]}>({});
+
+        const [submitLoading, setSubmissionsLoading] = React.useState(false);
+        const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
+        const [transferringApplication, setTransferringApplication] = useState(false);
+        const [approverMap, setApprovers] = useState<ApproverMap>({});
+        const [parentProjectId, setParentProjectId] = useState("");
+
+        const [walletsByOwner, setWallets] = useState<Record<string, UCloud.PageV2<Wallet>>>({});
+        React.useEffect(() => {
+            const requests = grantGivers.items.map(it => ({...browseWallets({itemsPerPage: 250}), projectOverride: it.projectId}));
+            Promise.allSettled(requests.map(r => runWork<UCloud.PageV2<Wallet>>(r))).then(resolvedPromises => {
+                const result: Record<string, UCloud.PageV2<Wallet>> = {};
+                for (const [index, promise] of resolvedPromises.entries()) {
+                    if (promise.status === "fulfilled" && promise.value != null) {
+
+                        if (DEBUGGING) {
+                            switch (requests[index].projectOverride) {
+                                case "just-some-id-we-cant-consider-valid":
+                                    result["just-some-id-we-cant-consider-valid"] = {
+                                        itemsPerPage: 250,
+                                        items: [
+                                            debugWallet("COMPUTE", "just-some-id-we-cant-consider-valid", "Ballista", "UAC"),
+                                            debugWallet("STORAGE", "just-some-id-we-cant-consider-valid", "SSG", "UAC"),
+                                            debugWallet("COMPUTE", "just-some-id-we-cant-consider-valid", "Ballista", "UAC"),
+                                        ]
+                                    }
+                                    break;
+                                case "just-some-other-id-we-cant-consider-valid":
+                                    result["just-some-other-id-we-cant-consider-valid"] = {
+                                        itemsPerPage: 250,
+                                        items: [
+                                            debugWallet("STORAGE", "just-some-other-id-we-cant-consider-valid", "PlasmaR", "HELL"),
+                                            debugWallet("COMPUTE", "just-some-other-id-we-cant-consider-valid", "SSG", "HELL"),
+                                        ]
+                                    }
+                                    break;
+                                case "the-final-one":
+                                    result["the-final-one"] = {
+                                        itemsPerPage: 250,
+                                        items: [
+
+                                            // Cultist Base / CyberD - STORAGE
+                                            // Cultist Base / SSG - PUBLIC IP
+                                            debugWallet("STORAGE", "the-final-one", "CyberD", "Cultist Base"),
+                                            debugWallet("NETWORK_IP", "the-final-one", "SSG", "Cultist Base"),
+                                            //  debugWallet(),
+                                            //  debugWallet(),
+                                            //  debugWallet(),
+                                        ]
+                                    };
+                                    break;
+                            }
+                        } else {
+                            result[requests[index].projectOverride] = promise.value;
+                        }
+                    }
+                };
+                setWallets(result);
+            });
+        }, [grantGivers.items]);
+
+        console.log(walletsByOwner);
+
+        // TODO(Jonas): Change to Use CloudAPI
         const [grantApplication, setGrant] = useState<GrantApplication>({
             createdAt: 0,
             updatedAt: 0,
@@ -480,6 +574,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     },
                     referenceId: "",
                     revisionComment: "",
+                    parentProjectId: null,
                 }
             },
             id: "0",
@@ -501,24 +596,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             if (appId) {fetchGrantApplication({id: appId}).then(g => setGrant(g))};
         }, [appId]);
 
-        const grantFinalized = isGrantFinalized();
-
-        const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
-
-        const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
-
-        const [grantProductCategories, setGrantProductCategories] = useState<{[key: string]: GrantProductCategory[]}>({});
-
-        const [submitLoading, setSubmissionsLoading] = React.useState(false);
-        const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
-        const [transferringApplication, setTransferringApplication] = useState(false);
-        const [approverMap, setApprovers] = useState<{[project: string]: boolean}>({});
-
         React.useEffect(() => {
             if (grantApplication.status.stateBreakdown.length > 0) {
-                const approvers: {[project: string]: boolean} = {};
+                const approvers: ApproverMap = {};
                 const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
                     runWork<UserInProject>(viewProject({
+                        // TODO(Jonas): use correct projectId:
+                        // id: p.id,
                         id: "da469561-0e73-4696-8034-756c98c78a71"
                     }))
                 ));
@@ -530,10 +614,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             );
                         }
                     }
-                    setApprovers(approvers);
+                    // TODO: Re-add the following line:
+                    // setApprovers(approvers);
                 });
             }
         }, [grantApplication.status.stateBreakdown]);
+
+
 
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
@@ -575,7 +662,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             creditsRequested,
                             wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
                         );
-                    }
+                   }
 
                     if (creditsRequested === undefined || creditsRequested <= 0) {
                         return null;
@@ -591,19 +678,71 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             end
                         }
                     } as AllocationRequest;
-                }).filter(it => it !== null)
+                }).filter(it => it != null)
             ) as AllocationRequest[];
+            try {
+                let recipient: Recipient;
+                switch (target) {
+                    // TODO(Jonas): Is this reachable for submissions?
+                    case RequestTarget.EXISTING_PROJECT: {
+                        recipient = {
+                            type: "existing_project",
+                            id: appId ?? "", // TODO(Jonas): Is this the correct one?
+                        };
+                    } break;
+                    case RequestTarget.NEW_PROJECT: {
+                        const newProjectTitle = projectTitleRef.current?.value;
+                        if (!newProjectTitle) {
+                            snackbarStore.addFailure("Project title can't be empty.", false);
+                            return;
+                        }
+                        recipient = {
+                            type: "new_project",
+                            title: newProjectTitle
+                        };
+                    } break;
+                    case RequestTarget.PERSONAL_PROJECT: {
+                        recipient = {
+                            type: "personal_workspace",
+                            // TODO(Jonas): Ensure that this is 
+                            username: getRecipientId(grantApplication.currentRevision.document.recipient),
+                        }
+                    } break;
+                    case RequestTarget.VIEW_APPLICATION: {
+                        recipient = grantApplication.currentRevision.document.recipient;
+                    } break;
+                }
+
+                const formText = documentRef.current?.value;
+                if (!formText) {
+                    snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+                    return;
+                }
+
+                const documentToSubmit: Document = {
+                    referenceId: null,
+                    revisionComment: null, // TODO(Jonas): Missing
+                    recipient: recipient,
+                    allocationRequests: requestedResourcesByAffiliate,
+                    form: formText,
+                    parentProjectId,
+                };
+            } catch (error) {
+                displayErrorMessageOrDefault(error, "Failed to submit application.");
+            }
             setSubmissionsLoading(false);
             console.log("Submit TODO", requestedResourcesByAffiliate);
-        }, [grantGiversInUse, grantProductCategories]);
+        }, [grantGiversInUse, grantProductCategories, parentProjectId, grantApplication]);
 
         const updateReferenceID = useCallback(async () => {
             const value = projectReferenceIdRef.current?.value;
             if (!value) {
                 snackbarStore.addFailure("Project Reference ID can't be empty", false);
+                return;
             }
             await runWork(editReferenceId({id: grantApplication.id, newReferenceId: value}));
             setIsEditingProjectReference(false);
+            // TODO(Jonas): If this works as intended, no reason for a full reload.
             reload();
         }, []);
 
@@ -633,7 +772,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const reload = useCallback(() => {
             fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
             if (appId) {fetchGrantApplication({id: appId}).then(g => setGrant(g))};
-            fetchWallets(browseWallets({itemsPerPage: 250}));
+            // TODO(Jonas): Re-add
+            // fetchWallets(browseWallets({itemsPerPage: 250}));
         }, [appId]);
 
         const discardChanges = useCallback(() => {
@@ -641,13 +781,33 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             reload();
         }, [reload]);
 
+        const [DEBUGGING_project_id, DEBUGGING_set_project_id] = useState("just-some-id-we-cant-consider-valid");
 
-        const status = useProjectManagementStatus({isRootComponent: true});
-        const isAdminOrPi = ["ADMIN", "PI"].includes(status.projectDetails.data.whoami.role);
-        const isAdminOrPiForAnything = isAdminOrPi && grantApplication.status.stateBreakdown.some(it => it.id === status.projectId);
-        const isPersonalWorkspace = grantApplication.currentRevision.document.recipient.type === "personal_workspace";
+        const status = {
+            projectId: "just-some-id-we-cant-consider-valid",
+            projectDetails: {
+                data: {
+                    whoami: {
+                        role: "ADMIN"
+                    }
+                }
+            }
+        };// useProjectManagementStatus({isRootComponent: true});
         // TODO(Jonas): Is missing one case;
         const isGrantRecipient = checkIsGrantRecipient(grantApplication.currentRevision.document.recipient, Client.username, status.projectId);
+
+        React.useEffect(() => {
+            if (parentProjectId) return;
+            const [firstGrantGiver] = grantGiversInUse;
+            if (firstGrantGiver != null) setParentProjectId(firstGrantGiver);
+            // TODO(Jonas): Read parentProjectId from grant if available.
+        }, [grantGiversInUse, parentProjectId]);
+
+
+        // TODO(Jonas): Remove
+        useEffect(() => {
+            setApprovers({[DEBUGGING_project_id]: true})
+        }, [DEBUGGING_project_id]);
 
         const grantGiverDropdown = React.useMemo(() =>
             target === RequestTarget.VIEW_APPLICATION || (grantGivers.items.length - grantGiversInUse.length) === 0 ? null :
@@ -684,24 +844,16 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     grantApplication={grantApplication}
                     remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
                     setGrantProductCategories={setGrantProductCategories}
-                    wallets={wallets.data.items}
+                    wallets={walletsByOwner[it.projectId]?.items ?? []}
                     project={it}
+                    isParentProject={parentProjectId === it.projectId}
+                    setParentProject={setParentProjectId}
                     isLocked={isLocked}
-                    isApprover={approverMap[it.projectId]}
+                    isApprover={approverMap[it.projectId] ? (console.log(approverMap[it.title]), true) : false}
                 />
-            ), [grantGivers, grantGiversInUse, isLocked, wallets, isAdminOrPi]);
+            ), [grantGivers, grantGiversInUse, isLocked, walletsByOwner, parentProjectId, DEBUGGING_project_id]);
 
         const recipient = getDocument(grantApplication).recipient;
-        recipientTypeToText
-        const allocationsById = React.useMemo(() => {
-            const byId: {[id: string]: {allocation: WalletAllocation, wallet: Wallet}} = {};
-            for (const wallet of wallets.data.items) {
-                for (const allocation of wallet.allocations) {
-                    byId[allocation.id] = {allocation, wallet};
-                }
-            }
-            return byId;
-        }, []);
 
         return (
             <MainContainer
@@ -709,7 +861,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
                 }
                 sidebar={null}
-                main={
+                main={<>
+                    DEBUGGING
+                    <select>
+                        <option onClick={() => DEBUGGING_set_project_id("just-some-id-we-cant-consider-valid")}>UAC</option>
+                        <option onClick={() => DEBUGGING_set_project_id("just-some-other-id-we-cant-consider-valid")}>HELL</option>
+                        <option onClick={() => DEBUGGING_set_project_id("the-final-one")}>Cultist Base</option>
+                        <option onClick={() => DEBUGGING_set_project_id("")}>None</option>
+                    </select>
+                    DEBUGGING
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
                             {target !== RequestTarget.NEW_PROJECT ? null : (
@@ -765,52 +925,48 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {isAdminOrPi && isAdminOrPiForAnything ?
-                                                        <TableCell>
-                                                            <table>
-                                                                <tbody>
-                                                                    <tr>
-                                                                        {isEditingProjectReferenceId ? (
-                                                                            <>
-                                                                                <td>
-                                                                                    <Input
-                                                                                        placeholder={"e.g. DeiC-SDU-L1-000001"}
-                                                                                        ref={projectReferenceIdRef}
-                                                                                    />
-                                                                                </td>
-                                                                                <td>
-                                                                                    <Button
-                                                                                        color="blue"
-                                                                                        onClick={updateReferenceID}
-                                                                                        mx="6px"
-                                                                                    >
-                                                                                        Update Reference ID
-                                                                                    </Button>
-                                                                                    <Button
-                                                                                        color="red"
-                                                                                        onClick={cancelEditOfRefId}
-                                                                                    >
-                                                                                        Cancel
-                                                                                    </Button>
-                                                                                </td>
-                                                                            </>) : (
-                                                                            <>
-                                                                                <td>
-                                                                                    {getReferenceId(grantApplication) ?? "No ID given"}
-                                                                                </td>
-                                                                                <td>
-                                                                                    <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
-                                                                                </td>
-                                                                            </>)
-                                                                        }
-                                                                    </tr>
-                                                                </tbody>
-                                                            </table>
-                                                        </TableCell> :
-                                                        <TableCell>
-                                                            {grantApplication.currentRevision.document.referenceId ?? "No ID given"}
-                                                        </TableCell>
-                                                    }
+                                                    {/* TODO(Jonas): When should this be shown? */}
+                                                    <TableCell>
+                                                        <table>
+                                                            <tbody>
+                                                                <tr>
+                                                                    {isEditingProjectReferenceId ? (
+                                                                        <>
+                                                                            <td>
+                                                                                <Input
+                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                    ref={projectReferenceIdRef}
+                                                                                />
+                                                                            </td>
+                                                                            <td>
+                                                                                <Button
+                                                                                    color="blue"
+                                                                                    onClick={updateReferenceID}
+                                                                                    mx="6px"
+                                                                                >
+                                                                                    Update Reference ID
+                                                                                </Button>
+                                                                                <Button
+                                                                                    color="red"
+                                                                                    onClick={cancelEditOfRefId}
+                                                                                >
+                                                                                    Cancel
+                                                                                </Button>
+                                                                            </td>
+                                                                        </>) : (
+                                                                        <>
+                                                                            <td>
+                                                                                {getReferenceId(grantApplication) ?? "No ID given"}
+                                                                            </td>
+                                                                            <td>
+                                                                                <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                            </td>
+                                                                        </>)
+                                                                    }
+                                                                </tr>
+                                                            </tbody>
+                                                        </table>
+                                                    </TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
@@ -825,7 +981,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                         <ButtonGroup>
                                                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                                                 <>
-                                                                    {isAdminOrPi && isAdminOrPiForAnything && !grantFinalized ?
+                                                                    {/* TODO(Jonas): isAdminOrPi && isAdminOrPiForAnything && */ !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="green"
@@ -868,7 +1024,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                         </> : null
                                                                     }
                                                                     {/* TODO(Jonas): Correct isAdminOrPi check? */}
-                                                                    {!isAdminOrPi && !grantFinalized ?
+                                                                    {/* !isAdminOrPi && */ !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="red"
@@ -913,12 +1069,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                 grantGivers.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
                                     <GrantGiver
-                                        isApprover={approverMap[grantGiver.projectId]}
+                                        isApprover={approverMap[grantGiver.projectId] ? (console.log(grantGiver.title), true) : false}
                                         isLocked={isLocked}
                                         project={grantGiver}
+                                        setParentProject={setParentProjectId}
+                                        isParentProject={grantGiver.projectId === parentProjectId}
                                         grantApplication={grantApplication}
                                         setGrantProductCategories={setGrantProductCategories}
-                                        wallets={wallets.data.items}
+                                        wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
                                     />
                                 </>))}
 
@@ -926,7 +1084,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 <RequestFormContainer>
                                     <Heading.h4>Application</Heading.h4>
                                     <TextArea
-                                        disabled={grantFinalized || isLocked || !isGrantRecipient}
+                                        disabled={grantFinalized || isLocked}
                                         rows={25}
                                         ref={documentRef}
                                     />
@@ -985,7 +1143,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </Box>
                         </Box>
                     </Flex>
-                }
+                </>}
                 additional={
                     <TransferApplicationPrompt
                         isActive={transferringApplication}
@@ -1074,6 +1232,8 @@ function GrantGiver(props: {
     isLocked: boolean;
     remove?: () => void;
     wallets: Wallet[];
+    isParentProject: boolean;
+    setParentProject(project: string): void;
     setGrantProductCategories: React.Dispatch<React.SetStateAction<{[key: string]: GrantProductCategory[]}>>;
     isApprover: boolean;
 }): JSX.Element {
@@ -1085,13 +1245,12 @@ function GrantGiver(props: {
     /* TODO(Jonas): Why is this done over two parts instead of one?  */
     const [products, setProducts] = useState<{availableProducts: Product[]}>({availableProducts: []});
     React.useEffect(() => {
-        const result = fetchProducts(grantApi.retrieveProducts({
+        fetchProducts(grantApi.retrieveProducts({
             projectId: props.project.projectId,
             recipientType: recipient.type,
             recipientId,
             showHidden: false
-        }));
-        result.then(it => setProducts(it));
+        })).then(it => setProducts(it));
     }, []);
 
     const productCategories: GrantProductCategory[] = useMemo(() => {
@@ -1141,7 +1300,21 @@ function GrantGiver(props: {
     return React.useMemo(() =>
         <Box mt="12px">
             <Spacer
-                left={<Heading.h3>{props.project.title}</Heading.h3>}
+                left={
+                    <>
+                        <Heading.h3>{props.project.title}</Heading.h3>
+                        {!props.isParentProject && props.isLocked ? null :
+                            <Tooltip trigger={
+                                <ParentProjectIcon
+                                    onClick={() => props.isLocked ? null : props.setParentProject(props.project.projectId)}
+                                    cursor={props.isLocked ? undefined : "pointer"} isSelected={props.isParentProject} name="check"
+                                />
+                            }>
+                                {props.isParentProject ? "Selected as parent project." : (!props.isLocked ? "Click to select as parent project" : "Not selected as parent project.")}
+                            </Tooltip>
+                        }
+                    </>
+                }
                 right={props.remove ? <Flex cursor="pointer" onClick={props.remove}><Icon name="close" color="red" mr="8px" />Remove</Flex> : null}
             />
             {productTypes.map(type => {
@@ -1155,18 +1328,32 @@ function GrantGiver(props: {
                             <GenericRequestCard
                                 key={idx}
                                 wb={pc}
+                                isApprover={props.isApprover}
                                 grantFinalized={grantFinalized}
                                 isLocked={props.isLocked}
                                 allocationRequests={props.grantApplication.currentRevision.document.allocationRequests.filter(it => it.category === pc.metadata.category.name && it.provider === pc.metadata.category.provider)}
-                                wallets={filteredWallets.filter(it => it.paysFor.provider === pc.metadata.category.provider)}
-                                showAllocationSelection={props.isApprover && !props.isLocked}
+                                wallets={filteredWallets}
+                                showAllocationSelection={props.isApprover}
                             />
                         )}
                     </ResourceContainer>}
                 </React.Fragment>);
             })}
-        </Box>, [productCategories, props.wallets, props.grantApplication]);
+        </Box>, [productCategories, props.wallets, props.grantApplication, props.isParentProject, props.isApprover, props.isLocked]);
 }
+
+const ParentProjectIcon = styled(Icon) <{isSelected: boolean}>`
+    color: var(--${p => p.isSelected ? "blue" : "gray"});
+
+    transition: color 0.4s;
+
+    margin-top: 6px;
+    margin-left: 8px;
+
+    &:hover {
+        color: var(--blue);
+    }
+`;
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
