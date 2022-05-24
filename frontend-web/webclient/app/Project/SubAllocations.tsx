@@ -256,11 +256,21 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         try {
             const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
             if (result == null) return;
+            if (recipient.isProject != result.isProject) {
+                if (recipient.isProject) {
+                    snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);        
+                } else { // !recipient.isProject 
+                    snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);        
+                }
+                return;
+            }
             recipientTitle = result.id;
         } catch (err) {
             if (err?.request?.status === 404) {
                 if (recipient.isProject) {
                     snackbarStore.addFailure("Could not find project. Did you provide the full path?", false);
+                } else {
+                    snackbarStore.addFailure("Could not find the user. Did you provide the full user id?", false); 
                 }
             } else {
                 displayErrorMessageOrDefault(err, "Failed to find project/user");
