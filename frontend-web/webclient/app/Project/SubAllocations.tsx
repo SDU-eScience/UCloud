@@ -242,7 +242,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         const mappedRows: DepositToWalletRequestItem[] = [];
 
         if (recipient.suballocations.length === 0) {
-            snackbarStore.addFailure("No suballocations to submit.", false);
+            snackbarStore.addFailure("No sub-allocations to submit.", false);
             return;
         }
 
@@ -294,7 +294,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         }
 
         if (mappedRows.length === 0) {
-            snackbarStore.addFailure("No suballocations to submit. Shouldn't happen.", false);
+            snackbarStore.addFailure("No sub-allocations to submit. Shouldn't happen.", false);
         }
 
         let reason = "";
@@ -320,7 +320,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     removeNewRecipientRow(recipient.id);
                     props.reload();
                     dialogStore.success();
-                    snackbarStore.addSuccess("Suballocations added.", false);
+                    snackbarStore.addSuccess("Sub-allocations added.", false);
                 } catch (e) {
                     errorMessageOrDefault(e, "Failed to submit rows");
                 }
@@ -735,7 +735,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             </>}
         >
             <Box px="12px">
-                {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={() => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
+                {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={e => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
                 {creationRows.map((row, index) => {
                     const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
                     const remainingProductTypes = productTypes.filter(it => it !== row.productType);
