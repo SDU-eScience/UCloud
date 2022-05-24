@@ -688,7 +688,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 <Heading.h3>Available Allocations</Heading.h3>
                 <Grid gridTemplateColumns={`repeat(2 , 1fr)`} gridGap="15px">
                     {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
-                        <Box key={allocation.allocationPath} height="120px" onClick={() => {
+                        <Box key={allocation.allocationPath} height="120px" cursor="pointer" onClick={() => {
                             setCreationRows(rows => {
                                 rows[id].wallet = it.wallet;
                                 rows[id].allocationId = allocation.id;
