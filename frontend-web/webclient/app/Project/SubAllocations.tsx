@@ -449,9 +449,15 @@ function SuballocationRows(props: {
     reload(): void;
     wallets: Wallet[];
 }): JSX.Element {
+    const [rows, setRows] = useState(props.rows);
+
+    React.useEffect(() => {
+        if (props.rows.length > 0) setRows(props.rows);
+    }, [props.rows]);
+
     return React.useMemo(() => {
         const groupedByName: {[key: string]: SubAllocation[]} = {};
-        props.rows.forEach(row => {
+        rows.forEach(row => {
             if (groupedByName[row.workspaceTitle]) {
                 groupedByName[row.workspaceTitle].push(row);
             } else {
@@ -464,7 +470,7 @@ function SuballocationRows(props: {
         return <Box>
             {keys.map((key, index) => <SuballocationGroup key={key} isLast={keys.length - 1 === index} entryKey={key} rows={groupedByName[key]} wallets={props.wallets} reload={props.reload} />)}
         </Box>
-    }, [props.rows, props.wallets]);
+    }, [rows, props.wallets, props.reload]);
 }
 
 function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAllocation[]): APICallParameters | null {
@@ -684,12 +690,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         }
     }, []);
 
-    const allocationsByProductTypes = useMemo((): {
-        [key: string]: {
-            wallet: Wallet;
-            allocations: WalletAllocation[];
-        }[]
-    } => ({
+    const allocationsByProductTypes = useMemo((): {[key: string]: {wallet: Wallet; allocations: WalletAllocation[];}[]} => ({
         ["COMPUTE" as ProductType]: findValidAllocations(props.wallets, "COMPUTE"),
         ["STORAGE" as ProductType]: findValidAllocations(props.wallets, "STORAGE"),
         ["INGRESS" as ProductType]: findValidAllocations(props.wallets, "INGRESS"),
