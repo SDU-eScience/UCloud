@@ -706,7 +706,6 @@ export interface SubAllocation {
     workspaceIsProject: boolean;
 
     remaining: number;
-    // TODO(Jonas): This WILL show up, but is not available yet;
     initialBalance: number;
 }
 

@@ -524,7 +524,7 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     const byUnitAndChargeType = {ABSOLUTE: {}, DIFFERENTIAL_QUOTA: {}};
     for (const entry of suballocations) {
         const remaining = Math.max(0, entry.remaining)
-        const initialBalance = entry.initialBalance ?? remaining;
+        const initialBalance = entry.initialBalance;
         if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = {
             remaining,
             initialBalance
@@ -582,13 +582,13 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const storageRemaining = React.useMemo(() => {
         const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
         const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
-        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.initial} / {e.remainingBalance}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const computeRemaining = React.useMemo(() => {
         const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
         const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.initial} / {e.remainingBalance}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
