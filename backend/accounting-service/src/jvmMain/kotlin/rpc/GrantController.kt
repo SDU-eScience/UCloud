@@ -4,7 +4,6 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.grants.GrantComments
 import dk.sdu.cloud.accounting.api.grants.GrantTemplates
-import dk.sdu.cloud.accounting.api.grants.GrantsReference
 import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.accounting.services.grants.GrantApplicationService
 import dk.sdu.cloud.accounting.services.grants.GrantCommentService
@@ -13,11 +12,9 @@ import dk.sdu.cloud.accounting.services.grants.GrantTemplateService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.DBContext
 import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.http.content.*
@@ -93,12 +90,6 @@ class GrantController(
 
         implement(GrantComments.deleteComment) {
             //comments.deleteComment(actorAndProject, request)
-            ok(Unit)
-        }
-
-        //GRANT REFERENCE ID
-        implement(GrantsReference.updateReferenceId) {
-            applications.editReferenceID(actorAndProject, request)
             ok(Unit)
         }
 

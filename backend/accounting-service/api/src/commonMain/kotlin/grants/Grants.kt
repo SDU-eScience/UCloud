@@ -265,6 +265,7 @@ data class GrantApplication(
         val comment: String,
     )
 }
+
 @Serializable
 data class ViewApplicationRequest(val id: Long)
 typealias ViewApplicationResponse = GrantApplication

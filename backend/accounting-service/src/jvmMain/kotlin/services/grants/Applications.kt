@@ -3,7 +3,6 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.grants.UpdateReferenceIdRequest
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -536,10 +535,10 @@ class GrantApplicationService(
                             setParameter("app_id", request.applicationId)
                         },
                         """
-                        select max(revision_number)::int as newest
-                        from "grant".revisions
-                        where application_id = :app_id
-                    """
+                            select max(revision_number)::int as newest
+                            from "grant".revisions
+                            where application_id = :app_id
+                        """
                     ).rows
                     .singleOrNull()?.getInt(0) ?: throw RPCException("No Revision found", HttpStatusCode.NotFound)
 
@@ -563,7 +562,7 @@ class GrantApplicationService(
                             meta = {
                                 JsonObject(
                                     mapOf(
-                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient)
+                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
                                         "appId" to JsonPrimitive(request.applicationId),
                                     )
                                 )
@@ -577,7 +576,7 @@ class GrantApplicationService(
                             meta = {
                                 JsonObject(
                                     mapOf(
-                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient)
+                                        "grantRecipient" to defaultMapper.encodeToJsonElement(grantRecipient),
                                         "appId" to JsonPrimitive(request.applicationId),
                                     )
                                 )
@@ -596,18 +595,25 @@ class GrantApplicationService(
         request.items.forEach { update ->
             require(update.newState != GrantApplication.State.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
         }
+
         db.withSession(remapExceptions = true) { session ->
             request.items.forEach { update ->
                 val id = update.applicationId
                 val newState = update.newState
+                val approvingProject = actorAndProject.project
+
                 val success = session.sendPreparedStatement(
                     {
                         setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("id", id)
-                        setParameter("status", newState.name)
-                        setParameter("should_be_approver", newState != GrantApplication.State.CLOSED)
+                        setParameter("app_id", id)
+                        setParameter("state", newState.name)
+                        setParameter("project_id", approvingProject)
                     },
                     """
+                        update "grant".grant_giver_approvals
+                        set state = :state, updated_by = :username, last_update = now() 
+                        where project_id = :project_id and
+                            application_id = :app_id;
                     with
                         permission_check as (
                             select app.id, pm.username is not null as is_approver
@@ -645,7 +651,7 @@ class GrantApplicationService(
                 }
 
                 if (newState == GrantApplication.State.APPROVED) {
-                    onApplicationApprove(session, actorAndProject.actor.safeUsername(), update.applicationId)
+                    onApplicationApprove(session, update.applicationId)
                 }
 
                 if (update.notify) {
@@ -879,7 +885,10 @@ class GrantApplicationService(
                 where
                     r.application_id = :id
             """
-        ).rows.map { it.getString(0)!! }
+        ).rows
+            .map {
+                it.getString(0)!!
+            }
 
         providerIds.forEach { provider ->
             val comms = providers.prepareCommunication(provider)

@@ -15,7 +15,8 @@ create table "grant".grant_giver_approvals(
     project_title text,
     state text,
     updated_by text,
-    last_update timestamp
+    last_update timestamp,
+    PRIMARY KEY (application_id, project_id)
 );
 
 create table "grant".revisions(
@@ -33,6 +34,7 @@ alter table "grant".requested_resources add foreign key (application_id,revision
 create table "grant".forms(
     application_id bigint references "grant".applications(id),
     revision_number int,
+    parent_project_id text,
     recipient text,
     recipient_type text,
     form text,
@@ -55,9 +57,13 @@ applications_with_revisions as (
     select revision_number, grant_recipient, grant_recipient_type, document, reference_id
     from "grant".applications join "grant".revisions r on applications.id = r.application_id
 )
-insert into "grant".forms (revision_number, recipient, recipient_type, form, reference_id)
-select awr.revision_number, awr.grant_recipient, awr.grant_recipient_type, awr.document, awr.reference_id
-from applications_with_revisions awr;
+insert into "grant".forms (revision_number, recipient, recipient_type, form, reference_id, parent_project_id)
+select awr.revision_number, awr.grant_recipient, awr.grant_recipient_type, awr.document, awr.reference_id, oa.resources_owned_by
+from applications_with_revisions awr join
+    revisions r on
+        r.revision_number = awr.revision_number join
+    old_applications oa on
+        oa.id = r.application_id;
 
 -- Migrate approval states
 with old_applications as (
@@ -78,7 +84,173 @@ alter table "grant".applications drop column updated_at;
 -- rename columns to match new struct
 alter table "grant".applications rename status to overall_state;
 
-create or replace function can_submit_application(username_in text, sources text[], grant_recipient text, grant_recipient_type text) returns boolean
+create or replace function "grant".resource_allocation_to_json(
+    request_in "grant".requested_resources,
+    product_category_in accounting.product_categories
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'category', product_category_in.category,
+        'provider', product_category_in.provider,
+        'grantGiver', request_in.grant_giver,
+        'balanceRequested', request_in.credits_requested,
+        'sourceAllocation', request_in.source_allocation,
+        'period', jsonb_build_object(
+            'start', request_in.start_date,
+            'end', request_in.end_date
+        )
+    );
+$$;
+
+create or replace function "grant".grant_giver_approval_to_json(
+    grant_giver_approvals_in "grant".grant_giver_approvals
+) returns jsonb language sql as $$
+    select jsonb_build_object(
+        'projectId', grant_giver_approvals_in.project_id,
+        'projectTitle', grant_giver_approvals_in.project_title,
+        'state', grant_giver_approvals_in.state
+    );
+$$;
+
+drop function "grant".application_to_json(application_in "grant".applications, resources_in jsonb[], resources_owned_by_in project.projects, project_in project.projects, project_pi_in text);
+
+create or replace function "grant".revision_to_json(
+    resources_in jsonb[],
+    form_in "grant".forms,
+    revision_in "grant".revisions
+) returns jsonb
+	language plpgsql
+as $$
+declare
+    builder jsonb;
+    document jsonb;
+begin
+
+    if form_in.recipient_type = 'personal' then
+        document := jsonb_build_object(
+            'recipient', jsonb_build_object(
+                'type', form_in.recipient_type,
+                'username', form_in.recipient
+            ),
+            'allocationRequests', resources_in,
+            'form', form_in.form,
+            'referenceId', form_in.reference_id,
+            'revisionComment', revision_in.revision_comment,
+            'parentProjectId', form_in.parent_project_id
+        );
+    elseif form_in.recipient_type = 'existing_project' then
+        document := jsonb_build_object(
+            'grantRecipient', jsonb_build_object(
+                'type', form_in.recipient_type,
+                'id', form_in.recipient
+            ),
+            'allocationRequests', jsonb_build_array(
+                resources_in
+            ),
+            'form', form_in.form,
+            'referenceId', form_in.reference_id,
+            'revisionComment', revision_in.revision_comment,
+            'parentProjectId', form_in.parent_project_id
+
+        );
+    elseif form_in.recipient_type = 'new_project' then
+        document := jsonb_build_object(
+            'grantRecipient', jsonb_build_object(
+                'type', form_in.recipient_type,
+                'title', form_in.recipient
+            ),
+            'allocationRequests', jsonb_build_array(
+                resources_in
+            ),
+            'form', form_in.form,
+            'referenceId', form_in.reference_id,
+            'revisionComment', revision_in.revision_comment,
+            'parentProjectId', form_in.parent_project_id
+        );
+    end if;
+
+    builder := jsonb_build_object(
+        'createdAt', (floor(extract(epoch from revision_in.created_at) * 1000)),
+        'updatedBy', revision_in.updated_by,
+        'revisionNumber', revision_in.revision_number,
+        'document', document
+    );
+
+    return builder;
+end;
+$$;
+
+create or replace function "grant".application_to_json(
+    app_id_in bigint
+) returns jsonb language sql as $$
+    with maxrevision as (
+        select max(r.revision_number) newest, application_id, r.created_at
+        from "grant".revisions r
+        where r.application_id = app_id_in
+        group by application_id, created_at
+    ),
+    current_revision as (
+        select "grant".revision_to_json(
+            array_remove(array_agg(distinct ("grant".resource_allocation_to_json(rr, pc))), null),
+            f,
+            r
+        ) as result
+        from "grant".applications a join
+            maxrevision mr on mr.application_id = a.id join
+            "grant".requested_resources rr on a.id = rr.application_id and
+                rr.revision_number = mr.newest join
+            "grant".forms f on f.application_id = rr.application_id and
+                f.revision_number = mr.newest join
+            "grant".revisions r on r.revision_number = mr.newest and
+                r.application_id = mr.application_id join
+            accounting.product_categories pc on rr.product_category = pc.id
+        where a.id = app_id_in
+        group by f.*, r.*
+    ),
+    all_revisions as (
+        select "grant".revision_to_json(
+            array_remove(array_agg(distinct ("grant".resource_allocation_to_json(rr, pc))), null),
+            f,
+            r
+        ) as results
+        from "grant".applications a join
+        "grant".revisions r on
+            r.application_id = a.id join
+        "grant".forms f on
+            f.revision_number = r.revision_number and
+            f.application_id = r.application_id join
+        "grant".requested_resources rr on
+            r.application_id = rr.application_id and
+            r.revision_number = rr.revision_number join
+        accounting.product_categories pc on
+            rr.product_category = pc.id
+        group by r.*, f.*
+    )
+    select jsonb_build_object(
+        'id', a.id,
+        'createdAt', a.created_at,
+        'updatedAt', mr.created_at,
+        'revision', (select result from current_revision limit 1),
+        'status', jsonb_build_object(
+            'overallState', a.overall_state,
+            'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(gga))), null),
+            'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
+            'revisions', array_remove(array_agg(distinct (select results from all_revisions)), null)
+        )
+    )
+    from
+        "grant".applications a join
+        maxrevision mr on
+            mr.application_id = a.id join
+        "grant".forms f on
+            f.revision_number = mr.newest and
+            f.application_id = mr.application_id join
+        "grant".grant_giver_approvals gga on
+            a.id = gga.application_id join
+        "grant".comments posted_comment on a.id = posted_comment.application_id
+    group by a.id, a.*, mr.created_at, mr.*, f.*
+$$;
+
+create or replace function "grant".can_submit_application(username_in text, sources text[], grant_recipient text, grant_recipient_type text) returns boolean
 	language sql
 as $$
     with
@@ -153,7 +325,7 @@ as $$
     ) t
 $$;
 
-create or replace function approve_application(application_id_in bigint, parent_project_id_in text) returns void
+create or replace function "grant".approve_application(application_id_in bigint, parent_project_id_in text) returns void
 	language plpgsql
 as $$
 declare
