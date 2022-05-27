@@ -305,6 +305,7 @@ export class HttpClient {
         else return undefined;
     }
 
+    /* Note(Jonas): Why is this necesary? This is just calling the method above. */
     public get activeUsername(): string | undefined {
         return this.username;
     }

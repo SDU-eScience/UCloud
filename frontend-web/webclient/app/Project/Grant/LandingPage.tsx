@@ -46,7 +46,7 @@ export const LandingPage: React.FunctionComponent = () => {
                         color={"green"}
                         icon={"user"}
                         title={"My Workspace"}
-                        linkLocation={"/projects/browser/personal"}
+                        linkLocation={"/project/grants/personal"}
                     >
                         <ul>
                             <li>Provides a playground to try out UCloud</li>
@@ -60,7 +60,7 @@ export const LandingPage: React.FunctionComponent = () => {
                         color={"purple"}
                         icon={"projects"}
                         title={"New Project"}
-                        linkLocation={"/projects/browser/new"}
+                        linkLocation={"/project/grants/new"}
                     >
                         <ul>
                             <li>Provides a space for a group to collaborate</li>

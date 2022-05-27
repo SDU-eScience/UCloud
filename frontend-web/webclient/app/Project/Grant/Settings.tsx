@@ -1,5 +1,5 @@
 import * as React from "react";
-import {APICallState, useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
@@ -70,7 +70,7 @@ const wayfIdpsPairs = WAYF.wayfIdps.map(it => ({value: it, content: it}));
 
 export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: false});
-    const [, runWork] = useAsyncCommand();
+    const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
         {enabled: false}
@@ -138,7 +138,7 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
 
 export const GrantProjectSettings: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: false});
-    const [, runWork] = useAsyncCommand();
+    const [, runWork] = useCloudCommand();
     const [enabled, fetchEnabled] = useCloudAPI<ExternalApplicationsEnabledResponse>(
         {noop: true},
         {enabled: false}
@@ -282,7 +282,7 @@ const AutomaticApprovalLimits: React.FunctionComponent<{
     reload: () => void
 }> = ({products, settings, reload}) => {
     const [editingLimit, setEditingLimit] = useState<string | null>(null);
-    const [, runWork] = useAsyncCommand();
+    const [, runWork] = useCloudCommand();
     const categories: ProductCategoryId[] = [];
 
     {

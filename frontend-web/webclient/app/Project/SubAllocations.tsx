@@ -504,7 +504,7 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
             productType,
             "ABSOLUTE",
             it,
-            false,
+            false, // TODO(Jonas): This may not be correct
             2
         ) + " " + explainAllocation(productType, "ABSOLUTE", it)),
         DIFFERENTIAL_QUOTA: Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => normalizeBalanceForFrontend(
@@ -512,7 +512,7 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
             productType,
             "DIFFERENTIAL_QUOTA",
             it,
-            false,
+            false, // TODO(Jonas): This may not be correct
             2
         ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it))
     }
