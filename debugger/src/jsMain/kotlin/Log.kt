@@ -10,11 +10,10 @@ import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.time.DurationUnit
-import kotlin.time.ExperimentalTime
 import kotlin.time.toDuration
 
-class Log {
-    private val messages = ArrayList<DebugMessage>()
+class Log(private val filters: Filters) {
+    private val messages = FilteredList<DebugMessage>(1024 * 32)
     private val rows = Array(100) { LogRow().also { it.render() } }
     private val dataViewer = DataViewer()
 
@@ -29,6 +28,53 @@ class Log {
     fun render(): HTMLElement {
         style.mount()
         if (this::scrollingElem.isInitialized) return scrollingElem
+
+        messages.filterFunction = f@{ message ->
+            val allowedByType = when (message) {
+                is DebugMessage.ClientRequest -> filters.showClient
+                is DebugMessage.ClientResponse -> filters.showClient
+                is DebugMessage.DatabaseConnection -> filters.showDatabase
+                is DebugMessage.DatabaseQuery -> filters.showDatabase
+                is DebugMessage.DatabaseResponse -> filters.showDatabase
+                is DebugMessage.DatabaseTransaction -> filters.showDatabase
+                is DebugMessage.Log -> true
+                is DebugMessage.ServerRequest -> filters.showServer
+                is DebugMessage.ServerResponse -> filters.showServer
+            }
+            if (!allowedByType) return@f false
+
+            val allowedByLevel = message.importance.ordinal >= filters.logLevel.ordinal
+            if (!allowedByLevel) return@f false
+
+            val allowedByQuery = when (message) {
+                is DebugMessage.ClientRequest -> (message.call ?: "").contains(filters.filter, true)
+                is DebugMessage.ClientResponse -> (message.call ?: "").contains(filters.filter, true)
+                is DebugMessage.DatabaseConnection -> false
+                is DebugMessage.DatabaseQuery -> false
+                is DebugMessage.DatabaseResponse -> false
+                is DebugMessage.DatabaseTransaction -> false
+                is DebugMessage.Log -> message.message.contains(filters.filter, true)
+                is DebugMessage.ServerRequest -> (message.call ?: "").contains(filters.filter, true)
+                is DebugMessage.ServerResponse -> (message.call ?: "").contains(filters.filter, true)
+            }
+            if (!allowedByQuery) return@f false
+
+            val allowedByStack = when (filters.id) {
+                "" -> message.context.depth == 1
+                else -> {
+                    message.context.path.contains(filters.id)
+                }
+            }
+            if (!allowedByStack) return@f false
+
+            return@f true
+        }
+
+        filters.onChange = {
+            messages.reapplyFilter()
+            rerender()
+        }
+
         elem = document.create.div(elemClass) {
             div(controlsClass) {
                 standardButton(clearButtonClass) {
@@ -48,7 +94,6 @@ class Log {
         }
 
         scrollingElem = elem.querySelector(".$scrollingContainerClass") as HTMLElement
-
         viewerContainer = elem.querySelector(".$viewerClass") as HTMLElement
         viewerContainer.append(dataViewer.render())
 
@@ -77,12 +122,6 @@ class Log {
             rerender()
         })
 
-//        val ctx = DebugContext.Job("foo")
-//        var count = 0
-//        window.setInterval({
-//            addMessages((0 until 1).map { DebugMessage.Log(ctx, "Hello, World: ${count++}") })
-//        }, 50)
-
         return elem
     }
 
@@ -92,14 +131,14 @@ class Log {
 
     private fun rerender() {
         scrollLockButton.disabled = scrollLock
-        container.style.height = max(rows.size * rowSize, this.messages.size * rowSize).px
+        container.style.height = max(rows.size * rowSize, this.messages.filtered.size * rowSize).px
 
         val firstIdx = findFirstVisibleRow()
-        val lastIdx = min(messages.size, firstIdx + rows.size) - 1
+        val lastIdx = min(messages.filtered.size, firstIdx + rows.size) - 1
         val count = lastIdx - firstIdx + 1
         val cacheOffset = max(0, rows.size - count)
 
-        if (messages.size < rows.size) {
+        if (messages.filtered.size < rows.size) {
             for ((index, row) in rows.withIndex()) {
                 row.clear()
                 row.elem.style.top = (index * rowSize).px
@@ -107,12 +146,23 @@ class Log {
         }
 
         for (idx in firstIdx..lastIdx) {
-            val message = messages[idx]
+            val message = messages.filtered[idx]
             val cacheRow = rows[cacheOffset + idx - firstIdx]
-            cacheRow.update(message, messages.getOrNull(idx - 1))
+            cacheRow.update(message, messages.filtered.getOrNull(idx - 1))
             cacheRow.elem.style.top = (idx * rowSize).px
+            cacheRow.elem.style.paddingLeft = ((message.context.depth - filters.currentStack.depth) * 8).px
             cacheRow.elem.onclick = {
                 dataViewer.update(message)
+            }
+
+            cacheRow.elem.ondblclick = {
+                filters.addStack(message.context.id, LogRow.message(message)) {
+                    logLevel = MessageImportance.IMPLEMENTATION_DETAIL
+                    showServer = true
+                    showClient = true
+                    showDatabase = true
+                    depth = message.context.depth
+                }
             }
         }
     }
@@ -128,7 +178,7 @@ class Log {
         this.messages.addAll(messages)
         if (scrollLock) {
             ignoreNextScrollEvent = true
-            scrollingElem.scrollTop = this.messages.size * rowSize.toDouble()
+            scrollingElem.scrollTop = this.messages.filtered.size * rowSize.toDouble()
         }
         rerender()
     }
@@ -149,6 +199,7 @@ class Log {
                 display = "flex"
                 flexDirection = "row"
                 gap = 8.px
+                userSelect = "none"
             }
 
             (byClass(elemClass) directChild byClass(scrollingContainerClass)) {
@@ -207,7 +258,6 @@ class LogRow {
         response.textContent = ""
     }
 
-    @OptIn(ExperimentalTime::class)
     fun update(row: DebugMessage, previous: DebugMessage?) {
         elem.style.background = backgroundColor(row.importance)
         elem.style.color = foregroundColor(row.importance)
@@ -217,65 +267,6 @@ class LogRow {
             else (row.timestamp - previous.timestamp).toDuration(DurationUnit.MILLISECONDS).toString()
         message.textContent = message(row)
         response.textContent = response(row)
-    }
-
-    private fun backgroundColor(importance: MessageImportance): String {
-        return when (importance) {
-            MessageImportance.TELL_ME_EVERYTHING -> "white"
-            MessageImportance.IMPLEMENTATION_DETAIL -> "#B7ADED"
-            MessageImportance.THIS_IS_NORMAL -> "#A8E3B3"
-            MessageImportance.THIS_IS_ODD -> "#F6BF85"
-            MessageImportance.THIS_IS_WRONG -> "#ED8C79"
-            MessageImportance.THIS_IS_DANGEROUS -> "#ED6572"
-        }
-    }
-
-    private fun foregroundColor(importance: MessageImportance): String {
-        return when (importance) {
-            MessageImportance.TELL_ME_EVERYTHING -> "black"
-            MessageImportance.IMPLEMENTATION_DETAIL -> "black"
-            MessageImportance.THIS_IS_NORMAL -> "black"
-            MessageImportance.THIS_IS_ODD -> "black"
-            MessageImportance.THIS_IS_WRONG -> "white"
-            MessageImportance.THIS_IS_DANGEROUS -> "white"
-        }
-    }
-
-    private fun message(row: DebugMessage): String {
-        return when (row) {
-            is DebugMessage.ClientRequest -> row.call ?: "Client: Unknown call"
-            is DebugMessage.ClientResponse -> row.call ?: "Client: Unknown call"
-            is DebugMessage.DatabaseConnection -> {
-                if (row.isOpen) "DB open"
-                else "DB close"
-            }
-            is DebugMessage.DatabaseQuery -> "DB query"
-            is DebugMessage.DatabaseResponse -> "DB response"
-            is DebugMessage.DatabaseTransaction -> {
-                when (row.event) {
-                    DebugMessage.DBTransactionEvent.OPEN -> "DB transaction open"
-                    DebugMessage.DBTransactionEvent.COMMIT -> "DB commit"
-                    DebugMessage.DBTransactionEvent.ROLLBACK -> "DB rollback"
-                }
-            }
-            is DebugMessage.Log -> row.message
-            is DebugMessage.ServerRequest -> row.call ?: "Server: Unknown call"
-            is DebugMessage.ServerResponse -> row.call ?: "Server: Unknown call"
-        }
-    }
-
-    private fun response(row: DebugMessage): String {
-        return when (row) {
-            is DebugMessage.ClientRequest -> ""
-            is DebugMessage.ClientResponse -> row.responseCode.toString()
-            is DebugMessage.DatabaseConnection -> ""
-            is DebugMessage.DatabaseQuery -> ""
-            is DebugMessage.DatabaseResponse -> ""
-            is DebugMessage.DatabaseTransaction -> ""
-            is DebugMessage.Log -> ""
-            is DebugMessage.ServerRequest -> ""
-            is DebugMessage.ServerResponse -> row.responseCode.toString()
-        }
     }
 
     companion object {
@@ -309,6 +300,65 @@ class LogRow {
 
             (byClass(rowClass) directChild byClass(responseClass)) {
                 flexGrow = "1"
+            }
+        }
+
+        private fun backgroundColor(importance: MessageImportance): String {
+            return when (importance) {
+                MessageImportance.TELL_ME_EVERYTHING -> "white"
+                MessageImportance.IMPLEMENTATION_DETAIL -> "#B7ADED"
+                MessageImportance.THIS_IS_NORMAL -> "#A8E3B3"
+                MessageImportance.THIS_IS_ODD -> "#F6BF85"
+                MessageImportance.THIS_IS_WRONG -> "#ED8C79"
+                MessageImportance.THIS_IS_DANGEROUS -> "#ED6572"
+            }
+        }
+
+        private fun foregroundColor(importance: MessageImportance): String {
+            return when (importance) {
+                MessageImportance.TELL_ME_EVERYTHING -> "black"
+                MessageImportance.IMPLEMENTATION_DETAIL -> "black"
+                MessageImportance.THIS_IS_NORMAL -> "black"
+                MessageImportance.THIS_IS_ODD -> "black"
+                MessageImportance.THIS_IS_WRONG -> "white"
+                MessageImportance.THIS_IS_DANGEROUS -> "white"
+            }
+        }
+
+        fun message(row: DebugMessage): String {
+            return when (row) {
+                is DebugMessage.ClientRequest -> row.call ?: "Client: Unknown call"
+                is DebugMessage.ClientResponse -> row.call ?: "Client: Unknown call"
+                is DebugMessage.DatabaseConnection -> {
+                    if (row.isOpen) "DB open"
+                    else "DB close"
+                }
+                is DebugMessage.DatabaseQuery -> "DB query"
+                is DebugMessage.DatabaseResponse -> "DB response"
+                is DebugMessage.DatabaseTransaction -> {
+                    when (row.event) {
+                        DebugMessage.DBTransactionEvent.OPEN -> "DB transaction open"
+                        DebugMessage.DBTransactionEvent.COMMIT -> "DB commit"
+                        DebugMessage.DBTransactionEvent.ROLLBACK -> "DB rollback"
+                    }
+                }
+                is DebugMessage.Log -> row.message
+                is DebugMessage.ServerRequest -> row.call ?: "Server: Unknown call"
+                is DebugMessage.ServerResponse -> row.call ?: "Server: Unknown call"
+            }
+        }
+
+        private fun response(row: DebugMessage): String {
+            return when (row) {
+                is DebugMessage.ClientRequest -> ""
+                is DebugMessage.ClientResponse -> row.responseCode.toString()
+                is DebugMessage.DatabaseConnection -> ""
+                is DebugMessage.DatabaseQuery -> ""
+                is DebugMessage.DatabaseResponse -> ""
+                is DebugMessage.DatabaseTransaction -> ""
+                is DebugMessage.Log -> ""
+                is DebugMessage.ServerRequest -> ""
+                is DebugMessage.ServerResponse -> row.responseCode.toString()
             }
         }
     }

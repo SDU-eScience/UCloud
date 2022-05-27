@@ -18,6 +18,10 @@ fun main() {
                 fontFamily = "'Inter', sans-serif"
             }
 
+            (byTag("code")) {
+                fontFamily = "'JetBrains Mono', monospace"
+            }
+
             (byTag("h3")) {
                 cursor = "inherit"
                 fontSize = 24.px
@@ -64,7 +68,7 @@ fun main() {
     val filters = Filters()
     content.appendChild(filters.render())
 
-    val log = Log()
+    val log = Log(filters)
     content.appendChild(log.render())
 
     body.appendChild(content)

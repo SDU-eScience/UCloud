@@ -6,6 +6,7 @@ import kotlinx.serialization.json.*
 @Serializable
 sealed class DebugContext {
     abstract val id: String
+    abstract var path: List<String>
     abstract val parent: String?
     abstract var depth: Int
 
@@ -15,6 +16,7 @@ sealed class DebugContext {
         override val id: String,
         override val parent: String? = null,
         override var depth: Int = 0,
+        override var path: List<String> = emptyList(),
     ) : DebugContext()
 
     @SerialName("client")
@@ -23,6 +25,7 @@ sealed class DebugContext {
         override val id: String,
         override val parent: String? = null,
         override var depth: Int = 0,
+        override var path: List<String> = emptyList(),
     ) : DebugContext()
 
     @SerialName("job")
@@ -31,6 +34,7 @@ sealed class DebugContext {
         override val id: String,
         override val parent: String? = null,
         override var depth: Int = 0,
+        override var path: List<String> = emptyList(),
     ) : DebugContext()
 }
 
@@ -41,16 +45,24 @@ sealed class DebugMessage {
     abstract val importance: MessageImportance
     abstract val messageType: MessageType
 
+    interface WithCall {
+        val call: String?
+    }
+
+    interface WithResponseCode {
+        val responseCode: Int
+    }
+
     @SerialName("client_request")
     @Serializable
     data class ClientRequest(
         override val context: DebugContext,
         override val timestamp: Long = Time.now(),
         override val importance: MessageImportance,
-        val call: String?,
+        override val call: String?,
         val payload: JsonElement?,
         val resolvedHost: String,
-    ) : DebugMessage() {
+    ) : DebugMessage(), WithCall {
         override val messageType = MessageType.CLIENT
     }
 
@@ -60,10 +72,10 @@ sealed class DebugMessage {
         override val context: DebugContext,
         override val timestamp: Long = Time.now(),
         override val importance: MessageImportance,
-        val call: String?,
+        override val call: String?,
         val response: JsonElement?,
-        val responseCode: Int
-    ) : DebugMessage() {
+        override val responseCode: Int
+    ) : DebugMessage(), WithCall, WithResponseCode {
         override val messageType = MessageType.CLIENT
     }
 
@@ -73,9 +85,9 @@ sealed class DebugMessage {
         override val context: DebugContext,
         override val timestamp: Long = Time.now(),
         override val importance: MessageImportance,
-        val call: String?,
+        override val call: String?,
         val payload: JsonElement?,
-    ) : DebugMessage() {
+    ) : DebugMessage(), WithCall {
         override val messageType = MessageType.SERVER
     }
 
@@ -85,10 +97,10 @@ sealed class DebugMessage {
         override val context: DebugContext,
         override val timestamp: Long = Time.now(),
         override val importance: MessageImportance,
-        val call: String?,
+        override val call: String?,
         val response: JsonElement?,
-        val responseCode: Int
-    ) : DebugMessage() {
+        override val responseCode: Int
+    ) : DebugMessage(), WithCall, WithResponseCode {
         override val messageType = MessageType.SERVER
     }
 

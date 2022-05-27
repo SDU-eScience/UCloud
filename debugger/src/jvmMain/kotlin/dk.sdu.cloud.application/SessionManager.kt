@@ -22,6 +22,7 @@ class SessionManager(private val watchedFolders: List<String>) {
 
     private val metadataByService = arrayOfNulls<ServiceMetadata>(MAX_SERVICE_ID)
     private val messagesByService = arrayOfNulls<CircularList<DebugMessage>>(MAX_SERVICE_ID)
+    private val pathsByService = arrayOfNulls<HashMap<String, List<String>>>(MAX_SERVICE_ID)
 
     @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
     fun start() {
@@ -44,6 +45,25 @@ class SessionManager(private val watchedFolders: List<String>) {
                         }
 
                         buffer.add(message)
+
+                        var paths = pathsByService[id]
+                        if (paths == null) {
+                            val newPaths = hashMapOf<String, List<String>>()
+                            pathsByService[id] = newPaths
+                            paths = newPaths
+                        }
+
+                        val newPath = buildList {
+                            val parent = message.context.parent
+                            if (parent != null) {
+                                addAll(paths[parent] ?: emptyList())
+                            }
+                            add(message.context.id)
+                        }
+                        paths[message.context.id] = newPath
+
+                        message.context.path = newPath
+                        message.context.depth = newPath.size
 
                         outgoingMessages.add(messageAndId)
                     }

@@ -27,8 +27,23 @@ class CircularList<E : Any>(val capacity: Int) : Iterable<E> {
         if (head >= tail) head = tail + 1
     }
 
+    fun addAll(collection: Collection<E>) {
+        for (item in collection) add(item)
+    }
+
+    fun clear() {
+        head = 0
+        tail = 0
+    }
+
     operator fun get(index: Int): E {
         @Suppress("UNCHECKED_CAST")
         return array[(head + index) % capacity] as? E? ?: throw NoSuchElementException()
+    }
+
+    fun getOrNull(index: Int): E? {
+        if (index < 0) return null
+        if (index >= size) return null
+        return get(index)
     }
 }
