@@ -706,6 +706,7 @@ export interface SubAllocation {
     workspaceIsProject: boolean;
 
     remaining: number;
+    initialBalance: number;
 }
 
 export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {

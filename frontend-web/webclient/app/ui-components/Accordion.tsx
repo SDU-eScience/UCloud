@@ -1,3 +1,4 @@
+import {stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import * as React from "react";
 import styled from "styled-components";
 import Flex from "./Flex";
@@ -31,7 +32,7 @@ export function Accordion(props: React.PropsWithChildren<{
                         }
                         <Text color="text">{props.title}</Text>
                     </>}
-                    right={<Flex width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
+                    right={<Flex onClick={stopPropagationAndPreventDefault} width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
                 />
             </AccordionStyle>
             <Panel active={isOpen} noBorder={props.noBorder ?? false}>

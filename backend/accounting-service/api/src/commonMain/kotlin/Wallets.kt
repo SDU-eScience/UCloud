@@ -232,6 +232,7 @@ data class SubAllocation(
     val workspaceIsProject: Boolean,
 
     val remaining: Long,
+    val initialBalance: Long
 )
 
 interface SubAllocationQuery : WithPaginationRequestV2 {
