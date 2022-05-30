@@ -92,7 +92,7 @@ const Core = (): JSX.Element => (
         <Uploader />
         <Sidebar />
         <ErrorBoundary>
-            <React.Suspense fallback={<div>Loading</div>}>
+            <React.Suspense fallback={<MainContainer main={"Fetching data..."} />}>
                 <Switch>
                     <Route exact path="/login" component={LoginPage} />
                     <Route exact path="/loginSuccess" component={LoginSuccess} />

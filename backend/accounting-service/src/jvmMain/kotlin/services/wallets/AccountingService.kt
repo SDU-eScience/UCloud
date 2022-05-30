@@ -948,6 +948,7 @@ class AccountingService(
                                 'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
                                 'workspaceIsProject', alloc_project.id is not null,
                                 'remaining', alloc.balance,
+                                'initialBalance', alloc.initial_balance,
                                 'productCategoryId', jsonb_build_object(
                                     'name', pc.category,
                                     'provider', pc.provider
