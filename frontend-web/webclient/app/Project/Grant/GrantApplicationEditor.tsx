@@ -392,7 +392,7 @@ function AllocationSelection({wallets, wb, isLocked}: {
     return <div>
         <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
         {!isLocked ?
-            <ClickableDropdown colorOnHover={false} width="660px" useMousePositioning trigger={!allocation ?
+            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={!allocation ?
                 <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
                 <>{allocation.wallet.paysFor.provider} @ {allocation.wallet.paysFor.name}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}>
                 <Table>
@@ -806,7 +806,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
-                    trigger={<Flex><Heading.h3>Select grant giver</Heading.h3> <Icon name="chevronDownLight" size="1em" mt="12px" ml=".7em" color={"darkGray"} /></Flex>}
+                    trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="12px" ml=".7em" color={"darkGray"} /></Flex>}
                 >
                     <Wrapper>
                         <Table>
@@ -818,7 +818,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </TableHeader>
                             <tbody>
                                 {grantGivers.items.filter(grantGiver => !grantGiversInUse.includes(grantGiver.projectId)).map(grantGiver =>
-                                    <TableRow key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
+                                    <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
                                         <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
                                         <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
                                     </TableRow>

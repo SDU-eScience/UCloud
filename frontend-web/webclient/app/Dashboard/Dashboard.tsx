@@ -56,6 +56,7 @@ import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
+import {useProjectId} from "@/Project";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     const history = useHistory();
@@ -424,8 +425,11 @@ function DashboardResources({products}: {
         }
     }
 
+    const projectId = useProjectId()
+
+
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
-    const applyLinkButton = <Link to={"/project/grants-landing"}>
+    const applyLinkButton = <Link to={projectId ? "/project/grants-landing" : "/TODO" /* TODO(Jonas) */}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 

@@ -175,6 +175,7 @@ const operations: Operation<Project, Callbacks>[] = [
         primary: true,
         enabled: () => true,
         onClick: (projects, cb) => {
+            // TODO(Jonas): This shouldn't redirect to this page.
             cb.history.push("/projects/browser/new");
         }
     },
