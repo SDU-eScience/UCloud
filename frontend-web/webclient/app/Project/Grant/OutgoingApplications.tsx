@@ -18,6 +18,7 @@ import {PageV2} from "@/UCloud";
 import {useEffectSkipMount} from "@/UtilityFunctions";
 import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
+import {useProjectId} from "..";
 
 export const FilterTrigger = styled.div`
     user-select: none;
@@ -64,6 +65,8 @@ export const OutgoingApplications: React.FunctionComponent = () => {
         }))
     );
 
+    const projectId = useProjectId();
+
     return (
         <MainContainer
             headerSize={58}
@@ -108,9 +111,16 @@ export const OutgoingApplications: React.FunctionComponent = () => {
                                     </TextP>
                                 </Box>
 
-                                <Center>
-                                    <Link to={`/projects/browser/new`}><Button>Create Application</Button></Link>
-                                </Center>
+                                <div>
+                                    <Center>
+                                        <Box mb="8px">
+                                            <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}><Button width="165px">Create Application</Button></Link>
+                                        </Box>
+                                        <Box>
+                                            <Link to="/project/grants/new"><Button width="165px">Create Project</Button></Link>
+                                        </Box>
+                                    </Center>
+                                </div>
                             </Box>
                         </Flex>
                     }
