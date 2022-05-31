@@ -65,21 +65,20 @@ class GrantController(
         }
 
         implement(Grants.browseAffiliations) {
-            val app = comments.viewComments(actorAndProject, ViewApplicationRequest(request.grantId))
+            val app = applications.retrieveGrantApplication(request.grantId)
             ok(settings.browse(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(""//app.application
-                    ), null),
+                ActorAndProject(Actor.SystemOnBehalfOfUser(app.requestedBy), null),
                 request
             ))
         }
 
         implement(Grants.transferApplication) {
-            //applications.transferApplication(actorAndProject, request)
+            applications.transferApplication(actorAndProject, request)
             ok(Unit)
         }
 
-        implement(Grants.viewApplication) {
-            ok(comments.viewComments(actorAndProject, request))
+        implement(Grants.retrieveApplication) {
+            ok(applications.retrieveGrantApplication(request.id))
         }
 
         //COMMENTS

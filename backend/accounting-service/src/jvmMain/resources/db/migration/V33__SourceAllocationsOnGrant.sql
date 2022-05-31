@@ -80,7 +80,6 @@ alter table "grant".applications drop column grant_recipient_type;
 alter table "grant".applications drop column document;
 alter table "grant".applications drop column reference_id;
 alter table "grant".applications drop column status_changed_by;
-alter table "grant".applications drop column updated_at;
 -- rename columns to match new struct
 alter table "grant".applications rename status to overall_state;
 
@@ -420,5 +419,148 @@ end;
 $$;
 
 
+create or replace function "grant".application_status_trigger() returns trigger
+	language plpgsql
+as $$
+begin
+    --
+    if (
+        (new.overall_state = old.overall_state) and
+        (new.created_at = old.created_at) and
+        (new.requested_by = old.requested_by)
+        ) then
+            return null;
+    end if;
+    if old.overall_state = 'APPROVED' or old.overall_state = 'REJECTED' or old.overall_state = 'CLOSED' then
+        raise exception 'Cannot update a closed application';
+    end if;
+    return null;
+end;
+$$;
 
+create or replace function transfer_application(
+    actor_in text,
+    application_id_in bigint,
+    source_project_id_in text,
+    target_project_in text,
+    newest_revision_in int,
+    revision_comment_in text
+) returns void
+	language plpgsql
+as $$
+begin
+    if target_project_in = source_project_id_in then
+        raise exception 'Unable to transfer application to itself';
+    end if;
+
+    with resources_affected as (
+        select
+            app.id, rr.credits_requested, rr.product_category, rr.start_date, rr.end_date, f.recipient, f.recipient_type, f.parent_project_id, f.form, f.reference_id, requested_by
+        from
+            "grant".applications app join
+            "grant".revisions rev on
+                app.id = rev.application_id and
+                rev.revision_number = newest_revision_in join
+            "grant".requested_resources rr on
+                rr.revision_number = rev.revision_number and
+                rr.application_id = app.id and
+                rr.grant_giver = source_project_id_in join
+            "grant".forms f on
+                app.id = f.application_id and
+                rev.revision_number = f.revision_number join
+            project.project_members pm on
+                rr.grant_giver = pm.project_id and
+                pm.username = actor_in and
+                (pm.role = 'PI' or pm.role = 'ADMIN')
+        where
+            id = application_id_in
+    ),
+    update_revision as (
+        insert into "grant".revisions (
+            application_id, revision_number, created_at, updated_by, revision_comment
+        )
+        select
+            id,
+            (newest_revision_in+1),
+            now(),
+            actor_in,
+            revision_comment_in
+        from resources_affected
+    ),
+    insert_resources as (
+        insert into "grant".requested_resources (
+            application_id,
+            credits_requested,
+            quota_requested_bytes,
+            product_category,
+            source_allocation,
+            start_date,
+            end_date,
+            grant_giver,
+            revision_number
+        )
+        select
+            id,
+            credits_requested,
+            null,
+            product_category,
+            null,
+            start_date,
+            end_date,
+            target_project_in,
+            (newest_revision_in+1)
+        from resources_affected
+    ),
+    update_last_revision_ressources_not_from_source as (
+        insert into "grant".requested_resources (
+            application_id,
+            credits_requested,
+            quota_requested_bytes,
+            product_category,
+            source_allocation,
+            start_date,
+            end_date,
+            grant_giver,
+            revision_number
+        )
+        select
+            app.id,
+            rr.credits_requested,
+            rr.quota_requested_bytes,
+            rr.product_category,
+            rr.source_allocation,
+            rr.start_date,
+            rr.end_date,
+            rr.grant_giver,
+            (newest_revision_in +1)
+        from
+            "grant".applications app join
+            "grant".requested_resources rr on
+                rr.revision_number = newest_revision_in and
+                rr.application_id = app.id and
+                rr.grant_giver != source_project_id_in
+        where
+            id = application_id_in
+    )
+    insert into "grant".forms (
+        application_id,
+        revision_number,
+        parent_project_id,
+        recipient,
+        recipient_type,
+        form,
+        reference_id
+    )
+    select
+        id,
+        (newest_revision_in + 1),
+        parent_project_id,
+        recipient,
+        recipient_type,
+        form,
+        reference_id
+    from resources_affected
+    limit 1;
+end;
+$$;
 

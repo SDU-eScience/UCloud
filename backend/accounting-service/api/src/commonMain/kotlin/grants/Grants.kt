@@ -20,7 +20,11 @@ data class CloseApplicationRequest(val applicationId: Long)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
-data class TransferApplicationRequest(val applicationId: Long, val transferToProjectId: String) //TODO()
+data class TransferApplicationRequest(
+    val applicationId: Long,
+    val transferToProjectId: String,
+    val revisionComment: String
+)
 typealias TransferApplicationResponse = Unit
 
 @Serializable
@@ -267,8 +271,8 @@ data class GrantApplication(
 }
 
 @Serializable
-data class ViewApplicationRequest(val id: Long)
-typealias ViewApplicationResponse = GrantApplication
+data class RetrieveApplicationRequest(val id: Long)
+typealias RetrieveApplicationResponse = GrantApplication
 
 @Serializable
 data class BrowseProjectsRequest(
@@ -462,22 +466,10 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     // This needs to be last
-    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
-        auth {
-            access = AccessRight.READ_WRITE
-        }
-
-        http {
-            method = HttpMethod.Get
-
-            path {
-                using(baseContext)
-            }
-
-            params {
-                +boundTo(ViewApplicationRequest::id)
-            }
-        }
+    val retrieveApplication = call<RetrieveApplicationRequest, RetrieveApplicationResponse, CommonErrorMessage>("viewApplication") {
+        httpRetrieve(
+            baseContext
+        )
 
         documentation {
             summary = "Retrieves an active [Application]"
