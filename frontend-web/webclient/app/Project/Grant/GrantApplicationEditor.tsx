@@ -18,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -45,7 +45,6 @@ import {
     submitGrantApplication,
 } from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
-// import {Client} from "@/Authentication/HttpClientInstance";
 import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
 import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
@@ -68,7 +67,6 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
 import {format} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
-
 import {
     GrantApplication,
     AllocationRequest,
@@ -76,7 +74,7 @@ import {
     State,
     deleteGrantApplicationComment,
     Recipient,
-    findAffiliations,
+    browseAffiliations,
     commentOnGrantApplication,
     Document,
     rejectGrantApplication,
@@ -442,29 +440,63 @@ function titleFromTarget(target: RequestTarget): string {
     }
 }
 
-// TODO(Jonas): Very much very very bad name.
-function useAsyncResult<RequestType, ResponseType, MappedType = ResponseType[]>(
-    requests: APICallParameters<RequestType>[],
-    initialValue: MappedType,
-    resultMapper: (requests: APICallParameters<RequestType>[], response: (ResponseType | null)[]) => MappedType
-): MappedType {
-    const [loading, invokeCommand] = useCloudCommand();
-    const [result, setResult] = useState<MappedType>(initialValue);
-    React.useEffect(() => {
-        Promise.allSettled(requests.map(it => invokeCommand<ResponseType>(it))).then(resolvedPromises => {
-            const result = [] as (ResponseType | null)[];
-            for (const promise of resolvedPromises) {
-                if (promise.status === "fulfilled") {
-                    result.push(promise.value);
-                }
-            }
-            setResult(resultMapper(requests, result));
-        });
-    }, [requests]);
-    return result;
+type ApproverMap = Record<string, boolean>;
+const defaultGrantApplication: GrantApplication = {
+    createdAt: 0,
+    updatedAt: 0,
+    createdBy: "unknown",
+    currentRevision: {
+        createdAt: 0,
+        updatedBy: "",
+        revisionNumber: 0,
+        document: {
+            allocationRequests: [],
+            form: "",
+            recipient: {
+                username: "",
+                type: "personal_workspace"
+            },
+            referenceId: "",
+            revisionComment: "",
+            parentProjectId: null,
+        }
+    },
+    id: "0",
+    status: {
+        overallState: State.PENDING,
+        comments: [],
+        revisions: [],
+        stateBreakdown: []
+    }
+};
+
+
+const FETCHED_GRANT_APPLICATION = "FETCHED_GRANT_APPLICATION";
+type FetchedGrantApplication = PayloadAction<typeof FETCHED_GRANT_APPLICATION, GrantApplication>;
+const UPDATED_REFERENCE_ID = "UPDATE_REFERENCE_ID";
+type UpdatedReferenceID = PayloadAction<typeof UPDATED_REFERENCE_ID, {referenceId: string}>;
+const UPDATE_PARENT_PROJECT_ID = "UPDATE_PARENT_PROJECT_ID";
+type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {parentProjectId: string}>;
+
+
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID;
+function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
+    switch (action.type) {
+        case FETCHED_GRANT_APPLICATION: {
+            return action.payload;
+        }
+        case UPDATED_REFERENCE_ID: {
+            // TODO: Is this enough? Technically, we now have a new revision.
+            state.currentRevision.document.referenceId = action.payload.referenceId;
+            return {...state};
+        }
+        case UPDATE_PARENT_PROJECT_ID: {
+            state.currentRevision.document.parentProjectId = action.payload.parentProjectId;
+            return {...state};
+        }
+    }
 }
 
-type ApproverMap = Record<string, boolean>;
 
 // Note: target is baked into the component to make sure we follow the rules of hooks.
 //
@@ -481,6 +513,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [grantGivers, setGrantGivers] = useState<UCloud.PageV2<ProjectWithTitle>>(emptyPageV2);
         React.useEffect(() => {
             fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
+
         }, []);
 
         const {appId} = useParams<{appId?: string}>();
@@ -498,7 +531,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
         const [transferringApplication, setTransferringApplication] = useState(false);
         const [approverMap, setApprovers] = useState<ApproverMap>({});
-        const [parentProjectId, setParentProjectId] = useState("");
 
         const [walletsByOwner, setWallets] = useState<Record<string, UCloud.PageV2<Wallet>>>({});
         React.useEffect(() => {
@@ -549,34 +581,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantGivers.items]);
 
         // TODO(Jonas): Change to use reduce
-        const [grantApplication, setGrant] = useState<GrantApplication>({
-            createdAt: 0,
-            updatedAt: 0,
-            createdBy: "unknown",
-            currentRevision: {
-                createdAt: 0,
-                updatedBy: "",
-                revisionNumber: 0,
-                document: {
-                    allocationRequests: [],
-                    form: "",
-                    recipient: {
-                        username: "",
-                        type: "personal_workspace"
-                    },
-                    referenceId: "",
-                    revisionComment: "",
-                    parentProjectId: null,
-                }
-            },
-            id: "0",
-            status: {
-                overallState: State.PENDING,
-                comments: [],
-                revisions: [],
-                stateBreakdown: []
-            }
-        });
+        const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
 
         React.useEffect(() => {
             if (documentRef.current) {
@@ -585,7 +590,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication, documentRef.current])
 
         React.useEffect(() => {
-            if (appId) {fetchGrantApplication({id: appId}).then(g => setGrant(g))};
+            if (appId) {
+                fetchGrantApplication({id: appId}).then(g => dispatch({
+                    type: "FETCHED_GRANT_APPLICATION", payload: g
+                }));
+            };
         }, [appId]);
 
         React.useEffect(() => {
@@ -654,7 +663,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             creditsRequested,
                             wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
                         );
-                   }
+                    }
 
                     if (creditsRequested === undefined || creditsRequested <= 0) {
                         return null;
@@ -717,14 +726,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     recipient: recipient,
                     allocationRequests: requestedResourcesByAffiliate,
                     form: formText,
-                    parentProjectId,
+                    parentProjectId: grantApplication.currentRevision.document.parentProjectId,
                 };
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
             setSubmissionsLoading(false);
             console.log("Submit TODO", requestedResourcesByAffiliate);
-        }, [grantGiversInUse, grantProductCategories, parentProjectId, grantApplication]);
+        }, [grantGiversInUse, grantProductCategories, grantApplication]);
 
         const updateReferenceID = useCallback(async () => {
             const value = projectReferenceIdRef.current?.value;
@@ -734,8 +743,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
             await runWork(editReferenceId({id: grantApplication.id, newReferenceId: value}));
             setIsEditingProjectReference(false);
-            // TODO(Jonas): If this works as intended, no reason for a full reload.
-            reload();
+            dispatch({type: "UPDATE_REFERENCE_ID", payload: {referenceId: value}});
         }, []);
 
         const cancelEditOfRefId = useCallback(async () => {
@@ -763,7 +771,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const reload = useCallback(() => {
             fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
-            if (appId) {fetchGrantApplication({id: appId}).then(g => setGrant(g))};
+            if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}))};
             // TODO(Jonas): Re-add
             // fetchWallets(browseWallets({itemsPerPage: 250}));
         }, [appId]);
@@ -789,17 +797,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const isGrantRecipient = checkIsGrantRecipient(grantApplication.currentRevision.document.recipient, Client.username, status.projectId);
 
         React.useEffect(() => {
-            if (parentProjectId) return;
+            if (grantApplication.currentRevision.document.parentProjectId) return;
             const [firstGrantGiver] = grantGiversInUse;
-            if (firstGrantGiver != null) setParentProjectId(firstGrantGiver);
-            // TODO(Jonas): Read parentProjectId from grant if available.
-        }, [grantGiversInUse, parentProjectId]);
+            if (firstGrantGiver != null) dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId: firstGrantGiver}})
+        }, [grantGiversInUse, grantApplication]);
 
 
         // TODO(Jonas): Remove
         useEffect(() => {
             setApprovers({[DEBUGGING_project_id]: true})
         }, [DEBUGGING_project_id]);
+        // TODO(Jonas) END
 
         const grantGiverDropdown = React.useMemo(() =>
             target === RequestTarget.VIEW_APPLICATION || (grantGivers.items.length - grantGiversInUse.length) === 0 ? null :
@@ -838,12 +846,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     setGrantProductCategories={setGrantProductCategories}
                     wallets={walletsByOwner[it.projectId]?.items ?? []}
                     project={it}
-                    isParentProject={parentProjectId === it.projectId}
-                    setParentProject={setParentProjectId}
+                    isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
+                    setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
                     isLocked={isLocked}
                     isApprover={approverMap[it.projectId] ? (console.log(approverMap[it.title]), true) : false}
                 />
-            ), [grantGivers, grantGiversInUse, isLocked, walletsByOwner, parentProjectId, DEBUGGING_project_id]);
+            ), [grantGivers, grantGiversInUse, isLocked, walletsByOwner, grantApplication, DEBUGGING_project_id]);
 
         const recipient = getDocument(grantApplication).recipient;
 
@@ -1051,12 +1059,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
-                            {target !== RequestTarget.VIEW_APPLICATION ? null :
-                                grantApplication.currentRevision.document.allocationRequests.map(it => (
-                                    <React.Fragment key={it.sourceAllocation}></React.Fragment>
-                                ))
-                            }
-
                             {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                 grantGivers.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
@@ -1064,8 +1066,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                         isApprover={approverMap[grantGiver.projectId] ? (console.log(grantGiver.title), true) : false}
                                         isLocked={isLocked}
                                         project={grantGiver}
-                                        setParentProject={setParentProjectId}
-                                        isParentProject={grantGiver.projectId === parentProjectId}
+                                        setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
+                                        isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
                                         grantApplication={grantApplication}
                                         setGrantProductCategories={setGrantProductCategories}
                                         wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
@@ -1363,7 +1365,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
 
     React.useEffect(() => {
         if (grantId) {
-            fetchProjects(findAffiliations({page: 0, itemsPerPage: 100, grantId}))
+            fetchProjects(browseAffiliations({page: 0, itemsPerPage: 100, grantId}))
         }
     }, [grantId]);
 

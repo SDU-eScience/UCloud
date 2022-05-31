@@ -28,9 +28,7 @@ import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {
     GrantApplication,
     GrantApplicationFilter,
-    ingoingGrantApplications,
     IngoingGrantApplicationsResponse,
-    listOutgoingApplications
 } from "@/Project/Grant";
 import {GrantApplicationList} from "@/Project/Grant/IngoingApplications";
 import * as UCloud from "@/UCloud";
@@ -57,6 +55,27 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 import {useProjectId} from "@/Project";
+
+interface BrowseApplicationsRequest {
+    filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
+
+    includeIngoingApplications: boolean;
+    includeOutgoingApplications: boolean;
+
+    itemsPerPage?: number;
+    next?: string;
+    consistency?: "PREFER" | "REQUIRE";
+    itemsToSkip?: number;
+}
+
+function browseGrantsApplications(request: BrowseApplicationsRequest): APICallParameters<BrowseApplicationsRequest> {
+    return {
+        method: "GET",
+        path: buildQueryString("/grant/browse", request),
+        parameters: request,
+        payload: request
+    }
+}
 
 function Dashboard(props: DashboardProps): JSX.Element {
     const history = useHistory();
@@ -103,12 +122,16 @@ function Dashboard(props: DashboardProps): JSX.Element {
             filterUsable: true,
             includeBalance: true
         }));
-        fetchOutgoingApps(listOutgoingApplications({
+        fetchOutgoingApps(browseGrantsApplications({
             itemsPerPage: 10,
+            includeIngoingApplications: true,
+            includeOutgoingApplications: false,
             filter: GrantApplicationFilter.SHOW_ALL
         }));
-        fetchIngoingApps(ingoingGrantApplications({
+        fetchIngoingApps(browseGrantsApplications({
             itemsPerPage: 10,
+            includeIngoingApplications: false,
+            includeOutgoingApplications: true,
             filter: GrantApplicationFilter.ACTIVE
         }));
         fetchFavoriteFiles(metadataApi.browse({
@@ -151,7 +174,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-            <ConnectDashboardCard/>
+            <ConnectDashboardCard />
         </GridCardGroup>
     );
 
@@ -384,8 +407,7 @@ function DashboardRuns({runs}: {
             </NoResultsCardBody>
         ) :
             <List>
-                {runs.data.items.map((job, idx) =>
-                    idx >= 7 ? null :
+                {runs.data.items.slice(0, 7).map(job =>
                     <ItemRow
                         key={job.id}
                         item={job}
@@ -405,31 +427,34 @@ function DashboardRuns({runs}: {
 function DashboardResources({products}: {
     products: APICallState<PageV2<Product>>;
 }): JSX.Element | null {
-    const wallets: (ProductMetadata & {balance: number})[] = [];
+    const wallets = React.useMemo(() => {
+        const wallets: (ProductMetadata & {balance: number})[] = [];
 
-    for (const product of products.data.items) {
-        const metadata: (ProductMetadata & {balance: number}) = {
-            category: product.category,
-            freeToUse: product.freeToUse,
-            productType: product.productType,
-            chargeType: product.chargeType,
-            hiddenInGrantApplications: product.hiddenInGrantApplications,
-            unitOfPrice: product.unitOfPrice,
-            balance: product.balance!
-        };
+        for (const product of products.data.items) {
+            const metadata: (ProductMetadata & {balance: number}) = {
+                category: product.category,
+                freeToUse: product.freeToUse,
+                productType: product.productType,
+                chargeType: product.chargeType,
+                hiddenInGrantApplications: product.hiddenInGrantApplications,
+                unitOfPrice: product.unitOfPrice,
+                balance: product.balance!
+            };
 
-        if (!product.freeToUse) {
-            if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
-                wallets.push(metadata);
+            if (!product.freeToUse) {
+                if (wallets.find(it => productCategoryEquals(it.category, metadata.category)) === undefined) {
+                    wallets.push(metadata);
+                }
             }
         }
-    }
+        return wallets;
+    }, [products.data.items]);
 
     const projectId = useProjectId()
 
 
     wallets.sort((a, b) => (a.balance < b.balance) ? 1 : -1);
-    const applyLinkButton = <Link to={projectId ? "/project/grants-landing" : "/TODO" /* TODO(Jonas) */}>
+    const applyLinkButton = <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}>
         <Button fullWidth mb={"4px"}>Apply for resources</Button>
     </Link>;
 
