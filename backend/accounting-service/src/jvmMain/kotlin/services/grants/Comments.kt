@@ -5,12 +5,8 @@ import dk.sdu.cloud.accounting.api.grants.CreateCommentRequest
 import dk.sdu.cloud.accounting.api.grants.DeleteCommentRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.grant.api.GrantApplication
-import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.decodeFromString
 
 class GrantCommentService(
     private val db: DBContext,
