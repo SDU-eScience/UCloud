@@ -3,6 +3,7 @@ package dk.sdu.cloud.grant.rpc
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.accounting.api.grants.CreateCommentResponse
 import dk.sdu.cloud.accounting.api.grants.GrantComments
 import dk.sdu.cloud.accounting.api.grants.GrantTemplates
 import dk.sdu.cloud.accounting.api.projects.*
@@ -88,13 +89,13 @@ class GrantController(
         }
 
         implement(GrantComments.deleteComment) {
-            //comments.deleteComment(actorAndProject, request)
+            comments.deleteComment(actorAndProject, request)
             ok(Unit)
         }
 
         //PROJECT GRANT SETTINGS
         implement(GrantSettings.uploadRequestSettings) {
-            //settings.uploadRequestSettings(actorAndProject, request)
+            settings.uploadRequestSettings(actorAndProject, request)
             ok(Unit)
         }
 
@@ -104,7 +105,7 @@ class GrantController(
 
         //PROJECT ENABLED STATUS
         implement(ProjectEnabled.setEnabledStatus) {
-           // settings.setEnabledStatus(actorAndProject, request.projectId, request.enabledStatus)
+            settings.setEnabledStatus(actorAndProject, request)
             ok(Unit)
         }
 
@@ -141,7 +142,7 @@ class GrantController(
 
         //PROJECT DESCRIPTIONS
         implement(ProjectTextDescription.uploadDescription) {
-            //settings.uploadDescription(actorAndProject, request.projectId, request.description)
+            settings.uploadDescription(actorAndProject, request)
             ok(Unit)
         }
 
@@ -151,7 +152,7 @@ class GrantController(
 
         //GRANT TEMPLATES
         implement(GrantTemplates.uploadTemplates) {
-            //templates.uploadTemplates(actorAndProject, request)
+            templates.uploadTemplates(actorAndProject, request)
             ok(Unit)
         }
 

@@ -1,18 +1,14 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.WithPaginationRequestV2
-import dk.sdu.cloud.accounting.api.projects.ProjectApplicationSettings
-import dk.sdu.cloud.accounting.api.projects.UploadRequestSettingsRequest
-import dk.sdu.cloud.accounting.api.projects.UserCriteria
+import dk.sdu.cloud.accounting.api.projects.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
@@ -38,43 +34,47 @@ class GrantSettingsService(
 ) {
     suspend fun uploadRequestSettings(
         actorAndProject: ActorAndProject,
-        request: UploadRequestSettingsRequest
+        request: BulkRequest<UploadRequestSettingsRequest>
     ) {
-        if (actorAndProject.project == null) throw RPCException("Must supply a project", HttpStatusCode.BadRequest)
+        if (actorAndProject.project == null) throw RPCException("Settings only available in project context", HttpStatusCode.BadRequest)
 
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
+            request.items.forEach { req ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
 
-                    request.excludeRequestsFrom.split {
-                        into("new_exclude_list") { excludeEntry ->
-                            if (excludeEntry !is UserCriteria.EmailDomain) {
-                                throw RPCException("Exclude list can only contain emails", HttpStatusCode.BadRequest)
+                        req.excludeRequestsFrom.split {
+                            into("new_exclude_list") { excludeEntry ->
+                                if (excludeEntry !is UserCriteria.EmailDomain) {
+                                    throw RPCException(
+                                        "Exclude list can only contain emails",
+                                        HttpStatusCode.BadRequest
+                                    )
+                                }
+                                excludeEntry.domain
                             }
-                            excludeEntry.domain
                         }
-                    }
 
-                    request.allowRequestsFrom.split {
-                        into("new_include_list_type") { it.type }
-                        into("new_include_list_entity") { it.id }
-                    }
+                        req.allowRequestsFrom.split {
+                            into("new_include_list_type") { it.type }
+                            into("new_include_list_entity") { it.id }
+                        }
 
-                    request.automaticApproval.from.split {
-                        into("auto_approve_list_type") { it.type }
-                        into("auto_approve_list_entity") { it.id }
-                    }
+                        req.automaticApproval.from.split {
+                            into("auto_approve_list_type") { it.type }
+                            into("auto_approve_list_entity") { it.id }
+                        }
 
-                    request.automaticApproval.maxResources.split {
-                        into("auto_approve_category") { it.category }
-                        into("auto_approve_provider") { it.provider }
-                        into("auto_approve_quota") { null }
-                        into("auto_approve_credits") { it.balanceRequested }
-                    }
-                },
-                """
+                        req.automaticApproval.maxResources.split {
+                            into("auto_approve_category") { it.category }
+                            into("auto_approve_provider") { it.provider }
+                            into("auto_approve_quota") { null }
+                            into("auto_approve_credits") { it.balanceRequested }
+                        }
+                    },
+                    """
                     select "grant".upload_request_settings(
                         :username, :project,
                         
@@ -86,7 +86,8 @@ class GrantSettingsService(
                         :auto_approve_provider, :auto_approve_credits, :auto_approve_quota
                     )
                 """
-            )
+                )
+            }
         }
     }
 
@@ -189,8 +190,7 @@ class GrantSettingsService(
 
     suspend fun setEnabledStatus(
         actorAndProject: ActorAndProject,
-        projectId: String,
-        enabledStatus: Boolean
+        requests: BulkRequest<SetEnabledStatusRequest>
     ) {
         when (val actor = actorAndProject.actor) {
             Actor.System -> {
@@ -205,23 +205,24 @@ class GrantSettingsService(
                 }
             }
         }
-
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("project_id", projectId)
-                    setParameter("status", enabledStatus)
-                },
-                """
-                    with deletion as (
-                        delete from "grant".is_enabled
-                        where project_id = :project_id
-                    )
-                    insert into "grant".is_enabled (project_id)
-                    select :project_id
-                    where :status
-                """
-            )
+            requests.items.forEach { req ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project_id", req.projectId)
+                        setParameter("status", req.enabledStatus)
+                    },
+                    """
+                        with deletion as (
+                            delete from "grant".is_enabled
+                            where project_id = :project_id
+                        )
+                        insert into "grant".is_enabled (project_id)
+                        select :project_id
+                        where :status
+                    """
+                )
+            }
         }
     }
 
@@ -230,8 +231,14 @@ class GrantSettingsService(
     ): Boolean {
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
-                { setParameter("projectId", projectId) },
-                "select * from \"grant\".is_enabled where project_id = :projectId"
+                {
+                    setParameter("projectId", projectId)
+                },
+                """
+                    select * 
+                    from "grant".is_enabled 
+                    where project_id = :projectId
+                """
             ).rows.size > 0
         }
     }
@@ -307,17 +314,17 @@ class GrantSettingsService(
 
     suspend fun uploadDescription(
         actorAndProject: ActorAndProject,
-        projectId: String,
-        description: String
+        requests: BulkRequest<UploadDescriptionRequest>
     ) {
         db.withSession(remapExceptions = true) { session ->
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project_id", projectId)
-                    setParameter("description", description)
-                },
-                """
+            requests.items.forEach { req ->
+                val success = session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project_id", req.projectId)
+                        setParameter("description", req.description)
+                    },
+                    """
                     insert into "grant".descriptions (project_id, description)
                     select :project_id, :description
                     from project.project_members pm
@@ -328,10 +335,11 @@ class GrantSettingsService(
                     on conflict (project_id) do update set
                         description = excluded.description
                 """
-            ).rowsAffected > 0
+                ).rowsAffected > 0
 
-            if (!success) {
-                throw RPCException("Unable to update description.", HttpStatusCode.NotFound)
+                if (!success) {
+                    throw RPCException("Unable to update description.", HttpStatusCode.NotFound)
+                }
             }
         }
     }

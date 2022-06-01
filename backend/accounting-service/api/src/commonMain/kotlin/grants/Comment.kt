@@ -8,7 +8,7 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class CreateCommentRequest(val grantId: Long, val comment: String)
-typealias CreateCommentResponse = FindByLongId
+typealias CreateCommentResponse = List<FindByLongId>
 
 @Serializable
 data class DeleteCommentRequest(val grantId:Long, val commentId: Long)

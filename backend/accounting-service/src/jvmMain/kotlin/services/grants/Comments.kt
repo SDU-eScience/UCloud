@@ -23,7 +23,7 @@ class GrantCommentService(
             """
                 select * 
                 from "grant".applications a join 
-                "grant".requested_resources rr on a.id = rr.application_id join
+                "grant".requested_resources rr on a.id = rr.application_id left join
                         project.project_members pm on
                             pm.project_id = rr.grant_giver and
                             pm.username = :username and
