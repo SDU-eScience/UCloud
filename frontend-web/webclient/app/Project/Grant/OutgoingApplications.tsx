@@ -114,10 +114,10 @@ export const OutgoingApplications: React.FunctionComponent = () => {
                                 <div>
                                     <Center>
                                         <Box mb="8px">
-                                            <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}><Button width="165px">Create Application</Button></Link>
+                                            <Link to={projectId ? "/project/grants/existing" : "/project/grants/personal"}><Button width="168px">Create Application</Button></Link>
                                         </Box>
                                         <Box>
-                                            <Link to="/project/grants/new"><Button width="165px">Create Project</Button></Link>
+                                            <Link to="/project/grants/new"><Button width="168px">Create Project</Button></Link>
                                         </Box>
                                     </Center>
                                 </div>
