@@ -1,16 +1,17 @@
 package dk.sdu.cloud.accounting.api.grants
 
 import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class CreateCommentRequest(val requestId: Long, val comment: String)
-typealias CreateCommentResponse = Unit
+data class CreateCommentRequest(val grantId: Long, val comment: String)
+typealias CreateCommentResponse = FindByLongId
 
 @Serializable
-data class DeleteCommentRequest(val commentId: Long)
+data class DeleteCommentRequest(val grantId:Long, val commentId: Long)
 typealias DeleteCommentResponse = Unit
 
 

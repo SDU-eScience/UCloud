@@ -2,6 +2,7 @@ package dk.sdu.cloud.grant.rpc
 
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.accounting.api.grants.GrantComments
 import dk.sdu.cloud.accounting.api.grants.GrantTemplates
 import dk.sdu.cloud.accounting.api.projects.*
@@ -83,8 +84,7 @@ class GrantController(
 
         //COMMENTS
         implement(GrantComments.createComment) {
-            //comments.postComment(actorAndProject, request)
-            ok(Unit)
+            ok(comments.postComment(actorAndProject, request))
         }
 
         implement(GrantComments.deleteComment) {
