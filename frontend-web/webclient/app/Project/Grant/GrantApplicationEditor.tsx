@@ -42,7 +42,6 @@ import {
     isGrantFinalized,
     retrieveDescription,
     RetrieveDescriptionResponse,
-    submitGrantApplication,
 } from "@/Project/Grant/index";
 import {useHistory, useParams} from "react-router";
 import {dateToString, getStartOfDay} from "@/Utilities/DateUtilities";
@@ -93,6 +92,8 @@ import {
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {dispatchUserAction} from "@/Core";
+import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing",
@@ -249,7 +250,7 @@ const GenericRequestCard: React.FunctionComponent<{
                             <Checkbox
                                 size={32}
                                 defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
-                                disabled={grantFinalized || isLocked}
+                                disabled={grantFinalized || isLocked || !props.isApprover}
                                 data-target={"checkbox-" + productCategoryId(wb.metadata.category)}
                                 onChange={e => {
                                     const checkbox = e.target as HTMLInputElement;
@@ -271,7 +272,7 @@ const GenericRequestCard: React.FunctionComponent<{
                 </Flex>
 
                 <Input
-                    disabled={grantFinalized || isLocked}
+                    disabled={grantFinalized || isLocked || !props.isApprover}
                     data-target={productCategoryId(wb.metadata.category)}
                     autoComplete="off"
                     type="hidden"
@@ -315,7 +316,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                 <Flex alignItems={"center"}>
                                     <Input
                                         placeholder={"0"}
-                                        disabled={grantFinalized || isLocked}
+                                        disabled={grantFinalized || isLocked || !props.isApprover}
                                         data-target={productCategoryId(wb.metadata.category)}
                                         autoComplete="off"
                                         defaultValue={normalizedValue}
@@ -335,7 +336,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         py="8px"
                                         borderWidth="2px"
                                         required={props.isApprover}
-                                        disabled={grantFinalized || isLocked}
+                                        disabled={grantFinalized || isLocked || !props.isApprover}
                                         mr="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText="Start date..."
@@ -353,7 +354,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
                                         startDate={startDate}
-                                        disabled={grantFinalized || isLocked}
+                                        disabled={grantFinalized || isLocked || !props.isApprover}
                                         endDate={endDate}
                                         onChange={(date: Date | null) => setEndDate(date)}
                                         className={productCategoryEndDate(wb.metadata.category)}
@@ -477,9 +478,11 @@ const UPDATED_REFERENCE_ID = "UPDATE_REFERENCE_ID";
 type UpdatedReferenceID = PayloadAction<typeof UPDATED_REFERENCE_ID, {referenceId: string}>;
 const UPDATE_PARENT_PROJECT_ID = "UPDATE_PARENT_PROJECT_ID";
 type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {parentProjectId: string}>;
+const POSTED_COMMENT = "POSTED_COMMENT";
+type PostedComment = PayloadAction<typeof POSTED_COMMENT, Comment>
 
 
-type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID;
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
     switch (action.type) {
         case FETCHED_GRANT_APPLICATION: {
@@ -491,7 +494,12 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
             return {...state};
         }
         case UPDATE_PARENT_PROJECT_ID: {
+            // TODO: Is this enough? Technically, we now have a new revision.
             state.currentRevision.document.parentProjectId = action.payload.parentProjectId;
+            return {...state};
+        }
+        case POSTED_COMMENT: {
+            state.status.comments.push(action.payload);
             return {...state};
         }
     }
@@ -508,6 +516,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const projectTitleRef = useRef<HTMLInputElement>(null);
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         useTitle(titleFromTarget(target));
+        const history = useHistory();
         const avatars = useAvatars();
 
         const [grantGivers, setGrantGivers] = useState<UCloud.PageV2<ProjectWithTitle>>(emptyPageV2);
@@ -681,6 +690,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     } as AllocationRequest;
                 }).filter(it => it != null)
             ) as AllocationRequest[];
+
+            if (requestedResourcesByAffiliate.length === 0) {
+                snackbarStore.addFailure("At least resource field must be non-zero.", false);
+                setSubmissionsLoading(false);
+                return;
+            }
+
             try {
                 let recipient: Recipient;
                 switch (target) {
@@ -695,6 +711,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         const newProjectTitle = projectTitleRef.current?.value;
                         if (!newProjectTitle) {
                             snackbarStore.addFailure("Project title can't be empty.", false);
+                            setSubmissionsLoading(false);
                             return;
                         }
                         recipient = {
@@ -705,7 +722,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     case RequestTarget.PERSONAL_PROJECT: {
                         recipient = {
                             type: "personal_workspace",
-                            // TODO(Jonas): Ensure that this is 
+                            // TODO(Jonas): Ensure that this is the  
                             username: getRecipientId(grantApplication.currentRevision.document.recipient),
                         }
                     } break;
@@ -717,6 +734,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const formText = documentRef.current?.value;
                 if (!formText) {
                     snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+                    setSubmissionsLoading(false);
                     return;
                 }
 
@@ -728,6 +746,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     form: formText,
                     parentProjectId: grantApplication.currentRevision.document.parentProjectId,
                 };
+
+                const [id] = await runWork({
+                    method: "POST",
+                    path: "/grant/submit-application",
+                    parameters: documentToSubmit,
+                    payload: documentToSubmit
+                });
+
+                history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
@@ -849,7 +876,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
                     setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
                     isLocked={isLocked}
-                    isApprover={approverMap[it.projectId] ? (console.log(approverMap[it.title]), true) : false}
+                    isApprover={approverMap[it.projectId]}
                 />
             ), [grantGivers, grantGiversInUse, isLocked, walletsByOwner, grantApplication, DEBUGGING_project_id]);
 
@@ -862,14 +889,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 }
                 sidebar={null}
                 main={<>
-                    DEBUGGING
-                    <select>
-                        <option onClick={() => DEBUGGING_set_project_id("just-some-id-we-cant-consider-valid")}>UAC</option>
-                        <option onClick={() => DEBUGGING_set_project_id("just-some-other-id-we-cant-consider-valid")}>HELL</option>
-                        <option onClick={() => DEBUGGING_set_project_id("the-final-one")}>Cultist Base</option>
-                        <option onClick={() => DEBUGGING_set_project_id("")}>None</option>
-                    </select>
-                    DEBUGGING
+                    {DEBUGGING ? <>
+                        <Button onClick={() => runWork(browseAffiliations({grantId: "", itemsPerPage: 250, page: 0}))}>Request</Button>
+                        DEBUGGING
+                        <select>
+                            <option onClick={() => DEBUGGING_set_project_id("just-some-id-we-cant-consider-valid")}>UAC</option>
+                            <option onClick={() => DEBUGGING_set_project_id("just-some-other-id-we-cant-consider-valid")}>HELL</option>
+                            <option onClick={() => DEBUGGING_set_project_id("the-final-one")}>Cultist Base</option>
+                            <option onClick={() => DEBUGGING_set_project_id("")}>None</option>
+                        </select>
+                        DEBUGGING
+                    </> : null}
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
                             {target !== RequestTarget.NEW_PROJECT ? null : (
@@ -1101,11 +1131,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                         />
                                     ))}
 
-                                    <PostCommentWidget
-                                        applicationId={grantApplication.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
-                                        avatar={avatars.cache[Client.username!] ?? defaultAvatar}
-                                        reload={reload}
-                                    />
+                                    {target !== RequestTarget.VIEW_APPLICATION ? null :
+                                        <PostCommentWidget
+                                            applicationId={grantApplication.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
+                                            avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                                            onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
+                                        />
+                                    }
                                 </Box>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
@@ -1498,20 +1530,26 @@ const PostCommentWrapper = styled.form`
 const PostCommentWidget: React.FunctionComponent<{
     applicationId: string,
     avatar: AvatarType,
-    reload: () => void
-}> = ({applicationId, avatar, reload}) => {
+    onPostedComment(comment: Comment): void;
+}> = ({applicationId, avatar, onPostedComment}) => {
     // TODO(Jonas): Should this be disabled until grant is initially published?
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
         try {
-            await runWork(commentOnGrantApplication({
+            const id = await runWork<string>(commentOnGrantApplication({
                 requestId: applicationId,
                 comment: commentBoxRef.current!.value
             }), {defaultErrorHandler: false});
-            // TODO(Jonas): Push comment to state
-            reload();
+
+            onPostedComment({
+                comment: commentBoxRef.current!.value,
+                createdAt: new Date().getTime(),
+                id: id!,
+                username: Client.activeUsername
+            });
+
             if (commentBoxRef.current) commentBoxRef.current!.value = "";
         } catch (error) {
             displayErrorMessageOrDefault(error, "Failed to post comment.");

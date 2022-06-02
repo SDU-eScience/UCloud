@@ -177,7 +177,7 @@ export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title:
 export function browseAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
     return {
         method: "GET",
-        path: buildQueryString("/grant/browse/affiliations", request),
+        path: buildQueryString("/grant/browse/Affiliations", request),
         parameters: request,
         reloadId: Math.random()
     };
