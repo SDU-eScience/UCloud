@@ -92,8 +92,6 @@ import {
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
-import {dispatchUserAction} from "@/Core";
-import {buildQueryString} from "@/Utilities/URIUtilities";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing",
@@ -372,7 +370,7 @@ const GenericRequestCard: React.FunctionComponent<{
     }
 };
 
-async function fetchGrantGivers() {
+async function fetchGrantGivers(): Promise<UCloud.PageV2<ProjectWithTitle>> {
     // const resp = await callAPI();
     return await new Promise(resolve => setTimeout(() => resolve(fetchGrantGiversFake()), 250));
 }
@@ -841,7 +839,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
-                    trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="12px" ml=".7em" color={"darkGray"} /></Flex>}
+                    trigger={<Flex><Heading.h2>Select grant giver</Heading.h2> <Icon name="chevronDownLight" size="1em" mt="18px" ml=".7em" color={"darkGray"} /></Flex>}
                 >
                     <Wrapper>
                         <Table>
@@ -1011,6 +1009,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                         <ButtonGroup>
                                                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                                                 <>
+
+                                                                    {/* We have the following buttons that we need:
+                                                                            - Approve (Should be per grant giver, not for every one.)
+                                                                            - Reject (Does notify still make sense? Again, for each).
+                                                                            - Transfer application
+                                                                            - Close Request (from the view of the recipient, so only if creator of it.)
+                                                                    */}
                                                                     {/* TODO(Jonas): isAdminOrPi && isAdminOrPiForAnything && */ !grantFinalized ?
                                                                         <>
                                                                             <Button
@@ -1131,13 +1136,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                         />
                                     ))}
 
-                                    {target !== RequestTarget.VIEW_APPLICATION ? null :
-                                        <PostCommentWidget
-                                            applicationId={grantApplication.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
-                                            avatar={avatars.cache[Client.username!] ?? defaultAvatar}
-                                            onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
-                                        />
-                                    }
+                                    <PostCommentWidget
+                                        applicationId={grantApplication.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
+                                        avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                                        onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
+                                        disabled={target !== RequestTarget.VIEW_APPLICATION}
+                                    />
                                 </Box>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
@@ -1531,12 +1535,13 @@ const PostCommentWidget: React.FunctionComponent<{
     applicationId: string,
     avatar: AvatarType,
     onPostedComment(comment: Comment): void;
-}> = ({applicationId, avatar, onPostedComment}) => {
-    // TODO(Jonas): Should this be disabled until grant is initially published?
+    disabled: boolean;
+}> = ({applicationId, avatar, onPostedComment, disabled}) => {
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
+        if (disabled) return;
         try {
             const id = await runWork<string>(commentOnGrantApplication({
                 requestId: applicationId,
@@ -1555,13 +1560,15 @@ const PostCommentWidget: React.FunctionComponent<{
             displayErrorMessageOrDefault(error, "Failed to post comment.");
         }
     }, [runWork, applicationId, commentBoxRef.current]);
+
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">
             <UserAvatar avatar={avatar} width={"48px"} />
-            <TextArea rows={3} ref={commentBoxRef} placeholder={"Your comment"} />
+            <TextArea rows={3} ref={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
-            <Button disabled={loading}>Send</Button>
+            {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to make comments</Tooltip> :
+                <Button disabled={loading}>Send</Button>}
         </div>
     </PostCommentWrapper>;
 };
