@@ -679,6 +679,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     return {
                         category: wb.metadata.category.name,
                         provider: wb.metadata.category.provider,
+                        balanceRequested: creditsRequested,
                         grantGiver: entry,
                         sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
                         period: {
@@ -1567,7 +1568,7 @@ const PostCommentWidget: React.FunctionComponent<{
             <TextArea rows={3} ref={commentBoxRef} disabled={disabled} placeholder={"Your comment"} />
         </div>
         <div className="buttons">
-            {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to make comments</Tooltip> :
+            {disabled ? <Tooltip trigger={<Button disabled>Send</Button>}>Submit application to allow comments</Tooltip> :
                 <Button disabled={loading}>Send</Button>}
         </div>
     </PostCommentWrapper>;
