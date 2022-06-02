@@ -40,7 +40,7 @@ value class ReadResult(private val bytesReadOrNegativeErrno: Long) {
 
 interface InputStream {
     fun read(destination: ByteArray, offset: Int = 0, size: Int = destination.size): ReadResult
-    fun close()
+    fun close(): Int
 }
 
 class NativeInputStream(val fd: Int) : InputStream {
@@ -56,8 +56,8 @@ class NativeInputStream(val fd: Int) : InputStream {
         }
     }
 
-    override fun close() {
-        platform.posix.close(fd)
+    override fun close(): Int {
+        return platform.posix.close(fd)
     }
 }
 
