@@ -16,6 +16,7 @@ class Log(private val filters: Filters) {
     private val messages = FilteredList<DebugMessage>(1024 * 32)
     private val rows = Array(100) { LogRow().also { it.render() } }
     private val dataViewer = DataViewer()
+    private var selected: String? = null
 
     private lateinit var elem: HTMLElement
     private lateinit var scrollingElem: HTMLElement
@@ -60,7 +61,7 @@ class Log(private val filters: Filters) {
             if (!allowedByQuery) return@f false
 
             val allowedByStack = when (filters.id) {
-                "" -> message.context.depth == 1
+                "" -> message.context.depth <= 2
                 else -> {
                     message.context.path.contains(filters.id)
                 }
@@ -148,21 +149,36 @@ class Log(private val filters: Filters) {
         for (idx in firstIdx..lastIdx) {
             val message = messages.filtered[idx]
             val cacheRow = rows[cacheOffset + idx - firstIdx]
-            cacheRow.update(message, messages.filtered.getOrNull(idx - 1))
+            cacheRow.update(message, messages.filtered.getOrNull(idx - 1), selected == message.context.id)
             cacheRow.elem.style.top = (idx * rowSize).px
             cacheRow.elem.style.paddingLeft = ((message.context.depth - filters.currentStack.depth) * 8).px
             cacheRow.elem.onclick = {
+                selected = message.context.id
                 dataViewer.update(message)
+                rerender()
             }
 
             cacheRow.elem.ondblclick = {
-                filters.addStack(message.context.id, LogRow.message(message)) {
-                    logLevel = MessageImportance.IMPLEMENTATION_DETAIL
-                    showServer = true
-                    showClient = true
-                    showDatabase = true
-                    depth = message.context.depth
+                val wasAtTheTop = filters.stackIdx == 0
+                for ((index, item) in message.context.path.withIndex()) {
+                    val previousMessage = messages.all.find { it.context.id == item }
+                    if (previousMessage != null) {
+                        filters.addStack(
+                            item,
+                            LogRow.message(previousMessage),
+                            replaceIdx = if (index == 0) 0 else null,
+                            doRender = false,
+                            block = {
+                                logLevel = MessageImportance.IMPLEMENTATION_DETAIL
+                                showServer = true
+                                showClient = true
+                                showDatabase = true
+                                depth = previousMessage.context.depth
+                            }
+                        )
+                    }
                 }
+                filters.updateSelectedStack(if (wasAtTheTop) 1 else filters.lastIndex)
             }
         }
     }
@@ -258,9 +274,11 @@ class LogRow {
         response.textContent = ""
     }
 
-    fun update(row: DebugMessage, previous: DebugMessage?) {
+    fun update(row: DebugMessage, previous: DebugMessage?, isActive: Boolean) {
         elem.style.background = backgroundColor(row.importance)
         elem.style.color = foregroundColor(row.importance)
+        val borderColor = if (isActive) "#006aff" else "transparent"
+        elem.style.border = "3px solid $borderColor"
 
         timestamp.textContent =
             if (previous == null) "0s"
@@ -327,8 +345,8 @@ class LogRow {
 
         fun message(row: DebugMessage): String {
             return when (row) {
-                is DebugMessage.ClientRequest -> row.call ?: "Client: Unknown call"
-                is DebugMessage.ClientResponse -> row.call ?: "Client: Unknown call"
+                is DebugMessage.ClientRequest -> "Client request: ${row.call ?: "unknown"}"
+                is DebugMessage.ClientResponse -> "Client response: ${row.call ?: "unknown"}"
                 is DebugMessage.DatabaseConnection -> {
                     if (row.isOpen) "DB open"
                     else "DB close"
@@ -343,8 +361,8 @@ class LogRow {
                     }
                 }
                 is DebugMessage.Log -> row.message
-                is DebugMessage.ServerRequest -> row.call ?: "Server: Unknown call"
-                is DebugMessage.ServerResponse -> row.call ?: "Server: Unknown call"
+                is DebugMessage.ServerRequest -> "Server request: ${row.call ?: "unknown"}"
+                is DebugMessage.ServerResponse -> "Server response: ${row.call ?: "unknown"}"
             }
         }
 

@@ -31,7 +31,10 @@ class Filters {
             showServer = true
         }
     )
-    private var stackIdx = 0
+    var stackIdx = 0
+        private set
+    val lastIndex: Int
+        get() = stack.lastIndex
     val currentStack: FilterStackItem
         get() = stack[stackIdx]
 
@@ -228,9 +231,17 @@ class Filters {
         databaseBox.find(elem).checked = showDatabase
     }
 
-    fun addStack(id: String, title: String, block: FilterStackItem.() -> Unit = {}) {
-        stack = stack.subList(0, stackIdx + 1) + FilterStackItem(id, title).also(block)
+    fun addStack(id: String, title: String, replaceIdx: Int? = null, doRender: Boolean = true, block: FilterStackItem.() -> Unit = {}) {
+        stack = stack.subList(0, (replaceIdx ?: stackIdx) + 1) + FilterStackItem(id, title).also(block)
         stackIdx = stack.lastIndex
+        if (doRender) {
+            renderStack()
+            onChange()
+        }
+    }
+
+    fun updateSelectedStack(idx: Int) {
+        stackIdx = idx
         renderStack()
         onChange()
     }

@@ -21,6 +21,15 @@ class CircularList<E : Any>(val capacity: Int) : Iterable<E> {
         }
     }
 
+    fun reverseIterator(): Iterator<E> {
+        return object : Iterator<E> {
+            var ptr = size - 1
+
+            override fun hasNext(): Boolean = ptr >= 0
+            override fun next(): E = get(ptr--)
+        }
+    }
+
     fun add(elem: E) {
         array[tail++] = elem
         tail %= capacity

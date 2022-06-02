@@ -62,7 +62,7 @@ fun main() {
         }
     }
 
-    val statusCards = StatusCards()
+    val statusCards = StatusCards(client)
     content.appendChild(statusCards.render())
 
     val filters = Filters()
@@ -85,7 +85,16 @@ fun main() {
             is ServerToClient.NewService -> {
                 serviceSelector.addService(message.service)
             }
+
+            is ServerToClient.Statistics -> {
+                statusCards.updateStats(message)
+            }
         }
     }
+
+    client.onOpen = {
+        statusCards.updateInterests(listOf("Core", "IM/Server", "IM/User"))
+    }
+
     client.start()
 }

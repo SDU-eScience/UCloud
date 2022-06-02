@@ -41,7 +41,42 @@ class DataViewer {
             table {
                 tr {
                     th { +"Timestamp" }
-                    td { code { text(Date(row.timestamp).toUTCString()) } }
+                    td {
+                        code {
+                            text(buildString {
+                                with(Date(row.timestamp)) {
+                                    append(getUTCDate().toString().padStart(2, '0'))
+                                    append(' ')
+                                    append(when (getUTCMonth() + 1) {
+                                        1 -> "Jan"
+                                        2 -> "Feb"
+                                        3 -> "Mar"
+                                        4 -> "Apr"
+                                        5 -> "May"
+                                        6 -> "Jun"
+                                        7 -> "Jul"
+                                        8 -> "Aug"
+                                        9 -> "Sep"
+                                        10 -> "Oct"
+                                        11 -> "Nov"
+                                        12 -> "Dec"
+                                        else -> "???"
+                                    })
+                                    append(' ')
+                                    append(getUTCFullYear().toString().padStart(4, '0'))
+                                    append(' ')
+                                    append(getUTCHours().toString().padStart(2, '0'))
+                                    append(':')
+                                    append(getUTCMinutes().toString().padStart(2, '0'))
+                                    append(':')
+                                    append(getUTCSeconds().toString().padStart(2, '0'))
+                                    append(':')
+                                    append(getUTCMilliseconds().toString().padStart(3, '0'))
+                                    append(" UTC")
+                                }
+                            })
+                        }
+                    }
                 }
 
                 tr {
