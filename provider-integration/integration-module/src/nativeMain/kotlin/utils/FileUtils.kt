@@ -13,8 +13,8 @@ class NativeFile(val fd: Int) {
         require(fd >= 0) { "fd < 0" }
     }
 
-    fun close() {
-        platform.posix.close(fd)
+    fun close(): Int {
+        return platform.posix.close(fd)
     }
 
     companion object {

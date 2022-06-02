@@ -120,7 +120,7 @@ fun startProcess(
             val pipes = IntArray(2).also {
                 it.usePinned { pipes ->
                     if (pipe(pipes.addressOf(0)) != 0) {
-                        throw IllegalStateException("Failed to create stderr stdin: " + getNativeErrorMessage(errno))
+                        throw IllegalStateException("Failed to create stdin pipe: " + getNativeErrorMessage(errno))
                     }
                 }
             }
@@ -180,6 +180,10 @@ fun startProcess(
             if (pid < 0) {
                 throw IllegalStateException(getNativeErrorMessage(errno))
             }
+            if (stdinForChild != null) close(stdinForChild)
+            if (stdoutForChild != null) close(stdoutForChild)
+            if (stderrForChild != null) close(stderrForChild)
+
             return Process(stdinForParent, stdoutForParent, stderrForParent, pid)
         } finally {
             nativeHeap.free(nativeArgs)

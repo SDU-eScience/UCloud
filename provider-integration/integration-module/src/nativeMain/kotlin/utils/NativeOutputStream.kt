@@ -38,8 +38,8 @@ class NativeOutputStream(val fd: Int) {
         }
     }
 
-    fun close() {
-        platform.posix.close(fd)
+    fun close(): Int {
+        return platform.posix.close(fd)
     }
 }
 
