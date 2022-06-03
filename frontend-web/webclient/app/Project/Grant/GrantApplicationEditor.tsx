@@ -239,6 +239,13 @@ const GenericRequestCard: React.FunctionComponent<{
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
 
+    React.useEffect(() => {
+        if (endDate == null) return;
+        if (endDate < startDate) {
+            setEndDate(null);
+        }
+    }, [startDate, endDate]);
+
     if (wb.metadata.freeToUse) {
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
@@ -344,6 +351,8 @@ const GenericRequestCard: React.FunctionComponent<{
                                     />
                                     <DatePicker
                                         selectsEnd
+                                        startDate={startDate}
+                                        endDate={endDate}
                                         isClearable={endDate != null}
                                         borderWidth="2px"
                                         py="8px"
@@ -351,9 +360,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
-                                        startDate={startDate}
                                         disabled={grantFinalized || isLocked || !props.isApprover}
-                                        endDate={endDate}
                                         onChange={(date: Date | null) => setEndDate(date)}
                                         className={productCategoryEndDate(wb.metadata.category)}
                                     />
