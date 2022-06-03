@@ -32,6 +32,10 @@ export const DatePicker = styled(ReactDatePicker) <InputProps & ColorProps>`
       display: none;
     }
 
+    &:disabled {
+        background-color: var(--lightGray, #f00);
+    }
+
     ${borders} ${space} ${fontSize} ${width} ${color};
 `;
 
