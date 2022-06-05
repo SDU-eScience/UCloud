@@ -58,7 +58,7 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Truncate} from "@/ui-components";
@@ -220,11 +220,10 @@ function checkIsGrantRecipient(recipient: Recipient, username: string, projectId
         return recipient.id === projectId;
     } else if (recipient.type === "personal_workspace") {
         return recipient.username === username;
-    } else {
-        // TODO(Jonas): handle this case
-        recipient.type === "new_project";
+    } else if (/* TODO(Jonas): handle this case */ recipient.type === "new_project") {
         return false;
     }
+    return false;
 }
 
 const GenericRequestCard: React.FunctionComponent<{
@@ -594,7 +593,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             });
         }, [grantGivers.items]);
 
-        // TODO(Jonas): Change to use reduce
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
 
         React.useEffect(() => {
@@ -640,7 +638,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
             if (grantGiversInUse.length === 0) {
-                snackbarStore.addFailure("No grant giver selected. Please select one to submit.", false);
+                snackbarStore.addFailure("No grant giver selected. Please select at least one to submit.", false);
                 setSubmissionsLoading(false);
                 return;
             }
@@ -698,7 +696,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             ) as AllocationRequest[];
 
             if (requestedResourcesByAffiliate.length === 0) {
-                snackbarStore.addFailure("At least resource field must be non-zero.", false);
+                snackbarStore.addFailure("At least one resource field must be non-zero.", false);
                 setSubmissionsLoading(false);
                 return;
             }
@@ -729,7 +727,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         recipient = {
                             type: "personal_workspace",
                             // TODO(Jonas): Ensure that this is the  
-                            username: getRecipientId(grantApplication.currentRevision.document.recipient),
+                            username: Client.username,
                         }
                     } break;
                     case RequestTarget.VIEW_APPLICATION: {
@@ -756,8 +754,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const [id] = await runWork({
                     method: "POST",
                     path: "/grant/submit-application",
-                    parameters: documentToSubmit,
-                    payload: documentToSubmit
+                    parameters: bulkRequestOf({document: documentToSubmit}),
+                    payload: bulkRequestOf({document: documentToSubmit})
                 });
 
                 history.push(`/project/grants/view/${id}`);
