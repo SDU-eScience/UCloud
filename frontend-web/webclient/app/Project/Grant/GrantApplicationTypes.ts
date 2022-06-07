@@ -4,6 +4,7 @@ import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
+import {apiBrowse, apiDelete, apiUpdate} from "@/Authentication/DataHook";
 
 export interface GrantApplication {
 
@@ -157,13 +158,7 @@ export interface DeleteGrantApplicationCommentRequest {
 export function deleteGrantApplicationComment(
     request: DeleteGrantApplicationCommentRequest
 ): APICallParameters<DeleteGrantApplicationCommentRequest> {
-    return {
-        method: "DELETE",
-        path: "/grant/comment",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
+    return apiDelete(request, "/grant/comment")
 }
 
 export interface GrantsRetrieveAffiliationsRequest {
@@ -175,12 +170,7 @@ export interface GrantsRetrieveAffiliationsRequest {
 export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
 
 export function browseAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/grant/browse/Affiliations", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+    return apiBrowse(request, "grant", "affiliations")
 }
 
 export interface CommentOnGrantApplicationRequest {
@@ -420,13 +410,7 @@ export interface EditReferenceIDRequest {
 export function editReferenceId(
     request: EditReferenceIDRequest
 ): APICallParameters<EditReferenceIDRequest> {
-    return {
-        method: "POST",
-        path: "/grant/editReference",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    }
+    return apiUpdate(request, "grant", "editReference");
 }
 
 export async function fetchProducts(
