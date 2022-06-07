@@ -7,10 +7,14 @@ import kotlinx.html.js.code
 import kotlinx.html.js.onChangeFunction
 import kotlinx.html.js.onClickFunction
 import kotlinx.html.js.onInputFunction
+import kotlinx.html.js.onKeyDownFunction
 import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
 import org.w3c.dom.HTMLInputElement
 import org.w3c.dom.HTMLSelectElement
+import org.w3c.dom.events.KeyboardEvent
+import kotlin.math.max
+import kotlin.math.min
 
 class FilterStackItem(val id: String, val title: String) {
     var filter: String = ""
@@ -116,6 +120,14 @@ class Filters {
                     h4 { +"Query" }
                     standardInput {
                         capture(queryBox)
+                        onKeyDownFunction = { ev ->
+                            ev as KeyboardEvent
+                            ev.stopPropagation()
+                            if (ev.code == "Escape") {
+                                (ev.target as HTMLInputElement).blur()
+                            }
+                        }
+
                         onInputFunction = { ev ->
                             val input = ev.target as HTMLInputElement
                             filter = input.value
@@ -202,8 +214,58 @@ class Filters {
             this@Filters.onChange()
         }
 
+        document.addEventListener("keydown", { event ->
+            event as KeyboardEvent
+            when(event.code) {
+                "KeyP" -> {
+                    stackIdx = min(stack.lastIndex, max(0, stackIdx - 1))
+                    renderAndNotify()
+                }
+
+                "KeyO" -> {
+                    stackIdx = min(stack.lastIndex, max(0, stackIdx + 1))
+                    renderAndNotify()
+                }
+
+                "Slash" -> {
+                    event.preventDefault()
+                    queryBox.find(elem).focus()
+                }
+
+                "KeyQ" -> {
+                    logLevel = MessageImportance.TELL_ME_EVERYTHING
+                    renderAndNotify()
+                }
+
+                "KeyW" -> {
+                    logLevel = MessageImportance.THIS_IS_NORMAL
+                    renderAndNotify()
+                }
+
+                "KeyE" -> {
+                    logLevel = MessageImportance.THIS_IS_ODD
+                    renderAndNotify()
+                }
+
+                "KeyR" -> {
+                    logLevel = MessageImportance.THIS_IS_WRONG
+                    renderAndNotify()
+                }
+
+                "KeyT" -> {
+                    logLevel = MessageImportance.THIS_IS_DANGEROUS
+                    renderAndNotify()
+                }
+            }
+        })
+
         renderStack()
         return elem
+    }
+
+    private fun renderAndNotify() {
+        renderStack()
+        onChange()
     }
 
     private fun renderStack() {

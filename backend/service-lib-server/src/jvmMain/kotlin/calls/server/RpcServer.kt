@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.microWhichIsConfiguringCalls
 import io.ktor.http.*
 import kotlinx.coroutines.channels.ClosedSendChannelException
@@ -76,7 +77,8 @@ sealed class IngoingCallFilter : IngoingContextFilter {
             context: IngoingCall,
             call: CallDescription<*, *, *>,
             request: Any?,
-            result: OutgoingCallResponse<*, *>
+            result: OutgoingCallResponse<*, *>,
+            responseTimeMs: Long
         )
     }
 
@@ -158,7 +160,8 @@ sealed class IngoingCallFilter : IngoingContextFilter {
                     context: IngoingCall,
                     call: CallDescription<*, *, *>,
                     request: Any?,
-                    result: OutgoingCallResponse<*, *>
+                    result: OutgoingCallResponse<*, *>,
+                    responseTimeMs: Long
                 ) {
                     @Suppress("UNCHECKED_CAST")
                     context as Ctx
@@ -339,6 +342,7 @@ class RpcServer {
         call: CallDescription<R, S, E>,
         ctx: Ctx
     ) {
+        val start = Time.now()
         var request: R? = null
         var response: OutgoingCallResponse<S, E>?
 
@@ -447,7 +451,7 @@ class RpcServer {
             .forEach {
                 @Suppress("TooGenericExceptionCaught")
                 try {
-                    it.run(ctx, call, request, responseOrDefault)
+                    it.run(ctx, call, request, responseOrDefault, Time.now() - start)
                 } catch (ex: Throwable) {
                     if (ex is NullPointerException && ex.message?.contains("Parameter specified as non-null") == true) {
                         // Ignore

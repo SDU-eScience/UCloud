@@ -11,6 +11,7 @@ services:
     restart: always
     volumes:
       - ${PWD}/backend:/opt/ucloud
+      - ${PWD}/debugger:/opt/debugger
       - backendKonan:/root/.konan
       - backendGradle:/root/.gradle
       - m2Repo:/root/.m2

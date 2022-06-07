@@ -90,7 +90,8 @@ class AuditToEventStream(
                 context: IngoingCall,
                 call: CallDescription<*, *, *>,
                 request: Any?,
-                result: OutgoingCallResponse<*, *>
+                result: OutgoingCallResponse<*, *>,
+                responseTimeMs: Long
             ) {
                 val auditDescription = call.auditOrNull
                 val auditData = context.audit

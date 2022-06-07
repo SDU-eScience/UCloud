@@ -8,29 +8,29 @@ print("UCloud Launcher v2022.1.0")
 print()
 
 if shutil.which("docker") == None:
-	print("Docker is required to run the quick launch script!")
-	print("https://www.docker.com/")
-	sys.exit(1)
+    print("Docker is required to run the quick launch script!")
+    print("https://www.docker.com/")
+    sys.exit(1)
 
 if shutil.which("docker-compose") == None:
-	print("Docker Compose is required to run the quick launch script!")
-	print("Installation instructions are available here: https://docs.docker.com/compose/install/")
-	sys.exit(1)
+    print("Docker Compose is required to run the quick launch script!")
+    print("Installation instructions are available here: https://docs.docker.com/compose/install/")
+    sys.exit(1)
 
 print("Please select the appropriate configuration for UCloud:")
-print("  - Press 1, 2 or 3 on your keyboard to change configuration for a module")
+print("  - Press number keys on your keyboard to change configuration for a module")
 print("  - Press enter to confirm your configuration and start UCloud")
 print()
-print("\033[36mSTATIC\033[0m = Uses a pre-built container image of the module. You will not be able to change this module.")
-print("\033[35m DEVEL\033[0m = Uses a container made for development. This container will mount the local source-code and can be changed.")
+print("\033[36mOFF\033[0m = This module is turned off and not available during development.")
+print("\033[35m ON\033[0m = This module is turned on and can be used. This container will mount the local source-code and can be changed.")
 print()
 print()
 
 old_settings = termios.tcgetattr(sys.stdin)
 tty.setcbreak(sys.stdin.fileno())
 
-frontend = False
-backend = False
+frontend = True
+backend = True
 integrationModule = False
 slurm = False
 keycloak = False
@@ -49,87 +49,89 @@ if not os.path.exists('.compose/passwd/passwd'):
         outfile.write('ucloud:!:19110::::::')
 
 def printCheckbox(value):
-	if value:
-		print("\033[35m[ DEVEL] \033[0m", end = "")
-	else:
-		print("\033[36m[STATIC] \033[0m", end = "")
+    if value:
+        print("\033[35m[ ON] \033[0m", end = "")
+    else:
+        print("\033[36m[OFF] \033[0m", end = "")
 
 def code(message):
-	return "\033[32m" + message + "\033[0m"
+    return "\033[32m" + message + "\033[0m"
 
 def location(message):
-	return "\033[34m" + message + "\033[0m"
+    return "\033[34m" + message + "\033[0m"
 
 def header(message):
-	return "\033[1m" + message + "\033[0m"
+    return "\033[1m" + message + "\033[0m"
 
 try:
-	while True:
-		printCheckbox(frontend)
-		print("1) Frontend")
+    while True:
+        printCheckbox(frontend)
+        print("-) Frontend")
 
-		printCheckbox(backend)
-		print("2) Backend")
+        printCheckbox(backend)
+        print("-) Backend")
 
-		printCheckbox(integrationModule)
-		print("3) Integration Module")
+        printCheckbox(integrationModule)
+        print("3) Integration Module")
 
-		printCheckbox(slurm)
-		print("4) Slurm cluster - choose dev to deploy")
+        printCheckbox(slurm)
+        print("4) Slurm cluster")
 
-		printCheckbox(keycloak)
-		print("5) Keycloak - choose dev to deploy")
+        printCheckbox(keycloak)
+        print("5) Keycloak")
 
 
-		print()
-		print("Enter) Start selected modules")
+        print()
+        print("Enter) Start selected modules")
 
-		read = sys.stdin.read(1)
-		if read == '1':
-			frontend = not frontend
-		elif read == '2':
-			backend = not backend
-		elif read == '3':
-			integrationModule = not integrationModule
-		elif read == '4':
-			slurm = not slurm
-		elif read == '5':
-			keycloak = not keycloak
-		elif read == '\n':
-			break
+        read = sys.stdin.read(1)
+        if read == '1':
+            # frontend = not frontend
+            pass
+        elif read == '2':
+            # backend = not backend
+            pass
+        elif read == '3':
+            integrationModule = not integrationModule
+        elif read == '4':
+            slurm = not slurm
+        elif read == '5':
+            keycloak = not keycloak
+        elif read == '\n':
+            break
 
-		print("\r\033[A\033[A\033[A\033[A\033[A\033[A\033[A\033[A")
+        print("\r\033[A\033[A\033[A\033[A\033[A\033[A\033[A\033[A")
 except KeyboardInterrupt:
-	termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
-	sys.exit(0)
+    termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
+    sys.exit(0)
 
 
 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
 command = ["docker-compose", "-f", "docker-compose.yml", "-f", "compose/base.yml"]
 if frontend:
-	command.append("-f")
-	command.append("compose/frontend.yml")
+    command.append("-f")
+    command.append("compose/frontend.yml")
 
 if backend:
-	command.append("-f")
-	command.append("compose/backend.yml")
+    command.append("-f")
+    command.append("compose/backend.yml")
 
 if integrationModule:
-	command.append("-f")
-	command.append("compose/integration.yml")
+    command.append("-f")
+    command.append("compose/integration.yml")
 
 if not frontend:
-	command.append("-f")
-	command.append("compose/gateway.yml")
+    command.append("-f")
+    command.append("compose/gateway.yml")
 
 if slurm:
-	command.append("-f")
-	command.append("compose/slurm.yml")
+    command.append("-f")
+    command.append("compose/slurm.yml")
 
 if keycloak:
-	command.append("-f")
-	command.append("compose/keycloak.yml")
+    command.append("-f")
+    command.append("compose/keycloak.yml")
 
 command.append("up")
 command.append("-d")
@@ -137,62 +139,62 @@ command.append("-d")
 print()
 
 if frontend:
-	print(header("# Frontend"))
-	print()
-	print("The frontend implements the web-interface of UCloud.")
-	print("Edit the source-code at: " + location("frontend-web/") + ".")
-	print()
-	print(header("Instructions:"))
-	print("  1. Changes to your local source-code is automatically compiled")
-	print("  2. View compilation output: " + code("docker-compose logs frontend"))
-	print()
-	print()
+    print(header("# Frontend"))
+    print()
+    print("The frontend implements the web-interface of UCloud.")
+    print("Edit the source-code at: " + location("frontend-web/") + ".")
+    print()
+    print(header("Instructions:"))
+    print("  1. Changes to your local source-code is automatically compiled")
+    print("  2. View compilation output: " + code("docker-compose logs frontend"))
+    print()
+    print()
 
 if backend:
-	print(header("# Backend"))
-	print()
-	print("The backend implements the UCloud/Core functionality.")
-	print("Edit the source-code at: " + location("backend/") + ".")
-	print()
-	print(header("Instructions:"))
-	print("  1. Start a developer shell with: " + code("docker-compose exec backend bash"))
-	print("  2. Compile and start the backend (from the developer shell): " + code("(cd /opt/ucloud ; ./run.sh)"))
-	print()
-	print()
+    print(header("# Backend"))
+    print()
+    print("The backend implements the UCloud/Core functionality.")
+    print("Edit the source-code at: " + location("backend/") + ".")
+    print()
+    print(header("Instructions:"))
+    print("  1. Start a developer shell with: " + code("docker-compose exec backend bash"))
+    print("  2. Compile and start the backend (from the developer shell): " + code("(cd /opt/ucloud ; ./run.sh)"))
+    print()
+    print()
 
 
 if integrationModule:
-	print(header("# Integration Module"))
-	print()
-	print("The integration module implements common functionality for compute/storage providers. ")
-	print("Edit the source-code at: " + location("provider-integration/integration-module/") + ".")
-	print()
-	print(header("Instructions:"))
-	print("  1. Server running on " + location("http://localhost:8889"))
-	print("  2. Start a developer shell: " + code("docker-compose exec integration-module bash"))
-	print("  3. Compile and start the module (from the developer shell): " +
-		code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
-	print()
-	print()
+    print(header("# Integration Module"))
+    print()
+    print("The integration module implements common functionality for compute/storage providers. ")
+    print("Edit the source-code at: " + location("provider-integration/integration-module/") + ".")
+    print()
+    print(header("Instructions:"))
+    print("  1. Server running on " + location("http://localhost:8889"))
+    print("  2. Start a developer shell: " + code("docker-compose exec integration-module bash"))
+    print("  3. Compile and start the module (from the developer shell): " +
+        code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
+    print()
+    print()
 
 if slurm:
-	print(header("# Slurm Cluster"))
-	print()
-	print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
-	print()
-	print()
-	print("register and restart cluster with below command")
-	print(code("docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld"))
-	print()
-	print(header("Instructions:"))
-	print("Interact with " + code("docker-compose exec slurmctld bash") )
-	print()
+    print(header("# Slurm Cluster"))
+    print()
+    print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
+    print()
+    print()
+    print("register and restart cluster with below command")
+    print(code("docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld"))
+    print()
+    print(header("Instructions:"))
+    print("Interact with " + code("docker-compose exec slurmctld bash") )
+    print()
 
 print(header("# UCloud is now starting..."))
 
 print("  - Access the web-interface at: " + location("http://localhost:8080/i"))
 if backend:
-	print("  - Make sure you start the backend (see notes above).")
+    print("  - Make sure you start the backend (see notes above).")
 print("  - Stuck? View the logs: " + code("docker-compose logs"))
 print("  - Shutdown UCloud with: " + code("docker-compose down"))
 print("  - Permanently delete local state: " + code("docker-compose down -v ; sudo rm -rf .compose/"))

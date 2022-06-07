@@ -3,7 +3,6 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugCoroutineContext
-import dk.sdu.cloud.debug.logIdGenerator
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.*
@@ -41,7 +40,7 @@ class IngoingHttpInterceptor(
                 handle {
                     call.fullName
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                    withContext(DebugCoroutineContext(DebugContext.Server(ctx.jobIdOrNull ?: logIdGenerator.getAndIncrement().toString()))) {
+                    withContext(DebugCoroutineContext(DebugContext.create())) {
                         try {
                             // Calls the handler provided by 'implement'
                             @Suppress("UNCHECKED_CAST")

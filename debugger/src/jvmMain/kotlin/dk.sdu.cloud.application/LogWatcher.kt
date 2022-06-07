@@ -23,6 +23,8 @@ class LogWatcher(private val folders: List<String>) {
 
     private val outputChannel = Channel<MessageAndId>(Channel.BUFFERED)
     val messageChannel: ReceiveChannel<MessageAndId> = outputChannel
+    private val stringIdToServiceId = HashMap<String, Int>()
+    private val metaFileToServiceId = HashMap<File, Int>()
 
     @OptIn(DelicateCoroutinesApi::class)
     fun start() {
@@ -56,33 +58,50 @@ class LogWatcher(private val folders: List<String>) {
                         path.walkTopDown().forEach { entry ->
                             val fileName = entry.name
                             when {
-                                entry.isFile && fileName.endsWith(".json") -> {
-                                    if (watchedFiles.none { it.entry == entry }) {
-                                        watchedFiles.add(WatchedFile(entry, idAllocator++))
-                                        if (idAllocator >= MAX_SERVICE_ID) {
-                                            println("Unable to allocate any more services. This is fatal error.")
-                                            exitProcess(1)
+                                entry.isFile && fileName.endsWith(".meta.json") -> {
+                                    val data = try {
+                                        defaultMapper.decodeFromString<ServiceMetadata>(entry.readText())
+                                    } catch (ex: Throwable) {
+                                        println(
+                                            "Failed to parse metadata for $entry. " +
+                                                    "${ex.javaClass.simpleName}: ${ex.message}"
+                                        )
+                                        null
+                                    }
+
+                                    if (data != null) {
+                                        var existingService = stringIdToServiceId[data.path]
+                                        if (existingService == null) {
+                                            val allocatedId = idAllocator++
+                                            data.id = allocatedId
+                                            stringIdToServiceId[data.path] = allocatedId
+                                            metadataOutputChannel.send(data)
+                                            existingService = allocatedId
+
+                                            if (idAllocator >= MAX_SERVICE_ID) {
+                                                println("Unable to allocate any more services. This is fatal error.")
+                                                exitProcess(1)
+                                            }
                                         }
+
+                                        metaFileToServiceId[entry.absoluteFile.normalize()] = existingService
                                     }
                                 }
+                            }
+                        }
 
-                                entry.isFile && fileName.endsWith(".json.meta") -> {
-                                    val logFile = entry.resolveSibling(fileName.removeSuffix(".meta"))
-                                    for (file in watchedFiles) {
-                                        if (file.entry == logFile) {
-                                            val data = try {
-                                                defaultMapper.decodeFromString<ServiceMetadata>(entry.readText())
-                                            } catch (ex: Throwable) {
-                                                println(
-                                                    "Failed to parse metadata for $entry. " +
-                                                        "${ex.javaClass.simpleName}: ${ex.message}"
-                                                )
-                                                break
-                                            }
-
-                                            data.id = file.id
-                                            metadataOutputChannel.send(data)
-                                            break
+                        path.walkTopDown().forEach { entry ->
+                            val fileName = entry.name
+                            when {
+                                entry.isFile && fileName.endsWith(".json") && !fileName.endsWith(".meta.json") -> {
+                                    if (watchedFiles.none { it.entry == entry }) {
+                                        val metaFile = File(entry.absolutePath.removeSuffix(".json") + ".meta.json")
+                                            .absoluteFile.normalize()
+                                        val serviceId = metaFileToServiceId[metaFile]
+                                        if (serviceId != null) {
+                                            watchedFiles.add(WatchedFile(entry, serviceId))
+                                        } else {
+                                            println("Failed to add $metaFile to watch")
                                         }
                                     }
                                 }
@@ -124,6 +143,7 @@ class WatchedFile(val entry: File, val id: Int) {
         }
 
         head = newLineIdx + 1
+        if (message is DebugMessage.ServerRequest) println(message)
         return message
     }
 

@@ -3,33 +3,36 @@ package dk.sdu.cloud.debug
 import kotlinx.browser.document
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
+import org.w3c.dom.HTMLElement
 
 val body inline get() = document.body!!
 val head inline get() = document.head!!
 
+fun createGlobalStyle(): HTMLElement  {
+    return document.create.css {
+        importGoogleFont("Inter", listOf(100, 400, 700))
+        importGoogleFont("JetBrains Mono", listOf(100, 400, 700))
+
+        (byTag("html")) {
+            fontFamily = "'Inter', sans-serif"
+        }
+
+        (byTag("code")) {
+            fontFamily = "'JetBrains Mono', monospace"
+        }
+
+        (byTag("h3")) {
+            cursor = "inherit"
+            fontSize = 24.px
+            margin = 0.px
+            fontWeight = "400"
+        }
+    }
+}
+
 fun main() {
     cssReset()
-    head.append(
-        document.create.css {
-            importGoogleFont("Inter", listOf(100, 400, 700))
-            importGoogleFont("JetBrains Mono", listOf(100, 400, 700))
-
-            (byTag("html")) {
-                fontFamily = "'Inter', sans-serif"
-            }
-
-            (byTag("code")) {
-                fontFamily = "'JetBrains Mono', monospace"
-            }
-
-            (byTag("h3")) {
-                cursor = "inherit"
-                fontSize = 24.px
-                margin = 0.px
-                fontWeight = "400"
-            }
-        }
-    )
+    head.append(createGlobalStyle())
 
     val client = Client()
 
@@ -93,7 +96,7 @@ fun main() {
     }
 
     client.onOpen = {
-        statusCards.updateInterests(listOf("Core", "IM/Server", "IM/User"))
+        statusCards.updateInterests(listOf("UCloud", "IM/Server", "IM/User"))
     }
 
     client.start()

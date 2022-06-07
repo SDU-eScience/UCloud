@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.WSRequest
 import dk.sdu.cloud.calls.websocketOrNull
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugCoroutineContext
-import dk.sdu.cloud.debug.logIdGenerator
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -207,7 +206,7 @@ class IngoingWebSocketInterceptor(
                                 }
 
                                 val ctx = WSCall(session, parsedMessage, streamId)
-                                launch(DebugCoroutineContext(DebugContext.Server(ctx.jobIdOrNull ?: logIdGenerator.getAndIncrement().toString()))) {
+                                launch(DebugCoroutineContext(DebugContext.create())) {
                                     log.trace("Handling call...")
                                     rpcServer.handleIncomingCall(
                                         this@IngoingWebSocketInterceptor,

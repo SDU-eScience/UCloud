@@ -1,11 +1,14 @@
 package dk.sdu.cloud.debug
 
 import kotlinx.browser.document
+import kotlinx.browser.window
 import kotlinx.html.div
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
 import org.w3c.dom.HTMLButtonElement
+import org.w3c.dom.HTMLDivElement
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.KeyboardEvent
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
@@ -25,6 +28,8 @@ class Log(private val filters: Filters) {
     private lateinit var viewerContainer: HTMLElement
     private var scrollLock = false
     private var ignoreNextScrollEvent = false
+    private var mightRequireSort = false
+    private var isActive = false
 
     fun render(): HTMLElement {
         style.mount()
@@ -50,10 +55,10 @@ class Log(private val filters: Filters) {
             val allowedByQuery = when (message) {
                 is DebugMessage.ClientRequest -> (message.call ?: "").contains(filters.filter, true)
                 is DebugMessage.ClientResponse -> (message.call ?: "").contains(filters.filter, true)
-                is DebugMessage.DatabaseConnection -> false
-                is DebugMessage.DatabaseQuery -> false
-                is DebugMessage.DatabaseResponse -> false
-                is DebugMessage.DatabaseTransaction -> false
+                is DebugMessage.DatabaseConnection -> true
+                is DebugMessage.DatabaseQuery -> true
+                is DebugMessage.DatabaseResponse -> true
+                is DebugMessage.DatabaseTransaction -> true
                 is DebugMessage.Log -> message.message.contains(filters.filter, true)
                 is DebugMessage.ServerRequest -> (message.call ?: "").contains(filters.filter, true)
                 is DebugMessage.ServerResponse -> (message.call ?: "").contains(filters.filter, true)
@@ -76,6 +81,7 @@ class Log(private val filters: Filters) {
             rerender()
         }
 
+        val scrollingElemRef = DomRef<HTMLDivElement>()
         elem = document.create.div(elemClass) {
             div(controlsClass) {
                 standardButton(clearButtonClass) {
@@ -88,13 +94,14 @@ class Log(private val filters: Filters) {
             }
 
             div(scrollingContainerClass) {
+                capture(scrollingElemRef)
                 div(containerClass)
             }
 
-            div(viewerClass)
+            div("$viewerClass $scrollingContainerClass")
         }
 
-        scrollingElem = elem.querySelector(".$scrollingContainerClass") as HTMLElement
+        scrollingElem = scrollingElemRef.find(elem)
         viewerContainer = elem.querySelector(".$viewerClass") as HTMLElement
         viewerContainer.append(dataViewer.render())
 
@@ -120,17 +127,148 @@ class Log(private val filters: Filters) {
             }
 
             scrollLock = false
-            rerender()
+            rerender(allowScrollToTop = false)
+        })
+
+        window.setInterval({ doSort() }, 1000)
+
+        var didActivate = false
+        document.addEventListener("click", {
+            if (didActivate) {
+                didActivate = false
+                isActive = true
+            } else {
+                isActive = false
+            }
+        })
+
+        elem.addEventListener("click", {
+            didActivate = true
+        })
+
+        document.addEventListener("keydown", { event ->
+            event as KeyboardEvent
+
+            if (event.code == "KeyA") {
+                isActive = true
+                moveSelectionTo(absolute = 0)
+            }
+
+            if (isActive) {
+                when (event.code) {
+                    "ArrowDown", "KeyJ" -> {
+                        event.preventDefault()
+                        moveSelectionTo(offset = 1)
+                    }
+
+                    "ArrowUp", "KeyK" -> {
+                        event.preventDefault()
+                        moveSelectionTo(offset = -1)
+                    }
+
+                    "PageDown" -> {
+                        event.preventDefault()
+                        moveSelectionTo(offset = 30)
+                    }
+
+                    "PageUp" -> {
+                        event.preventDefault()
+                        moveSelectionTo(offset = -30)
+                    }
+
+                    "End" -> {
+                        moveSelectionTo(absolute = messages.filtered.size - 1)
+                    }
+
+                    "Home" -> {
+                        moveSelectionTo(absolute = 0)
+                    }
+
+                    "KeyG" -> {
+                        if (event.shiftKey) moveSelectionTo(absolute = messages.filtered.size - 1)
+                        else moveSelectionTo(absolute = 0)
+                    }
+
+                    "Enter" -> {
+                        val message = messages.filtered.find { it.context.id == selected }
+                        if (message != null) {
+                            doOpen(message)
+                        }
+                    }
+
+                    else -> println(event.code)
+                }
+            }
         })
 
         return elem
+    }
+
+    private var moveSelectionToTimeout = -1
+    private fun moveSelectionTo(absolute: Int? = null, offset: Int? = null) {
+        val newSelected = if (absolute != null) {
+            messages.filtered.getOrNull(absolute)
+        } else if (offset != null) {
+            val selectedIdx = messages.filtered.indexOfFirst { it.context.id == selected }.takeIf { it != -1 }
+                ?: 0
+
+            val actualIndex = min(messages.filtered.size - 1, max(0, selectedIdx + offset))
+            messages.filtered.getOrNull(actualIndex)
+        } else {
+            null
+        }
+
+        if (newSelected == null) return
+
+        window.clearTimeout(moveSelectionToTimeout)
+        selected = newSelected.context.id
+
+        // NOTE(Dan): Chrome will crash without this line
+        moveSelectionToTimeout = window.setTimeout({
+            if (selected == newSelected.context.id) {
+                dataViewer.update(newSelected)
+            }
+        }, 50)
+        scrollSelectionIntoView()
+        rerender()
+    }
+
+    private fun doOpen(message: DebugMessage) {
+        when(message) {
+            is DebugMessage.DatabaseQuery -> {
+                dataViewer.openDatabaseQuery(message)
+            }
+
+            else -> {
+                val wasAtTheTop = filters.stackIdx == 0
+                for ((index, item) in message.context.path.withIndex()) {
+                    val previousMessage = messages.all.find { it.context.id == item }
+                    if (previousMessage != null) {
+                        filters.addStack(
+                            item,
+                            LogRow.message(previousMessage),
+                            replaceIdx = if (index == 0) 0 else null,
+                            doRender = false,
+                            block = {
+                                logLevel = MessageImportance.IMPLEMENTATION_DETAIL
+                                showServer = true
+                                showClient = true
+                                showDatabase = true
+                                depth = previousMessage.context.depth
+                            }
+                        )
+                    }
+                }
+                filters.updateSelectedStack(if (wasAtTheTop) 1 else filters.lastIndex)
+            }
+        }
     }
 
     private fun findFirstVisibleRow(): Int {
         return max(0, floor(scrollingElem.scrollTop / rowSize).toInt() - 10)
     }
 
-    private fun rerender() {
+    private fun rerender(allowScrollToTop: Boolean = true) {
         scrollLockButton.disabled = scrollLock
         container.style.height = max(rows.size * rowSize, this.messages.filtered.size * rowSize).px
 
@@ -159,28 +297,30 @@ class Log(private val filters: Filters) {
             }
 
             cacheRow.elem.ondblclick = {
-                val wasAtTheTop = filters.stackIdx == 0
-                for ((index, item) in message.context.path.withIndex()) {
-                    val previousMessage = messages.all.find { it.context.id == item }
-                    if (previousMessage != null) {
-                        filters.addStack(
-                            item,
-                            LogRow.message(previousMessage),
-                            replaceIdx = if (index == 0) 0 else null,
-                            doRender = false,
-                            block = {
-                                logLevel = MessageImportance.IMPLEMENTATION_DETAIL
-                                showServer = true
-                                showClient = true
-                                showDatabase = true
-                                depth = previousMessage.context.depth
-                            }
-                        )
-                    }
-                }
-                filters.updateSelectedStack(if (wasAtTheTop) 1 else filters.lastIndex)
+                doOpen(message)
             }
         }
+
+        if (allowScrollToTop && scrollingElem.scrollTop - (lastIdx * rowSize) > 100) {
+            scrollingElem.scrollTop = 0.0
+        }
+    }
+
+    private fun scrollSelectionIntoView() {
+        val selectedIdx = messages.filtered.indexOfFirst { it.context.id == selected }.takeIf { it != -1 } ?: return
+        val visibleRange = (scrollingElem.scrollTop.toInt())
+            .rangeTo(scrollingElem.clientHeight + scrollingElem.scrollTop.toInt())
+        val elementRange = (selectedIdx * rowSize).rangeTo((selectedIdx + 1) * rowSize)
+
+        if (elementRange.first !in visibleRange || elementRange.last !in visibleRange) {
+            val shouldBeTopAligned = elementRange.first < visibleRange.first
+            if (shouldBeTopAligned) {
+                scrollingElem.scrollTop = elementRange.first.toDouble()
+            } else {
+                scrollingElem.scrollTop = elementRange.last.toDouble() - scrollingElem.clientHeight
+            }
+        }
+
     }
 
     fun clear() {
@@ -191,11 +331,23 @@ class Log(private val filters: Filters) {
     }
 
     fun addMessages(messages: List<DebugMessage>) {
+        mightRequireSort = true
         this.messages.addAll(messages)
+        if (messages.size > 10) doSort()
         if (scrollLock) {
             ignoreNextScrollEvent = true
             scrollingElem.scrollTop = this.messages.filtered.size * rowSize.toDouble()
         }
+
+        rerender()
+    }
+
+    private fun doSort() {
+        if (!mightRequireSort) return
+        val newList = messages.all.asSequence().sortedBy { it.timestamp }.toList()
+        messages.clear()
+        messages.addAll(newList)
+        mightRequireSort = false
         rerender()
     }
 
@@ -215,24 +367,22 @@ class Log(private val filters: Filters) {
                 display = "flex"
                 flexDirection = "row"
                 gap = 8.px
-                userSelect = "none"
             }
 
-            (byClass(elemClass) directChild byClass(scrollingContainerClass)) {
+            (byClass(elemClass) descendant byClass(scrollingContainerClass)) {
                 height = "calc(100vh - 48px - 16px - 250px - 16px - 250px - 16px)"
                 overflowY = "scroll"
-                backgroundColor = Rgb(245, 247, 249).toString()
                 flexBasis = 500.px
                 flexGrow = "1"
             }
 
-            (byClass(elemClass) directChild byClass(scrollingContainerClass) directChild byClass(containerClass)) {
+            (byClass(elemClass) descendant byClass(containerClass)) {
                 position = "relative"
+                userSelect = "none"
             }
 
             (byClass(elemClass) directChild byClass(viewerClass)) {
                 width = 400.px
-                height = 100.percent
             }
 
             (byClass(elemClass) directChild byClass(controlsClass)) {
@@ -269,6 +419,7 @@ class LogRow {
     fun clear() {
         elem.style.background = "white"
         elem.style.color = "black"
+        elem.style.border = "3px solid transparent"
         timestamp.textContent = ""
         message.textContent = ""
         response.textContent = ""
@@ -318,13 +469,14 @@ class LogRow {
 
             (byClass(rowClass) directChild byClass(responseClass)) {
                 flexGrow = "1"
+                textAlign = "right"
             }
         }
 
         private fun backgroundColor(importance: MessageImportance): String {
             return when (importance) {
                 MessageImportance.TELL_ME_EVERYTHING -> "white"
-                MessageImportance.IMPLEMENTATION_DETAIL -> "#B7ADED"
+                MessageImportance.IMPLEMENTATION_DETAIL -> "white"
                 MessageImportance.THIS_IS_NORMAL -> "#A8E3B3"
                 MessageImportance.THIS_IS_ODD -> "#F6BF85"
                 MessageImportance.THIS_IS_WRONG -> "#ED8C79"
@@ -334,7 +486,7 @@ class LogRow {
 
         private fun foregroundColor(importance: MessageImportance): String {
             return when (importance) {
-                MessageImportance.TELL_ME_EVERYTHING -> "black"
+                MessageImportance.TELL_ME_EVERYTHING -> "gray"
                 MessageImportance.IMPLEMENTATION_DETAIL -> "black"
                 MessageImportance.THIS_IS_NORMAL -> "black"
                 MessageImportance.THIS_IS_ODD -> "black"
@@ -351,7 +503,7 @@ class LogRow {
                     if (row.isOpen) "DB open"
                     else "DB close"
                 }
-                is DebugMessage.DatabaseQuery -> "DB query"
+                is DebugMessage.DatabaseQuery -> "DB query: ${row.query.trimIndent().take(80)}"
                 is DebugMessage.DatabaseResponse -> "DB response"
                 is DebugMessage.DatabaseTransaction -> {
                     when (row.event) {
