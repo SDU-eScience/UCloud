@@ -452,7 +452,9 @@ function SuballocationRows(props: {
     const [rows, setRows] = useState(props.rows);
 
     React.useEffect(() => {
-        if (props.rows.length > 0) setRows(props.rows);
+        if (props.rows.length > 0) {
+            setRows(props.rows);
+        }
     }, [props.rows]);
 
     return React.useMemo(() => {
@@ -621,7 +623,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         } catch (e) {
             displayErrorMessageOrDefault(e, "Update failed");
         }
-    }, []);
+    }, [props.rows]);
 
     const [creationRows, setCreationRows] = useState<SuballocationCreationRow[]>([]);
 
@@ -720,8 +722,6 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         });
         return [...rows];
     }), [props.wallets]);
-
-
 
     const removeRow = React.useCallback((id: number) => {
         setCreationRows(rows => [...rows.filter(it => it.id !== id)]);
@@ -851,7 +851,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 })}
                 {props.rows.map(row => <SubAllocationRow key={row.id} editEntries={editEntries} editing={editing} suballocation={row} />)}
             </Box>
-        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing]);
+        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing, editEntries.current]);
 }
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
@@ -875,9 +875,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
     const entry = props.suballocation;
     const [dates, setDates] = useState<[number, number | undefined | null]>([entry.startDate, entry.endDate ?? undefined]);
     React.useEffect(() => {
-        if (!props.editing) {
-            setDates([entry.startDate, entry.endDate]);
-        }
+        setDates([entry.startDate, entry.endDate]);
     }, [props.editing]);
     if (props.editing) return (
         <ListRow
