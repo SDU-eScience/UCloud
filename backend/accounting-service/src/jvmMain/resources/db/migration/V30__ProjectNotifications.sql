@@ -4,3 +4,5 @@ create table project.provider_notifications(
 	project_id text references project.projects,
 	created_at timestamp with time zone default now() not null
 );
+
+alter table project.provider_notifications owner to accounting;
