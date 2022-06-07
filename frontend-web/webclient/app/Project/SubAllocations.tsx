@@ -483,7 +483,7 @@ function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAl
         if (!isEqual(oldEntry, newEntry)) {
             updated.push({
                 id: newEntry.id,
-                balance: newEntry.initialBalance,
+                balance: newEntry.balance,
                 startDate: newEntry.startDate,
                 endDate: newEntry.endDate ?? undefined,
                 reason: "Allocation updated by grant giver"
