@@ -717,6 +717,7 @@ class AccountingService(
         request: BulkRequest<UpdateAllocationRequestItem>,
     ) {
         db.withSession(remapExceptions = true, transactionMode) { session ->
+            println(request)
             session.sendPreparedStatement(
                 {
                     val ids by parameterList<Long?>()
@@ -761,7 +762,7 @@ class AccountingService(
                     }
                 },
                 """
-                    select bool_or(valid) is_valid
+                    select bool_and(valid) is_valid
                     from (
                         select
                             (ancestor.start_date <= updated.start_date) and
