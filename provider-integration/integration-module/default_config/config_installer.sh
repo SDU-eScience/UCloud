@@ -3,9 +3,8 @@ if [ ! -f "/etc/ucloud/core.yaml" ]; then
   chmod 644 /etc/ucloud/*
   chown -R ucloud: /etc/ucloud/
   mkdir /var/log/ucloud
-  chmod 700 /var/log/ucloud
+  chmod 777 /var/log/ucloud
   chown -R ucloud: /etc/ucloud/
-  chown -R ucloud: /var/log/ucloud
 
   chown -R munge:munge /etc/munge
   service munge start 
