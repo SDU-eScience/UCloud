@@ -122,7 +122,7 @@ class IpcServer(
 ) {
     private val isProxy = rpcServer == null
     private val ipcHandlers = ArrayList<IpcHandler>()
-    val closeClientIds = ArrayList<UInt>()
+    val closeClientIds: MutableSet<UInt> = mutableSetOf()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
 
