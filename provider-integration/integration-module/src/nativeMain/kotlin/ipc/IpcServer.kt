@@ -122,6 +122,7 @@ class IpcServer(
 ) {
     private val isProxy = rpcServer == null
     private val ipcHandlers = ArrayList<IpcHandler>()
+    val closeClientIds: MutableSet<UInt> = mutableSetOf()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
 
@@ -156,6 +157,14 @@ class IpcServer(
                 }
             }
         }
+    }
+
+    fun requestClientRestart(uid: UInt) {
+        closeClientIds.add(uid)
+    }
+
+    fun clientShouldRestart(uid: UInt): Boolean  {
+        return closeClientIds.contains(uid)
     }
 
     fun addHandler(handler: IpcHandler) {

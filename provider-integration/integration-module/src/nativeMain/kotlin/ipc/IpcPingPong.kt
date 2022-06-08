@@ -8,6 +8,13 @@ import kotlin.system.exitProcess
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class PingResponse(
+    val generation: FindByStringId,
+    val shouldClose: Boolean = false
+)
 
 class IpcPingPong(
     private val ipcServer: IpcServer?,
@@ -24,26 +31,32 @@ class IpcPingPong(
     fun start() {
         if (ipcServer != null) {
             val generation = FindByStringId(secureToken(32))
-            ipcServer.addHandler(PingPongIpc.ping.handler { user, request ->
-                generation
+
+            ipcServer.addHandler(PingPongIpc.ping.handler { user: IpcUser, request ->
+                val shouldClose = ipcServer.clientShouldRestart(user.uid)
+                if (shouldClose) ipcServer.closeClientIds.remove(user.uid)
+                PingResponse(generation, shouldClose)
             })
         } else if (ipcClient != null) {
             var lastRecordedGeneration: FindByStringId? = null
             var failures = 0
             ProcessingScope.launch {
                 while (isActive) {
+                    var shouldClose = false
                     try {
                         val resp = ipcClient.sendRequest(PingPongIpc.ping, Unit)
+                        shouldClose = resp.shouldClose
+
                         if (lastRecordedGeneration == null) {
-                            lastRecordedGeneration = resp
-                        } else if (lastRecordedGeneration != resp) {
+                            lastRecordedGeneration = resp.generation
+                        } else if (lastRecordedGeneration != resp.generation) {
                             failures++
                         }
                     } catch (ex: Throwable) {
                         failures++
                     }
 
-                    if (failures >= 5) {
+                    if (failures >= 5 || shouldClose) {
                         log.info("Shutting down, the IM/Server is no longer active!")
                         exitProcess(0)
                     }
@@ -57,7 +70,7 @@ class IpcPingPong(
     }
 
     private object PingPongIpc : IpcContainer("ping") {
-        val ping = updateHandler<Unit, FindByStringId>("ping")
+        val ping = updateHandler<Unit, PingResponse>("ping")
     }
 
     companion object : Loggable {

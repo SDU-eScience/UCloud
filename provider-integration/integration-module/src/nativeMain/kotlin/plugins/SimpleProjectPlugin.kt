@@ -84,6 +84,46 @@ class SimpleProjectPlugin : ProjectPlugin {
             }
         }
 
+        for (event in diff) {
+            when (event) {
+                is ProjectDiff.MembersAddedToProject -> {
+                    for (member in event.newMembers) {
+                        if (member.uid != null) {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
+                        }
+                    }
+                }
+
+                is ProjectDiff.MembersAddedToGroup -> {
+                    for (member in event.newMembers) {
+                        if (member.uid != null) {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
+                        }
+                    }
+                }
+
+                is ProjectDiff.MembersRemovedFromProject -> {
+                    for (member in event.removedMembers) {
+                        if (member.uid != null) {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
+                        }
+                    }
+                }
+
+                is ProjectDiff.MembersRemovedFromGroup -> {
+                    for (member in event.removedMembers) {
+                        if (member.uid != null) {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
+                        }
+                    }
+                }
+
+                else -> {
+                    // do nothing
+                }
+            }
+        }
+
         // NOTE(Dan): Calculate project members we don't know the UID of. We need to register these in a database such
         // that we can correctly enroll them into groups later.
         val missingUids = ArrayList<Map<String, String>>()
@@ -93,6 +133,8 @@ class SimpleProjectPlugin : ProjectPlugin {
                     for (member in event.newMembers) {
                         if (member.uid == null) {
                             missingUids.add(mapOf("username" to member.projectMember.username))
+                        } else {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
                         }
                     }
                 }
@@ -101,6 +143,8 @@ class SimpleProjectPlugin : ProjectPlugin {
                     for (member in event.newMembers) {
                         if (member.uid == null) {
                             missingUids.add(mapOf("username" to member.ucloudUsername))
+                        } else {
+                            this.ipcServer.requestClientRestart(member.uid.toUInt())
                         }
                     }
                 }
