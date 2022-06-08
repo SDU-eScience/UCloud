@@ -124,6 +124,7 @@ class IpcServer(
     private val ipcHandlers = ArrayList<IpcHandler>()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
+    val closeInstances = ArrayList<String>()
 
     fun runServer(): Unit = memScoped {
         registerRpcHandler()

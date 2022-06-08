@@ -93,6 +93,8 @@ class SimpleProjectPlugin : ProjectPlugin {
                     for (member in event.newMembers) {
                         if (member.uid == null) {
                             missingUids.add(mapOf("username" to member.projectMember.username))
+                        } else {
+                            this.ipcServer.closeInstances.add(member.uid.toString())
                         }
                     }
                 }
@@ -101,6 +103,8 @@ class SimpleProjectPlugin : ProjectPlugin {
                     for (member in event.newMembers) {
                         if (member.uid == null) {
                             missingUids.add(mapOf("username" to member.ucloudUsername))
+                        } else {
+                            this.ipcServer.closeInstances.add(member.uid.toString())
                         }
                     }
                 }
