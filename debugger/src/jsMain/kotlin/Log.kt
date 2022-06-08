@@ -12,11 +12,12 @@ import org.w3c.dom.events.KeyboardEvent
 import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
 class Log(private val filters: Filters) {
-    private val messages = FilteredList<DebugMessage>(1024 * 32)
+    private val messages = FilteredList<DebugMessage>(1024 * 16)
     private val rows = Array(100) { LogRow().also { it.render() } }
     private val dataViewer = DataViewer()
     private var selected: String? = null
@@ -29,7 +30,6 @@ class Log(private val filters: Filters) {
     private var scrollLock = false
     private var ignoreNextScrollEvent = false
     private var mightRequireSort = false
-    private var isActive = false
 
     fun render(): HTMLElement {
         style.mount()
@@ -264,9 +264,13 @@ class Log(private val filters: Filters) {
         for (idx in firstIdx..lastIdx) {
             val message = messages.filtered[idx]
             val cacheRow = rows[cacheOffset + idx - firstIdx]
-            cacheRow.update(message, messages.filtered.getOrNull(idx - 1), selected == message.context.id)
+            cacheRow.update(
+                message,
+                messages.filtered.getOrNull(idx - 1),
+                selected == message.context.id,
+                (message.context.depth - filters.currentStack.depth)
+            )
             cacheRow.elem.style.top = (idx * rowSize).px
-            cacheRow.elem.style.paddingLeft = ((message.context.depth - filters.currentStack.depth) * 8).px
             cacheRow.elem.onclick = {
                 selected = message.context.id
                 dataViewer.update(message)
@@ -379,6 +383,7 @@ class Log(private val filters: Filters) {
 
 class LogRow {
     lateinit var elem: HTMLElement
+    private lateinit var spacer: HTMLElement
     private lateinit var timestamp: HTMLElement
     private lateinit var message: HTMLElement
     private lateinit var response: HTMLElement
@@ -388,11 +393,13 @@ class LogRow {
         if (this::elem.isInitialized) return elem
 
         elem = document.create.div(rowClass) {
+            div(spacerClass)
             div(timestampClass)
             div(messageClass)
             div(responseClass)
         }
 
+        spacer = elem.querySelector(".$spacerClass") as HTMLElement
         timestamp = elem.querySelector(".$timestampClass") as HTMLElement
         message = elem.querySelector(".$messageClass") as HTMLElement
         response = elem.querySelector(".$responseClass") as HTMLElement
@@ -408,14 +415,16 @@ class LogRow {
         timestamp.textContent = ""
         message.textContent = ""
         response.textContent = ""
+        spacer.style.width = 0.px
     }
 
-    fun update(row: DebugMessage, previous: DebugMessage?, isActive: Boolean) {
+    fun update(row: DebugMessage, previous: DebugMessage?, isActive: Boolean, depth: Int) {
         elem.style.background = backgroundColor(row.importance)
         elem.style.color = foregroundColor(row.importance)
         elem.style.fontWeight = fontWeight(row.importance).toString()
         val borderColor = if (isActive) "#006aff" else "transparent"
         elem.style.border = "3px solid $borderColor"
+        spacer.style.width = (depth * 16).px
 
         timestamp.textContent =
             if (previous == null) "0s"
@@ -426,6 +435,7 @@ class LogRow {
 
     companion object {
         private const val rowClass = "log-row"
+        private const val spacerClass = "spacer"
         private const val messageClass = "message"
         private const val timestampClass = "timestamp"
         private const val responseClass = "response"
@@ -444,17 +454,28 @@ class LogRow {
                 gap = 16.px
             }
 
+            (byClass(rowClass) directChild byClass(spacerClass)) {
+                height = 2.px
+                background = "red"
+                marginTop = 11.px
+                flexShrink = "0"
+                flexGrow = "0"
+            }
+
             (byClass(rowClass) directChild byClass(messageClass)) {
-                flexGrow = "3"
+                flexGrow = "1"
             }
 
             (byClass(rowClass) directChild byClass(timestampClass)) {
                 flexGrow = "0"
+                flexShrink = "0"
                 flexBasis = 80.px
             }
 
             (byClass(rowClass) directChild byClass(responseClass)) {
-                flexGrow = "1"
+                flexGrow = "0"
+                flexShrink = "0"
+                flexBasis = 80.px
                 textAlign = "right"
             }
         }
@@ -490,8 +511,8 @@ class LogRow {
 
         fun message(row: DebugMessage): String {
             return when (row) {
-                is DebugMessage.ClientRequest -> "Client request: ${row.call ?: "unknown"}"
-                is DebugMessage.ClientResponse -> "Client response: ${row.call ?: "unknown"}"
+                is DebugMessage.ClientRequest -> "C: ${shortCall(row.call ?: "unknown")}"
+                is DebugMessage.ClientResponse -> "C: ${shortCall(row.call ?: "unknown")} (${row.responseTime.milliseconds})"
                 is DebugMessage.DatabaseConnection -> {
                     if (row.isOpen) "DB open"
                     else "DB close"
@@ -506,9 +527,16 @@ class LogRow {
                     }
                 }
                 is DebugMessage.Log -> row.message
-                is DebugMessage.ServerRequest -> "Server request: ${row.call ?: "unknown"}"
-                is DebugMessage.ServerResponse -> "Server response: ${row.call ?: "unknown"}"
+                is DebugMessage.ServerRequest -> "S: ${shortCall(row.call ?: "unknown")}"
+                is DebugMessage.ServerResponse -> "S: ${shortCall(row.call ?: "unknown")} (${row.responseTime.milliseconds})"
             }
+        }
+
+        private fun shortCall(call: String): String {
+            if (call.length > 25) {
+                return "${call.substringBefore('.')}.${call.substringAfterLast('.')}"
+            }
+            return call
         }
 
         private fun response(row: DebugMessage): String {

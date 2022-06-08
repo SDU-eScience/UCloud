@@ -17,7 +17,7 @@ data class SlurmBrowseFlags(
 val SlurmJobMapper = SlurmDatabase
 
 object SlurmDatabase {
-    fun registerJob(
+    suspend fun registerJob(
         job: SlurmJob,
         ctx: DBContext = dbConnection
     ) {
@@ -38,7 +38,7 @@ object SlurmDatabase {
         }
     }
 
-    fun browse(
+    suspend fun browse(
         flags: SlurmBrowseFlags,
         ctx: DBContext = dbConnection,
     ): List<SlurmJob> = with(flags) {
@@ -72,21 +72,21 @@ object SlurmDatabase {
         return result
     }
 
-    fun retrieveBySlurmId(
+    suspend fun retrieveBySlurmId(
         slurmId: String,
         ctx: DBContext = dbConnection,
     ): SlurmJob? {
         return browse(SlurmBrowseFlags(filterSlurmId = slurmId), ctx = ctx).firstOrNull()
     }
 
-    fun retrieveByUCloudId(
+    suspend fun retrieveByUCloudId(
         ucloudId: String,
         ctx: DBContext = dbConnection,
     ): SlurmJob? {
         return browse(SlurmBrowseFlags(filterUCloudId = ucloudId), ctx = ctx).firstOrNull()
     }
 
-    fun updateElapsedByUCloudId(
+    suspend fun updateElapsedByUCloudId(
         ucloudId: List<String>,
         newElapsed: List<Long>,
         ctx: DBContext = dbConnection,
@@ -118,7 +118,7 @@ object SlurmDatabase {
         }
     }
 
-    fun updateState(
+    suspend fun updateState(
         slurmIds: List<String>,
         newState: List<JobState>,
         ctx: DBContext = dbConnection,
@@ -150,7 +150,7 @@ object SlurmDatabase {
         }
     }
 
-    fun markAsInactive(
+    suspend fun markAsInactive(
         slurmIds: List<String>,
         ctx: DBContext = dbConnection,
     ) {
@@ -170,7 +170,7 @@ object SlurmDatabase {
         }
     }
 
-    fun retrieveSession(
+    suspend fun retrieveSession(
         token: FindByStringId,
         ctx: DBContext = dbConnection,
     ): InteractiveSession? {
@@ -201,7 +201,7 @@ object SlurmDatabase {
         return result.firstOrNull()
     }
 
-    fun registerSession(
+    suspend fun registerSession(
         iSession: InteractiveSession,
         ctx: DBContext = dbConnection
     ) {

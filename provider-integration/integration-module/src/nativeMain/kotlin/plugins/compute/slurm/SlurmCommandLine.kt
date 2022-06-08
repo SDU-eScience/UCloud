@@ -18,7 +18,7 @@ class SlurmCommandLine(
 
     private val defaultPath = getenv("PATH")?.toKString()
 
-    fun submitBatchJob(pathToFile: String): String {
+    suspend fun submitBatchJob(pathToFile: String): String {
         val (code, stdout, stderr) = executeCommandToText(SBATCH_EXE) {
             addArg(pathToFile)
             configureSlurm()
@@ -38,7 +38,7 @@ class SlurmCommandLine(
         return stdout.trim()
     }
 
-    fun cancelJob(partition: String, jobId: String) {
+    suspend fun cancelJob(partition: String, jobId: String) {
         val resp = executeCommandToText(SCANCEL_EXE) {
             addArg("--partition", partition)
             addArg("--full")
@@ -54,7 +54,7 @@ class SlurmCommandLine(
         }
     }
 
-    fun browseJobAllocations(
+    suspend fun browseJobAllocations(
         slurmIds: List<String>,
         partition: String? = null,
     ): List<SlurmAllocation> {
@@ -100,7 +100,7 @@ class SlurmCommandLine(
             }
     }
 
-    fun getJobNodeList(slurmId: String): Map<Int, String> {
+    suspend fun getJobNodeList(slurmId: String): Map<Int, String> {
         val (_, stdout, _) = executeCommandToText(SACCT_EXE) {
             configureSlurm()
             addArg("--jobs", slurmId)
@@ -113,7 +113,7 @@ class SlurmCommandLine(
         return expandNodeList(stdout)
     }
 
-    private fun expandNodeList(str: String): Map<Int, String> {
+    private suspend fun expandNodeList(str: String): Map<Int, String> {
         val (code, stdout) = executeCommandToText(SCTL_EXE) {
             configureSlurm()
             addArg("show")
@@ -129,7 +129,7 @@ class SlurmCommandLine(
     }
 
     data class SlurmLogFiles(val stdout: String?, val stderr: String?)
-    fun readLogFileLocation(jobId: String): SlurmLogFiles {
+    suspend fun readLogFileLocation(jobId: String): SlurmLogFiles {
         val (code, stdout) = executeCommandToText(SCTL_EXE) {
             configureSlurm()
             addArg("show", "job")
@@ -163,7 +163,7 @@ class SlurmCommandLine(
         val state: UcloudStateInfo,
     )
 
-    fun retrieveAccountingData(
+    suspend fun retrieveAccountingData(
         since: Long,
         partition: String,
     ): List<SlurmAccountingRow> {

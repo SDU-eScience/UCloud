@@ -67,6 +67,7 @@ volumes:
   backendGradle: {}
   m2Repo: {}
   keycloak: {}
+  ucloudLogs: {}
 
 # SLURM volumes
   etc_munge: {}

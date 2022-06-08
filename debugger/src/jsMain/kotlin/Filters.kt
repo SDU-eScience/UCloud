@@ -184,7 +184,7 @@ class Filters {
 
                 div(controlsClass) {
                     div {
-                        keys("Q", "W", "E", "R", "T")
+                        keys("Q", "W", "E", "R", "T", "Y")
                         text("Change log level")
                     }
 
@@ -277,21 +277,26 @@ class Filters {
                 }
 
                 "KeyW" -> {
-                    logLevel = MessageImportance.THIS_IS_NORMAL
+                    logLevel = MessageImportance.IMPLEMENTATION_DETAIL
                     renderAndNotify()
                 }
 
                 "KeyE" -> {
-                    logLevel = MessageImportance.THIS_IS_ODD
+                    logLevel = MessageImportance.THIS_IS_NORMAL
                     renderAndNotify()
                 }
 
                 "KeyR" -> {
-                    logLevel = MessageImportance.THIS_IS_WRONG
+                    logLevel = MessageImportance.THIS_IS_ODD
                     renderAndNotify()
                 }
 
                 "KeyT" -> {
+                    logLevel = MessageImportance.THIS_IS_WRONG
+                    renderAndNotify()
+                }
+
+                "KeyY" -> {
                     logLevel = MessageImportance.THIS_IS_DANGEROUS
                     renderAndNotify()
                 }

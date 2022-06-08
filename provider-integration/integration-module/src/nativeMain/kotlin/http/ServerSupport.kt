@@ -9,22 +9,20 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import kotlin.native.concurrent.AtomicReference
 import kotlin.native.concurrent.freeze
 
-val middlewares = AtomicReference<List<Middleware>>(emptyList())
+val middlewares = ArrayList<Middleware>()
 
 fun addMiddleware(middleware: Middleware) {
-    while (true) {
-        val current = middlewares.value
-        val newList = ArrayList(current).also {
-            it.add(middleware)
-            it.freeze()
-        }
-
-        if (middlewares.compareAndSet(current, newList)) break
-    }
+    middlewares.add(middleware)
 }
 
 interface Middleware {
-    fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>)
+    suspend fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {}
+    suspend fun <Req : Any> afterResponse(
+        handler: CallHandler<Req, *, *>,
+        response: Any?,
+        responseCode: HttpStatusCode,
+        responseTime: Long
+    ) {}
 }
 
 data class IngoingCall<ServerCtx>(

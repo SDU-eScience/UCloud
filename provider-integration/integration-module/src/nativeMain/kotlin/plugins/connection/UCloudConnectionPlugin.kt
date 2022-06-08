@@ -18,7 +18,7 @@ class UCloudConnectionPlugin : ConnectionPlugin {
         this.pluginConfig = config as UCloudConnectionConfiguration
     }
 
-    override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
         try {
             val subject = UCloudSubject(username)
             val result = onConnectionComplete.invoke(pluginConfig.extensions.onConnectionComplete, subject)

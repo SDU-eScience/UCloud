@@ -27,7 +27,7 @@ class ThreadLocalDebugSystem(
 
     init {
         val now = Time.now()
-        directory.child("${id}-${now}-${suffix}.meta.json").writeText(
+        directory.child("${id.replace("/", "-")}-${now}-${suffix}.meta.json").writeText(
             """
                 {
                     "path": "$id",
@@ -36,7 +36,7 @@ class ThreadLocalDebugSystem(
             """.trimIndent()
         )
 
-        outputStream = CommonFileOutputStream(directory.child("${id}-${now}-${suffix}.json"))
+        outputStream = CommonFileOutputStream(directory.child("${id.replace("/", "-")}-${now}-${suffix}.json"))
     }
 
     fun sendMessage(message: DebugMessage) {

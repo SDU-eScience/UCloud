@@ -130,7 +130,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         )
     }
 
-    override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
         val ticket = secureToken(64)
         dbConnection.withTransaction { connection ->
             connection.prepareStatement(
@@ -147,7 +147,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         return ConnectionResponse.ShowInstructions(mapOf("ticket" to listOf(ticket)))
     }
 
-    override fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
+    override suspend fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
         val ticket = query["ticket"]?.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         var ucloudUsername: String? = null
         dbConnection.withTransaction { connection ->

@@ -20,6 +20,7 @@ services:
       - slurm_jobdir:/data
       - ${PWD}/.compose/passwd:/mnt/passwd
       - ${PWD}/.compose/cluster-home:/home
+      - ucloudLogs:/var/log/ucloud
     volumes_from:
       - slurmdbd:ro
     command:

@@ -17,4 +17,5 @@ services:
       - m2Repo:/root/.m2
       - ${PWD}/frontend-web/webclient:/opt/frontend
       - ${PWD}/.compose/home/:/home/
+      - ucloudLogs:/var/log/ucloud
     hostname: backend

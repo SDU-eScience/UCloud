@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.ipc.IpcClient
 import dk.sdu.cloud.ipc.IpcServer
 
@@ -12,6 +13,7 @@ interface PluginContext {
     val ipcClientOptional: IpcClient?
     val ipcServerOptional: IpcServer?
     val commandLineInterface: CommandLineInterface?
+    val debugSystem: DebugSystem?
 }
 
 val PluginContext.rpcClient: AuthenticatedClient
@@ -29,4 +31,5 @@ class SimplePluginContext(
     override val ipcClientOptional: IpcClient?,
     override val ipcServerOptional: IpcServer?,
     override val commandLineInterface: CommandLineInterface?,
+    override val debugSystem: DebugSystem?,
 ) : PluginContext

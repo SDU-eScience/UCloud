@@ -41,18 +41,18 @@ value class HTML(val html: String) {
 }
 
 interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
-    fun PluginContext.initiateConnection(username: String): ConnectionResponse
+    suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse
 
     fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Default is empty
     }
 
-    fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
+    suspend fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
         // By default, this is not required. This is useful if initiateConnection returns a redirect.
         throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
-    fun PluginContext.mappingExpiration(): Long? {
+    suspend fun PluginContext.mappingExpiration(): Long? {
         return null
     }
 }

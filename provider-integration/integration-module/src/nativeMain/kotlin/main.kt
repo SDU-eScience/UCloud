@@ -5,17 +5,20 @@ import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
 import dk.sdu.cloud.config.loadConfiguration
 import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.http.*
 import dk.sdu.cloud.http.OutgoingHttpCall
 import dk.sdu.cloud.http.OutgoingHttpRequestInterceptor
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.http.loadMiddleware
+import dk.sdu.cloud.io.CommonFile
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.plugins.SimplePluginContext
@@ -31,6 +34,7 @@ import kotlin.system.exitProcess
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import kotlinx.coroutines.*
+import kotlinx.serialization.KSerializer
 import platform.posix.*
 
 sealed class ServerMode {
@@ -40,7 +44,6 @@ sealed class ServerMode {
     data class Plugin(val name: String) : ServerMode()
 }
 
-@OptIn(ExperimentalStdlibApi::class, ExperimentalUnsignedTypes::class)
 fun main(args: Array<String>) {
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
@@ -401,9 +404,82 @@ fun main(args: Array<String>) {
                 }
             }
 
+            // Debug services
+            // -------------------------------------------------------------------------------------------------------
+            val debugSystem = when (serverMode) {
+                ServerMode.Server -> CommonDebugSystem("IM/Server", CommonFile(config.core.logs.directory))
+                ServerMode.User -> CommonDebugSystem("IM/User/${getuid()}", CommonFile(config.core.logs.directory))
+                else -> null
+            }
+            debugSystemAtomic.getAndSet(debugSystem)
+
+            if (debugSystem != null && rpcClient != null) {
+                debugSystem.installCommon(rpcClient.client)
+            }
+
+            if (debugSystem != null && rpcServer != null) {
+                addMiddleware(object : Middleware {
+                    override suspend fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
+                        debugSystem.sendMessage(
+                            DebugMessage.ServerRequest(
+                                currentContext()!!,
+                                Time.now(),
+                                handler.ctx.securityPrincipalTokenOrNull?.principal,
+                                MessageImportance.IMPLEMENTATION_DETAIL,
+                                handler.description.fullName,
+                                defaultMapper.encodeToJsonElement(handler.description.requestType, handler.request)
+                            )
+                        )
+                    }
+
+                    override suspend fun <Req : Any> afterResponse(
+                        handler: CallHandler<Req, *, *>,
+                        response: Any?,
+                        responseCode: HttpStatusCode,
+                        responseTime: Long
+                    ) {
+                        debugSystem.sendMessage(
+                            DebugMessage.ServerResponse(
+                                DebugContext.create(),
+                                Time.now(),
+                                handler.ctx.securityPrincipalTokenOrNull?.principal,
+                                when {
+                                    responseTime >= 300 || responseCode.value in 500..599 ->
+                                        MessageImportance.THIS_IS_WRONG
+
+                                    responseTime >= 150 || responseCode.value in 400..499 ->
+                                        MessageImportance.THIS_IS_ODD
+
+                                    else ->
+                                        MessageImportance.THIS_IS_NORMAL
+                                },
+                                handler.description.fullName,
+                                if (responseCode.isSuccess() && response != null) {
+                                    defaultMapper.encodeToJsonElement(
+                                        handler.description.successType as KSerializer<Any>,
+                                        response
+                                    )
+                                } else if (response != null) {
+                                    runCatching {
+                                        defaultMapper.encodeToJsonElement(
+                                            handler.description.errorType as KSerializer<Any>,
+                                            response
+                                        )
+                                    }.getOrNull()
+                                } else {
+                                    null
+                                },
+                                responseCode.value,
+                                responseTime
+                            )
+                        )
+                    }
+                })
+            }
+
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
-            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli)
+            val pluginContext = SimplePluginContext(rpcClient, config, ipcClient, ipcServer, cli, debugSystem)
             val controllerContext = ControllerContext(ownExecutable, config, pluginContext)
 
             if (config.pluginsOrNull != null) {
@@ -497,9 +573,12 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
     }
 }
 
+private val debugSystemAtomic = atomic<DebugSystem?>(null)
+val debugSystem: DebugSystem?
+    get() = debugSystemAtomic.value
 private val databaseConfig = atomic("")
 
-@ThreadLocal
+@kotlin.native.concurrent.ThreadLocal
 val dbConnection: DBContext.Connection by lazy {
     val dbConfig = databaseConfig.value.takeIf { it.isNotBlank() }
     if (dbConfig == null) {

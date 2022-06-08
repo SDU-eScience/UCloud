@@ -4,7 +4,7 @@ fun safeSqlParameterList(prefix: String, collection: List<*>): String {
     return collection.mapIndexed { idx, _ -> ":${prefix}_${idx}" }.joinToString(", ")
 }
 
-inline fun <reified T> PreparedStatement.bindParameterList(prefix: String, collection: List<T>) {
+suspend inline fun <reified T> PreparedStatement.bindParameterList(prefix: String, collection: List<T>) {
     for ((idx, item) in collection.withIndex()) {
         val param = "${prefix}_${idx}"
         when (T::class) {
@@ -69,7 +69,7 @@ fun safeSqlTableUpload(prefix: String, table: List<Map<String, Any?>>): String {
     }
 }
 
-fun PreparedStatement.bindTableUpload(prefix: String, table: List<Map<String, Any?>>) {
+suspend fun PreparedStatement.bindTableUpload(prefix: String, table: List<Map<String, Any?>>) {
     for ((rowIdx, row) in table.withIndex()) {
         for ((key, value) in row.entries) {
             val param = "${prefix}_${key}_${rowIdx}"

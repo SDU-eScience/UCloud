@@ -16,7 +16,7 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         developmentMode = ctx.developmentModeEnabled
-        delegate = CommonDebugSystem(serviceDescription.name, CommonFile("/tmp/logs").also {
+        delegate = CommonDebugSystem(serviceDescription.name, CommonFile("/var/log/ucloud").also {
             it.jvmFile.mkdirs()
         })
 

@@ -7,10 +7,10 @@ sealed class DBContext {
     }
 
     abstract class Connection : DBContext() {
-        abstract fun close()
-        abstract fun openTransaction()
-        abstract fun commit()
-        open fun rollback() {}
+        abstract suspend fun close()
+        abstract suspend fun openTransaction()
+        abstract suspend fun commit()
+        open suspend fun rollback() {}
         @Suppress("EmptyFunctionBlock")
         open fun flush() {}
         abstract fun prepareStatement(statement: String): PreparedStatement
@@ -19,43 +19,43 @@ sealed class DBContext {
 }
 
 interface PreparedStatement {
-    fun bindNull(param: String)
-    fun bindInt(param: String, value: Int)
-    fun bindLong(param: String, value: Long)
-    fun bindString(param: String, value: String)
-    fun bindBoolean(param: String, value: Boolean)
-    fun bindDouble(param: String, value: Double)
-    fun execute(): ResultCursor
-    fun reset()
-    fun close()
+    suspend fun bindNull(param: String)
+    suspend fun bindInt(param: String, value: Int)
+    suspend fun bindLong(param: String, value: Long)
+    suspend fun bindString(param: String, value: String)
+    suspend fun bindBoolean(param: String, value: Boolean)
+    suspend fun bindDouble(param: String, value: Double)
+    suspend fun execute(): ResultCursor
+    suspend fun reset()
+    suspend fun close()
 }
 
-fun PreparedStatement.bindIntNullable(param: String, value: Int?) {
+suspend fun PreparedStatement.bindIntNullable(param: String, value: Int?) {
     if (value == null) bindNull(param)
     else bindInt(param, value)
 }
 
-fun PreparedStatement.bindLongNullable(param: String, value: Long?) {
+suspend fun PreparedStatement.bindLongNullable(param: String, value: Long?) {
     if (value == null) bindNull(param)
     else bindLong(param, value)
 }
 
-fun PreparedStatement.bindStringNullable(param: String, value: String?) {
+suspend fun PreparedStatement.bindStringNullable(param: String, value: String?) {
     if (value == null) bindNull(param)
     else bindString(param, value)
 }
 
-fun PreparedStatement.bindBooleanNullable(param: String, value: Boolean?) {
+suspend fun PreparedStatement.bindBooleanNullable(param: String, value: Boolean?) {
     if (value == null) bindNull(param)
     else bindBoolean(param, value)
 }
 
-fun PreparedStatement.bindDoubleNullable(param: String, value: Double?) {
+suspend fun PreparedStatement.bindDoubleNullable(param: String, value: Double?) {
     if (value == null) bindNull(param)
     else bindDouble(param, value)
 }
 
-inline fun PreparedStatement.use(block: (statement: PreparedStatement) -> Unit) {
+suspend inline fun PreparedStatement.use(block: (statement: PreparedStatement) -> Unit) {
     try {
         block(this)
     } finally {
@@ -63,7 +63,7 @@ inline fun PreparedStatement.use(block: (statement: PreparedStatement) -> Unit) 
     }
 }
 
-inline fun PreparedStatement.useAndInvokeAndDiscard(
+suspend inline fun PreparedStatement.useAndInvokeAndDiscard(
     prepare: PreparedStatement.() -> Unit = {},
 ) {
     use {
@@ -71,7 +71,7 @@ inline fun PreparedStatement.useAndInvokeAndDiscard(
     }
 }
 
-inline fun PreparedStatement.useAndInvoke(
+suspend inline fun PreparedStatement.useAndInvoke(
     prepare: PreparedStatement.() -> Unit = {},
     readRow: (ResultCursor) -> Unit
 ) {
@@ -80,13 +80,13 @@ inline fun PreparedStatement.useAndInvoke(
     }
 }
 
-inline fun PreparedStatement.invokeAndDiscard(
+suspend inline fun PreparedStatement.invokeAndDiscard(
     prepare: PreparedStatement.() -> Unit = {},
 ) {
     invoke(prepare) {  }
 }
 
-inline fun PreparedStatement.invoke(
+suspend inline fun PreparedStatement.invoke(
     prepare: PreparedStatement.() -> Unit = {},
     readRow: (ResultCursor) -> Unit
 ) {
@@ -99,21 +99,21 @@ inline fun PreparedStatement.invoke(
 }
 
 interface ResultCursor {
-    fun getInt(column: Int): Int?
-    fun getLong(column: Int): Long?
-    fun getString(column: Int): String?
-    fun getBoolean(column: Int): Boolean?
-    fun getDouble(column: Int): Double?
-    fun next(): Boolean
+    suspend fun getInt(column: Int): Int?
+    suspend fun getLong(column: Int): Long?
+    suspend fun getString(column: Int): String?
+    suspend fun getBoolean(column: Int): Boolean?
+    suspend fun getDouble(column: Int): Double?
+    suspend fun next(): Boolean
 }
 
-fun ResultCursor.discardResult() {
+suspend fun ResultCursor.discardResult() {
     while (next()) {
         // Do nothing
     }
 }
 
-fun <R> DBContext.withSession(block: (session: DBContext.Connection) -> R): R {
+suspend fun <R> DBContext.withSession(block: suspend (session: DBContext.Connection) -> R): R {
     return when (this) {
         is DBContext.ConnectionFactory -> {
             val session = openSession()
@@ -132,10 +132,10 @@ fun <R> DBContext.withSession(block: (session: DBContext.Connection) -> R): R {
     }
 }
 
-fun <R> DBContext.Connection.withTransaction(
+suspend fun <R> DBContext.Connection.withTransaction(
     autoCommit: Boolean = true,
     autoFlush: Boolean = false,
-    closure: (DBContext.Connection) -> R
+    closure: suspend (DBContext.Connection) -> R
 ): R {
     openTransaction()
     try {

@@ -33,7 +33,7 @@ data class TypedIpcHandler<Req, Resp>(
 )
 
 inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
-    noinline handler: (user: IpcUser, request: Req) -> Resp
+    noinline handler: suspend (user: IpcUser, request: Req) -> Resp
 ): IpcHandler {
     return IpcHandler(method) { user, request ->
         val mappedRequest = runCatching {
@@ -90,7 +90,7 @@ data class IpcHandler(
     val method: String,
     val methodIsPrefix: Boolean = false,
     var allowProxyToRemoteIntegrationModule: Boolean = false,
-    val handler: (user: IpcUser, request: JsonRpcRequest) -> JsonObject
+    val handler: suspend (user: IpcUser, request: JsonRpcRequest) -> JsonObject
 ) {
     fun matches(method: String): Boolean {
         return if (methodIsPrefix) {
@@ -243,7 +243,7 @@ class IpcServer(
         val response: Result<JsonObject> = runCatching {
             for (handler in handlers) {
                 if (!handler.matches(request.method)) continue
-                return@runCatching handler.handler(user, request)
+                return@runCatching runBlocking { handler.handler(user, request) }
             }
 
             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

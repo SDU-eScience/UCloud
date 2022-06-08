@@ -1,5 +1,9 @@
 package dk.sdu.cloud.utils
 
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.logD
+import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.forkAndReplace
 import dk.sdu.cloud.wexitstatus
 import dk.sdu.cloud.wifexited
@@ -8,6 +12,7 @@ import platform.posix.*
 import kotlin.system.exitProcess
 import kotlinx.cinterop.ByteVar as KotlinxCinteropByteVar
 import dk.sdu.cloud.service.Loggable
+import kotlinx.serialization.json.*
 
 data class ProcessStreams(
     val stdin: Int? = null,
@@ -345,8 +350,42 @@ inline fun buildCommand(executable: String, block: CommandBuilder.() -> Unit): C
     return CommandBuilder(executable).also(block)
 }
 
-inline fun executeCommandToText(executable: String, block: CommandBuilder.() -> Unit): ProcessResultText {
-    return buildCommand(executable, block).executeToText()
+suspend fun executeCommandToText(
+    executable: String,
+    additionalDebug: JsonElement? = null,
+    block: CommandBuilder.() -> Unit
+): ProcessResultText {
+    val cmd = buildCommand(executable, block)
+
+    val debugContext = DebugContext.create()
+
+    debugSystem.logD(
+        "Command: $executable",
+        JsonObject(mapOf(
+            "executable" to JsonPrimitive(executable),
+            "arguments" to JsonArray(cmd.args.map { JsonPrimitive(it) }),
+            "env" to JsonArray(cmd.envs.map { JsonPrimitive(it) }),
+            "extra" to (additionalDebug ?: JsonNull)
+        )),
+        MessageImportance.IMPLEMENTATION_DETAIL,
+        debugContext
+    )
+
+    val result = cmd.executeToText()
+
+    debugSystem.logD(
+        "Exit (${result.statusCode})",
+        JsonObject(mapOf(
+            "statusCode" to JsonPrimitive(result.statusCode),
+            "stdout" to JsonPrimitive(result.stdout),
+            "stderr" to JsonPrimitive(result.stderr),
+        )),
+        if (result.statusCode == 0) MessageImportance.THIS_IS_NORMAL
+        else MessageImportance.THIS_IS_ODD,
+        DebugContext.createWithParent(debugContext.id)
+    )
+
+    return result
 }
 
 inline fun executeCommandToBinary(executable: String, block: CommandBuilder.() -> Unit): ProcessResult {

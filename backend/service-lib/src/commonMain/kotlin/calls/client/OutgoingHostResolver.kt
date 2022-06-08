@@ -52,3 +52,6 @@ class OutgoingHostResolverInterceptor(
 var AttributeContainer.outgoingTargetHost: HostInfo
     get() = this[OutgoingHostResolverInterceptor.hostKey]
     set(value) = set(OutgoingHostResolverInterceptor.hostKey, value)
+
+val AttributeContainer.outgoingTargetHostOrNull: HostInfo?
+    get() = this.getOrNull(OutgoingHostResolverInterceptor.hostKey)

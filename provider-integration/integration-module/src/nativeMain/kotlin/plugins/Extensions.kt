@@ -6,6 +6,7 @@ import dk.sdu.cloud.utils.createTemporaryFile
 import dk.sdu.cloud.utils.executeCommandToText
 import dk.sdu.cloud.utils.writeText
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.serializer
 import platform.posix.unlink
 
@@ -13,13 +14,15 @@ class TypedExtension<Request, Response>(
     val requestType: KSerializer<Request>,
     val responseType: KSerializer<Response>
 ) {
-    fun invoke(extensionPath: String, request: Request): Response {
+    suspend fun invoke(extensionPath: String, request: Request): Response {
         val (tempFilePath, tempFile) = createTemporaryFile(suffix = ".json")
         tempFile.writeText(defaultMapper.encodeToString(requestType, request), autoClose = true)
 
-        val response = executeCommandToText(extensionPath) {
-            addArg(tempFilePath.path)
-        }
+        val response = executeCommandToText(
+            executable = extensionPath,
+            additionalDebug = defaultMapper.encodeToJsonElement(requestType, request),
+            block = { addArg(tempFilePath.path) }
+        )
 
         unlink(tempFilePath.path)
 
@@ -68,10 +71,10 @@ inline fun <reified Req, reified Resp> optionalExtension(executable: String?): T
     if (executable == null) null
     else TypedExtensionWithExecutable(extension(), executable)
 
-fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>.invoke(request: Req): Resp =
+suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>.invoke(request: Req): Resp =
     extension.invoke(executable, request)
 
-fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(request: Req): Resp? =
+suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>?.optionalInvoke(request: Req): Resp? =
     this?.invoke(request)
 
 class ExtensionException(message: String) : RuntimeException(message)

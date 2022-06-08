@@ -2,7 +2,7 @@ package dk.sdu.cloud.sql
 
 class MigrationScript(
     val id: String,
-    val execute: (conn: DBContext.Connection) -> Unit,
+    val execute: suspend (conn: DBContext.Connection) -> Unit,
 )
 
 class MigrationHandler(private val connection: DBContext.Connection) {
@@ -19,7 +19,7 @@ class MigrationHandler(private val connection: DBContext.Connection) {
         }
     }
 
-    fun migrate() {
+    suspend fun migrate() {
         val missingMigrations = ArrayList<String>()
         connection.withTransaction { connection ->
             try {

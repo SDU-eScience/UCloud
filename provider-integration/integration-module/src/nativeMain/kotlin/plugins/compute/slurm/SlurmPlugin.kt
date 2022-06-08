@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.ResourceOwner
@@ -391,16 +392,20 @@ class SlurmPlugin : ComputePlugin {
         while (currentCoroutineContext().isActive) {
             val now = Time.now()
 
-            try {
-                monitorStates()
-            } catch (ex: Throwable) {
-                log.info("Caught exception while monitoring Slurm states: ${ex.stackTraceToString()}")
+            debugSystem.enterContext("Slurm monitoring") {
+                try {
+                    monitorStates()
+                } catch (ex: Throwable) {
+                    debugSystem.wrongD("Slurm monitoring error", mapOf("stacktrace" to ex.stackTraceToString()))
+                }
             }
 
-            try {
-                monitorAccounting(now >= nextAccountingScan)
-            } catch (ex: Throwable) {
-                log.info("Caught exception while accounting Slurm jobs: ${ex.stackTraceToString()}")
+            debugSystem.enterContext("Slurm accounting") {
+                try {
+                    monitorAccounting(now >= nextAccountingScan)
+                } catch (ex: Throwable) {
+                    debugSystem.wrongD("Slurm accounting error", mapOf("stacktrace" to ex.stackTraceToString()))
+                }
             }
 
             if (now >= nextAccountingScan) nextAccountingScan = now + 60_000 * 15
@@ -424,6 +429,9 @@ class SlurmPlugin : ComputePlugin {
         // 2. Send accounting information to UCloud
         //    - Combines the output of phase 1 with locally stored information to create charge requests
         //    - Register these charges with the accounting system of UCloud
+
+        var registeredJobs = 0
+        var chargedJobs = 0
 
 
         // Retrieve and process Slurm accounting
@@ -474,6 +482,8 @@ class SlurmPlugin : ComputePlugin {
             )
         }
 
+        registeredJobs = jobsToRegister.size
+
         for (batch in jobsToRegister.chunked(100)) {
             if (batch.isEmpty()) continue
             val ids = JobsControl.register.call(
@@ -498,6 +508,13 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        debugSystem.logD(
+            "Registered $registeredJobs slurm jobs",
+            Unit,
+            if (registeredJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
 
         // Send accounting information to UCloud
         // ------------------------------------------------------------------------------------------------------------
@@ -550,6 +567,8 @@ class SlurmPlugin : ComputePlugin {
             accountingCharges.add(row)
         }
 
+        chargedJobs = charges.size
+
         val batchSize = 100
         for ((index, batch) in charges.chunked(batchSize).withIndex()) {
             val offset = batchSize * index
@@ -580,6 +599,13 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        debugSystem.logD(
+            "Charged $chargedJobs slurm jobs",
+            Unit,
+            if (chargedJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
     }
 
     private suspend fun PluginContext.monitorStates() {
@@ -588,6 +614,7 @@ class SlurmPlugin : ComputePlugin {
 
         val acctJobs = cli.browseJobAllocations(jobs.map { it.slurmId })
 
+        var updatesSent = 0
         // TODO(Dan): Everything should be more or less ready to do in bulk if needed
         for (job in acctJobs) {
             val dbState = jobs.firstOrNull { it.slurmId == job.jobId }?.lastKnown ?: continue
@@ -595,6 +622,7 @@ class SlurmPlugin : ComputePlugin {
             val uState = SlurmStateToUCloudState.slurmToUCloud[job.state] ?: continue
 
             if (uState.state.name != dbState) {
+                updatesSent++
                 val updateResponse = JobsControl.update.call(
                     bulkRequestOf(
                         ResourceUpdateAndId(
@@ -612,6 +640,13 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        debugSystem.logD(
+            "Updated state of $updatesSent slurm jobs",
+            Unit,
+            if (updatesSent == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL,
+        )
     }
 
     override suspend fun PluginContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {

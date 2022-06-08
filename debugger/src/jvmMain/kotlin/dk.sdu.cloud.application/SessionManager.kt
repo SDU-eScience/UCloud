@@ -277,7 +277,7 @@ class SessionManager(watchedFolders: List<String>) {
     }
 
     companion object {
-        private const val SCROLL_BACK_SIZE = 1024 * 128
+        private const val SCROLL_BACK_SIZE = 1024 * 16
     }
 }
 

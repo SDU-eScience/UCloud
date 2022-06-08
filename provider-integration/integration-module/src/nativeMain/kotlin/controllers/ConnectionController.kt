@@ -264,7 +264,7 @@ class ConnectionController(
  * UID should query this service.
  */
 object UserMapping {
-    fun localIdToUCloudId(localId: Int): String? {
+    suspend fun localIdToUCloudId(localId: Int): String? {
         var result: String? = null
 
         dbConnection.withTransaction { session ->
@@ -287,7 +287,7 @@ object UserMapping {
         return result
     }
 
-    fun browseMappings(request: PaginationRequestV2): PageV2<ConnectionEntry> {
+    suspend fun browseMappings(request: PaginationRequestV2): PageV2<ConnectionEntry> {
         val items = ArrayList<ConnectionEntry>()
         dbConnection.withSession { session ->
             session.prepareStatement(
@@ -310,7 +310,7 @@ object UserMapping {
         return PageV2(items.size, items, null)
     }
 
-    fun ucloudIdToLocalId(ucloudId: String): Int? {
+    suspend fun ucloudIdToLocalId(ucloudId: String): Int? {
         var result: Int? = null
 
         dbConnection.withTransaction { session ->
@@ -333,7 +333,7 @@ object UserMapping {
         return result
     }
 
-    fun ucloudIdToLocalIdBulk(ucloudIds: List<String>): Map<String, Int> {
+    suspend fun ucloudIdToLocalIdBulk(ucloudIds: List<String>): Map<String, Int> {
         val result = HashMap<String, Int>()
         dbConnection.withTransaction { session ->
             val queryTable = ucloudIds.map { mapOf("ucloud_id" to it) }
@@ -357,7 +357,7 @@ object UserMapping {
         return result
     }
 
-    fun insertMapping(
+    suspend fun insertMapping(
         ucloudId: String,
         localId: Int,
         pluginContext: PluginContext,
@@ -392,7 +392,7 @@ object UserMapping {
         }
     }
 
-    fun clearMappingByUCloudId(ucloudId: String) {
+    suspend fun clearMappingByUCloudId(ucloudId: String) {
         dbConnection.withTransaction { session ->
             session.prepareStatement(
                 """
@@ -407,7 +407,7 @@ object UserMapping {
         }
     }
 
-    fun clearMappingByLocalId(localId: Int) {
+    suspend fun clearMappingByLocalId(localId: Int) {
         dbConnection.withTransaction { session ->
             session.prepareStatement(
                 """

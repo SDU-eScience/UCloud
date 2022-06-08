@@ -11,6 +11,9 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.enterContext
+import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.InternalFile
@@ -153,51 +156,62 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             try {
                 val now = Time.now()
                 if (now >= nextScan) {
-                    val batchBuilder = ArrayList<ResourceChargeCredits>()
+                    debugSystem.enterContext("Posix collection monitoring") {
+                        var updates = 0
+                        val batchBuilder = ArrayList<ResourceChargeCredits>()
 
-                    for (category in productCategories) {
-                        var next: String? = null
-                        while (currentCoroutineContext().isActive) {
-                            val summary = Wallets.retrieveProviderSummary.call(
-                                WalletsRetrieveProviderSummaryRequest(
-                                    filterCategory = category,
-                                    itemsPerPage = 250,
-                                    next = next,
-                                ),
-                                rpcClient
-                            ).orThrow()
+                        for (category in productCategories) {
+                            var next: String? = null
+                            while (currentCoroutineContext().isActive) {
+                                val summary = Wallets.retrieveProviderSummary.call(
+                                    WalletsRetrieveProviderSummaryRequest(
+                                        filterCategory = category,
+                                        itemsPerPage = 250,
+                                        next = next,
+                                    ),
+                                    rpcClient
+                                ).orThrow()
 
-                            for (item in summary.items) {
-                                val resourceOwner = ResourceOwnerWithId.load(item.owner, this) ?: continue
-                                val colls = locateAndRegisterCollections(resourceOwner)
-                                    .filter { it.product.category == category }
+                                for (item in summary.items) {
+                                    val resourceOwner = ResourceOwnerWithId.load(item.owner, this@runMonitoringLoop) ?: continue
+                                    val colls = locateAndRegisterCollections(resourceOwner)
+                                        .filter { it.product.category == category }
 
-                                if (colls.isNotEmpty()) {
-                                    val bytesUsed = colls.sumOf { calculateUsage(it) }
-                                    val unitsUsed = bytesUsed / 1_000_000_000L
-                                    val coll = pathConverter.ucloudToCollection(
-                                        pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
-                                    )
-
-                                    batchBuilder.addToBatch(
-                                        rpcClient,
-                                        ResourceChargeCredits(
-                                            coll.id,
-                                            "$now-${coll.id}",
-                                            unitsUsed
+                                    if (colls.isNotEmpty()) {
+                                        val bytesUsed = colls.sumOf { calculateUsage(it) }
+                                        val unitsUsed = bytesUsed / 1_000_000_000L
+                                        val coll = pathConverter.ucloudToCollection(
+                                            pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
                                         )
-                                    )
+
+                                        batchBuilder.addToBatch(
+                                            rpcClient,
+                                            ResourceChargeCredits(
+                                                coll.id,
+                                                "$now-${coll.id}",
+                                                unitsUsed
+                                            )
+                                        )
+
+                                        updates++
+                                    }
                                 }
+
+                                batchBuilder.sendBatch(rpcClient)
+
+                                next = summary.next
+                                if (next == null) break
                             }
-
-                            batchBuilder.sendBatch(rpcClient)
-
-                            next = summary.next
-                            if (next == null) break
                         }
-                    }
 
-                    nextScan = now + (1000L * 60 * 60 * 4)
+                        debugSystem.logD(
+                            "Charged $updates posix collections",
+                            Unit,
+                            if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
+                            else MessageImportance.THIS_IS_NORMAL
+                        )
+                        nextScan = now + (1000L * 60 * 60 * 4)
+                    }
                 }
 
                 delay(5000)
@@ -208,7 +222,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         }
     }
 
-    private fun calculateUsage(coll: PathConverter.Collection): Long {
+    private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
         return when (val cfg = pluginConfig.accounting) {
             "DeviceQuota" -> {
                 memScoped {

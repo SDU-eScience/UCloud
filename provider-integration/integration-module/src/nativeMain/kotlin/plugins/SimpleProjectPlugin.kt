@@ -162,7 +162,7 @@ class SimpleProjectPlugin : ProjectPlugin {
 
     // NOTE(Brian): Called when a new user-mapping is inserted. Will dispatch UserAddedToProject and UserAddedToGroup
     // events to the extension, fixing any missing connections between the user and projects/groups.
-    private fun fixMissingConnections(userId: String, localId: Int) {
+    private suspend fun fixMissingConnections(userId: String, localId: Int) {
         val projects = mutableSetOf<Project>()
         dbConnection.withSession { session ->
 
@@ -256,7 +256,7 @@ class SimpleProjectPlugin : ProjectPlugin {
     //
     // The group IDs are allocated by this function, if a mapping does not exist. After which the mapping will
     // be used for eternity. The group IDs are allocated starting at a number specified in the configuration.
-    private fun ucloudProjectIdToUnixGroupId(projectId: String): Int {
+    private suspend fun ucloudProjectIdToUnixGroupId(projectId: String): Int {
         return dbConnection.withSession { session ->
             var result: Int? = null
             session.prepareStatement(
@@ -295,11 +295,11 @@ class SimpleProjectPlugin : ProjectPlugin {
     }
 
     // NOTE(Dan): See `ucloudProjectIdToUnixGroupId()`
-    private fun ucloudGroupIdToUnixGroupId(groupId: String): Int {
+    private suspend fun ucloudGroupIdToUnixGroupId(groupId: String): Int {
         return ucloudProjectIdToUnixGroupId(groupId)
     }
 
-    private fun calculateDiff(oldProject: Project, newProject: Project): List<ProjectDiff> {
+    private suspend fun calculateDiff(oldProject: Project, newProject: Project): List<ProjectDiff> {
         // NOTE(Dan): The result will contain the diff events as we calculate them. We return these at the end of the
         // function. We sort this list at the end of this function. As a result, please don't return early unless
         // it is an unrecoverable error.
@@ -489,7 +489,7 @@ class SimpleProjectPlugin : ProjectPlugin {
     }
 
     // NOTE(Dan): Emits events for a project which has never been seen by the system before
-    private fun calculateNewProjectDiffs(newProject: Project): List<ProjectDiff> {
+    private suspend fun calculateNewProjectDiffs(newProject: Project): List<ProjectDiff> {
         // NOTE(Dan): The result list is sorted before existing the function. Please don't return early.
         val result = ArrayList<ProjectDiff>()
         val newProjectWithLocalId = ProjectWithLocalId(ucloudProjectIdToUnixGroupId(newProject.id), newProject)
@@ -567,7 +567,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         }
     }
 
-    private fun dispatchEvent(event: ProjectDiff) {
+    private suspend fun dispatchEvent(event: ProjectDiff) {
         when (event) {
             is ProjectDiff.GroupRenamed -> extensions.groupRenamed.optionalInvoke(event)
             is ProjectDiff.GroupsCreated -> extensions.groupCreated.optionalInvoke(event)

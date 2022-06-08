@@ -246,7 +246,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         }
     }
 
-    override fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
         val token = OidcState(secureToken(32))
         runBlocking {
             stateTableMutex.withLock {
@@ -274,7 +274,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         )
     }
 
-    override fun PluginContext.mappingExpiration(): Long? {
+    override suspend fun PluginContext.mappingExpiration(): Long? {
         var acc = 0L
         with (configuration.mappingTimeToLive) {
             acc += days    * (1000L * 60 * 60 * 24)

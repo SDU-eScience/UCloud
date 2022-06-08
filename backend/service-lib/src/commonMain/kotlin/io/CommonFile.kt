@@ -91,7 +91,7 @@ sealed class WriteException(message: String) : RuntimeException(message) {
 value class WriteResult(private val bytesWrittenOrNegativeErrno: Long) {
     val isError: Boolean get() = bytesWrittenOrNegativeErrno < 0L
     fun getOrThrow(): Int {
-        if (isError) throw ReadException.Error(bytesWrittenOrNegativeErrno.toInt() * -1)
+        if (isError) throw WriteException.Error(bytesWrittenOrNegativeErrno.toInt() * -1)
         return bytesWrittenOrNegativeErrno.toInt()
     }
 

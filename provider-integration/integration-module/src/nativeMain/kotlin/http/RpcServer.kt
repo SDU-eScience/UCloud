@@ -2,11 +2,14 @@ package dk.sdu.cloud.http
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugCoroutineContext
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import kotlinx.atomicfu.AtomicBoolean
+import dk.sdu.cloud.service.Time
 import kotlinx.atomicfu.atomic
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -102,106 +105,130 @@ class RpcServer(
                         return
                     }
 
-                    try {
-                        val (call, handler) = foundCall
-                        val http = call.http
-                        val requestMessage = try {
-                            when {
-                                call.requestType == Unit.serializer() -> {
-                                    @Suppress("RedundantUnitExpression")
-                                    Unit
+                    runBlocking {
+                        withContext(DebugCoroutineContext(DebugContext.create())) {
+                            try {
+                                val (call, handler) = foundCall
+                                val http = call.http
+                                val requestMessage = try {
+                                    when {
+                                        call.requestType == Unit.serializer() -> {
+                                            @Suppress("RedundantUnitExpression")
+                                            Unit
+                                        }
+
+                                        http.body is HttpBody.BoundToEntireRequest<*> -> {
+                                            if (payload.readerRemaining() <= 0) {
+                                                sendHttpResponse(400, defaultHeaders(cors = cors))
+                                                return@withContext
+                                            }
+
+                                            val arr = ByteArray(payload.readerRemaining())
+                                            val bytes = payload.get(arr)
+                                            val entireMessage = arr.decodeToString(endIndex = bytes)
+
+                                            defaultMapper.decodeFromString(call.requestType, entireMessage)
+                                        }
+
+                                        http.params?.parameters?.isNotEmpty() == true -> {
+                                            val query = path.substringAfter('?')
+                                            ParamsParsing(query, call).decodeSerializableValue(call.requestType)
+                                        }
+
+                                        else -> {
+                                            error("Unable to parse request")
+                                        }
+                                    }
+                                } catch (ex: Throwable) {
+                                    log.debug(
+                                        "Failed to parse request message.\n${
+                                            ex.stackTraceToString().prependIndent("  ")
+                                        }"
+                                    )
+                                    sendHttpResponse(400, defaultHeaders(cors = cors))
+                                    return@withContext
                                 }
 
-                                http.body is HttpBody.BoundToEntireRequest<*> -> {
-                                    if (payload.readerRemaining() <= 0) {
-                                        sendHttpResponse(400, defaultHeaders(cors = cors))
-                                        return
+                                log.debug("Incoming call: ${call.fullName}")
+                                val start = Time.now()
+                                val context = CallHandler(
+                                    IngoingCall(
+                                        AttributeContainer(),
+                                        HttpContext(path, payload, headers, this@handleRequest, cors)
+                                    ),
+                                    requestMessage,
+                                    call
+                                )
+                                middlewares.forEach { it.beforeRequest(context) }
+                                val outgoingResult = handler.invoke(context)
+                                when (outgoingResult) {
+                                    is OutgoingCallResponse.Ok -> {
+                                        val encodedPayload = defaultMapper
+                                            .encodeToString(call.successType, outgoingResult.result)
+                                            .encodeToByteArray()
+
+                                        sendHttpResponseWithData(
+                                            200,
+                                            contentTypeJson + (cors?.headers ?: emptyList()),
+                                            encodedPayload,
+                                        )
                                     }
 
-                                    val arr = ByteArray(payload.readerRemaining())
-                                    val bytes = payload.get(arr)
-                                    val entireMessage = arr.decodeToString(endIndex = bytes)
+                                    is OutgoingCallResponse.Error -> {
+                                        val error = outgoingResult.error
+                                        val encodedPayload = (if (error != null) {
+                                            defaultMapper.encodeToString(call.errorType, outgoingResult.error)
+                                        } else {
+                                            "{}"
+                                        }).encodeToByteArray()
 
-                                    defaultMapper.decodeFromString(call.requestType, entireMessage)
+                                        log.debug("Responding to: ${call.fullName} ${outgoingResult.statusCode.value}")
+
+                                        sendHttpResponseWithData(
+                                            outgoingResult.statusCode.value,
+                                            contentTypeJson + (cors?.headers ?: emptyList()),
+                                            encodedPayload
+                                        )
+                                    }
+
+                                    is OutgoingCallResponse.AlreadyDelivered -> {
+                                        // Do nothing
+                                    }
                                 }
 
-                                http.params?.parameters?.isNotEmpty() == true -> {
-                                    val query = path.substringAfter('?')
-                                    ParamsParsing(query, call).decodeSerializableValue(call.requestType)
-                                }
-
-                                else -> {
-                                    error("Unable to parse request")
-                                }
-                            }
-                        } catch (ex: Throwable) {
-                            log.debug("Failed to parse request message.\n${ex.stackTraceToString().prependIndent("  ")}")
-                            sendHttpResponse(400, defaultHeaders(cors = cors))
-                            return
-                        }
-
-                        log.debug("Incoming call: ${call.fullName}")
-                        val context = CallHandler(
-                            IngoingCall(AttributeContainer(), HttpContext(path, payload, headers, this, cors)),
-                            requestMessage,
-                            call
-                        )
-                        middlewares.value.forEach { it.beforeRequest(context) }
-                        runBlocking {
-                            when (val outgoingResult = handler.invoke(context)) {
-                                is OutgoingCallResponse.Ok -> {
-                                    val encodedPayload = defaultMapper
-                                        .encodeToString(call.successType, outgoingResult.result)
-                                        .encodeToByteArray()
-
-                                    sendHttpResponseWithData(
-                                        200,
-                                        contentTypeJson + (cors?.headers ?: emptyList()),
-                                        encodedPayload,
+                                middlewares.forEach {
+                                    it.afterResponse(
+                                        context,
+                                        when (outgoingResult) {
+                                            is OutgoingCallResponse.AlreadyDelivered -> null
+                                            is OutgoingCallResponse.Error -> outgoingResult.error
+                                            is OutgoingCallResponse.Ok -> outgoingResult.result
+                                        },
+                                        outgoingResult.statusCode,
+                                        Time.now() - start
                                     )
                                 }
-
-                                is OutgoingCallResponse.Error -> {
-                                    val error = outgoingResult.error
-                                    val encodedPayload = (if (error != null) {
-                                        defaultMapper.encodeToString(call.errorType, outgoingResult.error)
-                                    } else {
-                                        "{}"
-                                    }).encodeToByteArray()
-
-                                    log.debug("Responding to: ${call.fullName} ${outgoingResult.statusCode.value}")
+                            } catch (ex: Throwable) {
+                                if (ex is RPCException) {
+                                    if (ex.httpStatusCode.value in 500..599) {
+                                        log.warn(ex.stackTraceToString())
+                                    }
 
                                     sendHttpResponseWithData(
-                                        outgoingResult.statusCode.value,
+                                        ex.httpStatusCode.value,
                                         contentTypeJson + (cors?.headers ?: emptyList()),
-                                        encodedPayload
+                                        defaultMapper
+                                            .encodeToString(CommonErrorMessage(ex.why, ex.errorCode))
+                                            .encodeToByteArray()
                                     )
-                                }
-
-                                is OutgoingCallResponse.AlreadyDelivered -> {
-                                    // Do nothing
+                                } else {
+                                    log.warn(
+                                        "Caught an unexpected error in ${foundCall.call.fullName}\n" +
+                                            ex.stackTraceToString()
+                                    )
+                                    sendHttpResponse(500, defaultHeaders(cors = cors))
                                 }
                             }
-                        }
-                    } catch (ex: Throwable) {
-                        if (ex is RPCException) {
-                            if (ex.httpStatusCode.value in 500..599) {
-                                log.warn(ex.stackTraceToString())
-                            }
-
-                            sendHttpResponseWithData(
-                                ex.httpStatusCode.value,
-                                contentTypeJson + (cors?.headers ?: emptyList()),
-                                defaultMapper
-                                    .encodeToString(CommonErrorMessage(ex.why, ex.errorCode))
-                                    .encodeToByteArray()
-                            )
-                        } else {
-                            log.warn(
-                                "Caught an unexpected error in ${foundCall.call.fullName}\n" +
-                                    ex.stackTraceToString()
-                            )
-                            sendHttpResponse(500, defaultHeaders(cors = cors))
                         }
                     }
                 }
@@ -308,37 +335,62 @@ class RpcServer(
 
                     log.debug("Incoming call: ${foundCall.call.fullName}")
                     val context = CallHandler(IngoingCall(AttributeContainer(), wsContext), parsedRequest, call)
-                    middlewares.value.forEach { it.beforeRequest(context) }
 
                     runBlocking {
-                        try {
-                            when (val outgoingResult = foundCall.handler.invoke(context)) {
-                                is OutgoingCallResponse.Ok -> {
-                                    sendResponse(outgoingResult.result, outgoingResult.statusCode.value)
+                        withContext(DebugCoroutineContext(DebugContext.create())) {
+                            val start = Time.now()
+                            middlewares.forEach { it.beforeRequest(context) }
+                            var response: Any? = null
+                            var statusCode: Int? = null
+                            try {
+                                when (val outgoingResult = foundCall.handler.invoke(context)) {
+                                    is OutgoingCallResponse.Ok -> {
+                                        response = outgoingResult.result
+                                        statusCode = outgoingResult.statusCode.value
+                                    }
+
+                                    is OutgoingCallResponse.Error -> {
+                                        response = outgoingResult.error
+                                        statusCode = outgoingResult.statusCode.value
+                                    }
+
+                                    is OutgoingCallResponse.AlreadyDelivered -> {
+                                        // Do nothing
+                                    }
                                 }
 
-                                is OutgoingCallResponse.Error -> {
-                                    sendResponse(outgoingResult.error, outgoingResult.statusCode.value)
+                                if (statusCode != null) {
+                                    sendResponse(response, statusCode)
                                 }
 
-                                is OutgoingCallResponse.AlreadyDelivered -> {
-                                    // Do nothing
+                                Unit
+                            } catch (ex: Throwable) {
+                                if (ex is RPCException) {
+                                    response = CommonErrorMessage(ex.why, ex.errorCode)
+                                    statusCode = ex.httpStatusCode.value
+                                } else {
+                                    log.warn(
+                                        "Uncaught exception in ws handler for ${foundCall.call}\n" +
+                                            ex.stackTraceToString()
+                                    )
+
+                                    response = CommonErrorMessage("Internal Server Error", null)
+                                    statusCode = 500
+                                }
+
+                                runCatching {
+                                    sendResponse(response, statusCode ?: 500)
                                 }
                             }
-                        } catch (ex: Throwable) {
-                            if (ex is RPCException) {
-                                runCatching {
-                                    sendResponse(CommonErrorMessage(ex.why, ex.errorCode), ex.httpStatusCode.value)
-                                }
-                            } else {
-                                log.warn(
-                                    "Uncaught exception in ws handler for ${foundCall.call}\n" +
-                                        ex.stackTraceToString()
-                                )
 
-                                runCatching {
-                                    sendResponse(CommonErrorMessage("Internal Server Error", null), 500)
-                                }
+                            val responseTime = Time.now() - start
+                            middlewares.forEach {
+                                it.afterResponse(
+                                    context,
+                                    response,
+                                    HttpStatusCode.parse(statusCode ?: 200),
+                                    responseTime
+                                )
                             }
                         }
                     }

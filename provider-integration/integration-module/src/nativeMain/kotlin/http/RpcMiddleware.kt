@@ -10,7 +10,7 @@ import dk.sdu.cloud.service.Log
 
 fun loadMiddleware(config: VerifiedConfig, validation: NativeJWTValidation): Unit = with(config) {
     addMiddleware(object : Middleware {
-        override fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
+        override suspend fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
             when (val ctx = handler.ctx.serverContext) {
                 is HttpContext -> {
                     val authHeader = ctx.headers.find { it.header.equals("Authorization", ignoreCase = true) }
@@ -29,7 +29,7 @@ fun loadMiddleware(config: VerifiedConfig, validation: NativeJWTValidation): Uni
     addMiddleware(object : Middleware {
         val log = Log("AuthMiddleware")
 
-        override fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
+        override suspend fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
             val bearer = handler.ctx.bearerOrNull
             val token = if (bearer != null) {
                 val token = validation.validateOrNull(bearer)

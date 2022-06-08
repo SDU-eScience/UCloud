@@ -410,7 +410,7 @@ fun DebugSystem.installCommon(client: RpcClient) {
                     callDescription.fullName,
                     if (request == null) JsonNull
                     else defaultMapper.encodeToJsonElement(call.requestType, request),
-                    context.attributes.outgoingTargetHost.toString(),
+                    context.attributes.outgoingTargetHostOrNull.toString(),
                 )
             )
         }

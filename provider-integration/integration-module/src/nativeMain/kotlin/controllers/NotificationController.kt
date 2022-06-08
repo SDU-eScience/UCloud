@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.plugins.AllocationNotification
@@ -27,6 +28,9 @@ import kotlinx.coroutines.runBlocking
 class NotificationController(
     private val controllerContext: ControllerContext,
 ) : Controller {
+    private val debug: DebugSystem?
+        get() = controllerContext.pluginContext.debugSystem
+
     private val nextPull = atomic(0L)
 
     override fun RpcServer.configure() {
@@ -65,8 +69,13 @@ class NotificationController(
                         // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
                         // how the pull requests arrive at the provider. We must know about a new project _before_ any
                         // allocations are processed.
-                        processProjects()
-                        processAllocations()
+                        debug.enterContext("Project notifications") {
+                            processProjects()
+                        }
+
+                        debug.enterContext("Allocation notifications") {
+                            processAllocations()
+                        }
                     } catch (ex: Throwable) {
                         log.info(
                             "Caught exception while processing notifications from UCloud/Core: " +
@@ -87,7 +96,9 @@ class NotificationController(
                 val now = Time.now()
                 try {
                     if (now >= nextRescan) {
-                        scanAllocations()
+                        debug.enterContext("Allocation scan") {
+                            scanAllocations()
+                        }
                         nextRescan = now + (1000L * 60 * 60 * 3)
                     }
                     delay(1000)
@@ -135,11 +146,19 @@ class NotificationController(
         }
 
         // Notify UCloud/Core about the notifications we handled successfully
-        if (output.isEmpty()) return
-        ProjectNotifications.markAsRead.call(
-            BulkRequest(output),
-            controllerContext.pluginContext.rpcClient
-        ).orThrow()
+        if (output.isNotEmpty()) {
+            ProjectNotifications.markAsRead.call(
+                BulkRequest(output),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        }
+
+        debug.logD(
+            "Handled ${output.size} project notifications",
+            Unit,
+            if (output.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
     }
 
     // Allocations
@@ -217,6 +236,13 @@ class NotificationController(
                 controllerContext.pluginContext.rpcClient
             ).orThrow()
         }
+
+        debug.logD(
+            "Processed ${items.size} allocations",
+            Unit,
+            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
     }
 
     private suspend fun notifyPlugins(notification: AllocationNotification) {
@@ -293,6 +319,7 @@ class NotificationController(
     }
 
     private suspend fun scanAllocations() {
+        var allocationsScanned = 0
         var next: String? = null
         while (currentCoroutineContext().isActive) {
             val providerSummaryResponse = Wallets.retrieveProviderSummary.call(
@@ -303,6 +330,7 @@ class NotificationController(
             next = providerSummaryResponse.next
 
             val providerSummary = providerSummaryResponse.items
+            allocationsScanned += providerSummaryResponse.items.size
             if (providerSummary.isEmpty()) break
 
             val notificationsByType = providerSummary.groupBy { it.productType }
@@ -318,6 +346,13 @@ class NotificationController(
                 }
             }
         }
+
+        debug.logD(
+            "Scanned $allocationsScanned allocations",
+            Unit,
+            if (allocationsScanned == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
     }
 
     companion object : Loggable {
