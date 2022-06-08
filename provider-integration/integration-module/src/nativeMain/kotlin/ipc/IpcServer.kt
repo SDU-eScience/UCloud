@@ -122,9 +122,9 @@ class IpcServer(
 ) {
     private val isProxy = rpcServer == null
     private val ipcHandlers = ArrayList<IpcHandler>()
+    val closeClientIds = ArrayList<UInt>()
     val handlers: List<IpcHandler>
         get() = ipcHandlers
-    val closeInstances = ArrayList<String>()
 
     fun runServer(): Unit = memScoped {
         registerRpcHandler()
@@ -157,6 +157,14 @@ class IpcServer(
                 }
             }
         }
+    }
+
+    fun requestClientRestart(uid: UInt) {
+        closeClientIds.add(uid)
+    }
+
+    fun clientShouldRestart(uid: UInt): Boolean  {
+        return closeClientIds.contains(uid)
     }
 
     fun addHandler(handler: IpcHandler) {
