@@ -136,22 +136,61 @@ class Filters {
                     }
                 }
                 div {
+                    inlineStyle {
+                        display = "flex"
+                        gap = 16.px
+                    }
+                    standardCheckbox(label = "Client") {
+                        capture(clientBox)
+                    }
+
+                    standardCheckbox(label = "Server") {
+                        capture(serverBox)
+                    }
+
+                    standardCheckbox(label = "Database") {
+                        capture(databaseBox)
+                    }
+                }
+                div { inlineStyle { flexGrow = "1" } }
+                div(controlsClass) {
                     div {
-                        inlineStyle {
-                            display = "flex"
-                            gap = 16.px
-                        }
-                        standardCheckbox(label = "Client") {
-                            capture(clientBox)
-                        }
+                        keys("U", "I")
+                        text("Move down/up in services")
+                    }
 
-                        standardCheckbox(label = "Server") {
-                            capture(serverBox)
-                        }
+                    div {
+                        keys("O", "P")
+                        text("Move down/up in stack")
+                    }
 
-                        standardCheckbox(label = "Database") {
-                            capture(databaseBox)
-                        }
+                    div {
+                        keys("J", "PgDown", "K", "PgUp")
+                        text("Move down/up in messages")
+                    }
+                }
+
+                div(controlsClass) {
+                    div {
+                        keys("/")
+                        text("Focus search")
+                    }
+
+                    div {
+                        keys("Enter")
+                        text("Open message")
+                    }
+                }
+
+                div(controlsClass) {
+                    div {
+                        keys("Q", "W", "E", "R", "T")
+                        text("Change log level")
+                    }
+
+                    div {
+                        keys("A", "S", "D")
+                        text("Change type filters")
                     }
                 }
             }
@@ -216,7 +255,7 @@ class Filters {
 
         document.addEventListener("keydown", { event ->
             event as KeyboardEvent
-            when(event.code) {
+            when (event.code) {
                 "KeyP" -> {
                     stackIdx = min(stack.lastIndex, max(0, stackIdx - 1))
                     renderAndNotify()
@@ -256,11 +295,34 @@ class Filters {
                     logLevel = MessageImportance.THIS_IS_DANGEROUS
                     renderAndNotify()
                 }
+
+                "KeyA" -> {
+                    showClient = !showClient
+                    renderAndNotify()
+                }
+
+                "KeyS" -> {
+                    showServer = !showServer
+                    renderAndNotify()
+                }
+
+                "KeyD" -> {
+                    showDatabase = !showDatabase
+                    renderAndNotify()
+                }
             }
         })
 
         renderStack()
         return elem
+    }
+
+    private fun FlowContent.keys(vararg keys: String) {
+        for ((index, key) in keys.withIndex()) {
+            if (index != 0) span { text(", ") }
+            kbd { text(key) }
+        }
+        b { text(": ") }
     }
 
     private fun renderAndNotify() {
@@ -293,7 +355,13 @@ class Filters {
         databaseBox.find(elem).checked = showDatabase
     }
 
-    fun addStack(id: String, title: String, replaceIdx: Int? = null, doRender: Boolean = true, block: FilterStackItem.() -> Unit = {}) {
+    fun addStack(
+        id: String,
+        title: String,
+        replaceIdx: Int? = null,
+        doRender: Boolean = true,
+        block: FilterStackItem.() -> Unit = {}
+    ) {
         stack = stack.subList(0, (replaceIdx ?: stackIdx) + 1) + FilterStackItem(id, title).also(block)
         stackIdx = stack.lastIndex
         if (doRender) {
@@ -311,6 +379,7 @@ class Filters {
     companion object {
         private const val elemClass = "filters"
         private const val activeStackClass = "active"
+        private const val controlsClass = "controls"
 
         val style = CssMounter {
             val self = byClass(elemClass)
@@ -322,6 +391,26 @@ class Filters {
                 flexDirection = "row"
                 gap = 8.px
                 height = 250.px
+            }
+
+            (self descendant byClass(controlsClass)) {
+                display = "flex"
+                gap = 22.px
+                paddingBottom = 8.px
+            }
+
+            (self descendant byTag("kbd")) {
+                backgroundColor = "#eee"
+                borderRadius = 3.px
+                border = "1px solid #b4b4b4"
+                boxShadow = "0 1px 1px rgba(0, 0, 0, .2), 0 2px 0 0 rgba(255, 255, 255, .7) inset"
+                color = "#333"
+                display = "inline-block"
+                fontSize = ".85em"
+                fontWeight = "700"
+                lineHeight = "1"
+                padding = "2px 4px"
+                whiteSpace = "nowrap"
             }
 
             (self descendant byTag("h4")) {

@@ -5,6 +5,8 @@ import kotlinx.html.classes
 import kotlinx.html.dom.create
 import kotlinx.html.js.div
 import org.w3c.dom.HTMLElement
+import org.w3c.dom.events.KeyboardEvent
+import kotlin.math.max
 
 class ServiceSelector(private val client: Client) {
     lateinit var elem: HTMLElement
@@ -33,12 +35,56 @@ class ServiceSelector(private val client: Client) {
         style.mount()
         if (this::elem.isInitialized) return elem
         elem = document.create.div(elemClass)
+
+        document.addEventListener("keydown", { event ->
+            event as KeyboardEvent
+
+            when (event.code) {
+                "KeyU" -> moveSelectionTo(1)
+                "KeyI" -> moveSelectionTo(-1)
+            }
+        })
         return elem
     }
 
     private fun rerender() {
         elem.innerHTML = ""
         renderService(root, 0)
+    }
+
+    private fun moveSelectionTo(offset: Int) {
+        val active = activeNode
+        val currentIndex = if (active == null) 0 else findIndexOf(active)
+        val newNode = findNodeByIndex(max(1, currentIndex + offset))
+        if (newNode != null) activeNode = newNode
+        rerender()
+        if (newNode is Node.Leaf) {
+            client.send(ClientToServer.OpenService(newNode.service.id))
+        }
+    }
+
+    private fun findNodeByIndex(index: Int, currentNode: Node = root, count: Ref<Int> = Ref(0)): Node? {
+        if (index == count.current) return currentNode
+        count.current += 1
+        if (currentNode is Node.Internal) {
+            for (child in currentNode.children) {
+                val res = findNodeByIndex(index, child, count)
+                if (res != null) return res
+            }
+        }
+        return null
+    }
+
+    private fun findIndexOf(target: Node, currentNode: Node = root, count: Ref<Int> = Ref(0)): Int {
+        if (target == currentNode) return count.current
+        count.current += 1
+        if (currentNode is Node.Internal) {
+            for (child in currentNode.children) {
+                val res = findIndexOf(target, child, count)
+                if (res != -1) return count.current
+            }
+        }
+        return -1
     }
 
     private fun renderService(node: Node, depth: Int) {

@@ -60,7 +60,7 @@ fun main() {
             paddingRight = 16.px
 
             display = "flex"
-            gap = 16.px
+            gap = 32.px
             flexDirection = "column"
         }
     }

@@ -132,71 +132,48 @@ class Log(private val filters: Filters) {
 
         window.setInterval({ doSort() }, 1000)
 
-        var didActivate = false
-        document.addEventListener("click", {
-            if (didActivate) {
-                didActivate = false
-                isActive = true
-            } else {
-                isActive = false
-            }
-        })
-
-        elem.addEventListener("click", {
-            didActivate = true
-        })
-
         document.addEventListener("keydown", { event ->
             event as KeyboardEvent
 
-            if (event.code == "KeyA") {
-                isActive = true
-                moveSelectionTo(absolute = 0)
-            }
+            when (event.code) {
+                "ArrowDown", "KeyJ" -> {
+                    event.preventDefault()
+                    moveSelectionTo(offset = 1)
+                }
 
-            if (isActive) {
-                when (event.code) {
-                    "ArrowDown", "KeyJ" -> {
-                        event.preventDefault()
-                        moveSelectionTo(offset = 1)
+                "ArrowUp", "KeyK" -> {
+                    event.preventDefault()
+                    moveSelectionTo(offset = -1)
+                }
+
+                "PageDown" -> {
+                    event.preventDefault()
+                    moveSelectionTo(offset = 30)
+                }
+
+                "PageUp" -> {
+                    event.preventDefault()
+                    moveSelectionTo(offset = -30)
+                }
+
+                "End" -> {
+                    moveSelectionTo(absolute = messages.filtered.size - 1)
+                }
+
+                "Home" -> {
+                    moveSelectionTo(absolute = 0)
+                }
+
+                "KeyG" -> {
+                    if (event.shiftKey) moveSelectionTo(absolute = messages.filtered.size - 1)
+                    else moveSelectionTo(absolute = 0)
+                }
+
+                "Enter" -> {
+                    val message = messages.filtered.find { it.context.id == selected }
+                    if (message != null) {
+                        doOpen(message)
                     }
-
-                    "ArrowUp", "KeyK" -> {
-                        event.preventDefault()
-                        moveSelectionTo(offset = -1)
-                    }
-
-                    "PageDown" -> {
-                        event.preventDefault()
-                        moveSelectionTo(offset = 30)
-                    }
-
-                    "PageUp" -> {
-                        event.preventDefault()
-                        moveSelectionTo(offset = -30)
-                    }
-
-                    "End" -> {
-                        moveSelectionTo(absolute = messages.filtered.size - 1)
-                    }
-
-                    "Home" -> {
-                        moveSelectionTo(absolute = 0)
-                    }
-
-                    "KeyG" -> {
-                        if (event.shiftKey) moveSelectionTo(absolute = messages.filtered.size - 1)
-                        else moveSelectionTo(absolute = 0)
-                    }
-
-                    "Enter" -> {
-                        val message = messages.filtered.find { it.context.id == selected }
-                        if (message != null) {
-                            doOpen(message)
-                        }
-                    }
-
-                    else -> println(event.code)
                 }
             }
         })
@@ -374,6 +351,13 @@ class Log(private val filters: Filters) {
                 overflowY = "scroll"
                 flexBasis = 500.px
                 flexGrow = "1"
+
+                borderRadius = 5.px
+                borderColor = Rgb(201, 211, 223).toString()
+                borderStyle = "solid"
+                borderWidth = 2.px
+                padding = 5.px
+                marginBottom = 16.px
             }
 
             (byClass(elemClass) descendant byClass(containerClass)) {
@@ -420,6 +404,7 @@ class LogRow {
         elem.style.background = "white"
         elem.style.color = "black"
         elem.style.border = "3px solid transparent"
+        elem.style.fontWeight = "400"
         timestamp.textContent = ""
         message.textContent = ""
         response.textContent = ""
@@ -428,6 +413,7 @@ class LogRow {
     fun update(row: DebugMessage, previous: DebugMessage?, isActive: Boolean) {
         elem.style.background = backgroundColor(row.importance)
         elem.style.color = foregroundColor(row.importance)
+        elem.style.fontWeight = fontWeight(row.importance).toString()
         val borderColor = if (isActive) "#006aff" else "transparent"
         elem.style.border = "3px solid $borderColor"
 
@@ -477,7 +463,7 @@ class LogRow {
             return when (importance) {
                 MessageImportance.TELL_ME_EVERYTHING -> "white"
                 MessageImportance.IMPLEMENTATION_DETAIL -> "white"
-                MessageImportance.THIS_IS_NORMAL -> "#A8E3B3"
+                MessageImportance.THIS_IS_NORMAL -> "white"
                 MessageImportance.THIS_IS_ODD -> "#F6BF85"
                 MessageImportance.THIS_IS_WRONG -> "#ED8C79"
                 MessageImportance.THIS_IS_DANGEROUS -> "#ED6572"
@@ -492,6 +478,13 @@ class LogRow {
                 MessageImportance.THIS_IS_ODD -> "black"
                 MessageImportance.THIS_IS_WRONG -> "white"
                 MessageImportance.THIS_IS_DANGEROUS -> "white"
+            }
+        }
+
+        private fun fontWeight(importance: MessageImportance): Int {
+            return when (importance) {
+                MessageImportance.THIS_IS_NORMAL -> 700
+                else -> 400
             }
         }
 
