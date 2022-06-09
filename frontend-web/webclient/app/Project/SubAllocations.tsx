@@ -72,6 +72,7 @@ export const SubAllocationViewer: React.FunctionComponent<{
 
     return <>
         <Spacer
+            mt="32px"
             mr="15px"
             left={<Heading.h3>Sub-allocations</Heading.h3>}
             right={
