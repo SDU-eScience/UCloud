@@ -102,6 +102,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     /* Note(jonas): Seems passing "fields" only would work just as well. */
     createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
+    submitText?: string;
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: Response, d: DataType) => void;
 }> {
@@ -133,7 +134,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                 <DataContext.Provider value={this.data}>
                     {this.props.children}
                 </DataContext.Provider>
-                <Button type="submit" my="12px" disabled={false}>Submit</Button>
+                <Button type="submit" my="12px" disabled={false}>{this.props.submitText ?? "Submit"}</Button>
             </form>
         );
     }
