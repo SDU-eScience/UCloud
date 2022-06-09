@@ -21,6 +21,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {
     browseWallets,
     ChargeType,
+    productAreaTitle,
     ProductPriceUnit,
     ProductType,
     productTypes,
@@ -170,40 +171,44 @@ const Resources: React.FunctionComponent = () => {
                 sortDirection={"ascending"}
                 onSortUpdated={doNothing}
             />}
-            main={<>
-                <ResourcesGrid>
-                    <Grid gridGap={"16px"}>
-                        {maximizedUsage == null ? null :
-                            <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                                onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
-                        }
-                        {maximizedUsage != null ? null :
-                            <>
-                                <VisualizationSection>
-                                    {usage.data.charts.map((it, idx) =>
+            main={<ResourcesGrid>
+                <Grid gridGap={"16px"}>
+                    {maximizedUsage == null ? null :
+                        <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
+                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
+                    }
+                    {maximizedUsage != null ? null :
+                        <>
+                            <VisualizationSection>
+                                {usage.data.charts.map((it, idx) => {
+                                    const donuts = breakdowns.data.charts.filter(bd => bd.type === it.type)
+                                        .map((it, idx) => <DonutChart key={idx} chart={it} />);
+                                    return <HighlightedCard
+                                        title={productAreaTitle(it.type)}
+                                        icon={productTypeToIcon(it.type)}
+                                        color="blue"
+                                        width="400px"
+                                    >
+                                        {donuts}
                                         <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
-                                    )}
-                                </VisualizationSection>
-                                <VisualizationSection>
-                                    {breakdowns.data.charts.map((it, idx) =>
-                                        <DonutChart key={idx} chart={it} />
-                                    )}
-                                </VisualizationSection>
-                            </>
-                        }
-                    </Grid>
-                </ResourcesGrid>
-                <Wallets wallets={wallets.data.items} />
-                {managementStatus.allowManagement ?
-                    <SubAllocationViewer
-                        allocations={allocations}
-                        generation={allocationGeneration}
-                        loadMore={loadMoreAllocations}
-                        filterByAllocation={filterByAllocation}
-                        filterByWorkspace={filterByWorkspace} wallets={wallets}
-                        onQuery={onSubAllocationQuery} />
-                    : null}
-            </>}
+                                    </HighlightedCard>
+                                })}
+                            </VisualizationSection>
+                            <Wallets wallets={wallets.data.items} />
+
+                            {managementStatus.allowManagement ?
+                                <SubAllocationViewer
+                                    allocations={allocations}
+                                    generation={allocationGeneration}
+                                    loadMore={loadMoreAllocations}
+                                    filterByAllocation={filterByAllocation}
+                                    filterByWorkspace={filterByWorkspace} wallets={wallets}
+                                    onQuery={onSubAllocationQuery} />
+                                : null}
+                        </>
+                    }
+                </Grid>
+            </ResourcesGrid>}
         />
     );
 };
@@ -442,14 +447,12 @@ const UsageChartViewer: React.FunctionComponent<{
         return usageExplainer(amount, c.type, c.chargeType, c.unit);
     }, [c.type, c.chargeType, c.unit])
 
-    return <HighlightedCard color={"blue"} width={maximized ? "100%" : "400px"}
-        height={maximized ? "900px" : undefined}>
+    return <>
         <UsageChartStyle>
             <Flex alignItems={"center"}>
                 <div>
-                    <Text color="gray">{productTypeToTitle(c.type)}</Text>
-                    <Text bold my="-6px"
-                        fontSize="24px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
+                    <Text my="-6px"
+                        fontSize="18px">{usageExplainer(c.periodUsage, c.type, c.chargeType, c.unit)} used</Text>
                 </div>
                 <Box flexGrow={1} />
                 <Icon name={"fullscreen"} cursor={"pointer"} onClick={onMaximizeToggle} />
@@ -482,7 +485,7 @@ const UsageChartViewer: React.FunctionComponent<{
                 </AreaChart>
             </ResponsiveContainer>
         </UsageChartStyle>
-    </HighlightedCard>
+    </>
 };
 
 const COLORS: [ThemeColor, ThemeColor, ThemeColor, ThemeColor, ThemeColor] = ["green", "red", "blue", "orange", "yellow"];
@@ -502,16 +505,10 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
     const totalUsage = props.chart.chart.points.reduce((prev, current) => prev + current.value, 0);
     if (totalUsage === 0) return null;
     return (
-        <HighlightedCard
-            height="400px"
-            width={"400px"}
-            color="purple"
-            title={productTypeToTitle(props.chart.type)}
-            icon={productTypeToIcon(props.chart.type)}
-        >
+        <>
             <Text color="darkGray" fontSize={1}>Usage across different products</Text>
 
-            <Flex>
+            <Flex style={{borderBottom: "solid black 1px", marginBottom: "18px"}}>
                 <Flex mt="12px">
                     <PieChart width={215} height={215}>
                         <Pie
@@ -528,7 +525,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                     </PieChart>
                 </Flex>
 
-                <Box ml="4px" textAlign="center" width="100%" height="330px" pb="12px" style={{overflowY: "auto"}} justifyContent={"center"}>
+                <Box ml="4px" textAlign="center" width="100%" height="250px" pb="12px" style={{overflowY: "auto"}} justifyContent={"center"}>
                     {props.chart.chart.points.map((it, index) =>
                         <Box mb="4px" width="100%" style={{whiteSpace: "nowrap"}} key={it.name}>
                             <ChartPointName name={it.name} />
@@ -539,7 +536,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                     )}
                 </Box>
             </Flex>
-        </HighlightedCard>
+        </>
     )
 }
 
