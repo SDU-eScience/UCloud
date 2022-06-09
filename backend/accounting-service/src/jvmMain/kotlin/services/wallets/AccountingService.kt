@@ -717,7 +717,6 @@ class AccountingService(
         request: BulkRequest<UpdateAllocationRequestItem>,
     ) {
         db.withSession(remapExceptions = true, transactionMode) { session ->
-            println(request)
             session.sendPreparedStatement(
                 {
                     val ids by parameterList<Long?>()

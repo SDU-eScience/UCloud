@@ -6,8 +6,8 @@ import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
-import java.lang.System.currentTimeMillis
 
 class AccountingController(
     private val accounting: AccountingService,
@@ -20,12 +20,10 @@ class AccountingController(
 
         implement(Accounting.deposit) {
             val user = ctx.securityPrincipal.username
-            println(request)
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: currentTimeMillis()
+                req.startDate = req.startDate ?: Time.now()
             }
-            println(request)
             ok(accounting.deposit(actorAndProject, request))
         }
 
@@ -54,7 +52,7 @@ class AccountingController(
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
-                req.startDate = req.startDate ?: currentTimeMillis()
+                req.startDate = req.startDate ?: Time.now()
             }
             ok(accounting.rootDeposit(actorAndProject, request))
         }
