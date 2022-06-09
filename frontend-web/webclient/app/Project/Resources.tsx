@@ -44,6 +44,8 @@ import {Toggle} from "@/ui-components/Toggle";
 
 const FORMAT = "dd/MM/yyyy";
 
+const ANIMATION_DURATION = 1000;
+
 function dateFormatter(timestamp: number): string {
     const date = new Date(timestamp);
     return `${date.getDate()}/${date.getMonth() + 1} ` +
@@ -471,6 +473,7 @@ const UsageChartViewer: React.FunctionComponent<{
                             type={"linear"}
                             opacity={0.8}
                             dataKey={it}
+                            animationDuration={ANIMATION_DURATION}
                             strokeWidth={"2px"}
                             stroke={getCssVar(("dark" + capitalized(COLORS[index % COLORS.length]) as ThemeColor))}
                             fill={getCssVar(COLORS[index % COLORS.length])}
@@ -516,6 +519,7 @@ const DonutChart: React.FunctionComponent<{chart: BreakdownChart}> = props => {
                             fill="#8884d8"
                             dataKey="value"
                             innerRadius={55}
+                            animationDuration={ANIMATION_DURATION}
                         >
                             {props.chart.chart.points.map((_, index) => (
                                 <Cell key={`cell-${index}`} fill={getCssVar(COLORS[index % COLORS.length])} />
