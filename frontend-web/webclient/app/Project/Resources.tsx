@@ -184,6 +184,7 @@ const Resources: React.FunctionComponent = () => {
                                     const donuts = breakdowns.data.charts.filter(bd => bd.type === it.type)
                                         .map((it, idx) => <DonutChart key={idx} chart={it} />);
                                     return <HighlightedCard
+                                        key={it.type}
                                         title={productAreaTitle(it.type)}
                                         icon={productTypeToIcon(it.type)}
                                         color="blue"
