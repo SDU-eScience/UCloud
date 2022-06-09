@@ -452,7 +452,9 @@ function SuballocationRows(props: {
     const [rows, setRows] = useState(props.rows);
 
     React.useEffect(() => {
-        if (props.rows.length > 0) setRows(props.rows);
+        if (props.rows.length > 0) {
+            setRows(props.rows);
+        }
     }, [props.rows]);
 
     return React.useMemo(() => {
@@ -481,7 +483,7 @@ function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAl
         if (!isEqual(oldEntry, newEntry)) {
             updated.push({
                 id: newEntry.id,
-                balance: newEntry.remaining,
+                balance: oldEntry.chargeType === "ABSOLUTE" ? newEntry.remaining : newEntry.initialBalance,
                 startDate: newEntry.startDate,
                 endDate: newEntry.endDate ?? undefined,
                 reason: "Allocation updated by grant giver"
@@ -495,7 +497,11 @@ function findChangedAndMapToRequest(oldAllocs: SubAllocation[], newAllocs: SubAl
 function isEqual(oldAlloc: SubAllocation, newAlloc: SubAllocation): boolean {
     if (oldAlloc.startDate != newAlloc.startDate) return false;
     if (oldAlloc.endDate != newAlloc.endDate) return false;
-    if (oldAlloc.remaining != newAlloc.remaining) return false;
+    if (oldAlloc.chargeType === "ABSOLUTE") {
+        if (oldAlloc.remaining != newAlloc.remaining) return false;
+    } else if (oldAlloc.chargeType === "DIFFERENTIAL_QUOTA") {
+        if (oldAlloc.initialBalance != newAlloc.initialBalance) return false;
+    }
     return true;
 }
 
@@ -621,7 +627,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         } catch (e) {
             displayErrorMessageOrDefault(e, "Update failed");
         }
-    }, []);
+    }, [props.rows]);
 
     const [creationRows, setCreationRows] = useState<SuballocationCreationRow[]>([]);
 
@@ -720,8 +726,6 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         });
         return [...rows];
     }), [props.wallets]);
-
-
 
     const removeRow = React.useCallback((id: number) => {
         setCreationRows(rows => [...rows.filter(it => it.id !== id)]);
@@ -851,7 +855,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                 })}
                 {props.rows.map(row => <SubAllocationRow key={row.id} editEntries={editEntries} editing={editing} suballocation={row} />)}
             </Box>
-        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing]);
+        </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing, editEntries.current]);
 }
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
@@ -871,13 +875,11 @@ function hasValidAllocations(walletAllocations?: {wallet: Wallet, allocations: W
     return walletAllocations.some(({allocations}) => allocations.length > 0);
 }
 
-function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<{[id: string]: SubAllocation}>}): JSX.Element {
+function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean; editEntries: MutableRefObject<Record<string, SubAllocation>>}): JSX.Element {
     const entry = props.suballocation;
     const [dates, setDates] = useState<[number, number | undefined | null]>([entry.startDate, entry.endDate ?? undefined]);
     React.useEffect(() => {
-        if (!props.editing) {
-            setDates([entry.startDate, entry.endDate]);
-        }
+        setDates([entry.startDate, entry.endDate]);
     }, [props.editing]);
     if (props.editing) return (
         <ListRow
@@ -916,8 +918,16 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                     type="number"
                     rightLabel
                     min={0}
-                    placeholder={normalizeSuballocationBalanceForFrontend(entry)}
-                    onChange={e => props.editEntries.current[entry.id].remaining = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit)}
+                    placeholder={normalizeSuballocationBalanceForFrontend(entry, entry.chargeType === "ABSOLUTE" ? entry.remaining : entry.initialBalance)}
+                    onChange={e => {
+                        const {chargeType} = props.editEntries.current[entry.id];
+                        const balance = normalizeBalanceForBackend(parseInt(e.target.value, 10), entry.productType, entry.chargeType, entry.unit);
+                        if (chargeType === "ABSOLUTE") {
+                            props.editEntries.current[entry.id].remaining = balance;
+                        } else if (chargeType === "DIFFERENTIAL_QUOTA") {
+                            props.editEntries.current[entry.id].initialBalance = balance;
+                        }
+                    }}
                 />
                 <InputLabel textAlign={"center"} width={["INGRESS", "LICENSE"].includes(entry.productType) ? "250px" : "78px"} rightLabel>{explainSubAllocation(entry)}</InputLabel>
             </Flex>}
@@ -931,7 +941,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                 <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>Start date: {format(entry.startDate, "dd/MM/yy")}, End date: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
             </Flex>}
             right={<>
-                {remainingBalance(entry)}
+                {remainingBalance(entry)}{entry.chargeType === "ABSOLUTE" ? null : <> / {initialBalance(entry)}</>}
                 <Icon ml="12px" name="grant" />
             </>}
         />
@@ -942,14 +952,18 @@ function explainSubAllocation(suballocation: {productType: ProductType; chargeTy
     return explainAllocation(suballocation.productType, suballocation.chargeType, suballocation.unit);
 }
 
-function normalizeSuballocationBalanceForFrontend(suballocation: {remaining: number; productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
+function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        suballocation.remaining, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
+        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
     );
 }
 
+function initialBalance(suballocation: SubAllocation): string {
+    return normalizeSuballocationBalanceForFrontend(suballocation, suballocation.initialBalance) + " " + explainSubAllocation(suballocation);
+}
+
 function remainingBalance(suballocation: SubAllocation): string {
-    return normalizeSuballocationBalanceForFrontend(suballocation) + " " + explainSubAllocation(suballocation);
+    return normalizeSuballocationBalanceForFrontend(suballocation, suballocation.remaining) + " " + explainSubAllocation(suballocation);
 }
 
 const SearchInput = styled.div`
