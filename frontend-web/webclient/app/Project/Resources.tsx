@@ -41,7 +41,6 @@ import {Accordion} from "@/ui-components/Accordion";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {format} from "date-fns/esm";
 import {Spacer} from "@/ui-components/Spacer";
-import {Toggle} from "@/ui-components/Toggle";
 
 const FORMAT = "dd/MM/yyyy";
 
@@ -221,7 +220,6 @@ type WalletStore = {
 const VERY_HIGH_DATE_VALUE = 99999999999999;
 function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
     const [wallets, setWallets] = React.useState<WalletStore>({} as WalletStore);
-    const [advancedToggles, setAdvancedToggles] = useState<string[]>([]);
     React.useEffect(() => {
         const dividedWallets = {};
         productTypes.forEach(key => dividedWallets[key] = []);
@@ -257,17 +255,7 @@ function Wallets(props: {wallets: Wallet[]}): JSX.Element | null {
                 titleContent={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
             >
                 <Border>
-                    <Flex>
-                        <Text mt="-4px" mr="12px">Advanced view</Text>
-                        <Toggle checked={advancedToggles.includes(key)} onChange={() => {
-                            if (advancedToggles.includes(key)) {
-                                setAdvancedToggles([...advancedToggles.filter(it => it !== key)]);
-                            } else {
-                                setAdvancedToggles([...advancedToggles, key]);
-                            }
-                        }} />
-                    </Flex>
-                    <SimpleWalletView wallets={walletsList} advancedView={advancedToggles.includes(key)} />
+                    <SimpleWalletView wallets={walletsList} />
                 </Border>
             </Accordion>
         })}
@@ -281,7 +269,7 @@ const Border = styled.div`
     padding: 12px;
 `;
 
-function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): JSX.Element {
+function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
     return <SimpleWalletRowWrapper>
         {props.wallets.map(wallet => {
             const asPercent = resultAsPercent(totalUsageFromWallet(wallet));
@@ -290,14 +278,13 @@ function SimpleWalletView(props: {wallets: Wallet[]; advancedView: boolean;}): J
             );
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
-                <SimpleAllocationRowWrapper key={wallet.paysFor.name + wallet.paysFor.provider + wallet.paysFor.title}>
-                    <Spacer
-                        px="30px"
-                        left={<Text color="text" mt="-4px">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
-                        right={<><Text color="text" mt="-4px" mr="16px">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
-                    />
-                    {props.advancedView ? <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection> : null}
-                </SimpleAllocationRowWrapper>
+                <Accordion
+                    key={wallet.paysFor.name + wallet.paysFor.provider + wallet.paysFor.title}
+                    title={<Text color="text">{wallet.paysFor.name} @ {wallet.paysFor.provider}</Text>}
+                    titleContent={<><Text color="text">{expirationText}</Text><ResourceProgress value={Math.round(asPercent)} /></>}
+                >
+                    <VisualizationSection><WalletViewer wallet={wallet} /></VisualizationSection>
+                </Accordion>
             );
         })}
     </SimpleWalletRowWrapper>;
