@@ -77,7 +77,6 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     shouldFetch?: () => boolean;
 
     extraSidebar?: JSX.Element;
-    enableDelete?: boolean;
 }
 
 export interface BaseResourceBrowseProps<Res extends Resource> {

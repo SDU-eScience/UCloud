@@ -1,9 +1,13 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {
+    CREATE_TAG,
+    PERMISSIONS_TAG,
     ProductSupport,
+    PROPERTIES_TAG,
     Resource,
     ResourceApi,
+    ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
@@ -34,6 +38,9 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
+import {dialogStore} from "@/Dialog/DialogStore";
+import Edit from "@/Admin/Providers/Edit";
 
 export interface ProviderSpecification extends ResourceSpecification {
     id: string;
@@ -72,7 +79,6 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
     title = "Provider";
     page = SidebarPages.Admin;
     productType = undefined;
-    enableDelete = false;
 
     renderer: ItemRenderer<Provider> = {
         Icon({resource, size}) {
@@ -92,6 +98,61 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             </>
         }
     };
+
+    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider>>[] {
+        return [
+            {
+                text: "Create " + this.title.toLowerCase(),
+                icon: "upload",
+                color: "blue",
+                primary: true,
+                canAppearInLocation: loc => loc !== "IN_ROW",
+                enabled: (selected, cb) => {
+                    if (selected.length !== 0 || cb.startCreation == null || cb.isCreating) return false;
+                    return true;
+                },
+                onClick: (selected, cb) => cb.startCreation!(),
+                tag: CREATE_TAG
+            },
+            {
+                text: "Edit",
+                icon: "edit",
+                enabled: (selected, cb) => selected.length === 1,
+                onClick: (selected, cb) => Edit()
+            },
+            {
+                text: "Permissions",
+                icon: "share",
+                enabled: (selected, cb) => {
+                    return selected.length === 1 &&
+                        selected[0].owner.project != null &&
+                        cb.viewProperties != null &&
+                        selected[0].permissions.myself.some(it => it === "ADMIN");
+                },
+                onClick: (selected, cb) => {
+                    if (!cb.embedded) {
+                        dialogStore.addDialog(
+                            <ResourcePermissionEditor reload={cb.reload} entity={selected[0]} api={cb.api} />,
+                            doNothing,
+                            true
+                        );
+                    } else {
+                        cb.viewProperties!(selected[0]);
+                    }
+                },
+                tag: PERMISSIONS_TAG
+            },
+            {
+                text: "Properties",
+                icon: "properties",
+                enabled: (selected, cb) => selected.length === 1 && cb.viewProperties != null,
+                onClick: (selected, cb) => {
+                    cb.viewProperties!(selected[0]);
+                },
+                tag: PROPERTIES_TAG
+            }
+        ];
+    }
 
     Properties = (props) => {
         return <ResourceProperties

@@ -14,7 +14,7 @@ function Browse(): JSX.Element | null {
                 history.push("/providers/create")
             }
         }}
-        enableDelete={false}
+        inlineCreationMode={"NONE"}
     />;
 }
 

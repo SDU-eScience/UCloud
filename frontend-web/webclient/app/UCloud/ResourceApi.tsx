@@ -141,7 +141,6 @@ export abstract class ResourceApi<Res extends Resource,
     public abstract routingNamespace;
     public abstract title: string;
     public abstract page: SidebarPages;
-    public enableDelete: boolean;
     public defaultSortDirection: "ascending" | "descending" = "ascending";
 
     public filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [];
@@ -264,7 +263,7 @@ export abstract class ResourceApi<Res extends Resource,
                 icon: "trash",
                 color: "red",
                 confirm: true,
-                enabled: (selected) => selected.length >= 1 && this.enableDelete,
+                enabled: (selected) => selected.length >= 1,
                 onClick: async (selected, cb) => {
                     await cb.invokeCommand(cb.api.remove(bulkRequestOf(...selected.map(it => ({id: it.id})))));
                     cb.reload();
