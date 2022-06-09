@@ -263,7 +263,7 @@ data class GrantApplication(
     @Serializable
     @SerialName("comment")
     data class Comment(
-        val id: String,
+        val id: Long,
         val username: String,
         val createdAt: Long,
         val comment: String,
