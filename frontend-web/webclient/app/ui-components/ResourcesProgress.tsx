@@ -29,16 +29,15 @@ function getColorFromValue(value: number): string {
     return thresholds.find(it => it.maxValue >= value)?.color ?? "green"
 }
 
-const Bar = styled.div<{value: number}>`
+const Bar = styled.div<{value: number; width: number | string;}>`
     position: absolute;
     top: 0;
     height: 100%;
     overflow: hidden;
     & > span {
-        margin-top: -1px;
         position: absolute;
         display: block;
-        width: 150px;
+        width: ${props => props.width};
         height: 100%;
         text-align: center;
     }
@@ -68,11 +67,11 @@ const Bar = styled.div<{value: number}>`
     }
 `;
 
-const ProgressBar = styled.div<{value: number}>`
+const ProgressBar = styled.div<{value: number; width: number | string; height: number | string;}>`
     border-radius: 4px;
     position: relative;
-    width: 150px;
-    height: 15px;
+    width: ${props => props.width};
+    height: ${props => props.height};
     line-height: 15px;
     vertical-align: middle;
     overflow: hidden;
@@ -87,16 +86,14 @@ export function ResourceProgress(
         height?: string;
     }>
 ): JSX.Element {
-    /* TODO(Jonas): Use in components */
     const width = props.width ?? "150px";
     const height = props.height ?? "15px";
-    /* TODO(Jonas): End */
     return (
-        <ProgressBar value={props.value}>
-            <Bar className="positive" value={props.value}>
+        <ProgressBar width={width} height={height} value={props.value}>
+            <Bar className="positive" width={width} value={props.value}>
                 <span>{props.value}%</span>
             </Bar>
-            <Bar className="negative" value={props.value}>
+            <Bar className="negative" width={width} value={props.value}>
                 <span>{props.value}%</span>
             </Bar>
         </ProgressBar>
