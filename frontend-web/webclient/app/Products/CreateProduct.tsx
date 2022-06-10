@@ -71,10 +71,12 @@ interface ResourceField {
     id: string;
     label: DynamicProp<string>;
     required?: boolean;
+    disabled?: boolean;
     placeholder?: DynamicProp<string>;
     styling: LabelProps;
     leftLabel?: DynamicProp<string>;
     rightLabel?: DynamicProp<string>;
+    defaultValue?: DynamicProp<string | number>;
 
     dependencies?: string[];
 }
@@ -193,6 +195,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                     leftLabel={!!p.leftLabel}
                     rightLabel={!!p.rightLabel}
                     {...p}
+                    defaultValue={p.defaultValue}
                 />
                 {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}
             </div>
@@ -247,6 +250,8 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                     onChange={e => ctx.fields[props.id] = e.target.value}
                     leftLabel={!!p.leftLabel}
                     rightLabel={!!p.rightLabel}
+                    disabled={!!p.disabled ?? false}
+                    defaultValue={p.defaultValue ?? ""}
                     {...p}
                 />
                 {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}

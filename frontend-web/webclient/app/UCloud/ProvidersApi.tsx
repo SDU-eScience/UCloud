@@ -73,6 +73,10 @@ interface ProductCallbacks {
     invokeCommand: InvokeCommand;
 }
 
+interface ProviderCallbacks {
+    editProvider: (product: Provider) => void;
+}
+
 class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, ProviderUpdate,
     ProviderFlags, ProviderStatus, ProviderSupport> {
     routingNamespace = "providers";
@@ -99,7 +103,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
         }
     };
 
-    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider>>[] {
+    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider> & ProviderCallbacks>[] {
         return [
             {
                 text: "Create " + this.title.toLowerCase(),
@@ -118,7 +122,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 text: "Edit",
                 icon: "edit",
                 enabled: (selected, cb) => selected.length === 1,
-                onClick: (selected, cb) => Edit()
+                onClick: (selected, cb) => cb.editProvider(selected[0])
             },
             {
                 text: "Permissions",

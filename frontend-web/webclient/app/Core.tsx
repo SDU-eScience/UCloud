@@ -47,6 +47,7 @@ const Demo = React.lazy(() => import("@/Playground/Demo"));
 const LagTest = React.lazy(() => import("@/Playground/LagTest"));
 const Providers = React.lazy(() => import("@/Admin/Providers/Browse"));
 const CreateProvider = React.lazy(() => import("@/Admin/Providers/Create"));
+const EditProvider = React.lazy(() => import("@/Admin/Providers/Edit"));
 const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
 const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
@@ -143,10 +144,12 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/admin/providers" component={requireAuth(Providers)} />
                     <Route exact path="/admin/providers/create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/admin/providers/edit" component={requireAuth(EditProvider)} />
                     <Route exact path="/admin/providers/register" component={requireAuth(RegisterProvider)} />
 
                     <Route exact path={"/providers/connect"} component={requireAuth(ProviderConnection)} />
                     <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
+                    <Route exact path="/providers/edit/:id" component={requireAuth(EditProvider)} />
                     <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
                     <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
 

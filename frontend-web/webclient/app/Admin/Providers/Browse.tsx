@@ -1,6 +1,6 @@
 import * as React from "react";
 import {ResourceBrowse} from "@/Resource/Browse";
-import ProvidersApi from "@/UCloud/ProvidersApi";
+import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useHistory} from "react-router";
 
@@ -12,6 +12,9 @@ function Browse(): JSX.Element | null {
         extraCallbacks={{
             startCreation() {
                 history.push("/providers/create")
+            },
+            editProvider(provider: Provider) {
+                history.push("/providers/edit/" + provider.id)
             }
         }}
         inlineCreationMode={"NONE"}
