@@ -194,8 +194,9 @@ const Resources: React.FunctionComponent = () => {
                                     </HighlightedCard>
                                 })}
                             </VisualizationSection>
-                            <Wallets wallets={wallets.data.items} />
-
+                            <Grid gridGap="0px">
+                                <Wallets wallets={wallets.data.items} />
+                            </Grid>
                             {managementStatus.allowManagement ?
                                 <SubAllocationViewer
                                     allocations={allocations}
