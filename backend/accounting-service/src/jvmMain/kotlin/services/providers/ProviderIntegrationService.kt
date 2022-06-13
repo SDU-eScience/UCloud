@@ -154,12 +154,13 @@ class ProviderIntegrationService(
             },
             mapper = { _, rows ->
                 rows.mapNotNull { row ->
-                    val connectionSupported = communicationCache.get(row.getLong(0)!!.toString()) != null
+                    val manifest = communicationCache.get(row.getLong(0)!!.toString())
 
                     IntegrationBrowseResponseItem(
                         row.getLong(0)!!.toString(),
-                        if (!connectionSupported) true else row.getBoolean(1)!!,
+                        if (manifest == null || !manifest.manifest.enabled) true else row.getBoolean(1)!!,
                         row.getString(2)!!,
+                        manifest?.manifest?.requiresMessageSigning ?: false
                     )
                 }
             }

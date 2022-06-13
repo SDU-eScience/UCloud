@@ -12,6 +12,7 @@ typealias IntegrationProviderRetrieveManifestRequest = Unit
 data class IntegrationProviderRetrieveManifestResponse(
     val enabled: Boolean,
     val expireAfterMs: Long? = null,
+    val requiresMessageSigning: Boolean = false,
 )
 
 @Serializable
