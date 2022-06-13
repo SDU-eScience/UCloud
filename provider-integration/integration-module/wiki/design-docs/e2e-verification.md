@@ -1,12 +1,27 @@
-# End-to-End Verification of Communication
+# End-to-End verification of communication
 
 This design document covers the feature tracked in [UCloud#3367](https://github.com/sdu-escience/ucloud/issues/3367).
 
 ## Status
 
-| Component | Description | Issue | Status |
-|-----------|-------------|-------|--------|
-| -         | -           | -     | -      |
+| Component (*) | Description                                                     | Issue                                                       | Status (+) |
+|---------------|-----------------------------------------------------------------|-------------------------------------------------------------|------------|
+| FE            | Create a call name lookup table                                 | [#3491](https://github.com/sdu-escience/ucloud/issues/3491) | Backlog    |
+| IM            | Create a call name lookup table (user API to provider)          | [#3492](https://github.com/sdu-escience/ucloud/issues/3492) | Backlog    |
+| BE            | Update connection API to allow for optional signing             | [#3493](https://github.com/sdu-escience/ucloud/issues/3493) | Backlog    |
+| BE            | Update provider API to expose information about signing         | [#3494](https://github.com/sdu-escience/ucloud/issues/3494) | Backlog    |
+| FE            | Introduce a JWT (signing) library into the frontend             | [#3495](https://github.com/sdu-escience/ucloud/issues/3495) | Backlog    |
+| IMS           | Expand the connection procedure to save a public key            | [#3496](https://github.com/sdu-escience/ucloud/issues/3496) | Backlog    |
+| FE            | Update connection dashboard to be active when no key is present | [#3497](https://github.com/sdu-escience/ucloud/issues/3497) | Backlog    |
+| FE            | Introduce message signing                                       | [#3498](https://github.com/sdu-escience/ucloud/issues/3498) | Backlog    |
+| BE            | Forward RPC signature to providers                              | [#3499](https://github.com/sdu-escience/ucloud/issues/3499) | Backlog    |
+| IMU           | Introduce E2E verification procedure                            | [#3500](https://github.com/sdu-escience/ucloud/issues/3500) | Backlog    |
+| FE            | Introduce key invalidation in response to 482 status            | [#3501](https://github.com/sdu-escience/ucloud/issues/3501) | Backlog    |
+
+(*): __FE__ = Frontend. __BE__ = Backend (Core). __IM__ = Integration module. __IMU__ = Integration module (User mode).
+__IMS__ = Integration module (Server mode).
+
+(+): See issue for up-to-date status
 
 ## Motivation
 
@@ -18,14 +33,14 @@ traditionally not been a problem since UCloud didn't have many providers and wer
 organizations.
 
 However, as the number of potential providers has been growing, so has a concern that UCloud/Core would become
-compromised and would start acting on the behalf of other users on a
-provider's system. Such an attack would essentially give the provider's no additional lines of defense as they would be
-authenticated (by UCloud) as a real user of the system.
+compromised and would start acting on the behalf of other users on a provider's system. Such an attack would essentially
+give the provider's no additional lines of defense as they would be authenticated (by UCloud) as a real user of the
+system.
 
 This feature attempts to mitigate such an attack by allowing providers to independently verify that user requests are
 coming from the user.
 
-## Proposed Solution
+## Proposed solution
 
 The proposed solution involves extending the RPC protocol between the end-user and UCloud/Core. This will allow the
 end-user to optionally add a digital signature of their request. If such a signature is received by the Core, then it
@@ -40,7 +55,7 @@ itself.
 For the sake of adoption, it is absolutely crucial that UCloud helps facilitate the creation and exchange of keys
 required for such a digital signature. However, the Core must _never_ see any of the keys involved in this process.
 
-### Digital Signature
+### Digital signature
 
 For the sake of making the implementation easy, it has been decided to use JWTs for digital signatures. This has been
 chosen since all components involved in UCloud are already capable of handling JWTs as they are a requirement for using
@@ -81,7 +96,7 @@ fully controlled by the end-user. The table below summarizes how to validate eac
 | `username`      | The `UCloud-Username` header passed from UCloud         |                                     |
 | `project`       | The resource sent by UCloud/Core (if any)               |                                     |
 
-### Exchanging Keys
+### Exchanging keys
 
 #### Approach 1: Key generation in UCloud frontend exchange during connection
 
@@ -92,8 +107,8 @@ For the sake of simplicity, we assume that the same key is shared amongst all pr
 because the frontend rarely knows which provider it is speaking to and changing this would be a fairly significant
 change.
 
-1. Frontend loads. The frontend immediately checks if a key-pair has already been generated. This key is saved to 
-  `localStorage`.
+1. Frontend loads. The frontend immediately checks if a key-pair has already been generated. This key is saved to
+   `localStorage`.
 2. User clicks on "Connect"
 3. UCloud/Core queries the provider for a redirect URL and forwards it to the frontend
 4. The frontend `POST`s the public key to this redirect URL
@@ -134,9 +149,9 @@ which goes beyond the basics, but in many cases this feature would be seen as ma
 a result, we end up with basically gating users from using our software for no good reason. Approach 1 is not
 perfect, but they would limit the amount of damage a full UCloud compromise could result in.
 
-## Concerns and Considerations
+## Concerns and considerations
 
-### Storing Keys in the UCloud Frontend
+### Storing keys in the UCloud frontend
 
 Storing keys in the UCloud frontend has some obvious concerns involved with it. As described in the proposals above,
 this can lead to situations where a malicious UCloud frontend could start harvesting and stealing keys. As a result, a
@@ -147,7 +162,7 @@ proposes that we consider it an acceptable risk that we are storing keys in `loc
 To mitigate the risk of keys being stolen, a relatively short TTL of the public keys are crucial. We recommend keeping
 this balanced with the inconvenience caused by having to reconnect and reconfigure the keys.
 
-### Replay Attacks and UCloud/Core Maliciously Changing Real Requests
+### Replay attacks and UCloud/Core maliciously changing real requests
 
 The `RpcManifest` is purposefully loose in the scope in which it acts. This allows UCloud/Core perform the required
 modifications to the request payload. Unfortunately, this also means that UCloud/Core could easily replay or even
@@ -157,4 +172,32 @@ This issue is mainly mitigated by having a short TTL on the `RpcManifest`. Furth
 limiting the scope of the RPC even further. This is currently not considered a priority, due to time it would take to
 implement. Examples could include limiting a file browsing request to a specific path.
 
-### Time Synchronization between End-user and Provider
+### Time synchronization between end-user and provider
+
+Relying on client time means that we have the risk of client time and end-user time is out-of-sync. This is not a new
+thing, since we already rely on client timing for 2FA. For the most part, we must simply deal with invalid keys in a
+good way (see below).
+
+### Key invalidation
+
+Given that keys are never known by UCloud/Core, it makes sense that UCloud/Core cannot initiate a key invalidation
+event. Thus, it must be provider specific how to invalidate a key. The integration module could create a CLI for this
+which is invokable by the end-user.
+
+The user experience of key invalidation is likely not going to be very good. It seems that for the most part we must
+rely only on the expiration of keys.
+
+### Creating keys for every device
+
+Given that keys are stored directly in the client, in becomes a requirement that users create a key for every device.
+This becomes problematic, since key exchange is tied directly to the connection process. At a minimum, this means that
+the frontend must prompt the user to connect if no local key has been exchanged with a given provider.
+
+Furthermore, this highlights the importance of having a good UI for prompting connections from the user. A card on the
+dashboard is probably not invasive enough.
+
+### Dealing with invalid keys in the frontend
+
+The frontend will know about failures related to an invalid key because of the HTTP status code. It is crucial that the
+Core correctly forwards this status code. Additionally, when a frontend is presented with such a key, it should
+immediately invalidate its own key and display an appropriate prompt for renewing the key.
