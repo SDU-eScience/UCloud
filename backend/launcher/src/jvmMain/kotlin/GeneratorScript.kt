@@ -555,4 +555,5 @@ fun generateCode() {
     generateSphinxCalls(callsByFeature.values)
     generateSphinxTypes(types.values)
     generateSphinxExamples(useCases)
+    generateFrontendRpcNameTable(callsByFeature.values)
 }

@@ -65,6 +65,7 @@ Jobs.create.call(
         resources = listOf(AppParameterValue.Ingress(
             id = "41231", 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -206,7 +207,8 @@ await callAPI(JobsApi.create(
                     }
                 ],
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -350,7 +352,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             ],
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'

@@ -137,6 +137,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Request job cancellation and destruction</td>
 </tr>
 <tr>
+<td><a href='#unsuspend'><code>unsuspend</code></a></td>
+<td>Unsuspends a job</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Updates the ACL attached to a resource</td>
 </tr>
@@ -193,6 +197,34 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#exportedparameters'><code>ExportedParameters</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#exportedparameters.resources'><code>ExportedParameters.Resources</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingress'><code>Ingress</code></a></td>
+<td>An L7 ingress-point (HTTP)</td>
+</tr>
+<tr>
+<td><a href='#ingressspecification'><code>IngressSpecification</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingressstate'><code>IngressState</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingressstatus'><code>IngressStatus</code></a></td>
+<td>The status of an `Ingress`</td>
+</tr>
+<tr>
+<td><a href='#ingresssupport'><code>IngressSupport</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#ingressupdate'><code>IngressUpdate</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -492,6 +524,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -739,7 +772,8 @@ await callAPI(JobsApi.create(
                 },
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -964,7 +998,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -1024,6 +1059,7 @@ Jobs.follow.subscribe(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -1040,6 +1076,7 @@ JobsFollowResponse(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -1049,8 +1086,10 @@ JobsFollowResponse(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -1073,6 +1112,7 @@ JobsFollowResponse(
             "There is NO WARRANTY, to the extent permitted by law.", 
     )), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -1089,6 +1129,7 @@ JobsFollowResponse(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -1098,8 +1139,10 @@ JobsFollowResponse(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
@@ -1572,6 +1615,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -1615,6 +1659,7 @@ Jobs.create.call(
             hostname = "database", 
             jobId = "4101", 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -1674,7 +1719,8 @@ await callAPI(JobsApi.create(
                 },
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -1725,7 +1771,8 @@ await callAPI(JobsApi.create(
                     }
                 ],
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -1789,7 +1836,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -1835,7 +1883,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             ],
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -1931,6 +1980,7 @@ Jobs.create.call(
         resources = listOf(AppParameterValue.Ingress(
             id = "41231", 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -2072,7 +2122,8 @@ await callAPI(JobsApi.create(
                     }
                 ],
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -2216,7 +2267,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             ],
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -2345,6 +2397,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -2425,7 +2478,8 @@ await callAPI(JobsApi.create(
                 },
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -2507,7 +2561,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -2572,6 +2627,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -2650,7 +2706,8 @@ await callAPI(JobsApi.create(
                 "parameters": null,
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -2740,7 +2797,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "parameters": null,
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -2839,6 +2897,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -2910,7 +2969,8 @@ await callAPI(JobsApi.create(
                 "parameters": null,
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -2993,7 +3053,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "parameters": null,
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -3093,6 +3154,7 @@ Jobs.create.call(
             path = "/12512/shared", 
             readOnly = false, 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -3169,9 +3231,11 @@ Job(
             path = "/12512/shared", 
             readOnly = false, 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -3181,24 +3245,30 @@ Job(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633588976235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
         timestamp = 1633588981235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
@@ -3252,7 +3322,8 @@ await callAPI(JobsApi.create(
                     }
                 ],
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -3316,6 +3387,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633588976235
         },
         {
@@ -3325,6 +3398,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633588981235
         },
         {
@@ -3334,6 +3409,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633589101235
         }
     ],
@@ -3359,7 +3436,8 @@ await callAPI(JobsApi.retrieve(
             }
         ],
         "timeAllocation": null,
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "SUCCESS",
@@ -3368,7 +3446,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": null,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633588976235,
     "output": null,
@@ -3421,7 +3500,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             ],
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -3456,6 +3536,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633588976235
 #         },
 #         {
@@ -3465,6 +3547,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633588981235
 #         },
 #         {
@@ -3474,6 +3558,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633589101235
 #         }
 #     ],
@@ -3499,7 +3585,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             }
 #         ],
 #         "timeAllocation": null,
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -3508,7 +3595,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": null,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633588976235,
 #     "output": null,
@@ -3614,6 +3702,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -3686,9 +3775,11 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -3698,24 +3789,30 @@ Job(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633588976235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
         timestamp = 1633588981235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
@@ -3812,7 +3909,8 @@ await callAPI(JobsApi.create(
                 "parameters": null,
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -3875,6 +3973,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633588976235
         },
         {
@@ -3884,6 +3984,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633588981235
         },
         {
@@ -3893,6 +3995,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633589101235
         }
     ],
@@ -3912,7 +4016,8 @@ await callAPI(JobsApi.retrieve(
         "parameters": null,
         "resources": null,
         "timeAllocation": null,
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "SUCCESS",
@@ -3921,7 +4026,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": null,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633588976235,
     "output": null,
@@ -4007,7 +4113,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "parameters": null,
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -4041,6 +4148,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633588976235
 #         },
 #         {
@@ -4050,6 +4159,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633588981235
 #         },
 #         {
@@ -4059,6 +4170,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633589101235
 #         }
 #     ],
@@ -4078,7 +4191,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "parameters": null,
 #         "resources": null,
 #         "timeAllocation": null,
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -4087,7 +4201,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": null,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633588976235,
 #     "output": null,
@@ -4149,6 +4264,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4222,6 +4338,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4229,6 +4346,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = 1633347776235, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -4238,16 +4356,20 @@ Job(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -4334,6 +4456,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4341,6 +4464,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = 1633351376235, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -4350,16 +4474,20 @@ Job(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -4441,6 +4569,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4448,6 +4577,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -4457,24 +4587,30 @@ Job(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
         timestamp = 1633329781235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
@@ -4523,7 +4659,8 @@ await callAPI(JobsApi.create(
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -4583,6 +4720,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -4592,6 +4731,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         }
     ],
@@ -4615,7 +4756,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "RUNNING",
@@ -4624,7 +4766,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": 1633347776235,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -4702,6 +4845,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -4711,6 +4856,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         }
     ],
@@ -4734,7 +4881,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "RUNNING",
@@ -4743,7 +4891,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": 1633351376235,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -4816,6 +4965,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -4825,6 +4976,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         },
         {
@@ -4834,6 +4987,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633336981235
         }
     ],
@@ -4857,7 +5012,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "SUCCESS",
@@ -4866,7 +5022,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": null,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -4915,7 +5072,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "minutes": 0,
                 "seconds": 0
             },
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -4947,6 +5105,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -4956,6 +5116,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -4979,7 +5141,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -4988,7 +5151,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": 1633347776235,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
@@ -5036,6 +5200,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -5045,6 +5211,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -5068,7 +5236,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -5077,7 +5246,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": 1633351376235,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
@@ -5120,6 +5290,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -5129,6 +5301,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         },
 #         {
@@ -5138,6 +5312,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633336981235
 #         }
 #     ],
@@ -5161,7 +5337,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -5170,7 +5347,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": null,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
@@ -5382,7 +5560,7 @@ _Suspend a job_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 Suspends the job, putting it in a paused state. Not all compute backends support this operation.
 For compute backends which deals with Virtual Machines this will shutdown the Virtual Machine
@@ -5408,6 +5586,22 @@ deleted only temporary data from the job will be deleted.
 
 This call is asynchronous and the cancellation may not be immediately visible in the job. Progress can
 be followed using the [`jobs.retrieve`](/docs/reference/jobs.retrieve.md), [`jobs.browse`](/docs/reference/jobs.browse.md), [`jobs.follow`](/docs/reference/jobs.follow.md)  calls.
+
+
+### `unsuspend`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Unsuspends a job_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+Reverses the effects of suspending a job. The job is expected to return back to an `IN_QUEUE` or
+`RUNNING` state.
 
 
 ### `updateAcl`
@@ -5612,6 +5806,7 @@ data class JobSpecification(
     val resources: List<AppParameterValue>?,
     val timeAllocation: SimpleDuration?,
     val openedFile: String?,
+    val restartOnExit: Boolean?,
 )
 ```
 
@@ -5736,6 +5931,27 @@ current environment). Remember that this path is the _UCloud_ path to the file a
 
 </details>
 
+<details>
+<summary>
+<code>restartOnExit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A flag which indicates if this job should be restarted on exit.
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+Not all providers support this feature and the Job will be rejected if not supported. This information can
+also be queried through the product support feature.
+
+If this flag is `true` then the Job will automatically be restarted when the provider notifies the
+orchestrator about process termination. It is the responsibility of the orchestrator to notify the provider
+about restarts. If the restarts are triggered by the provider, then the provider must not notify the
+orchestrator about the termination. The orchestrator will trigger a new `create` request in a timely manner.
+The orchestrator decides when to trigger a new `create`. For example, if a process is terminating often,
+then the orchestrator might decide to wait before issuing a new `create`.
+
+
+</details>
+
 
 
 </details>
@@ -5759,6 +5975,7 @@ enum class JobState {
     SUCCESS,
     FAILURE,
     EXPIRED,
+    SUSPENDED,
 }
 ```
 
@@ -5864,6 +6081,18 @@ __📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.m
 
 This state should only be used if the [`timeAllocation`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobSpecification.md) has expired. Any other
 form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
+
+
+</details>
+
+<details>
+<summary>
+<code>SUSPENDED</code> A Job which might have previously run but is no longer running, this state is not final.
+</summary>
+
+
+
+Unlike SUCCESS and FAILURE a Job can transition from this state to one of the active states again.
 
 
 </details>
@@ -6540,6 +6769,7 @@ Implement as a floating to represent fractions of a virtual core. This is for ex
 data class ExportedParameters(
     val siteVersion: Int,
     val request: ExportedParametersRequest,
+    val resolvedResources: ExportedParameters.Resources?,
     val machineType: JsonObject,
 )
 ```
@@ -6573,7 +6803,493 @@ data class ExportedParameters(
 
 <details>
 <summary>
+<code>resolvedResources</code>: <code><code><a href='#exportedparameters.resources'>ExportedParameters.Resources</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>machineType</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ExportedParameters.Resources`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Resources(
+    val ingress: JsonObject?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>ingress</code>: <code><code><a href='https://kotlin.github.io/kotlinx.serialization/kotlinx-serialization-json/kotlinx-serialization-json/kotlinx.serialization.json/-json-object/index.html'>JsonObject</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `Ingress`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_An L7 ingress-point (HTTP)_
+
+```kotlin
+data class Ingress(
+    val id: String,
+    val specification: IngressSpecification,
+    val owner: ResourceOwner,
+    val createdAt: Long,
+    val status: IngressStatus,
+    val updates: List<IngressUpdate>?,
+    val permissions: ResourcePermissions?,
+    val providerGeneratedId: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique identifier referencing the `Resource`
+</summary>
+
+
+
+The ID is unique across a provider for a single resource type.
+
+
+</details>
+
+<details>
+<summary>
+<code>specification</code>: <code><code><a href='#ingressspecification'>IngressSpecification</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code> Information about the owner of this resource
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Information about when this resource was created
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='#ingressstatus'>IngressStatus</a></code></code> The current status of this resource
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#ingressupdate'>IngressUpdate</a>&gt;?</code></code> A list of updates for this `Ingress`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> Permissions assigned to this resource
+</summary>
+
+
+
+A null value indicates that permissions are not supported by this resource type.
+
+
+</details>
+
+<details>
+<summary>
+<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IngressSpecification`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class IngressSpecification(
+    val domain: String,
+    val product: ProductReference,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>domain</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The domain used for L7 load-balancing for use with this `Ingress`
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code> The product used for the `Ingress`
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IngressState`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class IngressState {
+    PREPARING,
+    READY,
+    UNAVAILABLE,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>PREPARING</code> A state indicating that the `Ingress` is currently being prepared and is expected to reach `READY` soon.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>READY</code> A state indicating that the `Ingress` is ready for use or already in use.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>UNAVAILABLE</code> A state indicating that the `Ingress` is currently unavailable.
+</summary>
+
+
+
+This state can be used to indicate downtime or service interruptions by the provider.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IngressStatus`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The status of an `Ingress`_
+
+```kotlin
+data class IngressStatus(
+    val boundTo: List<String>?,
+    val state: IngressState,
+    val resolvedSupport: ResolvedSupport<Product.Ingress, IngressSupport>?,
+    val resolvedProduct: Product.Ingress?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>boundTo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> The ID of the `Job` that this `Ingress` is currently bound to
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>, <a href='#ingresssupport'>IngressSupport</a>&gt;?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>?</code></code> The resolved product referenced by `product`.
+</summary>
+
+
+
+This attribute is not included by default unless `includeProduct` is specified.
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IngressSupport`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class IngressSupport(
+    val domainPrefix: String,
+    val domainSuffix: String,
+    val product: ProductReference,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>domainPrefix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>domainSuffix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `IngressUpdate`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class IngressUpdate(
+    val state: IngressState?,
+    val status: String?,
+    val timestamp: Long?,
+    val binding: JobBinding?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code> The new state that the `Ingress` transitioned to (if any)
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A new status message for the `Ingress` (if any)
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> A timestamp for when this update was registered by UCloud
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>binding</code>: <code><code><a href='#jobbinding'>JobBinding</a>?</code></code>
 </summary>
 
 
@@ -6738,6 +7454,7 @@ data class JobStatus(
     val resolvedApplication: Application?,
     val resolvedSupport: ResolvedSupport<Product.Compute, ComputeSupport>?,
     val resolvedProduct: Product.Compute?,
+    val allowRestart: Boolean?,
 )
 ```
 The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
@@ -6835,6 +7552,17 @@ This attribute is not included by default unless `includeProduct` is specified.
 
 </details>
 
+<details>
+<summary>
+<code>allowRestart</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
 
 
 </details>
@@ -6858,6 +7586,8 @@ data class JobUpdate(
     val expectedState: JobState?,
     val expectedDifferentState: Boolean?,
     val newTimeAllocation: Long?,
+    val allowRestart: Boolean?,
+    val newMounts: List<String>?,
     val timestamp: Long?,
 )
 ```
@@ -6934,6 +7664,28 @@ An update will typically contain information similar to the `status` field, for 
 <details>
 <summary>
 <code>newTimeAllocation</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowRestart</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>newMounts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
 </summary>
 
 

@@ -86,7 +86,7 @@ private fun writeSpecification(
 ) {
     val typeRegistry = LinkedHashMap<String, ComputedType>()
     knownCalls
-        .groupBy { it.httpOrNull?.path?.toPath(true) ?: "" }
+        .groupBy { it.httpOrNull?.path?.toPath() ?: "" }
         .forEach { (path, calls) ->
             if (path == "") return@forEach
 

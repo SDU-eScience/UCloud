@@ -17,6 +17,7 @@ data class JobStatus(
     val resolvedApplication: Application?,
     val resolvedSupport: ResolvedSupport<Product.Compute, ComputeSupport>?,
     val resolvedProduct: Product.Compute?,
+    val allowRestart: Boolean?,
 )
 ```
 The contents of this field depends almost entirely on the specific `Resource` that this field is managing. Typically,
@@ -110,6 +111,17 @@ This attribute is not included by default unless `includeApplication` is specifi
 
 
 This attribute is not included by default unless `includeProduct` is specified.
+
+
+</details>
+
+<details>
+<summary>
+<code>allowRestart</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
 
 
 </details>

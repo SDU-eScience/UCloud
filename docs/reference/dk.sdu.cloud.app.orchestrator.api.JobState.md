@@ -16,6 +16,7 @@ enum class JobState {
     SUCCESS,
     FAILURE,
     EXPIRED,
+    SUSPENDED,
 }
 ```
 
@@ -121,6 +122,18 @@ __📝 NOTE:__ A [`Job`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.m
 
 This state should only be used if the [`timeAllocation`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobSpecification.md) has expired. Any other
 form of cancellation/termination should result in either `SUCCESS` or `FAILURE`.
+
+
+</details>
+
+<details>
+<summary>
+<code>SUSPENDED</code> A Job which might have previously run but is no longer running, this state is not final.
+</summary>
+
+
+
+Unlike SUCCESS and FAILURE a Job can transition from this state to one of the active states again.
 
 
 </details>

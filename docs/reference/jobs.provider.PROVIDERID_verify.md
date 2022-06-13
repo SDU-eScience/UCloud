@@ -60,6 +60,7 @@ JobsProvider.verify.call(
             ), 
             replicas = 1, 
             resources = null, 
+            restartOnExit = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -67,6 +68,7 @@ JobsProvider.verify.call(
             ), 
         ), 
         status = JobStatus(
+            allowRestart = false, 
             expiresAt = null, 
             jobParametersJson = null, 
             resolvedApplication = null, 
@@ -91,8 +93,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.FAILURE, 
@@ -167,7 +171,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "minutes": 0,
                         "seconds": 0
                     },
-                    "openedFile": null
+                    "openedFile": null,
+                    "restartOnExit": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -176,7 +181,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                     "expiresAt": null,
                     "resolvedApplication": null,
                     "resolvedSupport": null,
-                    "resolvedProduct": null
+                    "resolvedProduct": null,
+                    "allowRestart": false
                 },
                 "createdAt": 1633329776235,
                 "output": null,
@@ -206,6 +212,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -280,7 +288,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             },
             "status": {
                 "state": "RUNNING",
@@ -289,7 +298,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expiresAt": null,
                 "resolvedApplication": null,
                 "resolvedSupport": null,
-                "resolvedProduct": null
+                "resolvedProduct": null,
+                "allowRestart": false
             },
             "createdAt": 1633329776235,
             "output": null,
@@ -316,6 +326,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }

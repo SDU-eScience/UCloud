@@ -67,6 +67,10 @@ __Figure:__ Allocations create a natural _allocation hierarchy_.
 <td>Browses the catalog of sub-allocations</td>
 </tr>
 <tr>
+<td><a href='#retrieveprovidersummary'><code>retrieveProviderSummary</code></a></td>
+<td>Retrieves a provider summary of relevant wallets</td>
+</tr>
+<tr>
 <td><a href='#retrieverecipient'><code>retrieveRecipient</code></a></td>
 <td>Retrieves information about a potential WalletAllocation recipient</td>
 </tr>
@@ -110,6 +114,10 @@ __Figure:__ Allocations create a natural _allocation hierarchy_.
 <td>A policy for how to select a WalletAllocation in a single Wallet</td>
 </tr>
 <tr>
+<td><a href='#providerwalletsummary'><code>ProviderWalletSummary</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#suballocation'><code>SubAllocation</code></a></td>
 <td>A parent allocator's view of a `WalletAllocation`</td>
 </tr>
@@ -140,6 +148,10 @@ __Figure:__ Allocations create a natural _allocation hierarchy_.
 <tr>
 <td><a href='#walletsbrowsesuballocationsrequest'><code>WalletsBrowseSubAllocationsRequest</code></a></td>
 <td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#walletsretrieveprovidersummaryrequest'><code>WalletsRetrieveProviderSummaryRequest</code></a></td>
+<td>The base type for requesting paginated content.</td>
 </tr>
 <tr>
 <td><a href='#walletsretrieverecipientrequest'><code>WalletsRetrieveRecipientRequest</code></a></td>
@@ -189,6 +201,22 @@ _Browses the catalog of sub-allocations_
 
 This endpoint will find all [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s which are direct children of one of your
 accessible [`WalletAllocation`](/docs/reference/dk.sdu.cloud.accounting.api.WalletAllocation.md)s.
+
+
+### `retrieveProviderSummary`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Provider](https://img.shields.io/static/v1?label=Auth&message=Provider&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Retrieves a provider summary of relevant wallets_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#walletsretrieveprovidersummaryrequest'>WalletsRetrieveProviderSummaryRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#providerwalletsummary'>ProviderWalletSummary</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint is only usable by providers. The endpoint will return a stable sorted summary of all
+allocations that a provider currently has.
 
 
 ### `retrieveRecipient`
@@ -514,6 +542,130 @@ enum class AllocationSelectorPolicy {
 
 
 
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ProviderWalletSummary`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class ProviderWalletSummary(
+    val id: String,
+    val owner: WalletOwner,
+    val categoryId: ProductCategoryId,
+    val productType: ProductType,
+    val chargeType: ChargeType,
+    val unitOfPrice: ProductPriceUnit,
+    val maxUsableBalance: Long,
+    val maxPromisedBalance: Long,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='#walletowner'>WalletOwner</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>categoryId</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>productType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductType.md'>ProductType</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>chargeType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ChargeType.md'>ChargeType</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>unitOfPrice</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductPriceUnit.md'>ProductPriceUnit</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>maxUsableBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Maximum balance usable until a charge would fail
+</summary>
+
+
+
+This balance is calculated when the data is requested and thus can immediately become invalid due to changes
+in the tree.
+
+
+</details>
+
+<details>
+<summary>
+<code>maxPromisedBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Maximum balance usable as promised by a top-level grant giver
+</summary>
+
+
+
+This balance is calculated when the data is requested and thus can immediately become invalid due to changes
+in the tree.
 
 
 </details>
@@ -1124,6 +1276,144 @@ data class WalletsBrowseSubAllocationsRequest(
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `WalletsRetrieveProviderSummaryRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_The base type for requesting paginated content._
+
+```kotlin
+data class WalletsRetrieveProviderSummaryRequest(
+    val itemsPerPage: Int?,
+    val next: String?,
+    val consistency: PaginationRequestV2Consistency?,
+    val itemsToSkip: Long?,
+    val filterOwnerId: String?,
+    val filterOwnerIsProject: Boolean?,
+    val filterCategory: String?,
+)
+```
+Paginated content can be requested with one of the following `consistency` guarantees, this greatly changes the
+semantics of the call:
+
+| Consistency | Description |
+|-------------|-------------|
+| `PREFER` | Consistency is preferred but not required. An inconsistent snapshot might be returned. |
+| `REQUIRE` | Consistency is required. A request will fail if consistency is no longer guaranteed. |
+
+The `consistency` refers to if collecting all the results via the pagination API are _consistent_. We consider the
+results to be consistent if it contains a complete view at some point in time. In practice this means that the results
+must contain all the items, in the correct order and without duplicates.
+
+If you use the `PREFER` consistency then you may receive in-complete results that might appear out-of-order and can
+contain duplicate items. UCloud will still attempt to serve a snapshot which appears mostly consistent. This is helpful
+for user-interfaces which do not strictly depend on consistency but would still prefer something which is mostly
+consistent.
+
+The results might become inconsistent if the client either takes too long, or a service instance goes down while
+fetching the results. UCloud attempts to keep each `next` token alive for at least one minute before invalidating it.
+This does not mean that a client must collect all results within a minute but rather that they must fetch the next page
+within a minute of the last page. If this is not feasible and consistency is not required then `PREFER` should be used.
+
+---
+
+__📝 NOTE:__ Services are allowed to ignore extra criteria of the request if the `next` token is supplied. This is
+needed in order to provide a consistent view of the results. Clients _should_ provide the same criterion as they
+paginate through the results.
+
+---
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>next</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A token requesting the next page of items
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>consistency</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.PaginationRequestV2Consistency.md'>PaginationRequestV2Consistency</a>?</code></code> Controls the consistency guarantees provided by the backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterOwnerId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterOwnerIsProject</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>filterCategory</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

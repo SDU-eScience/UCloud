@@ -29,7 +29,6 @@ sealed class Product {
     class Ingress : Product()
     class License : Product()
     class NetworkIP : Product()
-    class Synchronization : Product()
 }
 ```
 For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.

@@ -52,7 +52,7 @@ fun UseCase.curl(): String {
 
                     append('"')
                     append("\$host")
-                    append(http.path.toPath(fullyQualified = true))
+                    append(http.path.toPath())
                     if (http.params != null) {
                         fun encodeElement(name: String, element: JsonElement): Map<String, String> {
                             return when (element) {

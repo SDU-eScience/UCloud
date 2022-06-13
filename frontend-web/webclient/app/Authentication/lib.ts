@@ -3,7 +3,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/Redux";
 
-interface CallParameters {
+export interface CallParameters {
     method: string;
     path: string;
     body?: any;

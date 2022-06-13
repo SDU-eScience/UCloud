@@ -167,7 +167,7 @@ data class IngressIncludeFlags(
 
 <details>
 <summary>
-<code>filterState</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code>
+<code>filterState</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.IngressState.md'>IngressState</a>?</code></code>
 </summary>
 
 

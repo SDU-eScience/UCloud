@@ -36,7 +36,7 @@ class IngoingHttpInterceptor(
             // toKtorTemplate performs a plain one-to-one mapping of the http/path block semantics to Ktor routing
             // template
 
-            route(httpDescription.path.toPath(fullyQualified = true), HttpMethod(httpDescription.method.value)) {
+            route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
                     call.fullName
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
