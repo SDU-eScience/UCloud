@@ -234,10 +234,17 @@ class ConnectionController(
                 }
             }
 
+            val requiresMessageSigning = with(plugin) {
+                with(pluginContext) {
+                    requireMessageSigning()
+                }
+            }
+
             OutgoingCallResponse.Ok(
                 IntegrationProviderRetrieveManifestResponse(
                     enabled = true,
-                    expireAfterMs = expiration
+                    expireAfterMs = expiration,
+                    requiresMessageSigning = requiresMessageSigning,
                 )
             )
         }

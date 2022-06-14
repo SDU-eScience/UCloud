@@ -133,10 +133,9 @@ fun main(args: Array<String>) {
             // The configuration process will detect if we have not completed the initial setup process. This includes
             // not having any valid API tokens for UCloud/Core. If that is the case, we will run the installer which
             // guides the operator through this initial setup phase.
+            val configSchema = loadConfiguration()
             val config = run {
-                val schema = loadConfiguration()
-
-                val runInstaller = with(schema) {
+                val runInstaller = with(configSchema) {
                     core == null &&
                         server == null &&
                         plugins == null &&
@@ -149,7 +148,7 @@ fun main(args: Array<String>) {
                     exitProcess(0)
                 }
 
-                verifyConfiguration(serverMode, schema)
+                verifyConfiguration(serverMode, configSchema)
             }
 
             run {
@@ -476,6 +475,10 @@ fun main(args: Array<String>) {
                     }
                 })
             }
+
+            // Configuration debug (before initializing any plugins, which might crash because of config)
+            // -------------------------------------------------------------------------------------------------------
+            debugSystem.normalD("Configuration has been loaded!", configSchema)
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------

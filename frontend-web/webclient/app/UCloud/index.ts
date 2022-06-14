@@ -5360,6 +5360,7 @@ export interface IntegrationBrowseResponseItem {
     provider: string;
     connected: boolean;
     providerTitle: string;
+    requiresMessageSigning?: boolean;
 }
 /**
  * The base type for requesting paginated content.

@@ -1,9 +1,11 @@
 package dk.sdu.cloud.calls.server
 
 import dk.sdu.cloud.calls.*
-import dk.sdu.cloud.debug.DebugContext
-import dk.sdu.cloud.debug.DebugCoroutineContext
+import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.logThrowable
+import dk.sdu.cloud.micro.Micro
+import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.service.Loggable
 import io.ktor.application.*
 import io.ktor.content.*
@@ -17,13 +19,20 @@ import io.ktor.util.pipeline.*
 import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import java.util.concurrent.TimeUnit
 
 class IngoingHttpInterceptor(
     private val engine: ApplicationEngine,
     private val rpcServer: RpcServer,
+    private val micro: Micro,
 ) : IngoingRequestInterceptor<HttpCall, HttpCall.Companion> {
     override val companion: HttpCall.Companion = HttpCall
+
+    // NOTE(Dan): This needs to be lazy to make sure the debug system has been initialized
+    private val debug by lazy { micro.featureOrNull(DebugSystemFeature) }
 
     override fun onStop() {
         engine.stop(gracePeriod = 0L, timeout = 30L, timeUnit = TimeUnit.SECONDS)
@@ -38,9 +47,10 @@ class IngoingHttpInterceptor(
 
             route(httpDescription.path.toPath(), HttpMethod(httpDescription.method.value)) {
                 handle {
-                    call.fullName
                     val ctx = HttpCall(this as PipelineContext<Any, ApplicationCall>)
-                    withContext(DebugCoroutineContext(DebugContext.create())) {
+                    val debugCtx = DebugContext.create()
+                    withContext(DebugCoroutineContext(debugCtx)) {
+                        debug.everythingD("Begun parsing of ${call.fullName}", Unit, debugCtx)
                         try {
                             // Calls the handler provided by 'implement'
                             @Suppress("UNCHECKED_CAST")
@@ -102,6 +112,7 @@ class IngoingHttpInterceptor(
                 }
                 else -> {
                     log.debug(ex.stackTraceToString())
+                    debug.logThrowable("Failed to parse request", ex, MessageImportance.IMPLEMENTATION_DETAIL)
                     throw RPCException("Bad request", dk.sdu.cloud.calls.HttpStatusCode.BadRequest)
                 }
             }

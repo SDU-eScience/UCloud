@@ -2,6 +2,10 @@ package dk.sdu.cloud.config
 
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.debug.logD
+import dk.sdu.cloud.debug.normalD
+import dk.sdu.cloud.debugSystem
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
@@ -19,6 +23,7 @@ import kotlin.system.exitProcess
 // We keep these two types separate to make it more clear for downstream components which parts of the configuration
 // are optional and which simply have computed defaults. The two types may often end up being similar, but is not a
 // requirement and the `VerifiedConfig` can choose to do advanced computations based on various factors if needed.
+@Serializable
 data class ConfigSchema(
     val configurationDirectory: String,
     val core: Core?,
@@ -257,7 +262,7 @@ fun loadConfiguration(): ConfigSchema {
                             yamlDocumentContext(text, locationRef.value.approximateStart,
                                 locationRef.value.approximateEnd)
 
-                            val errorMessageRegex = Regex("Class '(.+)' is not registered for polymorphic " + 
+                            val errorMessageRegex = Regex("Class '(.+)' is not registered for polymorphic " +
                                 "serialization in the scope of '(.+)'\\.")
                             val shortMessage = exMsg.lines()[0]
                             val matched = errorMessageRegex.matchEntire(shortMessage)
@@ -299,7 +304,7 @@ fun loadConfiguration(): ConfigSchema {
                                     code { line(typeName) }
                                     line()
 
-                                    line("These properties are marked as mandatory and must be provided. See the " + 
+                                    line("These properties are marked as mandatory and must be provided. See the " +
                                         "documentation for more details.")
                                     for (field in fieldsMissing) {
                                         line("- $field")

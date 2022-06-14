@@ -1,14 +1,19 @@
 import * as React from "react";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import {Text, Button, Icon, List, Link} from "@/ui-components";
+import { Text, Button, Icon, List, Link } from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import {ListRow} from "@/ui-components/List";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
-import {emptyPageV2} from "@/DefaultObjects";
-import {useCallback, useEffect} from "react";
-import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
-import {PageV2, provider} from "@/UCloud";
+import { ListRow } from "@/ui-components/List";
+import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
+import { emptyPageV2 } from "@/DefaultObjects";
+import { useCallback, useEffect } from "react";
+import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
+import { PageV2, provider } from "@/UCloud";
 import IntegrationApi = provider.im;
+import {
+    hasUploadedSigningKeyToProvider,
+    retrieveOrInitializePublicSigningKey,
+    signIntentToCall
+} from "@/Authentication/MessageSigning";
 
 export const ConnectDashboardCard: React.FunctionComponent = props => {
     if (!inDevEnvironment() && !onDevSite()) return null;
@@ -24,10 +29,23 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
     }, []);
 
     useEffect(reload, [reload]);
-    const shouldConnect = providers.data.items.some(it => !it.connected);
-    const connectToProvider = useCallback(async (provider: string) => {
-        const res = await invokeCommand<provider.IntegrationConnectResponse>(IntegrationApi.connect({provider}));
-        if (res) document.location.href = res.redirectTo;
+    const shouldConnect = providers.data.items.some(it =>
+        !it.connected ||
+        (it.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(it.providerTitle))
+    );
+    const connectToProvider = useCallback(async (providerData: provider.IntegrationBrowseResponseItem) => {
+        const res = await invokeCommand<provider.IntegrationConnectResponse>(
+            IntegrationApi.connect({provider: providerData.provider})
+        );
+
+        if (res) {
+            if (providerData.requiresMessageSigning) {
+                console.log("Got key", retrieveOrInitializePublicSigningKey());
+                console.log("Example signature", signIntentToCall({ path: "/api/files/browse", method: "GET" }));
+            } else {
+                document.location.href = res.redirectTo;
+            }
+        }
     }, []);
 
     return <HighlightedCard
@@ -42,21 +60,22 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
             </Text>
         }
         <List>
-            {providers.data.items.map(it => (
-                <ListRow
-                    key={it.provider}
-                    icon={<Icon name={"deiCLogo"}/>}
-                    left={<>{it.providerTitle}</>}
-                    right={it.connected ?
-                        <Icon name={"check"} color={"green"}/> :
-                        <Button onClick={() => connectToProvider(it.provider)}>Connect</Button>
-                    }
-                />
-            ))}
+            {providers.data.items.map(it => {
+                const canConnect = !it.connected ||
+                    (it.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(it.providerTitle));
+                return (
+                    <ListRow
+                        key={it.provider}
+                        icon={<Icon name={"deiCLogo"}/>}
+                        left={<>{it.providerTitle}</>}
+                        right={!canConnect ?
+                            <Icon name={"check"} color={"green"}/> :
+                            <Button onClick={() => connectToProvider(it)}>Connect</Button>
+                        }
+                    />
+                );
+            })}
         </List>
-        {/*<Button fullWidth mt={"16px"} mb={"8px"}>*/}
-        {/*    Connect with existing account*/}
-        {/*</Button>*/}
     </HighlightedCard>;
 };
 

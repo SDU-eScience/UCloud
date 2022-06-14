@@ -50,6 +50,7 @@
     "devDependencies": {
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.11",
+        "@types/jsrsasign": "^10.5.1",
         "@types/react": "17.0.43",
         "@types/react-datepicker": "4.4.0",
         "@types/react-dom": "17.0.14",

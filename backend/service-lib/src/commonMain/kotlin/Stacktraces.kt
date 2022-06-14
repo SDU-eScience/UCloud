@@ -1,0 +1,56 @@
+package dk.sdu.cloud
+
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.logD
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class ReadableStackTrace(
+    val type: String,
+    val message: String,
+    val frames: List<String>,
+)
+
+expect fun Throwable.toReadableStacktrace(): ReadableStackTrace
+
+data class ProposedStackFrame(val className: String, val methodName: String)
+
+fun makeStackFrameReadable(className: String, methodName: String): ProposedStackFrame? {
+    if (className.startsWith("kotlinx.coroutines.")) return null
+    if (className.startsWith("kotlinx.serialization") && className.contains(".internal.")) return null
+    if (className.startsWith("io.ktor.features.CallLogging")) return null
+    if (className.startsWith("io.ktor.util.pipeline")) return null
+    if (className.startsWith("io.ktor.server.engine")) return null
+    if (className.startsWith("io.ktor.server.netty")) return null
+    if (className.startsWith("io.ktor.routing.")) return null
+    if (className.startsWith("io.netty.util.")) return null
+    if (className.startsWith("io.netty.channel.")) return null
+    if (className.startsWith("java.lang.Thread")) return null
+    if (className.startsWith("dk.sdu.cloud.calls.server.IngoingHttpInterceptor\$addCallListenerForCall")) return null
+    if (className == "kotlin.Throwable" && methodName == "<init>") return null
+    if (className == "kotlin.Exception" && methodName == "<init>") return null
+    if (className == "kotlin.RuntimeException" && methodName == "<init>") return null
+
+    if (methodName.contains("COROUTINE$")) return null
+    if (className.contains("COROUTINE$")) return null
+    if (methodName.contains("<anonymous>")) return null
+    if (className.contains("<anonymous>")) return null
+
+    if (methodName == "invoke" || (methodName == "invokeSuspend" && className.contains("$"))) {
+        return ProposedStackFrame(className.substringBefore('$'), className.substringAfter('$').substringBefore('$'))
+    }
+
+
+    return ProposedStackFrame(className, methodName.substringBefore("__at__").substringBefore('(').substringBefore('$'))
+}
+
+suspend fun DebugSystem?.logThrowable(
+    message: String,
+    throwable: Throwable,
+    importance: MessageImportance = MessageImportance.THIS_IS_ODD,
+    ctx: DebugContext? = null
+) {
+    logD(message, throwable.toReadableStacktrace(), importance, ctx)
+}
