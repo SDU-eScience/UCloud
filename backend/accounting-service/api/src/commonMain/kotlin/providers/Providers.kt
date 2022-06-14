@@ -451,6 +451,17 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
     override val delete: Nothing? = null
     override val search get() = super.search!!
 
+    val update = call<ProviderSpecification, Unit, CommonErrorMessage>("update") {
+        httpUpdate(baseContext, "update", Roles.PRIVILEGED)
+
+        documentation {
+            summary = "Updates information about a provider"
+            description = """
+                This endpoint can only be invoked by a UCloud administrator.
+            """
+        }
+    }
+
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
             ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
         httpUpdate(baseContext, "renewToken")

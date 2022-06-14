@@ -14,6 +14,10 @@ class ProviderController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         service.asController().configure(rpcServer)
 
+        implement(Providers.update) {
+            ok(service.update(actorAndProject, request))
+        }
+
         implement(Providers.renewToken) {
             ok(service.renewToken(actorAndProject, request))
         }

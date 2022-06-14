@@ -11,7 +11,7 @@ import {
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Icon, List, TextArea} from "@/ui-components";
@@ -164,7 +164,6 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             showMessages={false} showPermissions={true} showProperties={false}
             noPermissionsWarning={"Only administrators of this project can manage this provider. Note: the provider can still be used by normal users."}
             InfoChildren={props => {
-                console.log(props);
                 if (props.resource == null) return null;
                 const provider = props.resource as Provider;
                 return <>
@@ -269,6 +268,19 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             }}
         />;
     };
+
+    update(
+        request: ProviderSpecification
+    ): APICallParameters<ProviderSpecification, any /* unknown */> {
+        return {
+            context: "",
+            method: "POST",
+            path: "/api/providers" + "/update",
+            parameters: request,
+            reloadId: Math.random(),
+            payload: request,
+        };
+    }
 
     private ProductRenderer: ItemRenderer<Product, ProductCallbacks> = {
         Icon: ({resource, size}) =>

@@ -281,4 +281,16 @@ class ProviderService(
             throw ex
         }
     }
+
+    suspend fun update(
+        actorAndProject: ActorAndProject,
+        request: ProviderSpecification
+    ) {
+        val (actor) = actorAndProject
+        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        println("retrieved provider update request $request $actorAndProject")
+    }
 }

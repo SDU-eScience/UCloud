@@ -180,6 +180,12 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
         const ctx = useResourceFormField({id: props.id, required: props.required as boolean});
         const p = useEvaluatedProperties(ctx, props);
 
+        React.useEffect(() => {
+            if (p.defaultValue) {
+                ctx.fields[props.id] = p.defaultValue;
+            }
+        }, [p.defaultValue]);
+
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = props.styling;
 
@@ -237,6 +243,12 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     public static Text(props: ResourceField): JSX.Element {
         const ctx = useResourceFormField({id: props.id, required: props.required})
         const p = useEvaluatedProperties(ctx, props);
+
+        React.useEffect(() => {
+            if (p.defaultValue) {
+                ctx.fields[props.id] = p.defaultValue;
+            }
+        }, [p.defaultValue]);
 
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = props.styling;

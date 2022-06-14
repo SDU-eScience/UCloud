@@ -9,8 +9,9 @@ import {useHistory, useParams} from "react-router";
 import RS from "@/Products/CreateProduct";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {Provider} from "@/UCloud/ProvidersApi";
+import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
+import {render} from "react-dom";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -32,7 +33,6 @@ function Edit(): JSX.Element | null {
 
     if (provider.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
 
-    console.log(provider.data?.specification.id)
     if (!Client.userIsAdmin) return null;
 
     return <MainContainer
@@ -40,15 +40,15 @@ function Edit(): JSX.Element | null {
             <RS
                 title="Providers"
                 submitText="Save changes"
-                createRequest={async ({fields}) =>
-                    UCloud.provider.providers.create(bulkRequestOf({
-                        id: fields.ID,
+                createRequest={async ({fields}) => {
+                    return ProvidersApi.update({
+                        id: provider.data?.specification.id ?? fields.ID,
                         domain: fields.DOMAIN,
                         https: fields.HTTPS,
                         port: isNaN(fields.PORT) ? undefined : fields.PORT,
                         product: placeholderProduct()
-                    }))
-                }
+                    })
+                }}
                 onSubmitSucceded={(res, data) => {
                     if (res) {
                         history.push(`/providers`);
