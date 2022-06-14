@@ -11,6 +11,7 @@ data class OpenIdConnectConfiguration(
     val client: Client,
     val extensions: Extensions,
     val redirectUrl: String? = null,
+    val requireSigning: Boolean = false,
 ) : ConfigSchema.Plugins.Connection() {
     @Serializable
     data class Ttl(

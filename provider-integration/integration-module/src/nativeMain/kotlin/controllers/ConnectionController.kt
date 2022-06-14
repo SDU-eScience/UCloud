@@ -4,16 +4,14 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.cli.CliHandler
-import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.http.*
 import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.ipc.handler
-import dk.sdu.cloud.ipc.sendRequestBlocking
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.atomicfu.atomic
@@ -44,6 +42,11 @@ object ConnectionIpc : IpcContainer("connections") {
 @Serializable
 data class TicketRequest(
     val ticket: String
+)
+
+@Serializable
+data class SigningKeyRequest(
+    val publicKey: String,
 )
 
 class ConnectionController(
@@ -148,14 +151,71 @@ class ConnectionController(
             OutgoingCallResponse.AlreadyDelivered()
         }
 
+        val redirectProxy = object : CallDescriptionContainer("${im.namespace}.redirector") {
+            val redirect = call<SigningKeyRequest, Unit, CommonErrorMessage>("redirect") {
+                httpUpdate("/ucloud/$providerId/integration", "redirect", Roles.PUBLIC)
+            }
+        }
+
+        implement(redirectProxy.redirect) {
+            val httpContext = ctx.serverContext as HttpContext
+
+            val queryString = httpContext.path.substringAfter('?', "")
+            val sessionId = ParsedQueryString.parse(queryString).attributes["session"]?.firstOrNull()
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+            val session = MessageSigningKeyStore._redirectCache.get(sessionId)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            val keyId = MessageSigningKeyStore.createKey(session.ucloudUser, request.publicKey)
+            session.keyId = keyId
+
+            session.beforeRedirect()
+
+            httpContext.session.sendTemporaryRedirect(session.redirectTo)
+            OutgoingCallResponse.AlreadyDelivered()
+        }
+
         implement(im.connect) {
             with(pluginContext) {
                 with(plugin) {
+                    val requireSigning = requireMessageSigning()
                     when (val result = initiateConnection(request.username)) {
                         is ConnectionResponse.Redirect -> {
-                            OutgoingCallResponse.Ok(IntegrationProviderConnectResponse(result.redirectTo))
+                            if (requireSigning) {
+                                val redirectToken = secureToken(32)
+
+                                MessageSigningKeyStore._redirectCache.insert(
+                                    redirectToken,
+                                    RedirectEntry(
+                                        request.username,
+                                        result.redirectTo,
+                                        result.globallyUniqueConnectionId,
+                                        result.beforeRedirect
+                                    )
+                                )
+
+                                // NOTE(Dan): This gives UCloud/Core a valid session for uploading a public key, thus
+                                // it is a direct requirement that UCloud/Core isn't able to authenticate itself with
+                                // the redirect which follows the key upload!
+                                OutgoingCallResponse.Ok(
+                                    IntegrationProviderConnectResponse(
+                                        "/ucloud/$providerId/integration/redirect?session=${redirectToken}"
+                                    )
+                                )
+                            } else {
+                                result.beforeRedirect()
+                                OutgoingCallResponse.Ok(IntegrationProviderConnectResponse(result.redirectTo))
+                            }
                         }
+
                         is ConnectionResponse.ShowInstructions -> {
+                            if (requireSigning) {
+                                error(
+                                    "Plugin has returned ShowInstructions but signing is required. " +
+                                        "This is not supported! Only redirect is supported when signing is required."
+                                )
+                            }
+
                             OutgoingCallResponse.Ok(
                                 IntegrationProviderConnectResponse(
                                     baseContext + encodeQueryParamsToString(result.query)
@@ -192,7 +252,7 @@ class ConnectionController(
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             // Obtain the global lock for IM/User configuration
-            uimMutex.withLock {   
+            uimMutex.withLock {
                 // Check if we were not the first to acquire the lock
                 if (request.username in uimLaunched) return@withLock
                 uimLaunched.add(request.username)
@@ -361,7 +421,7 @@ object UserMapping {
         ucloudId: String,
         localId: Int,
         pluginContext: PluginContext,
-        expiry: Long?,
+        pluginConnectionId: String?,
         ctx: DBContext = dbConnection
     ) {
         ctx.withSession { session ->
@@ -376,6 +436,10 @@ object UserMapping {
                     bindString("local_id", localId.toString())
                 },
             )
+
+            if (pluginConnectionId != null) {
+                MessageSigningKeyStore.activateKey(pluginConnectionId, session)
+            }
         }
 
         with(pluginContext) {
@@ -390,6 +454,7 @@ object UserMapping {
         pluginContext.config.plugins.temporary.onConnectionCompleteHandlers.forEach { handler ->
             handler(ucloudId, localId)
         }
+
     }
 
     suspend fun clearMappingByUCloudId(ucloudId: String) {
@@ -423,6 +488,136 @@ object UserMapping {
     }
 }
 
+object MessageSigningKeyStore {
+    suspend fun clearMapping(performedBy: Int, mapping: Int, ctx: DBContext = dbConnection) {
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                   delete from message_signing_key
+                    where
+                        ucloud_user in (
+                            select ucloud_id
+                            from user_mapping
+                            where local_identity = :performed_by
+                        ) and
+                        id = :mapping; 
+                """
+            ).useAndInvokeAndDiscard {
+                bindInt("performed_by", performedBy)
+                bindInt("mapping", mapping)
+            }
+        }
+    }
+
+    suspend fun lookupKeys(ucloudUser: String, ctx: DBContext = dbConnection): List<String> {
+        val result = ArrayList<String>()
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    select public_key
+                    from message_signing_key
+                    where ucloud_user = :ucloud_user;
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("ucloud_user", ucloudUser)
+                },
+                readRow = { row ->
+                    result.add(row.getString(0)!!)
+                },
+            )
+        }
+        return result
+    }
+
+    suspend fun createKey(ucloudUser: String, key: String, ctx: DBContext = dbConnection): Int {
+        var result: Int? = null
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    insert into message_signing_key (public_key, ucloud_user)
+                    values (:public_key, :ucloud_user)
+                    returning id;
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindString("public_key", key)
+                    bindString("ucloud_user", ucloudUser)
+                },
+                readRow = { row ->
+                    result = row.getInt(0)
+                },
+            )
+        }
+
+        return result ?: error("Unable to create a message signing key. Is the database corrupt?")
+    }
+
+    suspend fun activateKey(pluginConnectionId: String, ctx: DBContext = dbConnection) {
+        val keyId = _redirectCache.findOrNull { it.pluginId == pluginConnectionId }?.keyId
+            ?: return
+
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    update message_signing_key
+                    set is_key_active = true
+                    where id = :mapping;
+                """
+            ).useAndInvokeAndDiscard {
+                bindInt("mapping", keyId)
+            }
+        }
+    }
+
+    data class KeyInfo(val createdAt: Long, val id: Int)
+
+    suspend fun browseKeys(performedBy: Int, ctx: DBContext = dbConnection): List<KeyInfo> {
+        val result = ArrayList<KeyInfo>()
+        ctx.withSession { session ->
+            session.prepareStatement(
+                """
+                    select cast(stftime('%s', ts) as bigint), id
+                    from message_signing_key
+                    where
+                        ucloud_user in (
+                            select ucloud_id
+                            from user_mapping
+                            where local_identity = :performed_by
+                        );
+                """
+            ).useAndInvoke(
+                prepare = {
+                    bindInt("performed_by", performedBy)
+                },
+                readRow = { row ->
+                    result.add(
+                        KeyInfo(
+                            row.getLong(0)!! * 1000,
+                            row.getInt(1)!!
+                        )
+                    )
+                },
+            )
+        }
+        return result
+    }
+
+    val _redirectCache = SimpleCache<String, RedirectEntry>(
+        maxAge = 1000L * 60 * 15,
+        lookup = { null }
+    )
+}
+
+data class RedirectEntry(
+    val ucloudUser: String,
+    val redirectTo: String,
+    val pluginId: String,
+    val beforeRedirect: suspend () -> Unit,
+    var keyId: Int? = null
+)
+
 const val UCLOUD_IM_PORT = 42000
+
 @SharedImmutable
 private val portAllocator = atomic(UCLOUD_IM_PORT + 1)

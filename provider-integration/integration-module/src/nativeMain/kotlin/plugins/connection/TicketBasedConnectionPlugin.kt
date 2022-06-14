@@ -23,7 +23,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import platform.posix.geteuid
 import platform.posix.getpwuid
 
 @Serializable
@@ -87,7 +86,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             capturedId,
                             uid,
                             this,
-                            mappingExpiration(),
+                            pluginConnectionId = null,
                             ctx = connection,
                         )
 
@@ -146,6 +145,8 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         }
         return ConnectionResponse.ShowInstructions(mapOf("ticket" to listOf(ticket)))
     }
+
+    override suspend fun PluginContext.requireMessageSigning(): Boolean = false
 
     override suspend fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
         val ticket = query["ticket"]?.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.*
@@ -13,15 +12,12 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withTransaction
 import dk.sdu.cloud.utils.normalizeCertificate
 import dk.sdu.cloud.utils.secureToken
 import kotlinx.cinterop.*
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.Serializable
 import libjwt.*
 
@@ -58,10 +54,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     }
 
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
-    private value class UCloudUsername(val username: String)
+    private class ConnectionState(val username: String, val connectionId: String)
     private value class OidcState(val state: String)
     private val stateTableMutex = Mutex()
-    private val stateTable = HashMap<OidcState, UCloudUsername>()
+    private val stateTable = HashMap<OidcState, ConnectionState>()
 
     override suspend fun PluginContext.initialize() {
         if (config.serverMode != ServerMode.Server) return
@@ -226,20 +222,19 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 log.debug("OIDC success! Subject is $subject")
 
                 val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
-                UserMapping.insertMapping(subject.ucloudIdentity, result.uid, this@initializeRpcServer, mappingExpiration())
+                UserMapping.insertMapping(
+                    subject.ucloudIdentity,
+                    result.uid,
+                    this@initializeRpcServer,
+                    ucloudIdentity.connectionId
+                )
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
                     rpcClient
                 ).orThrow()
 
-                sctx.session.sendHttpResponse(
-                    HttpStatusCode.Found.value,
-                    listOf(
-                        Header("Location", configuration.redirectUrl ?: config.core.hosts.ucloud.toString()),
-                        Header("Content-Length", "0"),
-                    )
-                )
+                sctx.session.sendTemporaryRedirect(configuration.redirectUrl ?: config.core.hosts.ucloud.toString())
 
                 OutgoingCallResponse.AlreadyDelivered()
             }
@@ -250,7 +245,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         val token = OidcState(secureToken(32))
         runBlocking {
             stateTableMutex.withLock {
-                stateTable[token] = UCloudUsername(username)
+                stateTable[token] = ConnectionState(username, token.state)
             }
         }
 
@@ -270,11 +265,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 append(":")
                 append(ownHost.port)
                 append("/connection/oidc-cb")
-            }
+            },
+            token.state
         )
     }
 
-    override suspend fun PluginContext.mappingExpiration(): Long? {
+    override suspend fun PluginContext.mappingExpiration(): Long {
         var acc = 0L
         with (configuration.mappingTimeToLive) {
             acc += days    * (1000L * 60 * 60 * 24)
@@ -284,6 +280,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         }
         return acc
     }
+
+    override suspend fun PluginContext.requireMessageSigning(): Boolean = configuration.requireSigning
 
     private companion object Extensions {
         val onConnectionComplete = extension<OpenIdConnectSubject, UidAndGid>()

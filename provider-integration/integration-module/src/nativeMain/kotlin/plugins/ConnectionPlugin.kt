@@ -4,14 +4,35 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.http.RpcServer
+import dk.sdu.cloud.utils.secureToken
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
 
 @Serializable
 data class UidAndGid(val uid: Int, val gid: Int)
 
 sealed class ConnectionResponse {
-    class Redirect(val redirectTo: String) : ConnectionResponse()
+    class Redirect(
+        /**
+         * The URL to redirect the client to. This URL can be relative to the integration module or absolute to any URL.
+         *
+         * NOTE: The integration module (ConnectionController) might do this through a proxy endpoint, which is required
+         * if message signing is needed.
+         */
+        val redirectTo: String,
+
+        /**
+         * A globally unique ID which is required when message signing is needed. If message signing is not needed, then
+         * this value is not used. This value should be passed to UserMapping.insertMapping() to ensure the message
+         * signing keys are correctly activated.
+         */
+        val globallyUniqueConnectionId: String,
+
+        /**
+         * This will be invoked immediately before sending the final redirect. If this function crashes, then the
+         * redirect will not be sent to the recipient.
+         */
+        val beforeRedirect: suspend () -> Unit = {},
+    ) : ConnectionResponse()
     class ShowInstructions(val query: Map<String, List<String>>) : ConnectionResponse()
 }
 
@@ -55,4 +76,6 @@ interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
     suspend fun PluginContext.mappingExpiration(): Long? {
         return null
     }
+
+    suspend fun PluginContext.requireMessageSigning(): Boolean
 }

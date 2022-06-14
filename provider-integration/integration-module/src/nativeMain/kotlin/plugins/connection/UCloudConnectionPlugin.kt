@@ -1,14 +1,11 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.callBlocking
-import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.UserMapping
-import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.*
-import dk.sdu.cloud.sql.*
+import dk.sdu.cloud.utils.secureToken
 import kotlinx.serialization.*
 
 class UCloudConnectionPlugin : ConnectionPlugin {
@@ -22,20 +19,24 @@ class UCloudConnectionPlugin : ConnectionPlugin {
         try {
             val subject = UCloudSubject(username)
             val result = onConnectionComplete.invoke(pluginConfig.extensions.onConnectionComplete, subject)
+            val token = secureToken(32)
 
-            UserMapping.insertMapping(username, result.uid, this, mappingExpiration())
+            return ConnectionResponse.Redirect(pluginConfig.redirectTo, token, beforeRedirect = {
+                UserMapping.insertMapping(username, result.uid, this, token)
 
-            IntegrationControl.approveConnection.callBlocking(
-                IntegrationControlApproveConnectionRequest(username),
-                rpcClient
-            ).orThrow()
-
-            return ConnectionResponse.Redirect(pluginConfig.redirectTo)
+                IntegrationControl.approveConnection.call(
+                    IntegrationControlApproveConnectionRequest(username),
+                    rpcClient
+                ).orThrow()
+            })
         } catch (ex: Throwable) {
             ex.printStackTrace()
             throw ex
         }
     }
+
+    override suspend fun PluginContext.requireMessageSigning(): Boolean =
+        pluginConfig.insecureMessageSigningForDevelopmentPurposesOnly
 
     private companion object Extensions {
         val onConnectionComplete = extension<UCloudSubject, UidAndGid>()

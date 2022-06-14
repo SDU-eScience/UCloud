@@ -3,6 +3,7 @@ package dk.sdu.cloud.http
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.HttpMethod
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.fd_add
 import dk.sdu.cloud.fd_zero
 import dk.sdu.cloud.plugins.storage.posix.S_ISREG
@@ -146,6 +147,16 @@ class HttpClientSession<AppData>(
             put("\r\n".encodeToByteArray())
         }
         channel.write(outs)
+    }
+
+    fun sendTemporaryRedirect(location: String) {
+        sendHttpResponse(
+            HttpStatusCode.Found.value,
+            listOf(
+                Header("Location", location),
+                Header("Content-Length", "0"),
+            )
+        )
     }
 }
 
