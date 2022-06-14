@@ -124,6 +124,14 @@ data class ProviderUpdate(
 ) : ResourceUpdate
 
 @Serializable
+@UCloudApiDoc("")
+data class ProvidersUpdateSpecificationRequest(
+    val id: String,
+    val specification: ProviderSpecification
+)
+typealias ProvidersUpdateSpecificationResponse = FindByStringId
+
+@Serializable
 @UCloudApiDoc("Request type for renewing the tokens of a Provider")
 data class ProvidersRenewRefreshTokenRequestItem(val id: String)
 typealias ProvidersRenewRefreshTokenResponse = Unit
@@ -451,11 +459,12 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
     override val delete: Nothing? = null
     override val search get() = super.search!!
 
-    val update = call<ProviderSpecification, Unit, CommonErrorMessage>("update") {
+    val update = call<ProvidersUpdateSpecificationRequest,
+            ProvidersUpdateSpecificationResponse, CommonErrorMessage>("update") {
         httpUpdate(baseContext, "update", Roles.PRIVILEGED)
 
         documentation {
-            summary = "Updates information about a provider"
+            summary = "Updates the specification of a provider"
             description = """
                 This endpoint can only be invoked by a UCloud administrator.
             """

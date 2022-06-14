@@ -284,13 +284,30 @@ class ProviderService(
 
     suspend fun update(
         actorAndProject: ActorAndProject,
-        request: ProviderSpecification
-    ) {
+        request: ProvidersUpdateSpecificationRequest,
+        ctx: DBContext = db
+    ): ProvidersUpdateSpecificationResponse {
         val (actor) = actorAndProject
         if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)) {
             throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
         }
 
-        println("retrieved provider update request $request $actorAndProject")
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("domain", request.specification.domain)
+                    setParameter("port", request.specification.port)
+                    setParameter("https", request.specification.https)
+                    setParameter("id", request.id.toLong())
+                },
+                """
+                    update provider.providers
+                    set domain = :domain, port = :port, https = :https
+                    where resource = :id
+                """
+            )
+        }
+
+        return FindByStringId(request.id)
     }
 }

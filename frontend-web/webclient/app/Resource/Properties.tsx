@@ -174,6 +174,7 @@ interface PropertiesProps<Res extends Resource> {
     showPermissions?: boolean;
     showProperties?: boolean;
     noPermissionsWarning?: string;
+    extraCallbacks?: any;
 
     flagsForRetrieve?: Record<string, any>;
 }

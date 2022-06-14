@@ -42,11 +42,14 @@ function Edit(): JSX.Element | null {
                 submitText="Save changes"
                 createRequest={async ({fields}) => {
                     return ProvidersApi.update({
-                        id: provider.data?.specification.id ?? fields.ID,
-                        domain: fields.DOMAIN,
-                        https: fields.HTTPS,
-                        port: isNaN(fields.PORT) ? undefined : fields.PORT,
-                        product: placeholderProduct()
+                        id: id,
+                        specification: {
+                            id: provider.data?.specification.id ?? fields.ID,
+                            domain: fields.DOMAIN,
+                            https: fields.HTTPS,
+                            port: isNaN(fields.PORT) ? undefined : fields.PORT,
+                            product: placeholderProduct()
+                        }
                     })
                 }}
                 onSubmitSucceded={(res, data) => {

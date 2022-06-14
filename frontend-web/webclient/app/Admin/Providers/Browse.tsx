@@ -12,9 +12,6 @@ function Browse(): JSX.Element | null {
         extraCallbacks={{
             startCreation() {
                 history.push("/providers/create")
-            },
-            editProvider(provider: Provider) {
-                history.push("/providers/edit/" + provider.id)
             }
         }}
         inlineCreationMode={"NONE"}

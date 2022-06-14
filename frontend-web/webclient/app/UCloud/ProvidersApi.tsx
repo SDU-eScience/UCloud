@@ -66,6 +66,11 @@ export interface Provider extends Resource<ProviderUpdate, ProviderStatus, Provi
     publicKey: string;
 }
 
+interface ProvidersUpdateSpecificationRequest {
+    id: string;
+    specification: ProviderSpecification;
+}
+
 interface ProductCallbacks {
     createProduct: () => void;
     isCreatingProduct: boolean;
@@ -122,7 +127,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                 text: "Edit",
                 icon: "edit",
                 enabled: (selected, cb) => selected.length === 1,
-                onClick: (selected, cb) => cb.editProvider(selected[0])
+                onClick: (selected, cb) => cb.history.push("/providers/edit/" + selected[0].id)
             },
             {
                 text: "Permissions",
@@ -270,8 +275,8 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
     };
 
     update(
-        request: ProviderSpecification
-    ): APICallParameters<ProviderSpecification, any /* unknown */> {
+        request: ProvidersUpdateSpecificationRequest
+    ): APICallParameters<ProvidersUpdateSpecificationRequest, any /* unknown */> {
         return {
             context: "",
             method: "POST",
