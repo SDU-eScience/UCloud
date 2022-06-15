@@ -43,7 +43,7 @@
         "styled-system": "5.1.5",
         "svgi": "1.1.1",
         "ua-parser-js": "1.0.2",
-        "vfile": "5.3.2",
+        "vfile": "5.3.4",
         "xterm": "4.18.0",
         "xterm-addon-fit": "0.5.0"
     },
@@ -51,7 +51,7 @@
         "@types/history": "5.0.0",
         "@types/json-schema": "7.0.11",
         "@types/react": "17.0.43",
-        "@types/react-datepicker": "4.4.1",
+        "@types/react-datepicker": "4.4.2",
         "@types/react-dom": "17.0.14",
         "@types/react-dropzone": "5.1.0",
         "@types/react-modal": "3.13.1",
@@ -67,6 +67,6 @@
         "redux-devtools-extension": "2.13.9",
         "ts-loader": "9.3.0",
         "typescript": "4.7.3",
-        "vite": "2.9.10"
+        "vite": "2.9.12"
     }
 }

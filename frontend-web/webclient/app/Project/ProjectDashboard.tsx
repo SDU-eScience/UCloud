@@ -123,14 +123,21 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </HighlightedCard>
                         ) : null}
                         <HighlightedCard
-                            title={"Resources and Usage"}
+                            title={"Resources"}
                             icon="grant"
                             color="purple"
                             isLoading={false}
                             onClick={() => history.push("/project/resources")}
                             subtitle={<RightArrow />}
-                        >
-                        </HighlightedCard>
+                        />
+                        <HighlightedCard
+                            title={"Allocations"}
+                            icon="grant"
+                            color="purple"
+                            isLoading={false}
+                            onClick={() => history.push("/project/allocations")}
+                            subtitle={<RightArrow />}
+                        />
 
                         {isPersonalProjectActive(projectId) || !isAdminOrPI(projectRole) || noSubprojectsAndGrantsAreDisallowed(subprojects.data.itemsInTotal, settings.data) ? null :
                             <HighlightedCard

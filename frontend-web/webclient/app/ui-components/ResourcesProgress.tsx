@@ -1,5 +1,6 @@
 import * as React from "react";
 import styled, {keyframes} from "styled-components";
+import {fontWeight, FontWeightProps} from "styled-system";
 import {ThemeColor} from "./theme";
 
 const animatePositive = keyframes`
@@ -29,17 +30,20 @@ function getColorFromValue(value: number): string {
     return thresholds.find(it => it.maxValue >= value)?.color ?? "green"
 }
 
-const Bar = styled.div<{value: number; width: number | string;}>`
+const Bar = styled.div<{value: number; width: number | string; fontWeight?: FontWeightProps;}>`
     position: absolute;
     top: 0;
     height: 100%;
     overflow: hidden;
     & > span {
+        padding-top: 2px;
+        padding-bottom: auto;
         position: absolute;
         display: block;
         width: ${props => props.width};
         height: 100%;
         text-align: center;
+        ${fontWeight}
     }
 
     &.positive {      
@@ -81,20 +85,24 @@ const ProgressBar = styled.div<{value: number; width: number | string; height: n
 /* https://codepen.io/valiooo/pen/ALXodB */
 export function ResourceProgress(
     props: React.PropsWithChildren<{
+        text?: string;
         value: number;
         width?: string;
         height?: string;
+        fontWeight?: FontWeightProps;
     }>
-): JSX.Element {
-    const width = props.width ?? "150px";
-    const height = props.height ?? "15px";
+): JSX.Element | null {
+    if (isNaN(props.value)) return null;
+    const width = props.width ?? "200px";
+    const height = props.height ?? "20px";
+    const fontWeight = props.fontWeight ?? {fontWeight: "bold"};
     return (
         <ProgressBar width={width} height={height} value={props.value}>
-            <Bar className="positive" width={width} value={props.value}>
-                <span>{props.value}%</span>
+            <Bar className="positive" width={width} value={props.value} fontWeight={fontWeight}>
+                <span>{props.text ?? props.value}</span>
             </Bar>
-            <Bar className="negative" width={width} value={props.value}>
-                <span>{props.value}%</span>
+            <Bar className="negative" width={width} value={props.value} fontWeight={fontWeight}>
+                <span>{props.text ?? props.value}</span>
             </Bar>
         </ProgressBar>
     );

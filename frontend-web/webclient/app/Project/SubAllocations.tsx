@@ -7,7 +7,7 @@ import {
     deposit,
     DepositToWalletRequestItem,
     explainAllocation, normalizeBalanceForBackend,
-    normalizeBalanceForFrontend, Product, ProductPriceUnit, ProductType,
+    normalizeBalanceForFrontend, ProductPriceUnit, ProductType,
     productTypes,
     productTypeToIcon,
     productTypeToTitle,
@@ -34,9 +34,9 @@ import {InputLabel} from "@/ui-components/Input";
 import {startOfDay} from "date-fns/esm";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
-import {AllocationViewer} from "./Resources";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
+import {AllocationViewer} from "./Allocations";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider);
@@ -88,7 +88,6 @@ export const SubAllocationViewer: React.FunctionComponent<{
         <Text color="darkGray" fontSize={1} mb={"16px"}>
             An overview of workspaces which have received a <i>grant</i> or a <i>deposit</i> from you
         </Text>
-
 
         <NewRecipients wallets={wallets.data.items} reload={reload} />
 
