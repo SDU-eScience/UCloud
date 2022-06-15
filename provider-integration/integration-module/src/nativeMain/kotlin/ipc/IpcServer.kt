@@ -6,17 +6,24 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugCoroutineContext
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.http.HttpContext
 import dk.sdu.cloud.http.OutgoingCallResponse
 import dk.sdu.cloud.http.RpcServer
 import dk.sdu.cloud.service.Log
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlinx.cinterop.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -217,24 +224,62 @@ class IpcServer(
             }
         } ?: return
 
-        while (true) {
+        var shouldBreak = false
+        while (!shouldBreak) {
             val request = runCatching { parseRequest() }.getOrNull() ?: break
             if (request.id == null) continue
+            val start = Time.now()
 
-            val response = handleRequest(user, request)
+            val debugContext = DebugContext.create()
+            withContext(DebugCoroutineContext(debugContext)) {
+                if (request.method != "ping.ping") {
+                    debugSystem?.sendMessage(
+                        DebugMessage.ServerRequest(
+                            debugContext,
+                            Time.now(),
+                            null,
+                            MessageImportance.IMPLEMENTATION_DETAIL,
+                            "ipc.${request.method}",
+                            request.params
+                        )
+                    )
+                }
+                val response = handleRequest(user, request)
 
-            val serializer: KSerializer<*> = when (response) {
-                is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
-                is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
+                val serializer: KSerializer<*> = when (response) {
+                    is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
+                    is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
+                }
+
+                val responsePayload = defaultMapper.encodeToJsonElement(serializer as KSerializer<Any>, response)
+
+                if (request.method != "ping.ping") {
+                    debugSystem?.sendMessage(
+                        DebugMessage.ServerResponse(
+                            DebugContext.createWithParent(debugContext.id),
+                            Time.now(),
+                            null,
+                            MessageImportance.THIS_IS_NORMAL,
+                            "ipc.${request.method}",
+                            responsePayload,
+                            when (response) {
+                                is JsonRpcResponse.Error -> response.error.code
+                                is JsonRpcResponse.Success -> 200
+                            },
+                            Time.now() - start
+                        )
+                    )
+                }
+
+                runCatching {
+                    @Suppress("UNCHECKED_CAST")
+                    writePipe.sendFully(
+                        clientSocket,
+                        (defaultMapper.encodeToString(JsonElement.serializer(), responsePayload) + "\n")
+                            .encodeToByteArray()
+                    )
+                }.getOrNull() ?: run { shouldBreak = true }
             }
-
-            runCatching {
-                @Suppress("UNCHECKED_CAST")
-                writePipe.sendFully(
-                    clientSocket,
-                    (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n").encodeToByteArray()
-                )
-            }.getOrNull() ?: break
         }
 
         if (clientSocket >= 0) close(clientSocket)

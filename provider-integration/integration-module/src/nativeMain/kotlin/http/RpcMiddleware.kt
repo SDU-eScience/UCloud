@@ -3,9 +3,11 @@ package dk.sdu.cloud.http
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.NativeJWTValidation
 import dk.sdu.cloud.Roles
+import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.authDescription
+import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.service.Log
 
 fun loadMiddleware(config: VerifiedConfig, validation: NativeJWTValidation): Unit = with(config) {

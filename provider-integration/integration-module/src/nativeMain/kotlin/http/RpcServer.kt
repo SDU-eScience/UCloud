@@ -4,7 +4,14 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugCoroutineContext
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.detail
+import dk.sdu.cloud.debug.everythingD
+import dk.sdu.cloud.debug.normalD
+import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import kotlinx.atomicfu.atomic
@@ -14,6 +21,7 @@ import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 
 class ConnectionData(
     val connectionId: Int
@@ -79,37 +87,66 @@ class RpcServer(
                     headers: List<Header>,
                     payload: ByteBuffer
                 ) {
-                    val origin = headers.find { it.header.equals("origin", ignoreCase = true) }?.value
-                    var foundCall: CallWithHandler<Any, Any, Any>? = null
-                    for (callWithHandler in handlers) {
-                        val (call) = callWithHandler
-                        if (call.httpOrNull == null) continue
-                        if (call.http.method != method) continue
-
-                        val expectedPath =
-                            (call.http.path.basePath.removeSuffix("/") + "/" +
-                                call.http.path.segments.joinToString("/") {
-                                    when (it) {
-                                        is HttpPathSegment.Simple -> it.text
-                                    }
-                                }).removePrefix("/").removeSuffix("/").let { "/$it" }
-                        if (path.substringBefore('?') != expectedPath) continue
-
-                        @Suppress("UNCHECKED_CAST")
-                        foundCall = callWithHandler as CallWithHandler<Any, Any, Any>
-                        break
-                    }
-
-                    if (foundCall == null) {
-                        log.debug("$method $path 404 Not Found")
-                        sendHttpResponse(404, defaultHeaders(origin = origin, cors = cors))
-                        return
-                    }
-
                     runBlocking {
-                        withContext(DebugCoroutineContext(DebugContext.create())) {
+                        val start = Time.now()
+                        val debugCtx = DebugContext.create()
+                        withContext(DebugCoroutineContext(debugCtx)) {
+                            debugSystem.everythingD(
+                                "Incoming HTTP request '$path'",
+                                JsonObject(
+                                    mapOf(
+                                        "method" to JsonPrimitive(method.value),
+                                        "path" to JsonPrimitive(path),
+                                        "payloadSize" to JsonPrimitive(payload.readerRemaining()),
+                                        "headers" to JsonObject(
+                                            headers.associate { it.header to JsonPrimitive(it.value) }
+                                        )
+                                    )
+                                ),
+                                debugCtx
+                            )
+
+                            val origin = headers.find { it.header.equals("origin", ignoreCase = true) }?.value
+                            var foundCall: CallWithHandler<Any, Any, Any>? = null
+                            for (callWithHandler in handlers) {
+                                val (call) = callWithHandler
+                                if (call.httpOrNull == null) continue
+                                if (call.http.method != method) continue
+
+                                val expectedPath =
+                                    (call.http.path.basePath.removeSuffix("/") + "/" +
+                                            call.http.path.segments.joinToString("/") {
+                                                when (it) {
+                                                    is HttpPathSegment.Simple -> it.text
+                                                }
+                                            }).removePrefix("/").removeSuffix("/").let { "/$it" }
+                                if (path.substringBefore('?') != expectedPath) continue
+
+                                @Suppress("UNCHECKED_CAST")
+                                foundCall = callWithHandler as CallWithHandler<Any, Any, Any>
+                                break
+                            }
+
+                            if (foundCall == null) {
+                                log.debug("$method $path 404 Not Found")
+                                debugSystem?.sendMessage(
+                                    DebugMessage.ServerResponse(
+                                        DebugContext.create(),
+                                        Time.now(),
+                                        null,
+                                        MessageImportance.THIS_IS_NORMAL,
+                                        null,
+                                        null,
+                                        404,
+                                        Time.now() - start
+                                    )
+                                )
+                                sendHttpResponse(404, defaultHeaders(origin = origin, cors = cors))
+                                return@withContext
+                            }
+
+                            val (call, handler) = foundCall
                             try {
-                                val (call, handler) = foundCall
                                 val http = call.http
                                 val requestMessage = try {
                                     when {
@@ -146,12 +183,16 @@ class RpcServer(
                                             ex.stackTraceToString().prependIndent("  ")
                                         }"
                                     )
+                                    debugSystem.logThrowable(
+                                        "Failed to parse request message",
+                                        ex,
+                                        MessageImportance.THIS_IS_NORMAL
+                                    )
                                     sendHttpResponse(400, defaultHeaders(origin = origin, cors = cors))
                                     return@withContext
                                 }
 
                                 log.debug("Incoming call: ${call.fullName}")
-                                val start = Time.now()
                                 val context = CallHandler(
                                     IngoingCall(
                                         AttributeContainer(),
@@ -212,8 +253,25 @@ class RpcServer(
                             } catch (ex: Throwable) {
                                 if (ex is RPCException) {
                                     if (ex.httpStatusCode.value in 500..599) {
+                                        debugSystem.logThrowable("Internal error", ex, MessageImportance.THIS_IS_WRONG)
                                         log.warn(ex.stackTraceToString())
                                     }
+
+                                    debugSystem?.sendMessage(
+                                        DebugMessage.ServerResponse(
+                                            DebugContext.create(),
+                                            Time.now(),
+                                            null,
+                                            MessageImportance.THIS_IS_ODD,
+                                            call.fullName,
+                                            JsonObject(mapOf(
+                                                "why" to JsonPrimitive(ex.why),
+                                                "errorCode" to JsonPrimitive(ex.errorCode)
+                                            )),
+                                            ex.httpStatusCode.value,
+                                            Time.now() - start
+                                        )
+                                    )
 
                                     sendHttpResponseWithData(
                                         ex.httpStatusCode.value,
@@ -225,8 +283,24 @@ class RpcServer(
                                 } else {
                                     log.warn(
                                         "Caught an unexpected error in ${foundCall.call.fullName}\n" +
-                                            ex.stackTraceToString()
+                                                ex.stackTraceToString()
                                     )
+
+                                    debugSystem.logThrowable("Internal error", ex, MessageImportance.THIS_IS_WRONG)
+
+                                    debugSystem?.sendMessage(
+                                        DebugMessage.ServerResponse(
+                                            DebugContext.create(),
+                                            Time.now(),
+                                            null,
+                                            MessageImportance.THIS_IS_WRONG,
+                                            call.fullName,
+                                            null,
+                                            500,
+                                            Time.now() - start
+                                        )
+                                    )
+
                                     sendHttpResponse(500, defaultHeaders(origin = origin, cors = cors))
                                 }
                             }
@@ -246,7 +320,7 @@ class RpcServer(
                     @Suppress("UNCHECKED_CAST")
                     val foundCall = handlers
                         .find { it.call.websocketOrNull != null && it.call.fullName == request.call }
-                        as CallWithHandler<Any, Any, Any>?
+                            as CallWithHandler<Any, Any, Any>?
 
                     if (foundCall == null) {
                         threadLocalBuffer1.clear()
@@ -372,7 +446,7 @@ class RpcServer(
                                 } else {
                                     log.warn(
                                         "Uncaught exception in ws handler for ${foundCall.call}\n" +
-                                            ex.stackTraceToString()
+                                                ex.stackTraceToString()
                                     )
 
                                     response = CommonErrorMessage("Internal Server Error", null)

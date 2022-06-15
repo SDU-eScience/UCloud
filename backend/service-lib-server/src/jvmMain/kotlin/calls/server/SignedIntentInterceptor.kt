@@ -12,12 +12,12 @@ class SignedIntentInterceptor {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
 
             override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
-                context.project = readProject(context)
+                context.signedIntent = readSignedIntent(context)
             }
         })
     }
 
-    private fun readProject(context: IngoingCall): String? {
+    private fun readSignedIntent(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header("UCloud-Signed-Intent")
 //            is WSCall -> context.request.project

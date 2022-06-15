@@ -39,6 +39,15 @@ object ConnectionIpc : IpcContainer("connections") {
     val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
 }
 
+object MessageSigningIpc : IpcContainer("rpcsigning") {
+    val browse = browseHandler<Unit, MessageSigningIpcBrowseResponse>()
+}
+
+@Serializable
+data class MessageSigningIpcBrowseResponse(
+    val keys: List<MessageSigningKeyStore.KeyInfo>
+)
+
 @Serializable
 data class TicketRequest(
     val ticket: String
@@ -99,6 +108,10 @@ class ConnectionController(
         server.addHandler(ConnectionIpc.removeConnection.handler { user, request ->
             if (user.uid != 0U) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
             UserMapping.clearMappingByUCloudId(request.username)
+        })
+
+        server.addHandler(MessageSigningIpc.browse.handler { user, request ->
+            MessageSigningIpcBrowseResponse(MessageSigningKeyStore.browseKeys(user.uid.toInt()))
         })
     }
 
@@ -580,14 +593,15 @@ object MessageSigningKeyStore {
         }
     }
 
-    data class KeyInfo(val createdAt: Long, val id: Int)
+    @Serializable
+    data class KeyInfo(val createdAt: Long, val id: Int, val key: String)
 
     suspend fun browseKeys(performedBy: Int, ctx: DBContext = dbConnection): List<KeyInfo> {
         val result = ArrayList<KeyInfo>()
         ctx.withSession { session ->
             session.prepareStatement(
                 """
-                    select cast(stftime('%s', ts) as bigint), id
+                    select cast(strftime('%s', ts) as bigint), id, public_key
                     from message_signing_key
                     where
                         ucloud_user in (
@@ -604,7 +618,8 @@ object MessageSigningKeyStore {
                     result.add(
                         KeyInfo(
                             row.getLong(0)!! * 1000,
-                            row.getInt(1)!!
+                            row.getInt(1)!!,
+                            row.getString(2)!!
                         )
                     )
                 },

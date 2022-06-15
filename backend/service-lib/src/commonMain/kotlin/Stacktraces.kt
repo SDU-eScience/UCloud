@@ -18,7 +18,8 @@ expect fun Throwable.toReadableStacktrace(): ReadableStackTrace
 data class ProposedStackFrame(val className: String, val methodName: String)
 
 fun makeStackFrameReadable(className: String, methodName: String): ProposedStackFrame? {
-    if (className.startsWith("kotlinx.coroutines.")) return null
+    if (className.startsWith("kotlin.coroutines.native")) return null
+    if (className.startsWith("kotlinx.coroutines")) return null
     if (className.startsWith("kotlinx.serialization") && className.contains(".internal.")) return null
     if (className.startsWith("io.ktor.features.CallLogging")) return null
     if (className.startsWith("io.ktor.util.pipeline")) return null
@@ -29,9 +30,9 @@ fun makeStackFrameReadable(className: String, methodName: String): ProposedStack
     if (className.startsWith("io.netty.channel.")) return null
     if (className.startsWith("java.lang.Thread")) return null
     if (className.startsWith("dk.sdu.cloud.calls.server.IngoingHttpInterceptor\$addCallListenerForCall")) return null
-    if (className == "kotlin.Throwable" && methodName == "<init>") return null
-    if (className == "kotlin.Exception" && methodName == "<init>") return null
-    if (className == "kotlin.RuntimeException" && methodName == "<init>") return null
+    if (className.startsWith("kotlin.Throwable") && methodName.startsWith("<init>")) return null
+    if (className.startsWith("kotlin.Exception") && methodName.startsWith("<init>")) return null
+    if (className.startsWith("kotlin.RuntimeException") && methodName.startsWith("<init>")) return null
 
     if (methodName.contains("COROUTINE$")) return null
     if (className.contains("COROUTINE$")) return null

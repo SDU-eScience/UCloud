@@ -23,6 +23,7 @@ class ServerFeature : MicroFeature {
         JobIdInterceptor(!ctx.developmentModeEnabled).register(server)
         AuthInterceptor(ctx.developmentModeEnabled).register(server)
         ProjectInterceptor().register(server)
+        SignedIntentInterceptor().register(server)
         if (eventStreamService != null) {
             AuditToEventStream(ctx.serviceInstance, eventStreamService, ctx.tokenValidation).register(server)
         }

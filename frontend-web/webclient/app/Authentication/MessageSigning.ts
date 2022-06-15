@@ -5,8 +5,8 @@ import { KEYUTIL, KJUR } from "jsrsasign";
 import { Client } from "@/Authentication/HttpClientInstance";
 import { LocalStorageCache } from "@/Utilities/LocalStorageCache";
 
-const SIGNING_ALGORITHM = "RS512";
-const SIGNING_HEADER = {alg: SIGNING_ALGORITHM};
+const SIGNING_ALGORITHM = "RS256";
+const SIGNING_HEADER = {typ: "JWT", alg: SIGNING_ALGORITHM};
 
 const SIGNING_LOCALSTORAGE_KEY_PREFIX = "signing-key-";
 const privateKeyCache = new LocalStorageCache<string>(SIGNING_LOCALSTORAGE_KEY_PREFIX + "private");

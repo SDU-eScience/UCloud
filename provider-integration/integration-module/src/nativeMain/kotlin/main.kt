@@ -427,7 +427,7 @@ fun main(args: Array<String>) {
                     override suspend fun <R : Any> beforeRequest(handler: CallHandler<R, *, *>) {
                         debugSystem.sendMessage(
                             DebugMessage.ServerRequest(
-                                currentContext()!!,
+                                DebugContext.create(),
                                 Time.now(),
                                 handler.ctx.securityPrincipalTokenOrNull?.principal,
                                 MessageImportance.IMPLEMENTATION_DETAIL,
@@ -514,6 +514,7 @@ fun main(args: Array<String>) {
             if (ipcServer != null && rpcClient != null) ProcessingScope.launch { ipcServer.runServer() }
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
             processWatcher?.initialize()
+            loadE2EValidation(pluginContext)
 
             if (config.pluginsOrNull != null) {
                 val plugins = config.plugins

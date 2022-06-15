@@ -3,8 +3,14 @@ package dk.sdu.cloud.ipc
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlinx.atomicfu.atomic
 import kotlinx.cinterop.*
 import kotlinx.coroutines.GlobalScope
@@ -13,6 +19,7 @@ import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.channels.receiveOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
@@ -144,13 +151,58 @@ class IpcClient(
                 while (!writeChannel.isClosedForReceive) {
                     val next = writeChannel.receiveCatching().getOrNull() ?: break
 
+                    val debugContext = DebugContext.create()
                     try {
+                        val start = Time.now()
+                        if (next.payload.method != "ping.ping") {
+                            debugSystem?.sendMessage(
+                                DebugMessage.ClientRequest(
+                                    debugContext,
+                                    start,
+                                    null,
+                                    MessageImportance.IMPLEMENTATION_DETAIL,
+                                    "ipc.${next.payload.method}",
+                                    next.payload.params,
+                                    "IPC Socket"
+                                )
+                            )
+                        }
                         sendRequest(next.payload)
                         val value = parseResponse()
+                        val end = Time.now()
+                        if (next.payload.method != "ping.ping") {
+                            @Suppress("UNCHECKED_CAST")
+                            debugSystem?.sendMessage(
+                                DebugMessage.ClientResponse(
+                                    DebugContext.createWithParent(debugContext.id),
+                                    end,
+                                    null,
+                                    MessageImportance.THIS_IS_NORMAL,
+                                    "ipc.${next.payload.method}",
+                                    defaultMapper.encodeToJsonElement(
+                                        when (value) {
+                                            is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
+                                            is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
+                                        } as KSerializer<Any>,
+                                        value
+                                    ),
+                                    when (value) {
+                                        is JsonRpcResponse.Error -> value.error.code
+                                        is JsonRpcResponse.Success -> 200
+                                    },
+                                    end - start
+                                )
+                            )
+                        }
                         runBlocking { next.callback.send(Result.success(value)) }
                     } catch (ex: Throwable) {
                         log.warn("Caught exception while processing IPC messages (client): ${ex.stackTraceToString()}")
                         close(clientSocket)
+                        debugSystem.logThrowable(
+                            "Exception while processing IPC",
+                            ex,
+                            ctx = DebugContext.createWithParent(debugContext.id)
+                        )
                         runBlocking { next.callback.send(Result.failure(ex)) }
                     }
                 }

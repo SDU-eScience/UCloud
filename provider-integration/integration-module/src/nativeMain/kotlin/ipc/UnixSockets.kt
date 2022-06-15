@@ -47,7 +47,7 @@ class UnixSocketPipe(
         while (true) {
             val receivedInIteration = recvmsg(socket, messageHeader.ptr, 0)
             if (receivedInIteration <= 0L) {
-                throw IpcException("Error while reading IPC message")
+                throw IpcException("Error while reading IPC message result = $receivedInIteration errno = $errno")
             }
 
             if (receivedInIteration + offset >= destination.size) {
