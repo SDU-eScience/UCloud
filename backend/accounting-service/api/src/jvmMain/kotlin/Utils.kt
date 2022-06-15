@@ -7,7 +7,7 @@ import dk.sdu.cloud.calls.client.OutgoingWSCall
 import dk.sdu.cloud.calls.client.withHooks
 import io.ktor.client.request.*
 
-fun AuthenticatedClient.withProxyInfo(username: String?): AuthenticatedClient {
+fun AuthenticatedClient.withProxyInfo(username: String?, signedIntent: String?): AuthenticatedClient {
     return withHooks(
         beforeHook = {
             if (username != null) {
@@ -17,6 +17,13 @@ fun AuthenticatedClient.withProxyInfo(username: String?): AuthenticatedClient {
                             IntegrationProvider.UCLOUD_USERNAME_HEADER,
                             base64Encode(username.encodeToByteArray())
                         )
+
+                        if (signedIntent != null) {
+                            it.builder.header(
+                                IntegrationProvider.UCLOUD_SIGNED_INTENT,
+                                signedIntent,
+                            )
+                        }
                     }
 
                     is OutgoingWSCall -> {

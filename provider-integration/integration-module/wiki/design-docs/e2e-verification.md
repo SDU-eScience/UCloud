@@ -14,7 +14,7 @@ This design document covers the feature tracked in [UCloud#3367](https://github.
 | IMS           | Expand the connection procedure to save a public key            | [#3496](https://github.com/sdu-escience/ucloud/issues/3496) | Done       |
 | FE            | Update connection dashboard to be active when no key is present | [#3497](https://github.com/sdu-escience/ucloud/issues/3497) | Done       |
 | FE            | Introduce message signing                                       | [#3498](https://github.com/sdu-escience/ucloud/issues/3498) | Done       |
-| BE            | Forward RPC signature to providers                              | [#3499](https://github.com/sdu-escience/ucloud/issues/3499) | Backlog    |
+| BE            | Forward RPC signature to providers                              | [#3499](https://github.com/sdu-escience/ucloud/issues/3499) | Done       |
 | IMU           | Introduce E2E verification procedure                            | [#3500](https://github.com/sdu-escience/ucloud/issues/3500) | Backlog    |
 | FE            | Introduce key invalidation in response to 482 status            | [#3501](https://github.com/sdu-escience/ucloud/issues/3501) | Backlog    |
 

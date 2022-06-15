@@ -56,5 +56,6 @@ open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$n
 
     companion object {
         const val UCLOUD_USERNAME_HEADER = "UCloud-Username"
+        const val UCLOUD_SIGNED_INTENT = "UCloud-Signed-Intent"
     }
 }

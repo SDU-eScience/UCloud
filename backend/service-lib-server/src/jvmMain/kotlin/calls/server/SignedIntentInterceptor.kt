@@ -6,7 +6,7 @@ import dk.sdu.cloud.service.Loggable
 import io.ktor.application.call
 import io.ktor.request.header
 
-class ProjectInterceptor {
+class SignedIntentInterceptor {
     fun register(server: RpcServer) {
         server.attachFilter(object : IngoingCallFilter.BeforeParsing() {
             override fun canUseContext(ctx: IngoingCall): Boolean = true
@@ -19,10 +19,10 @@ class ProjectInterceptor {
 
     private fun readProject(context: IngoingCall): String? {
         return when (context) {
-            is HttpCall -> context.call.request.header("Project")
-            is WSCall -> context.request.project
+            is HttpCall -> context.call.request.header("UCloud-Signed-Intent")
+//            is WSCall -> context.request.project
             else -> {
-                log.warn("Unable to extract project from call context: $context")
+                log.warn("Unable to extract signed intent from call context: $context")
                 null
             }
         }
@@ -31,13 +31,13 @@ class ProjectInterceptor {
     companion object : Loggable {
         override val log = logger()
 
-        internal val projectKey = AttributeKey<String>("project")
+        internal val key = AttributeKey<String>("signed-intent")
     }
 }
 
-var IngoingCall.project: String?
-    get() = attributes.getOrNull(ProjectInterceptor.projectKey)
+var IngoingCall.signedIntent: String?
+    get() = attributes.getOrNull(SignedIntentInterceptor.key)
     internal set(value) {
-        if (value != null) attributes[ProjectInterceptor.projectKey] = value
-        else attributes.remove(ProjectInterceptor.projectKey)
+        if (value != null) attributes[SignedIntentInterceptor.key] = value
+        else attributes.remove(SignedIntentInterceptor.key)
     }

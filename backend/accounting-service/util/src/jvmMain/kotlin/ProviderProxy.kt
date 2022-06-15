@@ -250,7 +250,10 @@ class ProviderProxy<
                         val response = providerCall.call(
                             requestForProvider,
                             if (isUserRequest) {
-                                comms.client.withProxyInfo(actorAndProject.actor.safeUsername())
+                                comms.client.withProxyInfo(
+                                    actorAndProject.actor.safeUsername(),
+                                    actorAndProject.signedIntentFromUser
+                                )
                             } else {
                                 comms.client
                             }
@@ -322,7 +325,7 @@ class ProviderProxy<
             val response = actualCall.call(
                 requestForProvider,
                 if (isUserRequest) {
-                    baseClient.withProxyInfo(actorAndProject.actor.safeUsername())
+                    baseClient.withProxyInfo(actorAndProject.actor.safeUsername(), actorAndProject.signedIntentFromUser)
                 } else {
                     baseClient
                 }
@@ -415,7 +418,10 @@ class ProviderProxy<
                     val response = providerCall.subscribe(
                         requestForProvider,
                         if (isUserRequest) {
-                            comms.wsClient.withProxyInfo(actorAndProject.actor.safeUsername())
+                            comms.wsClient.withProxyInfo(
+                                actorAndProject.actor.safeUsername(),
+                                actorAndProject.signedIntentFromUser
+                            )
                         } else {
                             comms.wsClient
                         },
@@ -492,6 +498,8 @@ suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeCa
 
     requestForProvider: R,
 
+    // NOTE(Dan): See ctx.signedIntent from the end-user request. This should only be passed if `isUserRequest = true`.
+    signedIntentFromEndUser: String?,
     isUserRequest: Boolean = true,
     useHttpClient: Boolean = true,
 ): S {
@@ -509,7 +517,7 @@ suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeCa
         val response = actualCall.call(
             requestForProvider,
             if (isUserRequest) {
-                baseClient.withProxyInfo(actorAndProject.actor.safeUsername())
+                baseClient.withProxyInfo(actorAndProject.actor.safeUsername(), signedIntentFromEndUser)
             } else {
                 baseClient
             }

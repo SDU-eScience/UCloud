@@ -624,9 +624,10 @@ class JobOrchestrator(
 
             providers.invokeCall(
                 job.specification.product.provider,
-                actorAndProject, // TODO This is going to cause issues with #3367
+                actorAndProject,
                 { it.api.unsuspend },
                 BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
+                signedIntentFromEndUser = null, // TODO This is going to cause issues with #3367
             )
         }
     }

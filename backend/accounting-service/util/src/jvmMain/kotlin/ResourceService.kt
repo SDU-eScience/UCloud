@@ -972,8 +972,10 @@ abstract class ResourceService<
             // NOTE(Dan): Ignore failures as they commonly indicate that it is not supported.
             loop@for (attempt in 0 until 5) {
                 try {
-                    val resp =
-                        api.init.call(ResourceInitializationRequest(owner), comms.client.withProxyInfo(owner.createdBy))
+                    val resp = api.init.call(
+                        ResourceInitializationRequest(owner),
+                        comms.client.withProxyInfo(owner.createdBy, actorAndProject.signedIntentFromUser)
+                    )
 
                     if (resp.statusCode.value == 449 || resp.statusCode == HttpStatusCode.ServiceUnavailable) {
                         val im = IntegrationProvider(provider)
