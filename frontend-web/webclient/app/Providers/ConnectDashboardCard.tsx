@@ -9,10 +9,11 @@ import { useCallback, useEffect } from "react";
 import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
 import { PageV2, provider } from "@/UCloud";
 import IntegrationApi = provider.im;
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
     hasUploadedSigningKeyToProvider,
     retrieveOrInitializePublicSigningKey,
-    signIntentToCall
+    markSigningKeyAsUploadedToProvider,
 } from "@/Authentication/MessageSigning";
 
 export const ConnectDashboardCard: React.FunctionComponent = props => {
@@ -40,8 +41,40 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
 
         if (res) {
             if (providerData.requiresMessageSigning) {
-                console.log("Got key", retrieveOrInitializePublicSigningKey());
-                console.log("Example signature", signIntentToCall({ path: "/api/files/browse", method: "GET" }));
+                const postOptions: RequestInit = {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json",
+                    },
+                    mode: "cors",
+                    credentials: "omit",
+                    body: JSON.stringify({
+                        publicKey: retrieveOrInitializePublicSigningKey()
+                    })
+                };
+
+                fetch(res.redirectTo, postOptions)
+                    .then(it => it.json())
+                    .then(resp => {
+                        const redirectTo = resp["redirectTo"];
+                        if (!redirectTo || typeof redirectTo !== "string") throw "Invalid response from server";
+
+                        // TODO(Dan): There is no guarantee that this was _actually_ successful. But we are also never
+                        // notified by anything that this went well, so we have no other choice that to just assume
+                        // that authentication is going to go well. Worst case, the user will have their key
+                        // invalidated when they attempt to make a request.
+            
+                        markSigningKeyAsUploadedToProvider(providerData.providerTitle);
+
+                        document.location.href = redirectTo;
+                    })
+                    .catch(() => {
+                        snackbarStore.addFailure(
+                            "UCloud was not able to initiate a connection. Try again later.", 
+                            true
+                        );
+                    });
             } else {
                 document.location.href = res.redirectTo;
             }

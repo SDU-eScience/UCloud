@@ -277,12 +277,18 @@ data class CorsSettings(
     val maxAgeSeconds: Long,
     val allowHeaders: List<String>,
 ) {
-    val headers = listOf(
-        Header("Access-Control-Allow-Origin", allowOrigins.joinToString(", ")),
-        Header("Access-Control-Allow-Methods", allowMethods.joinToString(", ") { it.value }),
-        Header("Access-Control-Max-Age", "$maxAgeSeconds"),
-        Header("Access-Control-Allow-Headers", allowHeaders.joinToString(", ")),
-    )
+    fun headers(origin: String?): List<Header> {
+        return buildList {
+            if (origin in allowOrigins && origin != null) {
+                add(Header("Access-Control-Allow-Origin", origin))
+            } else {
+                add(Header("Access-Control-Allow-Origin", allowOrigins.first()))
+            }
+            add(Header("Access-Control-Allow-Methods", allowMethods.joinToString(", ") { it.value }))
+            add(Header("Access-Control-Max-Age", "$maxAgeSeconds"))
+            add(Header("Access-Control-Allow-Headers", allowHeaders.joinToString(", ")))
+        }
+    }
 }
 
 @OptIn(ExperimentalUnsignedTypes::class)
@@ -605,7 +611,8 @@ fun <AppData> startServer(
                         }
 
                         if (parsedMethod == HttpMethod.Options) {
-                            client.sendHttpResponse(204, defaultHeaders(payloadSize = 0, cors = cors))
+                            val origin = requestHeaders.find { it.header.equals("origin", ignoreCase = true) }?.value
+                            client.sendHttpResponse(204, defaultHeaders(payloadSize = 0, origin = origin, cors = cors))
                         } else {
                             if (httpRequestHandler != null) {
                                 with(httpRequestHandler) {
@@ -648,10 +655,10 @@ enum class WebSocketOpCode(val opcode: Int) {
     PONG(0xA)
 }
 
-fun defaultHeaders(payloadSize: Long = 0, cors: CorsSettings? = null): List<Header> = buildList {
+fun defaultHeaders(payloadSize: Long = 0, origin: String? = null, cors: CorsSettings? = null): List<Header> = buildList {
     add(dateHeader())
     add(Header("Content-Length", payloadSize.toString()))
-    if (cors != null) addAll(cors.headers)
+    if (cors != null && origin != null) addAll(cors.headers(origin))
 }
 
 private fun dateHeader(): Header {

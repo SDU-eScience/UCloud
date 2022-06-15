@@ -1,4 +1,4 @@
-import { CallParameters } from "@/Authentication/lib";
+import { CallParameters } from "@/Authentication/CallParameters";
 import { estimateRpcName } from "@/Authentication/RpcNameTable";
 import { timestampUnixMs } from "@/UtilityFunctions";
 import { KEYUTIL, KJUR } from "jsrsasign";
@@ -55,6 +55,12 @@ export function hasUploadedSigningKeyToProvider(provider: string): boolean {
     return uploadedTo.some(it => it === provider);
 }
 
+export function markSigningKeyAsUploadedToProvider(provider: string) {
+    const current = keyUploadedToCache.retrieve() ?? [];
+    current.push(provider);
+    keyUploadedToCache.update(current);
+}
+
 export function signIntentToCall(parameters: CallParameters): string | null {
     const privateKey = retrievePrivateKey();
     if (privateKey == null) return null;
@@ -62,10 +68,10 @@ export function signIntentToCall(parameters: CallParameters): string | null {
     const rpcName = estimateRpcName(parameters);
     if (rpcName == null) return null;
 
-    const now = timestampUnixMs();
+    const now = (timestampUnixMs() / 1000) | 0;
     const intentPayload = {
         iat: now,
-        exp: now + (1000 * 30),
+        exp: now + 30,
         call: rpcName,
         username: Client.username,
         project: Client.projectId ?? null,
@@ -73,3 +79,4 @@ export function signIntentToCall(parameters: CallParameters): string | null {
 
     return KJUR.jws.JWS.sign(SIGNING_ALGORITHM, SIGNING_HEADER, intentPayload, privateKey);
 }
+

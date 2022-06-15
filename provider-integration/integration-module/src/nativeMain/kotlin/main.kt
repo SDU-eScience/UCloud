@@ -226,7 +226,13 @@ fun main(args: Array<String>) {
             // Remote Procedure Calls (RPC)
             // -------------------------------------------------------------------------------------------------------
             val cors = CorsSettings(
-                allowOrigins = listOf(config.core.hosts.ucloud.toStringOmitDefaultPort()),
+                allowOrigins = buildList {
+                    add(config.core.hosts.ucloud.toStringOmitDefaultPort())
+                    if (config.core.hosts.ucloud.host == "backend") {
+                        // allow communication from the frontend when running a docker compose dev setup
+                        add("http://localhost:9000")
+                    }
+                },
                 allowMethods = listOf(HttpMethod.Get, HttpMethod.Post, HttpMethod.Put, HttpMethod.Delete),
                 maxAgeSeconds = 1800,
                 allowHeaders = listOf(

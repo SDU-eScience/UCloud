@@ -6,14 +6,14 @@ This design document covers the feature tracked in [UCloud#3367](https://github.
 
 | Component (*) | Description                                                     | Issue                                                       | Status (+) |
 |---------------|-----------------------------------------------------------------|-------------------------------------------------------------|------------|
-| FE            | Create a call name lookup table                                 | [#3491](https://github.com/sdu-escience/ucloud/issues/3491) | Backlog    |
-| IM            | Create a call name lookup table (user API to provider)          | [#3492](https://github.com/sdu-escience/ucloud/issues/3492) | Backlog    |
-| BE            | Update connection API to allow for optional signing             | [#3493](https://github.com/sdu-escience/ucloud/issues/3493) | Backlog    |
-| BE            | Update provider API to expose information about signing         | [#3494](https://github.com/sdu-escience/ucloud/issues/3494) | Backlog    |
-| FE            | Introduce a JWT (signing) library into the frontend             | [#3495](https://github.com/sdu-escience/ucloud/issues/3495) | Backlog    |
-| IMS           | Expand the connection procedure to save a public key            | [#3496](https://github.com/sdu-escience/ucloud/issues/3496) | Backlog    |
-| FE            | Update connection dashboard to be active when no key is present | [#3497](https://github.com/sdu-escience/ucloud/issues/3497) | Backlog    |
-| FE            | Introduce message signing                                       | [#3498](https://github.com/sdu-escience/ucloud/issues/3498) | Backlog    |
+| FE            | Create a call name lookup table                                 | [#3491](https://github.com/sdu-escience/ucloud/issues/3491) | Done       |
+| IM            | Create a call name lookup table (user API to provider)          | [#3492](https://github.com/sdu-escience/ucloud/issues/3492) | Done       |
+| BE            | Update connection API to allow for optional signing             | [#3493](https://github.com/sdu-escience/ucloud/issues/3493) | Done       |
+| BE            | Update provider API to expose information about signing         | [#3494](https://github.com/sdu-escience/ucloud/issues/3494) | Done       |
+| FE            | Introduce a JWS (signing) library into the frontend             | [#3495](https://github.com/sdu-escience/ucloud/issues/3495) | Done       |
+| IMS           | Expand the connection procedure to save a public key            | [#3496](https://github.com/sdu-escience/ucloud/issues/3496) | Done       |
+| FE            | Update connection dashboard to be active when no key is present | [#3497](https://github.com/sdu-escience/ucloud/issues/3497) | Done       |
+| FE            | Introduce message signing                                       | [#3498](https://github.com/sdu-escience/ucloud/issues/3498) | Done       |
 | BE            | Forward RPC signature to providers                              | [#3499](https://github.com/sdu-escience/ucloud/issues/3499) | Backlog    |
 | IMU           | Introduce E2E verification procedure                            | [#3500](https://github.com/sdu-escience/ucloud/issues/3500) | Backlog    |
 | FE            | Introduce key invalidation in response to 482 status            | [#3501](https://github.com/sdu-escience/ucloud/issues/3501) | Backlog    |
@@ -57,17 +57,17 @@ required for such a digital signature. However, the Core must _never_ see any of
 
 ### Digital signature
 
-For the sake of making the implementation easy, it has been decided to use JWTs for digital signatures. This has been
-chosen since all components involved in UCloud are already capable of handling JWTs as they are a requirement for using
-any kind of RPC with UCloud. We also believe that the public-key cryptography algorithms used in JWTs provide a strong
+For the sake of making the implementation easy, it has been decided to use JWSs for digital signatures. This has been
+chosen since all components involved in UCloud are already capable of handling JWSs as they are a requirement for using
+any kind of RPC with UCloud. We also believe that the public-key cryptography algorithms used in JWSs provide a strong
 enough security to serve this purpose.
 
 Once keys have been exchanged, then the private key must be securely stored in the frontend of UCloud. The frontend will
-then become responsible for creating a JWT accompanying every RPC made towards UCloud/Core. The JWTs will use the RS512
-algorithm. The payload of the JWT must use the following format:
+then become responsible for creating a JWSs accompanying every RPC made towards UCloud/Core. The JWSs will use the RS512
+algorithm. The payload of the JWSs must use the following format:
 
 ```kotlin
-data class RpcManifest(
+data class IntentToCall(
     // Full name of the RPC call invoked (NOTE: this is the end-user API not the provider API)
     val call: String,
 
@@ -80,7 +80,7 @@ data class RpcManifest(
 )
 ```
 
-The UCloud frontend must add this in the `UCloud-RPC-Signature` header. Similarly, the Core must pass it in the same
+The UCloud frontend must add this in the `UCloud-Signed-Intent` header. Similarly, the Core must pass it in the same
 header to the provider.
 
 Integrations supporting this signature should validate as much information as possible. If any information appears to be
@@ -123,11 +123,11 @@ This approach is similar to Approach 1, except that it uses the WebAuthn API to 
 private key stored in `localStorage`. This increases the security by moving the keys out of easily accessible storage.
 Under this scenario neither UCloud/Core or the UCloud frontend would have access to the private key involved.
 
-This approach would not use JWTs directly, but rather mimic the implementation of JWTs. In this scenario, the client
-would send two headers. The first header would contain the payload (`RpcManifest`) and the second header would
+This approach would not use JWSs directly, but rather mimic the implementation of JWSs. In this scenario, the client
+would send two headers. The first header would contain the payload (`IntentToCall`) and the second header would
 contain a signed version of the payload. This would likely be implemented by taking a cryptographic hash of the payload
 and then encrypting it with the private key (i.e. the challenge of WebAuthn would be the hash). Validation routines are,
-again, similar to JWTs. The provider would compute the same hash of the payload, decrypt the signature using the public
+again, similar to JWSs. The provider would compute the same hash of the payload, decrypt the signature using the public
 key and compare the two hashes.
 
 The procedure would work as follows:
@@ -164,11 +164,11 @@ this balanced with the inconvenience caused by having to reconnect and reconfigu
 
 ### Replay attacks and UCloud/Core maliciously changing real requests
 
-The `RpcManifest` is purposefully loose in the scope in which it acts. This allows UCloud/Core perform the required
+The `IntentToCall` is purposefully loose in the scope in which it acts. This allows UCloud/Core perform the required
 modifications to the request payload. Unfortunately, this also means that UCloud/Core could easily replay or even
 maliciously change requests (as long as it stays within the scope).
 
-This issue is mainly mitigated by having a short TTL on the `RpcManifest`. Further mitigations can be implemented by
+This issue is mainly mitigated by having a short TTL on the `IntentToCall`. Further mitigations can be implemented by
 limiting the scope of the RPC even further. This is currently not considered a priority, due to time it would take to
 implement. Examples could include limiting a file browsing request to a specific path.
 

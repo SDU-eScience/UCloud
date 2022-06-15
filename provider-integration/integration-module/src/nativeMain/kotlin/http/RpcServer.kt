@@ -79,6 +79,7 @@ class RpcServer(
                     headers: List<Header>,
                     payload: ByteBuffer
                 ) {
+                    val origin = headers.find { it.header.equals("origin", ignoreCase = true) }?.value
                     var foundCall: CallWithHandler<Any, Any, Any>? = null
                     for (callWithHandler in handlers) {
                         val (call) = callWithHandler
@@ -101,7 +102,7 @@ class RpcServer(
 
                     if (foundCall == null) {
                         log.debug("$method $path 404 Not Found")
-                        sendHttpResponse(404, defaultHeaders(cors = cors))
+                        sendHttpResponse(404, defaultHeaders(origin = origin, cors = cors))
                         return
                     }
 
@@ -119,7 +120,7 @@ class RpcServer(
 
                                         http.body is HttpBody.BoundToEntireRequest<*> -> {
                                             if (payload.readerRemaining() <= 0) {
-                                                sendHttpResponse(400, defaultHeaders(cors = cors))
+                                                sendHttpResponse(400, defaultHeaders(origin = origin, cors = cors))
                                                 return@withContext
                                             }
 
@@ -145,7 +146,7 @@ class RpcServer(
                                             ex.stackTraceToString().prependIndent("  ")
                                         }"
                                     )
-                                    sendHttpResponse(400, defaultHeaders(cors = cors))
+                                    sendHttpResponse(400, defaultHeaders(origin = origin, cors = cors))
                                     return@withContext
                                 }
 
@@ -169,7 +170,7 @@ class RpcServer(
 
                                         sendHttpResponseWithData(
                                             200,
-                                            contentTypeJson + (cors?.headers ?: emptyList()),
+                                            contentTypeJson + (cors?.headers(origin) ?: emptyList()),
                                             encodedPayload,
                                         )
                                     }
@@ -186,7 +187,7 @@ class RpcServer(
 
                                         sendHttpResponseWithData(
                                             outgoingResult.statusCode.value,
-                                            contentTypeJson + (cors?.headers ?: emptyList()),
+                                            contentTypeJson + (cors?.headers(origin) ?: emptyList()),
                                             encodedPayload
                                         )
                                     }
@@ -216,7 +217,7 @@ class RpcServer(
 
                                     sendHttpResponseWithData(
                                         ex.httpStatusCode.value,
-                                        contentTypeJson + (cors?.headers ?: emptyList()),
+                                        contentTypeJson + (cors?.headers(origin) ?: emptyList()),
                                         defaultMapper
                                             .encodeToString(CommonErrorMessage(ex.why, ex.errorCode))
                                             .encodeToByteArray()
@@ -226,7 +227,7 @@ class RpcServer(
                                         "Caught an unexpected error in ${foundCall.call.fullName}\n" +
                                             ex.stackTraceToString()
                                     )
-                                    sendHttpResponse(500, defaultHeaders(cors = cors))
+                                    sendHttpResponse(500, defaultHeaders(origin = origin, cors = cors))
                                 }
                             }
                         }

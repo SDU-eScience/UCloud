@@ -49,6 +49,11 @@ data class SigningKeyRequest(
     val publicKey: String,
 )
 
+@Serializable
+data class SigningKeyResponse(
+    val redirectTo: String
+)
+
 class ConnectionController(
     private val controllerContext: ControllerContext,
     private val envoyConfig: EnvoyConfigurationService?,
@@ -152,7 +157,7 @@ class ConnectionController(
         }
 
         val redirectProxy = object : CallDescriptionContainer("${im.namespace}.redirector") {
-            val redirect = call<SigningKeyRequest, Unit, CommonErrorMessage>("redirect") {
+            val redirect = call<SigningKeyRequest, SigningKeyResponse, CommonErrorMessage>("redirect") {
                 httpUpdate("/ucloud/$providerId/integration", "redirect", Roles.PUBLIC)
             }
         }
@@ -170,9 +175,7 @@ class ConnectionController(
             session.keyId = keyId
 
             session.beforeRedirect()
-
-            httpContext.session.sendTemporaryRedirect(session.redirectTo)
-            OutgoingCallResponse.AlreadyDelivered()
+            OutgoingCallResponse.Ok(SigningKeyResponse(session.redirectTo))
         }
 
         implement(im.connect) {
