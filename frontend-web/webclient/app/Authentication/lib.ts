@@ -3,7 +3,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/Redux";
 import {CallParameters} from "./CallParameters";
-import {signIntentToCall} from "@/Authentication/MessageSigning";
+import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -158,6 +158,10 @@ export class HttpClient {
                     const rejectOrRetry = (parsedResponse?) => {
                         if (req.status === 401) {
                             this.forceRefresh = true;
+                        }
+
+                        if (req.status === 482) {
+                            clearSigningKey();
                         }
 
                         reject({request: req, response: parsedResponse});

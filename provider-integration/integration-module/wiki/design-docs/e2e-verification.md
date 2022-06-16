@@ -16,7 +16,8 @@ This design document covers the feature tracked in [UCloud#3367](https://github.
 | FE            | Introduce message signing                                       | [#3498](https://github.com/sdu-escience/ucloud/issues/3498) | Done       |
 | BE            | Forward RPC signature to providers                              | [#3499](https://github.com/sdu-escience/ucloud/issues/3499) | Done       |
 | IMU           | Introduce E2E verification procedure                            | [#3500](https://github.com/sdu-escience/ucloud/issues/3500) | Done       |
-| FE            | Introduce key invalidation in response to 482 status            | [#3501](https://github.com/sdu-escience/ucloud/issues/3501) | Backlog    |
+| FE            | Introduce key invalidation in response to 482 status            | [#3501](https://github.com/sdu-escience/ucloud/issues/3501) | Done       |
+| FE/BE/IM      | Message signing for websockets                                  | [#3504](https://github.com/sdu-escience/ucloud/issues/3504) | Backlog    |
 
 (*): __FE__ = Frontend. __BE__ = Backend (Core). __IM__ = Integration module. __IMU__ = Integration module (User mode).
 __IMS__ = Integration module (Server mode).
