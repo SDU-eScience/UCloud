@@ -1,5 +1,6 @@
 import {HttpClient} from "./lib";
 import {inDevEnvironment} from "@/UtilityFunctions";
+import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
 
 export interface WebSocketOpenSettings {
     /**
@@ -49,6 +50,7 @@ interface WebsocketRequest<T = any> {
     bearer: string;
     payload: T | null;
     project?: string;
+    signedIntent?: string;
 }
 
 interface SubscribeParameters<T = any> {
@@ -93,6 +95,7 @@ export class WebSocketConnection {
         const streamId = (this.nextStreamId++).toString();
         const bearer = this.settings.includeAuthentication !== false ?
             await this.client.receiveAccessTokenOrRefreshIt() : undefined;
+        const signedIntent = signIntentToCall(call) ?? undefined;
 
         return new Promise((resolve) => {
             this.handlers.set(streamId, message => {
@@ -105,7 +108,7 @@ export class WebSocketConnection {
 
             const project = this.client.projectId;
 
-            this.sendMessage({call, streamId, payload, project, bearer});
+            this.sendMessage({call, streamId, payload, project, bearer, signedIntent});
         });
     }
 

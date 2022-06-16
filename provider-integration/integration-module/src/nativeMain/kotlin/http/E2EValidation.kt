@@ -18,8 +18,6 @@ import kotlinx.atomicfu.atomic
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.cinterop.toKStringFromUtf8
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import libjwt.*
 
 suspend fun loadE2EValidation(pluginContext: PluginContext) {
@@ -43,7 +41,7 @@ suspend fun loadE2EValidation(pluginContext: PluginContext) {
                 }
 
                 is WebSocketContext<*, *, *> -> {
-                    TODO()
+                    sctx.rawRequest.signedIntent
                 }
 
                 else -> error("Unexpected server context of type $sctx")

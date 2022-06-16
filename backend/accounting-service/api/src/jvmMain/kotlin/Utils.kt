@@ -28,6 +28,9 @@ fun AuthenticatedClient.withProxyInfo(username: String?, signedIntent: String?):
 
                     is OutgoingWSCall -> {
                         it.attributes[OutgoingWSCall.proxyAttribute] = username
+                        if (signedIntent != null) {
+                            it.attributes[OutgoingWSCall.signedIntentAttribute] = signedIntent
+                        }
                     }
 
                     else -> {

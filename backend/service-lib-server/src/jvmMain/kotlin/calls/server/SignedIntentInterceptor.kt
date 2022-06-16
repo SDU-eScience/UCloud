@@ -20,7 +20,7 @@ class SignedIntentInterceptor {
     private fun readSignedIntent(context: IngoingCall): String? {
         return when (context) {
             is HttpCall -> context.call.request.header("UCloud-Signed-Intent")
-//            is WSCall -> context.request.project
+            is WSCall -> context.request.signedIntent
             else -> {
                 log.warn("Unable to extract signed intent from call context: $context")
                 null

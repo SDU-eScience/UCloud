@@ -34,6 +34,7 @@ class OutgoingWSCall : OutgoingCall {
 
         internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
         val proxyAttribute = AttributeKey<String>("ucloud-username")
+        val signedIntentAttribute = AttributeKey<String>("ucloud-signed-intent")
     }
 }
 
@@ -88,7 +89,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             streamId,
             request,
             bearer = ctx.attributes.outgoingAuthToken,
-            project = ctx.project
+            project = ctx.project,
+            signedIntent = ctx.attributes[OutgoingWSCall.signedIntentAttribute],
         )
         val writer = WSRequest.serializer(call.requestType)
         val subscription = session.subscribe(streamId)

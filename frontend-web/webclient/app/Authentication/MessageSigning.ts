@@ -61,11 +61,11 @@ export function markSigningKeyAsUploadedToProvider(provider: string) {
     keyUploadedToCache.update(current);
 }
 
-export function signIntentToCall(parameters: CallParameters): string | null {
+export function signIntentToCall(parameters: CallParameters | string): string | null {
     const privateKey = retrievePrivateKey();
     if (privateKey == null) return null;
 
-    const rpcName = estimateRpcName(parameters);
+    const rpcName = typeof parameters === "string" ? parameters : estimateRpcName(parameters);
     if (rpcName == null) return null;
 
     const now = (timestampUnixMs() / 1000) | 0;

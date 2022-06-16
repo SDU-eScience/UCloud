@@ -46,7 +46,8 @@ data class WSRequest<T>(
     val payload: T,
     val bearer: String? = null,
     val causedBy: String? = null,
-    val project: String? = null
+    val project: String? = null,
+    val signedIntent: String? = null,
 ) {
     companion object {
         val CALL_FIELD = WSRequest<*>::call.name
