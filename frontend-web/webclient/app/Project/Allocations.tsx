@@ -28,9 +28,9 @@ function Allocations(): JSX.Element {
     useTitle("Allocations");
 
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
-    const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>(browseSubAllocations({itemsPerPage: 250, ...filters}), emptyPageV2);
+    const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
-    const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>(browseWallets({itemsPerPage: 50, ...filters}), emptyPageV2);
+    const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
 
     const loadMoreAllocations = useCallback(() => {
         fetchAllocations(browseSubAllocations({itemsPerPage: 250, next: allocations.data.next}));
@@ -66,7 +66,7 @@ function Allocations(): JSX.Element {
     }, []);
 
     return <MainContainer
-        main={<Grid gridGap={"16px"}>
+        main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
             </Grid>
@@ -79,7 +79,7 @@ function Allocations(): JSX.Element {
                     filterByWorkspace={filterByWorkspace} wallets={wallets}
                     onQuery={onSubAllocationQuery} />
                 : null}
-        </Grid>}
+        </>}
     />
 }
 
@@ -191,7 +191,7 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const initial = normalizeBalanceForFrontend(total.initialBalance, productType, chargeType, unit, props.chargeType === "DIFFERENTIAL_QUOTA");
         const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, props.chargeType, unit)} (${Math.round(asPercent)}%)`;
         return <Box mr={idx !== length - 1 ? "4px" : undefined}>
-            <ResourceProgress fontWeight={{fontWeight: "bold"}} width={resourceProgress.length * 7.3 + "px"} height="20px" value={Math.round(asPercent)} text={resourceProgress} />
+            <ResourceProgress width={resourceProgress.length * 7.3 + "px"} height="20px" value={Math.round(asPercent)} text={resourceProgress} />
         </Box>
     })}</>
 }
@@ -259,7 +259,7 @@ function totalUsageFromMultipleWallets(wallets: Wallet[]): UsageFromWallet {
     }, {balance: 0, initialBalance: 0});
 }
 
-function resultAsPercent(usage: UsageFromWallet): number {
+export function resultAsPercent(usage: UsageFromWallet): number {
     if (usage.balance < 0) return 100;
     return 100 - (usage.balance / usage.initialBalance * 100);
 }

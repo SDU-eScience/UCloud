@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Text, TextArea, Tooltip} from "@/ui-components";
+import {Absolute, Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
     ChargeType,
@@ -36,7 +36,8 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
-import {AllocationViewer} from "./Allocations";
+import {AllocationViewer, resultAsPercent} from "./Allocations";
+import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider);
@@ -76,12 +77,14 @@ export const SubAllocationViewer: React.FunctionComponent<{
             mr="15px"
             left={<Heading.h3>Sub-allocations</Heading.h3>}
             right={
-                <SearchInput>
+                <Flex>
                     <Input id={"resource-search"} placeholder={"Search in allocations..."} onKeyDown={onSearchInput} />
-                    <Label ml="-15px" htmlFor={"resource-search"}>
-                        <Icon name={"search"} size={"20px"} />
-                    </Label>
-                </SearchInput>
+                    <Relative right="30px" top="9px">
+                        <Label htmlFor={"resource-search"}>
+                            <Icon mr="-25px" name={"search"} size={"20px"} />
+                        </Label>
+                    </Relative>
+                </Flex>
             }
         />
 
@@ -517,8 +520,10 @@ interface SuballocationCreationRow {
 }
 
 interface InitialAndRemainingBalance {
-    initial: string;
-    remainingBalance: string;
+    initialBalance: string;
+    remaining: string;
+    asPercent: number;
+    resourceText: string;
 }
 
 interface EntriesByUnitAndChargeType {
@@ -541,11 +546,69 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
         }
     }
 
-    const result = {
-        ABSOLUTE: Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
+    const absolute =
+        Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
+            initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance,
+            remaining: byUnitAndChargeType.ABSOLUTE[it].remaining,
+            asPercent: resultAsPercent({
+                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
+                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
+            }),
+            resourceText: normalizeBalanceForFrontend(
+                byUnitAndChargeType.ABSOLUTE[it].initialBalance - Math.min(byUnitAndChargeType.ABSOLUTE[it].initialBalance, byUnitAndChargeType.ABSOLUTE[it].remaining),
+                productType,
+                "ABSOLUTE",
+                it,
+                false,
+                2
+            ) + " / " + normalizeBalanceForFrontend(
+                byUnitAndChargeType.ABSOLUTE[it].initialBalance,
+                productType,
+                "ABSOLUTE",
+                it,
+                false,
+                2
+            ) + " " + explainAllocation(productType, "ABSOLUTE", it) + " (" + Math.round(resultAsPercent({
+                balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
+                initialBalance: byUnitAndChargeType.ABSOLUTE[it].initialBalance
+            })) + "%)"
+        }));
+
+    const differential = Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
+        initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
+        remaining: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
+        asPercent: resultAsPercent({
+            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
+            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
+        }),
+        resourceText: normalizeBalanceForFrontend(
+            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance - Math.min(byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance, byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining),
+            productType,
+            "DIFFERENTIAL_QUOTA",
+            it,
+            /* TODO(Jonas): isPrice should be... */
+            true,
+            2
+        ) + " / " + normalizeBalanceForFrontend(
+            byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
+            productType,
+            "DIFFERENTIAL_QUOTA",
+            it,
+            /* TODO(Jonas): isPrice should be... */
+            false,
+            2
+        ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it) + " (" + Math.round(resultAsPercent({
+            balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
+            initialBalance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance
+        })) + "%)"
+    }));
+
+    return {
+        ABSOLUTE: absolute/* Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
             initial: normalizeBalanceForFrontend(
                 byUnitAndChargeType.ABSOLUTE[it].initialBalance,
                 productType,
+                // TODO(Jonas): isPrice should be...
                 "ABSOLUTE",
                 it,
                 false,
@@ -554,18 +617,22 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
             remainingBalance: normalizeBalanceForFrontend(
                 byUnitAndChargeType.ABSOLUTE[it].remaining,
                 productType,
+                // TODO(Jonas): isPrice should be...
                 "ABSOLUTE",
                 it,
                 false,
                 2
-            ) + " " + explainAllocation(productType, "ABSOLUTE", it),
-        })),
-        DIFFERENTIAL_QUOTA: Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
+            ),
+
+        })) */,
+        DIFFERENTIAL_QUOTA: differential/* 
+            Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
             initial: normalizeBalanceForFrontend(
                 byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
                 productType,
                 "DIFFERENTIAL_QUOTA",
                 it,
+                // TODO(Jonas): isPrice should be...
                 false,
                 2
             ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it),
@@ -574,12 +641,12 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
                 productType,
                 "DIFFERENTIAL_QUOTA",
                 it,
+                // TODO(Jonas): isPrice should be...
                 false,
                 2
-            ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it),
-        }))
+            )
+        */,
     }
-    return result;
 }
 
 function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[]; isLast: boolean;}): JSX.Element {
@@ -588,13 +655,15 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
     const storageRemaining = React.useMemo(() => {
         const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
         const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
-        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map((e, i, {length}) => <Box mr={i === length - 1 ? undefined : "12px"}><ResourceProgress key={`${e.initialBalance}-${e.remaining}`} width={e.resourceText.length * 7.2 + "px"} value={e.asPercent} text={e.resourceText} /></Box>))}</Flex>
+        // return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const computeRemaining = React.useMemo(() => {
         const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
         const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
+        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map((e, i, {length}) => <Box mr={i === length - 1 ? undefined : "12px"}><ResourceProgress key={`${e.initialBalance}-${e.remaining}`} width={e.resourceText.length * 7.2 + "px"} value={e.asPercent} text={e.resourceText} /></Box>))}</Flex>
+        // return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
     }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
@@ -940,12 +1009,23 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                 <Text>{titleForSubAllocation(entry)}</Text>
                 <Text mt="3px" color="var(--gray)" ml="12px" fontSize={"18px"}>Start date: {format(entry.startDate, "dd/MM/yy")}, End date: {entry.endDate ? format(entry.endDate, "dd/MM/yy") : "N/A"}</Text>
             </Flex>}
-            right={<>
-                {remainingBalance(entry)}{entry.chargeType === "ABSOLUTE" ? null : <> / {initialBalance(entry)}</>}
-                <Icon ml="12px" name="grant" />
-            </>}
+            right={
+                <Box mr="0" width="auto" pl="0"><UsageBar suballocation={entry} /></Box>
+                /* TODO: Grant redirect <Icon ml="12px" name="grant" /> */
+            }
         />
     );
+}
+
+function UsageBar(props: {suballocation: SubAllocation}) {
+    const {unit, productType, chargeType} = props.suballocation;
+    const {suballocation} = props;
+    const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: suballocation.remaining});
+    const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
+    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit, chargeType === "DIFFERENTIAL_QUOTA");
+    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit, chargeType === "DIFFERENTIAL_QUOTA");
+    const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, chargeType, unit)} (${Math.round(asPercent)}%)`;
+    return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
 }
 
 function explainSubAllocation(suballocation: {productType: ProductType; chargeType: ChargeType; unit: ProductPriceUnit}): string {
@@ -962,16 +1042,6 @@ function initialBalance(suballocation: SubAllocation): string {
     return normalizeSuballocationBalanceForFrontend(suballocation, suballocation.initialBalance) + " " + explainSubAllocation(suballocation);
 }
 
-function remainingBalance(suballocation: SubAllocation): string {
-    return normalizeSuballocationBalanceForFrontend(suballocation, suballocation.remaining) + " " + explainSubAllocation(suballocation);
+function usedBalance(suballocation: SubAllocation) {
+    return normalizeSuballocationBalanceForFrontend(suballocation, suballocation.initialBalance - suballocation.remaining);
 }
-
-const SearchInput = styled.div`
-    position: relative;
-
-    label {
-        position: absolute;
-        left: 260px;
-        top: 10px;
-    }
-`;
