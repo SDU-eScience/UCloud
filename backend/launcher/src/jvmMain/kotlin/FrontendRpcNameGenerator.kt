@@ -47,6 +47,8 @@ fun generateFrontendRpcNameTable(
                     path = params.context + path;
                 }
                 
+                path = "/" + path.split("/").filter(it => it.trim().length > 0).join("/");
+                
                 switch (method) {
             """.trimIndent()
         )

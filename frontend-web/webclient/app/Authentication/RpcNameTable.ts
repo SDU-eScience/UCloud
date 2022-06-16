@@ -19,6 +19,8 @@ export function estimateRpcName(params: CallParameters): string | null {
         path = params.context + path;
     }
 
+    path = "/" + path.split("/").filter(it => it.trim().length > 0).join("/");
+
     switch (method) {
         case 'DELETE':
             switch (path) {
