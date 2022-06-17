@@ -190,7 +190,7 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, productType, chargeType, unit, props.chargeType === "DIFFERENTIAL_QUOTA");
         const initial = normalizeBalanceForFrontend(total.initialBalance, productType, chargeType, unit, props.chargeType === "DIFFERENTIAL_QUOTA");
         const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, props.chargeType, unit)} (${Math.round(asPercent)}%)`;
-        return <Box mr={idx !== length - 1 ? "4px" : undefined}>
+        return <Box key={idx} mr={idx !== length - 1 ? "4px" : undefined}>
             <ResourceProgress width={resourceProgress.length * 7.3 + "px"} height="20px" value={Math.round(asPercent)} text={resourceProgress} />
         </Box>
     })}</>
