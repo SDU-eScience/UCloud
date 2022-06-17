@@ -125,7 +125,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         <HighlightedCard
                             title={"Resources"}
                             icon="grant"
-                            color="purple"
+                            color="green"
                             isLoading={false}
                             onClick={() => history.push("/project/resources")}
                             subtitle={<RightArrow />}
@@ -133,7 +133,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                         <HighlightedCard
                             title={"Allocations"}
                             icon="grant"
-                            color="purple"
+                            color="darkGreen"
                             isLoading={false}
                             onClick={() => history.push("/project/allocations")}
                             subtitle={<RightArrow />}
@@ -184,7 +184,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                                 onClick={() => history.push(`/subprojects?subproject=${projectId}`)}
                                 title="Subprojects"
                                 icon="projects"
-                                color="green"
+                                color="purple"
                             />
                         }
                     </ProjectDashboardGrid>
