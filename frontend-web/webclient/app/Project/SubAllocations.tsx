@@ -649,22 +649,25 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     }
 }
 
+function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: ProductType}) {
+    const storageEntries = props.rows.filter(it => it.productType === props.productType);
+    const storages = entriesByUnitAndChargeType(storageEntries, props.productType);
+    if (storageEntries.length === 0) return null;
+    return <Flex>
+        {Object.keys(storages).flatMap((s: ChargeType) =>
+            storages[s].map((e, i, {length}) =>
+                <ResourceProgress
+                    key={`${e.initialBalance}-${e.remaining}`}
+                    width={e.resourceText.length * 7.2 + "px"}
+                    value={e.asPercent}
+                    text={e.resourceText}
+                />
+            ))}
+    </Flex>;
+}
+
 function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; reload(): void; wallets: Wallet[]; isLast: boolean;}): JSX.Element {
     const isProject = props.rows[0].workspaceIsProject;
-
-    const storageRemaining = React.useMemo(() => {
-        const storageEntries = props.rows.filter(it => it.productType === "STORAGE");
-        const storages = entriesByUnitAndChargeType(storageEntries, "STORAGE");
-        return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map((e, i, {length}) => <Box mr={i === length - 1 ? undefined : "12px"}><ResourceProgress key={`${e.initialBalance}-${e.remaining}`} width={e.resourceText.length * 7.2 + "px"} value={e.asPercent} text={e.resourceText} /></Box>))}</Flex>
-        // return <Flex>{Object.keys(storages).flatMap((s: ChargeType) => storages[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="hdd" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
-    }, [props.rows]);
-
-    const computeRemaining = React.useMemo(() => {
-        const computeEntries = props.rows.filter(it => it.productType === "COMPUTE");
-        const computes = entriesByUnitAndChargeType(computeEntries, "COMPUTE");
-        return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map((e, i, {length}) => <Box mr={i === length - 1 ? undefined : "12px"}><ResourceProgress key={`${e.initialBalance}-${e.remaining}`} width={e.resourceText.length * 7.2 + "px"} value={e.asPercent} text={e.resourceText} /></Box>))}</Flex>
-        // return <Flex>{Object.keys(computes).flatMap((s: ChargeType) => computes[s].map(e => <React.Fragment key={`${e.initial}${e.remainingBalance}`}><Icon mx="12px" name="cpu" />{e.remainingBalance} / {e.initial}</React.Fragment>))}</Flex>
-    }, [props.rows]);
 
     const [editing, setEditing] = useState(false);
     const [loading, invokeCommand] = useCloudCommand();
@@ -841,7 +844,12 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             title={props.entryKey}
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
-            titleContent={<Flex>{storageRemaining} {computeRemaining}</Flex>}
+            titleContent={<>
+                <UsageRowsWithMargin>
+                    <ResourceBarByProductType rows={props.rows} productType="STORAGE" />
+                    <ResourceBarByProductType rows={props.rows} productType="COMPUTE" />
+                </UsageRowsWithMargin>
+            </>}
             titleContentOnOpened={<>
                 {addRowButtonEnabled ? <Button ml="8px" mt="-5px" mb="-8px" height="32px" onClick={addNewRow}>New row</Button> :
                     <Tooltip trigger={<Button ml="8px" mt="-5px" mb="-8px" height="32px" disabled>New row</Button>}>
@@ -926,6 +934,12 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             </Box>
         </Accordion>, [creationRows, props.rows, props.wallets, loading, allocationsByProductTypes, editing, editEntries.current]);
 }
+
+const UsageRowsWithMargin = styled(Flex)`
+    & > ${Flex}:not(:last-child) {
+        margin-right: 12px;
+    }
+`;
 
 function findValidAllocations(wallets: Wallet[], productType: ProductType): {wallet: Wallet, allocations: WalletAllocation[]}[] {
     const now = new Date().getTime();
