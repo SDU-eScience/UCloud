@@ -10,13 +10,15 @@ import {
     RECEIVE_NOTIFICATIONS,
     RECEIVE_SINGLE_NOTIFICATION
 } from "./NotificationsReducer";
+import {NotificationProps as NotificationCardProps} from "../NotificationCard";
 
 export type NotificationActions = ReceiveNotificationAction | ReceiveSingleNotificationAction | ReadAction |
     SetNotificationError | ReadAllAction;
 
 type SetNotificationError = PayloadAction<typeof NOTIFICATIONS_ERROR, {error: string}>;
-type ReceiveSingleNotificationAction = PayloadAction<typeof RECEIVE_SINGLE_NOTIFICATION, {item: Notification}>;
-export const receiveSingleNotification = (notification: Notification): ReceiveSingleNotificationAction => ({
+type ReceiveSingleNotificationAction = 
+    PayloadAction<typeof RECEIVE_SINGLE_NOTIFICATION, {item: Notification | NotificationCardProps}>;
+export const receiveSingleNotification = (notification: Notification | NotificationCardProps): ReceiveSingleNotificationAction => ({
     type: RECEIVE_SINGLE_NOTIFICATION,
     payload: {item: notification}
 });

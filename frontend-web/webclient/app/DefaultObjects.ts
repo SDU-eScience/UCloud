@@ -1,5 +1,6 @@
 import {DashboardStateProps} from "@/Dashboard";
 import {Notification} from "@/Notifications";
+import {NotificationProps as NotificationCardProps} from "@/Notifications/NotificationCard";
 import * as ProjectRedux from "@/Project/Redux";
 import {SidebarOption} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
@@ -88,7 +89,7 @@ export interface ResponsiveReduxObject {
 
 export interface NotificationsReduxObject {
     redirectTo: string;
-    items: Notification[];
+    items: (Notification | NotificationCardProps)[];
     loading: boolean;
     error?: string;
 }

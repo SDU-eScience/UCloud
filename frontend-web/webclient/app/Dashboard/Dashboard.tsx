@@ -2,7 +2,7 @@ import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
-import {Notification, NotificationEntry} from "@/Notifications";
+import {normalizeNotification, Notification, NotificationEntry} from "@/Notifications";
 import {notificationRead, readAllNotifications} from "@/Notifications/Redux/NotificationsActions";
 import * as React from "react";
 import {connect} from "react-redux";
@@ -273,7 +273,8 @@ const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element 
         <List>
             {props.notifications.items.slice(0, 7).map((n, i) => (
                 <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
+                    <NotificationEntry notification={normalizeNotification(n)} 
+                                       onAction={props.onNotificationAction} />
                 </Flex>
             ))}
         </List>

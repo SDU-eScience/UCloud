@@ -8,11 +8,10 @@ import {Dispatch} from "redux";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "@/ui-components";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Absolute, Badge, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
-import theme, {Theme, ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as UF from "@/UtilityFunctions";
 import {
     fetchNotifications,
@@ -23,6 +22,10 @@ import {
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import {useProjectStatus} from "@/Project/cache";
 import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import {NotificationProps as NotificationCardProps} from "./NotificationCard";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {SendNotificationCb} from "./SendNotification";
+import {triggerNotification} from "./NotificationContainer";
 
 interface NotificationProps {
     items: Notification[];
@@ -40,10 +43,25 @@ function Notifications(props: Notifications): JSX.Element {
     const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
 
     const [showError, setShowError] = React.useState(false);
+    const [notificationsVisible, setNotificationsVisible] = React.useState(true);
 
     React.useEffect(() => {
         setShowError(!!props.error);
     }, [props.error]);
+
+    const toggleNotifications = React.useCallback((ev?: React.SyntheticEvent) => {
+        ev?.stopPropagation();
+        setNotificationsVisible(prev => !prev);
+        setShowError(false);
+    }, []);
+
+    React.useEffect(() => {
+        const evHandler = () => { setNotificationsVisible(false) };
+        document.addEventListener("click", evHandler);
+        return () => {
+            document.removeEventListener("click", evHandler);
+        };
+    }, []);
 
     React.useEffect(() => {
         reload();
@@ -73,6 +91,9 @@ function Notifications(props: Notifications): JSX.Element {
             }
         };
         snackbarStore.subscribe(subscriber);
+        SendNotificationCb.callback = (notification) => {
+            props.receiveNotification(notification);
+        };
 
         return () => conn.close();
     }, []);
@@ -91,77 +112,138 @@ function Notifications(props: Notifications): JSX.Element {
         }
     }
 
-    const entries: JSX.Element[] = React.useMemo(() => props.items.map((notification, index) => (
-        <NotificationEntry
-            key={index}
-            notification={notification}
-            onMarkAsRead={it => props.notificationRead(it.id)}
-            onAction={onNotificationAction}
-        />
-    )), [props.items]);
+    const pinnedEntries: JSX.Element | null = React.useMemo(() => {
+        const pinnedItems = props.items.filter(it => normalizeNotification(it).isPinned);
+        if (pinnedItems.length === 0) return null;
+        return <div className="container">
+            {pinnedItems.map((notification, index) => {
+                const normalized = normalizeNotification(notification);
+
+                return <NotificationEntry
+                    key={index}
+                    notification={normalized}
+                    onMarkAsRead={() => props.notificationRead(notification.id)}
+                    onAction={() => onNotificationAction(notification)}
+                />
+            })}
+        </div>;
+    }, [props.items]);
+
+    const entries: JSX.Element = React.useMemo(() => {
+        if (props.items.length === 0) return <NoNotifications />;
+        return <>
+            {props.items.map((notification, index) => {
+                const normalized = normalizeNotification(notification);
+                if (normalized.isPinned) return null;
+
+                return <NotificationEntry
+                    key={index}
+                    notification={normalized}
+                    onMarkAsRead={() => props.notificationRead(notification.id)}
+                    onAction={() => onNotificationAction(notification)}
+                />
+            })}
+        </>;
+    }, [props.items]);
 
     if (props.redirectTo) {
         return <Redirect to={props.redirectTo} />;
     }
 
     const unreadLength = props.items.filter(e => !e.read).length;
-    const readAllButton = unreadLength ? (
-        <>
-            <Button onClick={props.readAll} fullWidth>Mark all as read</Button>
-            <Divider />
-        </>
-    ) : null;
-    return (
-        <ClickableDropdown
-            data-component={"notifications"}
-            colorOnHover={false}
-            top="37px"
-            width="380px"
-            left="-270px"
-            trigger={(
-                <Flex onClick={() => showError ? setShowError(false) : undefined}>
-                    <Relative top="0" left="0">
-                        <Flex justifyContent="center" width="48px">
-                            <Icon
-                                cursor="pointer"
-                                name="notification"
-                                color="headerIconColor"
-                                color2="headerIconColor2"
-                            />
-                        </Flex>
-                        {unreadLength > 0 ? (
-                            <ThemeProvider theme={theme}>
-                                <Absolute top="-12px" left="28px">
-                                    <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
-                                </Absolute>
-                            </ThemeProvider>
-                        ) : null}
-                        {showError ? (
-                            <ThemeProvider theme={theme}>
-                                <Absolute top="-12px" left="28px">
-                                    <Badge bg="red">!</Badge>
-                                </Absolute>
-                            </ThemeProvider>
-                        ) : null}
-                    </Relative>
-                </Flex>
-            )}
-        >
-            <ContentWrapper>
-                <Error error={props.error} />
-                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
-            </ContentWrapper>
-        </ClickableDropdown>
-    );
 
+    return <>
+        <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
+            <Relative top="0" left="0">
+                <Flex justifyContent="center" width="48px">
+                    <Icon
+                        cursor="pointer"
+                        name="notification"
+                        color="headerIconColor"
+                        color2="headerIconColor2"
+                    />
+                </Flex>
+                {unreadLength > 0 ? (
+                    <ThemeProvider theme={theme}>
+                        <Absolute top="-12px" left="28px">
+                            <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
+                        </Absolute>
+                    </ThemeProvider>
+                ) : null}
+                {showError ? (
+                    <ThemeProvider theme={theme}>
+                        <Absolute top="-12px" left="28px">
+                            <Badge bg="red">!</Badge>
+                        </Absolute>
+                    </ThemeProvider>
+                ) : null}
+            </Relative>
+        </Flex>
+
+        {!notificationsVisible ? null :
+            <ContentWrapper onClick={UF.stopPropagation}>
+                <div className="header">
+                    <h3>Notifications</h3>
+                    <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
+                          onClick={props.readAll} />
+                </div>
+
+                {pinnedEntries}
+
+                <div className="container-wrapper">
+                    <div className="container">{entries}</div>
+                </div>
+            </ContentWrapper>
+        }
+    </>;
 }
 
-const ContentWrapper = styled(Box)`
+const ContentWrapper = styled.div`
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    width: 450px;
     height: 600px;
-    overflow-y: auto;
-    padding: 5px;
-    // this is to compensate for the negative margin in the dropdown element
-    padding-right: 17px;
+    z-index: 10000;
+    background: var(--white);
+    color: var(--black);
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 20%);
+
+    display: flex;
+    flex-direction: column;
+
+    box-shadow: ${theme.shadows.sm};
+
+    .container-wrapper {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    .container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-direction: column;
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+
+        h3 {
+            flex-grow: 1;
+            margin: 0;
+            font-size: 22px;
+            font-weight: normal;
+        }
+
+        .read-all {
+            cursor: pointer;
+        }
+    }
 `;
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
@@ -175,41 +257,8 @@ export interface Notification {
     meta: any;
 }
 
-interface NotificationEntryProps {
-    notification: Notification;
-    onMarkAsRead?: (notification: Notification) => void;
-    onAction?: (notification: Notification) => void;
-}
-
-export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
-    const {notification} = props;
-    return (
-        <NotificationWrapper
-            alignItems="center"
-            read={notification.read}
-            flexDirection="row"
-            onClick={handleAction}
-        >
-            <Box mr="0.4em" width="10%">
-                <Icon {...resolveEventType(notification.type)} />
-            </Box>
-            <Flex width="90%" flexDirection="column">
-                <TextSpan color="grey" fontSize={1}>
-                    {formatDistance(notification.ts, new Date(), {addSuffix: true})}
-                </TextSpan>
-                <TextSpan fontSize={1}>{notification.message}</TextSpan>
-            </Flex>
-        </NotificationWrapper>
-    );
-
-    function handleRead(): void {
-        if (props.onMarkAsRead) props.onMarkAsRead(props.notification);
-    }
-
-    function handleAction(): void {
-        handleRead();
-        if (props.onAction) props.onAction(props.notification);
-    }
+export function normalizeNotification(notification: Notification | NotificationCardProps): NotificationCardProps {
+    if ("isPinned" in notification) return notification;
 
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
@@ -230,25 +279,122 @@ export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
                 return {name: "info", color: "white", color2: "black"};
         }
     }
+
+    const iconInfo = resolveEventType(notification.type)
+    const result: NotificationCardProps = {
+        icon: iconInfo.name,
+        iconColor: iconInfo.color,
+        iconColor2: iconInfo.color2,
+        title: "Information",
+        body: notification.message,
+        isPinned: false,
+        ts: notification.ts,
+        read: notification.read,
+    };
+    console.log("Result is ", result);
+    return result;
 }
 
-const read = (p: {read: boolean; theme: Theme}): {backgroundColor: string} => p.read ?
-    {backgroundColor: "var(--white, #f00)"} : {backgroundColor: "var(--lightGray, #f00)"};
+interface NotificationEntryProps {
+    notification: NotificationCardProps;
+    onMarkAsRead?: () => void;
+    onAction?: () => void;
+}
 
-const NotificationWrapper = styled(Flex) <{read: boolean}>`
-    ${read};
-    margin: 0.1em 0.1em 0.1em 0.1em;
-    padding: 0.3em 0.3em 0.3em 0.3em;
-    border-radius: 3px;
-    cursor: pointer;
+export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
+    console.log(props.notification);
+    const {notification} = props;
+    const classes: string[] = [];
+    if (notification.read !== true) classes.push("unread");
+
+    if (notification.isPinned) classes.push("pinned");
+    else classes.push("unpinned");
+
+    return (
+        <NotificationWrapper onClick={handleAction} className={classes.join(" ")}>
+            <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"} 
+                  color2={notification.iconColor2 ?? "iconColor2"} />
+            <div className="notification-content">
+                <Flex>
+                    <b>{notification.title}</b>
+                    <div className="time">
+                        {formatDistance(notification.ts ?? timestampUnixMs(), new Date(), {addSuffix: true})}
+                    </div>
+                </Flex>
+
+                <div className="notification-body">{notification.body}</div>
+            </div>
+        </NotificationWrapper>
+    );
+
+    function handleRead(): void {
+        if (props.onMarkAsRead) props.onMarkAsRead();
+    }
+
+    function handleAction(): void {
+        handleRead();
+        if (props.onAction) props.onAction();
+    }
+}
+
+const NotificationWrapper = styled.div`
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--white);
+    border-radius: 6px;
+    padding: 10px;
     width: 100%;
-    &:hover {
-        background-color: var(--lightGray, #f00);
+
+    &.unread.pinned {
+        background: rgba(255, 100, 0, 20%);
+    }
+
+    &.unread.unpinned {
+        background: rgba(204, 221, 255, 20%);
+    }
+
+    b {
+        margin: 0;
+        font-size: 14px;
+        flex-grow: 1;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        max-width: 330px;
+    }
+
+    .notification-content {
+        width: calc(100% - 34px);
+    }
+
+    .notification-body {
+        font-size: 12px;
+        margin-bottom: 5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        margin-top: -3px;
+    }
+
+    .time {
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    a {
+        color: var(--blue);
+        cursor: pointer;
+    }
+
+    .time {
+        color: var(--midGray);
     }
 `;
 
 interface NotificationsOperations {
-    receiveNotification: (notification: Notification) => void;
+    receiveNotification: (notification: Notification | NotificationCardProps) => void;
     fetchNotifications: () => void;
     notificationRead: (id: number) => void;
     readAll: () => void;
@@ -256,7 +402,10 @@ interface NotificationsOperations {
 }
 
 const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
-    receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
+    receiveNotification: notification => {
+        triggerNotification(normalizeNotification(notification));
+        dispatch(receiveSingleNotification(notification));
+    },
     fetchNotifications: async () => dispatch(await fetchNotifications()),
     notificationRead: async id => dispatch(await notificationRead(id)),
     readAll: async () => dispatch(await readAllNotifications()),

@@ -10,6 +10,10 @@ export interface NotificationProps {
     title: string;
     body: JSX.Element | string;
     isPinned: boolean;
+    read?: boolean;
+    ts?: number;
+    iconColor?: string;
+    iconColor2?: string;
 }
 
 export const NotificationCard: React.FunctionComponent<NotificationProps & { 
@@ -39,7 +43,8 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
             innerPaddingY="6px"
         >
             <div className="notification-inner">
-                <Icon name={props.icon} size="32px" color="iconColor" color2="iconColor2" />
+                <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"} 
+                      color2={props.iconColor2 ?? "iconColor2"} />
                 <div className="notification-content">
                     <Flex>
                         <h3>{props.title}</h3>
@@ -58,7 +63,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
 const Style = styled.div`
     animation: 0.5s ease-in notification-enter;
     width: 450px;
-    z-index: 1000;
+    z-index: 10;
 
     &.exit {
         animation: 0.5s ease-in notification-exit;

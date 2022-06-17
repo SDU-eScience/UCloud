@@ -22,7 +22,7 @@ const Notifications = (
             return {
                 ...state,
                 items: state.items.map(n => {
-                    if (n.id === action.payload.id) n.read = true;
+                    if ("id" in n && n.id === action.payload.id) n.read = true;
                     return n;
                 })
             };

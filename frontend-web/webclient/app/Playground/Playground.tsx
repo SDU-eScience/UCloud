@@ -10,7 +10,8 @@ import {api as ProjectApi, Project} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useProjectId} from "@/Project";
 import BaseLink from "@/ui-components/BaseLink";
-import {triggerNotification, NotificationContainer} from "@/Notifications/NotificationContainer";
+import {NotificationContainer} from "@/Notifications/NotificationContainer";
+import {sendNotification} from "@/Notifications/SendNotification";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -18,7 +19,7 @@ export const Playground: React.FunctionComponent = () => {
             <NotificationContainer />
             <Button onClick={() => {
                 for (let i = 0; i < 50; i++) {
-                    triggerNotification({
+                    sendNotification({
                         icon: "bug",
                         title: `Notification ${i}`,
                         body: "This is a test notification",
@@ -27,7 +28,7 @@ export const Playground: React.FunctionComponent = () => {
                 }
             }}>Trigger 50 notifications</Button>
             <Button onClick={() => {
-                triggerNotification({
+                sendNotification({
                     icon: "logoSdu",
                     title: `This is a really long notification title which probably shouldn't be this long`,
                     body: "This is some text which maybe is slightly longer than it should be but who really cares.",
@@ -36,7 +37,7 @@ export const Playground: React.FunctionComponent = () => {
             }}>Trigger notification</Button>
 
             <Button onClick={() => {
-                triggerNotification({
+                sendNotification({
                     icon: "key",
                     title: `Connection required`,
                     body: <>

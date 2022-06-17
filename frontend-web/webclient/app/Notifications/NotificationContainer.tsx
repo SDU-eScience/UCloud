@@ -105,6 +105,8 @@ function triggerCallback() {
         const nextSlotIdx = pinnedSlots[0] === null ? 0 : pinnedSlots[1] === null ? 1 : -1;
         if (normalSlots[nextSlotIdx].notification === undefined) {
             pinnedSlots[nextSlotIdx] = pinnedQueue.shift() ?? null;
+            triggerCallback(); // Try to do it again.
+            return;
         }
     }
 
