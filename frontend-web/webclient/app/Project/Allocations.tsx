@@ -1,4 +1,4 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, productAreaTitle, ProductPriceUnit, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -187,8 +187,8 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const total = totalUsageFromMultipleWallets(wallets[it]);
         const {unit, productType, chargeType} = wallets[it][0];
         const asPercent = resultAsPercent(total);
-        const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, productType, chargeType, unit, props.chargeType === "DIFFERENTIAL_QUOTA");
-        const initial = normalizeBalanceForFrontend(total.initialBalance, productType, chargeType, unit, props.chargeType === "DIFFERENTIAL_QUOTA");
+        const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, productType, chargeType, unit, /* TODO(Jonas): isPrice should be... */ props.chargeType === "DIFFERENTIAL_QUOTA");
+        const initial = normalizeBalanceForFrontend(total.initialBalance, productType, chargeType, unit, /* TODO(Jonas): isPrice should be... */ props.chargeType === "DIFFERENTIAL_QUOTA");
         const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, props.chargeType, unit)} (${Math.round(asPercent)}%)`;
         return <Box key={idx} mr={idx !== length - 1 ? "4px" : undefined}>
             <ResourceProgress width={resourceProgress.length * 7.3 + "px"} height="20px" value={Math.round(asPercent)} text={resourceProgress} />
@@ -211,8 +211,8 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
             const expiration = wallet.allocations.reduce((lowest, wallet) =>
                 wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
             );
-            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit, wallet.chargeType === "DIFFERENTIAL_QUOTA");
-            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit, wallet.chargeType === "DIFFERENTIAL_QUOTA");
+            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit, /* TODO(Jonas): isPrice should be... */ wallet.chargeType === "DIFFERENTIAL_QUOTA");
+            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit, /* TODO(Jonas): isPrice should be... */ wallet.chargeType === "DIFFERENTIAL_QUOTA");
             const resourceProgress = `${used} / ${initial} ${explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)} (${Math.round(asPercent)}%)`;
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
