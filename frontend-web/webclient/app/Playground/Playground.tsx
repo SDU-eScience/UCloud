@@ -2,17 +2,53 @@ import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useEffect} from "react";
 import {EveryIcon} from "@/ui-components/Icon";
-import {Grid, Box} from "@/ui-components";
+import {Grid, Box, Button} from "@/ui-components";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {api as ProjectApi, Project} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useProjectId} from "@/Project";
+import BaseLink from "@/ui-components/BaseLink";
+import {triggerNotification, NotificationContainer} from "@/Notifications/NotificationContainer";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
+            <NotificationContainer />
+            <Button onClick={() => {
+                for (let i = 0; i < 50; i++) {
+                    triggerNotification({
+                        icon: "bug",
+                        title: `Notification ${i}`,
+                        body: "This is a test notification",
+                        isPinned: false
+                    });
+                }
+            }}>Trigger 50 notifications</Button>
+            <Button onClick={() => {
+                triggerNotification({
+                    icon: "logoSdu",
+                    title: `This is a really long notification title which probably shouldn't be this long`,
+                    body: "This is some text which maybe is slightly longer than it should be but who really cares.",
+                    isPinned: false
+                });
+            }}>Trigger notification</Button>
+
+            <Button onClick={() => {
+                triggerNotification({
+                    icon: "key",
+                    title: `Connection required`,
+                    body: <>
+                        You must <BaseLink href="javascript:void(0)">re-connect</BaseLink> with 'Hippo' to continue 
+                        using it.
+                    </>,
+                    isPinned: true
+                });
+            }}>Trigger pinned notification</Button>
+
+
+
             <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
                 <EveryIcon />
             </Grid>
