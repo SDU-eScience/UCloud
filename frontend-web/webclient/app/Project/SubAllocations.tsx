@@ -768,7 +768,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         dialogStore.addDialog(
             <Box width="830px">
                 <Heading.h3>Available Allocations</Heading.h3>
-                <Grid gridTemplateColumns={`repeat(2 , 1fr)`} gridGap="15px">
+                <Grid gridTemplateColumns={`repeat(2, 1fr)`} gridGap="15px">
                     {allocationAndWallets.flatMap(it => it.allocations.map(allocation =>
                         <Box key={allocation.allocationPath} height="120px" cursor="pointer" onClick={() => {
                             setCreationRows(rows => {

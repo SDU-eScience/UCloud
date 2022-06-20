@@ -292,7 +292,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <div><b>Allocation ID: {allocation.id}</b></div>
                     <Box flexGrow={1} />
                 </Flex> : <Flex alignItems={"center"} mr={"-16px"}>
-                    <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider}</b></div>
+                    <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider} [{allocation.id}]</b></div>
                     <Box flexGrow={1} />
                 </Flex>}
                 <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
