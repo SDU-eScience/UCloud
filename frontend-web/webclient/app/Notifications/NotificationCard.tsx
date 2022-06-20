@@ -10,6 +10,7 @@ export interface NotificationProps {
     title: string;
     body: JSX.Element | string;
     isPinned: boolean;
+    uniqueId: string;
     read?: boolean;
     ts?: number;
     iconColor?: string;
@@ -22,6 +23,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     callbackItem?: any;
     onMouseEnter?: (callbackItem?: any) => void;
     onMouseLeave?: (callbackItem?: any) => void;
+    onSnooze?: (callbackItem?: any) => void;
 }> = (props) => {
     const onMouseEnterMemo = useCallback(() => {
         props.onMouseEnter?.(props.callbackItem);
@@ -29,6 +31,12 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     const onMouseLeaveMemo = useCallback(() => {
         props.onMouseLeave?.(props.callbackItem);
     }, [props.callbackItem, props.onMouseLeave]);
+    const onSnooze = useCallback(() => {
+        console.log("Card: Invoking onSnooze!");
+        if (props.isPinned) {
+            props.onSnooze?.(props.callbackItem);
+        }
+    }, [props.callbackItem, props.onSnooze, props.isPinned]);
 
     return <Style 
         style={{position: "fixed", top: props.top, right: "16px"}} 
@@ -48,7 +56,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
                 <div className="notification-content">
                     <Flex>
                         <h3>{props.title}</h3>
-                        <div className={props.isPinned ? "snooze" : "time"}>
+                        <div className={props.isPinned ? "snooze" : "time"} onClick={onSnooze}>
                             {props.isPinned ? "Snooze" : "Now"}
                         </div>
                     </Flex>

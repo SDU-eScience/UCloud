@@ -26,6 +26,7 @@ import {NotificationProps as NotificationCardProps} from "./NotificationCard";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {SendNotificationCb} from "./SendNotification";
 import {triggerNotification} from "./NotificationContainer";
+import * as Snooze from "./NotificationSnooze";
 
 interface NotificationProps {
     items: Notification[];
@@ -41,6 +42,7 @@ function Notifications(props: Notifications): JSX.Element {
     const history = useHistory();
     const projectNames = getProjectNames(useProjectStatus());
     const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+    const localSnoozeQueue = React.useRef<NotificationCardProps[]>([]);
 
     const [showError, setShowError] = React.useState(false);
     const [notificationsVisible, setNotificationsVisible] = React.useState(true);
@@ -65,7 +67,7 @@ function Notifications(props: Notifications): JSX.Element {
 
     React.useEffect(() => {
         reload();
-        const conn = WSFactory.open("/notifications", {
+        WSFactory.open("/notifications", {
             init: c => {
                 c.subscribe({
                     call: "notifications.subscription",
@@ -78,6 +80,7 @@ function Notifications(props: Notifications): JSX.Element {
                 });
             }
         });
+
         const subscriber = (snack?: Snack): void => {
             if (snack && snack.addAsNotification) {
                 props.receiveNotification({
@@ -91,11 +94,27 @@ function Notifications(props: Notifications): JSX.Element {
             }
         };
         snackbarStore.subscribe(subscriber);
+
         SendNotificationCb.callback = (notification) => {
-            props.receiveNotification(notification);
+            if (Snooze.shouldAppear(notification.uniqueId)) {
+                props.receiveNotification(notification);
+            } else {
+                localSnoozeQueue.current.push(notification);
+            }
         };
 
-        return () => conn.close();
+        setInterval(() => {
+            const queue = localSnoozeQueue.current;
+            const newQueue: NotificationCardProps[] = [];
+            for (const item of queue) {
+                if (Snooze.shouldAppear(item.uniqueId)) {
+                    props.receiveNotification(item);
+                } else {
+                    newQueue.push(item);
+                }
+            }
+            localSnoozeQueue.current = newQueue;
+        }, 1000);
     }, []);
 
     function reload(): void {
@@ -257,8 +276,10 @@ export interface Notification {
     meta: any;
 }
 
-export function normalizeNotification(notification: Notification | NotificationCardProps): NotificationCardProps {
-    if ("isPinned" in notification) return notification;
+export function normalizeNotification(notification: Notification | NotificationCardProps): NotificationCardProps & { onSnooze?: () => void } {
+    if ("isPinned" in notification) {
+        return {...notification, onSnooze: () => Snooze.snooze(notification.uniqueId) };
+    }
 
     function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
         switch (eventType) {
@@ -281,7 +302,7 @@ export function normalizeNotification(notification: Notification | NotificationC
     }
 
     const iconInfo = resolveEventType(notification.type)
-    const result: NotificationCardProps = {
+    const result: NotificationCardProps & { onSnooze?: () => void } = {
         icon: iconInfo.name,
         iconColor: iconInfo.color,
         iconColor2: iconInfo.color2,
@@ -290,6 +311,8 @@ export function normalizeNotification(notification: Notification | NotificationC
         isPinned: false,
         ts: notification.ts,
         read: notification.read,
+        uniqueId: `${notification.id}`,
+        onSnooze: () => Snooze.snooze(`${notification.id}`),
     };
     console.log("Result is ", result);
     return result;

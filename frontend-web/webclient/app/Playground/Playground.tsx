@@ -12,18 +12,21 @@ import {useProjectId} from "@/Project";
 import BaseLink from "@/ui-components/BaseLink";
 import {NotificationContainer} from "@/Notifications/NotificationContainer";
 import {sendNotification} from "@/Notifications/SendNotification";
+import {timestampUnixMs} from "@/UtilityFunctions";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
             <NotificationContainer />
             <Button onClick={() => {
+                const now = timestampUnixMs();
                 for (let i = 0; i < 50; i++) {
                     sendNotification({
                         icon: "bug",
                         title: `Notification ${i}`,
                         body: "This is a test notification",
-                        isPinned: false
+                        isPinned: false,
+                        uniqueId: `${now}-${i}`,
                     });
                 }
             }}>Trigger 50 notifications</Button>
@@ -32,7 +35,8 @@ export const Playground: React.FunctionComponent = () => {
                     icon: "logoSdu",
                     title: `This is a really long notification title which probably shouldn't be this long`,
                     body: "This is some text which maybe is slightly longer than it should be but who really cares.",
-                    isPinned: false
+                    isPinned: false,
+                    uniqueId: `${timestampUnixMs()}`,
                 });
             }}>Trigger notification</Button>
 
@@ -44,11 +48,12 @@ export const Playground: React.FunctionComponent = () => {
                         You must <BaseLink href="javascript:void(0)">re-connect</BaseLink> with 'Hippo' to continue 
                         using it.
                     </>,
-                    isPinned: true
+                    isPinned: true,
+                    // NOTE(Dan): This is static such that we can test the snooze functionality. You will need to
+                    // clear local storage for this to start appearing again after dismissing it enough times.
+                    uniqueId: `playground-notification`, 
                 });
             }}>Trigger pinned notification</Button>
-
-
 
             <Grid gridTemplateColumns={"repeat(5, 1fr)"} mb={"32px"}>
                 <EveryIcon />

@@ -27,6 +27,8 @@ const CARD_SIZE = 61;
 const CARD_GAP = 16;
 const DEMO = false; // Set DEMO to true to see a bunch of notifications rolling in.
 
+type NotificationWithSnooze = NotificationProps & { onSnooze?: (props: NotificationProps) => void };
+
 // NOTE(Dan): Callback to force a rerender. This is set by <NotificationContainer> when mounting. This should only be
 // invoked through `triggerCallback()`.
 let callback: () => void = doNothing;
@@ -34,9 +36,15 @@ let callback: () => void = doNothing;
 // NOTE(Dan): Basic ever increasing number to use as a React key for the <NotificationCard>
 let idAllocator = 0;
 
+interface PinnedNotification {
+    notification: NotificationWithSnooze;
+    needsExit: boolean;
+    slotIdx: number;
+}
+
 // NOTE(Dan): Contains state about an active (normal) notification.
 interface ActiveNotification {
-    notification?: NotificationProps;
+    notification?: NotificationWithSnooze;
     createdAt: number;
     needsExit: boolean;
     isPaused: boolean;
@@ -45,11 +53,11 @@ interface ActiveNotification {
 
 const emptyNotification: ActiveNotification = {createdAt: 0, needsExit: false, isPaused: false, uniqueId: 0};
 
-const pinnedQueue: NotificationProps[] = [];
+const pinnedQueue: NotificationWithSnooze[] = [];
 
 // NOTE(Dan): The size of pinnedSlots is manually loop unrolled below. This should be changed before naively changing
 // the size of pinnedSlots.
-const pinnedSlots: (NotificationProps | null)[] = Array(2).fill(null);
+const pinnedSlots: (PinnedNotification | null)[] = Array(2).fill(null);
 
 // NOTE(Dan): The size of normal slots is not loop unrolled below and can be changed freely. Do note that normalSlots
 // shares its 'slots' with pinnedSlots. That means if pinnedSlots has to active notifications then the first two slots
@@ -58,7 +66,7 @@ const normalSlots: ActiveNotification[] = Array(6).fill(emptyNotification).map(i
 
 // NOTE(Dan): Adds a new notification to the container. This should not be invoked directly by most code, as this code
 // does not add it to the notification tray.
-export function triggerNotification(notification: NotificationProps) {
+export function triggerNotification(notification: NotificationWithSnooze) {
     triggerCallback();
 
     if (notification.isPinned) {
@@ -69,7 +77,7 @@ export function triggerNotification(notification: NotificationProps) {
             if (normalSlots[slotIdx].notification !== undefined) {
                 pinnedQueue.push(notification);
             } else {
-                pinnedSlots[slotIdx] = notification;
+                pinnedSlots[slotIdx] = {notification, slotIdx, needsExit: false};
             }
         }
     } else {
@@ -104,8 +112,11 @@ function triggerCallback() {
     if (pinnedQueue.length > 0) {
         const nextSlotIdx = pinnedSlots[0] === null ? 0 : pinnedSlots[1] === null ? 1 : -1;
         if (normalSlots[nextSlotIdx].notification === undefined) {
-            pinnedSlots[nextSlotIdx] = pinnedQueue.shift() ?? null;
-            triggerCallback(); // Try to do it again.
+            const notification = pinnedQueue.shift();
+            if (notification) {
+                pinnedSlots[nextSlotIdx] = {notification, slotIdx: nextSlotIdx, needsExit: false};
+                triggerCallback(); // Try to do it again.
+            }
             return;
         }
     }
@@ -154,6 +165,19 @@ export const NotificationContainer: React.FunctionComponent = () => {
         (userData as ActiveNotification).isPaused = false;
     }, []);
 
+    const onSnooze = useCallback((userData?: any) => {
+        console.log("Container: Invoking onSnooze!");
+        const pin = (userData as PinnedNotification);
+        pin.needsExit = true;
+        rerender();
+        setTimeout(() => {
+            pinnedSlots[pin.slotIdx] = null;
+            rerender();
+        }, 500);
+
+        pin.notification.onSnooze?.(pin.notification);
+    }, []);
+
     useEffect(() => {
         if (DEMO) {
             let counter = 0;
@@ -162,7 +186,8 @@ export const NotificationContainer: React.FunctionComponent = () => {
                     icon: "mail",
                     title: `Notification ${counter}`,
                     body: "This is a test notification!",
-                    isPinned: false
+                    isPinned: false,
+                    uniqueId: `${counter}`,
                 });
                 counter++;
             }, 600);
@@ -181,8 +206,10 @@ export const NotificationContainer: React.FunctionComponent = () => {
             <NotificationCard 
                 key={i} 
                 top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`} 
-                exit={false} 
-                {...slot} 
+                exit={slot.needsExit} 
+                callbackItem={slot}
+                {...slot.notification} 
+                onSnooze={onSnooze}
             />
         );
     }
@@ -194,7 +221,8 @@ export const NotificationContainer: React.FunctionComponent = () => {
                 <NotificationCard 
                     key={slot.uniqueId} 
                     top={`${baseOffset + (CARD_SIZE + CARD_GAP) * i}px`} 
-                    exit={slot.needsExit} {...slot.notification} 
+                    exit={slot.needsExit} 
+                    {...slot.notification} 
                     callbackItem={slot}
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}
