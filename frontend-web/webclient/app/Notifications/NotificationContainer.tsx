@@ -67,8 +67,6 @@ const normalSlots: ActiveNotification[] = Array(6).fill(emptyNotification).map(i
 // NOTE(Dan): Adds a new notification to the container. This should not be invoked directly by most code, as this code
 // does not add it to the notification tray.
 export function triggerNotification(notification: NotificationWithSnooze) {
-    triggerCallback();
-
     if (notification.isPinned) {
         const slotIdx = pinnedQueue.length > 0 ? -1 : pinnedSlots[0] === null ? 0 : pinnedSlots[1] === null ? 1 : -1;
         if (slotIdx === -1) {
@@ -104,6 +102,8 @@ export function triggerNotification(notification: NotificationWithSnooze) {
             startExitTimer(foundSlot);
         }
     }
+
+    triggerCallback();
 }
 
 function triggerCallback() {
@@ -111,13 +111,15 @@ function triggerCallback() {
     // have available pinned slots and the normal slots aren't blocking.
     if (pinnedQueue.length > 0) {
         const nextSlotIdx = pinnedSlots[0] === null ? 0 : pinnedSlots[1] === null ? 1 : -1;
-        if (normalSlots[nextSlotIdx].notification === undefined) {
-            const notification = pinnedQueue.shift();
-            if (notification) {
-                pinnedSlots[nextSlotIdx] = {notification, slotIdx: nextSlotIdx, needsExit: false};
-                triggerCallback(); // Try to do it again.
+        if (nextSlotIdx !== -1) {
+            if (normalSlots[nextSlotIdx].notification === undefined) {
+                const notification = pinnedQueue.shift();
+                if (notification) {
+                    pinnedSlots[nextSlotIdx] = {notification, slotIdx: nextSlotIdx, needsExit: false};
+                    triggerCallback(); // Try to do it again.
+                }
+                return;
             }
-            return;
         }
     }
 
@@ -166,7 +168,6 @@ export const NotificationContainer: React.FunctionComponent = () => {
     }, []);
 
     const onSnooze = useCallback((userData?: any) => {
-        console.log("Container: Invoking onSnooze!");
         const pin = (userData as PinnedNotification);
         pin.needsExit = true;
         rerender();

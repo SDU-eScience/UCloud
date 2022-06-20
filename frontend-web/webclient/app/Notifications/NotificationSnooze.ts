@@ -8,6 +8,7 @@ interface SnoozeData {
     snoozeCounter: number;
 }
 
+const sessionAppearance: Record<string, number> = {};
 const globalSnoozeData = new LocalStorageCache<Record<string, SnoozeData>>("snooze-data");
 
 export function isDismissed(notificationId: string): boolean {
@@ -20,26 +21,38 @@ export function isDismissed(notificationId: string): boolean {
 export function snooze(notificationId: string) {
     const globalData = globalSnoozeData.retrieve() ?? {};
     const mySnooze = globalData[notificationId];
+    const now = timestampUnixMs();
     if (!mySnooze) {
-        globalData[notificationId] = { lastSnooze: timestampUnixMs(), snoozeCounter: 1 };
+        globalData[notificationId] = { lastSnooze: now, snoozeCounter: 1 };
     } else {
-        globalData[notificationId] = { lastSnooze: timestampUnixMs(), snoozeCounter: mySnooze.snoozeCounter + 1 };
+        globalData[notificationId] = {
+            lastSnooze: now, 
+            snoozeCounter: mySnooze.snoozeCounter + 1,
+        };
     }
 
     globalSnoozeData.update(globalData);
 }
 
+export function trackAppearance(notificationId: string) {
+    const now = timestampUnixMs();
+    sessionAppearance[notificationId] = now;
+}
+
 export function shouldAppear(notificationId: string): boolean {
     const globalData = globalSnoozeData.retrieve() ?? {};
     const mySnooze = globalData[notificationId];
-    if (!mySnooze) return true;
+    const lastApperance = sessionAppearance[notificationId];
+    if (!mySnooze && !lastApperance) return true;
+    if (!mySnooze) return false;
 
-    const snoozeIdx = mySnooze.lastSnooze - 1;
-    if (snoozeIdx >= 0 && snoozeIdx < SNOOZE_TIMES_MS.length) {
-        return timestampUnixMs() >= (mySnooze.lastSnooze + SNOOZE_TIMES_MS[snoozeIdx]);
+    if (mySnooze.snoozeCounter === 0 && !lastApperance) return true;
+    const snoozeIdx = mySnooze.snoozeCounter - 1;
+    if (snoozeIdx < SNOOZE_TIMES_MS.length) {
+        const nextAppearance = (mySnooze.lastSnooze + SNOOZE_TIMES_MS[snoozeIdx]);
+        return timestampUnixMs() >= nextAppearance && (!lastApperance || lastApperance < nextAppearance);
     }
 
     return false;
 }
-
 

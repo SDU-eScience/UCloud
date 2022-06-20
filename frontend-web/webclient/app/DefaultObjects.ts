@@ -1,6 +1,4 @@
 import {DashboardStateProps} from "@/Dashboard";
-import {Notification} from "@/Notifications";
-import {NotificationProps as NotificationCardProps} from "@/Notifications/NotificationCard";
 import * as ProjectRedux from "@/Project/Redux";
 import {SidebarOption} from "@/Types";
 import {SidebarPages} from "@/ui-components/Sidebar";
@@ -21,9 +19,7 @@ import * as UCloud from "@/UCloud";
 import {BulkRequest, BulkResponse, PageV2} from "@/UCloud";
 import {useEffect} from "react";
 import {useGlobal} from "@/Utilities/ReduxHooks";
-import {doNothing} from "@/UtilityFunctions";
 import {UCLOUD_CORE} from "@/UCloud/ResourceApi";
-import {useHistory} from "react-router";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {History} from "history";
 
@@ -87,13 +83,6 @@ export interface ResponsiveReduxObject {
     is: Record<string, boolean>;
 }
 
-export interface NotificationsReduxObject {
-    redirectTo: string;
-    items: (Notification | NotificationCardProps)[];
-    loading: boolean;
-    error?: string;
-}
-
 export interface StatusReduxObject {
     title: string;
     page: SidebarPages;
@@ -150,7 +139,6 @@ interface LegacyReduxObject {
     hookStore: HookStore;
     dashboard: DashboardStateProps;
     status: StatusReduxObject;
-    notifications: NotificationsReduxObject;
     header: HeaderSearchReduxObject;
     avatar: AvatarReduxObject;
     responsive?: ResponsiveReduxObject;
@@ -162,13 +150,6 @@ declare global {
     export type ReduxObject =
         LegacyReduxObject;
 }
-
-export const initNotifications = (): NotificationsReduxObject => ({
-    items: [],
-    loading: false,
-    redirectTo: "",
-    error: undefined
-});
 
 export const initHeader = (): HeaderSearchReduxObject => ({
     prioritizedSearch: "files"
@@ -190,7 +171,6 @@ export function initObject(): ReduxObject {
         dashboard: initDashboard(),
         status: initStatus(),
         header: initHeader(),
-        notifications: initNotifications(),
         avatar: initAvatar(),
         project: ProjectRedux.initialState,
         responsive: undefined,

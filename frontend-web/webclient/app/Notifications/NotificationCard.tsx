@@ -15,6 +15,7 @@ export interface NotificationProps {
     ts?: number;
     iconColor?: string;
     iconColor2?: string;
+    onAction?: () => void;
 }
 
 export const NotificationCard: React.FunctionComponent<NotificationProps & { 
@@ -32,7 +33,6 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         props.onMouseLeave?.(props.callbackItem);
     }, [props.callbackItem, props.onMouseLeave]);
     const onSnooze = useCallback(() => {
-        console.log("Card: Invoking onSnooze!");
         if (props.isPinned) {
             props.onSnooze?.(props.callbackItem);
         }
@@ -43,6 +43,7 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
         className={props.exit ? "exit" : undefined}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
+        onClick={props.onAction}
     >
         <HighlightedCard 
             color={props.isPinned ? "orange" : "blue"} 
@@ -69,9 +70,11 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
 };
 
 const Style = styled.div`
+    cursor: pointer;
     animation: 0.5s ease-in notification-enter;
     width: 450px;
     z-index: 10;
+    color: var(--black);
 
     &.exit {
         animation: 0.5s ease-in notification-exit;

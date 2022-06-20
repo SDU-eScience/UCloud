@@ -11,13 +11,12 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {useProjectId} from "@/Project";
 import BaseLink from "@/ui-components/BaseLink";
 import {NotificationContainer} from "@/Notifications/NotificationContainer";
-import {sendNotification} from "@/Notifications/SendNotification";
+import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
         <>
-            <NotificationContainer />
             <Button onClick={() => {
                 const now = timestampUnixMs();
                 for (let i = 0; i < 50; i++) {
@@ -45,7 +44,7 @@ export const Playground: React.FunctionComponent = () => {
                     icon: "key",
                     title: `Connection required`,
                     body: <>
-                        You must <BaseLink href="javascript:void(0)">re-connect</BaseLink> with 'Hippo' to continue 
+                        You must <BaseLink href="#">re-connect</BaseLink> with 'Hippo' to continue 
                         using it.
                     </>,
                     isPinned: true,
