@@ -586,15 +586,13 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
             productType,
             "DIFFERENTIAL_QUOTA",
             it,
-            /* TODO(Jonas): isPrice should be... */
-            true,
+            false,
             2
         ) + " / " + normalizeBalanceForFrontend(
             byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
             productType,
             "DIFFERENTIAL_QUOTA",
             it,
-            /* TODO(Jonas): isPrice should be... */
             false,
             2
         ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it) + " (" + Math.round(resultAsPercent({
@@ -604,48 +602,8 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     }));
 
     return {
-        ABSOLUTE: absolute/* Object.keys(byUnitAndChargeType.ABSOLUTE).map((it: ProductPriceUnit) => ({
-            initial: normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].initialBalance,
-                productType,
-                // TODO(Jonas): isPrice should be...
-                "ABSOLUTE",
-                it,
-                false,
-                2
-            ) + " " + explainAllocation(productType, "ABSOLUTE", it),
-            remainingBalance: normalizeBalanceForFrontend(
-                byUnitAndChargeType.ABSOLUTE[it].remaining,
-                productType,
-                // TODO(Jonas): isPrice should be...
-                "ABSOLUTE",
-                it,
-                false,
-                2
-            ),
-
-        })) */,
-        DIFFERENTIAL_QUOTA: differential/* 
-            Object.keys(byUnitAndChargeType.DIFFERENTIAL_QUOTA).map((it: ProductPriceUnit) => ({
-            initial: normalizeBalanceForFrontend(
-                byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
-                productType,
-                "DIFFERENTIAL_QUOTA",
-                it,
-                // TODO(Jonas): isPrice should be...
-                false,
-                2
-            ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it),
-            remainingBalance: normalizeBalanceForFrontend(
-                byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
-                productType,
-                "DIFFERENTIAL_QUOTA",
-                it,
-                // TODO(Jonas): isPrice should be...
-                false,
-                2
-            )
-        */,
+        ABSOLUTE: absolute,  
+        DIFFERENTIAL_QUOTA: differential 
     }
 }
 
@@ -1036,8 +994,8 @@ function UsageBar(props: {suballocation: SubAllocation}) {
     const {suballocation} = props;
     const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: suballocation.remaining});
     const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
-    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit, /* TODO(Jonas): isPrice should be... */ chargeType === "DIFFERENTIAL_QUOTA");
-    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit, /* TODO(Jonas): isPrice should be... */ chargeType === "DIFFERENTIAL_QUOTA");
+    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit, false);
+    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit, false);
     const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, chargeType, unit)} (${Math.round(asPercent)}%)`;
     return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
 }
@@ -1048,6 +1006,6 @@ function explainSubAllocation(suballocation: {productType: ProductType; chargeTy
 
 function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, /* TODO(Jonas): isPrice should be... */ false, 2
+        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
     );
 }
