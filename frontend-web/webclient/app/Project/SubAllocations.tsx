@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Checkbox, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
     ChargeType,
@@ -23,7 +23,7 @@ import {PageV2} from "@/UCloud";
 import {MutableRefObject, useCallback, useMemo, useRef, useState} from "react";
 import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {bulkRequestOf} from "@/DefaultObjects";
-import {SubAllocation} from "@/Project/index";
+import {createProject, SubAllocation, useProjectId} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
@@ -109,10 +109,12 @@ interface Recipient {
     ref: React.RefObject<HTMLInputElement>;
     isProject: boolean;
     suballocations: SuballocationCreationRow[];
+    asNewProject: boolean;
 }
 
 function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}): JSX.Element {
     const [newRecipients, setRecipients] = useState<Recipient[]>([]);
+    const projectId = useProjectId();
 
     const newRecipientId = useRef(0);
 
@@ -134,6 +136,15 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         const entry = newRecipients.find(it => it.id === id);
         if (!entry) return;
         entry.isProject = isProject;
+        entry.asNewProject = false;
+        return setRecipients([...newRecipients]);
+    }, [newRecipients]);
+
+    const toggleAsNewProject = useCallback((id: number) => {
+        const entry = newRecipients.find(it => it.id === id);
+        if (!entry) return;
+        entry.isProject = true;
+        entry.asNewProject = true;
         return setRecipients([...newRecipients]);
     }, [newRecipients]);
 
@@ -150,6 +161,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 id: newRecipientId.current++,
                 ref: React.createRef<HTMLInputElement>(),
                 isProject: true,
+                asNewProject: false,
                 suballocations: [{
                     id: newRecipientId.current++,
                     productType: firstProductTypeWithEntries,
@@ -157,8 +169,8 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                     endDate: undefined,
                     startDate: startOfDay(new Date()).getTime(),
                     wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
-                }]
+                    allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
+                }],
             });
             return [...existing];
         });
@@ -193,7 +205,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
             wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
         });
         return setRecipients([...newRecipients]);
     }, [newRecipients, allocationsByProductTypes]);
@@ -256,18 +268,27 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
         }
 
         var recipientTitle = recipientId;
+
         try {
-            const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
-            if (result == null) return;
-            if (recipient.isProject != result.isProject) {
-                if (recipient.isProject) {
-                    snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);
-                } else { // !recipient.isProject 
-                    snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);
+            if (recipient.asNewProject) {
+                const result = await invokeCommand(createProject({
+                    title: recipientId,
+                    parent: projectId
+                }), {defaultErrorHandler: false});
+                recipientTitle = result.id;
+            } else {
+                const result = await invokeCommand<RetrieveRecipientResponse>(retrieveRecipient({query: recipientId}), {defaultErrorHandler: false});
+                if (result == null) return;
+                if (recipient.isProject != result.isProject) {
+                    if (recipient.isProject) {
+                        snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);
+                    } else { // !recipient.isProject 
+                        snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);
+                    }
+                    return;
                 }
-                return;
+                recipientTitle = result.id;
             }
-            recipientTitle = result.id;
         } catch (err) {
             if (err?.request?.status === 404) {
                 if (recipient.isProject) {
@@ -339,7 +360,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 }
             }} color="green">Confirm</Button><Button color="red" onClick={() => dialogStore.failure()}>Cancel</Button></ButtonGroup>
         </Box>, () => undefined);
-    }, []);
+    }, [projectId]);
 
     return <>
         <Spacer left={null} right={
@@ -353,9 +374,10 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 key={recipient.id}
                 iconColor2="white"
                 title={<Flex>
-                    <Flex width="72px" mt="6px">
-                        <ClickableDropdown width="250px" chevron trigger={<Icon color2="white" name={recipient.isProject ? "projects" : "user"} />}>
-                            <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Project</Flex>
+                    <Flex width="170px" mt="7px">
+                        <ClickableDropdown width="250px" chevron trigger={<><Icon mr="4px" color2="white" name={recipient.isProject ? "projects" : "user"} />{!recipient.isProject ? "User" : recipient.asNewProject ? "New" : "Existing"}</>}>
+                            <Flex onClick={() => toggleIsProject(recipient.id, true)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> Existing project</Flex>
+                            <Flex onClick={() => toggleAsNewProject(recipient.id)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"projects"} /> New project</Flex>
                             <Flex onClick={() => toggleIsProject(recipient.id, false)}><Icon mt="2px" mr="12px" size="18px" color2="white" name={"user"} /> User</Flex>
                         </ClickableDropdown>
                     </Flex>
@@ -602,8 +624,8 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
     }));
 
     return {
-        ABSOLUTE: absolute,  
-        DIFFERENTIAL_QUOTA: differential 
+        ABSOLUTE: absolute,
+        DIFFERENTIAL_QUOTA: differential
     }
 }
 
@@ -752,7 +774,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             endDate: undefined,
             startDate: startOfDay(new Date()).getTime(),
             wallet: allocationsByProductTypes[firstProductTypeWithEntries][0].wallet,
-            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id
+            allocationId: allocationsByProductTypes[firstProductTypeWithEntries][0].allocations[0].id,
         });
         return [...rows];
     }), [props.wallets]);
