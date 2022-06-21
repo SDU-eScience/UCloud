@@ -1,9 +1,9 @@
-import { CallParameters } from "@/Authentication/CallParameters";
-import { estimateRpcName } from "@/Authentication/RpcNameTable";
-import { timestampUnixMs } from "@/UtilityFunctions";
-import { KEYUTIL, KJUR } from "jsrsasign";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { LocalStorageCache } from "@/Utilities/LocalStorageCache";
+import {CallParameters} from "@/Authentication/CallParameters";
+import {estimateRpcName} from "@/Authentication/RpcNameTable";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import {KEYUTIL, KJUR} from "jsrsasign";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
 
 const SIGNING_ALGORITHM = "RS256";
 const SIGNING_HEADER = {typ: "JWT", alg: SIGNING_ALGORITHM};

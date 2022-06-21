@@ -1,7 +1,11 @@
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
 import {timestampUnixMs} from "@/UtilityFunctions";
 
-const SNOOZE_TIMES_MS: number[] = [1000, 5000, 10_000];
+const SNOOZE_TIMES_MS: number[] = [
+    1000 * 60 * 60 * 4,
+    1000 * 60 * 60 * 15,
+    1000 * 60 * 60 * 60,
+];
 
 interface SnoozeData {
     lastSnooze: number;

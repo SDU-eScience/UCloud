@@ -1,13 +1,13 @@
 import * as React from "react";
 import HighlightedCard from "@/ui-components/HighlightedCard";
-import { Text, Button, Icon, List, Link } from "@/ui-components";
+import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
-import { ListRow } from "@/ui-components/List";
-import { useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
-import { emptyPageV2 } from "@/DefaultObjects";
-import { useCallback, useEffect } from "react";
-import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
-import { PageV2, provider } from "@/UCloud";
+import {ListRow} from "@/ui-components/List";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {emptyPageV2} from "@/DefaultObjects";
+import {useCallback, useEffect} from "react";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {
@@ -15,6 +15,17 @@ import {
     retrieveOrInitializePublicSigningKey,
     markSigningKeyAsUploadedToProvider,
 } from "@/Authentication/MessageSigning";
+import {sendNotification} from "@/Notifications";
+import BaseLink from "@/ui-components/BaseLink";
+import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
+import {timestampUnixMs} from "@/UtilityFunctions";
+
+const lastConnectionAt = new LocalStorageCache<number>("last-connection-at");
+
+function canConnectToProvider(data: provider.IntegrationBrowseResponseItem): boolean {
+    return !data.connected ||
+        (data.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(data.providerTitle));
+}
 
 export const ConnectDashboardCard: React.FunctionComponent = props => {
     if (!inDevEnvironment() && !onDevSite()) return null;
@@ -30,11 +41,27 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
     }, []);
 
     useEffect(reload, [reload]);
-    const shouldConnect = providers.data.items.some(it =>
-        !it.connected ||
-        (it.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(it.providerTitle))
-    );
+    const shouldConnect = providers.data.items.some(it => canConnectToProvider(it));
+
+    useEffect(() => {
+        for (const p of providers.data.items) {
+            if (canConnectToProvider(p)) {
+                sendNotification({
+                    icon: "key",
+                    title: `Connection required`,
+                    body: <>
+                        You must <BaseLink href="#">re-connect</BaseLink> with '{p.providerTitle}' to continue 
+                        using it.
+                    </>,
+                    isPinned: true,
+                    uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`
+                });
+            }
+        }
+    }, [providers.data]);
+
     const connectToProvider = useCallback(async (providerData: provider.IntegrationBrowseResponseItem) => {
+        lastConnectionAt.update(timestampUnixMs());
         const res = await invokeCommand<provider.IntegrationConnectResponse>(
             IntegrationApi.connect({provider: providerData.provider})
         );
@@ -96,6 +123,7 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
             {providers.data.items.map(it => {
                 const canConnect = !it.connected ||
                     (it.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(it.providerTitle));
+
                 return (
                     <ListRow
                         key={it.provider}
