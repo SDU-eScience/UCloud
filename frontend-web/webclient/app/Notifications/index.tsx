@@ -9,11 +9,11 @@ import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
 import theme, {ThemeColor} from "@/ui-components/theme";
 import * as UF from "@/UtilityFunctions";
-import {NotificationProps as NormalizedNotification} from "./NotificationCard";
-import * as Snooze from "./NotificationSnooze";
+import {NotificationProps as NormalizedNotification} from "./Card";
+import * as Snooze from "./Snooze";
 import {callAPI} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
-import {triggerNotification, NotificationContainer} from "./NotificationContainer";
+import {triggerNotificationPopup, NotificationPopups} from "./Popups";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import * as H from "history";
@@ -24,12 +24,15 @@ import {getStoredProject} from "@/Project/Redux";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import * as Heading from "@/ui-components/Heading";
+import {WebSocketConnection} from "@/Authentication/ws";
 
 // NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
 // the backend. You can do this by editing the following two functions: `resolveNotification()` and
 // `onNotificationAction()`.
 //
-// If you are here to do something else, then look at the next comment.
+// If you are here to learn about sending a notification, then you can jump down to `sendNotification()`.
+//
+// Otherwise, look further down where the general concepts are explained.
 function resolveNotification(event: Notification): {
     icon: IconName; 
     color?: ThemeColor; 
@@ -101,7 +104,52 @@ function onNotificationAction(notification: Notification, history: H.History, di
     }
 }
 
-// TODO(Dan): This is the comment where I describe what is going on.
+// NOTE(Dan): The code of this module contain all the relevant logic and components to control the notification system
+// of UCloud. A notification is UCloud acts as a hint to the user that an interesting event has occured, in doing so
+// it invites the user to take action in response to said event. This is the main difference between the "Snackbar"
+// functionality of UCloud which is only meant to notify the user of some event which does not require any user
+// action.
+//
+// The anatomy of an notification is roughly as follows:
+//
+//    
+//  /-----------------------------------------\ 
+// X +--+ --Title--                      Date  X
+// X |  | --Message----------------            X
+// X +--+                                      X
+//  \-----------------------------------------/ 
+//                                              
+// Each notification has:
+//
+// - An icon, which indicates roughly the type of event which has occured.
+// - A title and a message, which provides a more detailed description of the event.
+// - A timestamp, telling the user when this occured. Old notifications are rarely useful.
+// - An action, which allows the user to act on the notification.
+// - A flag which indicates if the user has read the message or not.
+//
+// Two types of notifications exist in UCloud. Normal notifications and pinned notifications. A normal notification
+// will popup on the user's screen for a few seconds after which it disappears and can be found in the notification
+// tray. The notification tray is placed in the header, and can be opened to view the most recent notifications (see
+// `<Notifications>`). A pinned notification, however, stays on the user's screen until they are either dealt with or
+// snoozed. A snoozed notification will eventually return to the user. After the user has snoozed a notification a few
+// times, the snooze option is replaced with a "dismiss" option. After which the notification will not re-appear.
+// Pinned notifications are used to notify the end-user of critical events which are important that they act on.
+//
+// Notifications, in the frontend, come from a few different sources:
+//
+// 1. Backend notification system. Old ones are fetched through a normal RPC call while new ones are fetched using a
+//    WebSocket subscription.
+// 2. From the `sendNotification` call. This allows the frontend to generate its own notifications. This is currently
+//    the only way of generating a pinned notification.
+// 3. From the `snackbarStore`. This is done mostly for legacy reasons with the old snackbars, which could optionally
+//    be added to the notification tray. Using the snackbars this way will no longer generate a snackbar, since this
+//    would have caused two distinct popups instead of one.
+//
+// All notifications, regardless of source, are normalized using the `normalizeNotification()` function. The output of
+// this function is used throughout all the other components. These notifications are stored in the
+// `notificationStore` and UI components can subscribe to changes through the `notificationCallbacks`:
+const notificationStore: NormalizedNotification[] = [];
+
 const notificationCallbacks = new Set<() => void>();
 function renderNotifications() {
     for (const callback of notificationCallbacks) {
@@ -109,15 +157,8 @@ function renderNotifications() {
     }
 }
 
-// HACK(Dan): I would agree this isn't great.
-let normalizationDependencies: { 
-    history: H.History; 
-    dispatch: Dispatch;
-    refresh: { current?: () => void }
-} | null = null;
-
-const notificationStore: NormalizedNotification[] = [];
-
+// NOTE(Dan): The frontend can generate its own notification thorugh `sendNotification()`. This is generally prefered
+// over using the `snackbar` functions, as these allow for greater flexibility.
 export function sendNotification(notification: NormalizedNotification) {
     const normalized = normalizeNotification(notification);
     for (const item of notificationStore) {
@@ -129,10 +170,84 @@ export function sendNotification(notification: NormalizedNotification) {
 
     if (!notification.isPinned || Snooze.shouldAppear(normalized.uniqueId)) {
         if (notification.isPinned) Snooze.trackAppearance(normalized.uniqueId);
-        triggerNotification(normalized);
+        triggerNotificationPopup(normalized);
     }
 }
 
+// NOTE(Dan): The `notificationStore` is filled from various sources (as described above). The `initializeStore()`
+// function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
+// When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
+// relevant components.
+let wsConnection: WebSocketConnection | undefined = undefined; 
+let snackbarSubscription: (snack?: Snack) => void = () => {};
+let snoozeLoop: any;
+function initializeStore() {
+    // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
+    callAPI<Page<Notification>>({ 
+        context: "",
+        path: buildQueryString("/api/notifications", {itemsPerPage: 250}),
+    }).then(resp => {
+        for (const item of resp.items) {
+            notificationStore.push(normalizeNotification(item));
+        }
+        renderNotifications();
+    });
+
+    // NOTE(Dan): New messages from the WebSocket subscription do trigger a notification, since we will only receive
+    // notifications which are created after the subscription.
+    wsConnection = WSFactory.open("/notifications", {
+        init: c => {
+            c.subscribe({
+                call: "notifications.subscription",
+                payload: {},
+                handler: message => {
+                    if (message.type === "message") {
+                        sendNotification(normalizeNotification(message.payload));
+                    }
+                }
+            });
+        }
+    });
+
+    // NOTE(Dan): Sets up the subscriber to the snackbarStore. This is here mostly for legacy reasons. Generally you
+    // should prefer generating frontend notifications through `sendNotification()`.
+    snackbarSubscription = (snack?: Snack): void => {
+        if (snack && snack.addAsNotification) {
+            sendNotification(normalizeNotification({
+                id: -new Date().getTime(),
+                message: snack.message,
+                read: false,
+                type: "info",
+                ts: new Date().getTime(),
+                meta: ""
+            }));
+        }
+    };
+    snackbarStore.subscribe(snackbarSubscription);
+
+    // NOTE(Dan): A pinned notification which has been snoozed should automatically re-appear as a popup after some
+    // time. This small `setInterval()` handler is responsible for doing this.
+    snoozeLoop = setInterval(() => {
+        for (const notification of notificationStore) {
+            if (notification.isPinned && Snooze.shouldAppear(notification.uniqueId)) {
+                triggerNotificationPopup(notification);
+                Snooze.trackAppearance(notification.uniqueId);
+            }
+        }
+    }, 500);
+}
+
+function deinitStore() {
+    notificationStore.length = 0;
+    wsConnection?.close();
+    wsConnection = undefined;
+
+    if (snoozeLoop) clearInterval(snoozeLoop);
+    snackbarStore.unsubscribe(snackbarSubscription);
+}
+
+// NOTE(Dan): Whenever a user has read a message, we mark it as read and notify the backend (if relevant). This is
+// done through the `markAllAsRead()` and `markAsRead()` functions.
 export function markAllAsRead() {
     markAsRead(notificationStore);
 }
@@ -160,55 +275,17 @@ export function markAsRead(notifications: NormalizedNotification[]) {
     }
 }
 
-function initializeStore() {
-    callAPI<Page<Notification>>({ 
-        context: "",
-        path: buildQueryString("/api/notifications", {itemsPerPage: 250}),
-    }).then(resp => {
-        for (const item of resp.items) {
-            notificationStore.push(normalizeNotification(item));
-        }
-        renderNotifications();
-    });
+// HACK(Dan): I would agree this isn't great.
+let normalizationDependencies: { 
+    history: H.History; 
+    dispatch: Dispatch;
+    refresh: { current?: () => void }
+} | null = null;
 
-    WSFactory.open("/notifications", {
-        init: c => {
-            c.subscribe({
-                call: "notifications.subscription",
-                payload: {},
-                handler: message => {
-                    if (message.type === "message") {
-                        sendNotification(normalizeNotification(message.payload));
-                    }
-                }
-            });
-        }
-    });
-
-    const subscriber = (snack?: Snack): void => {
-        if (snack && snack.addAsNotification) {
-            sendNotification(normalizeNotification({
-                id: -new Date().getTime(),
-                message: snack.message,
-                read: false,
-                type: "info",
-                ts: new Date().getTime(),
-                meta: ""
-            }));
-        }
-    };
-    snackbarStore.subscribe(subscriber);
-
-    setInterval(() => {
-        for (const notification of notificationStore) {
-            if (notification.isPinned && Snooze.shouldAppear(notification.uniqueId)) {
-                triggerNotification(notification);
-                Snooze.trackAppearance(notification.uniqueId);
-            }
-        }
-    }, 500);
-}
-
+// The <Notifications> component is the main component for notifications. It is almost always mounted and visible in
+// the navigation header. Here it leaves a bell icon, which can be clicked to open the notification tray. This
+// function is responsible for initializing the notification store. It is also responsible for mounting the popup
+// component. 
 export const Notifications: React.FunctionComponent = () => {
     const history = useHistory();
     const dispatch = useDispatch();
@@ -238,6 +315,12 @@ export const Notifications: React.FunctionComponent = () => {
         notificationCallbacks.add(rerender);
         normalizationDependencies = { history, dispatch, refresh: globalRefreshRef };
         initializeStore();
+
+        return () => {
+            notificationCallbacks.delete(rerender);
+            normalizationDependencies = null;
+            deinitStore();
+        };
     }, []);
 
     const pinnedEntries: JSX.Element | null = (() => {
@@ -246,11 +329,7 @@ export const Notifications: React.FunctionComponent = () => {
         return <div className="container">
             {pinnedItems.map((notification, index) => {
                 const normalized = normalizeNotification(notification);
-
-                return <NotificationEntry
-                    key={index}
-                    notification={normalized}
-                />
+                return <NotificationEntry key={index} notification={normalized} />
             })}
         </div>;
     })();
@@ -261,10 +340,7 @@ export const Notifications: React.FunctionComponent = () => {
             {notificationStore.map((notification, index) => {
                 if (notification.isPinned) return null;
 
-                return <NotificationEntry
-                    key={index}
-                    notification={notification}
-                />
+                return <NotificationEntry key={index} notification={notification} />
             })}
         </>;
     })();
@@ -272,7 +348,7 @@ export const Notifications: React.FunctionComponent = () => {
     const unreadLength = notificationStore.filter(e => !e.read).length;
 
     return <>
-        <NotificationContainer />
+        <NotificationPopups />
         <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
             <Relative top="0" left="0">
                 <Flex justifyContent="center" width="48px">
@@ -571,3 +647,4 @@ export const NotificationDashboardCard: React.FunctionComponent = () => {
 };
 
 export default Notifications;
+

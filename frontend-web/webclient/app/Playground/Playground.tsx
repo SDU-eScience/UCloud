@@ -10,7 +10,6 @@ import {api as ProjectApi, Project} from "@/Project/Api";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {useProjectId} from "@/Project";
 import BaseLink from "@/ui-components/BaseLink";
-import {NotificationContainer} from "@/Notifications/NotificationContainer";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
 

@@ -1,13 +1,13 @@
 import * as React from "react";
 import {useEffect, useCallback} from "react";
 import {doNothing} from "@/UtilityFunctions";
-import {NotificationProps, NotificationCard} from "./NotificationCard";
+import {NotificationProps, NotificationCard} from "./Card";
 import {timestampUnixMs} from "@/UtilityFunctions";
 import {useForcedRender} from "@/Utilities/ReactUtilities";
 
-// NOTE(Dan): The <NotificationContainer> component is responsible for displaying incoming <NotificationCard>s in an
-// orderly manner. A new notification is triggered with `triggerNotification` which will display the notification if
-// possible. 
+// NOTE(Dan): The <NotificationPopups> component is responsible for displaying incoming <NotificationCard>s in an
+// orderly manner. A new notification is triggered with `triggerNotificationPopup` which will display the notification
+// if possible. 
 //
 // The container allows for up to 6 notifications shown at once, two of which are reserved for pinned
 // notifications. No more than two pinned notification can be displayed at any point in time. Pinned notifications
@@ -29,7 +29,7 @@ const DEMO = false; // Set DEMO to true to see a bunch of notifications rolling 
 
 type NotificationWithSnooze = NotificationProps & { onSnooze?: (props: NotificationProps) => void };
 
-// NOTE(Dan): Callback to force a rerender. This is set by <NotificationContainer> when mounting. This should only be
+// NOTE(Dan): Callback to force a rerender. This is set by <NotificationPopups> when mounting. This should only be
 // invoked through `triggerCallback()`.
 let callback: () => void = doNothing;
 
@@ -66,7 +66,7 @@ const normalSlots: ActiveNotification[] = Array(6).fill(emptyNotification).map(i
 
 // NOTE(Dan): Adds a new notification to the container. This should not be invoked directly by most code, as this code
 // does not add it to the notification tray.
-export function triggerNotification(notification: NotificationWithSnooze) {
+export function triggerNotificationPopup(notification: NotificationWithSnooze) {
     if (notification.isPinned) {
         const slotIdx = pinnedQueue.length > 0 ? -1 : pinnedSlots[0] === null ? 0 : pinnedSlots[1] === null ? 1 : -1;
         if (slotIdx === -1) {
@@ -151,7 +151,7 @@ function startDeletionTimer(slot: ActiveNotification) {
     }, EXIT_ANIMATION - 30); 
 }
 
-export const NotificationContainer: React.FunctionComponent = () => {
+export const NotificationPopups: React.FunctionComponent = () => {
     const rerender = useForcedRender();
 
     useEffect(() => {
@@ -183,7 +183,7 @@ export const NotificationContainer: React.FunctionComponent = () => {
         if (DEMO) {
             let counter = 0;
             setInterval(() => {
-                triggerNotification({
+                triggerNotificationPopup({
                     icon: "mail",
                     title: `Notification ${counter}`,
                     body: "This is a test notification!",
