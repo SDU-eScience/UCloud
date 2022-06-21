@@ -11,7 +11,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import ProvidersApi, {Provider} from "@/UCloud/ProvidersApi";
 import {useCloudAPI} from "@/Authentication/DataHook";
-import {render} from "react-dom";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> {
     return {
@@ -20,16 +20,20 @@ function getByIdRequest(payload: {id: string}): APICallParameters<{id: string}> 
     };
 }
 
-function Edit(): JSX.Element | null {
+function Save(): JSX.Element | null {
     const {id} = useParams<{id: string}>();
-    const [provider, setParams, params] = useCloudAPI<Provider | null, {id: string}>(getByIdRequest({id}), null);
+    const [provider, setParams, params] = useCloudAPI<Provider | null, {id: string}>({noop: true}, null);
     const history = useHistory();
 
     React.useEffect(() => {
-        setParams(getByIdRequest({id}));
+        if (id) {
+            setParams(getByIdRequest({id}));
+        }
     }, [id]);
 
-    useTitle("Edit Provider");
+    const title = provider.data ? "Edit Provider" : "Create Provider";
+
+    useTitle(title);
 
     if (provider.loading) return <MainContainer headerSize={0} main={<Loading size={24} />} />;
 
@@ -39,23 +43,33 @@ function Edit(): JSX.Element | null {
         main={<>
             <RS
                 title="Providers"
-                submitText="Save changes"
+                submitText={provider.data ? "Save changes" : "Create"}
                 createRequest={async ({fields}) => {
-                    return ProvidersApi.update({
-                        id: id,
-                        specification: {
+                    if (provider.data) {
+                        return ProvidersApi.update(bulkRequestOf({
                             id: provider.data?.specification.id ?? fields.ID,
                             domain: fields.DOMAIN,
                             https: fields.HTTPS,
                             port: isNaN(fields.PORT) ? undefined : fields.PORT,
                             product: placeholderProduct()
-                        }
-                    })
+                        }));
+                    } else {
+                        return UCloud.provider.providers.create(bulkRequestOf({
+                            id: fields.ID,
+                            domain: fields.DOMAIN,
+                            https: fields.HTTPS,
+                            port: isNaN(fields.PORT) ? undefined : fields.PORT,
+                            product: placeholderProduct()
+                        }));
+                    }
                 }}
                 onSubmitSucceded={(res, data) => {
                     if (res) {
                         history.push(`/providers`);
                     }
+                }}
+                onSubmitError={(error) => {
+                    snackbarStore.addFailure(error, false);
                 }}
             >
                 <RS.Text
@@ -63,7 +77,7 @@ function Edit(): JSX.Element | null {
                     id="ID"
                     placeholder="ID..."
                     required
-                    disabled
+                    disabled={provider.data ? true : false}
                     styling={{}}
                     defaultValue={provider.data?.specification.id}
                 />
@@ -79,7 +93,7 @@ function Edit(): JSX.Element | null {
                     <RS.Number
                         id="PORT"
                         label="Port"
-                        step="0.1"
+                        step="1"
                         min={0.0}
                         max={2 ** 16}
                         styling={{ml: "8px", width: "20%"}}
@@ -98,4 +112,4 @@ function Edit(): JSX.Element | null {
     />;
 }
 
-export default Edit;
+export default Save;

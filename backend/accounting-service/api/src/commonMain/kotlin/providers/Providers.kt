@@ -19,7 +19,6 @@ import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
 import kotlin.reflect.typeOf
 
 @Serializable
@@ -123,13 +122,8 @@ data class ProviderUpdate(
     override val status: String? = null,
 ) : ResourceUpdate
 
-@Serializable
-@UCloudApiDoc("")
-data class ProvidersUpdateSpecificationRequest(
-    val id: String,
-    val specification: ProviderSpecification
-)
-typealias ProvidersUpdateSpecificationResponse = FindByStringId
+typealias ProvidersUpdateSpecificationRequest = BulkRequest<ProviderSpecification>
+typealias ProvidersUpdateSpecificationResponse = BulkResponse<FindByStringId>
 
 @Serializable
 @UCloudApiDoc("Request type for renewing the tokens of a Provider")
@@ -461,10 +455,10 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
 
     val update = call<ProvidersUpdateSpecificationRequest,
             ProvidersUpdateSpecificationResponse, CommonErrorMessage>("update") {
-        httpUpdate(baseContext, "update", Roles.PRIVILEGED)
+        httpUpdate(baseContext, "update", Roles.END_USER)
 
         documentation {
-            summary = "Updates the specification of a provider"
+            summary = "Updates the specification of one or more providers"
             description = """
                 This endpoint can only be invoked by a UCloud administrator.
             """
