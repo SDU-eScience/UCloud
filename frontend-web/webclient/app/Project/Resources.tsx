@@ -80,7 +80,7 @@ const Resources: React.FunctionComponent = () => {
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
 
     React.useEffect(() => {
-        if (filters.filterStartDate == null && filters.filterEndDate == null) {
+        if (filters.filterStartDate == null || filters.filterEndDate == null) {
             setFilters({
                 ...filters,
                 filterStartDate: pastMonthStart.toString(),
