@@ -93,6 +93,7 @@ class UCloudConfigService(
                             )
                         )
                         syncthingClient.configureOptions()
+                        syncthingClient.configureGui()
                         break
                     } catch (e: Throwable) {
                         // Do nothing
