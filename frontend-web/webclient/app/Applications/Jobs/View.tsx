@@ -26,7 +26,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecification} from "@/UCloud/JobsApi";
 import {compute} from "@/UCloud";
-import {ProductSupport, ResolvedSupport} from "@/UCloud/ResourceApi";
+import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
 import {costOfDuration, priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
@@ -861,7 +861,7 @@ const RunningContent: React.FunctionComponent<{
                             </>
                         }
                         <Box>
-                            <b>Estimated cost per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" : 
+                            <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" : 
                                 job.status.resolvedProduct ?
                                     usageExplainer(
                                         costOfDuration(60, job.specification.replicas, resolvedProduct),
