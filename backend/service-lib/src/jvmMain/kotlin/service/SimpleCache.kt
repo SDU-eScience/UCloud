@@ -100,6 +100,18 @@ class SimpleCache<K, V : Any>(
         nextRemoveExpired = Time.now() + (maxAge * 5)
     }
 
+    suspend fun findOrNull(predicate: (V) -> Boolean): V? {
+        cleanup()
+
+        val cacheEntry = mutex.withLock {
+            internalMap.values.find { predicate(it.value) }
+        } ?: return null
+
+        if (maxAge == DONT_EXPIRE) return cacheEntry.value
+        if (Time.now() - cacheEntry.timestamp < maxAge) return cacheEntry.value
+        return null
+    }
+
     companion object : Loggable {
         override val log = logger()
         const val DONT_EXPIRE = -1L
