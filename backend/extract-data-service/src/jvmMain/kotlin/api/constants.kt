@@ -1,13 +1,5 @@
 package dk.sdu.cloud.extract.data.api
 
-import okhttp3.internal.UTC
-import org.joda.time.DateTimeZone
-import org.joda.time.Days
-import org.joda.time.LocalDateTime
-import java.net.HttpURLConnection
-import java.net.URL
-import kotlin.math.ceil
-
 const val MINUTES_PER_HOUR = 60L
 
 const val SDU_CLOUD_PROJECT_ID = "3196deee-c3c2-464b-b328-4d3c5d02b953"

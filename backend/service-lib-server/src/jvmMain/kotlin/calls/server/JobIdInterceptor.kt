@@ -3,9 +3,9 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
 import io.ktor.http.HttpHeaders
-import io.ktor.request.header
+import io.ktor.server.application.*
+import io.ktor.server.request.*
 import java.util.*
 
 class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
@@ -34,7 +34,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
 
     private fun readJobId(context: IngoingCall): String? {
         return when (context) {
-            is HttpCall -> context.call.request.header(HttpHeaders.JobId)
+            is HttpCall -> context.ktor.call.request.header(HttpHeaders.JobId)
             is WSCall -> UUID.randomUUID().toString()
             else -> throw IllegalStateException("Unable to read job id for context: $context")
         }
@@ -42,7 +42,7 @@ class JobIdInterceptor(private val complainAboutMissingJobId: Boolean) {
 
     private fun readCausedBy(context: IngoingCall): String? {
         return when (context) {
-            is HttpCall -> context.call.request.header(HttpHeaders.CausedBy)
+            is HttpCall -> context.ktor.call.request.header(HttpHeaders.CausedBy)
             is WSCall -> context.request.causedBy
             else -> throw IllegalStateException("Unable to read caused by for context: $context")
         }

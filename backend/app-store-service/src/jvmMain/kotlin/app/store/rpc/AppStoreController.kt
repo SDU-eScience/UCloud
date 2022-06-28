@@ -15,9 +15,8 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
 import io.ktor.http.*
-import io.ktor.request.*
+import io.ktor.server.request.*
 import io.ktor.utils.io.*
 import org.yaml.snakeyaml.reader.ReaderException
 

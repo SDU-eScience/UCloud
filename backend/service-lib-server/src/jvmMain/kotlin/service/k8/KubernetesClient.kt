@@ -9,8 +9,9 @@ import com.fasterxml.jackson.module.kotlin.registerKotlinModule
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
+import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.features.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -212,20 +213,17 @@ sealed class KubernetesConfigurationSource {
     }
 }
 
-@OptIn(InternalAPI::class)
 fun URLBuilder.fixedClone(): Url {
     val e = HashMap<String, List<String>>()
     parameters.entries().forEach { (k, v) -> e[k] = v }
-    parameters.clear()
-    return clone().build().copy(
-        parameters = Parameters.build {
-            for ((k, values) in e) {
-                for (v in values) {
-                    append(k, v)
-                }
+    return clone().apply {
+        parameters.clear()
+        for ((k, values) in e) {
+            for (v in values) {
+                parameters.append(k, v)
             }
         }
-    )
+    }.build()
 }
 
 sealed class KubernetesAuthenticationMethod {
@@ -271,11 +269,11 @@ sealed class KubernetesAuthenticationMethod {
             }
 
             httpRequestBuilder.url(
-                httpRequestBuilder.url.fixedClone().copy(
-                    protocol = URLProtocol.HTTP,
-                    host = "localhost",
-                    specifiedPort = 42010,
-                ).toString()
+                URLBuilder(httpRequestBuilder.url.fixedClone()).apply {
+                    protocol = URLProtocol.HTTP
+                    host = "localhost"
+                    port = 42010
+                }.build()
             )
         }
 
@@ -436,14 +434,14 @@ class KubernetesClient(
         if (!resp.status.isSuccess()) {
             throw KubernetesException(
                 resp.status,
-                resp.content.toByteArray(1024 * 4096).decodeToString()
+                resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString()
             )
         }
 
         try {
             // Never read more than 32MB in a response
             // This is just used as a safe-guard against a malicious server
-            val data = resp.content.toByteArray(1024 * 1024 * 32)
+            val data = resp.bodyAsChannel().toByteArray(1024 * 1024 * 32)
             @Suppress("BlockingMethodInNonBlockingContext")
             return defaultMapper.decodeFromString(serializer(), data.decodeToString())
         } catch (ex: Exception) {
@@ -451,17 +449,18 @@ class KubernetesClient(
         }
     }
 
-    suspend inline fun <reified T> sendRequest(
+    @OptIn(InternalAPI::class)
+    suspend fun sendRequest(
         method: HttpMethod,
         locator: KubernetesResourceLocator,
         queryParameters: Map<String, String> = emptyMap(),
         operation: String? = null,
         content: OutgoingContent? = null,
-    ): T {
+    ): HttpStatement {
         var retries = 0
         while (retries < 5) {
             try {
-                return httpClient.request {
+                return httpClient.prepareRequest {
                     this.method = method
                     url(buildUrl(locator, queryParameters, operation).also { log.trace("${method.value} $it") })
                     header(HttpHeaders.Accept, ContentType.Application.Json)
@@ -490,7 +489,7 @@ suspend inline fun <reified T> KubernetesClient.getResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): T {
-    return parseResponse(sendRequest(HttpMethod.Get, locator, queryParameters, operation))
+    return parseResponse(sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute())
 }
 
 data class KubernetesList<T>(
@@ -503,9 +502,9 @@ suspend inline fun <reified T> KubernetesClient.listResources(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): KubernetesList<T> {
-    val resp = sendRequest<HttpResponse>(HttpMethod.Get, locator, queryParameters, operation)
+    val resp = sendRequest(HttpMethod.Get, locator, queryParameters, operation)
 
-    val parsedResp = parseResponse<JsonObject>(resp)
+    val parsedResp = parseResponse<JsonObject>(resp.execute())
     val items = parsedResp["items"] as? JsonArray ?: error("Could not parse items of response: $parsedResp")
 
     return KubernetesList(
@@ -525,13 +524,13 @@ inline fun <reified T : WatchEvent<*>> KubernetesClient.watchResource(
     operation: String? = null,
 ): ReceiveChannel<T> {
     return scope.produce {
-        val resp = sendRequest<HttpStatement>(
+        val resp = sendRequest(
             HttpMethod.Get,
             locator,
             queryParameters + mapOf("watch" to "true"),
             operation
         )
-        val content = resp.receive<ByteReadChannel>()
+        val content = resp.execute().bodyAsChannel()
         while (isActive) {
             val nextLine = content.readUTF8Line() ?: break
             @Suppress("BlockingMethodInNonBlockingContext")
@@ -547,7 +546,7 @@ suspend inline fun KubernetesClient.deleteResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(sendRequest(HttpMethod.Delete, locator, queryParameters, operation))
+    return parseResponse(sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute())
 }
 
 suspend inline fun KubernetesClient.replaceResource(
@@ -563,7 +562,7 @@ suspend inline fun KubernetesClient.replaceResource(
             queryParameters,
             operation,
             TextContent(replacementJson, ContentType.Application.Json)
-        )
+        ).execute()
     )
 }
 
@@ -581,7 +580,7 @@ suspend fun KubernetesClient.patchResource(
             queryParameters,
             operation,
             TextContent(replacement, contentType)
-        )
+        ).execute()
     )
 }
 
@@ -599,7 +598,7 @@ suspend fun KubernetesClient.createResource(
             queryParameters,
             operation,
             TextContent(replacement, contentType)
-        )
+        ).execute()
     )
 }
 

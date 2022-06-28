@@ -15,9 +15,9 @@ import dk.sdu.cloud.file.ucloud.services.tasks.TrashRequestItem
 import dk.sdu.cloud.provider.api.FEATURE_NOT_SUPPORTED_BY_PROVIDER
 import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.service.Controller
-import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.request.*
+import io.ktor.server.application.*
+import io.ktor.server.request.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.encodeToJsonElement
 
@@ -25,7 +25,7 @@ val CallHandler<*, *, *>.ucloudUsername: String?
     get() {
         var username: String? = null
         withContext<HttpCall> {
-            username = ctx.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
+            username = ctx.ktor.call.request.header(IntegrationProvider.UCLOUD_USERNAME_HEADER)
                 ?.let { base64Decode(it).decodeToString() }
         }
 
@@ -233,7 +233,7 @@ class FilesController(
 
         implement(chunkedProtocol.uploadChunk) {
             withContext<HttpCall> {
-                val contentLength = ctx.call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
+                val contentLength = ctx.ktor.call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
                     ?: throw FSException.BadRequest()
                 val channel = ctx.context.request.receiveChannel()
 

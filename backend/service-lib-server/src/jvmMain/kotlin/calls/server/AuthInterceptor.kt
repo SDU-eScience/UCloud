@@ -6,7 +6,7 @@ import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.providerTokenValidation
 import dk.sdu.cloud.micro.tokenValidation
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
+import io.ktor.server.application.*
 
 private val microImplementedByKey = AttributeKey<Micro>("call-implemented-by")
 var CallDescription<*, *, *>.microImplementedBy: Micro
@@ -73,7 +73,7 @@ class AuthInterceptor(
 
     private fun readAuthenticationToken(context: IngoingCall): String? {
         return when (context) {
-            is HttpCall -> @Suppress("DEPRECATION") context.call.request.bearer
+            is HttpCall -> @Suppress("DEPRECATION") context.ktor.call.request.bearer
             is WSCall -> context.request.bearer
             else -> {
                 log.warn("Unable to perform authentication check in call context: $context")

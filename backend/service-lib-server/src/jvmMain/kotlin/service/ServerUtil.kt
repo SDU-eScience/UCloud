@@ -2,16 +2,13 @@ package dk.sdu.cloud.service
 
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.db.async.EnhancedPreparedStatement
-import io.ktor.application.featureOrNull
-import io.ktor.application.install
-import io.ktor.application.uninstall
-import io.ktor.features.CORS
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
+import io.ktor.server.application.*
+import io.ktor.server.plugins.cors.routing.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import java.io.File
 
 interface BaseServer {
     fun start()
@@ -69,27 +66,29 @@ fun CommonServer.startServices(wait: Boolean = true) = runBlocking {
             val ktorApplicationEngine = serverFeature.ktorApplicationEngine
             if (ktorApplicationEngine != null) {
                 if (micro.developmentModeEnabled) {
-                    if (ktorApplicationEngine.application.featureOrNull(CORS) == null) {
+                    val key = MicroAttributeKey<Unit>("did-init-cors")
+                    if (micro.attributes.getOrNull(key) == null) {
+                        micro.attributes.set(key, Unit)
                         ktorApplicationEngine.application.install(CORS) {
                             // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
                             // with local backend.
-                            host("frontend:9000")
-                            host("localhost:9000")
-                            method(HttpMethod.Get)
-                            method(HttpMethod.Post)
-                            method(HttpMethod.Put)
-                            method(HttpMethod.Delete)
-                            method(HttpMethod.Head)
-                            method(HttpMethod.Options)
-                            method(HttpMethod.Patch)
+                            allowHost("frontend:9000")
+                            allowHost("localhost:9000")
+                            allowMethod(HttpMethod.Get)
+                            allowMethod(HttpMethod.Post)
+                            allowMethod(HttpMethod.Put)
+                            allowMethod(HttpMethod.Delete)
+                            allowMethod(HttpMethod.Head)
+                            allowMethod(HttpMethod.Options)
+                            allowMethod(HttpMethod.Patch)
                             allowNonSimpleContentTypes = true
                             allowCredentials = true
-                            header(HttpHeaders.Authorization)
-                            header("X-CSRFToken")
-                            header("refreshToken")
-                            header("chunked-upload-offset")
-                            header("chunked-upload-token")
-                            header("upload-name")
+                            allowHeader(HttpHeaders.Authorization)
+                            allowHeader("X-CSRFToken")
+                            allowHeader("refreshToken")
+                            allowHeader("chunked-upload-offset")
+                            allowHeader("chunked-upload-token")
+                            allowHeader("upload-name")
                         }
                     }
                 }

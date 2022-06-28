@@ -7,14 +7,13 @@ import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.featureOrNull
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.*
 import io.ktor.content.*
 import io.ktor.http.*
 import io.ktor.http.HttpMethod
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
 import io.ktor.server.engine.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.util.pipeline.*
 import io.ktor.utils.io.errors.*
 import kotlinx.coroutines.withContext
@@ -82,7 +81,11 @@ class IngoingHttpInterceptor(
 
                 http.body is HttpBody.BoundToEntireRequest<*> -> {
                     @Suppress("UNCHECKED_CAST")
-                    val receiveOrNull = ctx.call.receiveOrNull<String>()?.takeIf { it.isNotEmpty() }
+                    val receiveOrNull = try {
+                        ctx.ktor.call.request.receiveChannel().readRemaining().readText().takeIf { it.isNotEmpty() }
+                    } catch (ex: Throwable) {
+                        null
+                    }
                     return (
                         if (receiveOrNull != null) defaultMapper.decodeFromString(call.requestType, receiveOrNull)
                         else null
@@ -90,11 +93,11 @@ class IngoingHttpInterceptor(
                 }
 
                 http.params != null -> {
-                    return ParamsParsing(ctx.context, call).decodeSerializableValue(call.requestType)
+                    return ParamsParsing(ctx.ktor.context, call).decodeSerializableValue(call.requestType)
                 }
 
                 http.headers != null -> {
-                    return HeaderParsing(ctx.context, call).decodeSerializableValue(call.requestType)
+                    return HeaderParsing(ctx.ktor.context, call).decodeSerializableValue(call.requestType)
                 }
 
                 else -> throw RPCException(
@@ -124,11 +127,11 @@ class IngoingHttpInterceptor(
         call: CallDescription<R, S, E>,
         callResult: OutgoingCallResponse<S, E>,
     ) {
-        ctx.call.response.status(callResult.statusCode)
+        ctx.ktor.call.response.status(callResult.statusCode)
 
         when (callResult) {
             is OutgoingCallResponse.Ok -> {
-                ctx.call.respond(
+                ctx.ktor.call.respond(
                     TextContent(
                         defaultMapper.encodeToString(call.successType, callResult.result),
                         ContentType.Application.Json.withCharset(Charsets.UTF_8)
@@ -138,9 +141,9 @@ class IngoingHttpInterceptor(
 
             is OutgoingCallResponse.Error -> {
                 if (callResult.error == null) {
-                    ctx.call.respond(callResult.statusCode)
+                    ctx.ktor.call.respond(callResult.statusCode)
                 } else {
-                    ctx.call.respond(
+                    ctx.ktor.call.respond(
                         TextContent(
                             defaultMapper.encodeToString(call.errorType, callResult.error),
                             ContentType.Application.Json.withCharset(Charsets.UTF_8)

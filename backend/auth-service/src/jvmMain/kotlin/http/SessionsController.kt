@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityToken
 import dk.sdu.cloud.calls.server.withContext
 import dk.sdu.cloud.service.Controller
-import io.ktor.application.call
 
 class SessionsController(
     private val sessionService: SessionService

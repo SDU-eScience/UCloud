@@ -2,18 +2,20 @@ package dk.sdu.cloud.app.kubernetes.services.proxy
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.features.websocket.ws
+import io.ktor.client.plugins.websocket.*
+import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.request.header
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
-import io.ktor.request.header
+import io.ktor.server.request.*
+import io.ktor.server.websocket.*
 import io.ktor.websocket.*
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
 val webSocketClient = HttpClient(CIO).config {
-    install(io.ktor.client.features.websocket.WebSockets)
+    install(WebSockets)
     expectSuccess = false
 }
 

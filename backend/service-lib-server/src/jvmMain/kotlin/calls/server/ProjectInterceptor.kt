@@ -3,8 +3,8 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
-import io.ktor.request.header
+import io.ktor.server.application.*
+import io.ktor.server.request.*
 
 class ProjectInterceptor {
     fun register(server: RpcServer) {
@@ -19,7 +19,7 @@ class ProjectInterceptor {
 
     private fun readProject(context: IngoingCall): String? {
         return when (context) {
-            is HttpCall -> context.call.request.header("Project")
+            is HttpCall -> context.ktor.call.request.header("Project")
             is WSCall -> context.request.project
             else -> {
                 log.warn("Unable to extract project from call context: $context")

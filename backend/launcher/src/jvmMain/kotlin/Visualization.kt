@@ -1,5 +1,6 @@
-package dk.sdu.cloud.calls
+package dk.sdu.cloud
 
+import dk.sdu.cloud.calls.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -7,11 +8,11 @@ import kotlin.reflect.KProperty1
 import kotlin.reflect.full.memberProperties
 import kotlin.reflect.full.primaryConstructor
 
-private fun simplifyName(qualifiedName: String): String {
-    return qualifiedName.split(".").filter { it.firstOrNull()?.isUpperCase() == true }.joinToString(".")
-}
+fun replacePlaceholderVisualization(value: Any?): DocVisualization {
+    fun simplifyName(qualifiedName: String): String {
+        return qualifiedName.split(".").filter { it.firstOrNull()?.isUpperCase() == true }.joinToString(".")
+    }
 
-actual fun visualizeValue(value: Any?): DocVisualization {
     if (value is DocVisualizable) return value.visualize()
     if (value == null) return DocVisualization.Inline("null")
 

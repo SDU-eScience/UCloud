@@ -10,8 +10,8 @@ import com.onelogin.saml2.settings.Saml2Settings
 import com.onelogin.saml2.util.Constants
 import com.onelogin.saml2.util.Util
 import dk.sdu.cloud.service.Logger
-import io.ktor.application.ApplicationCall
 import io.ktor.http.Parameters
+import io.ktor.server.application.*
 import org.apache.commons.lang3.StringUtils
 import org.joda.time.DateTime
 import org.joda.time.Instant

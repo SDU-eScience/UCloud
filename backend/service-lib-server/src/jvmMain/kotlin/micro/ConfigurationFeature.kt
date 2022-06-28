@@ -59,7 +59,7 @@ class ConfigurationFeature : MicroFeature {
         }
 
         val tree = jsonMapper.readTree("{}")
-        val serverConfiguration = ServerConfiguration(jsonMapper, tree, configDirs)
+        val serverConfiguration = JacksonServerConfiguration(jsonMapper, tree, configDirs)
         for (configFile in allConfigFiles) {
             injectFile(serverConfiguration, configFile)
         }
@@ -80,7 +80,7 @@ class ConfigurationFeature : MicroFeature {
     private fun addFilesFromDirectory(configDirectory: File) =
         configDirectory.listFiles()?.filter { it.extension in knownExtensions } ?: emptyList()
 
-    fun injectFile(configuration: ServerConfiguration, configFile: File) {
+    fun injectFile(configuration: JacksonServerConfiguration, configFile: File) {
         log.debug("Reading from configuration file: ${configFile.absolutePath}")
 
         if (!configFile.exists()) {
@@ -97,7 +97,7 @@ class ConfigurationFeature : MicroFeature {
         configuration.tree.mergeWith(mapper.readTree(configFile))
     }
 
-    fun manuallyInjectNode(configuration: ServerConfiguration, node: JsonNode) {
+    fun manuallyInjectNode(configuration: JacksonServerConfiguration, node: JsonNode) {
         log.debug("Manually injecting node into configuration")
         configuration.tree.mergeWith(node)
     }

@@ -400,6 +400,8 @@ sealed class DocVisualization {
     ) : DocVisualization()
 
     data class Inline(val value: String, override var estimatedHeight: Int = -1) : DocVisualization()
+
+    data class Placeholder(val value: Any?, override var estimatedHeight: Int = -1) : DocVisualization()
 }
 
 data class DocStatLine(val stats: List<DocStat>) {
@@ -415,4 +417,4 @@ interface DocVisualizable {
     fun visualize(): DocVisualization
 }
 
-expect fun visualizeValue(value: Any?): DocVisualization
+fun visualizeValue(value: Any?): DocVisualization = DocVisualization.Placeholder(value)

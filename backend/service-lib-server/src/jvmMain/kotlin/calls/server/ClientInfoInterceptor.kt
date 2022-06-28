@@ -3,9 +3,9 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
-import io.ktor.features.origin
-import io.ktor.request.userAgent
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
 
 /**
  * Intercepts information about a client
@@ -21,7 +21,7 @@ class ClientInfoInterceptor : IngoingCallFilter.BeforeParsing() {
     override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>) {
         val remoteHost = when (context) {
             is WSCall -> context.session.underlyingSession.call.request.origin.remoteHost
-            is HttpCall -> context.call.request.origin.remoteHost
+            is HttpCall -> context.ktor.call.request.origin.remoteHost
             else -> null
         }
 
@@ -29,7 +29,7 @@ class ClientInfoInterceptor : IngoingCallFilter.BeforeParsing() {
 
         val userAgent = when (context) {
             is WSCall -> context.session.underlyingSession.call.request.userAgent()
-            is HttpCall -> context.call.request.userAgent()
+            is HttpCall -> context.ktor.call.request.userAgent()
             else -> null
         }
 

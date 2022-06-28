@@ -1,19 +1,18 @@
 package dk.sdu.cloud.service
 
 import dk.sdu.cloud.calls.server.JobId
-import io.ktor.application.Application
-import io.ktor.application.install
-import io.ktor.features.CallLogging
-import io.ktor.features.DefaultHeaders
-import io.ktor.features.XForwardedHeaderSupport
 import io.ktor.http.HttpHeaders
-import io.ktor.request.header
+import io.ktor.server.application.*
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.plugins.callloging.*
+import io.ktor.server.plugins.defaultheaders.*
+import io.ktor.server.plugins.forwardedheaders.*
+import io.ktor.server.request.*
 
 fun Application.installDefaultFeatures() {
     // Default ktor features
     install(DefaultHeaders)
-    install(XForwardedHeaderSupport)
+    install(XForwardedHeaders)
 
     install(CallLogging) {
         mdc("request-id") { call ->

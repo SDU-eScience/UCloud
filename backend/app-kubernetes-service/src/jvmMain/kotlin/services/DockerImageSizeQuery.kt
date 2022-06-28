@@ -5,7 +5,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.features.*
+import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
@@ -39,8 +39,8 @@ class DockerImageSizeQuery {
     }
 
     private suspend fun fetchToken(realm: String, params: Map<String, String>): String {
-        val resp = httpClient.get<HttpResponse>(realm + encodeQueryParamsToString(params))
-        val text = resp.content.toByteArray(1024 * 1024 * 2).toString(Charsets.UTF_8)
+        val resp = httpClient.get(realm + encodeQueryParamsToString(params))
+        val text = resp.bodyAsChannel().toByteArray(1024 * 1024 * 2).toString(Charsets.UTF_8)
         return defaultMapper.decodeFromString<TokenResponse>(text).access_token
     }
 
@@ -54,7 +54,7 @@ class DockerImageSizeQuery {
     ): HttpResponse {
         if (attempts > 5) error("too many attempts $url")
 
-        val resp = httpClient.request<HttpResponse>(url) {
+        val resp = httpClient.request(url) {
             this.method = method
             header(HttpHeaders.Authorization, "Bearer ${tok.access_token}")
         }
@@ -86,7 +86,7 @@ class DockerImageSizeQuery {
 
         val manifest = defaultMapper.decodeFromString<DockerManifest>(
             queryRegistry(tok, "https://$registry/v2/$image/manifests/$tag")
-                .content
+                .bodyAsChannel()
                 .toByteArray(1024 * 1024 * 8)
                 .decodeToString()
         )

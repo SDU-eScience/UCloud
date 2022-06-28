@@ -3,10 +3,9 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.base64Decode
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpHeaderParameter
-import dk.sdu.cloud.calls.HttpQueryParameter
 import dk.sdu.cloud.calls.http
-import io.ktor.application.*
-import io.ktor.request.*
+import io.ktor.server.application.*
+import io.ktor.server.request.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.descriptors.SerialDescriptor

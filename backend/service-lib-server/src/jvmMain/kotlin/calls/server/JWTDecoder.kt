@@ -4,8 +4,7 @@ import dk.sdu.cloud.SecurityPrincipalToken
 import dk.sdu.cloud.SecurityScope
 import dk.sdu.cloud.service.JWTException
 import io.ktor.http.HttpHeaders
-import io.ktor.request.ApplicationRequest
-import io.ktor.request.header
+import io.ktor.server.request.*
 
 @Deprecated("Use ctx.bearer instead")
 val ApplicationRequest.bearer: String?

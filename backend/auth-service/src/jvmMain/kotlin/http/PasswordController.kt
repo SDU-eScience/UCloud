@@ -10,8 +10,7 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.audit
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
-import io.ktor.request.receiveParameters
+import io.ktor.server.request.*
 import io.ktor.util.toMap
 
 class PasswordController(

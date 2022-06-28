@@ -11,16 +11,14 @@ import dk.sdu.cloud.debug.DebugCoroutineContext
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import io.ktor.application.install
 import io.ktor.http.HttpStatusCode
-import io.ktor.http.cio.websocket.*
-import io.ktor.routing.routing
+import io.ktor.server.application.*
 import io.ktor.server.engine.ApplicationEngine
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
 import io.ktor.util.cio.ChannelReadException
 import io.ktor.util.cio.ChannelWriteException
-import io.ktor.websocket.WebSocketServerSession
-import io.ktor.websocket.WebSockets
-import io.ktor.websocket.webSocket
+import io.ktor.websocket.*
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.channels.ClosedSendChannelException
@@ -220,8 +218,8 @@ class IngoingWebSocketInterceptor(
                     } catch (ex: Throwable) {
                         fun isChannelException(throwable: Throwable?) =
                             throwable is ChannelWriteException || throwable is ChannelReadException ||
-                                    throwable is ClosedReceiveChannelException ||
-                                    throwable is ClosedSendChannelException
+                                throwable is ClosedReceiveChannelException ||
+                                throwable is ClosedSendChannelException
 
                         if (isChannelException(ex) || isChannelException(ex.cause)) {
                             log.trace("Channel was closed")

@@ -20,9 +20,8 @@ import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.application.call
-import io.ktor.features.origin
-import io.ktor.request.userAgent
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
 
 class UserController(
     private val db: AsyncDBSessionFactory,

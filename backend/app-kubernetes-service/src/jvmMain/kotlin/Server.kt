@@ -12,7 +12,6 @@ import dk.sdu.cloud.app.orchestrator.api.IngressSupport
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.ucloud.services.*
 import dk.sdu.cloud.micro.*
@@ -20,7 +19,7 @@ import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.k8.KubernetesClient
 import dk.sdu.cloud.service.k8.KubernetesConfigurationSource
-import io.ktor.routing.routing
+import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import java.io.File
 import java.util.*

@@ -8,11 +8,10 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.client.*
-import io.ktor.client.features.websocket.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.http.cio.websocket.*
-import io.ktor.util.KtorExperimentalAPI
+import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -38,7 +37,7 @@ class OutgoingWSCall : OutgoingCall {
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, OutgoingWSCall.Companion> {
     override val companion = OutgoingWSCall
     private val connectionPool = WSConnectionPool()
@@ -192,7 +191,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
@@ -277,7 +276,6 @@ internal data class WSRawMessage(
     val payload: JsonObject
 )
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()
