@@ -3,8 +3,7 @@ package dk.sdu.cloud.calls.server
 import dk.sdu.cloud.calls.AttributeKey
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.call
-import io.ktor.request.header
+import io.ktor.server.request.*
 
 class SignedIntentInterceptor {
     fun register(server: RpcServer) {
