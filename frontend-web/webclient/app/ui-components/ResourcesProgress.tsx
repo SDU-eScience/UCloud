@@ -27,7 +27,7 @@ const thresholds: {maxValue: number, color: ThemeColor}[] = [
 ];
 
 function getColorFromValue(value: number): string {
-    return thresholds.find(it => it.maxValue >= value)?.color ?? "green"
+    return thresholds.find(it => it.maxValue >= value)?.color ?? "red";
 }
 
 const Bar = styled.div<{value: number; width: number | string; fontWeight?: FontWeightProps;}>`
@@ -41,6 +41,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
         position: absolute;
         display: block;
         width: ${props => props.width};
+        min-width: 200px;
         height: 100%;
         text-align: center;
         ${fontWeight}
@@ -49,7 +50,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
     &.positive {      
         background: var(--${props => getColorFromValue(props.value)});
         left: 0;
-        width: ${props => props.value}%;      
+        width: ${props => props.value}%;
         animation: ${animatePositive} 4s;
     }
 
@@ -61,7 +62,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
     &.negative {
         background: var(--appCard);
         right: 0;
-        width: ${props => 100 - props.value}%;        
+        width: ${props => 100 - props.value}%;
         animation: ${animateNegative} 4s;
     }
 
@@ -75,6 +76,7 @@ const ProgressBar = styled.div<{value: number; width: number | string; height: n
     border-radius: 4px;
     position: relative;
     width: ${props => props.width};
+    min-width: 200px;
     height: ${props => props.height};
     line-height: 15px;
     vertical-align: middle;
@@ -82,15 +84,17 @@ const ProgressBar = styled.div<{value: number; width: number | string; height: n
     font-size: 12px;
 `;
 
+interface ResourceProgressProps {
+    text?: string;
+    value: number;
+    width?: string;
+    height?: string;
+    fontWeight?: FontWeightProps;
+}
+
 /* https://codepen.io/valiooo/pen/ALXodB */
 export function ResourceProgress(
-    props: React.PropsWithChildren<{
-        text?: string;
-        value: number;
-        width?: string;
-        height?: string;
-        fontWeight?: FontWeightProps;
-    }>
+    props: React.PropsWithChildren<ResourceProgressProps>
 ): JSX.Element | null {
     if (isNaN(props.value)) return null;
     const width = props.width ?? "200px";
