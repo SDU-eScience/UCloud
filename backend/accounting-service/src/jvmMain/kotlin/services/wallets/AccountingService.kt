@@ -761,7 +761,7 @@ class AccountingService(
                     }
                 },
                 """
-                    select bool_or(valid) is_valid
+                    select bool_and(valid) is_valid
                     from (
                         select
                             (ancestor.start_date <= updated.start_date) and
