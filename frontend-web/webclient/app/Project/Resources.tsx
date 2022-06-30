@@ -9,7 +9,7 @@ import {PageV2} from "@/UCloud";
 import {DateRangeFilter, EnumFilter, FilterWidgetProps, PillProps, ResourceFilter, ValuePill} from "@/Resource/Filter";
 import {capitalized, doNothing, prettierString, timestampUnixMs} from "@/UtilityFunctions";
 import {ThemeColor} from "@/ui-components/theme";
-import {Box, Flex, Grid, Icon, Text} from "@/ui-components";
+import {Box, Flex, Grid, Heading, Icon, Text} from "@/ui-components";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import styled from "styled-components";
 import {useCloudAPI} from "@/Authentication/DataHook";
@@ -119,6 +119,12 @@ const Resources: React.FunctionComponent = () => {
     }, [reloadPage]);
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
+    const unusedProductTypes = React.useMemo(() =>
+        usage.data.charts.map(it => it.type).reduce((remaining, currentProductType) => remaining.filter(productType => productType !== currentProductType), [...productTypes])
+        , [usage.data]);
+
+    console.log(unusedProductTypes);
+
     return (
         <MainContainer
             header={<Spacer
@@ -166,6 +172,21 @@ const Resources: React.FunctionComponent = () => {
                                     </Flex>
                                 </HighlightedCard>
                             })}
+                            {unusedProductTypes.map(pt =>
+                                <HighlightedCard
+                                    key={pt}
+                                    title={`${productAreaTitle(pt)}`}
+                                    icon={productTypeToIcon(pt)}
+                                    color="blue"
+                                    width="400px"
+                                >
+                                    <Flex style={{flexDirection: "column", height: "calc(100% - 36px)"}}>
+                                        <Box mb="auto" />
+                                        <Heading ml="auto" mr="auto">No usage found</Heading>
+                                        <Box mt="auto" />
+                                    </Flex>
+                                </HighlightedCard>
+                            )}
                         </VisualizationSection>
                     }
                 </Grid>
