@@ -431,7 +431,7 @@ export const Overview: React.FunctionComponent = () => {
                     <HighlightedCard
                         className="servers"
                         icon="globeEuropeSolid"
-                        title="Syncthing Servers"
+                        title={folders.length > 1 ? "Syncthing Servers" : "Syncthing Server"}
                         color="blue"
                     >
                         <Text color="darkGray" fontSize={1}>

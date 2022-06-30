@@ -93,6 +93,12 @@ class UCloudConfigService(
                             )
                         )
                         syncthingClient.configureOptions()
+                        syncthingClient.configureGui()
+
+                        // Remove default folder
+                        syncthingClient.removeFolders(
+                            listOf(UCloudSyncthingConfig.Folder("default", ""))
+                        )
                         break
                     } catch (e: Throwable) {
                         // Do nothing

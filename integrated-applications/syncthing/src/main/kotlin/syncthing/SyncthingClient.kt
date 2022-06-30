@@ -115,9 +115,16 @@ class SyncthingClient(private val apiKey: String) {
     }
 
     suspend fun configureOptions() {
-        val resp = httpClient.put<HttpResponse>(
+        httpClient.put<HttpResponse>(
             deviceEndpoint("/rest/config/options"),
             apiRequestWithBody(SyncthingOptions())
+        )
+    }
+
+    suspend fun configureGui() {
+        httpClient.patch<HttpResponse>(
+            deviceEndpoint("/rest/config/gui"),
+            apiRequestWithBody(SyncthingGui())
         )
     }
 
@@ -208,19 +215,19 @@ data class SyncthingDefaults(
 
 @Serializable
 data class SyncthingGui(
-    val address: String = "",
-    val apiKey: String = "",
-    val authMode: String = "static",
+    //val address: String = "",
+    //val apiKey: String = "",
+    //val authMode: String = "static",
     val debugging: Boolean = false,
     val enabled: Boolean = true,
-    val insecureAdminAccess: Boolean = false,
-    val insecureAllowFrameLoading: Boolean = false,
-    val insecureSkipHostcheck: Boolean = false,
-    val password: String = "",
-    val theme: String = "default",
-    val unixSocketPermissions: String = "",
-    val useTLS: Boolean = false,
-    val user: String = ""
+    val insecureAdminAccess: Boolean = true,
+    //val insecureAllowFrameLoading: Boolean = false,
+    //val insecureSkipHostcheck: Boolean = false,
+    //val password: String = "",
+    //val theme: String = "default",
+    //val unixSocketPermissions: String = "",
+    //val useTLS: Boolean = false,
+    //val user: String = ""
 )
 
 @Serializable
@@ -267,7 +274,7 @@ data class SyncthingOptions(
     val reconnectionIntervalS: Int = 60,
     val relayReconnectIntervalM: Int = 10,
     val relaysEnabled: Boolean = false,
-    val releasesURL: String = "https://upgrades.syncthing.net/meta.json",
+    val releasesURL: String = "",
     val restartOnWakeup: Boolean = true,
     val sendFullIndexOnUpgrade: Boolean = false,
     val setLowPriority: Boolean = true,
