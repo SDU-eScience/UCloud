@@ -215,8 +215,10 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
             if (resource == null) return null;
             return <>
                 <ListRowStat icon={"grant"}>
-                    {normalizeBalanceForFrontend(resource.pricePerUnit, resource.productType, resource.chargeType, resource.unitOfPrice, true)}
-                    {explainPrice(resource.productType, resource.chargeType, resource.unitOfPrice)}
+                    {resource.freeToUse ? "Free to use" :
+                        normalizeBalanceForFrontend(resource.pricePerUnit, resource.productType, resource.chargeType, resource.unitOfPrice, true) +
+                        explainPrice(resource.productType, resource.chargeType, resource.unitOfPrice)
+                    }
                 </ListRowStat>
             </>;
         }

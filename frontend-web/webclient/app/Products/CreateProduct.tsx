@@ -104,6 +104,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     title: string;
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: Response, d: DataType) => void;
+    onSubmitError?: (err: string) => void;
 }> {
     public data: DataType = {required: [], fields: {}};
 
@@ -114,12 +115,18 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     private async onSubmit(): Promise<void> {
         const validated = this.validate();
         if (validated) {
+            if (this.data.fields.freeToUse) {
+                // Required if freeToUse is true
+                this.data.fields.pricePerUnit = 0.000001;
+            }
+
             const request = await this.props.createRequest(this.data);
             try {
                 const res = await callAPI<Response>(request);
                 this.props.onSubmitSucceded?.(res, this.data);
             } catch (err) {
-                errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
+                const message = errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
+                this.props.onSubmitError?.(message);
             }
         }
     }

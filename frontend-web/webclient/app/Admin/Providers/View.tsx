@@ -16,6 +16,7 @@ import {
     productTypeToTitle,
     productTypeToJsonType, normalizeBalanceForBackend
 } from "@/Accounting";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 const normalizedProductTypes: {value: ProductType, title: string}[] =
     allProductTypes.map(value => ({value, title: productTypeToTitle(value)}));
@@ -118,6 +119,13 @@ export const ProductCreationForm: React.FunctionComponent<{provider: Provider, o
                     ...UCloud.accounting.products.createProduct(bulkRequestOf(product as any)),
                     accessTokenOverride: accessToken
                 };
+            }}
+            onSubmitSucceded={(res, data) => {
+                snackbarStore.addSuccess("Product created", false);
+                props.onComplete();
+            }}
+            onSubmitError={(error) => {
+                snackbarStore.addFailure(error, false);
             }}
         >
             <Grid gridTemplateColumns={"1fr"} gridGap={"32px"}>
