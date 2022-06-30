@@ -9,10 +9,7 @@ import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.AuthProvidersRenewRequestItem
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.provider.api.ProviderSupport
@@ -21,7 +18,7 @@ import kotlinx.serialization.serializer
 import java.util.*
 
 private typealias Super = ResourceService<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
-        ProviderStatus, Product, ProviderSupport, ProviderComms>
+    ProviderStatus, Product, ProviderSupport, ProviderComms>
 
 class ProviderService(
     projectCache: ProjectCache,
@@ -74,7 +71,11 @@ class ProviderService(
         }
     }
 
-    override suspend fun browseQuery(actorAndProject: ActorAndProject, flags: ProviderIncludeFlags?, query: String?): PartialQuery {
+    override suspend fun browseQuery(
+        actorAndProject: ActorAndProject,
+        flags: ProviderIncludeFlags?,
+        query: String?
+    ): PartialQuery {
         return PartialQuery(
             {
                 setParameter("query", query)
@@ -234,8 +235,11 @@ class ProviderService(
 
         try {
             return ctx.withSession { session ->
-                data class WelcomeInfo(val name: String, val domain: String, val https: Boolean, val port: Int?,
-                                       val refreshToken: String, val resource: Long)
+                data class WelcomeInfo(
+                    val name: String, val domain: String, val https: Boolean, val port: Int?,
+                    val refreshToken: String, val resource: Long
+                )
+
                 val provider = session
                     .sendPreparedStatement(
                         {
@@ -251,8 +255,12 @@ class ProviderService(
                     )
                     .rows
                     .singleOrNull()
-                    ?.let { WelcomeInfo(it.getString(0)!!, it.getString(1)!!, it.getBoolean(2)!!, it.getInt(3),
-                        it.getString(4)!!, it.getLong(5)!!) }
+                    ?.let {
+                        WelcomeInfo(
+                            it.getString(0)!!, it.getString(1)!!, it.getBoolean(2)!!, it.getInt(3),
+                            it.getString(4)!!, it.getLong(5)!!
+                        )
+                    }
                     ?: throw RPCException("Unable to approve request", HttpStatusCode.BadRequest)
 
                 if (predefinedResource == null) {
@@ -280,5 +288,46 @@ class ProviderService(
             }
             throw ex
         }
+    }
+
+    suspend fun update(
+        actorAndProject: ActorAndProject,
+        request: ProvidersUpdateSpecificationRequest,
+        ctx: DBContext = db
+    ): ProvidersUpdateSpecificationResponse {
+        val (actor) = actorAndProject
+        val requestIds = request.items.map { it.id }
+        val providers = retrieveBulk(actorAndProject, requestIds, listOf(Permission.EDIT))
+        if (actor != Actor.System && (actor !is Actor.User || actor.principal.role !in Roles.PRIVILEGED)
+            && providers.map { it.id }.toSet() != requestIds.toSet()
+        ) {
+            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+        }
+
+        ctx.withSession { session ->
+            session.sendPreparedStatement(
+                {
+                    request.items.split {
+                        into("domains") { it.domain }
+                        into("ports") { it.port }
+                        into("httpss") { it.https }
+                        into("ids") { it.id }
+                    }
+                },
+                """
+                    with entries as (
+                        select unnest(:ids::text[]) id, unnest(:domains::text[]) dom, unnest(:ports::int[]) port, unnest(:httpss::boolean[]) https
+                    )
+                    update provider.providers
+                    set
+                        domain = e.dom, port = e.port, https = e.https
+                    from entries e
+                    where
+                        unique_name = e.id 
+                """
+            )
+        }
+
+        return ProvidersUpdateSpecificationResponse(requestIds.map { FindByStringId(it) })
     }
 }

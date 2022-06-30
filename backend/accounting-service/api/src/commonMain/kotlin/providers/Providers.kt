@@ -19,7 +19,6 @@ import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
 import kotlin.reflect.typeOf
 
 @Serializable
@@ -122,6 +121,9 @@ data class ProviderUpdate(
     override val timestamp: Long,
     override val status: String? = null,
 ) : ResourceUpdate
+
+typealias ProvidersUpdateSpecificationRequest = BulkRequest<ProviderSpecification>
+typealias ProvidersUpdateSpecificationResponse = BulkResponse<FindByStringId>
 
 @Serializable
 @UCloudApiDoc("Request type for renewing the tokens of a Provider")
@@ -450,6 +452,18 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
     override val create get() = super.create!!
     override val delete: Nothing? = null
     override val search get() = super.search!!
+
+    val update = call<ProvidersUpdateSpecificationRequest,
+            ProvidersUpdateSpecificationResponse, CommonErrorMessage>("update") {
+        httpUpdate(baseContext, "update", Roles.END_USER)
+
+        documentation {
+            summary = "Updates the specification of one or more providers"
+            description = """
+                This endpoint can only be invoked by a UCloud administrator.
+            """
+        }
+    }
 
     val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
             ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
