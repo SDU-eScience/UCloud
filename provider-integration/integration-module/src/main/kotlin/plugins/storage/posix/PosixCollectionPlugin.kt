@@ -19,12 +19,15 @@ import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.forEachGraal
+import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override var pluginName: String = "Unknown"
@@ -140,6 +143,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         if (size >= 100) sendBatch(client)
     }
 
+    private var nextScan = 0L
     override suspend fun PluginContext.runMonitoringLoop() {
         if (config.serverMode != ServerMode.Server) return
         if (pluginConfig.accounting == null) return
@@ -147,75 +151,80 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         val pathConverter = PathConverter(this)
         val productCategories = productAllocation.map { it.category }.toSet()
 
-        var nextScan = 0L
 
         while (currentCoroutineContext().isActive) {
-            try {
-                val now = Time.now()
-                if (now >= nextScan) {
-                    debugSystem.enterContext("Posix collection monitoring") {
-                        var updates = 0
-                        val batchBuilder = ArrayList<ResourceChargeCredits>()
+            loop(pathConverter, productCategories)
+        }
+    }
 
-                        for (category in productCategories) {
-                            var next: String? = null
-                            while (currentCoroutineContext().isActive) {
-                                val summary = Wallets.retrieveProviderSummary.call(
-                                    WalletsRetrieveProviderSummaryRequest(
-                                        filterCategory = category,
-                                        itemsPerPage = 250,
-                                        next = next,
-                                    ),
-                                    rpcClient
-                                ).orThrow()
+    // NOTE(Dan): Extracted because of an issue with GraalVM not supporting loops with coroutines directly inside them
+    private suspend fun PluginContext.loop(pathConverter: PathConverter, productCategories: Set<String>) {
+        try {
+            val now = Time.now()
+            if (now >= nextScan) {
+                debugSystem.enterContext("Posix collection monitoring") {
+                    var updates = 0
+                    val batchBuilder = ArrayList<ResourceChargeCredits>()
 
-                                for (item in summary.items) {
-                                    val resourceOwner = ResourceOwnerWithId.load(item.owner, this@runMonitoringLoop) ?: continue
-                                    val colls = locateAndRegisterCollections(resourceOwner)
-                                        .filter { it.product.category == category }
+                    productCategories.forEachGraal { category ->
+                        var next: String? = null
+                        var shouldBreak = false
+                        whileGraal({ currentCoroutineContext().isActive && !shouldBreak }) {
+                            val summary = Wallets.retrieveProviderSummary.call(
+                                WalletsRetrieveProviderSummaryRequest(
+                                    filterCategory = category,
+                                    itemsPerPage = 250,
+                                    next = next,
+                                ),
+                                rpcClient
+                            ).orThrow()
 
-                                    if (colls.isNotEmpty()) {
-                                        val bytesUsed = colls.sumOf { calculateUsage(it) }
-                                        val unitsUsed = bytesUsed / 1_000_000_000L
-                                        val coll = pathConverter.ucloudToCollection(
-                                            pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
+                            summary.items.forEachGraal inner@{ item ->
+                                val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
+                                val colls = locateAndRegisterCollections(resourceOwner)
+                                    .filter { it.product.category == category }
+
+                                if (colls.isNotEmpty()) {
+                                    val bytesUsed = colls.sumOf { calculateUsage(it) }
+                                    val unitsUsed = bytesUsed / 1_000_000_000L
+                                    val coll = pathConverter.ucloudToCollection(
+                                        pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
+                                    )
+
+                                    batchBuilder.addToBatch(
+                                        rpcClient,
+                                        ResourceChargeCredits(
+                                            coll.id,
+                                            "$now-${coll.id}",
+                                            unitsUsed
                                         )
+                                    )
 
-                                        batchBuilder.addToBatch(
-                                            rpcClient,
-                                            ResourceChargeCredits(
-                                                coll.id,
-                                                "$now-${coll.id}",
-                                                unitsUsed
-                                            )
-                                        )
-
-                                        updates++
-                                    }
+                                    updates++
                                 }
-
-                                batchBuilder.sendBatch(rpcClient)
-
-                                next = summary.next
-                                if (next == null) break
                             }
+
+                            batchBuilder.sendBatch(rpcClient)
+
+                            next = summary.next
+                            if (next == null) shouldBreak = true
                         }
-
-                        debugSystem.logD(
-                            "Charged $updates posix collections",
-                            Unit,
-                            if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
-                            else MessageImportance.THIS_IS_NORMAL
-                        )
-                        nextScan = now + (1000L * 60 * 60 * 4)
                     }
-                }
 
-                delay(5000)
-            } catch (ex: Throwable) {
-                log.info("Caught exception while monitoring Posix collections: ${ex.stackTraceToString()}")
-                nextScan = Time.now() + (1000L * 60 * 60 * 4)
+                    debugSystem.logD(
+                        "Charged $updates posix collections",
+                        Unit,
+                        if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
+                        else MessageImportance.THIS_IS_NORMAL
+                    )
+                    nextScan = now + (1000L * 60 * 60 * 4)
+                }
             }
+
+            delay(5000)
+        } catch (ex: Throwable) {
+            log.info("Caught exception while monitoring Posix collections: ${ex.stackTraceToString()}")
+            nextScan = Time.now() + (1000L * 60 * 60 * 4)
         }
     }
 
@@ -251,8 +260,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     companion object : Loggable {
         override val log = logger()
 
-        private val retrieveCollections = extension<ResourceOwnerWithId, List<PosixCollectionFromExtension>>()
-        private val calculateUsage = extension<CalculateUsageRequest, CalculateUsageResponse>()
+        private val retrieveCollections = extension(ResourceOwnerWithId.serializer(), ListSerializer(PosixCollectionFromExtension.serializer()))
+        private val calculateUsage = extension(CalculateUsageRequest.serializer(), CalculateUsageResponse.serializer())
     }
 }
 

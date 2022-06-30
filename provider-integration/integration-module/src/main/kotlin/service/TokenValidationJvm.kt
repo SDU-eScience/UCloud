@@ -72,6 +72,7 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
 
             if (!x509cert.isEmpty()) {
                 x509cert = x509cert.replace("-----BEGINCERTIFICATE-----", "").replace("-----ENDCERTIFICATE-----", "")
+                x509cert = x509cert.replace("-----BEGINPUBLICKEY-----", "").replace("-----ENDPUBLICKEY-----", "")
 
                 if (heads) {
                     x509cert = "-----BEGIN CERTIFICATE-----\n" +
@@ -109,7 +110,6 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
             return try {
                 loadCert(key)!!.publicKey as RSAPublicKey
             } catch (ex: Throwable) {
-
                 val decoded = Base64.getDecoder().decode(key)
                 val rsa = KeyFactory.getInstance("RSA")
                 rsa.generatePublic(X509EncodedKeySpec(decoded)) as RSAPublicKey

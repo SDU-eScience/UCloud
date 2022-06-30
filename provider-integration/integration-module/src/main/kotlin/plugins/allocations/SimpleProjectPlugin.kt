@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.allocations
 
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.plugins.*
+import kotlinx.serialization.builtins.serializer
 
 class ExtensionAllocationPlugin : AllocationPlugin {
     private lateinit var pluginConfig: ConfigSchema.Plugins.Allocations.Extension
@@ -27,7 +28,7 @@ class ExtensionAllocationPlugin : AllocationPlugin {
     }
 
     private companion object Extensions {
-        val onAllocation = extension<AllocationNotification, OnResourceAllocationResult>()
-        val onSynchronization = extension<AllocationNotification, Unit>()
+        val onAllocation = extension(AllocationNotification.serializer(), OnResourceAllocationResult.serializer())
+        val onSynchronization = extension(AllocationNotification.serializer(), Unit.serializer())
     }
 }

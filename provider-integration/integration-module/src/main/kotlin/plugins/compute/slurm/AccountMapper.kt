@@ -190,6 +190,6 @@ class AccountMapper(
     )
 
     companion object {
-        private val lookupExtension = extension<LookupExtensionRequest, LookupExtensionResponse>()
+        private val lookupExtension = extension(LookupExtensionRequest.serializer(), LookupExtensionResponse.serializer())
     }
 }

@@ -37,7 +37,7 @@ class LibC {
 
     companion object {
         init {
-            val potentialLocations = listOf(File("./libc_wrapper.so"), File("./native/libc_wrapper.so"))
+            val potentialLocations = listOf(File("./libc_wrapper.so"), File("./native/libc_wrapper.so"), File("/opt/ucloud/native/libc_wrapper.so"))
             var didLoad = false
             for (file in potentialLocations) {
                 if (!file.exists()) continue

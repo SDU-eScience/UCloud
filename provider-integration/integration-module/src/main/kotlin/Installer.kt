@@ -207,6 +207,7 @@ fun runInstaller(
 
         envoy.start(port)
         server.start()
+        engine.start(wait = false)
     } else {
         sendTerminalMessage {
             bold { red { line("No configuration detected!") } }

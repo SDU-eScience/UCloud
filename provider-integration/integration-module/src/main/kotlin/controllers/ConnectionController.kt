@@ -25,6 +25,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.builtins.serializer
 import java.io.File
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -40,14 +41,14 @@ data class FindByUsername(
 )
 
 object ConnectionIpc : IpcContainer("connections") {
-    val browse = browseHandler<PaginationRequestV2, PageV2<ConnectionEntry>>()
-    val registerConnection = updateHandler<ConnectionEntry, Unit>("registerConnection")
-    val removeConnection = updateHandler<FindByUsername, Unit>("removeConnection")
-    val registerSessionProxy = updateHandler<OpenSession.Shell, Unit>("registerSessionProxy")
+    val browse = browseHandler(PaginationRequestV2.serializer(), PageV2.serializer(ConnectionEntry.serializer()))
+    val registerConnection = updateHandler("registerConnection", ConnectionEntry.serializer(), Unit.serializer())
+    val removeConnection = updateHandler("removeConnection", FindByUsername.serializer(), Unit.serializer())
+    val registerSessionProxy = updateHandler("registerSessionProxy", OpenSession.Shell.serializer(), Unit.serializer())
 }
 
 object MessageSigningIpc : IpcContainer("rpcsigning") {
-    val browse = browseHandler<Unit, MessageSigningIpcBrowseResponse>()
+    val browse = browseHandler(Unit.serializer(), MessageSigningIpcBrowseResponse.serializer())
 }
 
 @Serializable
@@ -292,19 +293,23 @@ class ConnectionController(
                 // Launch the IM/User instance
                 if (devInstance == null) {
                     val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
+                    val ownExecutable =
+                        if (controllerContext.ownExecutable.endsWith("/java")) "/usr/bin/ucloud"
+                        else controllerContext.ownExecutable
                     val uimPid = ProcessBuilder()
                         .command(
                             "/usr/bin/sudo",
                             "-u",
                             "#${uid}",
-                            controllerContext.ownExecutable,
+                            ownExecutable,
                             "user",
                             allocatedPort.toString()
                         )
-                        .redirectInput(ProcessBuilder.Redirect.DISCARD)
                         .redirectOutput(ProcessBuilder.Redirect.DISCARD)
                         .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
                         .start()
+
+                    uimPid.inputStream.close()
 
                     // NOTE(Dan): We do not wish to kill this process on exit, since we do not have permissions to
                     // kill it. This is instead handled by the ping+pong protocol.

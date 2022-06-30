@@ -70,7 +70,15 @@ graalvmNative {
             buildArgs.add("-H:+InstallExitHandlers")
             buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
             buildArgs.add("-H:+ReportExceptionStackTraces")
-            buildArgs.add("-H:MaxDuplicationFactor=3.0")
+            buildArgs.add("-H:MaxDuplicationFactor=2.0")
         }
     }
+}
+
+tasks.create("buildDebug") {
+    dependsOn(tasks.named("installDist"))
+}
+
+tasks.create("buildDebugExecutableNative") {
+    dependsOn(tasks.named("buildDebug"))
 }

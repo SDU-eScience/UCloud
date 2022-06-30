@@ -63,53 +63,61 @@ class NotificationController(
     private fun startLoop() {
         ProcessingScope.launch {
             while (isActive) {
-                val now = Time.now()
-                if (now >= nextPull.get()) {
-                    try {
-                        // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
-                        // how the pull requests arrive at the provider. We must know about a new project _before_ any
-                        // allocations are processed.
-                        debug.enterContext("Project notifications") {
-                            processProjects()
-                        }
-
-                        debug.enterContext("Allocation notifications") {
-                            processAllocations()
-                        }
-                    } catch (ex: Throwable) {
-                        log.info(
-                            "Caught exception while processing notifications from UCloud/Core: " +
-                                ex.stackTraceToString()
-                        )
-                    }
-
-                    // NOTE(Dan): We always pull once a minute, even if we aren't told to do so.
-                    nextPull.set(now + 60_000L)
-                }
-                delay(1000)
+                loopNotifications()
             }
         }
 
         ProcessingScope.launch {
-            var nextRescan = 0L
             while (isActive) {
-                val now = Time.now()
-                try {
-                    if (now >= nextRescan) {
-                        debug.enterContext("Allocation scan") {
-                            scanAllocations()
-                        }
-                        nextRescan = now + (1000L * 60 * 60 * 3)
-                    }
-                    delay(1000)
-                } catch (ex: Throwable) {
-                    log.info(
-                        "Caught an exception while scanning allocations. We will retry again in a minute: " +
-                            ex.stackTraceToString()
-                    )
-                    nextRescan = now + (1000L * 60)
-                }
+                loopScans()
             }
+        }
+    }
+
+    private suspend fun loopNotifications() {
+        val now = Time.now()
+        if (now >= nextPull.get()) {
+            try {
+                // NOTE(Dan): It is crucial that events are _always_ processed in this order, regardless of
+                // how the pull requests arrive at the provider. We must know about a new project _before_ any
+                // allocations are processed.
+                debug.enterContext("Project notifications") {
+                    processProjects()
+                }
+
+                debug.enterContext("Allocation notifications") {
+                    processAllocations()
+                }
+            } catch (ex: Throwable) {
+                log.info(
+                    "Caught exception while processing notifications from UCloud/Core: " +
+                        ex.stackTraceToString()
+                )
+            }
+
+            // NOTE(Dan): We always pull once a minute, even if we aren't told to do so.
+            nextPull.set(now + 60_000L)
+        }
+        delay(1000)
+    }
+
+    private var nextRescan = 0L
+    private suspend fun loopScans() {
+        val now = Time.now()
+        try {
+            if (now >= nextRescan) {
+                debug.enterContext("Allocation scan") {
+                    scanAllocations()
+                }
+                nextRescan = now + (1000L * 60 * 60 * 3)
+            }
+            delay(1000)
+        } catch (ex: Throwable) {
+            log.info(
+                "Caught an exception while scanning allocations. We will retry again in a minute: " +
+                    ex.stackTraceToString()
+            )
+            nextRescan = now + (1000L * 60)
         }
     }
 

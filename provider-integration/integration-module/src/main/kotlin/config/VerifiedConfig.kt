@@ -24,6 +24,7 @@ data class VerifiedConfig(
     val frontendProxy: FrontendProxy get() = frontendProxyOrNull!!
 
     data class Core(
+        val certificate: String,
         val providerId: String,
         val hosts: Hosts,
         val ipc: Ipc,
@@ -44,7 +45,6 @@ data class VerifiedConfig(
     }
 
     data class Server(
-        val certificate: String,
         val refreshToken: String,
         val network: Network,
         val developmentMode: DevelopmentMode,
@@ -219,6 +219,40 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             config.configurationDirectory + "/" + ConfigSchema.FILE_CORE,
         )
 
+        val certificate = run {
+            val certPath = "${config.configurationDirectory}/ucloud_crt.pem"
+            try {
+                val certText = NativeFile.open(certPath, readOnly = true).readText()
+
+                val lineRegex = Regex("[a-zA-Z0-9+/=,-_]+")
+                certText.lines().drop(1).dropLast(1).forEach { line ->
+                    if (!line.matches(lineRegex)) {
+                        error("Invalid certificate")
+                    }
+                }
+
+                certText
+            } catch (ex: Throwable) {
+                sendTerminalMessage {
+                    red { bold { line("Configuration error!") } }
+                    line("Could not load certificate used for authentication with UCloud.")
+                    line()
+
+                    inline("We expected to be able to find the certificate here: ")
+                    code { line(certPath) }
+                    line()
+
+                    line(
+                        "The ceritificate is issued by UCloud during the registration process. " +
+                            "You can try downloading a new certificate from UCloud at: "
+                    )
+                    code { line("${core.hosts.ucloud}/app/providers") }
+                }
+                exitProcess(1)
+            }
+        }
+
+
         // NOTE(Dan): Provider ID is verified later together with products
         val providerId = core.providerId
 
@@ -267,7 +301,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Core.Logs(directory)
         }
 
-        VerifiedConfig.Core(providerId, hosts, ipc, logs)
+        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs)
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {
@@ -290,39 +324,6 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
 
             tok
-        }
-
-        val certificate = run {
-            val certPath = "${config.configurationDirectory}/ucloud_crt.pem"
-            try {
-                val certText = normalizeCertificate(NativeFile.open(certPath, readOnly = true).readText())
-
-                val lineRegex = Regex("[a-zA-Z0-9+/=,-_]+")
-                certText.lines().drop(1).dropLast(1).forEach { line ->
-                    if (!line.matches(lineRegex)) {
-                        error("Invalid certificate")
-                    }
-                }
-
-                certText
-            } catch (ex: Throwable) {
-                sendTerminalMessage {
-                    red { bold { line("Configuration error!") } }
-                    line("Could not load certificate used for authentication with UCloud.")
-                    line()
-
-                    inline("We expected to be able to find the certificate here: ")
-                    code { line(certPath) }
-                    line()
-
-                    line(
-                        "The ceritificate is issued by UCloud during the registration process. " +
-                            "You can try downloading a new certificate from UCloud at: "
-                    )
-                    code { line("${core.hosts.ucloud}/app/providers") }
-                }
-                exitProcess(1)
-            }
         }
 
         val network: VerifiedConfig.Server.Network = run {
@@ -406,7 +407,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Server.Database(config.configurationDirectory + "/ucloud.sqlite3")
         }
 
-        VerifiedConfig.Server(certificate, refreshToken, network, developmentMode, database)
+        VerifiedConfig.Server(refreshToken, network, developmentMode, database)
     }
 
     val products: VerifiedConfig.Products? = run {

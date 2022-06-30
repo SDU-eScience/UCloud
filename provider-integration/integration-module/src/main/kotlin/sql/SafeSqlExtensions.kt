@@ -73,15 +73,19 @@ suspend fun PreparedStatement.bindTableUpload(prefix: String, table: List<Map<St
     for ((rowIdx, row) in table.withIndex()) {
         for ((key, value) in row.entries) {
             val param = "${prefix}_${key}_${rowIdx}"
-            when (value) {
-                null -> bindNull(param)
-                is Int -> bindInt(param, value as Int)
-                is Long -> bindLong(param, value as Long)
-                is String -> bindString(param, value as String)
-                is Boolean -> bindBoolean(param, value as Boolean)
-                is Double -> bindDouble(param, value as Double)
-                else -> throw IllegalArgumentException("Type cannot be bound to a SQL statement: ${value::class}")
-            }
+            bindValue(param, value)
         }
+    }
+}
+
+private suspend fun PreparedStatement.bindValue(param: String, value: Any?) {
+    when (value) {
+        null -> bindNull(param)
+        is Int -> bindInt(param, value)
+        is Long -> bindLong(param, value)
+        is String -> bindString(param, value)
+        is Boolean -> bindBoolean(param, value)
+        is Double -> bindDouble(param, value)
+        else -> throw IllegalArgumentException("Type cannot be bound to a SQL statement: ${value::class}")
     }
 }

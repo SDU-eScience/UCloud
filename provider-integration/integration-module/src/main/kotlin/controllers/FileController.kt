@@ -22,6 +22,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import kotlinx.coroutines.delay
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -31,13 +32,13 @@ data class FileSessionWithPlugin(
 )
 
 object FilesDownloadIpc : IpcContainer("files.download") {
-    val register = updateHandler<FileSessionWithPlugin, Unit>("register")
-    val retrieve = retrieveHandler<FindByStringId, FileSessionWithPlugin>()
+    val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
+    val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
 }
 
 object FilesUploadIpc : IpcContainer("files.upload") {
-    val register = updateHandler<FileSessionWithPlugin, Unit>("register")
-    val retrieve = retrieveHandler<FindByStringId, FileSessionWithPlugin>()
+    val register = updateHandler("register", FileSessionWithPlugin.serializer(), Unit.serializer())
+    val retrieve = retrieveHandler(FindByStringId.serializer(), FileSessionWithPlugin.serializer())
 }
 
 @Serializable
@@ -45,8 +46,8 @@ data class TaskSpecification(val title: String)
 
 // TODO(Dan): Move this somewhere else
 object TaskIpc : IpcContainer("tasks") {
-    val register = createHandler<TaskSpecification, FindByStringId>()
-    val markAsComplete = updateHandler<FindByStringId, Unit>("markAsComplete")
+    val register = createHandler(TaskSpecification.serializer(), FindByStringId.serializer())
+    val markAsComplete = updateHandler("markAsComplete", FindByStringId.serializer(), Unit.serializer())
 }
 
 @Serializable

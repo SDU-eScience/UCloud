@@ -9,6 +9,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class PingResponse(
@@ -70,7 +71,7 @@ class IpcPingPong(
     }
 
     private object PingPongIpc : IpcContainer("ping") {
-        val ping = updateHandler<Unit, PingResponse>("ping")
+        val ping = updateHandler("ping", Unit.serializer(), PingResponse.serializer())
     }
 
     companion object : Loggable {

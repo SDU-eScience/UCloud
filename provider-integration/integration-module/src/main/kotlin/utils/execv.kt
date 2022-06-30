@@ -7,6 +7,9 @@ import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.service.Loggable
 import java.lang.Process as JvmProcess
 import kotlinx.serialization.json.*
+import java.io.IOException
+import java.io.InputStream
+import java.io.OutputStream
 
 @Deprecated("No longer available", level = DeprecationLevel.WARNING)
 data class ProcessStreams(
@@ -37,9 +40,9 @@ value class ProcessStatus(private val status: Int) {
 class Process(
     val jvm: JvmProcess
 ) {
-    val stdin: NativeOutputStream? = null
-    val stdout: NativeInputStream? = null
-    val stderr: NativeInputStream? = null
+    val stdin: OutputStream? = jvm.outputStream
+    val stdout: InputStream? = jvm.inputStream
+    val stderr: InputStream? = jvm.errorStream
     val pid: Long
         get() = jvm.pid()
 
@@ -76,10 +79,11 @@ fun startProcess(
             }
         )
 
-        if (!attachStdin) redirectInput(ProcessBuilder.Redirect.DISCARD)
         if (!attachStdout) redirectOutput(ProcessBuilder.Redirect.DISCARD)
         if (!attachStderr) redirectOutput(ProcessBuilder.Redirect.DISCARD)
     }.start()
+
+    if (!attachStdin) jvmProcess.outputStream.close()
 
     return Process(jvmProcess)
 }
@@ -93,7 +97,7 @@ class ProcessResult(
 fun startProcessAndCollectToMemory(
     args: List<String>,
     envs: List<String> = listOf(),
-    stdin: NativeInputStream? = null,
+    stdin: InputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResult {
@@ -120,19 +124,22 @@ fun startProcessAndCollectToMemory(
     val stderrBuffer = ByteArray(stderrMaxSizeIntBytes)
 
     var status = ProcessStatus(-1)
-    var breakOnNextIteration = false
-    while (breakOnNextIteration || ((isStdoutOpen || isStderrOpen) && status.isRunning)) {
+    while ((isStdoutOpen || isStderrOpen)) {
         if (process.stdout != null) {
             val bytesToRead = stdoutMaxSizeInBytes - stdoutPtr
             // TODO Close the process
             if (bytesToRead <= 0) throw IllegalStateException("Max size has been exceeded")
 
             try {
-                if (process.stdout.jvmStream.available() > 0) {
+                if (process.stdout.available() > 0) {
                     val read = process.stdout.read(stdoutBuffer, stdoutPtr, bytesToRead)
-                    stdoutPtr += read.getOrThrow()
+                    if (read == -1) {
+                        isStdoutOpen = false
+                    } else {
+                        stdoutPtr += read
+                    }
                 }
-            } catch (ex: ReadException.EndOfFile) {
+            } catch (ex: IOException) {
                 isStdoutOpen = false
             }
         }
@@ -143,21 +150,27 @@ fun startProcessAndCollectToMemory(
             if (bytesToRead <= 0) throw IllegalStateException("Max size has been exceeded")
 
             try {
-                if (process.stderr.jvmStream.available() > 0) {
+                if (process.stderr.available() > 0) {
                     val read = process.stderr.read(stderrBuffer, stderrPtr, bytesToRead)
-                    stderrPtr += read.getOrThrow()
+                    if (read == -1) {
+                        isStderrOpen = false
+                    } else {
+                        stderrPtr += read
+                    }
                 }
-            } catch (ex: ReadException.EndOfFile) {
+            } catch (ex: IOException) {
                 isStderrOpen = false
             }
         }
 
-        if (breakOnNextIteration) break
         status = process.retrieveStatus(waitForExit = false)
         if (status.isRunning) {
-            Thread.sleep(1000)
+            Thread.sleep(15)
         } else {
-            breakOnNextIteration = true
+            if ((process.stdout?.available() ?: 0) == 0 && (process.stderr?.available() ?: 0) == 0) {
+                break
+            }
+            Thread.sleep(15)
         }
     }
 
@@ -181,7 +194,7 @@ data class ProcessResultText(
 fun startProcessAndCollectToString(
     args: List<String>,
     envs: List<String> = listOf(),
-    stdin: NativeInputStream? = null,
+    stdin: InputStream? = null,
     stdoutMaxSizeInBytes: Int = 1024 * 1024,
     stderrMaxSizeIntBytes: Int = 1024 * 1024,
 ): ProcessResultText {

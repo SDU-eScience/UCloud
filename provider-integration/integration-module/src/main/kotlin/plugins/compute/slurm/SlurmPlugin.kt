@@ -28,6 +28,8 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import java.io.File
 import kotlin.math.max
 
@@ -66,12 +68,12 @@ class SlurmPlugin : ComputePlugin {
     }
 
     private object SlurmJobsIpc : IpcContainer("slurm.jobs") {
-        val create = createHandler<SlurmJob, Unit>()
+        val create = createHandler(SlurmJob.serializer(), Unit.serializer())
 
-        val retrieve = retrieveHandler<FindByStringId, SlurmJob>()
+        val retrieve = retrieveHandler(FindByStringId.serializer(), SlurmJob.serializer())
 
         // NOTE(Dan): This is not paginated since Slurm does not paginate the results for us
-        val browse = browseHandler<SlurmBrowseFlags, List<SlurmJob>>()
+        val browse = browseHandler(SlurmBrowseFlags.serializer(), ListSerializer(SlurmJob.serializer()))
     }
 
     private fun PluginContext.initializeJobsIpc() {
@@ -89,8 +91,8 @@ class SlurmPlugin : ComputePlugin {
     }
 
     private object SlurmSessionIpc : IpcContainer("slurm.sessions") {
-        val create = createHandler<InteractiveSession, Unit>()
-        val retrieve = retrieveHandler<FindByStringId, InteractiveSession>()
+        val create = createHandler(InteractiveSession.serializer(), Unit.serializer())
+        val retrieve = retrieveHandler(FindByStringId.serializer(), InteractiveSession.serializer())
     }
 
     private fun PluginContext.initializeSessionIpc() {
@@ -116,7 +118,7 @@ class SlurmPlugin : ComputePlugin {
             val account: String?
         )
 
-        val retrieve = retrieveHandler<RetrieveRequest, RetrieveResponse>()
+        val retrieve = retrieveHandler(RetrieveRequest.serializer(), RetrieveResponse.serializer())
     }
 
     private fun PluginContext.initializeAccountIpc() {
@@ -289,6 +291,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        /*
         val session: InteractiveSession =
             ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
@@ -372,6 +375,7 @@ class SlurmPlugin : ComputePlugin {
         // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
         // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
         // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
+         */
     }
 
     // Server Mode

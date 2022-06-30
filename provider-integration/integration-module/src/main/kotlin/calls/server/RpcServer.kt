@@ -318,7 +318,6 @@ class RpcServer {
         requiredContext: Set<IngoingCallCompanion<*>>? = null,
         handler: suspend CallHandler<R, S, E>.() -> Unit
     ) {
-        val microImplementedBy = microWhichIsConfiguringCalls ?: error("no micro")
         delayedHandlers.add(DelayedHandler(call, requiredContext, handler))
     }
 

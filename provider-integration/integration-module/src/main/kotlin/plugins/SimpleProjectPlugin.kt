@@ -9,6 +9,7 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 
@@ -633,22 +634,22 @@ class SimpleProjectPlugin : ProjectPlugin {
     private class Extensions(pluginConfig: ConfigSchema.Plugins.Projects.Simple) {
         private val e = pluginConfig.extensions
 
-        val projectRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectRenamed)
+        val projectRenamed = optionalExtension(e.all ?: e.projectRenamed, ProjectDiff.serializer(), Unit.serializer())
 
-        val membersAddedToProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToProject)
-        val membersRemovedFromProject = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromProject)
+        val membersAddedToProject = optionalExtension(e.all ?: e.membersAddedToProject, ProjectDiff.serializer(), Unit.serializer())
+        val membersRemovedFromProject = optionalExtension(e.all ?: e.membersRemovedFromProject, ProjectDiff.serializer(), Unit.serializer())
 
-        val membersRemovedFromGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersRemovedFromGroup)
-        val membersAddedToGroup = optionalExtension<ProjectDiff, Unit>(e.all ?: e.membersAddedToGroup)
+        val membersRemovedFromGroup = optionalExtension(e.all ?: e.membersRemovedFromGroup, ProjectDiff.serializer(), Unit.serializer())
+        val membersAddedToGroup = optionalExtension(e.all ?: e.membersAddedToGroup, ProjectDiff.serializer(), Unit.serializer())
 
-        val projectArchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectArchived)
-        val projectUnarchived = optionalExtension<ProjectDiff, Unit>(e.all ?: e.projectUnarchived)
+        val projectArchived = optionalExtension(e.all ?: e.projectArchived, ProjectDiff.serializer(), Unit.serializer())
+        val projectUnarchived = optionalExtension(e.all ?: e.projectUnarchived, ProjectDiff.serializer(), Unit.serializer())
 
-        val roleChanged = optionalExtension<ProjectDiff, Unit>(e.all ?: e.roleChanged)
+        val roleChanged = optionalExtension(e.all ?: e.roleChanged, ProjectDiff.serializer(), Unit.serializer())
 
-        val groupCreated = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupCreated)
-        val groupRenamed = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupRenamed)
-        val groupDeleted = optionalExtension<ProjectDiff, Unit>(e.all ?: e.groupDeleted)
+        val groupCreated = optionalExtension(e.all ?: e.groupCreated, ProjectDiff.serializer(), Unit.serializer())
+        val groupRenamed = optionalExtension(e.all ?: e.groupRenamed, ProjectDiff.serializer(), Unit.serializer())
+        val groupDeleted = optionalExtension(e.all ?: e.groupDeleted, ProjectDiff.serializer(), Unit.serializer())
     }
 
     companion object : Loggable {

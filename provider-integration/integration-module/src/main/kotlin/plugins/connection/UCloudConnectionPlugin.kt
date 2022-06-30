@@ -39,7 +39,7 @@ class UCloudConnectionPlugin : ConnectionPlugin {
         pluginConfig.insecureMessageSigningForDevelopmentPurposesOnly
 
     private companion object Extensions {
-        val onConnectionComplete = extension<UCloudSubject, UidAndGid>()
+        val onConnectionComplete = extension(UCloudSubject.serializer(), UidAndGid.serializer())
     }
 
     @Serializable

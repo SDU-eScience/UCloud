@@ -59,28 +59,48 @@ fun IpcHandler.register(server: IpcServer) {
 }
 
 abstract class IpcContainer(val namespace: String) {
-    inline fun <reified Request, reified Response> ipcHandler(method: String): TypedIpcHandler<Request, Response> {
-        return TypedIpcHandler(method, serializer(), serializer())
+    inline fun <reified Request, reified Response> ipcHandler(
+        method: String,
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return TypedIpcHandler(method, request, response)
     }
 
-    inline fun <reified Request, reified Response> createHandler(): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.delete")
+    inline fun <reified Request, reified Response> createHandler(
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.delete", request, response)
     }
 
-    inline fun <reified Request, reified Response> deleteHandler(): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.delete")
+    inline fun <reified Request, reified Response> deleteHandler(
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.delete", request, response)
     }
 
-    inline fun <reified Request, reified Response> browseHandler(): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.browse")
+    inline fun <reified Request, reified Response> browseHandler(
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.browse", request, response)
     }
 
-    inline fun <reified Request, reified Response> updateHandler(operation: String): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.$operation")
+    inline fun <reified Request, reified Response> updateHandler(
+        operation: String,
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.$operation", request, response)
     }
 
-    inline fun <reified Request, reified Response> retrieveHandler(): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.retrieve")
+    inline fun <reified Request, reified Response> retrieveHandler(
+        request: KSerializer<Request>,
+        response: KSerializer<Response>
+    ): TypedIpcHandler<Request, Response> {
+        return ipcHandler("$namespace.retrieve", request, response)
     }
 }
 

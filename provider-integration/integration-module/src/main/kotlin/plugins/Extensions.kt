@@ -55,20 +55,30 @@ class TypedExtension<Request, Response>(
     }
 }
 
-inline fun <reified Request, reified Response> extension(): TypedExtension<Request, Response> =
-    TypedExtension(serializer(), serializer())
+inline fun <reified Request, reified Response> extension(
+    req: KSerializer<Request>,
+    res: KSerializer<Response>
+): TypedExtension<Request, Response> = TypedExtension(req, res)
 
 class TypedExtensionWithExecutable<Request, Response>(
     val extension: TypedExtension<Request, Response>,
     val executable: String,
 )
 
-inline fun <reified Req, reified Resp> extension(executable: String): TypedExtensionWithExecutable<Req, Resp> =
-    TypedExtensionWithExecutable(extension(), executable)
+inline fun <reified Req, reified Resp> extension(
+    executable: String,
+    req: KSerializer<Req>,
+    res: KSerializer<Resp>
+): TypedExtensionWithExecutable<Req, Resp> =
+    TypedExtensionWithExecutable(extension(req, res), executable)
 
-inline fun <reified Req, reified Resp> optionalExtension(executable: String?): TypedExtensionWithExecutable<Req, Resp>? =
+inline fun <reified Req, reified Resp> optionalExtension(
+    executable: String?,
+    req: KSerializer<Req>,
+    res: KSerializer<Resp>
+): TypedExtensionWithExecutable<Req, Resp>? =
     if (executable == null) null
-    else TypedExtensionWithExecutable(extension(), executable)
+    else TypedExtensionWithExecutable(extension(req, res), executable)
 
 suspend fun <Req, Resp> TypedExtensionWithExecutable<Req, Resp>.invoke(request: Req): Resp =
     extension.invoke(executable, request)

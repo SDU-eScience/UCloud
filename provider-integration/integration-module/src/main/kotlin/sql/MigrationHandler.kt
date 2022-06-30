@@ -46,16 +46,14 @@ class MigrationHandler(private val connection: DBContext) {
             }
 
             try {
-                connection.prepareStatement(
-                    //language=SQLite
-                    """
-                        insert into migrations(id) values (:id) on conflict do nothing
-                    """
-                ).use { registerMigration ->
-                    scripts.forEach { script ->
-                        registerMigration.invokeAndDiscard {
-                            bindString("id", script.id)
-                        }
+                scripts.forEach { script ->
+                    connection.prepareStatement(
+                        //language=SQLite
+                        """
+                            insert into migrations(id) values (:id) on conflict do nothing
+                        """
+                    ).invokeAndDiscard {
+                        bindString("id", script.id)
                     }
                 }
             } catch (ex: Throwable) {

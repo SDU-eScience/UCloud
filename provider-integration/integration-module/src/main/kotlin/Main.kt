@@ -31,8 +31,6 @@ import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.JdbcDriver
 import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.migrations.loadMigrations
-import dk.sdu.cloud.utils.ProcessWatcher
-import dk.sdu.cloud.utils.sendTerminalMessage
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
@@ -48,8 +46,10 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.utils.*
 
 fun main(args: Array<String>) {
+    println("Args are ${args.toList()}")
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
@@ -218,8 +218,8 @@ fun main(args: Array<String>) {
             // NOTE(Dan): The JWT validation is responsible for validating all communication we receive from
             // UCloud/Core. This service is constructed fairly early, since both the RPC client and RPC server
             // requires this.
-            val validation = if (serverMode == ServerMode.Server) {
-                InternalTokenValidationJWT.withPublicCertificate(config.server.certificate)
+            val validation = if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
+                InternalTokenValidationJWT.withPublicCertificate(config.core.certificate)
             } else {
                 null
             }
@@ -266,6 +266,7 @@ fun main(args: Array<String>) {
 
                 rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
                 rpcServer.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, rpcServer))
+                engine.start(wait = false)
             }
 
             val rpcClient: AuthenticatedClient? = run {

@@ -16,7 +16,6 @@ import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.Logger
-import dk.sdu.cloud.utils.normalizeCertificate
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -73,7 +72,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Token validator used to verify tokens returned by the OpenID provider (explained below).
-        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(normalizeCertificate(configuration.certificate))
+        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate)
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
@@ -291,7 +290,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     override suspend fun PluginContext.requireMessageSigning(): Boolean = configuration.requireSigning
 
     private companion object Extensions {
-        val onConnectionComplete = extension<OpenIdConnectSubject, UidAndGid>()
+        val onConnectionComplete = extension(OpenIdConnectSubject.serializer(), UidAndGid.serializer())
     }
 }
 

@@ -25,56 +25,5 @@
     "allDeclaredFields": true,
     "allDeclaredMethods": true,
     "allDeclaredConstructors": true
-  },
-  {
-    "name": "dk.sdu.cloud.MyResponse",
-    "fields": [
-      {
-        "name": "Companion"
-      }
-    ]
-  },
-  {
-    "name": "dk.sdu.cloud.MyResponse$Companion",
-    "methods": [
-      {
-        "name": "serializer",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "dk.sdu.cloud.MyRequest",
-    "fields": [
-      {
-        "name": "Companion"
-      }
-    ]
-  },
-  {
-    "name": "dk.sdu.cloud.MyRequest$Companion",
-    "methods": [
-      {
-        "name": "serializer",
-        "parameterTypes": []
-      }
-    ]
-  },
-  {
-    "name": "dk.sdu.cloud.CommonErrorMessage",
-    "fields": [
-      {
-        "name": "Companion"
-      }
-    ]
-  },
-  {
-    "name": "dk.sdu.cloud.CommonErrorMessage$Companion",
-    "methods": [
-      {
-        "name": "serializer",
-        "parameterTypes": []
-      }
-    ]
   }
 ]

@@ -9,8 +9,8 @@ import java.sql.SQLException
 class JdbcDriver(
     private val connectionUri: String
 ) : DBContext.ConnectionFactory() {
-    override fun openSession(): JdbcConnection =
-        JdbcConnection(DriverManager.getConnection(connectionUri))
+    private val sharedConnection = JdbcConnection(DriverManager.getConnection(connectionUri))
+    override fun openSession(): JdbcConnection = sharedConnection
 
     override fun close() {
 
@@ -23,7 +23,6 @@ class JdbcConnection(private val connection: JavaSqlConnection) : DBContext.Conn
     }
 
     override suspend fun close() {
-        connection.close()
     }
 
     override suspend fun openTransaction() {
@@ -32,6 +31,10 @@ class JdbcConnection(private val connection: JavaSqlConnection) : DBContext.Conn
 
     override suspend fun commit() {
         connection.commit()
+    }
+
+    override suspend fun rollback() {
+        connection.rollback()
     }
 
     override fun prepareStatement(statement: String): PreparedStatement =
@@ -123,7 +126,7 @@ class JdbcPreparedStatement(
     }
 
     override suspend fun reset() {
-        // TODO
+        statement.clearParameters()
     }
 
     override suspend fun close() {
@@ -160,5 +163,7 @@ class JdbcResultCursor(private val rs: ResultSet) : ResultCursor {
     override suspend fun getString(column: Int): String? = rs.getString(column + 1).takeIf { !rs.wasNull() }
     override suspend fun getBoolean(column: Int): Boolean? = rs.getBoolean(column + 1).takeIf { !rs.wasNull() }
     override suspend fun getDouble(column: Int): Double? = rs.getDouble(column + 1).takeIf { !rs.wasNull() }
-    override suspend fun next(): Boolean = rs.next()
+    override suspend fun next(): Boolean {
+        return rs.next()
+    }
 }
