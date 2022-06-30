@@ -118,6 +118,11 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     private async onSubmit(): Promise<void> {
         const validated = this.validate();
         if (validated) {
+            if (this.data.fields.freeToUse) {
+                // Required if freeToUse is true
+                this.data.fields.pricePerUnit = 0.000001;
+            }
+
             const request = await this.props.createRequest(this.data);
             try {
                 const res = await callAPI<Response>(request);
