@@ -559,7 +559,7 @@ begin
     where recipient_type = 'new_project'
     limit 1;
 
-    create temporary table grant_created_projects(project_id text primary key) on commit  drop;
+    create temporary table grant_created_projects(project_id text primary key) on commit drop;
     insert into grant_created_projects(project_id) select created_project where created_project is not null;
 
     -- NOTE(Dan): Run the normal deposit procedure

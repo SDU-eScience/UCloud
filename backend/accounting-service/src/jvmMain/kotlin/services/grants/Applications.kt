@@ -85,9 +85,9 @@ class GrantApplicationService(
 
     suspend fun retrieveGrantApplication(applicationId: Long, actorAndProject: ActorAndProject):GrantApplication {
         val application = db.withSession{ session ->
-
+            println(actorAndProject.actor.username)
+            println(applicationId)
             permissionCheck(session, actorAndProject, applicationId)
-
             session.sendPreparedStatement(
                 {
                     setParameter("app_in", applicationId)
@@ -100,12 +100,14 @@ class GrantApplicationService(
                 ?.getString(0)
                 ?: throw RPCException("Did not find a single application", HttpStatusCode.NotFound)
         }
+        println(application)
         return defaultMapper.decodeFromString(application)
     }
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
     ): List<FindByLongId> {
+        println(request)
         request.items.forEach { createRequest ->
             val recipient = createRequest.document.recipient
             if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
@@ -173,15 +175,15 @@ class GrantApplicationService(
                         setParameter("app_id", applicationId)
                     },
                     """
-                        with project_id_and_title as (
+                        with pit as (
                             select id, title
                             from project.projects pr 
                             where pr.id in (select unnest(:sources::text[]))
                         )
                         insert into "grant".grant_giver_approvals (application_id, project_id, project_title, state, updated_by, last_update) 
                         select 
-                            :app_id, project_id_and_title.id, project_id_and_title.title, 'IN_PROGRESS', '_ucloud', now()
-                        from project_id_and_title
+                            :app_id, pit.id, pit.title, 'IN_PROGRESS', '_ucloud', now()
+                        from pit
                     """.trimIndent()
                 )
 
@@ -189,7 +191,8 @@ class GrantApplicationService(
                 autoApprove(session, actorAndProject, createRequest, applicationId)
 
                 val (allApproved, grantGivers) = retrieveGrantGiversStates(session, applicationId)
-
+                println(allApproved)
+                println(grantGivers)
                 if (allApproved) {
                     session.sendPreparedStatement(
                         {
@@ -832,6 +835,16 @@ class GrantApplicationService(
                     val (approved, _) = retrieveGrantGiversStates(session, update.applicationId)
 
                     if (approved) {
+                        session.sendPreparedStatement(
+                            {
+                                setParameter("app_id", update.applicationId)
+                            },
+                            """
+                            update "grant".applications
+                            set overall_state = 'APPROVED', updated_at = now()
+                            where id = :app_id
+                        """, debug = true
+                        )
                         val currentRevision = getCurrentRevision(session, update.applicationId)
                         val parentId = session.sendPreparedStatement(
                             {
@@ -1121,6 +1134,13 @@ class GrantApplicationService(
         applicationId: Long,
         parentId: String?
     ) {
+        session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                setParameter("parent", parentId)
+            },
+            """select "grant".approve_application(:id, :parent::text)""",debug = true
+        )
         val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
             .map { it.getString(0)!! }.singleOrNull()
 

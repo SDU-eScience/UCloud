@@ -974,11 +974,6 @@ class GrantTest : IntegrationTest() {
                 }
             }
         }
-
-        testFilter = {title, subtitle ->
-            title == "Grant applications, metadata"
-        }
-
         run {
             class In(
                 val description: String,
