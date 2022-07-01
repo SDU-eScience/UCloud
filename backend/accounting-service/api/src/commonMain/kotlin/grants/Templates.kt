@@ -34,11 +34,21 @@ object GrantTemplates : CallDescriptionContainer("grant_template") {
         """.trimIndent()
     }
 
-    val uploadTemplates = call<BulkRequest<UploadTemplatesRequest>, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
-        httpUpdate(
-            Grants.baseContext,
-            "upload"
-        )
+    val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
+        auth {
+            access = AccessRight.READ_WRITE
+        }
+
+        http {
+            method = HttpMethod.Post
+
+            path {
+                using(baseContext)
+                +"upload-templates"
+            }
+
+            body { bindEntireRequestFromBody() }
+        }
 
         documentation {
             summary = "Uploads templates used for new grant Applications"

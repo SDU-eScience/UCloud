@@ -17,29 +17,31 @@ class GrantTemplateService(
 ) {
     suspend fun uploadTemplates(
         actorAndProject: ActorAndProject,
-        templates: BulkRequest<UploadTemplatesRequest>
+        template: UploadTemplatesRequest
     ) {
         db.withSession(remapExceptions = true) { session ->
-            templates.items.forEach { template ->
-                val success = session.sendPreparedStatement(
-                    {
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                        setParameter("projectId", actorAndProject.project)
-                        when (template.form) {
-                            is GrantApplication.Form.PlainText -> {
-                                val form = template.form as GrantApplication.Form.PlainText
-                                setParameter("personalProject", form.personalProject)
-                                setParameter("existingProject", form.existingProject)
-                                setParameter("newProject", form.newProject)
-                            }
-                            else -> throw RPCException.fromStatusCode(
-                                HttpStatusCode.BadRequest,
-                                "Missing expected form format"
-                            )
+            println(template)
+            println(actorAndProject.actor.safeUsername())
+            println(actorAndProject.project)
+            val success = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("projectId", actorAndProject.project)
+                    when (template.form) {
+                        is GrantApplication.Form.PlainText -> {
+                            val form = template.form as GrantApplication.Form.PlainText
+                            setParameter("personalProject", form.personalProject)
+                            setParameter("existingProject", form.existingProject)
+                            setParameter("newProject", form.newProject)
                         }
-                    },
+                        else -> throw RPCException.fromStatusCode(
+                            HttpStatusCode.BadRequest,
+                            "Missing expected form format"
+                        )
+                    }
+                },
 
-                    """
+                """
                     insert into "grant".templates (project_id, personal_project, existing_project, new_project) 
                     select :projectId, :personalProject, :existingProject, :newProject
                     from project.project_members pm
@@ -51,17 +53,17 @@ class GrantTemplateService(
                         personal_project = excluded.personal_project,
                         existing_project = excluded.existing_project,
                         new_project = excluded.new_project
-                """
-                ).rowsAffected > 0
+                """, debug = true
+            ).rowsAffected > 0
 
-                if (!success) {
-                    throw RPCException(
-                        "Unable to upload templates. Do you have the correct permissions?",
-                        HttpStatusCode.BadRequest
-                    )
-                }
+            if (!success) {
+                throw RPCException(
+                    "Unable to upload templates. Do you have the correct permissions?",
+                    HttpStatusCode.BadRequest
+                )
             }
         }
+
     }
 
     suspend fun fetchTemplates(

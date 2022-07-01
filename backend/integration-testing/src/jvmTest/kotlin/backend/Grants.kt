@@ -182,10 +182,6 @@ class GrantTest : IntegrationTest() {
 
         }
 
-        testFilter = {title, subtitle ->
-            title == "Grant applications, expected flow"
-            && subtitle.startsWith("happy path (outcome =")
-        }
         run {
             class Comment(val poster: CommentPoster, val commentToPost: String)
             class SimpleResourceRequest(val category: String, val provider: String, val balance: Long)
@@ -979,6 +975,10 @@ class GrantTest : IntegrationTest() {
             }
         }
 
+        testFilter = {title, subtitle ->
+            title == "Grant applications, metadata"
+        }
+
         run {
             class In(
                 val description: String,
@@ -1047,23 +1047,18 @@ class GrantTest : IntegrationTest() {
 
                     if (!input.useDefaultTemplate) {
                         GrantTemplates.uploadTemplates.call(
-                            bulkRequestOf(
-                                UploadTemplatesRequest(
-                                    GrantApplication.Form.PlainText(
-                                        input.personalTemplate,
-                                        input.newTemplate,
-                                        input.existingTemplate
-                                    )
+                            UploadTemplatesRequest(
+                                GrantApplication.Form.PlainText(
+                                    input.personalTemplate,
+                                    input.newTemplate,
+                                    input.existingTemplate
                                 )
                             ),
                             grantPi.client.withProject(createdProject)
                         ).orThrow()
                     }
-
                     GrantTemplates.uploadTemplates.call(
-                        bulkRequestOf(
-                            UploadTemplatesRequest(GrantApplication.Form.PlainText("Evil 1", "Evil 2", "Evil 3"))
-                        ),
+                        UploadTemplatesRequest(GrantApplication.Form.PlainText("Evil 1", "Evil 2", "Evil 3")),
                         evilUser.client.withProject(createdProject)
                     ).assertUserError()
 
