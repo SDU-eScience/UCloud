@@ -211,8 +211,14 @@ data class GrantApplication(
     @Serializable
     @SerialName("recipient")
     sealed class Recipient {
+        @Serializable
+        @SerialName("existingProject")
         data class ExistingProject(val id: String) : Recipient()
+        @Serializable
+        @SerialName("newProject")
         data class NewProject(val title: String) : Recipient()
+        @Serializable
+        @SerialName("personalWorkspace")
         data class PersonalWorkspace(val username: String) : Recipient()
 
         companion object {
@@ -228,7 +234,7 @@ data class GrantApplication(
         val provider: String,
         val grantGiver: String,
         val balanceRequested: Long? = null,
-        val sourceAllocation: String? = null,
+        val sourceAllocation: Long? = null,
         val period: Period,
     )
     @Serializable

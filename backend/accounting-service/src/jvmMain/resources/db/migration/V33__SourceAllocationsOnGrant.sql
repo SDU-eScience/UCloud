@@ -94,8 +94,8 @@ create or replace function "grant".resource_allocation_to_json(
         'balanceRequested', request_in.credits_requested,
         'sourceAllocation', request_in.source_allocation,
         'period', jsonb_build_object(
-            'start', request_in.start_date,
-            'end', request_in.end_date
+            'start', floor(extract(epoch from request_in.start_date)),
+            'end', floor(extract(epoch from request_in.end_date))
         )
     );
 $$;
@@ -110,7 +110,23 @@ create or replace function "grant".grant_giver_approval_to_json(
     );
 $$;
 
-drop function "grant".application_to_json(application_in "grant".applications, resources_in jsonb[], resources_owned_by_in project.projects, project_in project.projects, project_pi_in text);
+drop function if exists "grant".application_to_json(application_in "grant".applications, resources_in jsonb[], resources_owned_by_in project.projects, project_in project.projects, project_pi_in text);
+drop function if exists "grant".approve_application(approved_by text, application_id_in bigint);
+
+create or replace function "grant".form_to_json(
+    form_in "grant".forms
+) returns jsonb
+    language plpgsql
+as $$
+    begin
+        return jsonb_build_object(
+            'type', 'plain_text',
+            'personalProject', form_in.form,
+            'newProject', form_in.form,
+            'existingProject', form_in.form
+        );
+    end
+$$;
 
 create or replace function "grant".revision_to_json(
     resources_in jsonb[],
@@ -127,25 +143,23 @@ begin
     if form_in.recipient_type = 'personal' then
         document := jsonb_build_object(
             'recipient', jsonb_build_object(
-                'type', form_in.recipient_type,
+                'type', 'personalWorkspace',
                 'username', form_in.recipient
             ),
             'allocationRequests', resources_in,
-            'form', form_in.form,
+            'form', "grant".form_to_json(form_in),
             'referenceId', form_in.reference_id,
             'revisionComment', revision_in.revision_comment,
             'parentProjectId', form_in.parent_project_id
         );
     elseif form_in.recipient_type = 'existing_project' then
         document := jsonb_build_object(
-            'grantRecipient', jsonb_build_object(
-                'type', form_in.recipient_type,
+            'recipient', jsonb_build_object(
+                'type', 'existingProject',
                 'id', form_in.recipient
             ),
-            'allocationRequests', jsonb_build_array(
-                resources_in
-            ),
-            'form', form_in.form,
+            'allocationRequests', resources_in,
+            'form', "grant".form_to_json(form_in),
             'referenceId', form_in.reference_id,
             'revisionComment', revision_in.revision_comment,
             'parentProjectId', form_in.parent_project_id
@@ -153,14 +167,12 @@ begin
         );
     elseif form_in.recipient_type = 'new_project' then
         document := jsonb_build_object(
-            'grantRecipient', jsonb_build_object(
-                'type', form_in.recipient_type,
+            'recipient', jsonb_build_object(
+                'type', 'newProject',
                 'title', form_in.recipient
             ),
-            'allocationRequests', jsonb_build_array(
-                resources_in
-            ),
-            'form', form_in.form,
+            'allocationRequests', resources_in,
+            'form', "grant".form_to_json(form_in),
             'referenceId', form_in.reference_id,
             'revisionComment', revision_in.revision_comment,
             'parentProjectId', form_in.parent_project_id
@@ -178,14 +190,34 @@ begin
 end;
 $$;
 
+create or replace function "grant".comment_to_json(comment_in "grant".comments) returns jsonb
+	immutable
+	language sql
+as $$
+    select case when comment_in is null then null else jsonb_build_object(
+        'id', comment_in.id,
+        'username', comment_in.posted_by,
+        'createdAt', (floor(extract(epoch from comment_in.created_at) * 1000)),
+        'comment', comment_in.comment
+    ) end
+$$;
+
 create or replace function "grant".application_to_json(
     app_id_in bigint
 ) returns jsonb language sql as $$
-    with maxrevision as (
-        select max(r.revision_number) newest, application_id, r.created_at
+    with max_revision_number as (
+        select max(r.revision_number) newest
         from "grant".revisions r
         where r.application_id = app_id_in
-        group by application_id, created_at
+        group by application_id
+    ),
+    max_revision as (
+        select *
+        from
+            max_revision_number n join
+            "grant".revisions r on
+                r.application_id = app_id_in and
+                r.revision_number = n.newest
     ),
     current_revision as (
         select "grant".revision_to_json(
@@ -194,7 +226,7 @@ create or replace function "grant".application_to_json(
             r
         ) as result
         from "grant".applications a join
-            maxrevision mr on mr.application_id = a.id join
+            max_revision mr on mr.application_id = a.id join
             "grant".requested_resources rr on a.id = rr.application_id and
                 rr.revision_number = mr.newest join
             "grant".forms f on f.application_id = rr.application_id and
@@ -225,28 +257,35 @@ create or replace function "grant".application_to_json(
         group by r.*, f.*
     )
     select jsonb_build_object(
-        'id', a.id,
-        'createdAt', a.created_at,
-        'updatedAt', mr.created_at,
-        'revision', (select result from current_revision limit 1),
+        'id', resolved_application.id,
+        'createdAt', floor(extract(epoch from resolved_application.created_at)),
+        'updatedAt', floor(extract(epoch from latest_revision.created_at)),
+        'currentRevision', (select result from current_revision limit 1),
+        'requestedBy', resolved_application.requested_by,
         'status', jsonb_build_object(
-            'overallState', a.overall_state,
-            'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(gga))), null),
+            'overallState', resolved_application.overall_state,
+            'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(approval_status))), null),
             'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
-            'revisions', array_remove(array_agg(distinct (select results from all_revisions)), null)
+            'revisions', array_remove(array_agg(distinct revision.results), null)
         )
     )
     from
-        "grant".applications a join
-        maxrevision mr on
-            mr.application_id = a.id join
-        "grant".forms f on
-            f.revision_number = mr.newest and
-            f.application_id = mr.application_id join
-        "grant".grant_giver_approvals gga on
-            a.id = gga.application_id join
-        "grant".comments posted_comment on a.id = posted_comment.application_id
-    group by a.id, a.*, mr.created_at, mr.*, f.*
+        all_revisions revision,
+        "grant".applications resolved_application join
+        max_revision latest_revision on
+            resolved_application.id = latest_revision.application_id join
+        "grant".forms latest_form on
+            latest_form.revision_number = latest_revision.newest and
+            latest_form.application_id = latest_revision.application_id join
+        "grant".grant_giver_approvals approval_status on
+            resolved_application.id = approval_status.application_id left join
+        "grant".comments posted_comment on resolved_application.id = posted_comment.application_id
+    group by
+        resolved_application.id,
+        resolved_application.*,
+        latest_revision.created_at,
+        latest_revision.*,
+        latest_form.*;
 $$;
 
 create or replace function "grant".can_submit_application(username_in text, sources text[], grant_recipient text, grant_recipient_type text) returns boolean
@@ -324,6 +363,141 @@ as $$
     ) t
 $$;
 
+create or replace function accounting.deposit(requests accounting.deposit_request[]) returns void
+	language plpgsql
+as $$
+declare
+    deposit_count bigint;
+begin
+    create temporary table deposit_result on commit drop as
+        -- NOTE(Dan): Resolve and verify source wallet, potentially resolve destination wallet
+        with unpacked_requests as (
+            select initiated_by, recipient, recipient_is_project, source_allocation, desired_balance, start_date,
+                   end_date, description, transaction_id, application_id
+            from unnest(requests)
+        )
+        select
+            -- NOTE(Dan): we pre-allocate the IDs to make it easier to connect the data later
+            nextval('accounting.wallet_allocations_id_seq') idx,
+            source_wallet.id source_wallet,
+            source_wallet.category product_category,
+            source_alloc.allocation_path source_allocation_path,
+            target_wallet.id target_wallet,
+            request.recipient,
+            request.recipient_is_project,
+            coalesce(request.start_date, now()) start_date,
+            request.end_date,
+            request.desired_balance,
+            request.initiated_by,
+            source_wallet.category,
+            request.description,
+            request.transaction_id,
+            request.application_id application_id
+        from
+            unpacked_requests request join
+            accounting.wallet_allocations source_alloc on request.source_allocation = source_alloc.id join
+            accounting.wallets source_wallet on source_alloc.associated_wallet = source_wallet.id join
+            accounting.wallet_owner source_owner on source_wallet.owned_by = source_owner.id left join
+            project.project_members pm on
+                source_owner.project_id = pm.project_id and
+                (pm.role = 'ADMIN' or pm.role = 'PI') and request.initiated_by != '_ucloud' left join
+            accounting.wallet_owner target_owner on
+                (request.recipient_is_project and target_owner.project_id = request.recipient) or
+                (not request.recipient_is_project and target_owner.username = request.recipient) left join
+            accounting.wallets target_wallet on
+                target_wallet.owned_by = target_owner.id and
+                target_wallet.category = source_wallet.category
+        where
+            (
+                request.initiated_by = source_owner.username or
+                request.initiated_by = pm.username
+            ) or (request.initiated_by = '_ucloud');
+
+    select count(*) into deposit_count from deposit_result;
+    if deposit_count != cardinality(requests) then
+        raise exception 'Unable to fulfill all requests. Permission denied/bad request.';
+    end if;
+
+    -- NOTE(Dan): We don't know for sure that the wallet_owner doesn't exist, but it might not exist since there is
+    -- no wallet.
+    insert into accounting.wallet_owner (username, project_id)
+    select
+        case r.recipient_is_project when false then r.recipient end,
+        case r.recipient_is_project when true then r.recipient end
+    from deposit_result r
+    where target_wallet is null
+    on conflict do nothing;
+
+    -- NOTE(Dan): Create the missing wallets.
+    insert into accounting.wallets (category, owned_by)
+    select r.category, wo.id
+    from
+        deposit_result r join
+        accounting.wallet_owner wo on
+            (r.recipient_is_project and wo.project_id = r.recipient) or
+            (not r.recipient_is_project and wo.username = r.recipient)
+    where target_wallet is null;
+
+    -- NOTE(Dan): Update the result such that all target_wallets are not null
+    update deposit_result r
+    set target_wallet = w.id
+    from
+        accounting.wallet_owner wo join
+        accounting.wallets w on wo.id = w.owned_by
+    where
+        w.category = r.category and
+        (
+            (r.recipient_is_project and wo.project_id = r.recipient) or
+            (not r.recipient_is_project and wo.username = r.recipient)
+        );
+
+    insert into accounting.deposit_notifications (username, project_id, category_id, balance)
+    select
+        case
+            when r.recipient_is_project = true then null
+            else r.recipient
+        end,
+        case
+            when r.recipient_is_project = true then r.recipient
+            else null
+        end,
+        r.category,
+        r.desired_balance
+    from deposit_result r;
+
+    -- NOTE(Dan): Create allocations and insert transactions
+    with new_allocations as (
+        insert into accounting.wallet_allocations
+            (id, associated_wallet, balance, initial_balance, local_balance, start_date, end_date,
+             allocation_path, granted_in)
+        select
+            r.idx,
+            r.target_wallet,
+            r.desired_balance,
+            r.desired_balance,
+            r.desired_balance,
+            r.start_date,
+            r.end_date,
+            (r.source_allocation_path::text || '.' || r.idx::text)::ltree,
+            r.application_id
+        from deposit_result r
+        where r.target_wallet is not null
+        returning id, balance
+    )
+    insert into accounting.transactions
+    (type, affected_allocation_id, action_performed_by, change, description, start_date, transaction_id, initial_transaction_id)
+    select 'deposit', alloc.id, r.initiated_by, alloc.balance, r.description , now(), r.transaction_id, r.transaction_id
+    from
+        new_allocations alloc join
+        deposit_result r on alloc.id = r.idx;
+
+    update accounting.wallets
+    set low_funds_notifications_send = false
+    from deposit_result r
+    where r.target_wallet = id;
+end;
+$$;
+
 create or replace function "grant".approve_application(application_id_in bigint, parent_project_id_in text) returns void
 	language plpgsql
 as $$
@@ -335,13 +509,11 @@ begin
     -- future.
     create temporary table approve_result on commit drop as
         with max_revisions as (
-            select b.* from (
-                select application_id, max(revision_number) as newest
-                from "grant".revisions
-                where application_id = application_id_in
-                group by application_id
-                order by application_id
-            ) as a join "grant".revisions b on a.newest = b.revision_number
+            select application_id, max(revision_number) as newest
+            from "grant".revisions
+            where application_id = application_id_in
+            group by application_id
+            order by application_id
         )
         select
             app.id application_id,
@@ -360,10 +532,10 @@ begin
                 max_revisions.application_id = app.id
             join "grant".forms f on
                 app.id = f.application_id and
-                max_revisions.revision_number = f.revision_number
+                max_revisions.newest = f.revision_number
             join "grant".requested_resources resource on
                 max_revisions.application_id = resource.application_id and
-                max_revisions.revision_number = resource.revision_number
+                max_revisions.newest = resource.revision_number
             join accounting.wallet_allocations alloc on
                 resource.source_allocation = alloc.id
             join accounting.wallet_owner wo on
@@ -387,7 +559,7 @@ begin
     where recipient_type = 'new_project'
     limit 1;
 
-    create temporary table grant_created_projects(project_id text primary key);
+    create temporary table grant_created_projects(project_id text primary key) on commit  drop;
     insert into grant_created_projects(project_id) select created_project where created_project is not null;
 
     -- NOTE(Dan): Run the normal deposit procedure
@@ -564,3 +736,76 @@ begin
 end;
 $$;
 
+alter table "grant".automatic_approval_limits add column grant_giver text;
+
+create or replace function "grant".upload_request_settings(
+    actor_in text,
+    project_in text,
+
+    new_exclude_list_in text[],
+
+    new_include_list_type_in text[],
+    new_include_list_entity_in text[],
+
+    auto_approve_from_type_in text[],
+    auto_approve_from_entity_in text[],
+    auto_approve_resource_cat_name_in text[],
+    auto_approve_resource_provider_name_in text[],
+    auto_approve_credits_max_in bigint[],
+    auto_approve_quota_max_in bigint[],
+    auto_approve_grant_giver_in text[]
+) returns void language plpgsql as $$
+declare
+    can_update boolean := false;
+begin
+    if project_in is null then
+        raise exception 'Missing project';
+    end if;
+
+    select count(*) > 0 into can_update
+    from
+        project.project_members pm join
+        "grant".is_enabled enabled on pm.project_id = enabled.project_id
+    where
+        pm.username = actor_in and
+        (pm.role = 'ADMIN' or pm.role = 'PI') and
+        pm.project_id = project_in;
+
+    if not can_update then
+        raise exception 'Unable to update this project. Check if you are allowed to perform this operation.';
+    end if;
+
+    delete from "grant".exclude_applications_from
+    where project_id = project_in;
+
+    insert into "grant".exclude_applications_from (project_id, email_suffix)
+    select project_in, unnest(new_exclude_list_in);
+
+    delete from "grant".allow_applications_from
+    where project_id = project_in;
+
+    insert into "grant".allow_applications_from (project_id, type, applicant_id)
+    select project_in, unnest(new_include_list_type_in), unnest(new_include_list_entity_in);
+
+    delete from "grant".automatic_approval_users
+    where project_id = project_in;
+
+    insert into "grant".automatic_approval_users (project_id, type, applicant_id)
+    select project_in, unnest(auto_approve_from_type_in), unnest(auto_approve_from_entity_in);
+
+    delete from "grant".automatic_approval_limits
+    where project_id = project_in;
+
+    insert into "grant".automatic_approval_limits (project_id, maximum_credits, maximum_quota_bytes, product_category, grant_giver)
+    with entries as (
+        select
+            unnest(auto_approve_resource_cat_name_in) category,
+            unnest(auto_approve_resource_provider_name_in) provider,
+            unnest(auto_approve_credits_max_in) credits,
+            unnest(auto_approve_quota_max_in) quota,
+            unnest(auto_approve_grant_giver_in) grant_giver
+    )
+    select project_in, credits, quota, pc.id, grant_giver
+    from entries e join accounting.product_categories pc on e.category = pc.category and e.provider = pc.provider;
+end;
+$$;

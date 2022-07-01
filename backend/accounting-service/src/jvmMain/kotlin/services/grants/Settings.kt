@@ -71,6 +71,7 @@ class GrantSettingsService(
                             into("auto_approve_category") { it.category }
                             into("auto_approve_provider") { it.provider }
                             into("auto_approve_quota") { null }
+                            into("auto_approve_grant_giver") {actorAndProject.project}
                             into("auto_approve_credits") { it.balanceRequested }
                         }
                     },
@@ -83,7 +84,7 @@ class GrantSettingsService(
                         :new_include_list_type, :new_include_list_entity,
                         
                         :auto_approve_list_type, :auto_approve_list_entity, :auto_approve_category,
-                        :auto_approve_provider, :auto_approve_credits, :auto_approve_quota
+                        :auto_approve_provider, :auto_approve_credits, :auto_approve_quota, :auto_approve_grant_giver
                     )
                 """
                 )
@@ -100,9 +101,11 @@ class GrantSettingsService(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("project", projectId)
+                    setParameter("period_start", Time.now() / 1000)
                 },
                 """
                     select jsonb_build_object(
+                        'projectId', :project::text,
                         'automaticApproval', jsonb_build_object(
                             'from', auto_approve_from,
                             'maxResources', auto_limit
@@ -136,10 +139,10 @@ class GrantSettingsService(
                             array_remove(array_agg(
                                 case when auto_users.type is null then null else 
                                 jsonb_build_object('type', auto_users.type) || case
-                                    when allow_entry.type = 'anyone' then '{}'::jsonb
-                                    when allow_entry.type = 'email' then
+                                    when auto_users.type = 'anyone' then '{}'::jsonb
+                                    when auto_users.type = 'email' then
                                         jsonb_build_object('domain', auto_users.applicant_id)
-                                    when allow_entry.type = 'wayf' then
+                                    when auto_users.type = 'wayf' then
                                         jsonb_build_object('org', auto_users.applicant_id)
                                 end
                                 end
@@ -148,10 +151,15 @@ class GrantSettingsService(
                             array_remove(array_agg(
                                 case when pc.category is null then null else 
                                 jsonb_build_object(
-                                    'productCategory', pc.category,
-                                    'productProvider', pc.provider,
+                                    'category', pc.category,
+                                    'provider', pc.provider,
                                     'creditsRequested', auto_limits.maximum_credits,
-                                    'quotaRequested', auto_limits.maximum_quota_bytes
+                                    'quotaRequested', auto_limits.maximum_quota_bytes,
+                                    'grantGiver', auto_limits.grant_giver,
+                                    'period', jsonb_build_object(
+                                        'start', :period_start::bigint,
+                                        'end', null
+                                    )
                                 )
                                 end
                             ), null) auto_limit
@@ -170,9 +178,9 @@ class GrantSettingsService(
                                 auto_limits.product_category = pc.id
                                 
                         where
-                            pm.project_id = :project and
+                            pm.project_id = :project::text and
                             (pm.role = 'ADMIN' or pm.role = 'PI') and
-                            pm.username = :username
+                            pm.username = :username::text
                     ) t 
                     where 
                         allow_from is not null or 

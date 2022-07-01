@@ -39,7 +39,7 @@ class GrantController(
 
         implement(Grants.closeApplication) {
             val updates = bulkRequestOf(request.items.map { UpdateApplicationState(it.applicationId, GrantApplication.State.CLOSED, false) })
-            applications.updateStatus(actorAndProject, updates)
+            applications.closeApplication(actorAndProject, updates)
             ok(Unit)
         }
 
@@ -53,7 +53,7 @@ class GrantController(
         }
 
         implement(Grants.browseApplications) {
-            (applications.browseApplications(actorAndProject, request, request, request.filter))
+            ok(applications.browseApplications(actorAndProject, request, request, request.filter))
         }
 
         implement(Grants.browseProducts) {
@@ -65,7 +65,7 @@ class GrantController(
         }
 
         implement(Grants.browseAffiliations) {
-            val app = applications.retrieveGrantApplication(request.grantId)
+            val app = applications.retrieveGrantApplication(request.grantId, actorAndProject)
             ok(settings.browse(
                 ActorAndProject(Actor.SystemOnBehalfOfUser(app.requestedBy), null),
                 request
@@ -78,7 +78,7 @@ class GrantController(
         }
 
         implement(Grants.retrieveApplication) {
-            ok(applications.retrieveGrantApplication(request.id))
+            ok(applications.retrieveGrantApplication(request.id, actorAndProject))
         }
 
         //COMMENTS

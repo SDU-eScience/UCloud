@@ -65,23 +65,32 @@ class GrantNotificationService(
                     setParameter("id", notification.applicationId)
                 },
                 """
+                    with max_revision as (
+                        select max(revision_number) newest, application_id
+                        from "grant".revisions 
+                        where application_id = :id
+                        group by application_id
+                    )
                     select
                         app.requested_by,
                         pm.username,
                         project.title,
                         project.id,
-                        coalesce(existing_project.title, app.grant_recipient),
-                        app.grant_recipient_type
+                        coalesce(existing_project.title, f.recipient),
+                        f.recipient_type
                     from
                         "grant".applications app join
+                        max_revision mr on app.id = mr.application_id join
+                        "grant".requested_resources rr on app.id = rr.application_id and mr.newest = rr.revision_number join
+                        "grant".forms f on app.id = f.application_id and mr.newest = f.revision_number join
                         project.projects project on
-                            app.resources_owned_by = project.id join
+                            rr.grant_giver = project.id join
                         project.project_members pm on
                             pm.project_id = project.id and
                             (pm.role = 'ADMIN' or pm.role = 'PI') left join
                         project.projects existing_project on
-                            app.grant_recipient_type = 'existing_project' and
-                            app.grant_recipient = existing_project.id
+                            f.recipient_type = 'existing_project' and
+                            f.recipient = existing_project.id
                     where
                         app.id = :id
                 """

@@ -14,53 +14,54 @@ class GrantCommentService(
     private val db: DBContext,
 ) {
 
-    private suspend fun isAllowedToComment(session: AsyncDBConnection, grantId: Long, actor: ActorAndProject ):Boolean {
-        return session.sendPreparedStatement(
-            {
-                setParameter("app_id", grantId)
-                setParameter("username", actor.actor.safeUsername())
-            },
-            """
-                select * 
-                from "grant".applications a join 
-                "grant".requested_resources rr on a.id = rr.application_id left join
-                        project.project_members pm on
-                            pm.project_id = rr.grant_giver and
-                            pm.username = :username and
-                            (pm.role = 'PI' or pm.role = 'ADMIN')
-                where a.id = :app_id
-            """
-        ).rows.size > 0
-    }
-
     suspend fun postComment(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateCommentRequest>
     ): List<FindByLongId> {
         return db.withSession(remapExceptions = true) { session ->
             request.items.map { req ->
-                if (isAllowedToComment(session, req.grantId, actorAndProject)) {
-                    val id = session.sendPreparedStatement(
-                        {
-                            setParameter("id", req.grantId)
-                            setParameter("comment", req.comment)
-                            setParameter("username", actorAndProject.actor.safeUsername())
-                        },
-                        """
-                    insert into "grant".comments
-                        (application_id, comment, posted_by) 
-                    select :id, :comment, :username
-                    returning id
-                """
-                    ).rows
-                        .singleOrNull()
-                        ?.getLong(0) ?: throw RPCException("Unable to post your comment", HttpStatusCode.BadRequest)
+                val id = session.sendPreparedStatement(
+                    {
+                        setParameter("id", req.grantId)
+                        setParameter("comment", req.comment)
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                    },
+                    """
+                        with max_revisions as (
+                            select max(revision_number) newest
+                            from "grant".revisions
+                            where application_id = :id
+                        )
+                        insert into "grant".comments
+                            (application_id, comment, posted_by) 
+                        select app.id, :comment, :username
+                        from 
+                            "grant".applications app join
+                            "grant".revisions r on 
+                                app.id = r.application_id join 
+                            max_revisions mr on 
+                                r.revision_number = mr.newest join 
+                            "grant".requested_resources rr on
+                                r.application_id = rr.application_id and
+                                r.revision_number = rr.revision_number  left join 
+                            project.project_members pm on 
+                                pm.project_id = rr.grant_giver and 
+                                pm.username = :username and 
+                                (pm.role = 'PI' or pm.role = 'ADMIN')
+                        where app.id = :id and 
+                            (
+                                :username = app.requested_by or 
+                                pm.username is not null
+                            )
+                        group by app.id, :comment, :username
+                        returning id
+                    """
+                ).rows
+                    .singleOrNull()
+                    ?.getLong(0) ?: throw RPCException("Unable to post your comment", HttpStatusCode.BadRequest)
 
-                    FindByLongId(id)
-                    // TODO Notify
-                } else {
-                    throw RPCException("User not allowed", HttpStatusCode.Forbidden)
-                }
+                FindByLongId(id)
+                // TODO Notify
             }
         }
     }
@@ -70,28 +71,46 @@ class GrantCommentService(
         request: BulkRequest<DeleteCommentRequest>
     ) {
         db.withSession(remapExceptions = true) { session ->
-            request.items.forEach {req ->
-                if (isAllowedToComment(session, req.grantId, actorAndProject)) {
-                    val success = session.sendPreparedStatement(
-                        {
-                            setParameter("username", actorAndProject.actor.safeUsername())
-                            setParameter("comment_id", req.commentId)
-                            setParameter("app_id", req.grantId)
-                        },
-                        """
-                        delete from "grant".comments comment
-                        where id = :comment_id and application_id = :app_id
+            request.items.forEach { req ->
+                val success = session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("comment_id", req.commentId)
+                        setParameter("app_id", req.grantId)
+                    },
                     """
-                    ).rowsAffected > 0L
+                            with max_revisions as (
+                                select max(revision_number) newest
+                                from "grant".revisions
+                                where application_id = :app_id
+                            )
+                            delete from "grant".comments comment
+                            using
+                                "grant".applications app join
+                                "grant".revisions r on 
+                                    app.id = r.application_id join
+                                max_revisions mr on 
+                                    r.revision_number = mr.newest join 
+                                "grant".requested_resources rr on 
+                                    r.application_id = rr.application_id and 
+                                    r.revision_number = rr.revision_number left join 
+                                project.project_members pm on 
+                                    pm.project_id = rr.grant_giver and 
+                                    pm.username = :username and 
+                                    (pm.role = 'PI' or pm.role = 'ADMIN')
+                            where 
+                                comment.id = :comment_id and 
+                                comment.application_id = :app_id and 
+                                posted_by = :username and
+                                (app.requested_by = :username or pm.username is not null)
+                    """
+                ).rowsAffected > 0L
 
-                    if (!success) {
-                        throw RPCException(
-                            "Unable to delete this comment. Has it already been deleted?",
-                            HttpStatusCode.BadRequest
-                        )
-                    }
-                } else {
-                    throw RPCException("User not allowed", HttpStatusCode.Forbidden)
+                if (!success) {
+                    throw RPCException(
+                        "Unable to delete this comment. Has it already been deleted?",
+                        HttpStatusCode.BadRequest
+                    )
                 }
             }
         }
