@@ -123,8 +123,6 @@ const Resources: React.FunctionComponent = () => {
         usage.data.charts.map(it => it.type).reduce((remaining, currentProductType) => remaining.filter(productType => productType !== currentProductType), [...productTypes])
         , [usage.data]);
 
-    console.log(unusedProductTypes);
-
     return (
         <MainContainer
             header={<Spacer
