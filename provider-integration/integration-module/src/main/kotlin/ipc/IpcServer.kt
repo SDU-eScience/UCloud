@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import jdk.net.ExtendedSocketOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
@@ -21,7 +22,11 @@ import libc.AF_UNIX
 import libc.SOCK_STREAM
 import libc.clib
 import java.io.File
+import java.net.StandardProtocolFamily
+import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
+import java.nio.channels.ServerSocketChannel
+import java.nio.channels.SocketChannel
 
 data class IpcUser(val uid: Int, val gid: Int)
 
@@ -147,29 +152,20 @@ class IpcServer(
 
     fun runServer() {
         registerRpcHandler()
-        val socketPath = "$ipcSocketDirectory/$ipcSocketName"
-        File(socketPath).delete()
-        val serverSocket = clib.socket(AF_UNIX, SOCK_STREAM, 0)
-        if (serverSocket == -1) throw IpcException("socket error")
+        val socket = File("$ipcSocketDirectory/$ipcSocketName")
+        if (socket.exists()) socket.delete()
 
-        val address = clib.buildUnixSocketAddress(socketPath)
+        val channel = ServerSocketChannel
+            .open(StandardProtocolFamily.UNIX)
+            .bind(UnixDomainSocketAddress.of(socket.toPath()))
 
-        if (clib.bind(serverSocket, address, clib.unixDomainSocketSize()) == -1) {
-            throw IpcException("Could not bind IPC socket")
-        }
-
-        if (clib.listen(serverSocket, 32) == -1) throw IpcException("Failed to listen on IPC socket")
-
-        // NOTE(Dan): Permissions are enforced by SO_PEERCRED. As a result, we can let anybody connect to it without
-        // problems.
-        clib.chmod(socketPath, "777".toInt(8))
+        clib.chmod(socket.absolutePath, "777".toInt(8))
 
         while (true) {
-            val clientSocket = clib.accept(serverSocket)
-
+            val client = channel.accept()
             ProcessingScope.launch {
                 try {
-                    processIpcClient(clientSocket)
+                    processIpcClient(client)
                 } catch (ex: Throwable) {
                     ex.printStackTrace()
                     throw ex
@@ -213,52 +209,49 @@ class IpcServer(
         }
     }
 
-    private suspend fun processIpcClient(clientSocket: Int) {
-        val log = Logger("IpcServer")
-
-        val writeBuffer = ByteBuffer.allocateDirect(1024 * 64)
-        val readBuffer = ByteBuffer.allocateDirect(1024 * 64)
-
-        val messageBuilder = MessageBuilder(1024 * 1024)
-        fun parseRequest(): JsonRpcRequest {
-            val decodedText = messageBuilder.readNextMessage(clientSocket, readBuffer)
-            return defaultMapper.decodeFromString<JsonRpcRequest>(decodedText)
-        }
+    private suspend fun processIpcClient(client: SocketChannel) {
+        val writeBuffer = ByteBuffer.allocate(1024 * 4)
+        val readBuffer = ByteBuffer.allocate(1024 * 4)
+        val messageBuilder = MessageBuilderNio(1024 * 16)
 
         val user = run {
-            val uidAndGid = intArrayOf(-1, -1)
-            clib.receiveMessage(clientSocket, readBuffer, uidAndGid)
-            if (uidAndGid[0] == -1 || uidAndGid[1] == -1) {
-                return@run null
-            }
-
-            IpcUser(uidAndGid[0], uidAndGid[1])
-        } ?: return
-
-        while (true) {
-            val request = runCatching { parseRequest() }.getOrNull() ?: break
-            if (request.id == null) continue
-
-            val response = handleRequest(user, request)
-
-            val serializer: KSerializer<*> = when (response) {
-                is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
-                is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
-            }
-
-            runCatching {
-                writeBuffer.clear()
-                val encoded = (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n")
-                    .encodeToByteArray()
-                writeBuffer.put(encoded)
-                writeBuffer.flip()
-
-                @Suppress("UNCHECKED_CAST")
-                ipcSendFully (clientSocket, writeBuffer)
-            }.getOrNull() ?: break
+            val principal = client.getOption(ExtendedSocketOptions.SO_PEERCRED)
+            val idField = principal.user.javaClass.getDeclaredField("id")
+            require(idField.trySetAccessible())
+            val uid = idField.getInt(principal.user)
+            val gid = idField.getInt(principal.group)
+            IpcUser(uid, gid)
         }
 
-        if (clientSocket >= 0) clib.close(clientSocket)
+        fun parseRequest(): JsonRpcRequest {
+            val decodedText = messageBuilder.readNextMessage(client, readBuffer)
+            return defaultMapper.decodeFromString(JsonRpcRequest.serializer(), decodedText)
+        }
+
+        try {
+            while (true) {
+                val request = runCatching { parseRequest() }.getOrNull() ?: break
+                if (request.id == null) continue
+                val response = handleRequest(user, request)
+
+                val serializer: KSerializer<*> = when (response) {
+                    is JsonRpcResponse.Error -> JsonRpcResponse.Error.serializer()
+                    is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
+                }
+
+                runCatching {
+                    writeBuffer.clear()
+                    val encoded = (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n")
+                        .encodeToByteArray()
+                    writeBuffer.put(encoded)
+                    writeBuffer.flip()
+
+                    while (writeBuffer.hasRemaining()) client.write(writeBuffer)
+                }.getOrNull() ?: break
+            }
+        } finally {
+            client.close()
+        }
     }
 
     private suspend fun handleRequest(user: IpcUser, request: JsonRpcRequest): JsonRpcResponse {
@@ -326,7 +319,5 @@ class IpcServer(
 
     companion object : Loggable {
         override val log = logger()
-
-        const val SCM_CREDENTIALS = 2
     }
 }
