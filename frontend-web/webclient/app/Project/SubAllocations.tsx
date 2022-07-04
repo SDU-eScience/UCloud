@@ -562,7 +562,7 @@ interface EntriesByUnitAndChargeType {
 function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType: ProductType): EntriesByUnitAndChargeType {
     const byUnitAndChargeType = {ABSOLUTE: {}, DIFFERENTIAL_QUOTA: {}};
     for (const entry of suballocations) {
-        const remaining = Math.max(0, entry.remaining)
+        const remaining = entry.remaining;
         const initialBalance = entry.initialBalance;
         if (byUnitAndChargeType[entry.chargeType][entry.unit] == null) byUnitAndChargeType[entry.chargeType][entry.unit] = {
             remaining,
@@ -641,7 +641,7 @@ function ResourceBarByProductType(props: {rows: SubAllocation[]; productType: Pr
     if (storageEntries.length === 0) return null;
     return <Flex>
         {Object.keys(storages).flatMap((s: ChargeType) =>
-            storages[s].map((e, i, {length}) =>
+            storages[s].map(e =>
                 <ResourceProgress
                     key={`${e.initialBalance}-${e.remaining}`}
                     width={e.resourceText.length * 7.2 + "px"}

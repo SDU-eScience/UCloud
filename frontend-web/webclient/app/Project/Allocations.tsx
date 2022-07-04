@@ -260,7 +260,6 @@ function totalUsageFromMultipleWallets(wallets: Wallet[]): UsageFromWallet {
 }
 
 export function resultAsPercent(usage: UsageFromWallet): number {
-    if (usage.balance < 0) return 100;
     return 100 - (usage.balance / usage.initialBalance * 100);
 }
 

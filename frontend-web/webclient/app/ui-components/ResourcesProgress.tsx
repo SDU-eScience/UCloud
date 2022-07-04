@@ -50,7 +50,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
     &.positive {      
         background: var(--${props => getColorFromValue(props.value)});
         left: 0;
-        width: ${props => props.value}%;
+        width: ${props => Math.min(props.value, 100)}%;
         animation: ${animatePositive} 4s;
     }
 
@@ -62,7 +62,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
     &.negative {
         background: var(--appCard);
         right: 0;
-        width: ${props => 100 - props.value}%;
+        width: ${props => 100 - Math.min(props.value, 100)}%;
         animation: ${animateNegative} 4s;
     }
 
