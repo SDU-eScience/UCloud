@@ -40,6 +40,7 @@ import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
+import kotlin.io.path.absolute
 import kotlin.io.path.absolutePathString
 import kotlin.math.min
 import java.nio.file.Files as NioFiles
@@ -127,7 +128,7 @@ class PosixFilesPlugin : FilePlugin {
                 throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
             }
 
-            val idealName = parent.toPath().resolve(buildString {
+            val idealName = parent.toNioPath().resolve(buildString {
                 append(desiredFileName)
                 if (attempt != 0) {
                     append(" (")
@@ -136,7 +137,7 @@ class PosixFilesPlugin : FilePlugin {
                 }
             })
 
-            if (NioFiles.exists(idealName)) return InternalFile(idealName.absolutePathString())
+            if (!NioFiles.exists(idealName)) return InternalFile(idealName.absolutePathString())
         }
         throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
     }
@@ -159,8 +160,8 @@ class PosixFilesPlugin : FilePlugin {
         }
 
         NioFiles.move(
-            pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toPath(),
-            pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toPath(),
+            pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toNioPath(),
+            pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath(),
             *copyOptions.toTypedArray()
         )
     }
@@ -181,8 +182,16 @@ class PosixFilesPlugin : FilePlugin {
     }
 
     private suspend fun PosixTask.Copy.process() {
-        val source = pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toPath()
-        val destination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toPath()
+        val source = pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toNioPath()
+
+        val desiredDestination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath()
+        val destination = createAccordingToPolicy(
+            desiredDestination.parent.toInternalFile(),
+            desiredDestination.toInternalFile().path.fileName(),
+            request.conflictPolicy
+        ).toNioPath()
+
+        println("Ideal destination is $destination")
 
         val copyOptions = buildList<CopyOption> {
             if (request.conflictPolicy == WriteConflictPolicy.REPLACE) add(StandardCopyOption.REPLACE_EXISTING)
@@ -280,30 +289,9 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    private fun Collection<PosixFilePermission>.toInt(): Int {
-        var result = 0
-        for (perm in this) {
-            val bit = when (perm) {
-                PosixFilePermission.OWNER_READ -> "400".toInt(8)
-                PosixFilePermission.OWNER_WRITE -> "200".toInt(8)
-                PosixFilePermission.OWNER_EXECUTE -> "100".toInt(8)
-
-                PosixFilePermission.GROUP_READ -> "40".toInt(8)
-                PosixFilePermission.GROUP_WRITE -> "20".toInt(8)
-                PosixFilePermission.GROUP_EXECUTE -> "10".toInt(8)
-
-                PosixFilePermission.OTHERS_READ -> "4".toInt(8)
-                PosixFilePermission.OTHERS_WRITE -> "2".toInt(8)
-                PosixFilePermission.OTHERS_EXECUTE -> "1".toInt(8)
-            }
-
-            result = result or bit
-        }
-        return result
-    }
 
     private fun nativeStat(file: InternalFile): PartialUFile {
-        val posixAttributes = NioFiles.readAttributes(file.toPath(), PosixFileAttributes::class.java)
+        val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
 
         val internalToUCloud = pathConverter.internalToUCloud(file)
         val numberOfComponents = internalToUCloud.path.count { it == '/' }
@@ -345,7 +333,7 @@ class PosixFilesPlugin : FilePlugin {
         )
 
         if (!fileExists(expectedTrashLocation.path)) {
-            NioFiles.createDirectories(expectedTrashLocation.toPath())
+            NioFiles.createDirectories(expectedTrashLocation.toNioPath())
         }
 
         PosixTask.Move(
@@ -384,9 +372,9 @@ class PosixFilesPlugin : FilePlugin {
     }
 
     private fun delete(file: InternalFile, keepRoot: Boolean = false) {
-        NioFiles.walkFileTree(file.toPath(), object : SimpleFileVisitor<Path>() {
+        NioFiles.walkFileTree(file.toNioPath(), object : SimpleFileVisitor<Path>() {
             override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
-                if (!keepRoot || file.toPath() != dir) {
+                if (!keepRoot || file.toNioPath() != dir) {
                     NioFiles.delete(dir)
                 }
                 return FileVisitResult.CONTINUE
@@ -404,7 +392,7 @@ class PosixFilesPlugin : FilePlugin {
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
             val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-            NioFiles.createDirectories(internalFile.toPath())
+            NioFiles.createDirectories(internalFile.toNioPath())
             LongRunningTask.Complete()
         }
         return result
@@ -457,7 +445,7 @@ class PosixFilesPlugin : FilePlugin {
     }
 
     override suspend fun PluginContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) {
-        val file = InternalFile(pluginData).toPath()
+        val file = InternalFile(pluginData).toNioPath()
         if (!NioFiles.isRegularFile(file)) {
             throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
         }
@@ -538,8 +526,43 @@ class PosixFilesPlugin : FilePlugin {
     }
 }
 
-private fun InternalFile.toPath(): Path {
+fun InternalFile.toNioPath(): Path {
     return File(path).toPath()
+}
+
+fun Path.toInternalFile(): InternalFile {
+    return InternalFile(absolutePathString())
+}
+
+private val bitMapToPosixPermission = mapOf(
+    PosixFilePermission.OWNER_READ to "400".toInt(8),
+    PosixFilePermission.OWNER_WRITE to "200".toInt(8),
+    PosixFilePermission.OWNER_EXECUTE to "100".toInt(8),
+
+    PosixFilePermission.GROUP_READ to "40".toInt(8),
+    PosixFilePermission.GROUP_WRITE to "20".toInt(8),
+    PosixFilePermission.GROUP_EXECUTE to "10".toInt(8),
+
+    PosixFilePermission.OTHERS_READ to "4".toInt(8),
+    PosixFilePermission.OTHERS_WRITE to "2".toInt(8),
+    PosixFilePermission.OTHERS_EXECUTE to "1".toInt(8),
+)
+
+fun Collection<PosixFilePermission>.toInt(): Int {
+    var result = 0
+    for (perm in this) {
+        val bit = bitMapToPosixPermission.getValue(perm)
+        result = result or bit
+    }
+    return result
+}
+
+fun posixFilePermissionsFromInt(mode: Int): Set<PosixFilePermission> {
+    val result = HashSet<PosixFilePermission>()
+    for ((perm, bit) in bitMapToPosixPermission) {
+        if (mode and bit != 0) result.add(perm)
+    }
+    return result
 }
 
 const val S_ISREG = 0x8000U

@@ -20,6 +20,7 @@ import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.provider.api.IntegrationProvider
+import dk.sdu.cloud.utils.CALL_DOES_NOT_REQUIRE_SIGNED_INTENT
 import dk.sdu.cloud.utils.mapProviderApiToUserApi
 import io.ktor.server.application.*
 import io.ktor.server.request.*
@@ -45,7 +46,8 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
 
         override fun canUseContext(ctx: IngoingCall): Boolean = true
         override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
-            val mappedCall = mapProviderApiToUserApi(call.fullName)
+            val mappedCall = mapProviderApiToUserApi(pluginContext.config.core.providerId, call.fullName)
+            if (mappedCall == CALL_DOES_NOT_REQUIRE_SIGNED_INTENT) return
 
             val signedIntent: String = when (val sctx = context) {
                 is HttpCall -> {

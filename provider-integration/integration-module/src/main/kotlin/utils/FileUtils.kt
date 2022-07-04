@@ -132,7 +132,7 @@ fun fileDelete(path: String) {
 }
 
 fun listFiles(internalFile: String): List<String> {
-    return File(internalFile).list()?.toList() ?:
+    return File(internalFile).listFiles()?.map { it.absolutePath } ?:
         throw RPCException("File not found: ${internalFile.fileName()}", HttpStatusCode.NotFound)
 }
 

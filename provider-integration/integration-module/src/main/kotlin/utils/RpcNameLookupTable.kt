@@ -1,9 +1,11 @@
 package dk.sdu.cloud.utils
 
-fun mapProviderApiToUserApi(incomingCall: String): String {
+const val CALL_DOES_NOT_REQUIRE_SIGNED_INTENT = "....NO_SIGNED_INTENT_REQUIRED...."
+
+fun mapProviderApiToUserApi(providerId: String, incomingCall: String): String {
     // TODO(Dan): Not entirely complete but will probably cover most if not all calls
     when(incomingCall) {
-        // Custom entries
+        "file.$providerId.download.download" -> return CALL_DOES_NOT_REQUIRE_SIGNED_INTENT
     }
 
     if (incomingCall.contains(".provider.")) {

@@ -1,11 +1,13 @@
 package dk.sdu.cloud.plugins.storage.posix
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.controllers.TaskIpc
 import dk.sdu.cloud.controllers.TaskSpecification
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
@@ -13,6 +15,8 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.nio.file.attribute.PosixFilePermissions
+import java.nio.file.Files as NioFiles
 
 /**
  * The Posix Task system is responsible for managing a set of file-system related tasks. A task is started when a
@@ -50,47 +54,40 @@ class PosixTaskSystem(
     }
 
     suspend fun markTaskAsComplete(collectionId: String, taskId: String) {
-        TODO()
-        /*
-        val file = InternalFile(findAndInitTaskFolder(collectionId).path + "/" + TASK_PREFIX + taskId + TASK_SUFFIX)
+        val file = InternalFile(findAndInitTaskFolder(collectionId).path + "/" + TASK_PREFIX + taskId + TASK_SUFFIX).toNioPath()
         pluginContext.ipcClient.sendRequest(TaskIpc.markAsComplete, FindByStringId(taskId))
-        unlink(file.path)
-         */
+        NioFiles.delete(file)
     }
 
     suspend fun retrieveCurrentTasks(collectionId: String): List<PosixTask> {
-        TODO()
-        /*
-        return listFiles(findAndInitTaskFolder(collectionId)).asSequence()
+        return listFiles(findAndInitTaskFolder(collectionId).path).asSequence()
             .filter {
-                val name = it.path.fileName()
+                val name = it.fileName()
                 name.startsWith(TASK_PREFIX) && name.endsWith(TASK_SUFFIX)
             }
             .mapNotNull {
                 runCatching {
-                    NativeFile.open(it.path, readOnly = true).readText(autoClose = true)
+                    NativeFile.open(it, readOnly = true).readText(autoClose = true)
                 }.getOrNull()
             }
             .mapNotNull {
                 runCatching {
-                    defaultMapper.decodeFromString<PosixTask>(it)
+                    defaultMapper.decodeFromString(PosixTask.serializer(), it)
                 }.getOrNull()
             }
             .toList()
-         */
     }
 
     private suspend fun findAndInitTaskFolder(collectionId: String): InternalFile {
-        TODO()
-        /*
-        val folder = pathConverter.ucloudToInternal(UCloudFile.create("/$collectionId/${TASK_FOLDER}"))
-        if (!fileExists(folder.path)) {
-            if (mkdir(folder.path, "770".toUInt(8)) != 0) {
-                throw IllegalStateException("Unable to create task folder: ${folder.path}")
-            }
+        val internalFile = pathConverter.ucloudToInternal(UCloudFile.create("/$collectionId/${TASK_FOLDER}"))
+        val folder = internalFile.toNioPath()
+        if (!NioFiles.exists(folder)) {
+            NioFiles.createDirectories(
+                folder,
+                PosixFilePermissions.asFileAttribute(posixFilePermissionsFromInt("770".toInt(8)))
+            )
         }
-        return folder
-         */
+        return internalFile
     }
 
     companion object {

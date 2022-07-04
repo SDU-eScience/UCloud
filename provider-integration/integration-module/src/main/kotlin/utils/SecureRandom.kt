@@ -16,5 +16,5 @@ fun secureRandomInt(): Int {
 fun secureToken(size: Int): String {
     val buf = ByteArray(size)
     secureRandomInstance.nextBytes(buf)
-    return base64Encode(buf)
+    return base64Encode(buf).replace('+', '-').replace('/', '_')
 }
