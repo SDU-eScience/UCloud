@@ -107,9 +107,11 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
         }
 
         fun parsePublicKey(key: String): RSAPublicKey {
+            println("key: $key")
             return try {
                 loadCert(key)!!.publicKey as RSAPublicKey
             } catch (ex: Throwable) {
+                println("Hitting second case!")
                 val decoded = Base64.getDecoder().decode(key)
                 val rsa = KeyFactory.getInstance("RSA")
                 rsa.generatePublic(X509EncodedKeySpec(decoded)) as RSAPublicKey

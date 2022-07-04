@@ -5,12 +5,11 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.utils.executeCommandToText
 import jdk.net.ExtendedSocketOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -18,8 +17,6 @@ import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
-import libc.AF_UNIX
-import libc.SOCK_STREAM
 import libc.clib
 import java.io.File
 import java.net.StandardProtocolFamily
@@ -212,15 +209,29 @@ class IpcServer(
     private suspend fun processIpcClient(client: SocketChannel) {
         val writeBuffer = ByteBuffer.allocate(1024 * 4)
         val readBuffer = ByteBuffer.allocate(1024 * 4)
-        val messageBuilder = MessageBuilderNio(1024 * 16)
+        val messageBuilder = MessageBuilder(1024 * 16)
 
         val user = run {
-            val principal = client.getOption(ExtendedSocketOptions.SO_PEERCRED)
-            val idField = principal.user.javaClass.getDeclaredField("id")
-            require(idField.trySetAccessible())
-            val uid = idField.getInt(principal.user)
-            val gid = idField.getInt(principal.group)
-            IpcUser(uid, gid)
+            try {
+                // NOTE(Dan): really annoyingly, the java API is fully aware of the UID and even saves it. It is just not
+                // accessible, not even through reflection.
+                val principal = client.getOption(ExtendedSocketOptions.SO_PEERCRED)
+
+                val uid = executeCommandToText("/usr/bin/id") {
+                    addArg("-u")
+                    addArg(principal.user.name)
+                }.stdout.trim().toInt()
+
+                val gid = executeCommandToText("/usr/bin/id") {
+                    addArg("-g")
+                    addArg(principal.group.name)
+                }.stdout.trim().toInt()
+
+                IpcUser(uid, gid)
+            } catch (ex: Throwable) {
+                ex.printStackTrace()
+                throw ex
+            }
         }
 
         fun parseRequest(): JsonRpcRequest {

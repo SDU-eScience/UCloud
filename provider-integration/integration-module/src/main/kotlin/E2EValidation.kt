@@ -12,7 +12,9 @@ import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.controllers.MessageSigningIpc
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.debug.everythingD
 import dk.sdu.cloud.ipc.IpcClient
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
@@ -23,11 +25,7 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import java.io.ByteArrayInputStream
-import java.nio.charset.StandardCharsets
 import java.security.KeyFactory
-import java.security.cert.CertificateFactory
-import java.security.cert.X509Certificate
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
@@ -96,7 +94,7 @@ private data class IntentToCall(
 private class CertificateCache(private val ipcClient: IpcClient) {
     private val knownCertificates = AtomicReference<List<JWTVerifier>>(emptyList())
 
-    private fun attemptValidate(signedIntent: String): IntentToCall? {
+    private suspend fun attemptValidate(signedIntent: String): IntentToCall? {
         for (validator in knownCertificates.get()) {
             try {
                 val jwt = runCatching { validator.verify(signedIntent) }.getOrNull() ?: continue
@@ -104,7 +102,7 @@ private class CertificateCache(private val ipcClient: IpcClient) {
                 val intent = IntentToCall(
                     claims["call"]?.takeIf { !it.isNull }?.asString() ?: continue,
                     claims["username"]?.takeIf { !it.isNull }?.asString() ?: continue,
-                    claims["project"]?.takeIf { !it.isNull }?.asString() ?: continue,
+                    claims["project"]?.takeIf { !it.isNull }?.asString(),
                 )
 
                 return intent
@@ -137,58 +135,15 @@ private class CertificateCache(private val ipcClient: IpcClient) {
         return JWT.require(algorithm).build()
     }
 
-    private fun loadCert(certString: String): X509Certificate? {
-        val formattedCert = formatCert(certString, true)
-
-        return try {
-            CertificateFactory.getInstance("X.509").generateCertificate(
-                ByteArrayInputStream(formattedCert.toByteArray(StandardCharsets.UTF_8))
-            ) as X509Certificate
-        } catch (e: IllegalArgumentException) {
-            null
-        }
-    }
-
-    private fun formatCert(cert: String, heads: Boolean): String {
-        var x509cert: String = cert.replace("\\x0D", "").replace("\r", "").replace("\n", "").replace(" ", "")
-
-        if (!x509cert.isEmpty()) {
-            x509cert = x509cert.replace("-----BEGINCERTIFICATE-----", "").replace("-----ENDCERTIFICATE-----", "")
-
-            if (heads) {
-                x509cert = "-----BEGIN CERTIFICATE-----\n" +
-                        chunkString(x509cert, CERT_CHUNK_SIZE) + "-----END CERTIFICATE-----"
-            }
-        }
-        return x509cert
-    }
-
-    private fun chunkString(str: String, chunkSize: Int): String {
-        @Suppress("NAME_SHADOWING")
-        var chunkSize = chunkSize
-        var newStr = ""
-        val stringLength = str.length
-        var i = 0
-        while (i < stringLength) {
-            if (i + chunkSize > stringLength) {
-                chunkSize = stringLength - i
-            }
-            newStr += str.substring(i, chunkSize + i) + '\n'
-            i += chunkSize
-        }
-        return newStr
-    }
-
     private fun parsePublicKey(key: String): RSAPublicKey {
-        return try {
-            loadCert(key)!!.publicKey as RSAPublicKey
-        } catch (ex: Throwable) {
+        val normalizedKey = key
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace("\r", "")
+            .replace("\n", "")
 
-            val decoded = Base64.getDecoder().decode(key)
-            val rsa = KeyFactory.getInstance("RSA")
-            rsa.generatePublic(X509EncodedKeySpec(decoded)) as RSAPublicKey
-        }
+        val decoded = Base64.getDecoder().decode(normalizedKey)
+        val rsa = KeyFactory.getInstance("RSA")
+        return rsa.generatePublic(X509EncodedKeySpec(decoded)) as RSAPublicKey
     }
 }
-
-private const val CERT_CHUNK_SIZE = 64

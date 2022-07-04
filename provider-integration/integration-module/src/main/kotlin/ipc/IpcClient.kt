@@ -5,7 +5,6 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
@@ -18,12 +17,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.serializer
-import libc.AF_UNIX
-import libc.LibC
-import libc.SOCK_STREAM
-import libc.clib
+import java.io.File
+import java.net.StandardProtocolFamily
+import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
-import java.nio.charset.StandardCharsets
+import java.nio.channels.SocketChannel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.random.Random
 import kotlin.random.nextULong
@@ -98,19 +96,19 @@ class IpcClient(
             throw IpcException("We are already processing messages")
         }
 
+        @Suppress("BlockingMethodInNonBlockingContext")
         ProcessingScope.launch {
-            val address = clib.buildUnixSocketAddress("$ipcDirectory/$ipcSocketName")
+            val socket = File("$ipcDirectory/$ipcSocketName")
+            val channel = SocketChannel.open(StandardProtocolFamily.UNIX)
 
-            val clientSocket = clib.socket(AF_UNIX, SOCK_STREAM, 0)
-            if (clientSocket == -1) throw IpcException("Could not connect to IPC socket (socket creation failed)")
-
-            if (clib.connect(clientSocket, address, clib.unixDomainSocketSize()) == -1) {
-                clib.close(clientSocket)
-                throw IpcException("Could not connect to IPC socket at: $ipcDirectory")
+            if (!channel.connect(UnixDomainSocketAddress.of(socket.toPath()))) {
+                while (true) {
+                    if (channel.finishConnect()) break
+                }
             }
 
-            val writeBuffer = ByteBuffer.allocateDirect(1024 * 64)
-            val readBuffer = ByteBuffer.allocateDirect(1024 * 64)
+            val writeBuffer = ByteBuffer.allocate(1024 * 64)
+            val readBuffer = ByteBuffer.allocate(1024 * 64)
 
             // NOTE(Dan): The IPC system uses line delimited (\n) JSON-RPC 2.0
             // NOTE(Dan): We don't currently support batch requests
@@ -120,13 +118,13 @@ class IpcClient(
                 val encoded = (defaultMapper.encodeToString(request) + "\n").encodeToByteArray()
                 writeBuffer.put(encoded)
                 writeBuffer.flip()
-                ipcSendFully(clientSocket, writeBuffer)
+                while (writeBuffer.hasRemaining()) channel.write(writeBuffer)
             }
 
             val messageBuilder = MessageBuilder(1024 * 1024)
 
             fun parseResponse(): JsonRpcResponse {
-                val decodedText = messageBuilder.readNextMessage(clientSocket, readBuffer)
+                val decodedText = messageBuilder.readNextMessage(channel, readBuffer)
                 val decodedJson = defaultMapper.decodeFromString<JsonObject>(decodedText)
 
                 return when {
@@ -153,7 +151,7 @@ class IpcClient(
                     runBlocking { next.callback.send(Result.success(value)) }
                 } catch (ex: Throwable) {
                     log.warn("Caught exception while processing IPC messages (client): ${ex.stackTraceToString()}")
-                    clib.close(clientSocket)
+                    channel.close()
                     runBlocking { next.callback.send(Result.failure(ex)) }
                 }
             }

@@ -1,8 +1,7 @@
 package dk.sdu.cloud.ipc
 
-import dk.sdu.cloud.ipc.IpcException
-import libc.clib
 import java.nio.ByteBuffer
+import java.nio.channels.SocketChannel
 
 class MessageBuilder(capacity: Int) {
     private val messageBuilder = ByteArray(capacity)
@@ -19,19 +18,18 @@ class MessageBuilder(capacity: Int) {
 
     private val delim = '\n'.code.toByte()
 
-    fun readNextMessage(socket: Int, buffer: ByteBuffer): String {
+    fun readNextMessage(socket: SocketChannel, buffer: ByteBuffer): String {
         val decoded = if (nextMessageBoundary == -1) {
             var messageBoundary = -1
             while (messageBoundary == -1) {
                 buffer.clear()
-                val messageSize = clib.receiveMessage(socket, buffer)
-                buffer.position(messageSize)
+                socket.read(buffer)
                 buffer.flip()
 
-                if (messageSize + writePointer >= messageBuilder.size) throw IpcException("Received too large message")
+                if (buffer.remaining() + writePointer >= messageBuilder.size) throw IpcException("Received too large message")
 
-                buffer.get(messageBuilder, writePointer, messageSize)
-                writePointer += messageSize
+                buffer.get(messageBuilder, writePointer, buffer.remaining())
+                writePointer += buffer.remaining()
                 messageBoundary = messageBuilder.indexOf(delim)
             }
 

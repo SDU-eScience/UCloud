@@ -305,7 +305,7 @@ class ConnectionController(
                             "user",
                             allocatedPort.toString()
                         )
-                        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                        .redirectOutput(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
                         .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
                         .start()
 
