@@ -110,7 +110,8 @@ class IpcClient(
 
             fun sendRequest(request: JsonRpcRequest) {
                 writeBuffer.clear()
-                val encoded = (defaultMapper.encodeToString(JsonRpcRequest.serializer(), request) + "\n").encodeToByteArray()
+                val encoded = (defaultMapper.encodeToString(JsonRpcRequest.serializer(), request) + "\n")
+                    .encodeToByteArray()
                 writeBuffer.put(encoded)
                 writeBuffer.flip()
                 while (writeBuffer.hasRemaining()) channel.write(writeBuffer)

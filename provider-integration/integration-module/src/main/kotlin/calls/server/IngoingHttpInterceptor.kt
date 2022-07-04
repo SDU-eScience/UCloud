@@ -27,6 +27,10 @@ class IngoingHttpInterceptor(
 
     private val debug by lazy { debugSystem }
 
+    override fun onStart() {
+        engine.start(wait = false)
+    }
+
     override fun onStop() {
         engine.stop(gracePeriod = 0L, timeout = 30L, timeUnit = TimeUnit.SECONDS)
     }

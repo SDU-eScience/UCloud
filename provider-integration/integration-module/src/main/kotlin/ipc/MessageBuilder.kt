@@ -1,5 +1,7 @@
 package dk.sdu.cloud.ipc
 
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import java.nio.ByteBuffer
 import java.nio.channels.SocketChannel
 
@@ -23,17 +25,18 @@ class MessageBuilder(capacity: Int) {
             var messageBoundary = -1
             while (messageBoundary == -1) {
                 buffer.clear()
-                socket.read(buffer)
+                if (socket.read(buffer) == -1) throw IpcException("Connection lost")
                 buffer.flip()
 
                 if (buffer.remaining() + writePointer >= messageBuilder.size) throw IpcException("Received too large message")
 
-                buffer.get(messageBuilder, writePointer, buffer.remaining())
-                writePointer += buffer.remaining()
+                val messageSize = buffer.remaining()
+                buffer.get(messageBuilder, writePointer, messageSize)
+                writePointer += messageSize
                 messageBoundary = messageBuilder.indexOf(delim)
             }
 
-            val remaining = writePointer - messageBoundary
+            val remaining = writePointer - messageBoundary - 1
             val decodedText = messageBuilder.decodeToString(0, messageBoundary, throwOnInvalidSequence = true)
             if (remaining > 0) {
                 messageBuilder.copyInto(
@@ -42,6 +45,9 @@ class MessageBuilder(capacity: Int) {
                     startIndex = messageBoundary + 1,
                     endIndex = messageBoundary + 1 + remaining
                 )
+                writePointer = remaining
+            } else {
+                writePointer = 0
             }
             decodedText
         } else {

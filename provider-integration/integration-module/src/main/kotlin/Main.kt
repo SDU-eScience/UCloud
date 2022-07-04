@@ -112,6 +112,8 @@ fun main(args: Array<String>) {
 
         val ownExecutable = readSelfExecutablePath()
 
+        println("Read own executable")
+
         run {
             // Install common signal handlers. At the moment, it appears that we can install identical handlers
             // regardless of mode.
@@ -136,7 +138,9 @@ fun main(args: Array<String>) {
             // The configuration process will detect if we have not completed the initial setup process. This includes
             // not having any valid API tokens for UCloud/Core. If that is the case, we will run the installer which
             // guides the operator through this initial setup phase.
+            println("Loading config")
             val configSchema = loadConfiguration()
+            println("Got config")
             val config = run {
                 val runInstaller = with(configSchema) {
                     core == null &&
@@ -153,6 +157,8 @@ fun main(args: Array<String>) {
 
                 verifyConfiguration(serverMode, configSchema)
             }
+
+            println("Config verified")
 
             run {
                 // Verify that we have been launched with a valid user, and that all file permissions appear to be
@@ -177,6 +183,8 @@ fun main(args: Array<String>) {
                 }
             }
 
+            println("Conditions verified")
+
             // 3. Service construction:
             // =======================================================================================================
             // NOTE(Dan): At this point, we are ready to begin constructing services. In this function, we define a
@@ -198,6 +206,7 @@ fun main(args: Array<String>) {
                 loadMigrations(handler)
                 handler.migrate()
             }
+            println("Migrations done")
 
             // Command Line Interface (CLI)
             // -------------------------------------------------------------------------------------------------------
@@ -211,6 +220,8 @@ fun main(args: Array<String>) {
                 else -> IpcClient(ipcSocketDirectory)
             }
 
+            println("1")
+
             // IpcServer comes later, since it requires knowledge of the RpcServer. TODO(Dan): Change this?
 
             // JWT Validation
@@ -223,6 +234,7 @@ fun main(args: Array<String>) {
             } else {
                 null
             }
+            println("2")
 
             // Remote Procedure Calls (RPC)
             // -------------------------------------------------------------------------------------------------------
@@ -237,6 +249,7 @@ fun main(args: Array<String>) {
                 else -> null
             }
 
+            println("3")
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
@@ -264,10 +277,10 @@ fun main(args: Array<String>) {
                     allowHeader("upload-name")
                 }
 
-                rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
                 rpcServer.attachRequestInterceptor(IngoingWebSocketInterceptor(engine, rpcServer))
-                engine.start(wait = false)
+                rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
             }
+            println("4")
 
             val rpcClient: AuthenticatedClient? = run {
                 when (serverMode) {
@@ -329,6 +342,7 @@ fun main(args: Array<String>) {
                     is ServerMode.Plugin -> null
                 }
             }
+            println("5")
 
             // IPC Server
             // -------------------------------------------------------------------------------------------------------
@@ -349,6 +363,7 @@ fun main(args: Array<String>) {
             } else {
                 null
             }
+            println("6")
 
             // Process Watcher
             // -------------------------------------------------------------------------------------------------------
@@ -366,6 +381,7 @@ fun main(args: Array<String>) {
             ipcClient?.connect()
             ipcPingPong.start() // Depends on ipcClient being initialized first
 
+            println("7")
             // Collecting resource plugins
             // -------------------------------------------------------------------------------------------------------
             val allResourcePlugins = ArrayList<ResourcePlugin<*, *, *, *>>()
@@ -415,6 +431,7 @@ fun main(args: Array<String>) {
                     plugin.productAllocationResolved = resolvedProducts
                 }
             }
+            println("8")
 
             // Debug services
             // -------------------------------------------------------------------------------------------------------
@@ -429,6 +446,7 @@ fun main(args: Array<String>) {
                 debugSystem.registerMiddleware(rpcClient.client, rpcServer)
             }
 
+            println("9")
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
             debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
@@ -490,6 +508,7 @@ fun main(args: Array<String>) {
             }
 
             if (rpcServer != null) {
+                println("HELLO WORLD")
                 rpcServer.configureControllers(
                     controllerContext,
                     FileController(controllerContext, envoyConfig),

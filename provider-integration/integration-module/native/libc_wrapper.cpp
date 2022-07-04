@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <pwd.h>
+#include <grp.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -211,6 +213,31 @@ JNIEXPORT jint JNICALL Java_libc_LibC_chmod(JNIEnv *env, jobject thisRef, jstrin
 
 JNIEXPORT jint JNICALL Java_libc_LibC_getuid(JNIEnv *env, jobject thisRef) {
     return getuid();
+}
+
+#define PWNAM_BUFFER_LENGTH 4096
+JNIEXPORT jint JNICALL Java_libc_LibC_retrieveUserIdFromName(JNIEnv *env, jobject thisRef, jstring username) {
+    struct passwd pwd;
+    struct passwd *result = NULL;
+    char buf[PWNAM_BUFFER_LENGTH];
+    memset(&buf, 0, PWNAM_BUFFER_LENGTH);
+    getpwnam_r(env->GetStringUTFChars(username, 0), &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+
+    if (result == NULL) return -1;
+
+    return result->pw_uid;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_retrieveGroupIdFromName(JNIEnv *env, jobject thisRef, jstring username) {
+    struct group pwd;
+    struct group *result = NULL;
+    char buf[PWNAM_BUFFER_LENGTH];
+    memset(&buf, 0, PWNAM_BUFFER_LENGTH);
+    getgrnam_r(env->GetStringUTFChars(username, 0), &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+
+    if (result == NULL) return -1;
+
+    return result->gr_gid;
 }
 
 #ifdef __cplusplus

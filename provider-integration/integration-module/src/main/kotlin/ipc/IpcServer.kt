@@ -216,15 +216,12 @@ class IpcServer(
                 // accessible, not even through reflection.
                 val principal = client.getOption(ExtendedSocketOptions.SO_PEERCRED)
 
-                val uid = executeCommandToText("/usr/bin/id") {
-                    addArg("-u")
-                    addArg(principal.user.name)
-                }.stdout.trim().toInt()
+                val uid = clib.retrieveUserIdFromName(principal.user.name)
+                val gid = clib.retrieveGroupIdFromName(principal.group.name)
 
-                val gid = executeCommandToText("/usr/bin/id") {
-                    addArg("-g")
-                    addArg(principal.group.name)
-                }.stdout.trim().toInt()
+                if (uid == -1 || gid == -1) {
+                    throw IpcException("Invalid user ${principal.user} ${principal.group} $uid $gid")
+                }
 
                 IpcUser(uid, gid)
             } catch (ex: Throwable) {
@@ -240,7 +237,12 @@ class IpcServer(
 
         try {
             while (true) {
-                val request = runCatching { parseRequest() }.getOrNull() ?: break
+                val request = try {
+                    parseRequest()
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    break
+                }
                 if (request.id == null) continue
                 val response = handleRequest(user, request)
 
@@ -249,7 +251,7 @@ class IpcServer(
                     is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
                 }
 
-                runCatching {
+                try {
                     writeBuffer.clear()
                     val encoded = (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n")
                         .encodeToByteArray()
@@ -257,7 +259,10 @@ class IpcServer(
                     writeBuffer.flip()
 
                     while (writeBuffer.hasRemaining()) client.write(writeBuffer)
-                }.getOrNull() ?: break
+                } catch (ex: Throwable) {
+                    ex.printStackTrace()
+                    break
+                }
             }
         } finally {
             client.close()

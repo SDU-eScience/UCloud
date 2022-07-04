@@ -33,6 +33,9 @@ class LibC {
     external fun accept(sockFd: Int): Int
     external fun chmod(path: String, mode: Int): Int
 
+    external fun retrieveUserIdFromName(name: String): Int
+    external fun retrieveGroupIdFromName(name: String): Int
+
     external fun getuid(): Int
 
     companion object {
