@@ -38,9 +38,14 @@ import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {ListV2} from "@/Pagination";
 import {AllocationViewer, resultAsPercent} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
+import {TextSpan} from "@/ui-components/Text";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
-    return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider);
+    return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;
+}
+
+function getParentAllocationFromSuballocation(alloc: SubAllocation): string {
+    return alloc.path.split(".").at(-2) ?? "";
 }
 
 function rawAllocationTitleInRow(category: string, provider: string) {
@@ -398,7 +403,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                         left={null}
                     />
                     {recipient.suballocations.map(row => {
-                        const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
+                        const productAndProvider = row.wallet ? <Flex>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Flex> : null;
                         const remainingProductTypes = productTypes.filter(it => it !== row.productType);
                         const recipientId = newRecipients.findIndex(it => it.id === recipient.id);
                         const suballocationId = newRecipients[recipientId].suballocations.findIndex(it => it.id === row.id);
@@ -406,7 +411,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                             <ListRow
                                 key={row.id}
                                 icon={<Box pl="20px">
-                                    <ClickableDropdown useMousePositioning width="190px" chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
+                                    <ClickableDropdown width="190px" useMousePositioning chevron trigger={<Icon name={productTypeToIcon(row.productType)} />}>
                                         {remainingProductTypes.map(pt => {
                                             const allowProductSelect = hasValidAllocations(allocationsByProductTypes[pt]);
                                             return allowProductSelect ?
@@ -424,7 +429,8 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                                     No allocations for product type available
                                                 </Tooltip>
                                         })}
-                                    </ClickableDropdown></Box>}
+                                    </ClickableDropdown>
+                                </Box>}
                                 left={<Flex>
                                     <Flex cursor="pointer" onClick={() => selectAllocation(allocationsByProductTypes[row.productType], recipientId, suballocationId)}>
                                         {productAndProvider}<Icon name="chevronDownLight" mt="5px" size="1em" ml=".7em" color={"darkGray"} />
@@ -435,7 +441,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                                             fontSize="18px"
                                             py="0"
                                             dateFormat="dd/MM/yy"
-                                            width="265px"
+                                            width="215px"
                                             startDate={new Date(row.startDate)}
                                             isClearable={row.endDate != null}
                                             endDate={row.endDate != null ? new Date(row.endDate) : undefined}
@@ -846,7 +852,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             <Box px="12px">
                 {creationRows.length === 0 ? null : <Spacer my="4px" right={<Button ml="8px" mt="2px" disabled={loading} height="32px" onClick={e => submitNewRows(creationRows)}>Submit new rows</Button>} left={null} />}
                 {creationRows.map((row, index) => {
-                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}</Text> : null;
+                    const productAndProvider = row.wallet ? <Text>{row.wallet.paysFor.name} @ {row.wallet.paysFor.provider}<TextSpan pl="0.3em" title="Allocation ID">[{row.allocationId}]</TextSpan></Text> : null;
                     const remainingProductTypes = productTypes.filter(it => it !== row.productType);
 
                     return (
@@ -882,7 +888,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
                                         fontSize="18px"
                                         py="0"
                                         dateFormat="dd/MM/yy"
-                                        width="265px"
+                                        width="215px"
                                         startDate={new Date(row.startDate)}
                                         isClearable={creationRows[index].endDate != null}
                                         endDate={row.endDate != null ? new Date(row.endDate) : undefined}
@@ -944,6 +950,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
     React.useEffect(() => {
         setDates([entry.startDate, entry.endDate]);
     }, [props.editing]);
+
     if (props.editing) return (
         <ListRow
             key={entry.id}
@@ -956,7 +963,7 @@ function SubAllocationRow(props: {suballocation: SubAllocation; editing: boolean
                             selectsRange
                             fontSize="18px"
                             py="0"
-                            width="265px"
+                            width="215px"
                             paddingLeft={0}
                             dateFormat="dd/MM/yy"
                             isClearable={dates[1] != null}
