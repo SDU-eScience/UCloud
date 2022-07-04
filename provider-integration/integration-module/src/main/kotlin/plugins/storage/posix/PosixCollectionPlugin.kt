@@ -28,6 +28,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override var pluginName: String = "Unknown"
@@ -213,6 +214,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
                     debugSystem.logD(
                         "Charged $updates posix collections",
+                        Unit.serializer(),
                         Unit,
                         if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
                         else MessageImportance.THIS_IS_NORMAL

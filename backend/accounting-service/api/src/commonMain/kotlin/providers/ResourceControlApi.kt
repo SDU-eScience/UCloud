@@ -7,12 +7,8 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.serializer
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 @Serializable
 @UCloudApiOwnedBy(Resources::class)
@@ -80,7 +76,7 @@ abstract class ResourceControlApi<
             handler = {
                 httpRetrieve(
                     ResourceRetrieveRequest.serializer(typeInfo.flagsSerializer),
-                    typeOf<ResourceRetrieveRequest<Flags>>(),
+                    typeOfIfPossible<ResourceRetrieveRequest<Flags>>(),
                     baseContext,
                     roles = Roles.PROVIDER
                 )
@@ -88,9 +84,9 @@ abstract class ResourceControlApi<
             requestType = ResourceRetrieveRequest.serializer(typeInfo.flagsSerializer),
             successType = typeInfo.resSerializer,
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<ResourceRetrieveRequest<Flags>>(),
+            requestClass = typeOfIfPossible<ResourceRetrieveRequest<Flags>>(),
             successClass = typeInfo.resType,
-            errorClass = typeOf<CommonErrorMessage>()
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val browse: CallDescription<ResourceBrowseRequest<Flags>, PageV2<Res>, CommonErrorMessage>
@@ -99,7 +95,7 @@ abstract class ResourceControlApi<
             handler = {
                 httpBrowse(
                     ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
-                    typeOf<ResourceBrowseRequest<Flags>>(),
+                    typeOfIfPossible<ResourceBrowseRequest<Flags>>(),
                     baseContext,
                     roles = Roles.PROVIDER
                 )
@@ -107,9 +103,9 @@ abstract class ResourceControlApi<
             requestType = ResourceBrowseRequest.serializer(typeInfo.flagsSerializer),
             successType = PageV2.serializer(typeInfo.resSerializer),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<ResourceBrowseRequest<Flags>>(),
-            successClass = typeOf<PageV2<Res>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<ResourceBrowseRequest<Flags>>(),
+            successClass = typeOfIfPossible<PageV2<Res>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
 
@@ -127,9 +123,9 @@ abstract class ResourceControlApi<
             requestType = BulkRequest.serializer(ResourceUpdateAndId.serializer(typeInfo.updateSerializer)),
             successType = Unit.serializer(),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<ResourceUpdateAndId<Update>>>(),
-            successClass = typeOf<Unit>(),
-            errorClass = typeOf<CommonErrorMessage>(),
+            requestClass = typeOfIfPossible<BulkRequest<ResourceUpdateAndId<Update>>>(),
+            successClass = typeOfIfPossible<Unit>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>(),
         )
 
     val checkCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
@@ -147,9 +143,9 @@ abstract class ResourceControlApi<
             requestType = BulkRequest.serializer(ResourceChargeCredits.serializer()),
             successType = ResourceChargeCreditsResponse.serializer(),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<ResourceChargeCredits>>(),
-            successClass = typeOf<ResourceChargeCreditsResponse>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<ResourceChargeCredits>>(),
+            successClass = typeOfIfPossible<ResourceChargeCreditsResponse>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val chargeCredits: CallDescription<BulkRequest<ResourceChargeCredits>, ResourceChargeCreditsResponse,
@@ -167,9 +163,9 @@ abstract class ResourceControlApi<
             requestType = BulkRequest.serializer(ResourceChargeCredits.serializer()),
             successType = ResourceChargeCreditsResponse.serializer(),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<ResourceChargeCredits>>(),
-            successClass = typeOf<ResourceChargeCreditsResponse>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<ResourceChargeCredits>>(),
+            successClass = typeOfIfPossible<ResourceChargeCreditsResponse>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val register: CallDescription<BulkRequest<ProviderRegisteredResource<Spec>>, BulkResponse<FindByStringId>,
@@ -185,10 +181,10 @@ abstract class ResourceControlApi<
                 )
             },
             requestType = BulkRequest.serializer(ProviderRegisteredResource.serializer(typeInfo.specSerializer)),
-            successType = serializer(),
-            errorType = serializer(),
-            requestClass = typeOf<BulkRequest<Spec>>(),
-            successClass = typeOf<BulkResponse<FindByStringId>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            successType = BulkResponse.serializer(FindByStringId.serializer()),
+            errorType = CommonErrorMessage.serializer(),
+            requestClass = typeOfIfPossible<BulkRequest<Spec>>(),
+            successClass = typeOfIfPossible<BulkResponse<FindByStringId>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 }

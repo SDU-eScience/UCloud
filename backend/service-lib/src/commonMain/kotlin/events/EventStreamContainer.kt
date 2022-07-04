@@ -1,6 +1,6 @@
 package dk.sdu.cloud.events
 
-import kotlinx.serialization.serializer
+import kotlinx.serialization.KSerializer
 
 abstract class EventStreamContainer {
     @PublishedApi
@@ -11,16 +11,17 @@ abstract class EventStreamContainer {
         return stream
     }
 
-    inline fun <reified V : Any> stream(
+    fun <V : Any> stream(
+        serializer: KSerializer<V>,
         name: String,
-        noinline keySelector: (V) -> String,
+        keySelector: (V) -> String,
         desiredPartitions: Int? = null,
         desiredReplicas: Short? = null
     ): EventStream<V> {
         return stream(
             JsonEventStream(
                 name,
-                serializer(),
+                serializer,
                 keySelector,
                 desiredPartitions,
                 desiredReplicas

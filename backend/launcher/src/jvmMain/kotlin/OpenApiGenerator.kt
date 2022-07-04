@@ -123,18 +123,18 @@ private fun writeSpecification(
                     callId = callId.substringBefore('.')
                 }
 
-                if (call.successClass.javaType != Unit::class) {
-                    traverseType(call.successClass.javaType, typeRegistry)
+                if (call.successClass!!.javaType != Unit::class) {
+                    traverseType(call.successClass!!.javaType, typeRegistry)
                 }
 
                 val body = http.body
                 if (body != null && !body.ref.descriptor.serialName.startsWith("kotlin.Unit")) {
-                    traverseType(call.requestClass.javaType, typeRegistry)
+                    traverseType(call.requestClass!!.javaType, typeRegistry)
                 }
 
                 val params = http.params
                 if (params != null) {
-                    traverseType(call.requestClass.javaType, typeRegistry) as? ComputedType.Struct
+                    traverseType(call.requestClass!!.javaType, typeRegistry) as? ComputedType.Struct
                         ?: error("Query params bound to a non-class ${call.fullName}")
                 }
             }

@@ -182,11 +182,11 @@ private fun generateCall(
     visitedTypes: LinkedHashMap<String, GeneratedType>,
     containerDocs: Documentation,
 ): GeneratedRemoteProcedureCall {
-    val requestType = traverseType(call.requestClass.javaType, visitedTypes)
+    val requestType = traverseType(call.requestClass!!.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
-    val responseType = traverseType(call.successClass.javaType, visitedTypes)
+    val responseType = traverseType(call.successClass!!.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
-    val errorType = traverseType(call.errorClass.javaType, visitedTypes)
+    val errorType = traverseType(call.errorClass!!.javaType, visitedTypes)
         .also { it.attachOwner(container::class, visitedTypes) }
 
     val currentPackage = container::class.java.packageName

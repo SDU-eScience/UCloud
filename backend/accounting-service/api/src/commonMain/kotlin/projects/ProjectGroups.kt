@@ -3,6 +3,8 @@ package dk.sdu.cloud.project.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class CreateGroupRequest(val group: String) {
@@ -117,7 +119,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Only project administrators can create new groups in a project.
      */
-    val create = call<CreateGroupRequest, CreateGroupResponse, CommonErrorMessage>("create") {
+    val create = call("create", CreateGroupRequest.serializer(), CreateGroupResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -138,8 +140,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Any project member can read the groups.
      */
-    val listGroupsWithSummary =
-        call<ListGroupsWithSummaryRequest, ListGroupsWithSummaryResponse, CommonErrorMessage>("listGroupsWithSummary") {
+    val listGroupsWithSummary = call("listGroupsWithSummary", ListGroupsWithSummaryRequest.serializer(), Page.serializer(GroupWithSummary.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -162,9 +163,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Any member of the project can read the members of the group.
      */
-    val listAllGroupMembers = call<ListAllGroupMembersRequest, ListAllGroupMembersResponse, CommonErrorMessage>(
-        "listAllGroupMembers"
-    ) {
+    val listAllGroupMembers = call("listAllGroupMembers", ListAllGroupMembersRequest.serializer(), ListSerializer(String.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -187,7 +186,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Only project administrators can delete a group.
      */
-    val delete = call<DeleteGroupsRequest, DeleteGroupsResponse, CommonErrorMessage>("delete") {
+    val delete = call("delete", DeleteGroupsRequest.serializer(), DeleteGroupsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -208,7 +207,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Only project administrators can add members to a group.
      */
-    val addGroupMember = call<AddGroupMemberRequest, AddGroupMemberResponse, CommonErrorMessage>("addGroupMember") {
+    val addGroupMember = call("addGroupMember", AddGroupMemberRequest.serializer(), AddGroupMemberResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -230,8 +229,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Only project administrators can remove members from a group.
      */
-    val removeGroupMember =
-        call<RemoveGroupMemberRequest, RemoveGroupMemberResponse, CommonErrorMessage>("removeGroupMember") {
+    val removeGroupMember = call("removeGroupMember", RemoveGroupMemberRequest.serializer(), RemoveGroupMemberResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
             }
@@ -248,7 +246,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val updateGroupName = call<UpdateGroupNameRequest, UpdateGroupNameResponse, CommonErrorMessage>("updateGroupName") {
+    val updateGroupName = call("updateGroupName", UpdateGroupNameRequest.serializer(), UpdateGroupNameResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -270,8 +268,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * All members of a project can read members of any group.
      */
-    val listGroupMembers =
-        call<ListGroupMembersRequest, ListGroupMembersResponse, CommonErrorMessage>("listGroupMembers") {
+    val listGroupMembers = call("listGroupMembers", ListGroupMembersRequest.serializer(), Page.serializer(String.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -296,7 +293,7 @@ ${ApiConventions.nonConformingApiWarning}
      * Only [Roles.PRIVILEGED] can use this endpoint. It is intended for services which need to check if a members
      * belongs to a specific group.
      */
-    val isMember = call<IsMemberRequest, IsMemberResponse, CommonErrorMessage>("isMember") {
+    val isMember = call("isMember", IsMemberRequest.serializer(), IsMemberResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -320,7 +317,7 @@ ${ApiConventions.nonConformingApiWarning}
      * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to verify that their input
      * is valid.
      */
-    val groupExists = call<GroupExistsRequest, GroupExistsResponse, CommonErrorMessage>("groupExists") {
+    val groupExists = call("groupExists", GroupExistsRequest.serializer(), GroupExistsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -343,7 +340,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * All project members can use this endpoint.
      */
-    val count = call<GroupCountRequest, GroupCountResponse, CommonErrorMessage>("count") {
+    val count = call("count", GroupCountRequest.serializer(), GroupCountResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -363,7 +360,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * All project members can use this endpoint.
      */
-    val view = call<ViewGroupRequest, ViewGroupResponse, CommonErrorMessage>("view") {
+    val view = call("view", ViewGroupRequest.serializer(), ViewGroupResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -388,7 +385,7 @@ ${ApiConventions.nonConformingApiWarning}
      * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to verify that their input
      * is valid.
      */
-    val lookupByTitle = call<LookupByGroupTitleRequest, LookupByGroupTitleResponse, CommonErrorMessage>("lookupByTitle") {
+    val lookupByTitle = call("lookupByTitle", LookupByGroupTitleRequest.serializer(), LookupByGroupTitleResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -415,7 +412,7 @@ ${ApiConventions.nonConformingApiWarning}
      * Only [Roles.PRIVILEGED] can call this endpoint. It is intended for services which need to look up a
      * project and group, which is not necessarily the active project.
      */
-    val lookupProjectAndGroup = call<LookupProjectAndGroupRequest, LookupProjectAndGroupResponse, CommonErrorMessage>("lookupProjectAndGroup") {
+    val lookupProjectAndGroup = call("lookupProjectAndGroup", LookupProjectAndGroupRequest.serializer(), LookupProjectAndGroupResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -436,7 +433,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val listAllGroupIdsAndTitles = call<ListAllGroupIdsAndTitlesRequest, ListAllGroupIdsAndTitlesResponse, CommonErrorMessage>("listAllGroupIdsAndTitles") {
+    val listAllGroupIdsAndTitles = call("listAllGroupIdsAndTitles", ListAllGroupIdsAndTitlesRequest.serializer(), ListAllGroupIdsAndTitlesResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED

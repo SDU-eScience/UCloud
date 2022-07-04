@@ -24,6 +24,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var ownHost: Host
@@ -76,7 +77,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
-            val callback = call<OpenIdConnectCallback, Unit, CommonErrorMessage>("callback") {
+            val callback = call("callback", OpenIdConnectCallback.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -96,7 +97,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
         // Invoked by the integration module (see explanation below)
         val openIdProviderApi = object : CallDescriptionContainer("openidprovider") {
-            val token = call<Unit, OpenIdConnectToken, CommonErrorMessage>("callback") {
+            val token = call("callback", Unit.serializer(), OpenIdConnectToken.serializer(), CommonErrorMessage.serializer()) {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC

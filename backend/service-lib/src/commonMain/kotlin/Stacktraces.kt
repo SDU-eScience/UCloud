@@ -53,5 +53,5 @@ suspend fun DebugSystem?.logThrowable(
     importance: MessageImportance = MessageImportance.THIS_IS_ODD,
     ctx: DebugContext? = null
 ) {
-    logD(message, throwable.toReadableStacktrace(), importance, ctx)
+    logD(message, ReadableStackTrace.serializer(), throwable.toReadableStacktrace(), importance, ctx)
 }

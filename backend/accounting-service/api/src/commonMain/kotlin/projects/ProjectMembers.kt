@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class UserStatusRequest(
@@ -75,7 +76,7 @@ ${ApiConventions.nonConformingApiWarning}
      * The returned information will contain a complete status of all groups and project memberships. This endpoint
      * is mostly intended for services to perform permission checks.
      */
-    val userStatus = call<UserStatusRequest, UserStatusResponse, CommonErrorMessage>("userStatus") {
+    val userStatus = call("userStatus", UserStatusRequest.serializer(), UserStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -96,7 +97,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * The [SearchRequest.query] will be used to search in the usernames of project members.
      */
-    val search = call<SearchRequest, SearchResponse, CommonErrorMessage>("search") {
+    val search = call("search", SearchRequest.serializer(), Page.serializer(ProjectMember.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -123,7 +124,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Only project administrators can use this endpoint.
      */
-    val count = call<CountRequest, CountResponse, CommonErrorMessage>("count") {
+    val count = call("count", CountRequest.serializer(), CountResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -144,7 +145,7 @@ ${ApiConventions.nonConformingApiWarning}
      * This endpoint can only be used by [Roles.PRIVILEGED]. It is intended for services to consume when they need to
      * communicate with administrators of a project.
      */
-    val lookupAdmins = call<LookupAdminsRequest, LookupAdminsResponse, CommonErrorMessage>("lookupAdmins") {
+    val lookupAdmins = call("lookupAdmins", LookupAdminsRequest.serializer(), LookupAdminsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -164,7 +165,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val lookupAdminsBulk = call<LookupAdminsBulkRequest, LookupAdminsBulkResponse, CommonErrorMessage>("lookupAdminsBulk") {
+    val lookupAdminsBulk = call("lookupAdminsBulk", LookupAdminsBulkRequest.serializer(), LookupAdminsBulkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED

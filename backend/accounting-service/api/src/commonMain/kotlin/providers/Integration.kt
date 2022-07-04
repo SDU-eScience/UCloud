@@ -3,6 +3,7 @@ package dk.sdu.cloud.provider.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class IntegrationConnectRequest(val provider: String)
@@ -39,16 +40,15 @@ typealias IntegrationClearConnectionResponse = Unit
 object Integration : CallDescriptionContainer("providers.im") {
     const val baseContext = "/api/providers/integration"
 
-    val connect = call<IntegrationConnectRequest, IntegrationConnectResponse, CommonErrorMessage>("connect") {
+    val connect = call("connect", IntegrationConnectRequest.serializer(), IntegrationConnectResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "connect")
     }
 
-    val browse = call<IntegrationBrowseRequest, IntegrationBrowseResponse, CommonErrorMessage>("browse") {
+    val browse = call("browse", IntegrationBrowseRequest.serializer(), PageV2.serializer(IntegrationBrowseResponseItem.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
     }
 
-    val clearConnection = call<IntegrationClearConnectionRequest, IntegrationClearConnectionResponse,
-        CommonErrorMessage>("clearConnection") {
+    val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "clearConnection", roles = Roles.PRIVILEGED)
     }
 }

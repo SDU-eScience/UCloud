@@ -23,6 +23,7 @@ import dk.sdu.cloud.provider.api.IntegrationProvider
 import dk.sdu.cloud.utils.mapProviderApiToUserApi
 import io.ktor.server.application.*
 import io.ktor.server.request.*
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.security.KeyFactory
@@ -57,17 +58,18 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
 
                 else -> error("Unexpected server context of type $sctx")
             } ?: run {
-                debugSystem.detailD("Invalid signature: No signed intent found", Unit)
+                debugSystem.detailD("Invalid signature: No signed intent found", Unit.serializer(), Unit)
                 throw RPCException.fromStatusCode(invalidSignature)
             }
 
             val validIntent = certCache.validate(signedIntent) ?: run {
-                debugSystem.detailD("Invalid signature: Metadata did not validate", Unit)
+                debugSystem.detailD("Invalid signature: Metadata did not validate", Unit.serializer(), Unit)
                 throw RPCException.fromStatusCode(invalidSignature)
             }
             if (validIntent.call != mappedCall) {
                 debugSystem.detailD(
                     "Invalid signature: Call does not match intention",
+                    JsonObject.serializer(),
                     JsonObject(
                         mapOf(
                             "intendedCall" to JsonPrimitive(validIntent.call),

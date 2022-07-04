@@ -236,9 +236,9 @@ private fun generateOp(
         // Hack: Delete anything after '.' to allow versioning in call ids
         appendLine("abstract fun ${call.name.substringBefore('.')}(")
 
-        val req = replaceGenerics(call.requestClass, genericTable)
-        val resp = replaceGenerics(call.successClass, genericTable)
-        val err = replaceGenerics(call.errorClass, genericTable)
+        val req = replaceGenerics(call.requestClass!!, genericTable)
+        val resp = replaceGenerics(call.successClass!!, genericTable)
+        val err = replaceGenerics(call.errorClass!!, genericTable)
 
         append("    ")
         appendLine("request: $req,")

@@ -9,9 +9,8 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
 
 // NOTE(Dan, Brian): This plugin is responsible for taking the raw updates, coming in from UCloud/Core, and
 // translating them into a diff. This diff is then passed on to operator defined extensions which are responsible
@@ -49,7 +48,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                         bindString("ucloud_id", newProject.id)
                     },
                     readRow = { row ->
-                        oldProject = defaultMapper.decodeFromString(row.getString(0)!!)
+                        oldProject = defaultMapper.decodeFromString(Project.serializer(), row.getString(0)!!)
                     }
                 )
 
@@ -62,7 +61,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 ).useAndInvokeAndDiscard(
                     prepare = {
                         bindString("ucloud_id", newProject.id)
-                        bindString("project_as_json", defaultMapper.encodeToString(newProject))
+                        bindString("project_as_json", defaultMapper.encodeToString(Project.serializer(), newProject))
                     }
                 )
             }
@@ -225,7 +224,10 @@ class SimpleProjectPlugin : ProjectPlugin {
                     bindString("user_id", userId)
                 },
                 readRow = { row ->
-                    val project: Project? = defaultMapper.decodeFromString(row.getString(0)!!)
+                    val project: Project? = defaultMapper.decodeFromString(
+                        Project.serializer().nullable,
+                        row.getString(0)!!
+                    )
                     if (project != null) {
                         if (project.status.members!!.map { it.username }.contains(userId)) {
                             projects.add(project)

@@ -3,6 +3,8 @@ package dk.sdu.cloud.project.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class CreateProjectRequest(
@@ -347,7 +349,7 @@ implement(Descriptions.call) {
      *
      * End-users can create new projects by applying to an existing project through the grant-service.
      */
-    val create = call<CreateProjectRequest, CreateProjectResponse, CommonErrorMessage>("create") {
+    val create = call("create", CreateProjectRequest.serializer(), CreateProjectResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -370,8 +372,7 @@ implement(Descriptions.call) {
      * This endpoint is only available for [Roles.PRIVILEGED]. It is commonly used as part of a permission check related
      * to project resources.
      */
-    val viewMemberInProject =
-        call<ViewMemberInProjectRequest, ViewMemberInProjectResponse, CommonErrorMessage>("viewMemberInProject") {
+    val viewMemberInProject = call("viewMemberInProject", ViewMemberInProjectRequest.serializer(), ViewMemberInProjectResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED + Role.PROVIDER
                 access = AccessRight.READ
@@ -397,7 +398,7 @@ implement(Descriptions.call) {
      *
      * Only a project administrator of [InviteRequest.projectId] can [invite] members.
      */
-    val invite = call<InviteRequest, InviteResponse, CommonErrorMessage>("invite") {
+    val invite = call("invite", InviteRequest.serializer(), InviteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -421,7 +422,7 @@ implement(Descriptions.call) {
      * Only the recipient of the invite can call this endpoint. This call will fail if an invite has already been sent
      * to the user.
      */
-    val acceptInvite = call<AcceptInviteRequest, AcceptInviteResponse, CommonErrorMessage>("acceptInvite") {
+    val acceptInvite = call("acceptInvite", AcceptInviteRequest.serializer(), AcceptInviteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -446,7 +447,7 @@ implement(Descriptions.call) {
      * The recipient of the invite _and_ a project administrator of the project can call this endpoint.
      * Calling this will invalidate the invite and a new invite must be sent to the user if they wish to join.
      */
-    val rejectInvite = call<RejectInviteRequest, RejectInviteResponse, CommonErrorMessage>("rejectInvite") {
+    val rejectInvite = call("rejectInvite", RejectInviteRequest.serializer(), RejectInviteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -468,9 +469,7 @@ implement(Descriptions.call) {
     /**
      * Fetches a list of invites received by the requesting user.
      */
-    val listIngoingInvites = call<ListIngoingInvitesRequest, ListIngoingInvitesResponse, CommonErrorMessage>(
-        "listIngoingInvites"
-    ) {
+    val listIngoingInvites = call("listIngoingInvites", ListIngoingInvitesRequest.serializer(), Page.serializer(IngoingInvite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -495,9 +494,7 @@ implement(Descriptions.call) {
     /**
      * Fetches a list of invites sent by the requesting project.
      */
-    val listOutgoingInvites = call<ListOutgoingInvitesRequest, ListOutgoingInvitesResponse, CommonErrorMessage>(
-        "listOutgoingInvites"
-    ) {
+    val listOutgoingInvites = call("listOutgoingInvites", ListOutgoingInvitesRequest.serializer(), Page.serializer(OutgoingInvite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -524,7 +521,7 @@ implement(Descriptions.call) {
      *
      * Only the [ProjectRole.PI] of the [IngoingCall.project] can call this.
      */
-    val transferPiRole = call<TransferPiRoleRequest, TransferPiRoleResponse, CommonErrorMessage>("transferPiRole") {
+    val transferPiRole = call("transferPiRole", TransferPiRoleRequest.serializer(), TransferPiRoleResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -548,7 +545,7 @@ implement(Descriptions.call) {
      * Note: The PI cannot leave a project. They must first transfer the role to another user, see [transferPiRole].
      * If there are no other members then the PI can [archive] the project.
      */
-    val leaveProject = call<LeaveProjectRequest, LeaveProjectResponse, CommonErrorMessage>("leaveProject") {
+    val leaveProject = call("leaveProject", LeaveProjectRequest.serializer(), LeaveProjectResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -569,7 +566,7 @@ implement(Descriptions.call) {
      *
      * Only project administrators of [DeleteMemberRequest.projectId] can remove members from the project.
      */
-    val deleteMember = call<DeleteMemberRequest, DeleteMemberResponse, CommonErrorMessage>("deleteMember") {
+    val deleteMember = call("deleteMember", DeleteMemberRequest.serializer(), DeleteMemberResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -593,7 +590,7 @@ implement(Descriptions.call) {
      * Only the project administrators can change the role of a member. The new role cannot be [ProjectRole.PI]. In
      * order to promote a user to PI use the [transferPiRole] endpoint.
      */
-    val changeUserRole = call<ChangeUserRoleRequest, ChangeUserRoleResponse, CommonErrorMessage>("changeUserRole") {
+    val changeUserRole = call("changeUserRole", ChangeUserRoleRequest.serializer(), ChangeUserRoleResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -614,7 +611,7 @@ implement(Descriptions.call) {
     /**
      * Fetches a list of favorite projects for the calling user.
      */
-    val listFavoriteProjects = call<ListFavoriteProjectsRequest, ListFavoriteProjectsResponse, CommonErrorMessage>("listFavoriteProjects") {
+    val listFavoriteProjects = call("listFavoriteProjects", ListFavoriteProjectsRequest.serializer(), Page.serializer(UserProjectSummary.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -641,7 +638,7 @@ implement(Descriptions.call) {
     /**
      * Fetches a list of projects the calling user is a member of.
      */
-    val listProjects = call<ListProjectsRequest, ListProjectsResponse, CommonErrorMessage>("listProjects") {
+    val listProjects = call("listProjects", ListProjectsRequest.serializer(), Page.serializer(UserProjectSummary.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -671,7 +668,7 @@ implement(Descriptions.call) {
      *
      * Only members of the project have permissions to view a project.
      */
-    val viewProject = call<ViewProjectRequest, ViewProjectResponse, CommonErrorMessage>("viewProject") {
+    val viewProject = call("viewProject", ViewProjectRequest.serializer(), ViewProjectResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -697,8 +694,7 @@ implement(Descriptions.call) {
      * We occasionally ask project administrators to verify that the members of a project is still correct. Only project
      * administrators of a project can verify membership.
      */
-    val verifyMembership =
-        call<Unit, Unit, CommonErrorMessage>("verifyMembership") {
+    val verifyMembership = call("verifyMembership", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
                 roles = Roles.AUTHENTICATED
@@ -722,7 +718,7 @@ implement(Descriptions.call) {
      *
      * Archiving can be reversed by calling this endpoint with [ArchiveRequest.archiveStatus] `= false`.
      */
-    val archive = call<ArchiveRequest, ArchiveResponse, CommonErrorMessage>("archive") {
+    val archive = call("archive", ArchiveRequest.serializer(), ArchiveResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -740,7 +736,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val archiveBulk = call<ArchiveBulkRequest, ArchiveBulkResponse, CommonErrorMessage>("archiveBulk") {
+    val archiveBulk = call("archiveBulk", ArchiveBulkRequest.serializer(), ArchiveBulkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -764,7 +760,7 @@ implement(Descriptions.call) {
      * Only [Roles.PRIVILEGED] users can call this endpoint. It is intended that services call this to verify input
      * parameters that relate to existing projects.
      */
-    val exists = call<ExistsRequest, ExistsResponse, CommonErrorMessage>("exists") {
+    val exists = call("exists", ExistsRequest.serializer(), ExistsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -786,7 +782,7 @@ implement(Descriptions.call) {
      * Lists sub-projects of an existing project in the PageV2 format
      */
 
-    val listSubProjects = call<ListSubProjectsRequest, ListSubProjectsResponse, CommonErrorMessage>("listSubProjects") {
+    val listSubProjects = call("listSubProjects", ListSubProjectsRequest.serializer(), PageV2.serializer(MemberInProject.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -813,7 +809,7 @@ implement(Descriptions.call) {
      * Returns the number of sub-projects of an existing project
      */
     @Deprecated("Should be replaced with listSubProjects.itemsInTotal")
-    val countSubProjects = call<CountSubProjectsRequest, CountSubProjectsResponse, CommonErrorMessage>("countSubProjects") {
+    val countSubProjects = call("countSubProjects", CountSubProjectsRequest.serializer(), CountSubProjectsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -832,7 +828,7 @@ implement(Descriptions.call) {
     /**
      * Returns a complete list of ancestors of an existing project
      */
-    val viewAncestors = call<ViewAncestorsRequest, ViewAncestorsResponse, CommonErrorMessage>("viewAncestors") {
+    val viewAncestors = call("viewAncestors", ViewAncestorsRequest.serializer(), ListSerializer(Project.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -848,7 +844,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val lookupByPath = call<LookupByTitleRequest, Project, CommonErrorMessage>("lookupByPath") {
+    val lookupByPath = call("lookupByPath", LookupByTitleRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -868,7 +864,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val lookupById = call<LookupByIdRequest, Project, CommonErrorMessage>("lookupById") {
+    val lookupById = call("lookupById", LookupByIdRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -888,7 +884,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val lookupByIdBulk = call<LookupByIdBulkRequest, List<Project>, CommonErrorMessage>("lookupByIdBulk") {
+    val lookupByIdBulk = call("lookupByIdBulk", LookupByIdBulkRequest.serializer(), ListSerializer(Project.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PRIVILEGED
@@ -911,8 +907,7 @@ implement(Descriptions.call) {
     /**
      * Lookup the principal investigator ([ProjectRole.PI]) of a project
      */
-    val lookupPrincipalInvestigator =
-        call<LookupPrincipalInvestigatorRequest, LookupPrincipalInvestigatorResponse, CommonErrorMessage>("lookupPrincipalInvestigator") {
+    val lookupPrincipalInvestigator = call("lookupPrincipalInvestigator", LookupPrincipalInvestigatorRequest.serializer(), LookupPrincipalInvestigatorResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
                 roles = Roles.PRIVILEGED
@@ -931,7 +926,7 @@ implement(Descriptions.call) {
     /**
      * Rename a project
      */
-    val rename = call<RenameProjectRequest, RenameProjectResponse, CommonErrorMessage>("rename") {
+    val rename = call("rename", RenameProjectRequest.serializer(), RenameProjectResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -949,7 +944,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val toggleRenaming = call<ToggleRenamingRequest, ToggleRenamingResponse, CommonErrorMessage>("toggleRenaming") {
+    val toggleRenaming = call("toggleRenaming", ToggleRenamingRequest.serializer(), ToggleRenamingResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.AUTHENTICATED
@@ -967,7 +962,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val allowedRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsRenaming") {
+    val allowedRenaming = call("allowsRenaming", AllowsRenamingRequest.serializer(), AllowsRenamingResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -987,7 +982,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val allowsSubProjectRenaming = call<AllowsRenamingRequest, AllowsRenamingResponse, CommonErrorMessage>("allowsSubProjectRenaming") {
+    val allowsSubProjectRenaming = call("allowsSubProjectRenaming", AllowsRenamingRequest.serializer(), AllowsRenamingResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -1007,8 +1002,7 @@ implement(Descriptions.call) {
         }
     }
 
-    val updateDataManagementPlan =
-        call<UpdateDataManagementPlanRequest, UpdateDataManagementPlanResponse, CommonErrorMessage>("updateDataManagementPlan") {
+    val updateDataManagementPlan = call("updateDataManagementPlan", UpdateDataManagementPlanRequest.serializer(), UpdateDataManagementPlanResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
             }
@@ -1025,8 +1019,7 @@ implement(Descriptions.call) {
             }
         }
 
-    val fetchDataManagementPlan =
-        call<FetchDataManagementPlanRequest, FetchDataManagementPlanResponse, CommonErrorMessage>("fetchDataManagementPlan") {
+    val fetchDataManagementPlan = call("fetchDataManagementPlan", FetchDataManagementPlanRequest.serializer(), FetchDataManagementPlanResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -1041,7 +1034,7 @@ implement(Descriptions.call) {
             }
         }
 
-    val search = call<ProjectSearchByPathRequest, ProjectSearchByPathResponse, CommonErrorMessage>("search") {
+    val search = call("search", ProjectSearchByPathRequest.serializer(), PageV2.serializer(Project.serializer()), CommonErrorMessage.serializer()) {
         httpSearch(
             baseContext = baseContext,
             roles = Roles.PRIVILEGED

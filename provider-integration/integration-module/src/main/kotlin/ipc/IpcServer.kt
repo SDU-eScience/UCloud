@@ -15,8 +15,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 import libc.clib
 import java.io.File
 import java.net.StandardProtocolFamily
@@ -38,10 +36,11 @@ inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
 ): IpcHandler {
     return IpcHandler(method) { user, request ->
         val mappedRequest = runCatching {
-            defaultMapper.decodeFromJsonElement<Req>(request.params)
+            defaultMapper.decodeFromJsonElement(requestSerializer, request.params)
         }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
         defaultMapper.encodeToJsonElement(
+            responseSerializer,
             handler(user, mappedRequest)
         ) as JsonObject
     }
@@ -130,7 +129,7 @@ data class IpcToIntegrationModuleRequest(
 )
 
 private object IpcToIntegrationModuleApi : CallDescriptionContainer("ipcproxy") {
-    val proxy = call<IpcToIntegrationModuleRequest, JsonObject, CommonErrorMessage>("proxy") {
+    val proxy = call("proxy", IpcToIntegrationModuleRequest.serializer(), JsonObject.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate("/ipc-proxy", "proxy", Roles.PUBLIC)
     }
 }

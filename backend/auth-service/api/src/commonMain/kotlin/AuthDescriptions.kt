@@ -3,6 +3,7 @@ package dk.sdu.cloud.auth.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class LoginRequest(
@@ -354,7 +355,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         """.trimIndent()
     }
 
-    val refresh = call<Unit, AccessToken, CommonErrorMessage>("refresh") {
+    val refresh = call("refresh", Unit.serializer(), AccessToken.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -370,7 +371,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val webRefresh = call<Unit, AccessTokenAndCsrf, CommonErrorMessage>("webRefresh") {
+    val webRefresh = call("webRefresh", Unit.serializer(), AccessTokenAndCsrf.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -387,8 +388,8 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val bulkInvalidate = call<BulkInvalidateRequest, BulkInvalidateResponse, CommonErrorMessage>("bulkInvalidate") {
-        audit<Unit>()
+    val bulkInvalidate = call("bulkInvalidate", BulkInvalidateRequest.serializer(), BulkInvalidateResponse.serializer(), CommonErrorMessage.serializer()) {
+        audit(Unit.serializer())
 
         auth {
             roles = Roles.PRIVILEGED
@@ -407,7 +408,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val logout = call<Unit, Unit, Unit>("logout") {
+    val logout = call("logout", Unit.serializer(), Unit.serializer(), Unit.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -423,7 +424,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val webLogout = call<Unit, Unit, CommonErrorMessage>("webLogout") {
+    val webLogout = call("webLogout", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -439,7 +440,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val claim = call<ClaimOneTimeToken, Unit, Unit>("claim") {
+    val claim = call("claim", ClaimOneTimeToken.serializer(), Unit.serializer(), Unit.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -458,8 +459,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val requestOneTimeTokenWithAudience =
-        call<RequestOneTimeToken, OneTimeAccessToken, Unit>("requestOneTimeTokenWithAudience") {
+    val requestOneTimeTokenWithAudience = call("requestOneTimeTokenWithAudience", RequestOneTimeToken.serializer(), OneTimeAccessToken.serializer(), Unit.serializer()) {
             auth {
                 roles = Roles.PUBLIC
                 access = AccessRight.READ_WRITE
@@ -478,8 +478,8 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             }
         }
 
-    val tokenExtension = call<TokenExtensionRequest, TokenExtensionResponse, CommonErrorMessage>("tokenExtension") {
-        audit<TokenExtensionAudit>()
+    val tokenExtension = call("tokenExtension", TokenExtensionRequest.serializer(), TokenExtensionResponse.serializer(), CommonErrorMessage.serializer()) {
+        audit(TokenExtensionAudit.serializer())
         auth {
             roles = setOf(Role.USER, Role.SERVICE, Role.ADMIN)
             access = AccessRight.READ_WRITE
@@ -496,8 +496,8 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val passwordLogin = call<Unit, Unit, CommonErrorMessage>("passwordLogin") {
-        audit<LoginRequest>()
+    val passwordLogin = call("passwordLogin", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        audit(LoginRequest.serializer())
 
         auth {
             roles = Roles.PUBLIC
@@ -515,8 +515,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
         }
     }
 
-    val listUserSessions =
-        call<ListUserSessionsRequest, ListUserSessionsResponse, CommonErrorMessage>("listUserSessions") {
+    val listUserSessions = call("listUserSessions", ListUserSessionsRequest.serializer(), Page.serializer(Session.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -536,7 +535,7 @@ object AuthDescriptions : CallDescriptionContainer("auth") {
             }
         }
 
-    val invalidateSessions = call<Unit, Unit, CommonErrorMessage>("invalidateSessions") {
+    val invalidateSessions = call("invalidateSessions", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

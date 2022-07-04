@@ -6,10 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.jacksonTypeRef
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.service.TokenValidation
 import java.io.File
 import kotlin.reflect.KClass
-import kotlin.reflect.KType
 
 sealed class ServerConfigurationException(why: String, status: HttpStatusCode) : RPCException(why, status) {
     class MissingNode(path: String) :

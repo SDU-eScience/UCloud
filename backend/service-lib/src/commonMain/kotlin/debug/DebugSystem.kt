@@ -7,12 +7,14 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.serializer
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
@@ -284,6 +286,7 @@ suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = nul
 
 suspend inline fun <reified R> DebugSystem?.logD(
     message: String,
+    serializer: KSerializer<R>,
     structured: R,
     level: MessageImportance,
     context: DebugContext? = null
@@ -295,14 +298,14 @@ suspend inline fun <reified R> DebugSystem?.logD(
         kotlin.collections.Set::class,
         kotlin.collections.Collection::class -> {
             defaultMapper.encodeToJsonElement(
-                serializer<Map<String, R>>(),
+                MapSerializer(String.serializer(), serializer),
                 mapOf("wrapper" to structured)
             ) as JsonObject
         }
 
         else -> {
             defaultMapper.encodeToJsonElement(
-                serializer<R>(),
+                serializer,
                 structured
             ) as JsonObject
         }
@@ -318,28 +321,28 @@ suspend inline fun <reified R> DebugSystem?.logD(
     )
 }
 
-suspend inline fun <reified R> DebugSystem?.everythingD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.TELL_ME_EVERYTHING, context)
+suspend inline fun <reified R> DebugSystem?.everythingD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.TELL_ME_EVERYTHING, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.detailD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
+suspend inline fun <reified R> DebugSystem?.detailD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.normalD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_NORMAL, context)
+suspend inline fun <reified R> DebugSystem?.normalD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_NORMAL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.oddD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_ODD, context)
+suspend inline fun <reified R> DebugSystem?.oddD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_ODD, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_DANGEROUS, context)
+suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_DANGEROUS, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.wrongD(message: String, structured: R) {
-    logD(message, structured, MessageImportance.THIS_IS_WRONG)
+suspend inline fun <reified R> DebugSystem?.wrongD(message: String, serializer: KSerializer<R>, structured: R) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_WRONG)
 }
 
 class DebugSystemLogContext(

@@ -12,8 +12,6 @@ import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.encodeToJsonElement
 import kotlin.reflect.KClass
 
 class IpcProxyCall : OutgoingCall {
@@ -46,6 +44,7 @@ class IpcProxyRequestInterceptor(
             JsonRpcRequest(
                 IPC_PROXY_METHOD,
                 defaultMapper.encodeToJsonElement(
+                    IpcProxyRequest.serializer(),
                     IpcProxyRequest(
                         call.fullName,
                         defaultMapper.encodeToJsonElement(call.requestType, request),

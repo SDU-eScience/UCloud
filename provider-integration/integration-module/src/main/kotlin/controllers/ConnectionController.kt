@@ -140,7 +140,7 @@ class ConnectionController(
         val im = IntegrationProvider(providerId)
         val baseContext = "/ucloud/$providerId/integration/instructions"
         val instructions = object : CallDescriptionContainer(im.namespace + ".instructions") {
-            val retrieveInstructions = call<TicketRequest, Unit, CommonErrorMessage>("retrieveInstructions") {
+            val retrieveInstructions = call("retrieveInstructions", TicketRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -174,7 +174,7 @@ class ConnectionController(
         }
 
         val redirectProxy = object : CallDescriptionContainer("${im.namespace}.redirector") {
-            val redirect = call<SigningKeyRequest, SigningKeyResponse, CommonErrorMessage>("redirect") {
+            val redirect = call("redirect", SigningKeyRequest.serializer(), SigningKeyResponse.serializer(), CommonErrorMessage.serializer()) {
                 httpUpdate("/ucloud/$providerId/integration", "redirect", Roles.PUBLIC)
             }
         }

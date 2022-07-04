@@ -6,6 +6,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class KillJobRequest(val jobId: String)
@@ -50,7 +51,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
         """.trimIndent()
     }
 
-    val killJob = call<KillJobRequest, KillJobResponse, CommonErrorMessage>("killJob") {
+    val killJob = call("killJob", KillJobRequest.serializer(), KillJobResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC
@@ -68,7 +69,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
         }
     }
 
-    val isPaused = call<IsPausedRequest, IsPausedResponse, CommonErrorMessage>("isPaused") {
+    val isPaused = call("isPaused", IsPausedRequest.serializer(), IsPausedResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -84,9 +85,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
         }
     }
 
-    val updatePauseState = call<UpdatePauseStateRequest, UpdatePauseStateResponse, CommonErrorMessage>(
-        "updatePauseState"
-    ) {
+    val updatePauseState = call("updatePauseState", UpdatePauseStateRequest.serializer(), UpdatePauseStateResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC
@@ -104,7 +103,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
         }
     }
 
-    val drainNode = call<DrainNodeRequest, DrainNodeResponse, CommonErrorMessage>("drainNode") {
+    val drainNode = call("drainNode", DrainNodeRequest.serializer(), DrainNodeResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC
@@ -122,7 +121,7 @@ object Maintenance : CallDescriptionContainer("app.compute.kubernetes.maintenanc
         }
     }
 
-    val drainCluster = call<DrainClusterRequest, DrainClusterResponse, CommonErrorMessage>("drainCluster") {
+    val drainCluster = call("drainCluster", DrainClusterRequest.serializer(), DrainClusterResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC

@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import java.io.File
 import kotlin.math.max
@@ -401,7 +402,7 @@ class SlurmPlugin : ComputePlugin {
             try {
                 monitorStates()
             } catch (ex: Throwable) {
-                debugSystem.wrongD("Slurm monitoring error", mapOf("stacktrace" to ex.stackTraceToString()))
+                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
             }
         }
 
@@ -409,7 +410,7 @@ class SlurmPlugin : ComputePlugin {
             try {
                 monitorAccounting(accountingScan)
             } catch (ex: Throwable) {
-                debugSystem.wrongD("Slurm accounting error", mapOf("stacktrace" to ex.stackTraceToString()))
+                debugSystem.logThrowable("Slurm monitoring error", ex, MessageImportance.THIS_IS_WRONG)
             }
         }
 
@@ -513,6 +514,7 @@ class SlurmPlugin : ComputePlugin {
 
         debugSystem.logD(
             "Registered $registeredJobs slurm jobs",
+            Unit.serializer(),
             Unit,
             if (registeredJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
@@ -604,6 +606,7 @@ class SlurmPlugin : ComputePlugin {
 
         debugSystem.logD(
             "Charged $chargedJobs slurm jobs",
+            Unit.serializer(),
             Unit,
             if (chargedJobs == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
@@ -645,6 +648,7 @@ class SlurmPlugin : ComputePlugin {
 
         debugSystem.logD(
             "Updated state of $updatesSent slurm jobs",
+            Unit.serializer(),
             Unit,
             if (updatesSent == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL,

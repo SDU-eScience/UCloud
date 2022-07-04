@@ -1,14 +1,12 @@
 package dk.sdu.cloud.calls
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.freeze
 import dk.sdu.cloud.isFrozen
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.serializer
 import kotlin.native.concurrent.SharedImmutable
-import kotlin.reflect.KClass
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
+import kotlin.reflect.*
 
 data class AttributeKey<V : Any>(val key: String)
 
@@ -52,9 +50,9 @@ class CallDescription<Request : Any, Success : Any, Error : Any> internal constr
     val requestType: KSerializer<Request>,
     val successType: KSerializer<Success>,
     val errorType: KSerializer<Error>,
-    val requestClass: KType,
-    val successClass: KType,
-    val errorClass: KType,
+    val requestClass: KType?,
+    val successClass: KType?,
+    val errorClass: KType?,
     val containerRef: CallDescriptionContainer,
 ) {
     val fullName: String get() = "$namespace.$name"
@@ -78,9 +76,9 @@ abstract class CallDescriptionContainer(val namespace: String) {
         requestType: KSerializer<Request>,
         successType: KSerializer<Success>,
         errorType: KSerializer<Error>,
-        requestClass: KType,
-        successClass: KType,
-        errorClass: KType,
+        requestClass: KType?,
+        successClass: KType?,
+        errorClass: KType?,
     ): CallDescription<Request, Success, Error> {
         val callDescription = CallDescription(
             name,
@@ -120,43 +118,42 @@ abstract class CallDescriptionContainer(val namespace: String) {
 
 inline fun <reified Request : Any, reified Success : Any, reified Error : Any> CallDescriptionContainer.call(
     name: String,
+    requestType: KSerializer<Request>,
+    successType: KSerializer<Success>,
+    errorType: KSerializer<Error>,
     noinline handler: (CallDescription<Request, Success, Error>.() -> Unit),
 ): CallDescription<Request, Success, Error> {
     return call(
         name,
         handler,
-        fixedSerializer(),
-        fixedSerializer(),
-        fixedSerializer(),
-        typeOf<Request>(),
-        typeOf<Success>(),
-        typeOf<Error>(),
+        requestType,
+        successType,
+        errorType,
+        typeOfIfPossible<Request>(),
+        typeOfIfPossible<Success>(),
+        typeOfIfPossible<Error>(),
     )
+}
+
+inline fun <reified T> typeOfIfPossible(): KType? {
+    return try {
+        typeOf<T>()
+    } catch (ex: Throwable) {
+        null
+    }
 }
 
 typealias OnCallDescriptionBuildHandler = (CallDescription<*, *, *>) -> Unit
 
 @SharedImmutable
-private val serializerLookupTableKey = AttributeKey<Map<KType, KSerializer<*>>>("serializer-lookup-table").freeze()
-var CallDescriptionContainer.serializerLookupTable: Map<KType, KSerializer<*>>
+private val serializerLookupTableKey = AttributeKey<Map<KType?, KSerializer<*>>>("serializer-lookup-table").freeze()
+var CallDescriptionContainer.serializerLookupTable: Map<KType?, KSerializer<*>>
     get() = attributes[serializerLookupTableKey]
     set(value) {
         attributes[serializerLookupTableKey] = value
     }
 
 @OptIn(ExperimentalStdlibApi::class)
-inline fun <reified T> serializerEntry(serializer: KSerializer<T>): Pair<KType, KSerializer<T>> {
-    return Pair(typeOf<T>(), serializer)
-}
-
-@OptIn(ExperimentalStdlibApi::class)
-inline fun <reified Request : Any> CallDescriptionContainer.fixedSerializer(): KSerializer<Request> {
-    return try {
-        serializer<Request>()
-    } catch (ex: SerializationException) {
-        @Suppress("UNCHECKED_CAST")
-        serializerLookupTable[typeOf<Request>()] as KSerializer<Request>? ?: run {
-            throw ex
-        }
-    }
+inline fun <reified T> serializerEntry(serializer: KSerializer<T>): Pair<KType?, KSerializer<T>> {
+    return Pair(typeOfIfPossible<T>(), serializer)
 }

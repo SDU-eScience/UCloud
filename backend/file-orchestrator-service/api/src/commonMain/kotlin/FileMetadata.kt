@@ -13,6 +13,7 @@ import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -194,35 +195,31 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
         )
     }
 
-    val create = call<FileMetadataAddMetadataRequest, FileMetadataAddMetadataResponse,
-        CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(FileMetadataAddRequestItem.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext)
     }
 
-    val move = call<FileMetadataMoveRequest, FileMetadataMoveResponse,
-        CommonErrorMessage>("moveMetadata") {
+    val move = call("moveMetadata", BulkRequest.serializer(FileMetadataMoveRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move")
     }
 
-    val delete = call<FileMetadataDeleteRequest, FileMetadataDeleteResponse,
-        CommonErrorMessage>("delete") {
+    val delete = call("delete", BulkRequest.serializer(FileMetadataDeleteRequestItem.serializer()), FileMetadataDeleteResponse.serializer(), CommonErrorMessage.serializer()) {
         httpDelete(baseContext)
     }
 
-    val retrieveAll = call<FileMetadataRetrieveAllRequest, FileMetadataRetrieveAllResponse,
-        CommonErrorMessage>("retrieveAll") {
+    val retrieveAll = call("retrieveAll", FileMetadataRetrieveAllRequest.serializer(), FileMetadataRetrieveAllResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "all")
     }
 
-    val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
+    val approve = call("approve", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "approve")
     }
 
-    val reject = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("reject") {
+    val reject = call("reject", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "reject")
     }
 
-    val browse = call<FileMetadataBrowseRequest, FileMetadataBrowseResponse, CommonErrorMessage>("browse") {
+    val browse = call("browse", FileMetadataBrowseRequest.serializer(), PageV2.serializer(FileMetadataAttached.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
 
         documentation {
@@ -241,7 +238,7 @@ object FileMetadata : CallDescriptionContainer("files.metadata") {
 
     /*
     // TODO Interface TBD
-    val search = call<FileMetadataSearchRequest, FileMetadataSearchResponse, CommonErrorMessage>("search") {
+    val search = call<FileMetadataSearchRequest, FileMetadataSearchResponse, CommonErrorMessage>("search", FileMetadataSearchRequest.serializer(), FileMetadataSearchResponse.serializer(), CommonErrorMessage.serializer()) {
         httpSearch(baseContext)
     }
      */

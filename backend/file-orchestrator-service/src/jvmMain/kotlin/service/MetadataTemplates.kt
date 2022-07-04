@@ -18,7 +18,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.serializer
 
 private typealias SuperTemplateNs = ResourceService<FileMetadataTemplateNamespace, FileMetadataTemplateNamespace.Spec,
     FileMetadataTemplateNamespace.Update, FileMetadataTemplateNamespaceFlags, FileMetadataTemplateNamespace.Status,
@@ -40,8 +39,8 @@ class MetadataTemplateNamespaces(
         "resource" to SqlObject.Column(table, "resource")
     )
 
-    override val serializer = serializer<FileMetadataTemplateNamespace>()
-    override val updateSerializer = serializer<FileMetadataTemplateNamespace.Update>()
+    override val serializer = FileMetadataTemplateNamespace.serializer()
+    override val updateSerializer = FileMetadataTemplateNamespace.Update.serializer()
     override val productArea: ProductArea = ProductArea.STORAGE
 
     override fun userApi() = FileMetadataTemplateNamespaces

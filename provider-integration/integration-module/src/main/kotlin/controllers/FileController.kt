@@ -235,8 +235,8 @@ class FileController(
         val providerId = controllerContext.configuration.core.providerId
 
         val downloadApi = object : CallDescriptionContainer("file.${providerId}.download") {
-            val download = call<IMFileDownloadRequest, Unit, CommonErrorMessage>("download") {
-                audit<Unit>()
+            val download = call("download", IMFileDownloadRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+                audit(Unit.serializer())
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -251,8 +251,8 @@ class FileController(
         }
 
         val uploadApi = object : CallDescriptionContainer("file.${providerId}.upload") {
-            val upload = call<Unit, Unit, CommonErrorMessage>("upload") {
-                audit<Unit>()
+            val upload = call("upload", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+                audit(Unit.serializer())
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC

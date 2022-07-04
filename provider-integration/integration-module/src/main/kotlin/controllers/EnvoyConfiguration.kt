@@ -170,12 +170,18 @@ static_resources:
         private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
             val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
             NativeFile.open(tempRouteFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes))))
+                defaultMapper.encodeToString(
+                    EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
+                    EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes)))
+                )
             )
 
             val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
             NativeFile.open(tempClusterFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(EnvoyResources(clusters))
+                defaultMapper.encodeToString(
+                    EnvoyResources.serializer(EnvoyCluster.serializer()),
+                    EnvoyResources(clusters)
+                )
             )
 
             renameFile(tempRouteFile, "$configDir/$rdsFile")

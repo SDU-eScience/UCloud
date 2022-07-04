@@ -29,7 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.nullable
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import java.util.*
 
@@ -192,6 +192,7 @@ class IngoingWebSocketInterceptor(
                                 if (call == null) {
                                     send(
                                         defaultMapper.encodeToString(
+                                            WSMessage.Response.serializer(Unit.serializer()),
                                             WSMessage.Response(
                                                 streamId,
                                                 Unit,

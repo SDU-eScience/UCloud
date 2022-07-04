@@ -18,9 +18,8 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.secureToken
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
 data class TicketApprovalRequest(
@@ -46,7 +45,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                     }
 
                     val req = runCatching {
-                        defaultMapper.decodeFromJsonElement<TicketApprovalRequest>(jsonRequest.params)
+                        defaultMapper.decodeFromJsonElement(TicketApprovalRequest.serializer(), jsonRequest.params)
                     }.getOrElse { throw RPCException.fromStatusCode(HttpStatusCode.BadRequest) }
 
                     var ucloudId: String? = null
@@ -116,9 +115,12 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                         ipcClient.sendRequestBlocking(
                             JsonRpcRequest(
                                 "connect.approve",
-                                defaultMapper.encodeToJsonElement(TicketApprovalRequest(ticket, localId)) as JsonObject
+                                defaultMapper.encodeToJsonElement(
+                                    TicketApprovalRequest.serializer(),
+                                    TicketApprovalRequest(ticket, localId)
+                                ) as JsonObject
                             )
-                        ).orThrow<Unit>()
+                        ).orThrow(Unit.serializer())
                     }
 
                     else -> {

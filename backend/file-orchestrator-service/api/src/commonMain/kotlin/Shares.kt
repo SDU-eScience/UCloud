@@ -26,7 +26,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.Permission
 import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class Share(
@@ -138,19 +138,19 @@ object Shares : ResourceApi<Share, Share.Spec, Share.Update, ShareFlags, Share.S
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Share.serializer(),
-        typeOf<Share>(),
+        typeOfIfPossible<Share>(),
         Share.Spec.serializer(),
-        typeOf<Share.Spec>(),
+        typeOfIfPossible<Share.Spec>(),
         Share.Update.serializer(),
-        typeOf<Share.Update>(),
+        typeOfIfPossible<Share.Update>(),
         ShareFlags.serializer(),
-        typeOf<ShareFlags>(),
+        typeOfIfPossible<ShareFlags>(),
         Share.Status.serializer(),
-        typeOf<Share.Status>(),
+        typeOfIfPossible<Share.Status>(),
         ShareSupport.serializer(),
-        typeOf<ShareSupport>(),
+        typeOfIfPossible<ShareSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
     init {
@@ -260,23 +260,21 @@ how to use this feature. We generally recommend that you use a full-blown projec
         )
     }
 
-    val approve = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("approve") {
+    val approve = call("approve", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "approve")
     }
 
-    val reject = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("reject") {
+    val reject = call("reject", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "reject")
     }
 
-    val updatePermissions = call<SharesUpdatePermissionsRequest, Unit, CommonErrorMessage>("updatePermissions") {
+    val updatePermissions = call("updatePermissions", BulkRequest.serializer(SharesUpdatePermissionsRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "permissions")
     }
 
-    val browseOutgoing =
-        call<SharesBrowseOutgoingRequest, PageV2<OutgoingShareGroup>, CommonErrorMessage>("browseOutgoing") {
-            httpBrowse(baseContext, "outgoing")
-        }
-
+    val browseOutgoing = call("browseOutgoing", SharesBrowseOutgoingRequest.serializer(), PageV2.serializer(OutgoingShareGroup.serializer()), CommonErrorMessage.serializer()) {
+        httpBrowse(baseContext, "outgoing")
+    }
 
     override val create get() = super.create!!
     override val delete get() = super.delete!!
@@ -288,19 +286,19 @@ object SharesControl : ResourceControlApi<Share, Share.Spec, Share.Update, Share
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Share.serializer(),
-        typeOf<Share>(),
+        typeOfIfPossible<Share>(),
         Share.Spec.serializer(),
-        typeOf<Share.Spec>(),
+        typeOfIfPossible<Share.Spec>(),
         Share.Update.serializer(),
-        typeOf<Share.Update>(),
+        typeOfIfPossible<Share.Update>(),
         ShareFlags.serializer(),
-        typeOf<ShareFlags>(),
+        typeOfIfPossible<ShareFlags>(),
         Share.Status.serializer(),
-        typeOf<Share.Status>(),
+        typeOfIfPossible<Share.Status>(),
         ShareSupport.serializer(),
-        typeOf<ShareSupport>(),
+        typeOfIfPossible<ShareSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 }
 
@@ -309,19 +307,19 @@ open class SharesProvider(provider: String) : ResourceProviderApi<Share, Share.S
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Share.serializer(),
-        typeOf<Share>(),
+        typeOfIfPossible<Share>(),
         Share.Spec.serializer(),
-        typeOf<Share.Spec>(),
+        typeOfIfPossible<Share.Spec>(),
         Share.Update.serializer(),
-        typeOf<Share.Update>(),
+        typeOfIfPossible<Share.Update>(),
         ShareFlags.serializer(),
-        typeOf<ShareFlags>(),
+        typeOfIfPossible<ShareFlags>(),
         Share.Status.serializer(),
-        typeOf<Share.Status>(),
+        typeOfIfPossible<Share.Status>(),
         ShareSupport.serializer(),
-        typeOf<ShareSupport>(),
+        typeOfIfPossible<ShareSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
     override val delete get() = super.delete!!

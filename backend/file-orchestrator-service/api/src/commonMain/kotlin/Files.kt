@@ -21,7 +21,7 @@ import dk.sdu.cloud.provider.api.ResourceUpdate
 import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.nullable
 
 interface WithConflictPolicy {
     val conflictPolicy: WriteConflictPolicy
@@ -145,19 +145,19 @@ object Files : ResourceApi<UFile, UFileSpecification, UFileUpdate, UFileIncludeF
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         UFile.serializer(),
-        typeOf<UFile>(),
+        typeOfIfPossible<UFile>(),
         UFileSpecification.serializer(),
-        typeOf<UFileSpecification>(),
+        typeOfIfPossible<UFileSpecification>(),
         UFileUpdate.serializer(),
-        typeOf<UFileUpdate>(),
+        typeOfIfPossible<UFileUpdate>(),
         UFileIncludeFlags.serializer(),
-        typeOf<UFileIncludeFlags>(),
+        typeOfIfPossible<UFileIncludeFlags>(),
         UFileStatus.serializer(),
-        typeOf<UFileStatus>(),
+        typeOfIfPossible<UFileStatus>(),
         FSSupport.serializer(),
-        typeOf<FSSupport>(),
+        typeOfIfPossible<FSSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
     init {
@@ -622,7 +622,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         ))
     }
 
-    val move = call<FilesMoveRequest, FilesMoveResponse, CommonErrorMessage>("move") {
+    val move = call("move", BulkRequest.serializer(FilesMoveRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move")
 
         documentation {
@@ -655,7 +655,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val copy = call<FilesCopyRequest, FilesCopyResponse, CommonErrorMessage>("copy") {
+    val copy = call("copy", BulkRequest.serializer(FilesCopyRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "copy")
 
         documentation {
@@ -694,7 +694,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val createUpload = call<FilesCreateUploadRequest, FilesCreateUploadResponse, CommonErrorMessage>("createUpload") {
+    val createUpload = call("createUpload", BulkRequest.serializer(FilesCreateUploadRequestItem.serializer()), BulkResponse.serializer(FilesCreateUploadResponseItem.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "upload")
 
         documentation {
@@ -718,8 +718,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val createDownload = call<FilesCreateDownloadRequest, FilesCreateDownloadResponse,
-            CommonErrorMessage>("createDownload") {
+    val createDownload = call("createDownload", BulkRequest.serializer(FilesCreateDownloadRequestItem.serializer()), BulkResponse.serializer(FilesCreateDownloadResponseItem.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "download")
 
         documentation {
@@ -742,7 +741,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val createFolder = call<FilesCreateFolderRequest, FilesCreateFolderResponse, CommonErrorMessage>("createFolder") {
+    val createFolder = call("createFolder", BulkRequest.serializer(FilesCreateFolderRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "folder")
 
         documentation {
@@ -766,7 +765,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val trash = call<FilesTrashRequest, FilesTrashResponse, CommonErrorMessage>("trash") {
+    val trash = call("trash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "trash")
 
         documentation {
@@ -802,7 +801,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val emptyTrash = call<FilesEmptyTrashRequest, FilesEmptyTrashResponse, CommonErrorMessage>("emptyTrash") {
+    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FindByPath.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "emptyTrash")
 
         documentation {

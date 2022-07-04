@@ -11,7 +11,6 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.serializer
 
 typealias AclUpdateHandler = suspend (session: AsyncDBConnection, batch: BulkRequest<UpdatedAclWithResource<FileCollection>>) -> Unit
 typealias DeleteHandler = suspend (batch: BulkRequest<FindByStringId>) -> Unit
@@ -34,8 +33,8 @@ class FileCollectionService(
     )
 
     private val deleteHandlers = ArrayList<DeleteHandler>()
-    override val serializer = serializer<FileCollection>()
-    override val updateSerializer = serializer<FileCollection.Update>()
+    override val serializer = FileCollection.serializer()
+    override val updateSerializer = FileCollection.Update.serializer()
     override val productArea = ProductArea.STORAGE
     override val requireAdminForCreate: Boolean = true
 

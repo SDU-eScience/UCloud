@@ -16,7 +16,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 class IpcToUCloudProxyServer {
     fun init(server: IpcServer, client: AuthenticatedClient) {
         server.addHandler(IpcHandler(IpcProxyRequestInterceptor.IPC_PROXY_METHOD) { _, req ->
-            val proxyRequest = defaultMapper.decodeFromJsonElement<IpcProxyRequest>(req.params)
+            val proxyRequest = defaultMapper.decodeFromJsonElement(IpcProxyRequest.serializer(), req.params)
 
             val call: CallDescription<*, *, *> = when (proxyRequest.call) {
                 JobsControl.update.fullName -> {

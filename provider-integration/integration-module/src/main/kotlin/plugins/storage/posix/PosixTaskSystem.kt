@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 
 /**
  * The Posix Task system is responsible for managing a set of file-system related tasks. A task is started when a
@@ -45,7 +44,7 @@ class PosixTaskSystem(
         )
 
         file.writeText(
-            defaultMapper.encodeToString(task),
+            defaultMapper.encodeToString(PosixTask.serializer(), task),
             autoClose = true
         )
     }

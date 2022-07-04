@@ -23,6 +23,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.builtins.serializer
 import java.util.concurrent.atomic.AtomicLong
 
 class NotificationController(
@@ -163,6 +164,7 @@ class NotificationController(
 
         debug.logD(
             "Handled ${output.size} project notifications",
+            Unit.serializer(),
             Unit,
             if (output.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
@@ -247,6 +249,7 @@ class NotificationController(
 
         debug.logD(
             "Processed ${items.size} allocations",
+            Unit.serializer(),
             Unit,
             if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
@@ -357,6 +360,7 @@ class NotificationController(
 
         debug.logD(
             "Scanned $allocationsScanned allocations",
+            Unit.serializer(),
             Unit,
             if (allocationsScanned == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL

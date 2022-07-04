@@ -258,6 +258,7 @@ suspend fun executeCommandToText(
 
     debugSystem.logD(
         "Command: $executable",
+        JsonObject.serializer(),
         JsonObject(mapOf(
             "executable" to JsonPrimitive(executable),
             "arguments" to JsonArray(cmd.args.map { JsonPrimitive(it) }),
@@ -272,6 +273,7 @@ suspend fun executeCommandToText(
 
     debugSystem.logD(
         "Exit (${result.statusCode})",
+        JsonObject.serializer(),
         JsonObject(mapOf(
             "statusCode" to JsonPrimitive(result.statusCode),
             "stdout" to JsonPrimitive(result.stdout),

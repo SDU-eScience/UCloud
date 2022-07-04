@@ -47,9 +47,9 @@ import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.utils.*
+import kotlin.reflect.typeOf
 
 fun main(args: Array<String>) {
-    println("Args are ${args.toList()}")
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,
@@ -431,7 +431,7 @@ fun main(args: Array<String>) {
 
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
-            debugSystem.normalD("Configuration has been loaded!", configSchema)
+            debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------

@@ -9,14 +9,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
-import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.serializer
 import java.io.File
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
@@ -71,10 +66,10 @@ sealed class JsonRpcResponse {
     )
 }
 
-inline fun <reified R> JsonRpcResponse.orThrow(): R {
+fun <R> JsonRpcResponse.orThrow(serializer: KSerializer<R>): R {
     return when (this) {
         is JsonRpcResponse.Success -> {
-            defaultMapper.decodeFromJsonElement(serializer<R>(), result)
+            defaultMapper.decodeFromJsonElement(serializer, result)
         }
 
         is JsonRpcResponse.Error -> {
@@ -115,7 +110,7 @@ class IpcClient(
 
             fun sendRequest(request: JsonRpcRequest) {
                 writeBuffer.clear()
-                val encoded = (defaultMapper.encodeToString(request) + "\n").encodeToByteArray()
+                val encoded = (defaultMapper.encodeToString(JsonRpcRequest.serializer(), request) + "\n").encodeToByteArray()
                 writeBuffer.put(encoded)
                 writeBuffer.flip()
                 while (writeBuffer.hasRemaining()) channel.write(writeBuffer)
@@ -125,14 +120,14 @@ class IpcClient(
 
             fun parseResponse(): JsonRpcResponse {
                 val decodedText = messageBuilder.readNextMessage(channel, readBuffer)
-                val decodedJson = defaultMapper.decodeFromString<JsonObject>(decodedText)
+                val decodedJson = defaultMapper.decodeFromString(JsonObject.serializer(), decodedText)
 
                 return when {
                     decodedJson.containsKey("result") -> {
-                        defaultMapper.decodeFromJsonElement<JsonRpcResponse.Success>(decodedJson)
+                        defaultMapper.decodeFromJsonElement(JsonRpcResponse.Success.serializer(), decodedJson)
                     }
                     decodedJson.containsKey("error") -> {
-                        defaultMapper.decodeFromJsonElement<JsonRpcResponse.Error>(decodedJson)
+                        defaultMapper.decodeFromJsonElement(JsonRpcResponse.Error.serializer(), decodedJson)
                     }
                     else -> {
                         throw IpcException("Invalid response")
@@ -173,19 +168,19 @@ inline fun IpcClient.sendRequestBlocking(request: JsonRpcRequest): JsonRpcRespon
     return runBlocking { sendRequest(request) }
 }
 
-suspend inline fun <reified Req, reified Resp> IpcClient.sendRequest(
+suspend fun <Req, Resp> IpcClient.sendRequest(
     call: TypedIpcHandler<Req, Resp>,
     request: Req
 ): Resp {
     return sendRequest(
         JsonRpcRequest(
             call.method,
-            defaultMapper.encodeToJsonElement(request) as JsonObject
+            defaultMapper.encodeToJsonElement(call.requestSerializer, request) as JsonObject
         )
-    ).orThrow()
+    ).orThrow(call.responseSerializer)
 }
 
-inline fun <reified Req, reified Resp> IpcClient.sendRequestBlocking(
+fun <Req, Resp> IpcClient.sendRequestBlocking(
     call: TypedIpcHandler<Req, Resp>,
     request: Req
 ): Resp {
@@ -193,8 +188,8 @@ inline fun <reified Req, reified Resp> IpcClient.sendRequestBlocking(
         sendRequest(
             JsonRpcRequest(
                 call.method,
-                defaultMapper.encodeToJsonElement(request) as JsonObject
+                defaultMapper.encodeToJsonElement(call.requestSerializer, request) as JsonObject
             )
-        ).orThrow()
+        ).orThrow(call.responseSerializer)
     }
 }

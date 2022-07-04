@@ -5,6 +5,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 typealias IntegrationProviderRetrieveManifestRequest = Unit
 
@@ -35,22 +36,19 @@ typealias IntegrationProviderWelcomeResponse = Unit
 open class IntegrationProvider(namespace: String) : CallDescriptionContainer("$namespace.im") {
     private val baseContext = "/ucloud/$namespace/integration"
 
-    val retrieveManifest = call<IntegrationProviderRetrieveManifestRequest,
-        IntegrationProviderRetrieveManifestResponse, CommonErrorMessage>("retrieveManifest") {
+    val retrieveManifest = call("retrieveManifest", IntegrationProviderRetrieveManifestRequest.serializer(), IntegrationProviderRetrieveManifestResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "manifest", roles = Roles.PRIVILEGED)
     }
 
-    val init = call<IntegrationProviderInitRequest, Unit, CommonErrorMessage>("init") {
+    val init = call("init", IntegrationProviderInitRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "init", roles = Roles.PRIVILEGED)
     }
 
-    val connect = call<IntegrationProviderConnectRequest, IntegrationProviderConnectResponse,
-        CommonErrorMessage>("connect") {
+    val connect = call("connect", IntegrationProviderConnectRequest.serializer(), IntegrationProviderConnectResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "connect", roles = Roles.PRIVILEGED)
     }
 
-    val welcome = call<IntegrationProviderWelcomeRequest,
-        IntegrationProviderWelcomeResponse, CommonErrorMessage>("welcome") {
+    val welcome = call("welcome", IntegrationProviderWelcomeRequest.serializer(), IntegrationProviderWelcomeResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "welcome", roles = Roles.PUBLIC)
     }
 

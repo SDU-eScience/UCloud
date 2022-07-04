@@ -6,6 +6,7 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class SendRequestItem(
@@ -122,7 +123,7 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         }
     }
 
-    val sendSupport = call<SendSupportEmailRequest, SendSupportEmailResponse, CommonErrorMessage>("sendSupport") {
+    val sendSupport = call("sendSupport", SendSupportEmailRequest.serializer(), SendSupportEmailResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ_WRITE
@@ -146,7 +147,7 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         }
     }
 
-    val sendToUser = call<BulkRequest<SendRequestItem>, Unit, CommonErrorMessage>("sendToUser") {
+    val sendToUser = call("sendToUser", BulkRequest.serializer(SendRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "sendToUser", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -154,11 +155,7 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         }
     }
 
-    val toggleEmailSettings = call<
-        ToggleEmailSettingsRequest,
-        ToggleEmailSettingsResponse,
-        CommonErrorMessage>("toggleEmailSettings")
-    {
+    val toggleEmailSettings = call("toggleEmailSettings", BulkRequest.serializer(EmailSettingsItem.serializer()), ToggleEmailSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
             "toggleEmailSettings"
@@ -169,11 +166,7 @@ object MailDescriptions : CallDescriptionContainer("mail") {
         }
     }
 
-    val retrieveEmailSettings = call<
-        RetrieveEmailSettingsRequest,
-        RetrieveEmailSettingsResponse,
-        CommonErrorMessage>("retrieveEmailSettings")
-    {
+    val retrieveEmailSettings = call("retrieveEmailSettings", RetrieveEmailSettingsRequest.serializer(), RetrieveEmailSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(
             baseContext,
             "emailSettings"
