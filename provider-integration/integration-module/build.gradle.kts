@@ -79,6 +79,6 @@ tasks.create("buildDebug") {
     dependsOn(tasks.named("installDist"))
 }
 
-tasks.create("buildDebugExecutableNative") {
+tasks.create("linkDebugExecutableNative") {
     dependsOn(tasks.named("buildDebug"))
 }
