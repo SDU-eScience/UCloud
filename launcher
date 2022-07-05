@@ -147,13 +147,7 @@ try:
 except:
     pass
 
-print("Current build")
-print(current_build_version)
-print("Latest build")
-print(latest_build_version)
 should_build = latest_build_version != current_build_version
-print("Should build?")
-print(should_build)
 
 command.append("up")
 if should_build:
