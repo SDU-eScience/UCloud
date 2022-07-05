@@ -24,26 +24,22 @@ import dk.sdu.cloud.plugins.SimplePluginContext
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.JdbcDriver
-import dk.sdu.cloud.sql.MigrationHandler
 import dk.sdu.cloud.sql.migrations.loadMigrations
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.cio.*
 import io.ktor.server.engine.*
 import io.ktor.server.plugins.cors.routing.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import libc.clib
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.*
+import java.sql.DriverManager
 
 fun main(args: Array<String>) {
     try {

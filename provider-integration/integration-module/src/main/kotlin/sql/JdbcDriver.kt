@@ -1,42 +1,85 @@
 package dk.sdu.cloud.sql
 
-import io.ktor.utils.io.pool.*
+import dk.sdu.cloud.utils.forEachIndexedGraal
+import dk.sdu.cloud.utils.whileGraal
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteException
+import org.sqlite.SQLiteOpenMode
 import java.sql.Connection as JavaSqlConnection
 import java.sql.PreparedStatement as JavaSqlPreparedStatement
 import java.sql.DriverManager
 import java.sql.ResultSet
 import java.sql.SQLException
 
+class SimpleConnectionPool(val size: Int, private val constructor: (pool: SimpleConnectionPool) -> JdbcConnection) {
+    // NOTE(Dan): Super, super simple solution to a connection pool. It should probably be changed, but I don't want
+    // to make a decision for a connection pool right now. Not even sure that JDBC and SQLite is the right choice at
+    // the moment.
+    private val connections = Array(size) { idx -> constructor(this).also { it._connectionTicket = idx } }
+    private val isFree = BooleanArray(size) { true }
+    private val mutex = Mutex()
+
+    suspend fun borrow(): JdbcConnection {
+        // NOTE(Dan): Simple spin lock to find a free instance
+        var firstFree = -1
+        whileGraal({ currentCoroutineContext().isActive && firstFree == -1 }) {
+            mutex.withLock {
+                isFree.forEachIndexedGraal { i, b ->
+                    if (firstFree == -1 && b) {
+                        firstFree = i
+                        isFree[i] = false
+                    }
+                }
+            }
+
+            delay(50)
+        }
+
+        if (firstFree == -1) error("Could not find a free connection")
+
+        return connections[firstFree]
+    }
+
+    suspend fun recycle(instance: JdbcConnection) {
+        isFree[instance._connectionTicket] = true
+    }
+}
+
 class JdbcDriver(
     private val file: String
 ) : DBContext.ConnectionFactory() {
-    override fun openSession(): JdbcConnection {
-        return connectionPool.borrow()
+    private val pool = SimpleConnectionPool(8) { pool ->
+        JdbcConnection(
+            DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
+                setJournalMode(SQLiteConfig.JournalMode.WAL)
+                setOpenMode(SQLiteOpenMode.FULLMUTEX)
+                setOpenMode(SQLiteOpenMode.READWRITE)
+                setOpenMode(SQLiteOpenMode.CREATE)
+                setOpenMode(SQLiteOpenMode.OPEN_URI)
+            }.toProperties()),
+            pool
+        )
     }
 
-    override fun close() {
-
+    override suspend fun openSession(): JdbcConnection {
+        return pool.borrow()
     }
 
-    private val connectionPool = object : DefaultPool<JdbcConnection>(8) {
-        override fun produceInstance(): JdbcConnection {
-            return JdbcConnection(
-                DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
-                    setJournalMode(SQLiteConfig.JournalMode.WAL)
-                }.toProperties()),
-                this
-            )
-        }
+    override suspend fun close() {
     }
 }
 
 
 class JdbcConnection(
     private val connection: JavaSqlConnection,
-    private val pool: ObjectPool<JdbcConnection>,
+    private val pool: SimpleConnectionPool
 ) : DBContext.Connection() {
+    var _connectionTicket = -1
     init {
         connection.autoCommit = false
     }
@@ -151,8 +194,10 @@ class JdbcPreparedStatement(
         }
     }
 
-    override suspend fun execute(): ResultCursor {
-        return if (!willReturnResults()) {
+    override suspend fun execute(isUpdateHint: Boolean?): ResultCursor {
+        val isUpdate = if (isUpdateHint == true) true else if (isUpdateHint == false) false else !willReturnResults()
+
+        return if (isUpdate) {
             JdbcUpdateCursor(statement.executeUpdate())
         } else {
             JdbcResultCursor(statement.executeQuery())

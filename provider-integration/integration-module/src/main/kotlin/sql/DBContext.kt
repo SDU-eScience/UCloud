@@ -2,8 +2,8 @@ package dk.sdu.cloud.sql
 
 sealed class DBContext {
     abstract class ConnectionFactory() : DBContext() {
-        abstract fun openSession(): Connection
-        abstract fun close()
+        abstract suspend fun openSession(): Connection
+        abstract suspend fun close()
     }
 
     abstract class Connection : DBContext() {
@@ -25,7 +25,7 @@ interface PreparedStatement {
     suspend fun bindString(param: String, value: String)
     suspend fun bindBoolean(param: String, value: Boolean)
     suspend fun bindDouble(param: String, value: Double)
-    suspend fun execute(): ResultCursor
+    suspend fun execute(isUpdateHint: Boolean? = null): ResultCursor
     suspend fun reset()
     suspend fun close()
 }
@@ -118,7 +118,7 @@ suspend fun <R> DBContext.withSession(block: suspend (session: DBContext.Connect
         is DBContext.ConnectionFactory -> {
             val session = openSession()
             try {
-                openSession().withTransaction { _ ->
+                session.withTransaction { _ ->
                     block(session)
                 }
             } finally {

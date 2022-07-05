@@ -35,3 +35,11 @@ suspend fun whileGraal(condition: suspend () -> Boolean, block: suspend () -> Un
 suspend fun <T> Iterable<T>.forEachGraal(consumer: suspend (T) -> Unit) {
     asSequence().forEach { consumer(it) }
 }
+
+suspend fun BooleanArray.forEachGraal(consumer: suspend (Boolean) -> Unit) {
+    asSequence().forEach { consumer(it) }
+}
+
+suspend fun BooleanArray.forEachIndexedGraal(consumer: suspend (Int, Boolean) -> Unit) {
+    asSequence().forEachIndexed { idx, it -> consumer(idx, it) }
+}
