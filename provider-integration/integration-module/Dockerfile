@@ -1,5 +1,17 @@
 FROM ubuntu:20.04 AS base
 
+# NOTE(DAN): IMPORTANT NOTE
+# NOTE(DAN): IMPORTANT NOTE
+# NOTE(DAN): IMPORTANT NOTE
+# NOTE(DAN): IMPORTANT NOTE
+#
+# WHENEVER MAKING CHANGES TO THIS FILE, MAKE SURE TO UPDATE .compose-latest-build TO REFLECT THE CHANGES. YOU CAN SIMPLY
+# INCREMENT THE NUMBER BY ONE. THIS WILL ENSURE THAT THE IMAGE IS RE-BUILD THE NEXT TIME SOMEONE RUNS ./launcher.
+#
+# NOTE(DAN): IMPORTANT NOTE
+# NOTE(DAN): IMPORTANT NOTE
+# NOTE(DAN): IMPORTANT NOTE
+
 # Dependencies
 RUN apt-get update
 RUN apt-get -y install locales
@@ -23,7 +35,11 @@ RUN groupadd -g 997 munge
 RUN useradd -u 999 -g 997 munge
 RUN mkdir -p /var/run/ucloud/envoy
 RUN chown -R 998:998 /var/run/ucloud
-RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe' >> /etc/sudoers
+RUN mkdir -p /var/log/ucloud
+RUN chown -R 998:998 /var/log/ucloud
+RUN mkdir -p /etc/ucloud
+RUN chown -R 998:998 /etc/ucloud
+RUN echo 'ucloud  ALL=(%ucloud) NOPASSWD: /usr/bin/ucloud, /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module, /opt/ucloud/build/native/nativeCompile/ucloud-integration-module' >> /etc/sudoers
 
 
 
@@ -31,7 +47,8 @@ FROM base AS development
 
 RUN apt-get update && apt-get install -y vim
 WORKDIR /usr/bin
-RUN ln -s /opt/ucloud/build/bin/native/debugExecutable/ucloud-integration-module.kexe ucloud
+RUN ln -s /opt/ucloud/build/install/ucloud-integration-module/bin/ucloud-integration-module ucloud
+RUN ln -s /usr/local/sdkman/candidates/java/current/bin/java java
 COPY default_config /opt/ucloud-default-config
 RUN chmod +x /opt/ucloud-default-config/config_installer.sh 
 COPY --from=base  /usr/local/bin/func-e /usr/local/bin/getenvoy

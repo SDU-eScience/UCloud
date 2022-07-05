@@ -196,18 +196,18 @@ fun runInstaller(
                 """.trimIndent()
             )
 
-            Runtime.getRuntime().addShutdownHook(object : Thread() {
-                override fun run() {
-                    runShutdownWorker(ownExecutable, request.createdProvider.refreshToken, providerId)
-                }
-            })
+            Thread({
+                Thread.sleep(2000)
+                runShutdownWorker(ownExecutable, request.createdProvider.refreshToken, providerId)
+                exitProcess(0)
+            }).start()
 
             ok(IntegrationProviderWelcomeResponse)
         }
 
         envoy.start(port)
         server.start()
-        engine.start(wait = false)
+        engine.start(wait = true)
     } else {
         sendTerminalMessage {
             bold { red { line("No configuration detected!") } }

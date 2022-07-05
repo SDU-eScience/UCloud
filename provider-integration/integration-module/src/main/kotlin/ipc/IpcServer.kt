@@ -53,6 +53,7 @@ inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.handler(
         ) as JsonObject
     }
 }
+
 inline fun <reified Req, reified Resp> TypedIpcHandler<Req, Resp>.suspendingHandler(
     noinline block: suspend (user: IpcUser, request: Req) -> Resp
 ): IpcHandler {
