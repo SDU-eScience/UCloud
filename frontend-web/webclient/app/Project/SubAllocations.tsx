@@ -1,6 +1,6 @@
 import * as React from "react";
 import styled from "styled-components";
-import {Box, Button, ButtonGroup, Checkbox, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Flex, Grid, Icon, Input, Label, Relative, Text, TextArea, Tooltip} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {
     ChargeType,
@@ -31,7 +31,6 @@ import {ListRow} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {InputLabel} from "@/ui-components/Input";
-import {startOfDay} from "date-fns/esm";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
@@ -39,6 +38,7 @@ import {ListV2} from "@/Pagination";
 import {AllocationViewer, resultAsPercent} from "./Allocations";
 import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import {TextSpan} from "@/ui-components/Text";
+import startOfDay from "date-fns/esm/startOfDay";
 
 function titleForSubAllocation(alloc: SubAllocation): string {
     return rawAllocationTitleInRow(alloc.productCategoryId.name, alloc.productCategoryId.provider) + ` [${getParentAllocationFromSuballocation(alloc)}]`;

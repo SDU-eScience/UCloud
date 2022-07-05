@@ -80,7 +80,7 @@ const Resources: React.FunctionComponent = () => {
     const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
 
     React.useEffect(() => {
-        if (filters.filterStartDate == null || filters.filterEndDate == null) {
+        if (filters.filterStartDate == null && filters.filterEndDate == null) {
             setFilters({
                 ...filters,
                 filterStartDate: pastMonthStart.toString(),
@@ -113,7 +113,7 @@ const Resources: React.FunctionComponent = () => {
     useSidebarPage(SidebarPages.Projects);
     useRefreshFunction(reloadPage);
     useEffect(() => {
-        if (filters.filterStartDate != null && filters.filterEndDate != null) {
+        if (filters.filterStartDate != null || filters.filterEndDate != null) {
             reloadPage();
         }
     }, [reloadPage]);
@@ -122,6 +122,15 @@ const Resources: React.FunctionComponent = () => {
     const unusedProductTypes = React.useMemo(() =>
         usage.data.charts.map(it => it.type).reduce((remaining, currentProductType) => remaining.filter(productType => productType !== currentProductType), [...productTypes])
         , [usage.data]);
+
+    const dateRange = React.useMemo(() => {
+        const start = parseInt(filters.filterStartDate, 10);
+        const end = parseInt(filters.filterEndDate, 10);
+        return {
+            start: isNaN(start) ? 0 : start,
+            end: isNaN(end) ? new Date().getTime() : end,
+        };
+    }, [filters]);
 
     return (
         <MainContainer
@@ -144,7 +153,7 @@ const Resources: React.FunctionComponent = () => {
                 <Grid gridGap={"16px"}>
                     {maximizedUsage == null ? null :
                         <UsageChartViewer maximized c={usage.data.charts[maximizedUsage]}
-                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} />
+                            onMaximizeToggle={() => onUsageMaximize(maximizedUsage)} dateRange={dateRange} />
                     }
                     {maximizedUsage != null ? null :
                         <VisualizationSection>
@@ -166,7 +175,7 @@ const Resources: React.FunctionComponent = () => {
                                         <Box color={"var(--gray)"} height="20px">{count > 1 ? prettierString(it.unit) : null}</Box>
                                         {donuts}
                                         <Flex style={{flexGrow: 1}} />
-                                        <UsageChartViewer key={idx} c={it} onMaximizeToggle={() => onUsageMaximize(idx)} />
+                                        <UsageChartViewer key={idx} c={it} dateRange={dateRange} onMaximizeToggle={() => onUsageMaximize(idx)} />
                                     </Flex>
                                 </HighlightedCard>
                             })}
@@ -208,11 +217,27 @@ const UsageChartStyle = styled.div`
     }
 `;
 
+function fillOnePointResults(results: Record<string, any>[], names: string[], dateRange: {start: number; end: number;}): void {
+    let dirty = false;
+    for (const name of names) {
+        const entries = results.filter(current => current[name] != null);
+        console.log(entries);
+        if (entries.length !== 1) continue;
+        const [entry] = entries;
+        console.log(entry, dateRange.start - entry.timestamp, dateRange.end - entry.timestamp);
+        results.push({timestamp: dateRange.start, [name]: 0});
+        results.push({timestamp: dateRange.end, [name]: entry[name]});
+        dirty = true;
+    }
+    if (dirty) results.sort((a, b) => a.timestamp - b.timestamp);
+}
+
 const UsageChartViewer: React.FunctionComponent<{
     c: UsageChart;
     maximized?: boolean;
     onMaximizeToggle: () => void;
-}> = ({c, maximized, onMaximizeToggle}) => {
+    dateRange: {start: number; end: number;}
+}> = ({c, maximized, onMaximizeToggle, dateRange}) => {
     const [flattenedLines, names] = useMemo(() => {
         const names: string[] = [];
         const work: Record<string, Record<string, any>> = {};
@@ -242,6 +267,9 @@ const UsageChartViewer: React.FunctionComponent<{
                 }
             }
         }
+
+        fillOnePointResults(result, names, dateRange);
+
         return [result, names];
     }, [c.chart]);
 
