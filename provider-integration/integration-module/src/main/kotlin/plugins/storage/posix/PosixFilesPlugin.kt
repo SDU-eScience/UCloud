@@ -191,8 +191,6 @@ class PosixFilesPlugin : FilePlugin {
             request.conflictPolicy
         ).toNioPath()
 
-        println("Ideal destination is $destination")
-
         val copyOptions = buildList<CopyOption> {
             if (request.conflictPolicy == WriteConflictPolicy.REPLACE) add(StandardCopyOption.REPLACE_EXISTING)
         }.toTypedArray()
