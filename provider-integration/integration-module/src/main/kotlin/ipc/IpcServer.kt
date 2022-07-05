@@ -29,6 +29,7 @@ import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.Files as NioFiles
 
 const val USE_SO_PEERCRED = false
+const val IPC_AUTH_DIR = "auth"
 
 data class IpcUser(val uid: Int)
 
@@ -155,7 +156,7 @@ class IpcServer(
     fun runServer() {
         registerRpcHandler()
 
-        val authDir = File(ipcSocketDirectory, "auth").also { it.mkdir() }
+        val authDir = File(ipcSocketDirectory, IPC_AUTH_DIR).also { it.mkdir() }
         clib.chmod(authDir.absolutePath, "733".toInt(8)) // Allow anyone to write to the auth folder but not read it
 
         val socket = File("$ipcSocketDirectory/$ipcSocketName")
@@ -269,12 +270,12 @@ class IpcServer(
             // by creating a specific file in a public folder. We use the owner, which under linux cannot be changed
             // without root, to determine the uid of the user who created it.
             val token = secureToken(32) + Time.now()
-            sendMessage("AUTH $token")
+            sendMessage("AUTH $token\n")
 
             val response = messageBuilder.readNextMessage(client, readBuffer)
             if (response != "OK") throw IpcException("Bad authentication flow")
 
-            val authDir = File(ipcSocketDirectory, "auth")
+            val authDir = File(ipcSocketDirectory, IPC_AUTH_DIR)
             val authFile = File(authDir, token).toPath()
             val attributes = NioFiles
                 .readAttributes(authFile, PosixFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
@@ -288,8 +289,6 @@ class IpcServer(
 
             IpcUser(uid)
         }
-
-        println("User has successfully authenticated as $user")
 
         try {
             while (true) {

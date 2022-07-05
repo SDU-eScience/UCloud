@@ -12,6 +12,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import libc.clib
 import java.io.File
 import java.net.StandardProtocolFamily
 import java.net.UnixDomainSocketAddress
@@ -153,10 +154,11 @@ class IpcClient(
                     }
 
                     val token = messageSplit[1]
-                    val authDir = File(ipcDirectory, "auth")
-                    File(authDir, token).writeText(token)
+                    val authDir = File(ipcDirectory, IPC_AUTH_DIR)
+                    val authFile = File(authDir, token).also { it.writeText(token) }
+                    clib.chmod(authFile.absolutePath, "644".toInt(8))
 
-                    sendMessage("OK")
+                    sendMessage("OK\n")
                 }
 
                 else -> {
