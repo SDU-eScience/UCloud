@@ -20,7 +20,6 @@ import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.singlePageOf
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
 
 @Serializable
 @UCloudApiExampleValue
@@ -136,19 +135,19 @@ object Resources : ExampleResourcesSuper("example") {
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         ExampleResource.serializer(),
-        typeOf<ExampleResource>(),
+        typeOfIfPossible<ExampleResource>(),
         ExampleResource.Spec.serializer(),
-        typeOf<ExampleResource.Spec>(),
+        typeOfIfPossible<ExampleResource.Spec>(),
         ExampleResource.Update.serializer(),
-        typeOf<ExampleResource.Update>(),
+        typeOfIfPossible<ExampleResource.Update>(),
         ExampleResourceFlags.serializer(),
-        typeOf<ExampleResourceFlags>(),
+        typeOfIfPossible<ExampleResourceFlags>(),
         ExampleResource.Status.serializer(),
-        typeOf<ExampleResource.Status>(),
+        typeOfIfPossible<ExampleResource.Status>(),
         ExampleResourceSupport.serializer(),
-        typeOf<ExampleResourceSupport>(),
+        typeOfIfPossible<ExampleResourceSupport>(),
         Product.serializer(),
-        typeOf<Product>(),
+        typeOfIfPossible<Product>(),
     )
 
     const val readMeFirst = """
@@ -598,19 +597,19 @@ object ResourceProvider : ResourceProviderApi<ExampleResource, ExampleResource.S
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         ExampleResource.serializer(),
-        typeOf<ExampleResource>(),
+        typeOfIfPossible<ExampleResource>(),
         ExampleResource.Spec.serializer(),
-        typeOf<ExampleResource.Spec>(),
+        typeOfIfPossible<ExampleResource.Spec>(),
         ExampleResource.Update.serializer(),
-        typeOf<ExampleResource.Update>(),
+        typeOfIfPossible<ExampleResource.Update>(),
         ExampleResourceFlags.serializer(),
-        typeOf<ExampleResourceFlags>(),
+        typeOfIfPossible<ExampleResourceFlags>(),
         ExampleResource.Status.serializer(),
-        typeOf<ExampleResource.Status>(),
+        typeOfIfPossible<ExampleResource.Status>(),
         ExampleResourceSupport.serializer(),
-        typeOf<ExampleResourceSupport>(),
+        typeOfIfPossible<ExampleResourceSupport>(),
         Product.serializer(),
-        typeOf<Product>(),
+        typeOfIfPossible<Product>(),
     )
 
     init {
@@ -748,18 +747,18 @@ object ResourceControl : ResourceControlApi<ExampleResource, ExampleResource.Spe
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         ExampleResource.serializer(),
-        typeOf<ExampleResource>(),
+        typeOfIfPossible<ExampleResource>(),
         ExampleResource.Spec.serializer(),
-        typeOf<ExampleResource.Spec>(),
+        typeOfIfPossible<ExampleResource.Spec>(),
         ExampleResource.Update.serializer(),
-        typeOf<ExampleResource.Update>(),
+        typeOfIfPossible<ExampleResource.Update>(),
         ExampleResourceFlags.serializer(),
-        typeOf<ExampleResourceFlags>(),
+        typeOfIfPossible<ExampleResourceFlags>(),
         ExampleResource.Status.serializer(),
-        typeOf<ExampleResource.Status>(),
+        typeOfIfPossible<ExampleResource.Status>(),
         ExampleResourceSupport.serializer(),
-        typeOf<ExampleResourceSupport>(),
+        typeOfIfPossible<ExampleResourceSupport>(),
         Product.serializer(),
-        typeOf<Product>(),
+        typeOfIfPossible<Product>(),
     )
 }

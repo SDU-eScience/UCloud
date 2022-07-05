@@ -8,5 +8,5 @@ typealias UserEventProducer = EventProducer<UserEvent>
 typealias UserEventConsumer = EventStream<UserEvent>
 
 object AuthStreams : EventStreamContainer() {
-    val UserUpdateStream = stream<UserEvent>("auth.user", { it.userId })
+    val UserUpdateStream = stream(UserEvent.serializer(), "auth.user", { it.userId })
 }

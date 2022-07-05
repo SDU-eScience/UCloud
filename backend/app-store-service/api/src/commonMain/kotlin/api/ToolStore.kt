@@ -2,6 +2,7 @@ package dk.sdu.cloud.app.store.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.builtins.serializer
 
 typealias UploadToolLogoRequest = UploadApplicationLogoRequest
 typealias UploadToolLogoResponse = Unit
@@ -108,7 +109,7 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
-    val findByNameAndVersion = call<FindByNameAndVersion, Tool, CommonErrorMessage>("findByNameAndVersion") {
+    val findByNameAndVersion = call("findByNameAndVersion", FindByNameAndVersion.serializer(), Tool.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -131,7 +132,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findByName = call<FindByNameAndPagination, Page<Tool>, CommonErrorMessage>("findByName") {
+    val findByName = call("findByName", FindByNameAndPagination.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -155,7 +156,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val listAll = call<PaginationRequest, Page<Tool>, CommonErrorMessage>("listAll") {
+    val listAll = call("listAll", PaginationRequest.serializer(), Page.serializer(Tool.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -181,7 +182,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -202,8 +203,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val uploadLogo =
-        call<UploadToolLogoRequest, UploadToolLogoResponse, CommonErrorMessage>("uploadLogo") {
+    val uploadLogo = call("uploadLogo", UploadToolLogoRequest.serializer(), UploadToolLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
@@ -233,8 +233,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val clearLogo =
-        call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
+    val clearLogo = call("clearLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
@@ -256,7 +255,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
+    val fetchLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC

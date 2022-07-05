@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 enum class ServiceOrigin {
@@ -71,7 +72,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
 
     }
 
-    val insert = call<InsertRequest, InsertResponse, CommonErrorMessage>("insert") {
+    val insert = call("insert", InsertRequest.serializer(), InsertResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -88,7 +89,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
     }
 
-    val delete = call<DeleteRequest, DeleteResponse, CommonErrorMessage>("delete") {
+    val delete = call("delete", DeleteRequest.serializer(), DeleteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -105,9 +106,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
     }
 
-    val listAllContactsForUser = call<
-            AllContactsForUserRequest, AllContactsForUserResponse, CommonErrorMessage
-            >("listAllContactsForUser") {
+    val listAllContactsForUser = call("listAllContactsForUser", AllContactsForUserRequest.serializer(), AllContactsForUserResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -125,7 +124,7 @@ object ContactBookDescriptions : CallDescriptionContainer("contactbook") {
         }
     }
 
-    val queryUserContacts = call<QueryContactsRequest, QueryContactsResponse, CommonErrorMessage>("queryUserContacts") {
+    val queryUserContacts = call("queryUserContacts", QueryContactsRequest.serializer(), QueryContactsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ

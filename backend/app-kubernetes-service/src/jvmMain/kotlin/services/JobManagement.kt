@@ -44,6 +44,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.JsonObject
@@ -178,7 +179,8 @@ class JobManagement(
             val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
 
             val jobAlreadyExists = try {
-                k8.client.getResource<VolcanoJob>(
+                k8.client.getResource(
+                    VolcanoJob.serializer(),
                     KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
                 )
                 true
@@ -396,7 +398,7 @@ class JobManagement(
                         unsuspendQueue.clear()
                     }
 
-                    k8.debug.detailD("Items in queue", mapOf("wrapper" to listCopy))
+                    k8.debug.detailD("Items in queue", ListSerializer(UnsuspendItem.serializer()), listCopy)
 
                     val now = Time.now()
                     for ((job, expiry) in listCopy) {
@@ -432,7 +434,7 @@ class JobManagement(
                     if (!renewLock(lock)) return@enterContext
 
                     val events = processScan(resources)
-                    k8.debug.detailD("Events fetched from K8", events)
+                    k8.debug.detailD("Events fetched from K8", ListSerializer(VolcanoJobEvent.serializer()), events)
                     // TODO It looks like this code is aware of changes but they are not successfully received by 
                     // UCloud/sent by this service
 
@@ -611,7 +613,10 @@ class JobManagement(
             val name = k8.nameAllocator.jobIdToJobName(jobId)
             val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
             try {
-                k8.client.getResource(KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace))
+                k8.client.getResource(
+                    VolcanoJob.serializer(),
+                    KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
+                )
             } catch (ex: KubernetesException) {
                 if (ex.statusCode == io.ktor.http.HttpStatusCode.NotFound) {
                     log.info("Job no longer exists: $jobId")

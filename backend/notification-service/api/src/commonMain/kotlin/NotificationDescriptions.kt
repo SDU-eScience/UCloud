@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
@@ -149,7 +150,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val list = call<ListNotificationRequest, Page<Notification>, CommonErrorMessage>("list") {
+    val list = call("list", ListNotificationRequest.serializer(), Page.serializer(Notification.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -170,7 +171,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val markAsRead = call<MarkAsReadRequest, MarkResponse, CommonErrorMessage>("markAsRead") {
+    val markAsRead = call("markAsRead", MarkAsReadRequest.serializer(), MarkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -187,7 +188,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val markAllAsRead = call<Unit, Unit, CommonErrorMessage>("markAllAsRead") {
+    val markAllAsRead = call("markAllAsRead", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -202,7 +203,7 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val create = call<CreateNotification, FindByNotificationId, CommonErrorMessage>("create") {
+    val create = call("create", CreateNotification.serializer(), FindByNotificationId.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -221,11 +222,11 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val createBulk = call<BulkRequest<CreateNotification>, BulkResponse<FindByNotificationId>, CommonErrorMessage>("createBulk") {
+    val createBulk = call("createBulk", BulkRequest.serializer(CreateNotification.serializer()), BulkResponse.serializer(FindByNotificationId.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "bulk", roles = Roles.PRIVILEGED)
     }
 
-    val delete = call<DeleteNotificationRequest, DeleteResponse, CommonErrorMessage>("delete") {
+    val delete = call("delete", DeleteNotificationRequest.serializer(), DeleteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -242,8 +243,8 @@ automatically delivered to any connected frontend via websockets.
         }
     }
 
-    val subscription = call<SubscriptionRequest, SubscriptionResponse, CommonErrorMessage>("subscription") {
-        audit<SubscriptionRequest> {
+    val subscription = call("subscription", SubscriptionRequest.serializer(), SubscriptionResponse.serializer(), CommonErrorMessage.serializer()) {
+        audit(Unit.serializer()) {
             longRunningResponseTime = true
         }
 
@@ -254,8 +255,7 @@ automatically delivered to any connected frontend via websockets.
         websocket(baseContext)
     }
 
-    val internalNotification =
-        call<InternalNotificationRequest, InternalNotificationResponse, CommonErrorMessage>("internalNotification") {
+    val internalNotification = call("internalNotification", InternalNotificationRequest.serializer(), InternalNotificationResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ

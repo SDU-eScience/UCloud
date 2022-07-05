@@ -8,5 +8,5 @@ typealias AppEventProducer = EventProducer<AppEvent>
 typealias AppEventConsumer = EventStream<AppEvent>
 
 object AppStoreStreams : EventStreamContainer() {
-    val AppDeletedStream = stream<AppEvent>("appStore.delete", {it.key} )
+    val AppDeletedStream = stream(AppEvent.serializer(), "appStore.delete", {it.key} )
 }

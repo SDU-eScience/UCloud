@@ -20,7 +20,6 @@ import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.withTransaction
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.serializer
 
 private typealias Super = JobBoundResource<NetworkIP, NetworkIPSpecification, NetworkIPUpdate, NetworkIPFlags,
         NetworkIPStatus, Product.NetworkIP, NetworkIPSupport, ComputeCommunication, AppParameterValue.Network>
@@ -42,8 +41,8 @@ class NetworkIPService(
         "resource" to SqlObject.Column(table, "resource")
     )
 
-    override val serializer = serializer<NetworkIP>()
-    override val updateSerializer = serializer<NetworkIPUpdate>()
+    override val serializer = NetworkIP.serializer()
+    override val updateSerializer = NetworkIPUpdate.serializer()
     override val productArea: ProductArea = ProductArea.NETWORK_IP
 
     override fun resourcesFromJob(job: Job): List<AppParameterValue.Network> = job.networks

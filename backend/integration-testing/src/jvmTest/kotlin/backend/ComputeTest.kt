@@ -112,7 +112,10 @@ object UCloudProvider {
                 // Check if volcano is present
                 run {
                     val hasVolcano = runCatching {
-                        k8.getResource<Namespace>(KubernetesResources.namespaces.withName("volcano-system"))
+                        k8.getResource(
+                            Namespace.serializer(),
+                            KubernetesResources.namespaces.withName("volcano-system")
+                        )
                     }.isSuccess
 
                     if (!hasVolcano) {
@@ -134,7 +137,10 @@ object UCloudProvider {
                     val deadline = Time.now() + 30_000
                     while (Time.now() < deadline) {
                         val hasNamespace = runCatching {
-                            k8.getResource<Namespace>(KubernetesResources.namespaces.withName("app-kubernetes"))
+                            k8.getResource(
+                                Namespace.serializer(),
+                                KubernetesResources.namespaces.withName("app-kubernetes")
+                            )
                         }.isSuccess
 
                         if (!hasNamespace) break

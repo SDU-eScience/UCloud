@@ -14,6 +14,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
 import org.elasticsearch.client.RequestOptions
 import java.util.*
@@ -21,7 +22,7 @@ import java.util.*
 private object HealthCheckDescriptions : CallDescriptionContainer("healthcheck") {
     const val baseContext = "/status"
 
-    val status = call<Unit, Unit, CommonErrorMessage>("status") {
+    val status = call("status", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -41,7 +42,7 @@ private object HealthCheckDescriptions : CallDescriptionContainer("healthcheck")
 private data class RedisHealthMessage(val id: String, val timestamp: Long)
 
 private class RedisHealthStream(serviceName: String, id: Int) : EventStreamContainer() {
-    val health = stream<RedisHealthMessage>("$serviceName-$id-rhealth", { it.id })
+    val health = stream(RedisHealthMessage.serializer(), "$serviceName-$id-rhealth", { it.id })
 }
 
 class HealthCheckFeature : MicroFeature {

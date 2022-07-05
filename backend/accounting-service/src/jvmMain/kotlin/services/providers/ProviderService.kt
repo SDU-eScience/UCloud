@@ -14,7 +14,6 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.serialization.serializer
 import java.util.*
 
 private typealias Super = ResourceService<Provider, ProviderSpecification, ProviderUpdate, ProviderIncludeFlags,
@@ -36,8 +35,8 @@ class ProviderService(
 
     override val productArea: ProductArea = ProductArea.COMPUTE
 
-    override val updateSerializer = serializer<ProviderUpdate>()
-    override val serializer = serializer<Provider>()
+    override val updateSerializer = ProviderUpdate.serializer()
+    override val serializer = Provider.serializer()
 
     override fun userApi() = dk.sdu.cloud.provider.api.Providers
     override fun controlApi() = throw IllegalArgumentException("Not supported")

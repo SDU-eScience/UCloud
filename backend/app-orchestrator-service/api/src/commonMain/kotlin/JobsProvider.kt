@@ -17,40 +17,13 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.exampleBatchApplication
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CALL_REF
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.ProviderApiRequirements
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExampleValue
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.documentProviderCall
-import dk.sdu.cloud.calls.documentation
-import dk.sdu.cloud.calls.httpRetrieve
-import dk.sdu.cloud.calls.httpUpdate
-import dk.sdu.cloud.calls.provider
-import dk.sdu.cloud.calls.providerDescription
-import dk.sdu.cloud.calls.serializerEntry
-import dk.sdu.cloud.calls.serializerLookupTable
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.title
-import dk.sdu.cloud.calls.ucloudCore
-import dk.sdu.cloud.calls.useCase
-import dk.sdu.cloud.calls.websocket
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.serializer
 
 typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
 typealias JobsProviderExtendResponse = BulkResponse<Unit?>
@@ -254,19 +227,19 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Job.serializer(),
-        typeOf<Job>(),
+        typeOfIfPossible<Job>(),
         JobSpecification.serializer(),
-        typeOf<JobSpecification>(),
+        typeOfIfPossible<JobSpecification>(),
         JobUpdate.serializer(),
-        typeOf<JobUpdate>(),
+        typeOfIfPossible<JobUpdate>(),
         JobIncludeFlags.serializer(),
-        typeOf<JobIncludeFlags>(),
+        typeOfIfPossible<JobIncludeFlags>(),
         JobStatus.serializer(),
-        typeOf<JobStatus>(),
+        typeOfIfPossible<JobStatus>(),
         ComputeSupport.serializer(),
-        typeOf<ComputeSupport>(),
+        typeOfIfPossible<ComputeSupport>(),
         Product.Compute.serializer(),
-        typeOf<Product.Compute>(),
+        typeOfIfPossible<Product.Compute>(),
     )
 
     init {
@@ -827,7 +800,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             )
     }
 
-    val extend = call<JobsProviderExtendRequest, JobsProviderExtendResponse, CommonErrorMessage>("extend") {
+    val extend = call("extend", BulkRequest.serializer(JobsProviderExtendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "extend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -843,7 +816,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val terminate = call<BulkRequest<Job>, BulkResponse<Unit?>, CommonErrorMessage>("terminate") {
+    val terminate = call("terminate", BulkRequest.serializer(Job.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "terminate", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -854,7 +827,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val suspend = call<JobsProviderSuspendRequest, JobsProviderSuspendResponse, CommonErrorMessage>("suspend") {
+    val suspend = call("suspend", BulkRequest.serializer(JobsProviderSuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "suspend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -869,7 +842,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val unsuspend = call<JobsProviderUnsuspendRequest, JobsProviderUnsuspendResponse, CommonErrorMessage>("unsuspend") {
+    val unsuspend = call("unsuspend", BulkRequest.serializer(JobsProviderUnsuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "unsuspend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -909,9 +882,9 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         JobsProviderFollowRequest.serializer(),
         JobsProviderFollowResponse.serializer(),
         CommonErrorMessage.serializer(),
-        typeOf<JobsProviderFollowRequest>(),
-        typeOf<JobsProviderFollowResponse>(),
-        typeOf<CommonErrorMessage>(),
+        typeOfIfPossible<JobsProviderFollowRequest>(),
+        typeOfIfPossible<JobsProviderFollowResponse>(),
+        typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val openInteractiveSession = call(
@@ -937,13 +910,12 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         BulkRequest.serializer(JobsProviderOpenInteractiveSessionRequestItem.serializer()),
         BulkResponse.serializer(OpenSession.serializer().nullable),
         CommonErrorMessage.serializer(),
-        typeOf<JobsProviderOpenInteractiveSessionRequest>(),
-        typeOf<JobsProviderOpenInteractiveSessionResponse>(),
-        typeOf<CommonErrorMessage>(),
+        typeOfIfPossible<JobsProviderOpenInteractiveSessionRequest>(),
+        typeOfIfPossible<JobsProviderOpenInteractiveSessionResponse>(),
+        typeOfIfPossible<CommonErrorMessage>(),
     )
 
-    val retrieveUtilization = call<JobsProviderUtilizationRequest, JobsProviderUtilizationResponse,
-            CommonErrorMessage>("retrieveUtilization") {
+    val retrieveUtilization = call("retrieveUtilization", JobsProviderUtilizationRequest.serializer(), JobsProviderUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
 
         documentation {

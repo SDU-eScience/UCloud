@@ -5,6 +5,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlin.native.concurrent.ThreadLocal
 
 @Serializable
@@ -255,36 +256,31 @@ header). This JWT would provide similar security, the document should contain:
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val register = call<BulkRequest<AuthProvidersRegisterRequestItem>, BulkResponse<AuthProvidersRegisterResponseItem>,
-        CommonErrorMessage>("register") {
+    val register = call("register", BulkRequest.serializer(AuthProvidersRegisterRequestItem.serializer()), BulkResponse.serializer(AuthProvidersRegisterResponseItem.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val claim = call<BulkRequest<AuthProvidersRegisterResponseItem>, BulkResponse<PublicKeyAndRefreshToken>,
-        CommonErrorMessage>("claim") {
+    val claim = call("claim", BulkRequest.serializer(AuthProvidersRegisterResponseItem.serializer()), BulkResponse.serializer(PublicKeyAndRefreshToken.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "claim", roles = Roles.PRIVILEGED)
     }
 
-    val renew = call<BulkRequest<AuthProvidersRenewRequestItem>, BulkResponse<PublicKeyAndRefreshToken>,
-        CommonErrorMessage>("renew") {
+    val renew = call("renew", BulkRequest.serializer(AuthProvidersRenewRequestItem.serializer()), BulkResponse.serializer(PublicKeyAndRefreshToken.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "renew", roles = Roles.PRIVILEGED)
     }
 
-    val refresh = call<AuthProvidersRefreshRequest, AuthProvidersRefreshResponse, CommonErrorMessage>("refresh") {
-        audit<BulkResponse<AuthProvidersRefreshAudit>>()
+    val refresh = call("refresh", AuthProvidersRefreshRequest.serializer(AuthProvidersRefreshRequestItem.serializer()), AuthProvidersRefreshResponse.serializer(AccessToken.serializer()), CommonErrorMessage.serializer()) {
+        audit(BulkResponse.serializer(AuthProvidersRefreshAudit.serializer()))
         httpUpdate(baseContext, "refresh", roles = Roles.PUBLIC)
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val retrievePublicKey = call<AuthProvidersRetrievePublicKeyRequest, AuthProvidersRetrievePublicKeyResponse,
-        CommonErrorMessage>("retrievePublicKey") {
+    val retrievePublicKey = call("retrievePublicKey", AuthProvidersRetrievePublicKeyRequest.serializer(), AuthProvidersRetrievePublicKeyResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "key", roles = Roles.PRIVILEGED)
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val refreshAsOrchestrator = call<AuthProvidersRefreshAsProviderRequest, AuthProvidersRefreshAsProviderResponse,
-        CommonErrorMessage>("refreshAsOrchestrator") {
+    val refreshAsOrchestrator = call("refreshAsOrchestrator", BulkRequest.serializer(AuthProvidersRefreshAsProviderRequestItem.serializer()), BulkResponse.serializer(AccessToken.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "refreshAsOrchestrator", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -297,8 +293,7 @@ header). This JWT would provide similar security, the document should contain:
     }
 
     @UCloudApiInternal(InternalLevel.BETA)
-    val generateKeyPair = call<AuthProvidersGenerateKeyPairRequest, AuthProvidersGenerateKeyPairResponse,
-        CommonErrorMessage>("generateKeyPair") {
+    val generateKeyPair = call("generateKeyPair", AuthProvidersGenerateKeyPairRequest.serializer(), AuthProvidersGenerateKeyPairResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "generateKeyPair", roles = Roles.PRIVILEGED)
 
         documentation {

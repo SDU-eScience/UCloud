@@ -7,6 +7,8 @@ import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class LookupUsersRequest(val users: List<String>)
@@ -115,8 +117,8 @@ ${ApiConventions.nonConformingApiWarning}
         """.trimIndent()
     }
 
-    val createNewUser = call<CreateUserRequest, CreateUserResponse, CommonErrorMessage>("createNewUser") {
-        audit<CreateUserAudit>()
+    val createNewUser = call("createNewUser", ListSerializer(CreateSingleUserRequest.serializer()), ListSerializer(CreateSingleUserResponse.serializer()), CommonErrorMessage.serializer()) {
+        audit(ListSerializer(CreateSingleUserAudit.serializer()))
 
         auth {
             roles = Roles.PRIVILEGED
@@ -134,7 +136,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val updateUserInfo = call<UpdateUserInfoRequest, UpdateUserInfoResponse, CommonErrorMessage>("updateUserInfo") {
+    val updateUserInfo = call("updateUserInfo", UpdateUserInfoRequest.serializer(), UpdateUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.END_USER
             access = AccessRight.READ_WRITE
@@ -151,7 +153,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val getUserInfo = call<GetUserInfoRequest, GetUserInfoResponse, CommonErrorMessage>("getUserInfo") {
+    val getUserInfo = call("getUserInfo", GetUserInfoRequest.serializer(), GetUserInfoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.END_USER
             access = AccessRight.READ
@@ -166,7 +168,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrievePrincipal = call<GetPrincipalRequest, GetPrincipalResponse, CommonErrorMessage>("retrievePrincipal") {
+    val retrievePrincipal = call("retrievePrincipal", GetPrincipalRequest.serializer(), GetPrincipalResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ
@@ -186,8 +188,8 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val changePassword = call<ChangePasswordRequest, Unit, CommonErrorMessage>("changePassword") {
-        audit<ChangePasswordAudit>()
+    val changePassword = call("changePassword", ChangePasswordRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        audit(ChangePasswordAudit.serializer())
 
         auth {
             roles = Roles.END_USER
@@ -205,8 +207,8 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val changePasswordWithReset = call<ChangePasswordWithResetRequest, Unit, CommonErrorMessage>("changePasswordWithReset") {
-        audit<ChangePasswordAudit>()
+    val changePasswordWithReset = call("changePasswordWithReset", ChangePasswordWithResetRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        audit(ChangePasswordAudit.serializer())
 
         auth {
             roles = setOf(Role.SERVICE)
@@ -225,7 +227,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val lookupUsers = call<LookupUsersRequest, LookupUsersResponse, CommonErrorMessage>("lookupUsers") {
+    val lookupUsers = call("lookupUsers", LookupUsersRequest.serializer(), LookupUsersResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -242,7 +244,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val lookupEmail = call<LookupEmailRequest, LookupEmailResponse, CommonErrorMessage>("lookupEmail") {
+    val lookupEmail = call("lookupEmail", LookupEmailRequest.serializer(), LookupEmailResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -260,7 +262,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val lookupUserWithEmail = call<LookupUserWithEmailRequest, LookupUserWithEmailResponse, CommonErrorMessage>("lookupUserWithEmail") {
+    val lookupUserWithEmail = call("lookupUserWithEmail", LookupUserWithEmailRequest.serializer(), LookupUserWithEmailResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = setOf(Role.SERVICE)
             access = AccessRight.READ
@@ -278,7 +280,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val lookupUID = call<LookupUIDRequest, LookupUIDResponse, CommonErrorMessage>("lookupUID") {
+    val lookupUID = call("lookupUID", LookupUIDRequest.serializer(), LookupUIDResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -296,7 +298,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val openUserIterator = call<Unit, FindByStringId, CommonErrorMessage>("openUserIterator") {
+    val openUserIterator = call("openUserIterator", Unit.serializer(), FindByStringId.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -317,7 +319,7 @@ ${ApiConventions.nonConformingApiWarning}
      *
      * Note: twoFactorAuthentication field is not calculated correctly at the moment.
      */
-    val fetchNextIterator = call<FindByStringId, List<Principal>, CommonErrorMessage>("fetchNextIterator") {
+    val fetchNextIterator = call("fetchNextIterator", FindByStringId.serializer(), ListSerializer(Principal.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -335,7 +337,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val closeIterator = call<FindByStringId, Unit, CommonErrorMessage>("closeIterator") {
+    val closeIterator = call("closeIterator", FindByStringId.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE

@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class CreateTicketRequest(
@@ -55,7 +56,7 @@ any chat/mail service that supports webhooks.
         }
     }
 
-    val createTicket = call<CreateTicketRequest, Unit, CommonErrorMessage>("createTicket") {
+    val createTicket = call("createTicket", CreateTicketRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

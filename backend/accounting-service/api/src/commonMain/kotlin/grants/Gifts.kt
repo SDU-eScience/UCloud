@@ -6,6 +6,7 @@ import dk.sdu.cloud.FindByLongId
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 /**
  * @see Gifts
@@ -95,7 +96,7 @@ ${ApiConventions.nonConformingApiWarning}
         """.trimIndent()
     }
 
-    val claimGift = call<ClaimGiftRequest, ClaimGiftResponse, CommonErrorMessage>("claimGift") {
+    val claimGift = call("claimGift", ClaimGiftRequest.serializer(), ClaimGiftResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -122,7 +123,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val availableGifts = call<AvailableGiftsRequest, AvailableGiftsResponse, CommonErrorMessage>("availableGifts") {
+    val availableGifts = call("availableGifts", AvailableGiftsRequest.serializer(), AvailableGiftsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -141,7 +142,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val createGift = call<CreateGiftRequest, CreateGiftResponse, CommonErrorMessage>("createGift") {
+    val createGift = call("createGift", CreateGiftRequest.serializer(), CreateGiftResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -162,7 +163,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val deleteGift = call<DeleteGiftRequest, DeleteGiftResponse, CommonErrorMessage>("deleteGift") {
+    val deleteGift = call("deleteGift", DeleteGiftRequest.serializer(), DeleteGiftResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

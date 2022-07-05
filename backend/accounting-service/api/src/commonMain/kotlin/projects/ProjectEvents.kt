@@ -85,5 +85,5 @@ sealed class ProjectEvent {
 }
 
 object ProjectEvents : EventStreamContainer() {
-    val events = stream<ProjectEvent>("project-events", { it.projectId })
+    val events = stream(ProjectEvent.serializer(), "project-events", { it.projectId })
 }

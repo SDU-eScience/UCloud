@@ -9,7 +9,6 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
 
 @Serializable
 data class LicenseIncludeFlags(
@@ -111,19 +110,19 @@ object Licenses : ResourceApi<License, LicenseSpecification, LicenseUpdate, Lice
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         License.serializer(),
-        typeOf<License>(),
+        typeOfIfPossible<License>(),
         LicenseSpecification.serializer(),
-        typeOf<LicenseSpecification>(),
+        typeOfIfPossible<LicenseSpecification>(),
         LicenseUpdate.serializer(),
-        typeOf<LicenseUpdate>(),
+        typeOfIfPossible<LicenseUpdate>(),
         LicenseIncludeFlags.serializer(),
-        typeOf<LicenseIncludeFlags>(),
+        typeOfIfPossible<LicenseIncludeFlags>(),
         LicenseStatus.serializer(),
-        typeOf<LicenseStatus>(),
+        typeOfIfPossible<LicenseStatus>(),
         LicenseSupport.serializer(),
-        typeOf<LicenseSupport>(),
+        typeOfIfPossible<LicenseSupport>(),
         Product.License.serializer(),
-        typeOf<Product.License>(),
+        typeOfIfPossible<Product.License>(),
     )
 
     init {
@@ -218,19 +217,19 @@ object LicenseControl : ResourceControlApi<License, LicenseSpecification, Licens
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         License.serializer(),
-        typeOf<License>(),
+        typeOfIfPossible<License>(),
         LicenseSpecification.serializer(),
-        typeOf<LicenseSpecification>(),
+        typeOfIfPossible<LicenseSpecification>(),
         LicenseUpdate.serializer(),
-        typeOf<LicenseUpdate>(),
+        typeOfIfPossible<LicenseUpdate>(),
         LicenseIncludeFlags.serializer(),
-        typeOf<LicenseIncludeFlags>(),
+        typeOfIfPossible<LicenseIncludeFlags>(),
         LicenseStatus.serializer(),
-        typeOf<LicenseStatus>(),
+        typeOfIfPossible<LicenseStatus>(),
         LicenseSupport.serializer(),
-        typeOf<LicenseSupport>(),
+        typeOfIfPossible<LicenseSupport>(),
         Product.License.serializer(),
-        typeOf<Product.License>(),
+        typeOfIfPossible<Product.License>(),
     )
 }
 
@@ -239,19 +238,19 @@ open class LicenseProvider(provider: String) : ResourceProviderApi<License, Lice
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         License.serializer(),
-        typeOf<License>(),
+        typeOfIfPossible<License>(),
         LicenseSpecification.serializer(),
-        typeOf<LicenseSpecification>(),
+        typeOfIfPossible<LicenseSpecification>(),
         LicenseUpdate.serializer(),
-        typeOf<LicenseUpdate>(),
+        typeOfIfPossible<LicenseUpdate>(),
         LicenseIncludeFlags.serializer(),
-        typeOf<LicenseIncludeFlags>(),
+        typeOfIfPossible<LicenseIncludeFlags>(),
         LicenseStatus.serializer(),
-        typeOf<LicenseStatus>(),
+        typeOfIfPossible<LicenseStatus>(),
         LicenseSupport.serializer(),
-        typeOf<LicenseSupport>(),
+        typeOfIfPossible<LicenseSupport>(),
         Product.License.serializer(),
-        typeOf<Product.License>(),
+        typeOfIfPossible<Product.License>(),
     )
 
     override val delete get() = super.delete!!

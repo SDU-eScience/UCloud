@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.api.NetworkIPProvider
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class K8NetworkStatus(val capacity: Long, val used: Long)
@@ -30,18 +31,15 @@ typealias KubernetesIPMaintenanceRetrieveStatusResponse = K8NetworkStatus
 class KubernetesNetworkIPMaintenance(providerId: String) : CallDescriptionContainer("compute.networkip.ucloud.maintenance") {
     val baseContext = NetworkIPProvider(providerId).baseContext + "/maintenance"
 
-    val create = call<KubernetesIPMaintenanceCreateRequest, KubernetesIPMaintenanceCreateResponse,
-        CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(K8Subnet.serializer()), KubernetesIPMaintenanceCreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, roles = Roles.PRIVILEGED)
     }
 
-    val browse = call<KubernetesIPMaintenanceBrowseRequest, KubernetesIPMaintenanceBrowseResponse,
-        CommonErrorMessage>("browse") {
+    val browse = call("browse", KubernetesIPMaintenanceBrowseRequest.serializer(), PageV2.serializer(K8Subnet.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, roles = Roles.PRIVILEGED)
     }
 
-    val retrieveStatus = call<KubernetesIPMaintenanceRetrieveStatusRequest,
-        KubernetesIPMaintenanceRetrieveStatusResponse, CommonErrorMessage>("retrieveStatus") {
+    val retrieveStatus = call("retrieveStatus", KubernetesIPMaintenanceRetrieveStatusRequest.serializer(), KubernetesIPMaintenanceRetrieveStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.PRIVILEGED)
     }
 }

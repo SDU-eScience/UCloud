@@ -84,7 +84,8 @@ object ExpiryPlugin : JobManagementPlugin, Loggable {
         val name = k8.nameAllocator.jobIdToJobName(jobId)
         val namespace = k8.nameAllocator.jobIdToNamespace(jobId)
 
-        val job = k8.client.getResource<VolcanoJob>(
+        val job = k8.client.getResource(
+            VolcanoJob.serializer(),
             KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
         )
 

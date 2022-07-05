@@ -34,7 +34,6 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.serializer
 
 interface JobListener {
     suspend fun onVerified(ctx: DBContext, job: Job) {
@@ -102,7 +101,7 @@ class JobOrchestrator(
     }
 
     override val productArea: ProductType = ProductType.COMPUTE
-    override val serializer: KSerializer<Job> = serializer()
+    override val serializer: KSerializer<Job> = Job.serializer()
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
@@ -110,7 +109,7 @@ class JobOrchestrator(
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
     override val defaultSortDirection: SortDirection = SortDirection.descending
-    override val updateSerializer: KSerializer<JobUpdate> = serializer()
+    override val updateSerializer: KSerializer<JobUpdate> = JobUpdate.serializer()
 
     override fun controlApi() = JobsControl
     override fun userApi() = Jobs

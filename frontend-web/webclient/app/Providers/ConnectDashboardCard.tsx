@@ -19,6 +19,7 @@ import {sendNotification} from "@/Notifications";
 import BaseLink from "@/ui-components/BaseLink";
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import {useHistory} from "react-router";
 
 const lastConnectionAt = new LocalStorageCache<number>("last-connection-at");
 
@@ -36,6 +37,7 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
     );
 
     const [commandLoading, invokeCommand] = useCloudCommand();
+    const history = useHistory();
     const reload = useCallback(() => {
         fetchProviders(IntegrationApi.browse({}));
     }, []);
@@ -54,7 +56,10 @@ export const ConnectDashboardCard: React.FunctionComponent = props => {
                         using it.
                     </>,
                     isPinned: true,
-                    uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`
+                    uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`,
+                    onAction: () => {
+                        history.push("/");
+                    }
                 });
             }
         }

@@ -6,6 +6,7 @@ import dk.sdu.cloud.Page
 import dk.sdu.cloud.WithPaginationRequest
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class ListFavoritesRequest(
@@ -29,7 +30,7 @@ object ProjectFavorites : CallDescriptionContainer("project.favorite") {
         description = "API to handle favorite status of a Project.\n\n" + ApiConventions.nonConformingApiWarning
     }
 
-    val toggleFavorite = call<ToggleFavoriteRequest, ToggleFavoriteResponse, CommonErrorMessage>("toggleFavorite") {
+    val toggleFavorite = call("toggleFavorite", ToggleFavoriteRequest.serializer(), ToggleFavoriteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }

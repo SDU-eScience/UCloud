@@ -159,7 +159,10 @@ class TunnelManager(private val k8: K8Dependencies) {
                 rank = rank,
                 _isAlive = {
                     runCatching {
-                        k8.client.getResource<Pod>(KubernetesResources.pod.withNameAndNamespace(podName, namespace))
+                        k8.client.getResource(
+                            Pod.serializer(),
+                            KubernetesResources.pod.withNameAndNamespace(podName, namespace)
+                        )
                     }.getOrNull() != null
                 },
                 _close = { }

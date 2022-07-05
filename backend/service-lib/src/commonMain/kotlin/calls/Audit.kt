@@ -1,7 +1,6 @@
 package dk.sdu.cloud.calls
 
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 
 class AuditDescription<A : Any> internal constructor(
     val context: CallDescription<*, *, *>,
@@ -15,14 +14,15 @@ class AuditDescription<A : Any> internal constructor(
     }
 }
 
-inline fun <reified A : Any> CallDescription<*, *, *>.audit(
-    noinline builder: AuditDescriptionBuilder<A>.() -> Unit = {}
+fun <A : Any> CallDescription<*, *, *>.audit(
+    serializer: KSerializer<A>,
+    builder: AuditDescriptionBuilder<A>.() -> Unit = {}
 ) {
     @Suppress("UNCHECKED_CAST")
     attributes[AuditDescription.descriptionKey] =
         AuditDescriptionBuilder<A>(
             this,
-            containerRef.fixedSerializer<A>()
+            serializer,
         ).also(builder).build() as AuditDescription<Any>
 }
 

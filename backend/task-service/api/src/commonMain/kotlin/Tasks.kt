@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.FakeOutgoingCall
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class ListRequest(
@@ -112,7 +113,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         }
     }
 
-    val list = call<ListRequest, ListResponse, CommonErrorMessage>("list") {
+    val list = call("list", ListRequest.serializer(), Page.serializer(Task.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -131,7 +132,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
-    val view = call<ViewRequest, ViewResponse, CommonErrorMessage>("view") {
+    val view = call("view", ViewRequest.serializer(), ViewResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -148,8 +149,8 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
-    val listen = call<ListenRequest, ListenResponse, CommonErrorMessage>("listen") {
-        audit<ListenRequest> {
+    val listen = call("listen", ListenRequest.serializer(), ListenResponse.serializer(), CommonErrorMessage.serializer()) {
+        audit(ListenRequest.serializer()) {
             longRunningResponseTime = true
         }
 
@@ -160,7 +161,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
-    val create = call<CreateRequest, CreateResponse, CommonErrorMessage>("create") {
+    val create = call("create", CreateRequest.serializer(), CreateResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -179,7 +180,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
-    val postStatus = call<PostStatusRequest, PostStatusResponse, CommonErrorMessage>("postStatus") {
+    val postStatus = call("postStatus", PostStatusRequest.serializer(), PostStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -199,7 +200,7 @@ Providers use this functionality through one of the Control interfaces. They do 
         websocket(baseContext)
     }
 
-    val markAsComplete = call<MarkAsCompleteRequest, MarkAsCompleteResponse, CommonErrorMessage>("markAsComplete") {
+    val markAsComplete = call("markAsComplete", MarkAsCompleteRequest.serializer(), MarkAsCompleteResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED

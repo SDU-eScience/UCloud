@@ -15,8 +15,9 @@ import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Contextual
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
-import kotlin.reflect.typeOf
 
 @Serializable
 data class ExportedParametersRequest(
@@ -638,19 +639,19 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Job.serializer(),
-        typeOf<Job>(),
+        typeOfIfPossible<Job>(),
         JobSpecification.serializer(),
-        typeOf<JobSpecification>(),
+        typeOfIfPossible<JobSpecification>(),
         JobUpdate.serializer(),
-        typeOf<JobUpdate>(),
+        typeOfIfPossible<JobUpdate>(),
         JobIncludeFlags.serializer(),
-        typeOf<JobIncludeFlags>(),
+        typeOfIfPossible<JobIncludeFlags>(),
         JobStatus.serializer(),
-        typeOf<JobStatus>(),
+        typeOfIfPossible<JobStatus>(),
         ComputeSupport.serializer(),
-        typeOf<ComputeSupport>(),
+        typeOfIfPossible<ComputeSupport>(),
         Product.Compute.serializer(),
-        typeOf<Product.Compute>(),
+        typeOfIfPossible<Product.Compute>(),
     )
 
     private const val createUseCase = "create"
@@ -1510,7 +1511,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     override val delete: Nothing? = null
     override val search get() = super.search!!
 
-    val terminate = call<BulkRequest<FindByStringId>, BulkResponse<Unit?>, CommonErrorMessage>("terminate") {
+    val terminate = call("terminate", BulkRequest.serializer(FindByStringId.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "terminate")
 
         documentation {
@@ -1527,9 +1528,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val retrieveUtilization = call<JobsRetrieveUtilizationRequest, JobsRetrieveUtilizationResponse, CommonErrorMessage>(
-        "retrieveUtilization"
-    ) {
+    val retrieveUtilization = call("retrieveUtilization", JobsRetrieveUtilizationRequest.serializer(), JobsRetrieveUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization")
 
         documentation {
@@ -1541,7 +1540,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val follow = call<JobsFollowRequest, JobsFollowResponse, CommonErrorMessage>("follow") {
+    val follow = call("follow", JobsFollowRequest.serializer(), JobsFollowResponse.serializer(), CommonErrorMessage.serializer()) {
         auth { access = AccessRight.READ }
         websocket(baseContext)
 
@@ -1559,7 +1558,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val extend = call<JobsExtendRequest, JobsExtendResponse, CommonErrorMessage>("extend") {
+    val extend = call("extend", BulkRequest.serializer(JobsExtendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "extend")
 
         documentation {
@@ -1582,7 +1581,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val suspend = call<JobsSuspendRequest, JobsSuspendResponse, CommonErrorMessage>("suspend") {
+    val suspend = call("suspend", BulkRequest.serializer(JobsSuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "suspend")
 
         documentation {
@@ -1595,7 +1594,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
         }
     }
 
-    val unsuspend = call<JobsUnsuspendRequest, JobsUnsuspendResponse, CommonErrorMessage>("unsuspend") {
+    val unsuspend = call("unsuspend", BulkRequest.serializer(JobsUnsuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "unsuspend")
 
         documentation {
@@ -1608,8 +1607,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     }
 
 
-    val openInteractiveSession = call<JobsOpenInteractiveSessionRequest, JobsOpenInteractiveSessionResponse,
-        CommonErrorMessage>("openInteractiveSession") {
+    val openInteractiveSession = call("openInteractiveSession", BulkRequest.serializer(JobsOpenInteractiveSessionRequestItem.serializer()), BulkResponse.serializer(OpenSessionWithProvider.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "interactiveSession")
         documentation {
             summary = "Opens an interactive session (e.g. terminal, web or VNC)"

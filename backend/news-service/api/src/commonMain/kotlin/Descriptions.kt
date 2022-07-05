@@ -3,6 +3,8 @@ package dk.sdu.cloud.news.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class NewsPost(
@@ -189,7 +191,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val newPost = call<NewPostRequest, NewPostResponse, CommonErrorMessage>("newPost") {
+    val newPost = call("newPost", NewPostRequest.serializer(), NewPostResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -211,7 +213,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val updatePost = call<UpdatePostRequest, UpdatePostResponse, CommonErrorMessage>("updatePost") {
+    val updatePost = call("updatePost", UpdatePostRequest.serializer(), UpdatePostResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -233,7 +235,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val deletePost = call<DeleteNewsPostRequest, DeleteNewsPostResponse, CommonErrorMessage>("deletePost") {
+    val deletePost = call("deletePost", DeleteNewsPostRequest.serializer(), DeleteNewsPostResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.ADMIN
@@ -255,8 +257,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val togglePostHidden =
-        call<TogglePostHiddenRequest, TogglePostHiddenResponse, CommonErrorMessage>("togglePostHidden") {
+    val togglePostHidden = call("togglePostHidden", TogglePostHiddenRequest.serializer(), TogglePostHiddenResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
                 roles = Roles.ADMIN
@@ -278,7 +279,7 @@ object News : CallDescriptionContainer("news") {
             }
         }
 
-    val listCategories = call<ListCategoriesRequest, ListCategoriesResponse, CommonErrorMessage>("listCategories") {
+    val listCategories = call("listCategories", ListCategoriesRequest.serializer(), ListSerializer(String.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED
@@ -298,7 +299,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val listPosts = call<ListPostsRequest, ListPostsResponse, CommonErrorMessage>("listPosts") {
+    val listPosts = call("listPosts", ListPostsRequest.serializer(), Page.serializer(NewsPost.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -325,7 +326,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val listDowntimes = call<ListDownTimesRequest, ListDownTimesResponse, CommonErrorMessage>("listDowntimes") {
+    val listDowntimes = call("listDowntimes", ListDownTimesRequest.serializer(), Page.serializer(NewsPost.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -345,7 +346,7 @@ object News : CallDescriptionContainer("news") {
         }
     }
 
-    val getPostById = call<GetPostByIdRequest, GetPostByIdResponse, CommonErrorMessage>("getPostBy") {
+    val getPostById = call("getPostBy", GetPostByIdRequest.serializer(), GetPostByIdResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED

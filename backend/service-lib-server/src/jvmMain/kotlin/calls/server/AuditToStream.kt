@@ -19,7 +19,6 @@ import io.ktor.server.request.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 
 private typealias HttpEventProducer = EventProducer<HttpCallLogEntry>
 private typealias AuditProducer = EventProducer<AuditEvent<*>>
@@ -158,7 +157,7 @@ class AuditToEventStream(
     companion object : Loggable {
         override val log = logger()
 
-        private val httpLogsStream = JsonEventStream<HttpCallLogEntry>("http.logs", serializer(), { it.jobId })
+        private val httpLogsStream = JsonEventStream("http.logs", HttpCallLogEntry.serializer(), { it.jobId })
     }
 }
 

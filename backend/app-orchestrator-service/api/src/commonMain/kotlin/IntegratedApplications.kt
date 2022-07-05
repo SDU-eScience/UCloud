@@ -4,10 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import kotlinx.serialization.*
-import kotlinx.serialization.builtins.nullable
-import kotlinx.serialization.builtins.serializer
 import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 // End-user API
 // ====================================================================================================================
@@ -17,7 +14,7 @@ abstract class IntegratedApplicationApi<ConfigType>(
 ) : CallDescriptionContainer("iapps.$namespace") {
     val baseContext = "/api/iapps/$namespace"
 
-    abstract val configType: KType
+    abstract val configType: KType?
     abstract val configSerializer: KSerializer<ConfigType>
 
     val retrieveConfiguration: CallDescription<
@@ -29,19 +26,19 @@ abstract class IntegratedApplicationApi<ConfigType>(
         handler = {
             httpRetrieve(
                 IAppsRetrieveConfigRequest.serializer(configSerializer),
-                typeOf<IAppsRetrieveConfigRequest<ConfigType>>(),
+                typeOfIfPossible<IAppsRetrieveConfigRequest<ConfigType>>(),
                 baseContext,
             )
         },
 
         requestType = IAppsRetrieveConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsRetrieveConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsRetrieveConfigRequest<ConfigType>>(),
 
         successType = IAppsRetrieveConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsRetrieveConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsRetrieveConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val updateConfiguration: CallDescription<
@@ -59,13 +56,13 @@ abstract class IntegratedApplicationApi<ConfigType>(
         },
 
         requestType = IAppsUpdateConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsUpdateConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsUpdateConfigRequest<ConfigType>>(),
 
         successType = IAppsUpdateConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsUpdateConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsUpdateConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val resetConfiguration: CallDescription<
@@ -83,13 +80,13 @@ abstract class IntegratedApplicationApi<ConfigType>(
         },
 
         requestType = IAppsResetConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsResetConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsResetConfigRequest<ConfigType>>(),
 
         successType = IAppsResetConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsResetConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsResetConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val restart: CallDescription<
@@ -107,13 +104,13 @@ abstract class IntegratedApplicationApi<ConfigType>(
         },
 
         requestType = IAppsRestartRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsRestartRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsRestartRequest<ConfigType>>(),
 
         successType = IAppsRestartResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsRestartResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsRestartResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 }
 
@@ -162,7 +159,7 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
 ) : CallDescriptionContainer("iapps.$namespace.provider.$provider") {
     val baseContext = "/ucloud/$provider/iapps/$namespace"
 
-    abstract val configType: KType
+    abstract val configType: KType?
     abstract val configSerializer: KSerializer<ConfigType>
 
     val retrieveConfiguration: CallDescription<
@@ -181,13 +178,13 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
         },
 
         requestType = IAppsProviderRetrieveConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsProviderRetrieveConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsProviderRetrieveConfigRequest<ConfigType>>(),
 
         successType = IAppsProviderRetrieveConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsProviderRetrieveConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsProviderRetrieveConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val updateConfiguration: CallDescription<
@@ -206,13 +203,13 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
         },
 
         requestType = IAppsProviderUpdateConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsProviderUpdateConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsProviderUpdateConfigRequest<ConfigType>>(),
 
         successType = IAppsProviderUpdateConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsProviderUpdateConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsProviderUpdateConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val resetConfiguration: CallDescription<
@@ -231,13 +228,13 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
         },
 
         requestType = IAppsProviderResetConfigRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsProviderResetConfigRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsProviderResetConfigRequest<ConfigType>>(),
 
         successType = IAppsProviderResetConfigResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsProviderResetConfigResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsProviderResetConfigResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val restart: CallDescription<
@@ -256,13 +253,13 @@ abstract class IntegratedApplicationProviderApi<ConfigType>(
         },
 
         requestType = IAppsProviderRestartRequest.serializer(configSerializer),
-        requestClass = typeOf<IAppsProviderRestartRequest<ConfigType>>(),
+        requestClass = typeOfIfPossible<IAppsProviderRestartRequest<ConfigType>>(),
 
         successType = IAppsProviderRestartResponse.serializer(configSerializer),
-        successClass = typeOf<IAppsProviderRestartResponse<ConfigType>>(),
+        successClass = typeOfIfPossible<IAppsProviderRestartResponse<ConfigType>>(),
 
         errorType = CommonErrorMessage.serializer(),
-        errorClass = typeOf<CommonErrorMessage>(),
+        errorClass = typeOfIfPossible<CommonErrorMessage>(),
     )
 
 }

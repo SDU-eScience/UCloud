@@ -221,7 +221,7 @@ internal class WSClientSession constructor(
 
                     if (frame is Frame.Text) {
                         val text = frame.readText()
-                        val frameNode = runCatching { defaultMapper.decodeFromString<WSRawMessage>(text) }.getOrNull()
+                        val frameNode = runCatching { defaultMapper.decodeFromString(WSRawMessage.serializer(), text) }.getOrNull()
                             ?: continue
 
                         mutex.withLock {

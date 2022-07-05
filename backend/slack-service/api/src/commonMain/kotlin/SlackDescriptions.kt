@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.builtins.serializer
 
 typealias SendAlertRequest = Alert
 typealias SendAlertResponse = Unit
@@ -21,7 +22,7 @@ object SlackDescriptions : CallDescriptionContainer("slack") {
         """.trimIndent()
     }
 
-    val sendAlert = call<SendAlertRequest, SendAlertResponse, CommonErrorMessage>("sendAlert") {
+    val sendAlert = call("sendAlert", SendAlertRequest.serializer(), SendAlertResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED
@@ -43,7 +44,7 @@ object SlackDescriptions : CallDescriptionContainer("slack") {
         }
     }
 
-    val sendSupport = call<SendSupportRequest, SendSupportResponse, CommonErrorMessage>("sendSupport") {
+    val sendSupport = call("sendSupport", SendSupportRequest.serializer(), SendSupportResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PRIVILEGED

@@ -41,7 +41,8 @@ class FirewallPlugin(
                 podSpec.hostAliases = aliases
                 for (peer in job.peers) {
                     try {
-                        val ip = k8.client.getResource<Pod>(
+                        val ip = k8.client.getResource(
+                            Pod.serializer(),
                             KubernetesResources.pod.withNameAndNamespace(
                                 k8.nameAllocator.jobIdAndRankToPodName(peer.jobId, 0),
                                 k8.nameAllocator.jobIdToNamespace(peer.jobId)
@@ -202,6 +203,7 @@ class FirewallPlugin(
                                     "op" to JsonPrimitive("add"),
                                     "path" to JsonPrimitive("/spec/ingress/-"),
                                     "value" to defaultMapper.encodeToJsonElement(
+                                        NetworkPolicy.IngressRule.serializer(),
                                         NetworkPolicy.IngressRule().apply {
                                             from = listOf(NetworkPolicy.Peer().apply {
                                                 podSelector = selectorForThisJob
@@ -216,6 +218,7 @@ class FirewallPlugin(
                                         "op" to JsonPrimitive("add"),
                                         "path" to JsonPrimitive("/spec/egress/-"),
                                         "value" to defaultMapper.encodeToJsonElement(
+                                            NetworkPolicy.EgressRule.serializer(),
                                             NetworkPolicy.EgressRule().apply {
                                                 to = listOf(NetworkPolicy.Peer().apply {
                                                     podSelector = selectorForThisJob

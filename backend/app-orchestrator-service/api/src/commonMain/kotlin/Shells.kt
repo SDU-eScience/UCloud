@@ -64,7 +64,7 @@ open class Shells(namespace: String) : CallDescriptionContainer("jobs.compute.$n
         )
     }
 
-    val open = call<ShellRequest, ShellResponse, CommonErrorMessage>("open") {
+    val open = call("open", ShellRequest.serializer(), ShellResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC // NOTE(Dan): Access is granted via sessionIdentifier

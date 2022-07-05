@@ -25,10 +25,10 @@ import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.*
-import kotlinx.serialization.serializer
 import java.io.*
 import java.net.ConnectException
 import java.net.URLEncoder
@@ -430,7 +430,7 @@ class KubernetesClient(
             ?.let { "?$it" } ?: ""
     }
 
-    suspend inline fun <reified T> parseResponse(resp: HttpResponse): T {
+    suspend fun <T> parseResponse(serializer: KSerializer<T>, resp: HttpResponse): T {
         if (!resp.status.isSuccess()) {
             throw KubernetesException(
                 resp.status,
@@ -443,7 +443,7 @@ class KubernetesClient(
             // This is just used as a safe-guard against a malicious server
             val data = resp.bodyAsChannel().toByteArray(1024 * 1024 * 32)
             @Suppress("BlockingMethodInNonBlockingContext")
-            return defaultMapper.decodeFromString(serializer(), data.decodeToString())
+            return defaultMapper.decodeFromString(serializer, data.decodeToString())
         } catch (ex: Exception) {
             throw RuntimeException("Caught an exception while attempting to deserialize message", ex)
         }
@@ -484,12 +484,13 @@ class KubernetesClient(
     }
 }
 
-suspend inline fun <reified T> KubernetesClient.getResource(
+suspend fun <T> KubernetesClient.getResource(
+    serializer: KSerializer<T>,
     locator: KubernetesResourceLocator,
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): T {
-    return parseResponse(sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute())
+    return parseResponse(serializer, sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute())
 }
 
 data class KubernetesList<T>(
@@ -504,7 +505,7 @@ suspend inline fun <reified T> KubernetesClient.listResources(
 ): KubernetesList<T> {
     val resp = sendRequest(HttpMethod.Get, locator, queryParameters, operation)
 
-    val parsedResp = parseResponse<JsonObject>(resp.execute())
+    val parsedResp = parseResponse(JsonObject.serializer(), resp.execute())
     val items = parsedResp["items"] as? JsonArray ?: error("Could not parse items of response: $parsedResp")
 
     return KubernetesList(
@@ -517,7 +518,8 @@ suspend inline fun <reified T> KubernetesClient.listResources(
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-inline fun <reified T : WatchEvent<*>> KubernetesClient.watchResource(
+fun <T : WatchEvent<*>> KubernetesClient.watchResource(
+    serializer: KSerializer<T>,
     scope: CoroutineScope,
     locator: KubernetesResourceLocator,
     queryParameters: Map<String, String> = emptyMap(),
@@ -534,7 +536,7 @@ inline fun <reified T : WatchEvent<*>> KubernetesClient.watchResource(
         while (isActive) {
             val nextLine = content.readUTF8Line() ?: break
             @Suppress("BlockingMethodInNonBlockingContext")
-            send(defaultMapper.decodeFromString<T>(nextLine))
+            send(defaultMapper.decodeFromString(serializer, nextLine))
         }
 
         runCatching { content.cancel() }
@@ -546,7 +548,7 @@ suspend inline fun KubernetesClient.deleteResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute())
+    return parseResponse(JsonObject.serializer(), sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute())
 }
 
 suspend inline fun KubernetesClient.replaceResource(
@@ -556,6 +558,7 @@ suspend inline fun KubernetesClient.replaceResource(
     operation: String? = null,
 ): JsonObject {
     return parseResponse(
+        JsonObject.serializer(),
         sendRequest(
             HttpMethod.Put,
             locator,
@@ -574,6 +577,7 @@ suspend fun KubernetesClient.patchResource(
     operation: String? = null,
 ): JsonObject {
     return parseResponse(
+        JsonObject.serializer(),
         sendRequest(
             HttpMethod.Patch,
             locator,
@@ -592,6 +596,7 @@ suspend fun KubernetesClient.createResource(
     operation: String? = null,
 ): JsonObject {
     return parseResponse(
+        JsonObject.serializer(),
         sendRequest(
             HttpMethod.Post,
             locator,

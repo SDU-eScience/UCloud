@@ -1,115 +1,84 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("multiplatform") version "1.6.21"
-    kotlin("plugin.serialization") version "1.6.21"
+    kotlin("jvm") version "1.7.0"
+    application
+    id("org.graalvm.buildtools.native") version "0.9.12"
+    kotlin("plugin.serialization") version "1.7.0"
 }
 
 group = "dk.sdu.cloud"
-version = "2022.1.0-SNAPSHOT"
+version = "2022.3.0"
 
 repositories {
-    mavenLocal()
     mavenCentral()
-    jcenter()
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
-    maven {
-        name = "UCloudMaven"
-        url = uri("https://mvn.cloud.sdu.dk/releases")
-    }
+    mavenLocal()
 }
 
-kotlin {
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> macosX64("native")
-        hostOs == "Linux" -> linuxX64("native")
-        isMingwX64 -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+dependencies {
+    implementation("dk.sdu.cloud:integration-module-support:2022.1.54-devel-hippo")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+
+    run {
+        val ktorVersion = "2.0.2"
+        fun ktor(module: String) {
+            implementation("io.ktor:ktor-$module:$ktorVersion")
+        }
+
+        ktor("client-websockets")
+        ktor("client-cio")
+        ktor("client-core")
+
+        ktor("server-core")
+        ktor("server-cio")
+        ktor("server-websockets")
+        ktor("server-cors")
+        ktor("server-host-common")
+
+        ktor("websockets")
     }
 
-    nativeTarget.apply {
-        binaries {
-            executable {
-                entryPoint = "dk.sdu.cloud.main"
-            }
-        }
+    implementation("ch.qos.logback:logback-classic:1.2.11")
+    implementation("com.auth0:java-jwt:3.8.3")
+    implementation("org.xerial:sqlite-jdbc:3.36.0.3")
+    implementation("com.charleskorn.kaml:kaml:0.46.0")
 
-        compilations["main"].dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.54-devel-hippo")
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-        }
+    testImplementation(kotlin("test"))
+}
 
-        compilations["main"].cinterops {
-            val libjwt by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libjwt"))
-                when (preset) {
-                    presets["macosX64"] -> {
-                        linkerOpts.addAll(
-                            listOf(
-                                "-l:",
-                                File(projectDir, "vendor/libjwt/macos/libjwt.a").absolutePath
-                            )
-                        )
+tasks.test {
+    useJUnitPlatform()
+}
 
-                        linkerOpts.addAll(
-                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(
-                                " "
-                            )
-                        )
-                    }
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "11"
+}
 
-                    presets["linuxX64"] -> {
-                    }
-                }
-            }
+application {
+    mainClass.set("dk.sdu.cloud.MainKt")
+}
 
-            val libsqlite3 by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
-            }
+graalvmNative {
+    binaries {
+        named("main") {
+            fallback.set(false)
+            verbose.set(true)
 
-            val libucloud by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
-            }
+            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin,kotlinx.coroutines")
 
-            val libmbedtls by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
-            }
-
-            val libyaml by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libyaml"))
-            }
-        }
-    }
-
-    sourceSets {
-        val nativeMain by getting
-        val nativeTest by getting
-
-        all {
-            languageSettings.progressiveMode = true
-            languageSettings.optIn("kotlin.RequiresOptIn")
-            languageSettings.optIn("kotlin.time.ExperimentalTime")
-            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
-            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
-            languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
+            buildArgs.add("-H:+InstallExitHandlers")
+            buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+            buildArgs.add("-H:+ReportExceptionStackTraces")
+            buildArgs.add("-H:MaxDuplicationFactor=2.0")
         }
     }
 }
 
-kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
-    binaries.all {
-        @Suppress("SuspiciousCollectionReassignment")
-        freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
-    }
+tasks.create("buildDebug") {
+    dependsOn(tasks.named("installDist"))
 }
 
-task("buildDebug") {
-    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkDebugExecutableNative" } })
-}
-
-task("buildRelease") {
-    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkReleaseExecutableNative" } })
+tasks.create("buildDebugExecutableNative") {
+    dependsOn(tasks.named("buildDebug"))
 }

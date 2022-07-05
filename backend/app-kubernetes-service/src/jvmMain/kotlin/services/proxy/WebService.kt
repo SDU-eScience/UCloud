@@ -109,7 +109,8 @@ class WebService(
                     val namespace = k8.nameAllocator.jobIdToNamespace(jobAndRank.jobId)
 
                     val nodePort = k8.client
-                        .getResource<Service>(
+                        .getResource(
+                            Service.serializer(),
                             KubernetesResources.services.withNameAndNamespace(
                                 name + MinikubePlugin.SERVICE_SUFFIX,
                                 namespace

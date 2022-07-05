@@ -137,5 +137,5 @@ class HttpCallBodyBuilder<R : Any> internal constructor(@PublishedApi internal v
 }
 
 inline fun <reified R : Any> HttpCallBodyBuilder<R>.bindEntireRequestFromBody() {
-    bindEntireRequestFromBody(parent.context.containerRef.fixedSerializer())
+    bindEntireRequestFromBody(parent.context.requestType)
 }

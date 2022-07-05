@@ -184,21 +184,6 @@ class Server(override val micro: Micro) : CommonServer {
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 abstract class SealedClassMixin
 
-fun configureJackson(callContainer: CallDescriptionContainer, mapper: ObjectMapper) {
-    callContainer.callContainer.forEach { call ->
-        // TODO Need to traverse the types for generics
-        // TODO need to traverse dependencies also
-        val requestClassifier = call.requestClass.classifier
-        if (requestClassifier is KClass<*>) configureJackson(requestClassifier, mapper)
-
-        val successClassifier = call.successClass.classifier
-        if (successClassifier is KClass<*>) configureJackson(successClassifier, mapper)
-
-        val errorClassifier = call.errorClass.classifier
-        if (errorClassifier is KClass<*>) configureJackson(errorClassifier, mapper)
-    }
-}
-
 private fun configureJackson(klass: KClass<*>, mapper: ObjectMapper) {
     val javaClass = klass.java
 

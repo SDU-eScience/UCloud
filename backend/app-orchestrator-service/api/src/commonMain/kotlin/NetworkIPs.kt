@@ -9,7 +9,8 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class NetworkIPSpecification(
@@ -208,19 +209,19 @@ object NetworkIPs : ResourceApi<NetworkIP, NetworkIPSpecification, NetworkIPUpda
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         NetworkIP.serializer(),
-        typeOf<NetworkIP>(),
+        typeOfIfPossible<NetworkIP>(),
         NetworkIPSpecification.serializer(),
-        typeOf<NetworkIPSpecification>(),
+        typeOfIfPossible<NetworkIPSpecification>(),
         NetworkIPUpdate.serializer(),
-        typeOf<NetworkIPUpdate>(),
+        typeOfIfPossible<NetworkIPUpdate>(),
         NetworkIPFlags.serializer(),
-        typeOf<NetworkIPFlags>(),
+        typeOfIfPossible<NetworkIPFlags>(),
         NetworkIPStatus.serializer(),
-        typeOf<NetworkIPStatus>(),
+        typeOfIfPossible<NetworkIPStatus>(),
         NetworkIPSupport.serializer(),
-        typeOf<NetworkIPSupport>(),
+        typeOfIfPossible<NetworkIPSupport>(),
         Product.NetworkIP.serializer(),
-        typeOf<Product.NetworkIP>(),
+        typeOfIfPossible<Product.NetworkIP>(),
     )
 
     init {
@@ -331,8 +332,7 @@ firewall is controlled by the virtual machine.
     override val search get() = super.search!!
     override val delete get() = super.delete!!
 
-    val updateFirewall = call<NetworkIPsUpdateFirewallRequest, NetworkIPsUpdateFirewallResponse,
-            CommonErrorMessage>("updateFirewall") {
+    val updateFirewall = call("updateFirewall", BulkRequest.serializer(FirewallAndId.serializer()), NetworkIPsUpdateFirewallResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "firewall")
     }
 }
@@ -343,19 +343,19 @@ object NetworkIPControl : ResourceControlApi<NetworkIP, NetworkIPSpecification, 
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         NetworkIP.serializer(),
-        typeOf<NetworkIP>(),
+        typeOfIfPossible<NetworkIP>(),
         NetworkIPSpecification.serializer(),
-        typeOf<NetworkIPSpecification>(),
+        typeOfIfPossible<NetworkIPSpecification>(),
         NetworkIPUpdate.serializer(),
-        typeOf<NetworkIPUpdate>(),
+        typeOfIfPossible<NetworkIPUpdate>(),
         NetworkIPFlags.serializer(),
-        typeOf<NetworkIPFlags>(),
+        typeOfIfPossible<NetworkIPFlags>(),
         NetworkIPStatus.serializer(),
-        typeOf<NetworkIPStatus>(),
+        typeOfIfPossible<NetworkIPStatus>(),
         NetworkIPSupport.serializer(),
-        typeOf<NetworkIPSupport>(),
+        typeOfIfPossible<NetworkIPSupport>(),
         Product.NetworkIP.serializer(),
-        typeOf<Product.NetworkIP>(),
+        typeOfIfPossible<Product.NetworkIP>(),
     )
 }
 
@@ -364,24 +364,24 @@ open class NetworkIPProvider(provider: String) : ResourceProviderApi<NetworkIP, 
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         NetworkIP.serializer(),
-        typeOf<NetworkIP>(),
+        typeOfIfPossible<NetworkIP>(),
         NetworkIPSpecification.serializer(),
-        typeOf<NetworkIPSpecification>(),
+        typeOfIfPossible<NetworkIPSpecification>(),
         NetworkIPUpdate.serializer(),
-        typeOf<NetworkIPUpdate>(),
+        typeOfIfPossible<NetworkIPUpdate>(),
         NetworkIPFlags.serializer(),
-        typeOf<NetworkIPFlags>(),
+        typeOfIfPossible<NetworkIPFlags>(),
         NetworkIPStatus.serializer(),
-        typeOf<NetworkIPStatus>(),
+        typeOfIfPossible<NetworkIPStatus>(),
         NetworkIPSupport.serializer(),
-        typeOf<NetworkIPSupport>(),
+        typeOfIfPossible<NetworkIPSupport>(),
         Product.NetworkIP.serializer(),
-        typeOf<Product.NetworkIP>(),
+        typeOfIfPossible<Product.NetworkIP>(),
     )
 
     override val delete get() = super.delete!!
 
-    val updateFirewall = call<BulkRequest<FirewallAndIP>, BulkResponse<Unit?>, CommonErrorMessage>("updateFirewall") {
+    val updateFirewall = call("updateFirewall", BulkRequest.serializer(FirewallAndIP.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "firewall", roles = Roles.PRIVILEGED)
     }
 }

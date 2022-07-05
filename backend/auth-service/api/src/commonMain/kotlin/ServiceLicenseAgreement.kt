@@ -4,6 +4,7 @@ import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class ServiceAgreementText(val version: Int, val text: String)
@@ -27,7 +28,7 @@ ${ApiConventions.nonConformingApiWarning}
         """.trimIndent()
     }
 
-    val find = call<Unit, ServiceAgreementText, CommonErrorMessage>("find") {
+    val find = call("find", Unit.serializer(), ServiceAgreementText.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -41,7 +42,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val accept = call<AcceptSLARequest, Unit, CommonErrorMessage>("accept") {
+    val accept = call("accept", AcceptSLARequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

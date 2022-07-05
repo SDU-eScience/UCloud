@@ -3,6 +3,7 @@ package dk.sdu.cloud.project.api.v2
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiDoc(
@@ -31,7 +32,7 @@ data class ProjectNotification(
 object ProjectNotifications : CallDescriptionContainer("projects.v2.notifications") {
     const val baseContext = "/api/projects/v2/notifications"
 
-    val retrieve = call<Unit, BulkResponse<ProjectNotification>, CommonErrorMessage>("retrieve") {
+    val retrieve = call("retrieve", Unit.serializer(), BulkResponse.serializer(ProjectNotification.serializer()), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.PROVIDER)
 
         documentation {
@@ -48,7 +49,7 @@ object ProjectNotifications : CallDescriptionContainer("projects.v2.notification
         }
     }
 
-    val markAsRead = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("markAsRead") {
+    val markAsRead = call("markAsRead", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "markAsRead", roles = Roles.PROVIDER)
 
         documentation {
@@ -62,7 +63,7 @@ open class ProjectNotificationsProvider(
 ) : CallDescriptionContainer("projects.v2.notifications.provider.$provider") {
     val baseContext = "/ucloud/$provider/projects/v2/notifications"
 
-    val pullRequest = call<Unit, Unit, CommonErrorMessage>("pullRequest") {
+    val pullRequest = call("pullRequest", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "pullRequest", roles = Roles.SERVICE)
 
         documentation {
