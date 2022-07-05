@@ -188,7 +188,7 @@ class NotificationController(
         val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, AllocationNotification>>>()
 
         outer@ for ((idx, notification) in batch.responses.withIndex()) {
-            val providerSummary = Wallets.retrieveProviderSummary.call(
+            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
                 WalletsRetrieveProviderSummaryRequest(
                     filterOwnerId = when (val owner = notification.owner) {
                         is WalletOwner.User -> owner.username
@@ -198,28 +198,33 @@ class NotificationController(
                     filterCategory = notification.category.name
                 ),
                 controllerContext.pluginContext.rpcClient
-            ).orThrow().items.singleOrNull() ?: continue
+            ).orThrow().items
+            for (providerSummary in combinedProviderSummary) {
 
-            val productType = providerSummary.productType
+                val productType = providerSummary.productType
 
-            val list = notificationsByType[productType] ?: ArrayList()
-            notificationsByType[productType] = list
+                val list = notificationsByType[productType] ?: ArrayList()
+                notificationsByType[productType] = list
+                // TODO Should IM combine these?
 
-            list.add(Pair(idx, prepareAllocationNotification(providerSummary) ?: continue@outer))
+                list.add(Pair(idx, prepareAllocationNotification(providerSummary) ?: continue))
+            }
         }
 
         for ((type, list) in notificationsByType) {
             val plugins = controllerContext.configuration.plugins
-            val allocationPlugin = plugins.allocations[type] ?: continue
+            val allocationPlugin = plugins.allocations[type]
 
             with(controllerContext.pluginContext) {
-                val response = with(allocationPlugin) {
-                    onResourceAllocation(list.map { it.second })
-                }
+                if (allocationPlugin != null) {
+                    val response = with(allocationPlugin) {
+                        onResourceAllocation(list.map { it.second })
+                    }
 
-                for ((request, pluginResponse) in list.zip(response)) {
-                    val (origIdx, _) = request
-                    output[origIdx] = pluginResponse
+                    for ((request, pluginResponse) in list.zip(response)) {
+                        val (origIdx, _) = request
+                        output[origIdx] = pluginResponse
+                    }
                 }
             }
 
@@ -304,10 +309,12 @@ class NotificationController(
 
             for (notification in notifications) {
                 val plugins = controllerContext.configuration.plugins
-                val allocationPlugin = plugins.allocations[notification.productType] ?: continue
-                with(controllerContext.pluginContext) {
-                    val response = with(allocationPlugin) {
-                        onResourceAllocation(listOf(notification))
+                val allocationPlugin = plugins.allocations[notification.productType]
+                if (allocationPlugin != null) {
+                    with(controllerContext.pluginContext) {
+                        with(allocationPlugin) {
+                            onResourceAllocation(listOf(notification))
+                        }
                     }
                 }
 
