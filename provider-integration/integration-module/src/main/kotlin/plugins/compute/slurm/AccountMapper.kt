@@ -72,8 +72,8 @@ class AccountMapper(
                     from
                         slurm_account_mapper
                     where
-                        (:project_id::text is null or project_id = :project_id) and
-                        (:username::text is null or username = :username) and
+                        (:project_id is null or project_id = :project_id) and
+                        (:username is null or username = :username) and
                         category = :category and
                         partition = :partition
                 """

@@ -1,5 +1,8 @@
 package dk.sdu.cloud.sql
 
+import io.ktor.utils.io.pool.*
+import org.sqlite.SQLiteConfig
+import org.sqlite.SQLiteException
 import java.sql.Connection as JavaSqlConnection
 import java.sql.PreparedStatement as JavaSqlPreparedStatement
 import java.sql.DriverManager
@@ -7,22 +10,39 @@ import java.sql.ResultSet
 import java.sql.SQLException
 
 class JdbcDriver(
-    private val connectionUri: String
+    private val file: String
 ) : DBContext.ConnectionFactory() {
-    private val sharedConnection = JdbcConnection(DriverManager.getConnection(connectionUri))
-    override fun openSession(): JdbcConnection = sharedConnection
+    override fun openSession(): JdbcConnection {
+        return connectionPool.borrow()
+    }
 
     override fun close() {
 
     }
+
+    private val connectionPool = object : DefaultPool<JdbcConnection>(8) {
+        override fun produceInstance(): JdbcConnection {
+            return JdbcConnection(
+                DriverManager.getConnection("jdbc:sqlite:$file", SQLiteConfig().apply {
+                    setJournalMode(SQLiteConfig.JournalMode.WAL)
+                }.toProperties()),
+                this
+            )
+        }
+    }
 }
 
-class JdbcConnection(private val connection: JavaSqlConnection) : DBContext.Connection() {
+
+class JdbcConnection(
+    private val connection: JavaSqlConnection,
+    private val pool: ObjectPool<JdbcConnection>,
+) : DBContext.Connection() {
     init {
         connection.autoCommit = false
     }
 
     override suspend fun close() {
+        pool.recycle(this)
     }
 
     override suspend fun openTransaction() {
@@ -68,7 +88,21 @@ class JdbcPreparedStatement(
         this.parameterNamesToIndex = parameterNamesToIndex
         parameters = Array(parameterIndex) { null }
 
-        statement = conn.prepareStatement(preparedStatement)
+        try {
+            statement = conn.prepareStatement(preparedStatement)
+        } catch (ex: SQLiteException) {
+            throw IllegalArgumentException(buildString {
+                appendLine("Unable to prepare statement.")
+                appendLine("Raw statement:")
+                appendLine(rawStatement.trimIndent().prependIndent("    "))
+                appendLine()
+                appendLine("Prepared statement:")
+                appendLine(preparedStatement.trimIndent().prependIndent("    "))
+                appendLine()
+                appendLine("Reason: ")
+                appendLine((ex.message ?: "None").prependIndent("    "))
+            })
+        }
     }
 
     private fun indices(name: String): List<Int> = parameterNamesToIndex[name] ?: error("Unknown parameter $name")

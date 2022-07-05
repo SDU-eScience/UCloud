@@ -40,7 +40,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
             ipcServer.addHandler(
                 IpcHandler("connect.approve") { user, jsonRequest ->
                     log.debug("Asked to approve connection!")
-                    if (user.uid != 0 || user.gid != 0) {
+                    if (user.uid != 0) {
                         throw RPCException("Only root can use these endpoints", HttpStatusCode.Unauthorized)
                     }
 

@@ -108,13 +108,16 @@ class IpcClient(
             // NOTE(Dan): The IPC system uses line delimited (\n) JSON-RPC 2.0
             // NOTE(Dan): We don't currently support batch requests
 
-            fun sendRequest(request: JsonRpcRequest) {
+            fun sendMessage(message: String) {
                 writeBuffer.clear()
-                val encoded = (defaultMapper.encodeToString(JsonRpcRequest.serializer(), request) + "\n")
-                    .encodeToByteArray()
+                val encoded = message.encodeToByteArray()
                 writeBuffer.put(encoded)
                 writeBuffer.flip()
                 while (writeBuffer.hasRemaining()) channel.write(writeBuffer)
+            }
+
+            fun sendRequest(request: JsonRpcRequest) {
+                sendMessage(defaultMapper.encodeToString(JsonRpcRequest.serializer(), request) + "\n")
             }
 
             val messageBuilder = MessageBuilder(1024 * 1024)
@@ -133,6 +136,32 @@ class IpcClient(
                     else -> {
                         throw IpcException("Invalid response")
                     }
+                }
+            }
+
+            val authMessage = messageBuilder.readNextMessage(channel, readBuffer)
+            when {
+                authMessage == "WELCOME" -> {
+                    // All good, SO_PEERCRED did its job
+                }
+
+                authMessage.startsWith("AUTH ") -> {
+                    // Fallback authentication mechanism
+                    val messageSplit = authMessage.split(" ")
+                    if (messageSplit.size != 2) {
+                        throw IpcException("Invalid auth message received from server. Bailing out: $authMessage")
+                    }
+
+                    val token = messageSplit[1]
+                    val authDir = File(ipcDirectory, "auth")
+                    File(authDir, token).writeText(token)
+
+                    sendMessage("OK")
+                }
+
+                else -> {
+                    // Corrupt state or bad server implementation. Bail out.
+                    throw IpcException("Invalid auth message received from server. Bailing out: $authMessage")
                 }
             }
 

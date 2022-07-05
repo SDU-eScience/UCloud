@@ -1,8 +1,5 @@
 package dk.sdu.cloud
 
-import com.charleskorn.kaml.PolymorphismStyle
-import com.charleskorn.kaml.Yaml
-import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
@@ -47,7 +44,6 @@ import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.utils.*
-import kotlin.reflect.typeOf
 
 fun main(args: Array<String>) {
     try {
@@ -199,7 +195,7 @@ fun main(args: Array<String>) {
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
-                databaseConfig.getAndSet(config.server.database.file)
+                databaseFile.getAndSet(config.server.database.file)
 
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
@@ -557,14 +553,14 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
 val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
-private val databaseConfig = AtomicReference<String>("")
+private val databaseFile = AtomicReference<String>("")
 
 val dbConnection: DBContext by lazy {
-    val dbConfig = databaseConfig.get().takeIf { it.isNotBlank() }
-    if (dbConfig == null) {
+    val file = databaseFile.get().takeIf { it.isNotBlank() }
+    if (file == null) {
         error("This plugin does not have access to a database")
     } else {
-        JdbcDriver("jdbc:sqlite:$dbConfig")
+        JdbcDriver(file)
     }
 }
 

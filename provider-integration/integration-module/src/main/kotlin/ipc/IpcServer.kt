@@ -8,8 +8,10 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.config.VerifiedConfig
+import dk.sdu.cloud.plugins.storage.posix.toInt
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.utils.executeCommandToText
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.secureToken
 import jdk.net.ExtendedSocketOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -22,8 +24,13 @@ import java.net.UnixDomainSocketAddress
 import java.nio.ByteBuffer
 import java.nio.channels.ServerSocketChannel
 import java.nio.channels.SocketChannel
+import java.nio.file.LinkOption
+import java.nio.file.attribute.PosixFileAttributes
+import java.nio.file.Files as NioFiles
 
-data class IpcUser(val uid: Int, val gid: Int)
+const val USE_SO_PEERCRED = false
+
+data class IpcUser(val uid: Int)
 
 data class TypedIpcHandler<Req, Resp>(
     val method: String,
@@ -124,7 +131,6 @@ data class IpcHandler(
 @Serializable
 data class IpcToIntegrationModuleRequest(
     val uid: Int,
-    val gid: Int,
     val request: JsonRpcRequest
 )
 
@@ -148,6 +154,10 @@ class IpcServer(
 
     fun runServer() {
         registerRpcHandler()
+
+        val authDir = File(ipcSocketDirectory, "auth").also { it.mkdir() }
+        clib.chmod(authDir.absolutePath, "733".toInt(8)) // Allow anyone to write to the auth folder but not read it
+
         val socket = File("$ipcSocketDirectory/$ipcSocketName")
         if (socket.exists()) socket.delete()
 
@@ -195,7 +205,7 @@ class IpcServer(
 
             for (ipcHandler in handlers) {
                 if (ipcHandler.matches(request.request.method) && ipcHandler.allowProxyToRemoteIntegrationModule) {
-                    val response = ipcHandler.handler(IpcUser(request.uid, request.gid), request.request)
+                    val response = ipcHandler.handler(IpcUser(request.uid), request.request)
                     ok(response)
                     return@implement
                 }
@@ -210,35 +220,81 @@ class IpcServer(
         val readBuffer = ByteBuffer.allocate(1024 * 4)
         val messageBuilder = MessageBuilder(1024 * 16)
 
-        val user = run {
+        fun parseMessage(): JsonRpcRequest {
+            val decodedText = messageBuilder.readNextMessage(client, readBuffer)
+            return defaultMapper.decodeFromString(JsonRpcRequest.serializer(), decodedText)
+        }
+
+        fun sendMessage(data: String): Boolean {
             try {
+                writeBuffer.clear()
+                val encoded = data.encodeToByteArray()
+                writeBuffer.put(encoded)
+                writeBuffer.flip()
+
+                while (writeBuffer.hasRemaining()) client.write(writeBuffer)
+                return true
+            } catch (ex: Throwable) {
+                return false
+            }
+        }
+
+        val user: IpcUser = run {
+            try {
+                if (!USE_SO_PEERCRED) return@run null
+
                 // NOTE(Dan): really annoyingly, the java API is fully aware of the UID and even saves it. It is just not
                 // accessible, not even through reflection.
                 val principal = client.getOption(ExtendedSocketOptions.SO_PEERCRED)
 
                 val uid = clib.retrieveUserIdFromName(principal.user.name)
-                val gid = clib.retrieveGroupIdFromName(principal.group.name)
 
-                if (uid == -1 || gid == -1) {
-                    throw IpcException("Invalid user ${principal.user} ${principal.group} $uid $gid")
+                if (uid == -1) {
+                    throw IpcException("Invalid user ${principal.user} ${principal.group} $uid")
                 }
 
-                IpcUser(uid, gid)
+                sendMessage("WELCOME")
+
+                IpcUser(uid)
+            } catch (ex: UnsupportedOperationException) {
+                null
             } catch (ex: Throwable) {
-                ex.printStackTrace()
                 throw ex
             }
+        } ?: run {
+            // NOTE(Dan): Annoyingly, GraalVM native images don't support SO_PEERCRED (as of 05/07/2022) even on
+            // platforms which do support it. I don't currently have time to rewrite this implementation (again) to
+            // use JNI. Thus, we are doing this slightly weird form of challenge authentication where the OS is
+            // responsible for the proving authenticity part. In essence, we are asking the user to prove who they are
+            // by creating a specific file in a public folder. We use the owner, which under linux cannot be changed
+            // without root, to determine the uid of the user who created it.
+            val token = secureToken(32) + Time.now()
+            sendMessage("AUTH $token")
+
+            val response = messageBuilder.readNextMessage(client, readBuffer)
+            if (response != "OK") throw IpcException("Bad authentication flow")
+
+            val authDir = File(ipcSocketDirectory, "auth")
+            val authFile = File(authDir, token).toPath()
+            val attributes = NioFiles
+                .readAttributes(authFile, PosixFileAttributes::class.java, LinkOption.NOFOLLOW_LINKS)
+
+            if (attributes.permissions().toInt() != "644".toInt(8)) {
+                throw IpcException("Bad permissions on file")
+            }
+
+            val uid = clib.retrieveUserIdFromName(attributes.owner().name)
+            if (uid == -1) throw IpcException("Unknown user: ${attributes.owner()}")
+
+            IpcUser(uid)
         }
 
-        fun parseRequest(): JsonRpcRequest {
-            val decodedText = messageBuilder.readNextMessage(client, readBuffer)
-            return defaultMapper.decodeFromString(JsonRpcRequest.serializer(), decodedText)
-        }
+        println("User has successfully authenticated as $user")
 
         try {
             while (true) {
                 val request = try {
-                    parseRequest()
+                    parseMessage()
                 } catch (ex: Throwable) {
                     ex.printStackTrace()
                     break
@@ -251,16 +307,7 @@ class IpcServer(
                     is JsonRpcResponse.Success -> JsonRpcResponse.Success.serializer()
                 }
 
-                try {
-                    writeBuffer.clear()
-                    val encoded = (defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n")
-                        .encodeToByteArray()
-                    writeBuffer.put(encoded)
-                    writeBuffer.flip()
-
-                    while (writeBuffer.hasRemaining()) client.write(writeBuffer)
-                } catch (ex: Throwable) {
-                    ex.printStackTrace()
+                if (!sendMessage((defaultMapper.encodeToString(serializer as KSerializer<Any>, response) + "\n"))) {
                     break
                 }
             }
@@ -315,7 +362,7 @@ class IpcServer(
         val id = request.id ?: error("request.id is null")
 
         val response = IpcToIntegrationModuleApi.proxy.call(
-            IpcToIntegrationModuleRequest(user.uid, user.gid, request),
+            IpcToIntegrationModuleRequest(user.uid, request),
             rpcClient
         )
 
