@@ -28,7 +28,7 @@ import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecificat
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
@@ -824,6 +824,8 @@ const RunningContent: React.FunctionComponent<{
         }, 1000);
     });
 
+    const resolvedProduct = job.status.resolvedProduct as unknown as ProductCompute;
+
     return <>
         <RunningInfoWrapper>
             <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
@@ -858,6 +860,18 @@ const RunningContent: React.FunctionComponent<{
                                 </Box>
                             </>
                         }
+                        <Box>
+                            <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" : 
+                                job.status.resolvedProduct ?
+                                    usageExplainer(
+                                        costOfDuration(60, job.specification.replicas, resolvedProduct),
+                                        "COMPUTE",
+                                        resolvedProduct.chargeType,
+                                        resolvedProduct.unitOfPrice
+                                    )
+                                : "Unknown"
+                            }
+                        </Box>
 
 
                         <Box flexGrow={1} />

@@ -145,7 +145,6 @@ class WebService(
     ) {
         val handler: PipelineInterceptor<Unit, ApplicationCall> = handler@{
             val host = call.request.host()
-            log.info("Authorizing request: $host")
 
             if (ingressCache.get(host) != null) {
                 call.respondText("", status = HttpStatusCode.OK)
