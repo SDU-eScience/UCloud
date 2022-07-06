@@ -120,8 +120,9 @@ const Resources: React.FunctionComponent = () => {
     useLoading(usage.loading || breakdowns.loading || wallets.loading);
 
     const unusedProductTypes = React.useMemo(() =>
-        usage.data.charts.map(it => it.type).reduce((remaining, currentProductType) => remaining.filter(productType => productType !== currentProductType), [...productTypes])
-        , [usage.data]);
+        usage.data.charts.map(it => it.type).reduce((remaining, currentProductType) =>
+            remaining.filter(productType => productType !== currentProductType), [...productTypes]),
+        [usage.data]);
 
     const dateRange = React.useMemo(() => {
         const start = parseInt(filters.filterStartDate, 10);
@@ -165,7 +166,7 @@ const Resources: React.FunctionComponent = () => {
                                     bd.unit == it.unit
                                 ).map((it, idx) => <DonutChart key={idx} chart={it} />);
                                 return <HighlightedCard
-                                    key={it.type}
+                                    key={it.type + it.unit}
                                     title={`${productAreaTitle(it.type)}`}
                                     icon={productTypeToIcon(it.type)}
                                     color="blue"
@@ -221,10 +222,8 @@ function fillOnePointResults(results: Record<string, any>[], names: string[], da
     let dirty = false;
     for (const name of names) {
         const entries = results.filter(current => current[name] != null);
-        console.log(entries);
         if (entries.length !== 1) continue;
         const [entry] = entries;
-        console.log(entry, dateRange.start - entry.timestamp, dateRange.end - entry.timestamp);
         results.push({timestamp: dateRange.start, [name]: 0});
         results.push({timestamp: dateRange.end, [name]: entry[name]});
         dirty = true;
