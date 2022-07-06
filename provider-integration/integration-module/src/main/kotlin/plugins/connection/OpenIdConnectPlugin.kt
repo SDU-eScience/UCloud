@@ -27,6 +27,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 class OpenIdConnectPlugin : ConnectionPlugin {
+    override val pluginTitle: String = "OpenIdConnect"
     private lateinit var ownHost: Host
     private lateinit var configuration: ConfigSchema.Plugins.Connection.OpenIdConnect
     private lateinit var tokenEndpoint: String

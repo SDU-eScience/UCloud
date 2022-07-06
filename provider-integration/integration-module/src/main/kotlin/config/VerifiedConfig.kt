@@ -1,6 +1,7 @@
 package dk.sdu.cloud.config
 
 import dk.sdu.cloud.ServerMode
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
@@ -166,9 +167,11 @@ data class VerifiedConfig(
     }
 
     data class Products(
-        val compute: Map<String, List<String>>? = null,
-        val storage: Map<String, List<String>>? = null,
-    )
+        val compute: Map<String, List<Product.Compute>>? = null,
+        val storage: Map<String, List<Product.Storage>>? = null,
+    ) {
+        var productsUnknownToUCloud: Set<Product> = emptySet()
+    }
 
     data class FrontendProxy(
         val sharedSecret: String,
@@ -182,6 +185,12 @@ data class VerifiedConfig(
 // if additional files exists, making sure hosts are valid and so on. Once this function is done, then the
 // configuration should be valid and no plugins/other code should crash as a result of bad configuration.
 fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig {
+    fun <T : Product> mapProducts(p: Map<String, List<ConfigProduct<T>>>?): Map<String, List<T>> {
+        return p?.mapValues { (categoryName, products) ->
+            products.map { it.toProduct(categoryName, config.core!!.providerId) }
+        } ?: emptyMap()
+    }
+
     run {
         // Verify that sections required by the mode are available.
 
@@ -416,8 +425,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         } else {
             // NOTE(Dan): Products are verified later (against UCloud/Core)
             VerifiedConfig.Products(
-                config.products.compute?.mapValues { (_, v) -> v.map { it } },
-                config.products.storage?.mapValues { (_, v) -> v.map { it } }
+                mapProducts(config.products.compute),
+                mapProducts(config.products.storage),
             )
         }
     }
@@ -494,7 +503,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
-                config.products?.compute ?: emptyMap(),
+                mapProducts(config.products?.compute),
                 config.plugins.jobs ?: emptyMap(),
                 productReference,
                 pluginReference
@@ -502,7 +511,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val files: Map<String, FilePlugin> = loadProductBasedPlugins(
-                config.products?.storage ?: emptyMap(),
+                mapProducts(config.products?.storage),
                 config.plugins.files ?: emptyMap(),
                 productReference,
                 pluginReference
@@ -510,7 +519,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
             @Suppress("unchecked_cast")
             val fileCollections: Map<String, FileCollectionPlugin> = loadProductBasedPlugins(
-                config.products?.storage ?: emptyMap(),
+                mapProducts(config.products?.storage),
                 config.plugins.fileCollections ?: emptyMap(),
                 productReference,
                 pluginReference
@@ -531,14 +540,14 @@ private fun <Cfg : Any> loadPlugin(config: Cfg): Plugin<Cfg> {
 }
 
 private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
-    products: Map<String, List<String>>,
+    products: Map<String, List<Product>>,
     plugins: Map<String, Cfg>,
     productRef: ConfigurationReference,
     pluginRef: ConfigurationReference
 ): Map<String, Plugin<Cfg>> {
     val result = HashMap<String, Plugin<Cfg>>()
     val relevantProducts = products.entries.flatMap { (category, products) ->
-        products.map { ProductReferenceWithoutProvider(it, category) }
+        products.map { ProductReferenceWithoutProvider(it.name, category) }
     }
 
     val partitionedProducts = HashMap<String, List<ProductReferenceWithoutProvider>>()

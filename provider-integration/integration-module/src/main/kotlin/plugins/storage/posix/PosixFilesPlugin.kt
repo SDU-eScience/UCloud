@@ -46,6 +46,7 @@ import kotlin.math.min
 import java.nio.file.Files as NioFiles
 
 class PosixFilesPlugin : FilePlugin {
+    override val pluginTitle: String = "Posix"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()

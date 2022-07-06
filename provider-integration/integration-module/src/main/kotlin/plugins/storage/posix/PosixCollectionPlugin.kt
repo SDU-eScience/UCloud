@@ -31,6 +31,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 
 class PosixCollectionPlugin : FileCollectionPlugin {
+    override val pluginTitle: String = "Posix"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()

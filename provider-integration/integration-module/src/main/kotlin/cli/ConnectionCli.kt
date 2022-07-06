@@ -11,7 +11,7 @@ import dk.sdu.cloud.ipc.sendRequestBlocking
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.utils.sendTerminalMessage
 
-fun ConnectionCommandLine(controllerContext: ControllerContext) {
+fun ConnectionCli(controllerContext: ControllerContext) {
     controllerContext.pluginContext.commandLineInterface?.addHandler(CliHandler("connection") { args ->
         val ipcClient = controllerContext.pluginContext.ipcClient
 

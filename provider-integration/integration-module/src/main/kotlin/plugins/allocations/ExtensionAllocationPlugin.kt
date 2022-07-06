@@ -5,6 +5,7 @@ import dk.sdu.cloud.plugins.*
 import kotlinx.serialization.builtins.serializer
 
 class ExtensionAllocationPlugin : AllocationPlugin {
+    override val pluginTitle: String = "Extension"
     private lateinit var pluginConfig: ConfigSchema.Plugins.Allocations.Extension
 
     override fun configure(config: ConfigSchema.Plugins.Allocations) {

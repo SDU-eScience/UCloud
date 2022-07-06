@@ -175,7 +175,6 @@ class IpcServer(
                 try {
                     processIpcClient(client)
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
                     throw ex
                 }
             }
@@ -296,7 +295,6 @@ class IpcServer(
                 val request = try {
                     parseMessage()
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
                     break
                 }
                 if (request.id == null) continue

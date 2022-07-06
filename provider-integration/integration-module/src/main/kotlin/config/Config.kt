@@ -3,6 +3,8 @@ package dk.sdu.cloud.config
 import com.charleskorn.kaml.PolymorphismStyle
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
+import com.charleskorn.kaml.YamlNode
+import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
 import kotlinx.serialization.KSerializer
@@ -264,8 +266,8 @@ data class ConfigSchema(
 
     @Serializable
     data class Products(
-        val compute: Map<String, List<String>>? = null,
-        val storage: Map<String, List<String>>? = null,
+        val compute: Map<String, List<ConfigProduct.Compute>>? = null,
+        val storage: Map<String, List<ConfigProduct.Storage>>? = null,
     )
 
     @Serializable

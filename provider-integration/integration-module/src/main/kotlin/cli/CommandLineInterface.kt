@@ -4,7 +4,7 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.controllers.ControllerContext
 import kotlin.system.exitProcess
 
-class CliHandler(val plugin: String, val handler: (args: List<String>) -> Unit)
+class CliHandler(val plugin: String, val handler: suspend (args: List<String>) -> Unit)
 
 class CommandLineInterface(private val args: List<String>) {
     private val handlers = ArrayList<CliHandler>()
@@ -13,7 +13,7 @@ class CommandLineInterface(private val args: List<String>) {
         handlers.add(cliHandler)
     }
 
-    fun execute(plugin: String): Nothing {
+    suspend fun execute(plugin: String): Nothing {
         try {
             for (handler in handlers) {
                 if (handler.plugin.equals(plugin, ignoreCase = true)) {
@@ -35,5 +35,6 @@ class CommandLineInterface(private val args: List<String>) {
 }
 
 fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
-    ConnectionCommandLine(controllerContext)
+    ConnectionCli(controllerContext)
+    ProductsCli(controllerContext)
 }

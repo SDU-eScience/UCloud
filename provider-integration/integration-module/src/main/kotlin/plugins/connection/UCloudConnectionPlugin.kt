@@ -9,6 +9,7 @@ import dk.sdu.cloud.utils.secureToken
 import kotlinx.serialization.*
 
 class UCloudConnectionPlugin : ConnectionPlugin {
+    override val pluginTitle: String = "UCloud"
     private lateinit var pluginConfig: ConfigSchema.Plugins.Connection.UCloud
 
     override fun configure(config: ConfigSchema.Plugins.Connection) {

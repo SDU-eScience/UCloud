@@ -1,5 +1,7 @@
 package dk.sdu.cloud
 
+import ch.qos.logback.classic.LoggerContext
+import ch.qos.logback.classic.joran.JoranConfigurator
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
@@ -11,6 +13,7 @@ import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.config.loadConfiguration
 import dk.sdu.cloud.config.verifyConfiguration
 import dk.sdu.cloud.controllers.ControllerContext
@@ -39,7 +42,8 @@ import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
-import java.sql.DriverManager
+import kotlinx.serialization.builtins.ListSerializer
+import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
     try {
@@ -144,6 +148,33 @@ fun main(args: Array<String>) {
                 }
 
                 verifyConfiguration(serverMode, configSchema)
+            }
+
+            run {
+                // Tell logback information about the log output. We need to do this as early as possible since we
+                // cannot do any real logging before these calls have been made.
+                //
+                // We have named the configuration in such a way that it is not auto-loaded by logback. If it were, then
+                // it would complain heavily about the fact that a bunch of loggers were loaded doing companion object
+                // initialization before these properties were set. Instead, we use the default config, which is to
+                // output to stdout until these properties are ready to be set.
+                System.setProperty("log.dir", config.core.logs.directory)
+                System.setProperty(
+                    "log.module", when (serverMode) {
+                        ServerMode.FrontendProxy -> "frontend-proxy"
+                        is ServerMode.Plugin -> "plugin-${serverMode.name}"
+                        ServerMode.Server -> "server"
+                        ServerMode.User -> "user-${clib.getuid()}"
+                    }
+                )
+
+                val ctx = LoggerFactory.getILoggerFactory() as LoggerContext
+                val configurator = JoranConfigurator()
+                configurator.context = ctx
+                ctx.reset()
+                configurator.doConfigure(
+                    __ClassLoaderDummy::class.java.classLoader.getResourceAsStream("logback_no_autoload.xml")
+                )
             }
 
             run {
@@ -371,9 +402,19 @@ fun main(args: Array<String>) {
             // NOTE(Dan): This will only work for server and user mode. User mode will use a proxy to the server mode
             // to resolve the products.
             if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
+                val unknownProducts = HashSet<Product>()
+
                 for (plugin in allResourcePlugins) {
+                    val allConfiguredProducts: List<Product> =
+                        (config.products.compute ?: emptyMap()).values.flatten() +
+                            (config.products.storage ?: emptyMap()).values.flatten()
+
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {
+                        val configuredProduct = allConfiguredProducts
+                            .find { it.name == product.id && it.category.name == product.category }
+                            ?: error("Internal error $product was not in $allConfiguredProducts")
+
                         val resolvedProduct = Products.retrieve.call(
                             ProductsRetrieveRequest(
                                 filterName = product.id,
@@ -384,26 +425,58 @@ fun main(args: Array<String>) {
                         ).orNull()
 
                         if (resolvedProduct == null) {
-                            sendTerminalMessage {
-                                red { bold { line("Configuration error!") } }
-                                inline("The product ")
-                                code { inline("${product.id} / ${product.category} ") }
-                                inline("requested by ")
-                                code {
-                                    inline(plugin.pluginName)
-                                    inline(" ")
-                                }
-                                line("is not recognized by UCloud")
-                                line()
-                                line("Please ensure that this product is correctly registered with UCloud")
-                            }
-                            exitProcess(1)
-                        }
+                            unknownProducts.add(configuredProduct)
+                        } else {
+                            val areEqual: Boolean = run {
+                                val a = configuredProduct
+                                val b = resolvedProduct
 
-                        resolvedProducts.add(resolvedProduct)
+                                val areInternalEqual = when (a) {
+                                    is Product.Compute -> {
+                                        b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
+                                            && a.memoryInGigs == b.memoryInGigs
+                                    }
+                                    is Product.Ingress -> b is Product.Ingress
+                                    is Product.License -> b is Product.License
+                                    is Product.NetworkIP -> b is Product.NetworkIP
+                                    is Product.Storage -> b is Product.Storage
+                                }
+
+                                a.pricePerUnit == b.pricePerUnit && areInternalEqual && a.description == b.description
+                            }
+
+                            if (areEqual) {
+                                resolvedProducts.add(resolvedProduct)
+                            } else {
+                                unknownProducts.add(configuredProduct)
+                            }
+                        }
+                    }
+
+                    plugin.productAllocation = resolvedProducts.map {
+                        ProductReferenceWithoutProvider(it.name, it.category.name)
                     }
 
                     plugin.productAllocationResolved = resolvedProducts
+                }
+
+                config.products.productsUnknownToUCloud = unknownProducts
+
+                if (unknownProducts.isNotEmpty()) {
+                    sendTerminalMessage {
+                        bold { yellow { line("Not all products have been registered with UCloud (with all the latest changes)!") } }
+
+                        inline("Register the products with: ")
+                        code { line("ucloud products register") }
+                        line()
+
+                        bold { line("The following products will NOT work until they are registered.") }
+                        unknownProducts
+                            .sortedBy { "${it.productType} / ${it.category.name} / ${it.name}" }
+                            .forEach {
+                                line(" - ${it.name} / ${it.category.name} (${it.productType})")
+                            }
+                    }
                 }
             }
 
@@ -423,6 +496,16 @@ fun main(args: Array<String>) {
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
             debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
+            debugSystem.detailD(
+                "Compute products loaded",
+                ListSerializer(Product.serializer()),
+                config.products.compute?.values?.flatten() ?: emptyList()
+            )
+            debugSystem.detailD(
+                "Storage products loaded",
+                ListSerializer(Product.serializer()),
+                config.products.storage?.values?.flatten() ?: emptyList()
+            )
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
@@ -475,9 +558,12 @@ fun main(args: Array<String>) {
                 }
             }
 
-            if (serverMode is ServerMode.Plugin) {
+            if (serverMode is ServerMode.Plugin || serverMode == ServerMode.Server) {
                 registerAlwaysOnCommandLines(controllerContext)
-                cli?.execute(serverMode.name)
+            }
+
+            if (serverMode is ServerMode.Plugin) {
+                cli?.execute(serverMode.name) // NOTE(Dan): Will always exit here
             }
 
             if (rpcServer != null) {
@@ -493,6 +579,52 @@ fun main(args: Array<String>) {
                 rpcServer.start()
             }
 
+            sendTerminalMessage {
+                bold {
+                    green {
+                        val separator = CharArray(80) { '~' }.concatToString()
+                        line(separator)
+                        line("UCloud/IM is now ready serve requests!")
+                        line(separator)
+                    }
+                }
+                line()
+
+                val empty = "" to ""
+                val stats = ArrayList<Pair<String, String>>()
+                stats.add("Mode" to config.serverMode.toString())
+                stats.add(empty)
+                stats.add("All logs" to config.core.logs.directory)
+                stats.add("My logs" to "${config.core.logs.directory}/${System.getProperty("log.module")}.log")
+                if (config.core.hosts.ucloud.host == "backend") {
+                    stats.add("Debugger" to "http://localhost:42999")
+                }
+                stats.add(empty)
+                if (config.pluginsOrNull != null) {
+                    val jobs = config.plugins.jobs.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val projects = config.plugins.projects?.pluginTitle
+                    val connection = config.plugins.connection?.pluginTitle
+                    val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+
+                    stats.add("Jobs" to (jobs ?: "No plugins"))
+                    stats.add("Files" to (files ?: "No plugins"))
+                    stats.add("Drives" to (fileCollections ?: "No plugins"))
+                    stats.add("Projects" to (projects ?: "No plugins"))
+                    stats.add("Connection" to (connection ?: "No plugins"))
+                }
+
+                val colLength = stats.maxOf { it.first.length }
+                for ((name, stat) in stats) {
+                    if (name.isBlank() && stat.isBlank()) {
+                        line()
+                    } else {
+                        bold { inline("${name.padStart(colLength, ' ')}: ") }
+                        code { line(stat) }
+                    }
+                }
+            }
+
             // NOTE(Dan): This thread is done! Spin the main thread indefinitely.
             while (isActive) {
                 delay(50)
@@ -503,6 +635,9 @@ fun main(args: Array<String>) {
         println("Good bye")
     }
 }
+
+// NOTE(Dan): Used to access the class loader from the main function
+private object __ClassLoaderDummy
 
 // TODO(Dan): We have a number of utilities which should probably be moved out of this file.
 
@@ -529,7 +664,7 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
 val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
-private val databaseFile = AtomicReference<String>("")
+private val databaseFile = AtomicReference("")
 
 val dbConnection: DBContext by lazy {
     val file = databaseFile.get().takeIf { it.isNotBlank() }

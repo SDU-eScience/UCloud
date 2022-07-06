@@ -37,6 +37,7 @@ import kotlin.math.max
 typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
 
 class SlurmPlugin : ComputePlugin {
+    override val pluginTitle: String = "Slurm"
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()

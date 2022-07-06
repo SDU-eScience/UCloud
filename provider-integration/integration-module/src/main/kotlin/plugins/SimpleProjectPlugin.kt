@@ -21,6 +21,7 @@ import kotlinx.serialization.builtins.serializer
 // This plugin is also responsible for allocating unique group IDs, which are suitable for use as UNIX group IDs. The
 // extensions are not required to use the allocated group IDs, but they may choose to use them if they wish.
 class SimpleProjectPlugin : ProjectPlugin {
+    override val pluginTitle: String = "Simple"
     private lateinit var pluginConfig: ConfigSchema.Plugins.Projects.Simple
     private lateinit var extensions: Extensions
 

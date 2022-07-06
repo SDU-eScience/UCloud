@@ -28,6 +28,7 @@ data class TicketApprovalRequest(
 )
 
 class TicketBasedConnectionPlugin : ConnectionPlugin {
+    override val pluginTitle: String = "Ticket"
     private lateinit var pluginConfig: ConfigSchema.Plugins.Connection.Ticket
 
     override fun configure(config: ConfigSchema.Plugins.Connection) {
