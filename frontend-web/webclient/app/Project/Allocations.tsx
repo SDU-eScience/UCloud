@@ -203,7 +203,7 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const initial = normalizeBalanceForFrontend(initialBalance, productType, chargeType, unit, false);
         const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
         const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
-        return <ResourceProgressWrapper>
+        return <ResourceProgressWrapper key={unit + productType}>
             <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
         </ResourceProgressWrapper>
     })}</>
