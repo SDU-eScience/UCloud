@@ -27,7 +27,7 @@ import {createProject, SubAllocation, useProjectId} from "@/Project/index";
 import {Accordion} from "@/ui-components/Accordion";
 import {Spacer} from "@/ui-components/Spacer";
 import format from "date-fns/format";
-import {ListRow} from "@/ui-components/List";
+import {ListRow, ListRowStat} from "@/ui-components/List";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {InputLabel} from "@/ui-components/Input";
@@ -822,12 +822,17 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         return false;
     }, [allocationsByProductTypes]);
 
+    const pi = props.rows[0]?.projectPI;
+
     return React.useMemo(() =>
         <Accordion
             key={props.entryKey}
             icon={isProject ? "projects" : "user"}
             iconColor2="white"
-            title={props.entryKey}
+            title={<Box mt="-8px">
+                {props.entryKey}
+                <Text color="var(--gray)" fontSize={"10px"}><Icon size="10px" name={pi ? "userPi" : "user"} /> {pi ? "Project PI: " + pi : "Personal Workspace"}</Text>
+            </Box>}
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
             titleContent={<>
