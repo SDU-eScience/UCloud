@@ -1,4 +1,4 @@
-import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
+import {browseWallets, ChargeType, explainAllocation, normalizeBalanceForFrontend, ProductPriceUnit, ProductType, productTypes, productTypeToIcon, usageExplainer, Wallet, WalletAllocation} from "@/Accounting";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
 import MainContainer from "@/MainContainer/MainContainer";
@@ -168,6 +168,15 @@ function ProductTypeProgressBars(props: {walletsByProductTypes: Wallet[]}) {
     </>
 }
 
+function allocationText(unit: ProductPriceUnit, productType: ProductType, chargeType: ChargeType, doTruncate: boolean): string {
+    if (unit === "PER_UNIT" && productType === "STORAGE") {
+        if (doTruncate) {
+            return "TB";
+        }
+    }
+    return (doTruncate ? "k" : "") + explainAllocation(productType, chargeType, unit);
+}
+
 function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Record<ChargeType, Record<ProductPriceUnit, Wallet[]>>;}) {
     const nonEmptyWallets = React.useMemo(() => {
         const keys = Object.keys(props.wallets[props.chargeType]) as ProductPriceUnit[];
@@ -182,19 +191,29 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
 
     const wallets = props.wallets[props.chargeType];
 
-    return <>{nonEmptyWallets.map((it, idx, {length}) => {
+    return <>{nonEmptyWallets.map(it => {
         if (wallets[it].length === 0) return null;
         const total = totalUsageFromMultipleWallets(wallets[it]);
         const {unit, productType, chargeType} = wallets[it][0];
         const asPercent = resultAsPercent(total);
-        const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, productType, chargeType, unit, false); 
-        const initial = normalizeBalanceForFrontend(total.initialBalance, productType, chargeType, unit, false); 
-        const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, props.chargeType, unit)} (${Math.round(asPercent)}%)`;
-        return <Box key={idx} mr={idx !== length - 1 ? "4px" : undefined}>
-            <ResourceProgress width={resourceProgress.length * 7.3 + "px"} height="20px" value={Math.round(asPercent)} text={resourceProgress} />
-        </Box>
+        const doTruncate = total.initialBalance > 1_000_000;
+        const usedBalance = doTruncate ? (total.initialBalance - total.balance) / 1_000 : (total.initialBalance - total.balance);
+        const initialBalance = doTruncate ? (total.initialBalance) / 1000 : total.initialBalance;
+        const used = normalizeBalanceForFrontend(usedBalance, productType, chargeType, unit, false);
+        const initial = normalizeBalanceForFrontend(initialBalance, productType, chargeType, unit, false);
+        const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
+        const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
+        return <ResourceProgressWrapper>
+            <ResourceProgress width={resourceProgress.length * 7.3 + "px"} value={Math.round(asPercent)} text={resourceProgress} />
+        </ResourceProgressWrapper>
     })}</>
 }
+
+const ResourceProgressWrapper = styled.div`
+    &:not(:last-child) {
+        margin-right: 4px;
+    }
+`;
 
 const Border = styled.div`
     &:not(:last-child) {
