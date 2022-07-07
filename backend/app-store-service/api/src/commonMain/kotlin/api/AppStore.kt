@@ -652,7 +652,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val setPublic = call("setPublic", SetPublicRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ_WRITE
         }
 
@@ -771,7 +771,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val updateAcl = call("updateAcl", UpdateAclRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ_WRITE
         }
 
@@ -863,7 +863,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ
         }
 

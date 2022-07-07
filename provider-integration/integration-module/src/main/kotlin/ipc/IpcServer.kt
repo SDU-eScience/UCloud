@@ -219,7 +219,7 @@ class IpcServer(
     private suspend fun processIpcClient(client: SocketChannel) {
         val writeBuffer = ByteBuffer.allocate(1024 * 4)
         val readBuffer = ByteBuffer.allocate(1024 * 4)
-        val messageBuilder = MessageBuilder(1024 * 16)
+        val messageBuilder = MessageBuilder(1024 * 512)
 
         fun parseMessage(): JsonRpcRequest {
             val decodedText = messageBuilder.readNextMessage(client, readBuffer)

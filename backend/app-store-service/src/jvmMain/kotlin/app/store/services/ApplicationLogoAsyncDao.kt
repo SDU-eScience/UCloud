@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.PaginationRequest
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
@@ -11,7 +12,7 @@ class ApplicationLogoAsyncDao(
     private val appStoreAsyncDao: AppStoreAsyncDao
 ) {
 
-    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String, imageBytes: ByteArray) {
         val exists = fetchLogo(ctx, name)
         if (exists != null) {
             ctx.withSession { session ->

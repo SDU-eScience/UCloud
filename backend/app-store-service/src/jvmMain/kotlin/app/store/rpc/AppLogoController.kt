@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
@@ -23,7 +24,7 @@ class AppLogoController (
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
         implement(AppStore.uploadLogo) {
             logoService.acceptUpload(
-                ctx.securityPrincipal,
+                actorAndProject,
                 LogoType.APPLICATION,
                 request.name,
                 (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),

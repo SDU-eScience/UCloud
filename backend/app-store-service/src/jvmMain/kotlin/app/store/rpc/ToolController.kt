@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import io.ktor.http.*
@@ -99,7 +100,7 @@ class ToolController(
             }
 
             db.withTransaction {
-                toolDao.create(it, ctx.securityPrincipal, yamlDocument.normalize(), content)
+                toolDao.create(it, actorAndProject, yamlDocument.normalize(), content)
             }
 
             ok(Unit)
@@ -107,7 +108,7 @@ class ToolController(
 
         implement(ToolStore.uploadLogo) {
             logoService.acceptUpload(
-                ctx.securityPrincipal,
+                actorAndProject,
                 LogoType.TOOL,
                 request.name,
                 (ctx as HttpCall).call.request.header(HttpHeaders.ContentLength)?.toLongOrNull(),

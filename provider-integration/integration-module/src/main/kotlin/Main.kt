@@ -448,6 +448,9 @@ fun main(args: Array<String>) {
                             if (areEqual) {
                                 resolvedProducts.add(resolvedProduct)
                             } else {
+                                // NOTE(Dan): Add to both lists since it is still part of the product allocation even
+                                // if it isn't the latest version we have in the configuration.
+                                resolvedProducts.add(resolvedProduct)
                                 unknownProducts.add(configuredProduct)
                             }
                         }

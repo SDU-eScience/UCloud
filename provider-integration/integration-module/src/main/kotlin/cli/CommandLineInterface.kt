@@ -37,4 +37,5 @@ class CommandLineInterface(private val args: List<String>) {
 fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     ConnectionCli(controllerContext)
     ProductsCli(controllerContext)
+    ApplicationCli(controllerContext)
 }

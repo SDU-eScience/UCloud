@@ -1612,7 +1612,7 @@ export interface NormalizedToolDescription {
     authors: string[],
     title: string,
     description: string,
-    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE"),
+    backend: ("SINGULARITY" | "DOCKER" | "VIRTUAL_MACHINE" | "NATIVE"),
     license: string,
     image?: string,
     supportedProviders?: string[],
@@ -1659,6 +1659,7 @@ export interface ComputeSupport {
      * Support for `Tool`s using the `DOCKER` backend
      */
     docker: ComputeSupportNS.Docker,
+    native: ComputeSupportNS.Docker,
     /**
      * Support for `Tool`s using the `VIRTUAL_MACHINE` backend
      */

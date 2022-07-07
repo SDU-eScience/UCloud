@@ -660,13 +660,20 @@ class SlurmPlugin : ComputePlugin {
         return BulkResponse(knownProducts.map { ref ->
             ComputeSupport(
                 ref,
-                ComputeSupport.Docker(
+                docker = ComputeSupport.Docker(
                     enabled = true,
                     logs = true,
                     timeExtension = false,
                     terminal = true,
                     utilization = false,
-                )
+                ),
+                native = ComputeSupport.Native(
+                    enabled = true,
+                    logs = true,
+                    timeExtension = false,
+                    terminal = true,
+                    utilization = false,
+                ),
             )
         })
     }

@@ -1,5 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -25,7 +27,7 @@ class LogoService(
     private val toolDao: ToolAsyncDao
 ) {
     suspend fun acceptUpload(
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         type: LogoType,
         name: String,
         length: Long?,
@@ -35,14 +37,21 @@ class LogoService(
             throw RPCException("Logo is too large", HttpStatusCode.BadRequest)
         }
 
+
         val imageBytesStream = ByteArrayOutputStream(length.toInt())
         channel.copyTo(imageBytesStream)
         val imageBytes = resizeLogo(imageBytesStream.toByteArray())
 
         db.withSession { session ->
             when (type) {
-                LogoType.APPLICATION -> appDao.createLogo(session, user, name, imageBytes)
-                LogoType.TOOL -> toolDao.createLogo(session, user, name, imageBytes)
+                LogoType.APPLICATION -> {
+                    verifyAppUpdatePermission(actorAndProject, session, name)
+                    appDao.createLogo(session, actorAndProject, name, imageBytes)
+                }
+                LogoType.TOOL -> {
+                    verifyToolUpdatePermission(actorAndProject, session, name)
+                    toolDao.createLogo(session, actorAndProject, name, imageBytes)
+                }
             }
         }
     }
@@ -93,7 +102,7 @@ class LogoService(
             while (true) {
                 val nextPage = appDao.browseAll(db, req)
                 nextPage.items.forEach { (tool, logoBytes) ->
-                    appDao.createLogo(db, null, tool, resizeLogo(logoBytes))
+                    appDao.createLogo(db, ActorAndProject(Actor.System, null), tool, resizeLogo(logoBytes))
                 }
 
                 req = req.copy(next = nextPage.next)
@@ -106,7 +115,7 @@ class LogoService(
             while (true) {
                 val nextPage = toolDao.browseAllLogos(db, req)
                 nextPage.items.forEach { (tool, logoBytes) ->
-                    toolDao.createLogo(db, null, tool, resizeLogo(logoBytes))
+                    toolDao.createLogo(db, ActorAndProject(Actor.System, null), tool, resizeLogo(logoBytes))
                 }
 
                 req = req.copy(next = nextPage.next)

@@ -184,7 +184,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER)
             access = AccessRight.READ_WRITE
         }
 
@@ -205,7 +205,7 @@ ${ApiConventions.nonConformingApiWarning}
 
     val uploadLogo = call("uploadLogo", UploadToolLogoRequest.serializer(), UploadToolLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
-                roles = Roles.PRIVILEGED
+                roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
                 access = AccessRight.READ_WRITE
             }
 

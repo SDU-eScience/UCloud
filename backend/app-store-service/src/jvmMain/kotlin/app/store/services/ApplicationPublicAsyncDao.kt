@@ -1,11 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
-import dk.sdu.cloud.Roles
-import dk.sdu.cloud.SecurityPrincipal
-import dk.sdu.cloud.service.db.async.DBContext
-import dk.sdu.cloud.service.db.async.getField
-import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.*
+import dk.sdu.cloud.service.db.async.*
 
 class ApplicationPublicAsyncDao() {
     suspend fun isPublic(
@@ -36,18 +32,18 @@ class ApplicationPublicAsyncDao() {
 
     suspend fun setPublic(
         ctx: DBContext,
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         appName: String,
         appVersion: String,
         public: Boolean
     ) {
-        if (user.role !in Roles.PRIVILEGED) throw ApplicationException.NotAllowed()
-        val existing = ctx.withSession { session ->
+        ctx.withSession { session ->
             internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
         }
-        if (!canUserPerformWriteOperation(existing.getField(ApplicationTable.owner), user)) throw ApplicationException.NotAllowed()
 
         ctx.withSession { session ->
+            verifyAppUpdatePermission(actorAndProject, session, appName, appVersion)
+
             session
                 .sendPreparedStatement(
                     {
@@ -62,6 +58,5 @@ class ApplicationPublicAsyncDao() {
                     """.trimIndent()
               )
         }
-
     }
 }

@@ -172,44 +172,86 @@ data class ComputeSupport(
 
     @UCloudApiDoc("Support for `Tool`s using the `VIRTUAL_MACHINE` backend")
     val virtualMachine: VirtualMachine = VirtualMachine(),
+
+    @UCloudApiDoc("Support for `Tool`s using the `NATIVE` backend")
+    val native: Native = Native(),
 ) : ProductSupport {
+    interface UniversalBackendSupport {
+        var enabled: Boolean?
+        var vnc: Boolean?
+        var logs: Boolean?
+        var terminal: Boolean?
+        var timeExtension: Boolean?
+        var utilization: Boolean?
+    }
+
+    interface WithPeers {
+        var peers: Boolean?
+    }
+
+    interface WithWeb {
+        var web: Boolean?
+    }
+
+    interface WithSuspension {
+        var suspension: Boolean?
+    }
+
     @Serializable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean? = null,
+        override var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
-        var web: Boolean? = null,
+        override var web: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `VNC` `Application`s")
-        var vnc: Boolean? = null,
+        override var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean? = null,
+        override var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean? = null,
+        override var terminal: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable connection between peering `Job`s")
-        var peers: Boolean? = null,
+        override var peers: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
-        var timeExtension: Boolean? = null,
+        override var timeExtension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
-        var utilization: Boolean? = null,
-    )
+        override var utilization: Boolean? = null,
+    ) : UniversalBackendSupport, WithPeers, WithWeb
 
     @Serializable
     data class VirtualMachine(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean? = null,
+        override var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean? = null,
+        override var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the VNC API")
-        var vnc: Boolean? = null,
+        override var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean? = null,
+        override var terminal: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
-        var timeExtension: Boolean? = null,
+        override var timeExtension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable suspension of jobs")
-        var suspension: Boolean? = null,
+        override var suspension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
-        var utilization: Boolean? = null,
-    )
+        override var utilization: Boolean? = null,
+    ) : UniversalBackendSupport, WithSuspension
+
+    @Serializable
+    data class Native(
+        @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
+        override var enabled: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the log API")
+        override var logs: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the VNC API")
+        override var vnc: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
+        override var terminal: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable extension of jobs")
+        override var timeExtension: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
+        override var utilization: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
+        override var web: Boolean? = null,
+    ) : UniversalBackendSupport, WithWeb
 }
 
 @Serializable

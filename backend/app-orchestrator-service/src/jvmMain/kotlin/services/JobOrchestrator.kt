@@ -136,6 +136,12 @@ class JobOrchestrator(
                 }
             }
 
+            ToolBackend.NATIVE -> {
+                if (support.native.enabled != true) {
+                    throw JobException.VerificationError("Application is not supported by provider")
+                }
+            }
+
             else -> {
                 throw JobException.VerificationError("Unsupported application")
             }
@@ -526,7 +532,8 @@ class JobOrchestrator(
 
                     val isSupported =
                         (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
-                                (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
+                                (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true) ||
+                                (appBackend == ToolBackend.NATIVE && support.native.timeExtension == true)
 
                     if (!isSupported) {
                         throw RPCException(
@@ -645,9 +652,10 @@ class JobOrchestrator(
             val backend = app.invocation.tool.tool!!.description.backend
             val logsSupported =
                 (backend == ToolBackend.DOCKER && support.docker.logs == true) ||
-                        (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
+                        (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true) ||
+                        (backend == ToolBackend.NATIVE && support.native.logs == true)
 
-            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+                    // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
             // retrieve them by themselves.
             sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
 
@@ -862,6 +870,14 @@ class JobOrchestrator(
                         }
                     } else if (backend == ToolBackend.VIRTUAL_MACHINE) {
                         if (support.virtualMachine.utilization != true) {
+                            throw RPCException(
+                                "Not supported",
+                                HttpStatusCode.BadRequest,
+                                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                            )
+                        }
+                    } else if (backend == ToolBackend.NATIVE) {
+                        if (support.native.utilization != true) {
                             throw RPCException(
                                 "Not supported",
                                 HttpStatusCode.BadRequest,

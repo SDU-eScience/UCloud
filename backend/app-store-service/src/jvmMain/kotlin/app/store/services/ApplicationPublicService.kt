@@ -1,5 +1,6 @@
 package dk.sdu.cloud.app.store.services
 
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.service.db.async.DBContext
@@ -29,7 +30,7 @@ class ApplicationPublicService(
     }
 
     suspend fun setPublic(
-        securityPrincipal: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         appName: String,
         appVersion: String,
         public: Boolean
@@ -37,7 +38,7 @@ class ApplicationPublicService(
         ctx.withSession {
             applicationPublicAsyncDao.setPublic(
                 it,
-                securityPrincipal,
+                actorAndProject,
                 appName,
                 appVersion,
                 public

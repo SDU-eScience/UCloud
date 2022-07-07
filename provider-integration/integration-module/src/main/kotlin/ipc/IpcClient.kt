@@ -103,7 +103,7 @@ class IpcClient(
                 }
             }
 
-            val writeBuffer = ByteBuffer.allocate(1024 * 64)
+            val writeBuffer = ByteBuffer.allocate(1024 * 512)
             val readBuffer = ByteBuffer.allocate(1024 * 64)
 
             // NOTE(Dan): The IPC system uses line delimited (\n) JSON-RPC 2.0

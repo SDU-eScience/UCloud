@@ -149,13 +149,13 @@ export const Information: React.FunctionComponent<{application: Application; sim
                 </>}
 
                 <InfoAttribute
-                    name="Container Type"
+                    name="Type"
                     value={capitalized(backend)}
                 />
 
                 <InfoAttribute
                     name="License"
-                    value={license}
+                    value={license ? license : "Unknown"}
                 />
             </InfoAttributes>
         </>

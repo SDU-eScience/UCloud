@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.actorAndProject
 import io.ktor.http.*
 import io.ktor.server.request.*
 import io.ktor.utils.io.*
@@ -38,7 +39,7 @@ class AppStoreController(
         }
 
         implement(AppStore.updateAcl) {
-            ok(appStore.updatePermissions(ctx.securityPrincipal, request.applicationName, request.changes))
+            ok(appStore.updatePermissions(actorAndProject, request.applicationName, request.changes))
         }
 
         implement(AppStore.findBySupportedFileExtension) {
@@ -95,7 +96,7 @@ class AppStoreController(
                 return@implement
             }
 
-            appStore.create(ctx.securityPrincipal, yamlDocument.normalize(), content)
+            appStore.create(actorAndProject, yamlDocument.normalize(), content)
 
             ok(Unit)
         }

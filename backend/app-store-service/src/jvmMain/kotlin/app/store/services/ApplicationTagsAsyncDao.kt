@@ -12,7 +12,6 @@ import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 
 class ApplicationTagsAsyncDao() {
-
     suspend fun createTags(
         ctx: DBContext,
         user: SecurityPrincipal,
@@ -24,9 +23,6 @@ class ApplicationTagsAsyncDao() {
                 HttpStatusCode.NotFound
             )
 
-            if (!canUserPerformWriteOperation(owner, user)) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
-            }
             tags.forEach { tag ->
                 val existing = ctx.withSession { session -> findTag(session, applicationName, tag) }
 
@@ -53,10 +49,6 @@ class ApplicationTagsAsyncDao() {
             val owner = findOwnerOfApplication(session, applicationName) ?: throw RPCException.fromStatusCode(
                 HttpStatusCode.NotFound
             )
-
-            if (!canUserPerformWriteOperation(owner, user)) {
-                throw RPCException.fromStatusCode(HttpStatusCode.Forbidden, "Not owner of application")
-            }
 
             tags.forEach { tag ->
                 val existing = findTag(
