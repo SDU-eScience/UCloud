@@ -149,12 +149,19 @@ export default function SubprojectList(): JSX.Element | null {
     const toggleSet = useToggleSet<MemberInProject>([]);
 
     const onCreate = React.useCallback(async () => {
-        setCreating(false);
         const subprojectName = creationRef.current?.value ?? "";
         if (!subprojectName) {
-            snackbarStore.addFailure("Invalid subproject name", false);
+            snackbarStore.addFailure("Subproject name cannot be empty.", false);
             return;
         }
+        
+        if (subprojectName.trim().length !== subprojectName.length) {
+            snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
+            return;
+        }
+        
+        setCreating(false);
+        
         try {
             const result = await invokeCommand(createProject({
                 title: subprojectName,
@@ -172,6 +179,10 @@ export default function SubprojectList(): JSX.Element | null {
         const newProjectName = renameRef.current?.value;
         if (!newProjectName) {
             snackbarStore.addFailure("Invalid subproject name", false);
+            return;
+        }
+        if (newProjectName.trim().length != newProjectName.length) {
+            snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
             return;
         }
         try {
