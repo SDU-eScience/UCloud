@@ -217,7 +217,7 @@ fun ApplicationCli(controllerContext: ControllerContext) {
                     )
 
                     sendTerminalMessage {
-                        bold { green { line("Application has been uploaded successfully!") } }
+                        bold { green { line("Logo has been uploaded successfully!") } }
                     }
                 }
 
