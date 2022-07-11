@@ -1,5 +1,6 @@
 import * as React from "react";
 import styled, {keyframes} from "styled-components";
+import {fontWeight, FontWeightProps} from "styled-system";
 import {ThemeColor} from "./theme";
 
 const animatePositive = keyframes`
@@ -26,27 +27,30 @@ const thresholds: {maxValue: number, color: ThemeColor}[] = [
 ];
 
 function getColorFromValue(value: number): string {
-    return thresholds.find(it => it.maxValue >= value)?.color ?? "green"
+    return thresholds.find(it => it.maxValue >= value)?.color ?? "red";
 }
 
-const Bar = styled.div<{value: number}>`
+const Bar = styled.div<{value: number; width: number | string; fontWeight?: FontWeightProps;}>`
     position: absolute;
     top: 0;
     height: 100%;
     overflow: hidden;
     & > span {
-        margin-top: -1px;
+        padding-top: 2px;
+        padding-bottom: auto;
         position: absolute;
         display: block;
-        width: 150px;
+        width: ${props => props.width};
+        min-width: 200px;
         height: 100%;
         text-align: center;
+        ${fontWeight}
     }
 
     &.positive {      
         background: var(--${props => getColorFromValue(props.value)});
         left: 0;
-        width: ${props => props.value}%;      
+        width: ${props => Math.min(props.value, 100)}%;
         animation: ${animatePositive} 4s;
     }
 
@@ -58,7 +62,7 @@ const Bar = styled.div<{value: number}>`
     &.negative {
         background: var(--appCard);
         right: 0;
-        width: ${props => 100 - props.value}%;        
+        width: ${props => 100 - Math.min(props.value, 100)}%;
         animation: ${animateNegative} 4s;
     }
 
@@ -68,36 +72,41 @@ const Bar = styled.div<{value: number}>`
     }
 `;
 
-const ProgressBar = styled.div<{value: number}>`
+const ProgressBar = styled.div<{value: number; width: number | string; height: number | string;}>`
     border-radius: 4px;
     position: relative;
-    width: 150px;
-    height: 15px;
+    width: ${props => props.width};
+    min-width: 200px;
+    height: ${props => props.height};
     line-height: 15px;
     vertical-align: middle;
     overflow: hidden;
     font-size: 12px;
 `;
 
+interface ResourceProgressProps {
+    text?: string;
+    value: number;
+    width?: string;
+    height?: string;
+    fontWeight?: FontWeightProps;
+}
+
 /* https://codepen.io/valiooo/pen/ALXodB */
 export function ResourceProgress(
-    props: React.PropsWithChildren<{
-        value: number;
-        width?: string;
-        height?: string;
-    }>
-): JSX.Element {
-    /* TODO(Jonas): Use in components */
-    const width = props.width ?? "150px";
-    const height = props.height ?? "15px";
-    /* TODO(Jonas): End */
+    props: React.PropsWithChildren<ResourceProgressProps>
+): JSX.Element | null {
+    if (isNaN(props.value)) return null;
+    const width = props.width ?? "200px";
+    const height = props.height ?? "20px";
+    const fontWeight = props.fontWeight ?? {fontWeight: "bold"};
     return (
-        <ProgressBar value={props.value}>
-            <Bar className="positive" value={props.value}>
-                <span>{props.value}%</span>
+        <ProgressBar width={width} height={height} value={props.value}>
+            <Bar className="positive" width={width} value={props.value} fontWeight={fontWeight}>
+                <span>{props.text ?? props.value}</span>
             </Bar>
-            <Bar className="negative" value={props.value}>
-                <span>{props.value}%</span>
+            <Bar className="negative" width={width} value={props.value} fontWeight={fontWeight}>
+                <span>{props.text ?? props.value}</span>
             </Bar>
         </ProgressBar>
     );

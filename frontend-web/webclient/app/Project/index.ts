@@ -704,6 +704,7 @@ export interface SubAllocation {
     workspaceId: string;
     workspaceTitle: string;
     workspaceIsProject: boolean;
+    projectPI?: string;
 
     remaining: number;
     initialBalance: number;

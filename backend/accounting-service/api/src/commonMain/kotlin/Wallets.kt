@@ -230,6 +230,7 @@ data class SubAllocation(
     val workspaceId: String,
     val workspaceTitle: String,
     val workspaceIsProject: Boolean,
+    val projectPI: String?,
 
     val remaining: Long,
     val initialBalance: Long
