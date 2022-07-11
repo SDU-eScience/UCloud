@@ -3,7 +3,7 @@ import * as React from "react";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
-import {Box, Button, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
+import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
 import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, emptyProject, Project, viewProject} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
@@ -43,7 +43,7 @@ const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallback
         const projectId = useProjectId();
         const isActive = projectId === resource.project.id;
         return <>
-            {resource.project.archived ? <Icon name="tags" /> : null}
+            {resource.project.archived ? <Icon mr="8px" mt="7px" name="tags" /> : null}
             {resource.role ? <Box mt="7px" title="Set as active project" mr="12px">
                 <Toggle
                     scale={1.5}
@@ -259,46 +259,33 @@ export default function SubprojectList(): JSX.Element | null {
     />;
 
     function pageRenderer(items: MemberInProject[]): JSX.Element {
-        if (items.length === 0) {
-            return <>
-                <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>
-                {creating ?
-                    <List>
-                        <ListRow
-                            left={
-                                <form onSubmit={e => {stopPropagationAndPreventDefault(e); onCreate();}}>
-                                    <Flex height="56px">
-                                        <Button height="36px" mt="8px" color="green" type="submit">Create</Button>
-                                        <Button height="36px" mt="8px" color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
-                                        <Input noBorder placeholder="Project name..." ref={creationRef} />
-                                    </Flex>
-                                </form>
-                            }
-                            right={null}
-                        />
-                    </List> : null}
-            </>;
-        }
         return (
             <List bordered onContextMenu={preventDefault}>
+                {items.length !== 0 ? null : <Text fontSize="24px" key="no-entries">No subprojects found for project.</Text>}
                 {creating ?
                     <ListRow
                         left={
                             <form onSubmit={e => {stopPropagationAndPreventDefault(e); onCreate();}}>
                                 <Flex height="56px">
-                                    <Button height="36px" mt="8px" color="green" type="submit">Create</Button>
-                                    <Button height="36px" mt="8px" color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
+                                    <Icon mx="8px" mt="17.3px" color={"iconColor"} color2={"iconColor2"} name="projects" />
+                                    <ButtonGroup height="36px" mt="8px">
+                                        <Button color="green" type="submit">Create</Button>
+                                        <Button color="red" type="button" onClick={() => setCreating(false)}>Cancel</Button>
+                                    </ButtonGroup>
                                     <Input noBorder placeholder="Project name..." ref={creationRef} />
                                 </Flex>
                             </form>
                         }
                         right={null}
                     /> : null}
-                {items.map((it) => it.project.id === renameId ? (
+                {items.map(it => it.project.id === renameId ? (
                     <form key={it.project.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(it.project.id)}}>
                         <Flex height="56px">
-                            <Button height="36px" mt="8px" color="green" type="submit">Create</Button>
-                            <Button height="36px" mt="8px" color="red" type="button" onClick={() => setRenameId("")}>Cancel</Button>
+                            <Icon mx="8px" mt="17.3px" color={"iconColor"} color2={"iconColor2"} name="projects" />
+                            <ButtonGroup height="36px" mt="8px">
+                                <Button color="green" type="submit">Rename</Button>
+                                <Button color="red" type="button" onClick={() => setRenameId("")}>Cancel</Button>
+                            </ButtonGroup>
                             <Input noBorder placeholder="Project name..." defaultValue={it.project.title} ref={renameRef} />
                         </Flex>
                     </form>
