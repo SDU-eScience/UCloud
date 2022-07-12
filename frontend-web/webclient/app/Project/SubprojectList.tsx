@@ -107,7 +107,14 @@ const projectOperations: ProjectOperation[] = [
         icon: "tags"
     },
     {
-        enabled: (selected) => selected.length === 1 && isAdminOrPI(selected[0].role ?? ProjectRole.USER),
+        enabled: (selected) => {
+            if (selected.length !== 1) return false;
+            if (isAdminOrPI(selected[0].role ?? ProjectRole.USER)) {
+                return true;
+            } else {
+                return "Only Admins and PIs can rename."
+            }
+        },
         onClick: ([{project}], extras) => extras.startRename(project.id),
         text: "Rename",
         icon: "rename"
@@ -154,14 +161,14 @@ export default function SubprojectList(): JSX.Element | null {
             snackbarStore.addFailure("Subproject name cannot be empty.", false);
             return;
         }
-        
+
         if (subprojectName.trim().length !== subprojectName.length) {
             snackbarStore.addFailure("Subproject name cannot end or start with whitespace.", false);
             return;
         }
-        
+
         setCreating(false);
-        
+
         try {
             const result = await invokeCommand(createProject({
                 title: subprojectName,
