@@ -4,7 +4,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
 import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, emptyProject, Project, viewProject} from ".";
+import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, viewProject, UserInProject, emptyUserInProject} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -235,17 +235,20 @@ export default function SubprojectList(): JSX.Element | null {
         setActiveProject: setProject
     };
 
-    const [subproject, fetchSubproject] = useCloudAPI<Project>({noop: true}, emptyProject(subprojectFromQuery));
+    const [subproject, fetchSubproject] = useCloudAPI<UserInProject>({noop: true}, emptyUserInProject(subprojectFromQuery));
 
     React.useEffect(() => {
         fetchSubproject(viewProject({id: subprojectFromQuery}));
-    }, [subprojectFromQuery])
+    }, [subprojectFromQuery]);
+
+    const isActiveProject = subproject.data.projectId === projectId;
+    const crumbs = (isActiveProject ? [] : [{title: subproject.data.title}]).concat([{title: "Subprojects"}]);
 
     return <MainContainer
         main={
             !subprojectFromQuery ? <Text fontSize={"24px"}>Missing subproject</Text> :
                 <>
-                    <ProjectBreadcrumbs crumbs={[{title: "Subprojects"}]} />
+                    <ProjectBreadcrumbs omitActiveProject={!isActiveProject} crumbs={crumbs} />
                     <StandardBrowse
                         reloadRef={reloadRef}
                         generateCall={generateCall}

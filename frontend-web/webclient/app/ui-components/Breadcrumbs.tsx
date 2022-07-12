@@ -66,6 +66,7 @@ export const BreadCrumbs = ({
 
     const pathsMapping = buildBreadCrumbs(currentPath, client.homeFolder, projectStatus);
     const activePathsMapping = pathsMapping[pathsMapping.length - 1];
+    // NOTE(Jonas): Can't we just say `const activePathsMapping = pathsMapping.pop()`?
     pathsMapping.pop();
     const breadcrumbs = pathsMapping.map(p => (
         <span key={p.local} data-component={"crumb"} test-tag={p.local} title={p.local} onClick={() => navigate(p.actualPath)}>
