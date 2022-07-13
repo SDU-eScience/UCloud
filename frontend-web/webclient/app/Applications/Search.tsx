@@ -4,8 +4,7 @@ import {emptyPage} from "@/DefaultObjects";
 import {joinToString} from "@/UtilityFunctions";
 import {useHistory} from "react-router";
 import {useEffect} from "react";
-import {searchPage} from "@/Utilities/SearchUtilities";
-import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud";
 import {GridCardGroup} from "@/ui-components/Grid";
@@ -71,7 +70,7 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
             UCloud.compute.apps.searchApps({
                 query: new URLSearchParams(queryParams).get("q") ?? "",
                 itemsPerPage: 100,
-                page: 0
+                page: parsedQuery.page, 
             })
         );
     }, [queryParams, /* This isn't needed for this one, is it? */entriesPerPage]);
@@ -107,8 +106,8 @@ export const SearchResults: React.FunctionComponent<{entriesPerPage: number}> = 
                 </GridCardGroup>
             )}
             onPageChanged={newPage => {
-                history.push(searchPage("applications", {
-                    query: parsedQuery.query,
+                history.push(buildQueryString("/applications/search", {
+                    q: new URLSearchParams(queryParams).get("q") ?? "",
                     tags: joinToString(parsedQuery.tags),
                     showAllVersions: parsedQuery.showAllVersions.toString(),
                     page: newPage.toString(),

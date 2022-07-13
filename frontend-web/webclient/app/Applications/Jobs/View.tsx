@@ -8,10 +8,10 @@ import {isJobStateTerminal, JobState, stateToTitle} from "./index";
 import * as Heading from "@/ui-components/Heading";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {doNothing, shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
+import {shortUUID, timestampUnixMs, useEffectSkipMount} from "@/UtilityFunctions";
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import styled, {keyframes} from "styled-components";
-import {Box, Button, Flex, Icon, Link} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Icon, Link, Text, Truncate} from "@/ui-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {IconName} from "@/ui-components/Icon";
 import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
@@ -28,10 +28,11 @@ import {api as JobsApi, Job, JobUpdate, JobStatus, ComputeSupport, JobSpecificat
 import {compute} from "@/UCloud";
 import {ResolvedSupport} from "@/UCloud/ResourceApi";
 import AppParameterValueNS = compute.AppParameterValueNS;
-import {priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
+import {costOfDuration, priceExplainer, ProductCompute, usageExplainer} from "@/Accounting";
 import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
+import IngressApi, {Ingress} from "@/UCloud/IngressApi";
 
 const enterAnimation = keyframes`
     from {
@@ -353,96 +354,98 @@ export function View(props: {id?: string; embedded?: boolean;}): JSX.Element {
     }
 
     const main = (
-        <Container className={status?.state ?? "state-loading"}>
-            <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
-                <div className="logo-scale">
-                    <div className={"logo"}>
-                        <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
-                            type={"APPLICATION"}
-                            size={"200px"} />
+        <>
+            <Container className={status?.state ?? "state-loading"}>
+                <div className={`logo-wrapper ${logoAnimationAllowed && status ? "active" : ""}`}>
+                    <div className="logo-scale">
+                        <div className={"logo"}>
+                            <AppToolLogo name={job?.specification?.application?.name ?? appNameHint}
+                                type={"APPLICATION"}
+                                size={"200px"} />
+                        </div>
                     </div>
                 </div>
-            </div>
+                {!job || !status ? null : (
+                    <CSSTransition
+                        in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
+                        timeout={{
+                            enter: 1000,
+                            exit: 0,
+                        }}
+                        classNames={"data"}
+                        unmountOnExit
+                    >
+                        <div className={"data"}>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
+                                </div>
+                            </Flex>
 
-            {!job || !status ? null : (
-                <CSSTransition
-                    in={(status?.state === "IN_QUEUE" || status?.state === "SUSPENDED") && dataAnimationAllowed}
-                    timeout={{
-                        enter: 1000,
-                        exit: 0,
-                    }}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                {status?.state === "IN_QUEUE" ? <InQueueText job={job!} /> : null}
-                            </div>
-                        </Flex>
+                            <Content>
+                                <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
+                                    <HighlightedCard color={"purple"}>
+                                        <Box py={"16px"}>
+                                            <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
+                                        </Box>
+                                    </HighlightedCard>
+                                </Box>
+                                <InfoCards job={job} status={status} />
+                            </Content>
+                        </div>
+                    </CSSTransition>
+                )}
 
-                        <Content>
-                            <Box width={"100%"} maxWidth={"1572px"} margin={"32px auto"}>
-                                <HighlightedCard color={"purple"}>
-                                    <Box py={"16px"}>
-                                        <ProviderUpdates job={job} updateListeners={jobUpdateCallbackHandlers} />
-                                    </Box>
-                                </HighlightedCard>
-                            </Box>
-                            <InfoCards job={job} status={status} />
-                        </Content>
-                    </div>
-                </CSSTransition>
-            )}
+                {!job || !status ? null : (
+                    <CSSTransition
+                        in={status?.state === "RUNNING" && dataAnimationAllowed}
+                        timeout={{enter: 1000, exit: 0}}
+                        classNames={"data"}
+                        unmountOnExit
+                    >
+                        <div className={"data"}>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    <RunningText job={job} />
+                                </div>
+                            </Flex>
 
-            {!job || !status ? null : (
-                <CSSTransition
-                    in={status?.state === "RUNNING" && dataAnimationAllowed}
-                    timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <RunningText job={job} />
-                            </div>
-                        </Flex>
+                            <RunningContent
+                                job={job}
+                                updateListeners={jobUpdateCallbackHandlers}
+                                status={status}
+                            />
+                        </div>
+                    </CSSTransition>
+                )}
 
-                        <RunningContent
-                            job={job}
-                            updateListeners={jobUpdateCallbackHandlers}
-                            status={status}
-                        />
-                    </div>
-                </CSSTransition>
-            )}
 
-            {!job || !status ? null : (
-                <CSSTransition
-                    in={isJobStateTerminal(status.state) && dataAnimationAllowed}
-                    timeout={{enter: 1000, exit: 0}}
-                    classNames={"data"}
-                    unmountOnExit
-                >
-                    <div className={"data"}>
-                        <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
-                            <div className={"fake-logo"} />
-                            <div className={"header-text"}>
-                                <CompletedText job={job} state={status.state} />
-                            </div>
-                        </Flex>
+                {!job || !status ? null : (
+                    <CSSTransition
+                        in={isJobStateTerminal(status.state) && dataAnimationAllowed}
+                        timeout={{enter: 1000, exit: 0}}
+                        classNames={"data"}
+                        unmountOnExit
+                    >
+                        <div className={"data"}>
+                            <Flex flexDirection={"row"} flexWrap={"wrap"} className={"header"}>
+                                <div className={"fake-logo"} />
+                                <div className={"header-text"}>
+                                    <CompletedText job={job} state={status.state} />
+                                </div>
+                            </Flex>
 
-                        <Content>
-                            <OutputFiles job={job} />
-                            <InfoCards job={job} status={status} />
-                        </Content>
-                    </div>
-                </CSSTransition>
-            )}
-        </Container>
+                            <Content>
+                                <OutputFiles job={job} />
+                                <InfoCards job={job} status={status} />
+                            </Content>
+                        </div>
+                    </CSSTransition>
+                )}
+            </Container>
+        </>
     );
 
     if (props.embedded) {
@@ -458,6 +461,15 @@ const Content = styled.div`
     align-items: center;
     flex-direction: column;
 `;
+
+function IngressEntry({id}: {id: string}): JSX.Element {
+    const [ingress] = useCloudAPI<Ingress | null>(IngressApi.retrieve({id}), null);
+    if (ingress.data == null) return <div />
+    const {domain} =  ingress.data.specification;
+    return <Truncate width={1}>
+        <ExternalLink title={domain} href={domain}>{domain}</ExternalLink>
+    </Truncate>
+}
 
 const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
     const [utilization, setUtilization] = useCloudAPI<compute.JobsRetrieveUtilizationResponse | null>(
@@ -824,6 +836,10 @@ const RunningContent: React.FunctionComponent<{
         }, 1000);
     });
 
+    const resolvedProduct = job.status.resolvedProduct as unknown as ProductCompute;
+
+    const ingresses = job.specification.resources.filter(it => it.type === "ingress") as AppParameterValueNS.Ingress[];
+
     return <>
         <RunningInfoWrapper>
             <HighlightedCard color={"purple"} isLoading={false} title={"Job info"} icon={"properties"}>
@@ -858,6 +874,18 @@ const RunningContent: React.FunctionComponent<{
                                 </Box>
                             </>
                         }
+                        <Box>
+                            <b>Estimated price per hour: </b>{job.status.resolvedSupport?.product.freeToUse ? "Free" :
+                                job.status.resolvedProduct ?
+                                    usageExplainer(
+                                        costOfDuration(60, job.specification.replicas, resolvedProduct),
+                                        "COMPUTE",
+                                        resolvedProduct.chargeType,
+                                        resolvedProduct.unitOfPrice
+                                    )
+                                    : "Unknown"
+                            }
+                        </Box>
 
 
                         <Box flexGrow={1} />
@@ -877,8 +905,14 @@ const RunningContent: React.FunctionComponent<{
                     </Flex>
                 </HighlightedCard>
             }
-            <HighlightedCard color={"purple"} isLoading={false} title={"Messages"} icon={"chat"}>
+            <HighlightedCard color="purple" isLoading={false} title="Messages" icon="chat">
                 <ProviderUpdates job={job} updateListeners={updateListeners} />
+            </HighlightedCard>
+
+            <HighlightedCard color="purple" isLoading={false} title="Public Links" icon="globeEuropeSolid">
+                <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                    {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
+                </Text>
             </HighlightedCard>
         </RunningInfoWrapper>
 
