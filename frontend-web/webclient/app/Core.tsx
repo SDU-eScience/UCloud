@@ -16,7 +16,6 @@ const IngoingApplications = React.lazy(() => import("@/Project/Grant/IngoingAppl
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
-const LandingPage = React.lazy(() => import("@/Project/Grant/LandingPage"));
 const LicenseServers = React.lazy(() => import("@/Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
 const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
@@ -172,11 +171,6 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
                     <Route exact path="/project/resources" component={requireAuth(ProjectResources)} />
                     <Route exact path="/project/allocations" component={requireAuth(ProjectAllocations)} />
-                    <Route
-                        exact
-                        path="/project/grants-landing"
-                        component={requireAuth(LandingPage)}
-                    />
                     <Route
                         exact
                         path="/project/grants/existing"

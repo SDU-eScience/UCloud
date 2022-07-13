@@ -73,7 +73,7 @@ export const OutgoingApplications: React.FunctionComponent = () => {
             header={<Heading.h3>Grant Applications</Heading.h3>}
             sidebar={
                 <VerticalButtonGroup>
-                    <Link to={`/projects/browser/new`}><Button>Create Application</Button></Link>
+                    <Link to={"/project/grants/new"}><Button>Create Application</Button></Link>
 
                     <ResourceFilter
                         browseType={BrowseType.MainContent}

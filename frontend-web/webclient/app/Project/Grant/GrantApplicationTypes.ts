@@ -365,7 +365,9 @@ interface FakeClient {
     userInfo?: {
         firstNames: string;
         lastName: string;
-    }
+    },
+    hasActiveProject: boolean,
+    projectId?: string
 }
 
 export const Client: FakeClient = {
@@ -374,7 +376,9 @@ export const Client: FakeClient = {
     userInfo: {
         firstNames: "Flynn",
         lastName: "Taggart"
-    }
+    },
+    hasActiveProject: true,
+    projectId: "foobarbaz"
 }
 
 export interface FetchGrantApplicationRequest {
@@ -578,150 +582,140 @@ export function listOfDebugWallets(type: ProductType, projectId: string, name: s
 
 const DEBUGGING_WALLETS: Wallet[] = [
     {
-        "owner": {
-            "type": "project",
-            "projectId": "just-some-id-we-cant-consider-valid"
+        owner: {
+            type: "project",
+            projectId: "just-some-id-we-cant-consider-valid"
         },
-        "paysFor": {
-            "name": "Ballista",
-            "provider": "UAC"
+        paysFor: {
+            name: "Ballista",
+            provider: "UAC"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "120",
-                "allocationPath":
-                    "120"
-                ,
-                "balance": 9999999888,
-                "initialBalance": 10000000000,
-                "localBalance": 10000000000,
-                "startDate": 1652854470991,
-                "endDate": null,
+                id: "120",
+                allocationPath: "120",
+                balance: 9999999888,
+                initialBalance: 10000000000,
+                localBalance: 10000000000,
+                startDate: 1652854470991,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "COMPUTE",
-        "chargeType": "ABSOLUTE",
-        "unit": "UNITS_PER_MINUTE"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "COMPUTE",
+        chargeType: "ABSOLUTE",
+        unit: "UNITS_PER_MINUTE"
     },
     {
-        "owner": {
-            "type": "project",
-            "projectId": "just-some-other-id-we-cant-consider-valid"
+        owner: {
+            type: "project",
+            projectId: "just-some-other-id-we-cant-consider-valid"
         },
-        "paysFor": {
-            "name": "home",
-            "provider": "hippo"
+        paysFor: {
+            name: "home",
+            provider: "hippo"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "78",
-                "allocationPath":
-                    "78"
-                ,
-                "balance": 9999999998,
-                "initialBalance": 10000000000,
-                "localBalance": 10000000000,
-                "startDate": 1652257657990,
-                "endDate": null,
+                id: "78",
+                allocationPath: "78",
+                balance: 9999999998,
+                initialBalance: 10000000000,
+                localBalance: 10000000000,
+                startDate: 1652257657990,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "STORAGE",
-        "chargeType": "DIFFERENTIAL_QUOTA",
-        "unit": "PER_UNIT"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "STORAGE",
+        chargeType: "DIFFERENTIAL_QUOTA",
+        unit: "PER_UNIT"
     },
     {
-        "owner": {
-            "type": "project",
-            "projectId": "the-final-one"
+        owner: {
+            type: "project",
+            projectId: "the-final-one"
         },
-        "paysFor": {
-            "name": "PlasmaR",
-            "provider": "HELL"
+        paysFor: {
+            name: "PlasmaR",
+            provider: "HELL"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "79",
-                "allocationPath":
-                    "79"
-                ,
-                "balance": 9999999998,
-                "initialBalance": 10000000000,
-                "localBalance": 10000000000,
-                "startDate": 1652257659253,
-                "endDate": null,
+                id: "79",
+                allocationPath: "79",
+                balance: 9999999998,
+                initialBalance: 10000000000,
+                localBalance: 10000000000,
+                startDate: 1652257659253,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "STORAGE",
-        "chargeType": "DIFFERENTIAL_QUOTA",
-        "unit": "PER_UNIT"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "STORAGE",
+        chargeType: "DIFFERENTIAL_QUOTA",
+        unit: "PER_UNIT"
     },
     {
-        "owner": {
-            "type": "project",
-            "projectId": "the-final-one"
+        owner: {
+            type: "project",
+            projectId: "the-final-one"
         },
-        "paysFor": {
-            "name": "tek-comsol",
-            "provider": "ucloud"
+        paysFor: {
+            name: "tek-comsol",
+            provider: "ucloud"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "29",
-                "allocationPath":
-                    "29"
-                ,
-                "balance": 9999999989,
-                "initialBalance": 10000000000,
-                "localBalance": 10000000000,
-                "startDate": 1644496228171,
-                "endDate": null,
+                id: "29",
+                allocationPath: "29",
+                balance: 9999999989,
+                initialBalance: 10000000000,
+                localBalance: 10000000000,
+                startDate: 1644496228171,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "LICENSE",
-        "chargeType": "ABSOLUTE",
-        "unit": "PER_UNIT"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "LICENSE",
+        chargeType: "ABSOLUTE",
+        unit: "PER_UNIT"
     },
     {
         "owner": {
             "type": "project",
             "projectId": "just-some-id-we-cant-consider-valid"
         },
-        "paysFor": {
-            "name": "HELL",
-            "provider": "PlasmaR"
+        paysFor: {
+            name: "HELL",
+            provider: "PlasmaR"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "1",
-                "allocationPath":
-                    "1"
-                ,
-                "balance": 999999999999982,
-                "initialBalance": 1000000000000000,
-                "localBalance": 1000000000000000,
-                "startDate": 1642670509286,
-                "endDate": null,
+                id: "1",
+                allocationPath: "1",
+                balance: 999999999999982,
+                initialBalance: 1000000000000000,
+                localBalance: 1000000000000000,
+                startDate: 1642670509286,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "STORAGE",
-        "chargeType": "DIFFERENTIAL_QUOTA",
-        "unit": "PER_UNIT"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "STORAGE",
+        chargeType: "DIFFERENTIAL_QUOTA",
+        unit: "PER_UNIT"
     },
     {
-        "owner": {
-            "type": "project",
-            "projectId": "just-some-id-we-cant-consider-valid"
+        owner: {
+            type: "project",
+            projectId: "just-some-id-we-cant-consider-valid"
         },
-        "paysFor": {
-            "name": "foo",
-            "provider": "HELL"
+        paysFor: {
+            name: "foo",
+            provider: "HELL"
         },
-        "allocations": [
+        allocations: [
             {
                 "id": "2",
                 allocationPath:
@@ -734,36 +728,34 @@ const DEBUGGING_WALLETS: Wallet[] = [
                 "endDate": null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "INGRESS",
-        "chargeType": "ABSOLUTE",
-        "unit": "PER_UNIT"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "INGRESS",
+        chargeType: "ABSOLUTE",
+        unit: "PER_UNIT"
     },
     {
-        "owner": {
-            "type": "project",
-            "projectId": "the-final-one"
+        owner: {
+            type: "project",
+            projectId: "the-final-one"
         },
-        "paysFor": {
-            "name": "SSG",
-            "provider": "HELL"
+        paysFor: {
+            name: "SSG",
+            provider: "HELL"
         },
-        "allocations": [
+        allocations: [
             {
-                "id": "3",
-                "allocationPath":
-                    "3"
-                ,
-                "balance": 999999892945986,
-                "initialBalance": 1000000000000000,
-                "localBalance": 999999896725000,
-                "startDate": 1642670512116,
-                "endDate": null,
+                id: "3",
+                allocationPath: "3",
+                balance: 999999892945986,
+                initialBalance: 1000000000000000,
+                localBalance: 999999896725000,
+                startDate: 1642670512116,
+                endDate: null,
             }
         ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": "COMPUTE",
-        "chargeType": "ABSOLUTE",
-        "unit": "CREDITS_PER_MINUTE"
+        chargePolicy: "EXPIRE_FIRST",
+        productType: "COMPUTE",
+        chargeType: "ABSOLUTE",
+        unit: "CREDITS_PER_MINUTE"
     }
 ];

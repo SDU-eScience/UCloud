@@ -55,6 +55,7 @@ import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 import {useProjectId} from "@/Project";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 interface BrowseApplicationsRequest {
     filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
@@ -540,7 +541,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={"/project/grants-landing"} width={"100%"}>
+                            <Link to={Client.hasActiveProject ? "/project/grants/existing/" : "/project/grants/personal"} width={"100%"}>
                                 <Button fullWidth mt={8}>Apply for resources</Button>
                             </Link>
                         </NoResultsCardBody>
