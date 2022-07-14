@@ -33,7 +33,7 @@ kotlin {
             dependencies {
                 implementation(kotlin("stdlib-common"))
                 api("io.ktor:ktor-client-core:$ktorVersion")
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
             }
         }
 

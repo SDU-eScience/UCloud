@@ -1,16 +1,20 @@
 package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.*
-import dk.sdu.cloud.accounting.api.DepositNotificationsProvider
-import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.projects.v2.ProjectService
 import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
+import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
+import dk.sdu.cloud.project.api.v2.Project
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
@@ -22,7 +26,8 @@ class GrantApplicationService(
     private val db: DBContext,
     private val notifications: GrantNotificationService,
     private val providers: Providers<SimpleProviderCommunication>,
-    private val projectNotifications: ProviderNotificationService,
+    private val projects: ProjectService,
+    private val accountingService: AccountingService
 ) {
     suspend fun retrieveProducts(
         actorAndProject: ActorAndProject,
@@ -579,8 +584,7 @@ class GrantApplicationService(
                             }
                         )
                     ),
-
-                    )
+                )
             }
         }
     }
@@ -747,34 +751,100 @@ class GrantApplicationService(
         approvedBy: String,
         applicationId: Long
     ) {
-        session.sendPreparedStatement(
-            {
-                setParameter("id", applicationId)
-                setParameter("approved_by", approvedBy)
-            },
-            """select "grant".approve_application(:approved_by, :id)"""
+        data class GrantInfo(
+            val recipient: GrantRecipient,
+            val source: String,
+            val requestedBy: String,
+
+            val balanceRequested: Long?,
+            val category: ProductCategoryId?,
         )
 
-        val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
-            .map { it.getString(0)!! }.singleOrNull()
-
-        if (createdProject != null) {
-            projectNotifications.notifyChange(listOf(createdProject), session)
+        val info = session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+            },
+            """
+                select
+                    app.grant_recipient, 
+                    app.grant_recipient_type, 
+                    app.resources_owned_by, 
+                    app.requested_by,
+                    coalesce(resource.credits_requested, resource.quota_requested_bytes),
+                    pc.category,
+                    pc.provider
+                from
+                    "grant".applications app left join
+                    "grant".requested_resources resource on
+                        app.id = resource.application_id left join
+                    accounting.product_categories pc on
+                        resource.product_category = pc.id
+                where
+                    app.id = :id
+            """
+        ).rows.map {
+            GrantInfo(
+                when (it.getString(1)!!) {
+                    GrantRecipient.PERSONAL_TYPE -> GrantRecipient.PersonalProject(it.getString(0)!!)
+                    GrantRecipient.NEW_PROJECT_TYPE -> GrantRecipient.NewProject(it.getString(0)!!)
+                    GrantRecipient.EXISTING_PROJECT_TYPE -> GrantRecipient.ExistingProject(it.getString(0)!!)
+                    else -> error("Unknown recipient type")
+                },
+                it.getString(2)!!,
+                it.getString(3)!!,
+                it.getLong(4),
+                run {
+                    val category = it.getString(5)
+                    val provider = it.getString(6)
+                    if (category == null || provider == null) null
+                    else ProductCategoryId(category, provider)
+                }
+            )
         }
 
-        val providerIds = session.sendPreparedStatement(
-            { setParameter("id", applicationId) },
-            """
-                select distinct pc.provider
-                from
-                    "grant".requested_resources r join
-                    accounting.product_categories pc on
-                        r.product_category = pc.id
-                where
-                    r.application_id = :id
-            """
-        ).rows.map { it.getString(0)!! }
+        val (recipient, source, requestedBy, firstCredits) = info.first()
 
+        val recipientOwner = when (recipient) {
+            is GrantRecipient.PersonalProject -> WalletOwner.User(recipient.username)
+            is GrantRecipient.ExistingProject -> WalletOwner.Project(recipient.projectId)
+
+            is GrantRecipient.NewProject -> {
+                val projectId = projects.create(
+                    ActorAndProject(Actor.System, null),
+                    bulkRequestOf(Project.Specification(source, recipient.projectTitle)),
+                    piOverride = requestedBy,
+                    ctx = session,
+                ).responses.single().id
+
+                WalletOwner.Project(projectId)
+            }
+        }
+
+        if (firstCredits != null) {
+            accountingService.deposit(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(
+                    info.mapNotNull { row ->
+                        if (row.balanceRequested == null) return@mapNotNull null
+                        if (row.category == null) return@mapNotNull null
+
+                        val allocations = accountingService
+                            .retrieveAllocations(WalletOwner.Project(source), row.category)
+                            .minByOrNull { it.endDate ?: Long.MAX_VALUE }
+                            ?: return@mapNotNull null
+
+                        DepositToWalletRequestItem(
+                            recipientOwner,
+                            allocations.id,
+                            row.balanceRequested,
+                            "Deposit from grant application",
+                        )
+                    }
+                )
+            )
+        }
+
+        val providerIds = info.asSequence().map { it.category?.provider }.distinct().filterNotNull().toList()
         providerIds.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             DepositNotificationsProvider(provider).pullRequest.call(Unit, comms.client)

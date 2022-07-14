@@ -1,9 +1,15 @@
 package dk.sdu.cloud.accounting.services.grants
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.accounting.api.DepositToWalletRequestItem
+import dk.sdu.cloud.accounting.api.ProductCategoryId
+import dk.sdu.cloud.accounting.api.WalletOwner
+import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
@@ -11,57 +17,37 @@ import java.util.*
 
 class GiftService(
     private val db: DBContext,
+    private val accountingService: AccountingService,
 ) {
     suspend fun claimGift(
         actorAndProject: ActorAndProject,
         giftId: Long,
     ) {
         db.withSession(remapExceptions = true) { session ->
-            val giftsClaimed = session.sendPreparedStatement(
+            val row = session.sendPreparedStatement(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("gift_id", giftId)
-                    setParameter("transaction_id", UUID.randomUUID().toString())
                 },
                 """
                     with
                         resources_to_be_gifted as (
                             select
                                 g.id gift_id,
-                                gift_pi.username initiated_by,
                                 :username recipient,
-                                alloc.id allocation_id,
-                                res.credits,
-                                res.quota,
-                                alloc.start_date,
-                                alloc.end_date,
-                                project.title project_title,
-                                row_number() over (partition by pc.id order by alloc.end_date nulls last, alloc.id)
-                                    as alloc_idx
+                                coalesce(res.credits, res.quota) as balance,
+                                pc.category,
+                                pc.provider,
+                                g.resources_owned_by
                             from
                                 -- NOTE(Dan): Fetch data about the gift
                                 "grant".gifts g join
                                 "grant".gifts_user_criteria uc on g.id = uc.gift_id join
                                 "grant".gift_resources res on g.id = res.gift_id join
-                                
-                                -- NOTE(Dan): Lookup the relevant allocations for every resource
-                                accounting.product_categories pc on res.product_category = pc.id join
-                                accounting.wallet_owner wo on wo.project_id = g.resources_owned_by join
-                                accounting.wallets w on
-                                    w.category = pc.id and
-                                    w.owned_by = wo.id join
-                                accounting.wallet_allocations alloc on
-                                    alloc.associated_wallet = w.id and
-                                    now() >= alloc.start_date and
-                                    (alloc.end_date is null or now() <= alloc.end_date) join
-                                    
-                                -- NOTE(Dan): Find information about the gifting project (for transactions)
-                                project.projects project on
-                                    project.id = g.resources_owned_by join
-                                project.project_members gift_pi on
-                                    gift_pi.project_id = g.resources_owned_by and
-                                    gift_pi.role = 'PI' join
-                                    
+
+                                accounting.product_categories pc on
+                                    res.product_category = pc.id join
+
                                 -- NOTE(Dan): Find the user
                                 auth.principals user_info on
                                     user_info.id = :username
@@ -86,32 +72,36 @@ class GiftService(
                                 )
                         ),
                         gifts_claimed as (
-                            insert into "grant".gifts_claimed (gift_id, user_id) 
+                            insert into "grant".gifts_claimed (gift_id, user_id)
                             select distinct gift_id, recipient
                             from resources_to_be_gifted
                             returning gift_id
                         )
-                    select accounting.deposit(array_agg((
-                        initiated_by,
-                        recipient,
-                        false,
-                        allocation_id,
-                        coalesce(credits, quota),
-                        start_date,
-                        end_date,
-                        'Gift from ' || project_title,
-                        :transaction_id || (allocation_id::text),
-                        null
-                    )::accounting.deposit_request)), count(distinct gifts_claimed.gift_id)
-                    from resources_to_be_gifted join gifts_claimed on
-                        resources_to_be_gifted.gift_id = gifts_claimed.gift_id
-                    where alloc_idx = 1
+                    select res.balance, res.category, res.provider, res.resources_owned_by
+                    from
+                        resources_to_be_gifted res join
+                        gifts_claimed on
+                            res.gift_id = gifts_claimed.gift_id;
                 """,
-            ).rows.singleOrNull()?.getLong(1)
+            ).rows.singleOrNull() ?: throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 
-            if (giftsClaimed != 1L) {
+            val balance = row.getLong(0)!!
+            val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
+            val sourceProject = row.getString(3)!!
+
+            val allocations = accountingService.retrieveAllocations(WalletOwner.Project(sourceProject), category)
+            val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
                 throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
-            }
+
+            accountingService.deposit(
+                ActorAndProject(Actor.System, null),
+                bulkRequestOf(DepositToWalletRequestItem(
+                    WalletOwner.User(actorAndProject.actor.safeUsername()),
+                    sourceAllocation.id,
+                    balance,
+                    "Gift for ${category.name} / ${category.provider}"
+                ))
+            )
         }
     }
 

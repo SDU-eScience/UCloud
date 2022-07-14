@@ -33,18 +33,23 @@ import dk.sdu.cloud.provider.api.ProviderIncludeFlags
 import dk.sdu.cloud.provider.api.ProviderSpecification
 import dk.sdu.cloud.provider.api.Providers
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
+import dk.sdu.cloud.service.db.async.sendPreparedStatement
+import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.support.SupportService
 import dk.sdu.cloud.task.TaskService
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.apache.logging.log4j.Level
 import java.io.File
 import kotlin.system.exitProcess
+import kotlin.time.measureTime
 
 object Launcher : Loggable {
     override val log = logger()
@@ -119,6 +124,7 @@ enum class LauncherPreset(val flag: String, val serviceFilter: (Service) -> Bool
     }),
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 suspend fun main(args: Array<String>) {
     val loadedConfig = Micro().apply {
         commandLineArguments = args.toList()
@@ -469,6 +475,17 @@ suspend fun main(args: Array<String>) {
     reg.rootMicro.feature(ServerFeature).ktorApplicationEngine!!.application.routing {
         get("/i") {
             call.respondRedirect("http://localhost:9000/app", permanent = false)
+        }
+    }
+
+    if (args.contains("--simulation") && args.contains("--dev")) {
+        GlobalScope.launch {
+            delay(3_000)
+
+            val m = Micro(reg.rootMicro)
+            m.install(AuthenticatorFeature)
+            val client = m.authenticator.authenticateClient(OutgoingHttpCall)
+            Simulator(client, 60, 600).start()
         }
     }
 

@@ -29,6 +29,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.serializer
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"

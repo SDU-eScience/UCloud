@@ -46,10 +46,10 @@ typealias KubernetesLicenseUpdateResponse = Unit
 
 @TSNamespace("compute.ucloud.licenses.maintenance")
 class KubernetesLicenseMaintenance(providerId: String) : CallDescriptionContainer("compute.licenses.ucloud.maintenance") {
-    val baseContext = LicenseProvider(providerId).baseContext + "/maintenance"
+    val baseContext = "/internal/${providerId}/license/maintenance"
 
     val create = call("create", BulkRequest.serializer(KubernetesLicense.serializer()), KubernetesLicenseCreateResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpCreate(baseContext, roles = Roles.ADMIN)
+        httpCreate(baseContext, roles = Roles.ADMIN + Roles.SERVICE)
     }
 
     val browse = call("browse", KubernetesLicenseBrowseRequest.serializer(), KubernetesLicenseBrowseResponse.serializer(KubernetesLicense.serializer()), CommonErrorMessage.serializer()) {

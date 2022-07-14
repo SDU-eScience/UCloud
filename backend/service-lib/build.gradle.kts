@@ -37,7 +37,7 @@ kotlin {
         val commonMain by getting {
             dependencies {
                 implementation(kotlin("stdlib-common"))
-                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+                api("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
                 api("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
             }
         }

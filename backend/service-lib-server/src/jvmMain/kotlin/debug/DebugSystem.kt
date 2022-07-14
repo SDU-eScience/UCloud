@@ -10,11 +10,21 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.json.JsonNull
 
+object NopDebugSystem : DebugSystem {
+    override suspend fun sendMessage(message: DebugMessage) {
+    }
+}
+
 class DebugSystemFeature : MicroFeature, DebugSystem {
     private var developmentMode: Boolean = false
     private lateinit var delegate: DebugSystem
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
+        if (cliArgs.contains("--no-debugger")) {
+            delegate = NopDebugSystem
+            return
+        }
+
         developmentMode = ctx.developmentModeEnabled
         delegate = CommonDebugSystem(serviceDescription.name, CommonFile("/var/log/ucloud").also {
             it.jvmFile.mkdirs()

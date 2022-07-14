@@ -65,6 +65,7 @@ services:
     ports:
       - ${BACKEND_PORT:-8080}:8080
       - ${DEBUGGER_PORT:-42999}:42999
+      - ${BACKEND_SSH_PORT:-42922}:22
     restart: always
     depends_on:
       - redis

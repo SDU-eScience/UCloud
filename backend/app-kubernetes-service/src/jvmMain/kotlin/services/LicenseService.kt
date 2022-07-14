@@ -176,7 +176,7 @@ class LicenseService(
     private fun KubernetesLicense.toProduct(): Product.License {
         return Product.License(
             id,
-            pricePerUnit,
+            pricePerUnit = 1L,
             ProductCategoryId(id, providerId),
             description = "Software license",
             hiddenInGrantApplications = hiddenInGrantApplications,

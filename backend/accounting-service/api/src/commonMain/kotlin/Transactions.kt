@@ -59,21 +59,21 @@ sealed class Transaction {
             NOTE: This should be combined with the `resolvedWallet`'s `paysFor` attribute to create a complete product
             reference.
         """)
-        val productId: String,
+        val productId: String?,
         @UCloudApiDoc("""
             The number of periods for this transaction.
             
             For example, for a compute type product, this could be the the number of nodes. The `periods`
             property is combined with the `units` property to calculate the final price.
         """)
-        val periods: Long,
+        val periods: Long?,
         @UCloudApiDoc("""
             The number of units which this charge pays for
             
             The type of unit is determined by the product itself. See the `unitOfPrice` property of `Product`. This
             could, for example, be the number of hours this product has been in use.
         """)
-        val units: Long,
+        val units: Long?,
 
         override val affectedAllocationId: String,
         @UCloudApiDoc(inherit = true, documentation = """

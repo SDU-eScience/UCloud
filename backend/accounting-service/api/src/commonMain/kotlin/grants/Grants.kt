@@ -564,6 +564,7 @@ ${ApiConventions.nonConformingApiWarning}
     val uploadRequestSettings = call("uploadRequestSettings", UploadRequestSettingsRequest.serializer(), UploadRequestSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
+                roles = Roles.END_USER + Roles.SERVICE
             }
 
             http {
@@ -706,6 +707,7 @@ ${ApiConventions.nonConformingApiWarning}
     val approveApplication = call("approveApplication", ApproveApplicationRequest.serializer(), ApproveApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
+            roles = Roles.END_USER + Roles.SERVICE
         }
 
         http {

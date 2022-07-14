@@ -16,6 +16,7 @@ import dk.sdu.cloud.accounting.services.projects.ProjectService
 import dk.sdu.cloud.accounting.services.providers.ProviderIntegrationService
 import dk.sdu.cloud.accounting.services.providers.ProviderService
 import dk.sdu.cloud.accounting.services.serviceJobs.LowFundsJob
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.accounting.util.ProjectCache
@@ -24,6 +25,7 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.auth.api.authenticator
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
+import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
@@ -45,8 +47,10 @@ class Server(
         val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
-        val accountingService = AccountingService(db, simpleProviders)
+        val accountingProcessor = AccountingProcessor(db, micro.featureOrNull(DebugSystemFeature))
+        val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
         val depositNotifications = DepositNotificationService(db)
+        accountingProcessor.start()
 
         val favoriteProjects = FavoriteProjectService()
         val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
@@ -60,7 +64,8 @@ class Server(
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)
         val notifications = GrantNotificationService(db, client)
-        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectNotifications)
+        val grantApplicationService = GrantApplicationService(db, notifications, simpleProviders, projectsV2,
+            accountingService)
         val templates = GrantTemplateService(db, config)
         val comments = GrantCommentService(db)
 

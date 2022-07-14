@@ -517,7 +517,6 @@ data class DepositToWalletRequestItem(
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
-    val dry: Boolean = false,
 )
 
 typealias DepositToWalletResponse = Unit
@@ -553,7 +552,6 @@ data class TransferToWalletRequestItem(
     val endDate: Long? = null,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
     var transactionId: String = Random.nextLong().toString() + Time.now(),
-    val dry: Boolean = false,
 )
 
 typealias TransferToWalletResponse = Unit
@@ -1677,7 +1675,7 @@ object Accounting : CallDescriptionContainer("accounting") {
     }
 
     val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "charge", roles = Roles.SERVICE)
+        httpUpdate(baseContext, "charge", roles = Roles.PRIVILEGED)
 
         documentation {
             summary = "Records usage in the system"

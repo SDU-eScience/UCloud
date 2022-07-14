@@ -175,6 +175,28 @@ class JobManagement(
                 )
             }
 
+            if (verifiedJob.status.resolvedApplication!!.metadata.name == "simulated") {
+                JobsControl.update.call(
+                    bulkRequestOf(
+                        ResourceUpdateAndId(verifiedJob.id, JobUpdate(JobState.SUCCESS))
+                    ),
+                    k8.serviceClient
+                ).orThrow()
+
+                JobsControl.chargeCredits.call(
+                    bulkRequestOf(
+                        ResourceChargeCredits(
+                            verifiedJob.id,
+                            verifiedJob.id,
+                            1L,
+                            Random.nextInt(1, 120).toLong(),
+                        )
+                    ),
+                    k8.serviceClient
+                ).orThrow()
+                return
+            }
+
             val name = k8.nameAllocator.jobIdToJobName(verifiedJob.id)
             val namespace = k8.nameAllocator.jobIdToNamespace(verifiedJob.id)
 

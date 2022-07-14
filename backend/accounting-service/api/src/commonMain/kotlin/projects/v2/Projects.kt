@@ -148,7 +148,7 @@ object Projects : CallDescriptionContainer("projects.v2") {
     }
 
     val create = call("create", BulkRequest.serializer(Project.Specification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
-        httpCreate(baseContext)
+        httpCreate(baseContext, roles = Roles.END_USER + Roles.SERVICE)
     }
 
     val archive = call("archive", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {

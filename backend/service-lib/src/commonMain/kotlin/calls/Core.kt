@@ -33,11 +33,7 @@ class AttributeContainer {
     }
 
     fun <V : Any> getOrNull(key: AttributeKey<V>): V? {
-        return try {
-            get(key)
-        } catch (ex: IllegalArgumentException) {
-            return null
-        }
+        return internalContainer[key] as? V?
     }
 
     override fun toString(): String = internalContainer.toString()

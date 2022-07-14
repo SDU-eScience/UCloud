@@ -470,6 +470,7 @@ class ProjectService(
     suspend fun create(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Project.Specification>,
+        piOverride: String? = null,
         ctx: DBContext = db,
     ): BulkResponse<FindByStringId> {
         return ctx.withSession(remapExceptions = true) { session ->
@@ -511,7 +512,7 @@ class ProjectService(
             session.sendPreparedStatement(
                 {
                     setParameter("ids", ids)
-                    setParameter("username", actor.safeUsername())
+                    setParameter("username", piOverride ?: actor.safeUsername())
                 },
                 """
                     insert into project.project_members (created_at, modified_at, role, username, project_id) 

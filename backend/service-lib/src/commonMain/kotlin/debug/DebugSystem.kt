@@ -358,7 +358,7 @@ class DebugSystemLogContext(
         if (debug == null) return
         debug.sendMessage(
             DebugMessage.Log(
-                debugContext,
+                DebugContext.createWithParent(debugContext.id),
                 if (message.isBlank()) name else "$name: $message",
                 data,
                 level

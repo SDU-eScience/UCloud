@@ -39,6 +39,7 @@ const Studio = React.lazy(() => import("@/Applications/Studio/Page"));
 const Tool = React.lazy(() => import("@/Applications/Studio/Tool"));
 const Scripts = React.lazy(() => import("@/Admin/Scripts"));
 const UserCreation = React.lazy(() => import("@/Admin/UserCreation"));
+const DevTestData = React.lazy(() => import("@/Admin/DevTestData"));
 const UserSettings = React.lazy(() => import("@/UserSettings/UserSettings"));
 const Wayf = React.lazy(() => import("@/Login/Wayf"));
 const AppK8Admin = React.lazy(() => import("@/Admin/AppK8Admin"));
@@ -135,6 +136,7 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/admin" component={requireAuth(AdminOverview)} />
                     <Route exact path="/admin/userCreation" component={requireAuth(UserCreation)} />
+                    <Route exact path="/admin/devData" component={requireAuth(DevTestData)} />
                     <Route exact path="/admin/licenseServers" component={requireAuth(LicenseServers)} />
                     <Route exact path="/admin/news" component={requireAuth(NewsManagement)} />
                     <Route exact path="/admin/appk8" component={requireAuth(AppK8Admin)} />
