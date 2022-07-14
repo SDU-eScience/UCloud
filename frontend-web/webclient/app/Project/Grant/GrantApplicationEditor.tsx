@@ -49,7 +49,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog} from "@/UtilityComponents";
-import {setLoading, useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
+import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import * as UCloud from "@/UCloud";
 import grantApi = UCloud.grant.grant;
@@ -100,7 +100,17 @@ export enum RequestTarget {
     VIEW_APPLICATION = "view"
 }
 
-const DEBUGGING = true;
+/* 
+    TODO List:
+        - Improve showing of providers. They sort of blend into the rest of the heading.
+        - Improve allocation selection UI.
+        - Update GrantApplication. Currently only works properly for a new application, I believe.
+            - Ensure that allocation have been added to the allocation-requests
+        - Remove debugging code. */
+            const DEBUGGING = true;
+/*
+        - Find out of an approval can be rescinded. (Same for rejection.)
+*/
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -185,7 +195,7 @@ function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefi
     return parsed;
 }
 
-const milleniumAndCenturyPrefix = "20"
+const milleniumAndCenturyPrefix = "20";
 
 function parseDateFromInput(input?: HTMLInputElement | null): number | undefined {
     if (!input) return undefined;
@@ -287,8 +297,7 @@ const GenericRequestCard: React.FunctionComponent<{
     } else {
         const defaultValue = props.allocationRequests.find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name)?.balanceRequested;
         // TODO(Jonas): This is probably not correct
-        const isPrice = false;
-        const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, isPrice) : undefined;
+        const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, false) : undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
                 <table>
@@ -392,12 +401,13 @@ function AllocationSelection({wallets, wb, isLocked}: {
     isLocked: boolean;
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
-    return <div>
+    const allocationText = allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+    return <Box mb="8px" ml="8px">
         <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
         {!isLocked ?
             <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={!allocation ?
                 <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
-                <>{allocation.wallet.paysFor.provider} @ {allocation.wallet.paysFor.name}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}>
+                <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}>
                 <Table>
                     <TableHeader>
                         <TableHeaderCell width="200px">Provider</TableHeaderCell>
@@ -415,14 +425,14 @@ function AllocationSelection({wallets, wb, isLocked}: {
                         )}
                     </tbody>
                 </Table>
-            </ClickableDropdown> : (allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name}` : "No allocation selected")}
-    </div>;
+            </ClickableDropdown> : (allocation ? allocationText : "No allocation selected")}
+    </Box>;
 }
 
 function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
     return <>
         {wallet.allocations.map(a =>
-            <TableRow onClick={() => onClick(wallet, a)} cursor="pointer">
+            <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
                 <TableCell width="200px">{a.localBalance}</TableCell>
@@ -435,13 +445,13 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
 function titleFromTarget(target: RequestTarget): string {
     switch (target) {
         case RequestTarget.EXISTING_PROJECT:
-            return "Viewing Project";
+            return "Viewing project";
         case RequestTarget.NEW_PROJECT:
-            return "Create Project";
+            return "Create project";
         case RequestTarget.PERSONAL_PROJECT:
-            return "My Workspace";
+            return "My workspace";
         case RequestTarget.VIEW_APPLICATION:
-            return "Viewing Application";
+            return "Viewing application";
     }
 }
 
@@ -510,10 +520,12 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
 }
 
 
-// Note: target is baked into the component to make sure we follow the rules of hooks.
+// Note(Dan): target is baked into the component to make sure we follow the rules of hooks.
 //
 // We need to take wildly different paths depending on the target which causes us to use very different hooks. Baking
 // the target property ensures a remount of the component.
+
+// Note(Jonas): Maybe this can be solved using keys when upgrading to the new React-Router version.
 export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
         const [loading, runWork] = useCloudCommand();
@@ -526,11 +538,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [grantGivers, setGrantGivers] = useState<UCloud.PageV2<ProjectWithTitle>>(emptyPageV2);
         React.useEffect(() => {
             fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
-
         }, []);
 
         const {appId} = useParams<{appId?: string}>();
-
         const documentRef = useRef<HTMLTextAreaElement>(null);
         const grantFinalized = isGrantFinalized();
 
@@ -633,8 +643,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [grantApplication.status.stateBreakdown]);
 
-
-
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
             if (grantGiversInUse.length === 0) {
@@ -704,11 +712,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             try {
                 let recipient: Recipient;
                 switch (target) {
-                    // TODO(Jonas): Is this reachable for submissions?
                     case RequestTarget.EXISTING_PROJECT: {
                         recipient = {
                             type: "existing_project",
-                            id: appId ?? "", // TODO(Jonas): Is this the correct one?
+                            id: Client.projectId ?? "", // TODO(Jonas): Is this the correct one?
                         };
                     } break;
                     case RequestTarget.NEW_PROJECT: {
@@ -726,7 +733,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     case RequestTarget.PERSONAL_PROJECT: {
                         recipient = {
                             type: "personal_workspace",
-                            // TODO(Jonas): Ensure that this is the  
+                            // TODO(Jonas): Ensure that this is the correct username.
                             username: Client.username,
                         }
                     } break;
@@ -751,6 +758,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     parentProjectId: grantApplication.currentRevision.document.parentProjectId,
                 };
 
+                // TODO(Jonas): Remove
+                console.log(documentToSubmit);
+                if (Math.random() + 1) {
+                    setSubmissionsLoading(false);
+                    return;
+                }
+                // TODO(Jonas): End
+
                 const [id] = await runWork({
                     method: "POST",
                     path: "/grant/submit-application",
@@ -762,8 +777,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
-            setSubmissionsLoading(false);
             console.log("Submit TODO", requestedResourcesByAffiliate);
+            setSubmissionsLoading(false);
         }, [grantGiversInUse, grantProductCategories, grantApplication]);
 
         const updateReferenceID = useCallback(async () => {
@@ -786,7 +801,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication.id]);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
-            runWork(rejectGrantApplication({requestId: grantApplication.id}));
+            runWork(rejectGrantApplication({requestId: grantApplication.id, notify}));
         }, [grantApplication.id]);
 
         const transferRequest = useCallback(async (toProjectId: string) => {
@@ -798,7 +813,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const closeRequest = useCallback(async () => {
             console.log("Close Request: TODO");
-        }, []);
+        }, [appId]);
 
         const reload = useCallback(() => {
             fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
@@ -813,6 +828,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [reload]);
 
         const [DEBUGGING_project_id, DEBUGGING_set_project_id] = useState("just-some-id-we-cant-consider-valid");
+        React.useEffect(() => {
+            Client.hasActiveProject = !!DEBUGGING_project_id;
+            Client.projectId = DEBUGGING_project_id;
+        }, [DEBUGGING, DEBUGGING_project_id]);
 
         const status = {
             projectId: "just-some-id-we-cant-consider-valid",
@@ -839,6 +858,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             setApprovers({[DEBUGGING_project_id]: true})
         }, [DEBUGGING_project_id]);
         // TODO(Jonas) END
+
+        const isAnyApprover = Object.keys(approverMap).length > 0;
 
         const grantGiverDropdown = React.useMemo(() =>
             target === RequestTarget.VIEW_APPLICATION || (grantGivers.items.length - grantGiversInUse.length) === 0 ? null :
@@ -937,7 +958,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             <tbody>
                                                 <TableRow>
                                                     <TableCell>Application Approver(s)</TableCell>
-                                                    <TableCell><Box>{grantApplication.status.stateBreakdown.map(state => <Flex><Text>{state.title}</Text><StateIcon state={state.state} /></Flex>)}</Box></TableCell>
+                                                    <TableCell><Box>{grantApplication.status.stateBreakdown.map(state => <Flex key={state.id}><Text>{state.title}</Text><StateIcon state={state.state} /></Flex>)}</Box></TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Project Title</TableCell>
@@ -1005,15 +1026,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
-                                                        {
-                                                            /* TODO(Jonas): Maybe not correct enum? */
-                                                            grantApplication.status.overallState === State.PENDING ? "In progress" :
-                                                                grantApplication.status.overallState === State.APPROVED ? (grantApplication.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.currentRevision.updatedBy) :
-                                                                    grantApplication.status.overallState === State.REJECTED ? (grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy) :
-                                                                        (grantApplication.currentRevision.updatedBy === null ? "Closed" : `Closed by ${grantApplication.currentRevision.updatedBy}`)
+                                                        {   /* TODO(Jonas): Maybe not correct enum? */
+                                                            overallStateText(grantApplication)
                                                         }
                                                         <ButtonGroup>
-                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                            {target !== RequestTarget.VIEW_APPLICATION && Object.keys(approverMap).length > 0 != null ? null : (
                                                                 <>
 
                                                                     {/* We have the following buttons that we need:
@@ -1022,7 +1039,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             - Transfer application
                                                                             - Close Request (from the view of the recipient, so only if creator of it.)
                                                                     */}
-                                                                    {/* TODO(Jonas): isAdminOrPi && isAdminOrPiForAnything && */ !grantFinalized ?
+                                                                    {isAnyApprover && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="green"
@@ -1064,8 +1081,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             }
                                                                         </> : null
                                                                     }
-                                                                    {/* TODO(Jonas): Correct isAdminOrPi check? */}
-                                                                    {/* !isAdminOrPi && */ !grantFinalized ?
+                                                                    {grantApplication.createdBy === Client.username && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="red"
@@ -1104,7 +1120,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
                                 grantGivers.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
                                     <GrantGiver
-                                        isApprover={approverMap[grantGiver.projectId] ? (console.log(grantGiver.title), true) : false}
+                                        key={grantGiver.projectId}
+                                        isApprover={approverMap[grantGiver.projectId]}
                                         isLocked={isLocked}
                                         project={grantGiver}
                                         setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
@@ -1260,7 +1277,16 @@ function getAllocationRequests(grantApplication: GrantApplication): AllocationRe
     return getDocument(grantApplication).allocationRequests;
 }
 
-
+function overallStateText(grantApplication: GrantApplication): string {
+    switch (grantApplication.status.overallState) {
+        case State.PENDING:
+            return "In progress";
+        case State.APPROVED:
+            return grantApplication.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.currentRevision.updatedBy;
+        case State.REJECTED:
+            return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
+    }
+}
 
 function GrantGiver(props: {
     grantApplication: GrantApplication;
