@@ -8,7 +8,7 @@ import {useProjectManagementStatus} from "@/Project/index";
 export interface ProjectBreadcrumbsProps {
     crumbs: {title: string, link?: string}[];
     allowPersonalProject?: true;
-    omitActiveProject?: true;
+    omitActiveProject?: boolean;
 }
 
 const ProjectBreadcrumbsWrapper = styled(BreadCrumbsBase)`
