@@ -822,7 +822,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
         return false;
     }, [allocationsByProductTypes]);
 
-    const pi = props.rows[0]?.projectPI;
+    const pi = props.rows[0]?.projectPI ?? "";
 
     return React.useMemo(() =>
         <Accordion
@@ -831,7 +831,7 @@ function SuballocationGroup(props: {entryKey: string; rows: SubAllocation[]; rel
             iconColor2="white"
             title={<Box mt="-8px">
                 {props.entryKey}
-                <Text color="var(--gray)" fontSize={"10px"}><Icon size="10px" name={pi ? "userPi" : "user"} /> {pi ? "Project PI: " + pi : "Personal Workspace"}</Text>
+                <Text color="var(--gray)" fontSize={"10px"}><Icon size="10px" name={isProject ? "userPi" : "user"} /> {isProject ? "Project PI: " + pi : "Personal Workspace"}</Text>
             </Box>}
             forceOpen={editing || creationRows.length > 0}
             noBorder={props.isLast}
