@@ -18,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -39,7 +39,6 @@ import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
 import {
     GrantsRetrieveAffiliationsResponse,
-    isGrantFinalized,
     retrieveDescription,
     RetrieveDescriptionResponse,
 } from "@/Project/Grant/index";
@@ -87,7 +86,8 @@ import {
     FetchGrantApplicationResponse,
     editReferenceId,
     fetchProducts,
-    debugWallet
+    debugWallet,
+    Status
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
@@ -107,7 +107,7 @@ export enum RequestTarget {
         - Update GrantApplication. Currently only works properly for a new application, I believe.
             - Ensure that allocation have been added to the allocation-requests
         - Remove debugging code. */
-            const DEBUGGING = true;
+const DEBUGGING = true;
 /*
         - Find out of an approval can be rescinded. (Same for rejection.)
 */
@@ -542,7 +542,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const {appId} = useParams<{appId?: string}>();
         const documentRef = useRef<HTMLTextAreaElement>(null);
-        const grantFinalized = isGrantFinalized();
 
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
 
@@ -787,6 +786,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 snackbarStore.addFailure("Project Reference ID can't be empty", false);
                 return;
             }
+            // TODO(Jonas): This is call seems to be "dead". I think submitting the grantApplication with the new ID is the way to go.
             await runWork(editReferenceId({id: grantApplication.id, newReferenceId: value}));
             setIsEditingProjectReference(false);
             dispatch({type: "UPDATE_REFERENCE_ID", payload: {referenceId: value}});
@@ -797,11 +797,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, []);
 
         const approveRequest = useCallback(async () => {
-            runWork(approveGrantApplication({requestId: grantApplication.id}));
+            await runWork(updateState({applicationId: grantApplication.id, newState: State.APPROVED, notify: true}));
         }, [grantApplication.id]);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
-            runWork(rejectGrantApplication({requestId: grantApplication.id, notify}));
+            await runWork(updateState({applicationId: grantApplication.id, newState: State.REJECTED, notify: true}));
         }, [grantApplication.id]);
 
         const transferRequest = useCallback(async (toProjectId: string) => {
@@ -812,7 +812,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication]);
 
         const closeRequest = useCallback(async () => {
-            console.log("Close Request: TODO");
+            // TODO(Jonas): Still exists in the backend. Request wants 
+            //await runWork(UCloud.grant.grant.closeApplication({requestId: appId}));
         }, [appId]);
 
         const reload = useCallback(() => {
@@ -847,7 +848,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const isGrantRecipient = checkIsGrantRecipient(grantApplication.currentRevision.document.recipient, Client.username, status.projectId);
 
         React.useEffect(() => {
-            if (grantApplication.currentRevision.document.parentProjectId) return;
+            if (
+                grantApplication.currentRevision.document.parentProjectId &&
+                grantGiversInUse.includes(grantApplication.currentRevision.document.parentProjectId)
+            ) return;
             const [firstGrantGiver] = grantGiversInUse;
             if (firstGrantGiver != null) dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId: firstGrantGiver}})
         }, [grantGiversInUse, grantApplication]);
@@ -858,6 +862,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             setApprovers({[DEBUGGING_project_id]: true})
         }, [DEBUGGING_project_id]);
         // TODO(Jonas) END
+
+        const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
 
         const isAnyApprover = Object.keys(approverMap).length > 0;
 
@@ -1300,7 +1306,7 @@ function GrantGiver(props: {
     isApprover: boolean;
 }): JSX.Element {
     const {recipient} = props.grantApplication.currentRevision.document;
-    const grantFinalized = isGrantFinalized();
+    const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
 
     const recipientId = getRecipientId(recipient);
 
@@ -1563,6 +1569,16 @@ const PostCommentWrapper = styled.form`
     }
 `;
 
+interface UpdateStateRequest {
+    applicationId: string;
+    newState: State;
+    notify: boolean;
+}
+
+function updateState(request: UpdateStateRequest): APICallParameters<UpdateStateRequest> {
+    return apiUpdate(request, "grant", "update-state");
+}
+
 const PostCommentWidget: React.FunctionComponent<{
     applicationId: string,
     avatar: AvatarType,
@@ -1625,5 +1641,10 @@ const ProductLinkBox = styled.div`
     padding-left: 10px;
     margin-top: -2px;
 `;
+
+// TODO(Jonas): Is this enough? Used to have more states see `GrantApplicationStatus`.
+export function isGrantFinalized(status: State): boolean {
+    return State.PENDING !== status;
+}
 
 export default GrantApplicationEditor;
