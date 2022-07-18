@@ -33,7 +33,8 @@ import {
     browseWallets,
     Wallet,
     WalletAllocation,
-    normalizeBalanceForFrontend
+    normalizeBalanceForFrontend,
+    ProductType
 } from "@/Accounting";
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -1460,36 +1461,62 @@ function GrantGiver(props: {
                                     cursor={props.isLocked ? undefined : "pointer"} isSelected={props.isParentProject} name="check"
                                 />
                             }>
-                                {props.isParentProject ? "Selected as parent project." : (!props.isLocked ? "Click to select as parent project" : "Not selected as parent project.")}
+                                {props.isParentProject ? "Selected as parent project." : (
+                                    !props.isLocked ? "Click to select as parent project" :
+                                        "Not selected as parent project.")}
                             </Tooltip>
                         }
                     </>
                 }
-                right={props.remove ? <Flex cursor="pointer" onClick={props.remove}><Icon name="close" color="red" mr="8px" />Remove</Flex> : null}
+                right={props.remove ? <Flex cursor="pointer" onClick={props.remove}>
+                    <Icon name="close" color="red" mr="8px" />Remove
+                </Flex> : null}
             />
-            {productTypes.map(type => {
-                const filteredProductCategories = productCategories.filter(pc => pc.metadata.productType === type);
-                const noEntries = filteredProductCategories.length === 0;
-                const filteredWallets = props.wallets.filter(it => it.productType === type);
-                return (<React.Fragment key={type}>
-                    <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
-                    {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
-                        {filteredProductCategories.map((pc, idx) =>
-                            <GenericRequestCard
-                                key={idx}
-                                wb={pc}
-                                isApprover={props.isApprover}
-                                grantFinalized={grantFinalized}
-                                isLocked={props.isLocked}
-                                allocationRequests={props.grantApplication.currentRevision.document.allocationRequests.filter(it => it.category === pc.metadata.category.name && it.provider === pc.metadata.category.provider)}
-                                wallets={filteredWallets}
-                                showAllocationSelection={props.isApprover}
-                            />
-                        )}
-                    </ResourceContainer>}
-                </React.Fragment>);
-            })}
+            {productTypes.map(type => <AsProductType
+                key={type}
+                isApprover={props.isApprover}
+                type={type}
+                grantApplication={props.grantApplication}
+                wallets={props.wallets}
+                productCategories={productCategories}
+                isLocked={props.isLocked}
+            />)}
         </Box>, [productCategories, props.wallets, props.grantApplication, props.isParentProject, props.isApprover, props.isLocked]);
+}
+
+function AsProductType(props: {
+    type: ProductType;
+    productCategories: GrantProductCategory[];
+    wallets: Wallet[];
+    isApprover: boolean;
+    isLocked: boolean;
+    grantApplication: GrantApplication;
+}): JSX.Element {
+    const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
+    const filteredProductCategories = props.productCategories.filter(pc => pc.metadata.productType === props.type);
+    const noEntries = filteredProductCategories.length === 0;
+    const {allocationRequests} = props.grantApplication.currentRevision.document;
+    const filteredWallets = props.wallets.filter(it => it.productType === props.type);
+    return <>
+        <Heading.h4 mt={32}><Flex>{productTypeToTitle(props.type)} <ProductLink /></Flex></Heading.h4>
+        {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
+            {filteredProductCategories.map((pc, idx) =>
+                <GenericRequestCard
+                    key={idx}
+                    wb={pc}
+                    isApprover={props.isApprover}
+                    grantFinalized={grantFinalized}
+                    isLocked={props.isLocked}
+                    allocationRequests={allocationRequests.filter(it =>
+                        it.category === pc.metadata.category.name &&
+                        it.provider === pc.metadata.category.provider
+                    )}
+                    wallets={filteredWallets}
+                    showAllocationSelection={props.isApprover}
+                />
+            )}
+        </ResourceContainer>}
+    </>;
 }
 
 const ParentProjectIcon = styled(Icon) <{isSelected: boolean;}>`
