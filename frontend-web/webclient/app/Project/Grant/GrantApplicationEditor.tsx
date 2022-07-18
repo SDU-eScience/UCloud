@@ -855,14 +855,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     return;
                 }
                 // TODO(Jonas): End
-
-                const [id] = await runWork({
-                    method: "POST",
-                    path: "/grant/submit-application",
-                    parameters: bulkRequestOf({document: documentToSubmit}),
-                    payload: bulkRequestOf({document: documentToSubmit})
-                });
-
+                const payload = bulkRequestOf({document: documentToSubmit});
+                const [id] = await runWork(apiCreate(payload, "grant", "submit-application"));
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -916,7 +910,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const discardChanges = useCallback(() => {
             setIsLocked(true);
-            reload();
         }, [reload]);
 
         const [DEBUGGING_project_id, DEBUGGING_set_project_id] = useState("just-some-id-we-cant-consider-valid");
@@ -1206,9 +1199,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </>
                             )}
 
-                            <Heading.h2 mt={32} mb={12}>
+                            <Heading.h1 mt={32} mb={12}>
                                 {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
-                            </Heading.h2>
+                            </Heading.h1>
 
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
@@ -1459,7 +1452,7 @@ function GrantGiver(props: {
             <Spacer
                 left={
                     <>
-                        <Heading.h3>{props.project.title}</Heading.h3>
+                        <Heading.h2>{props.project.title}</Heading.h2>
                         {!props.isParentProject && props.isLocked ? null :
                             <Tooltip trigger={
                                 <ParentProjectIcon
@@ -1480,7 +1473,7 @@ function GrantGiver(props: {
                 const filteredWallets = props.wallets.filter(it => it.productType === type);
                 return (<React.Fragment key={type}>
                     <Heading.h4 mt={32}><Flex>{productTypeToTitle(type)} <ProductLink /></Flex></Heading.h4>
-                    {noEntries ? <Heading.h3 mt="12px">No products for type available.</Heading.h3> : <ResourceContainer>
+                    {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
                         {filteredProductCategories.map((pc, idx) =>
                             <GenericRequestCard
                                 key={idx}
