@@ -79,11 +79,13 @@ interface InputDialog {
     type?: "input" | "textarea";
     help?: JSX.Element;
     width?: string;
+    rows?: number;
 }
 
 export async function addStandardInputDialog({
     title,
     help,
+    rows,
     validator = () => true,
     cancelText = "Cancel",
     confirmText = "Submit",
@@ -93,6 +95,7 @@ export async function addStandardInputDialog({
     type = "input",
     width = "300px",
 }: InputDialog): Promise<{result: string}> {
+    if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
     return new Promise((resolve, reject) => dialogStore.addDialog(
         <form onSubmit={
             e => {
@@ -111,6 +114,7 @@ export async function addStandardInputDialog({
                 <Input
                     id={"dialog-input"}
                     as={type}
+                    rows={rows}
                     width={width}
                     placeholder={placeholder}
                     autoFocus
@@ -435,6 +439,6 @@ const SensitivityBadge = styled.div<{bg: string}>`
     margin-right: 5px;
     align-items: center;
     justify-content: center;
-    border: 0.2em solid ${props => props.bg};
+    border: 0.2em solid ${({bg}) => bg};
     border-radius: 100%;
 `;

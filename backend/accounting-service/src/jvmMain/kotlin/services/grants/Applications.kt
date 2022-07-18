@@ -107,7 +107,9 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
     ): List<FindByLongId> {
+        // TODO(Jonas): Debugging? Remember to remove, @hschu12
         println(request)
+        // TODO(Jonas): End
         request.items.forEach { createRequest ->
             val recipient = createRequest.document.recipient
             if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
