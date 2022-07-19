@@ -358,7 +358,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 <Box flexGrow={1} />
                 {!hasSyncCookie ? null :
                     <Link to={"/syncthing"}>
-                        <Button>Manage Synchronization</Button>
+                        <Button>Manage synchronization</Button>
                     </Link>
                 }
             </>
