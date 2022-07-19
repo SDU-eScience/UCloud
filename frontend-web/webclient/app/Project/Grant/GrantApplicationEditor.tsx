@@ -100,7 +100,6 @@ export enum RequestTarget {
 
 /* 
     TODO List:
-        - Improve showing of providers. They sort of blend into the rest of the heading.
         - Improve allocation selection UI.
         - Update GrantApplication. Currently only works properly for a new application, I believe.
             - Ensure that allocation have been added to the allocation-requests
@@ -243,6 +242,8 @@ const GenericRequestCard: React.FunctionComponent<{
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
 
+    const canEdit = props.isApprover || props.isRecipient;
+
     React.useEffect(() => {
         if (endDate == null) return;
         if (endDate < startDate) {
@@ -259,7 +260,7 @@ const GenericRequestCard: React.FunctionComponent<{
                             <Checkbox
                                 size={32}
                                 defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
-                                disabled={grantFinalized || isLocked || !props.isApprover}
+                                disabled={grantFinalized || isLocked || !canEdit}
                                 data-target={"checkbox-" + productCategoryId(wb.metadata.category)}
                                 onChange={e => {
                                     const checkbox = e.target as HTMLInputElement;
@@ -323,7 +324,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                 <Flex alignItems={"center"}>
                                     <Input
                                         placeholder={"0"}
-                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
+                                        disabled={grantFinalized || isLocked || !canEdit}
                                         data-target={productCategoryId(wb.metadata.category)}
                                         autoComplete="off"
                                         defaultValue={normalizedValue}
@@ -340,15 +341,15 @@ const GenericRequestCard: React.FunctionComponent<{
                                         selectsStart
                                         startDate={startDate}
                                         endDate={endDate}
-                                        py="8px"
                                         borderWidth="2px"
-                                        required={props.isApprover}
-                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
+                                        py="8px"
                                         mr="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText="Start date..."
+                                        required={props.isApprover}
                                         value={format(startDate, "dd/MM/yy")}
-                                        onChange={(date: Date | null) => setStartDate(date!)}
+                                        disabled={grantFinalized || isLocked || !canEdit}
+                                        onChange={(date: Date) => setStartDate(date)}
                                         className={productCategoryStartDate(wb.metadata.category)}
                                     />
                                     <DatePicker
@@ -362,7 +363,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
-                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
+                                        disabled={grantFinalized || isLocked || !canEdit}
                                         onChange={(date: Date | null) => setEndDate(date)}
                                         className={productCategoryEndDate(wb.metadata.category)}
                                     />
@@ -1170,7 +1171,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             }
                                                                         </> : null
                                                                     }
-                                                                    {grantApplication.createdBy === Client.username && !grantFinalized ?
+                                                                    {isRecipient && !grantFinalized ?
                                                                         <>
                                                                             <Button
                                                                                 color="red"
