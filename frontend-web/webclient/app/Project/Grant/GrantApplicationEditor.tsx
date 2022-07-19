@@ -223,14 +223,10 @@ const Wrapper = styled.div`
 `;
 
 // TODO(Jonas): Find better name for function. 
-function checkIsGrantRecipient(recipient: Recipient, username: string, projectId?: string): boolean {
-    if (recipient.type === "existing_project") {
-        return recipient.id === projectId;
-    } else if (recipient.type === "personal_workspace") {
-        return recipient.username === username;
-    } else if (/* TODO(Jonas): handle this case */ recipient.type === "new_project") {
-        return false;
-    }
+function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication): boolean {
+    if (target !== RequestTarget.VIEW_APPLICATION) return true;
+    // TODO(Jonas): So checking if active user is "createdBy" could work, but shouldn't admins and PIs also work for a grantApplication?
+    if (grantApplication.createdBy === Client.username) return true;
     return false;
 }
 
@@ -239,6 +235,7 @@ const GenericRequestCard: React.FunctionComponent<{
     grantFinalized: boolean;
     isLocked: boolean;
     isApprover: boolean;
+    isRecipient: boolean;
     showAllocationSelection: boolean;
     wallets: Wallet[];
     allocationRequests: AllocationRequest[];
@@ -294,7 +291,6 @@ const GenericRequestCard: React.FunctionComponent<{
         </RequestForSingleResourceWrapper>;
     } else {
         const defaultValue = props.allocationRequests.find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name)?.balanceRequested;
-        // TODO(Jonas): This is probably not correct
         const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, false) : undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
@@ -327,7 +323,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                 <Flex alignItems={"center"}>
                                     <Input
                                         placeholder={"0"}
-                                        disabled={grantFinalized || isLocked || !props.isApprover}
+                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
                                         data-target={productCategoryId(wb.metadata.category)}
                                         autoComplete="off"
                                         defaultValue={normalizedValue}
@@ -347,7 +343,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         py="8px"
                                         borderWidth="2px"
                                         required={props.isApprover}
-                                        disabled={grantFinalized || isLocked || !props.isApprover}
+                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
                                         mr="3px"
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText="Start date..."
@@ -366,7 +362,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         backgroundColor={isLocked ? "var(--lightGray)" : undefined}
                                         placeholderText={isLocked ? undefined : "End date..."}
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
-                                        disabled={grantFinalized || isLocked || !props.isApprover}
+                                        disabled={grantFinalized || isLocked || (!props.isApprover && !props.isRecipient)}
                                         onChange={(date: Date | null) => setEndDate(date)}
                                         className={productCategoryEndDate(wb.metadata.category)}
                                     />
@@ -640,11 +636,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [grantApplication.status.stateBreakdown]);
 
+        const isRecipient = checkIsGrantRecipient(target, grantApplication);
+
         // Note(Jonas): Almost entirely a duplicate of the submitApplication-function. Improve it.
         const editApplication = useCallback(async () => {
             setSubmissionsLoading(true);
-
-            console.log(grantApplication.currentRevision.document.allocationRequests);
 
             const requestedResourcesByAffiliate = Object.keys(grantProductCategories).flatMap(entry =>
                 grantProductCategories[entry].map(wb => {
@@ -913,12 +909,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             setIsLocked(true);
         }, [reload]);
 
+        // TODO(Jonas): REMOVE
         const [DEBUGGING_project_id, DEBUGGING_set_project_id] = useState("just-some-id-we-cant-consider-valid");
         React.useEffect(() => {
             DEBUGGING;
             Client.hasActiveProject = !!DEBUGGING_project_id;
             Client.projectId = DEBUGGING_project_id;
         }, [DEBUGGING, DEBUGGING_project_id]);
+        // TODO(Jonas): REMOVE
 
         const status = {
             projectId: "just-some-id-we-cant-consider-valid",
@@ -991,9 +989,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
                     setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
                     isLocked={isLocked}
+                    isRecipient={isRecipient}
                     isApprover={approverMap[it.projectId]}
                 />
-            ), [grantGivers, grantGiversInUse, isLocked, walletsByOwner, grantApplication, DEBUGGING_project_id]);
+            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient, DEBUGGING_project_id]);
 
         const recipient = getDocument(grantApplication).recipient;
 
@@ -1219,6 +1218,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                         grantApplication={grantApplication}
                                         setGrantProductCategories={setGrantProductCategories}
                                         wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
+                                        isRecipient={isRecipient}
                                     />
                                 </>))}
 
@@ -1381,16 +1381,15 @@ function GrantGiver(props: {
     grantApplication: GrantApplication;
     project: ProjectWithTitle;
     isLocked: boolean;
+    isApprover: boolean;
+    isRecipient: boolean;
     remove?: () => void;
     wallets: Wallet[];
     isParentProject: boolean;
     setParentProject(project: string): void;
     setGrantProductCategories: React.Dispatch<React.SetStateAction<{[key: string]: GrantProductCategory[];}>>;
-    isApprover: boolean;
 }): JSX.Element {
     const {recipient} = props.grantApplication.currentRevision.document;
-    const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
-
     const recipientId = getRecipientId(recipient);
 
     /* TODO(Jonas): Why is this done over two parts instead of one?  */
@@ -1480,14 +1479,16 @@ function GrantGiver(props: {
                 wallets={props.wallets}
                 productCategories={productCategories}
                 isLocked={props.isLocked}
+                isRecipient={props.isRecipient}
             />)}
-        </Box>, [productCategories, props.wallets, props.grantApplication, props.isParentProject, props.isApprover, props.isLocked]);
+        </Box>, [productCategories, props.wallets, props.isRecipient, props.grantApplication, props.isParentProject, props.isApprover, props.isLocked]);
 }
 
 function AsProductType(props: {
     type: ProductType;
     productCategories: GrantProductCategory[];
     wallets: Wallet[];
+    isRecipient: boolean;
     isApprover: boolean;
     isLocked: boolean;
     grantApplication: GrantApplication;
@@ -1511,6 +1512,7 @@ function AsProductType(props: {
                         it.category === pc.metadata.category.name &&
                         it.provider === pc.metadata.category.provider
                     )}
+                    isRecipient={props.isRecipient}
                     wallets={filteredWallets}
                     showAllocationSelection={props.isApprover}
                 />
