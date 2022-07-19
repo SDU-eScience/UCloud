@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.plugins.PuhuriPlugin
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
@@ -47,6 +48,10 @@ import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
     if (true) {
+        val puhuri = PuhuriPlugin()
+        runBlocking {
+            puhuri.approveGrant()
+        }
         return
     }
 
