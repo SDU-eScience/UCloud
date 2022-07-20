@@ -101,8 +101,6 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
-        - Update GrantApplication. Currently only works properly for a new application, I believe.
-            - Ensure that allocation have been added to the allocation-requests
         - Remove debugging code.
       */  const DEBUGGING = true;
 /*
@@ -390,6 +388,12 @@ export async function fetchGrantApplication(request: FetchGrantApplicationReques
     return await new Promise(resolve => setTimeout(() => resolve(fetchGrantApplicationFake(request)), 250));
 }
 
+const AllocationBox = styled.div`
+    padding: 8px 8px 8px 8px;
+    border-radius: 6px;
+    border: 2px solid var(--borderGray); 
+`;
+
 function AllocationSelection({wallets, wb, isLocked}: {
     wallets: Wallet[];
     wb: GrantProductCategory;
@@ -397,12 +401,15 @@ function AllocationSelection({wallets, wb, isLocked}: {
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
     const allocationText = allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
-    return <Box mb="8px" ml="8px">
+    return <Box mb="8px" ml="6px">
         <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
         {!isLocked ?
-            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={!allocation ?
-                <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
-                <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}>
+            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={<AllocationBox>
+                {!allocation ?
+                    <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
+                    <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}
+            </AllocationBox>
+            }>
                 <Table>
                     <TableHeader>
                         <TableHeaderCell width="200px">Provider</TableHeaderCell>
@@ -420,8 +427,9 @@ function AllocationSelection({wallets, wb, isLocked}: {
                         )}
                     </tbody>
                 </Table>
-            </ClickableDropdown> : (allocation ? allocationText : "No allocation selected")}
-    </Box>;
+            </ClickableDropdown> : allocation ? allocationText : "No allocation selected"
+        }
+    </Box >;
 }
 
 function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
@@ -1048,7 +1056,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             <tbody>
                                                 <TableRow>
                                                     <TableCell>Application Approver(s)</TableCell>
-                                                    <TableCell><Box>{grantApplication.status.stateBreakdown.map(state => <Flex key={state.id}><Text>{state.title}</Text><StateIcon state={state.state} /></Flex>)}</Box></TableCell>
+                                                    <TableCell>
+                                                        <Box>
+                                                            {grantApplication.status.stateBreakdown.map(state => <Flex key={state.id}>
+                                                                <Text>{state.title}</Text><StateIcon state={state.state} />
+                                                            </Flex>)}
+                                                        </Box>
+                                                    </TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Project Title</TableCell>
@@ -1070,7 +1084,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {/* TODO(Jonas): When should this be shown? */}
+                                                    {/* TODO(Jonas): When should this be shown? Aprrover? */}
                                                     <TableCell>
                                                         <table>
                                                             <tbody>
