@@ -18,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {apiCreate, apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -77,24 +77,22 @@ import {
     commentOnGrantApplication,
     Document,
     transferApplication,
-    Client,
     GrantProductCategory,
-    fetchGrantApplicationFake,
-    fetchGrantGiversFake,
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
     editReferenceId,
     fetchProducts,
-    debugWallet,
+    Form,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export enum RequestTarget {
-    EXISTING_PROJECT = "existing",
-    NEW_PROJECT = "new",
-    PERSONAL_PROJECT = "personal",
+    EXISTING_PROJECT = "existing_project",
+    NEW_PROJECT = "new_project",
+    PERSONAL_PROJECT = "personal_workspace",
     VIEW_APPLICATION = "view"
 }
 
@@ -102,7 +100,8 @@ export enum RequestTarget {
     TODO List:
         - Improve allocation selection UI.
         - Remove debugging code.
-      */  const DEBUGGING = true;
+        - Handle when grantGivers (or others) are empty
+      */
 /*
         - Find out of an approval can be rescinded. (Same for rejection.)
 */
@@ -378,14 +377,8 @@ const GenericRequestCard: React.FunctionComponent<{
     }
 };
 
-async function fetchGrantGivers(): Promise<UCloud.PageV2<ProjectWithTitle>> {
-    // const resp = await callAPI();
-    return await new Promise(resolve => setTimeout(() => resolve(fetchGrantGiversFake()), 250));
-}
-
 export async function fetchGrantApplication(request: FetchGrantApplicationRequest): Promise<FetchGrantApplicationResponse> {
-    // const resp = await callAPI();
-    return await new Promise(resolve => setTimeout(() => resolve(fetchGrantApplicationFake(request)), 250));
+    return await callAPI<FetchGrantApplicationResponse>(apiRetrieve(request, "grant"));
 }
 
 const AllocationBox = styled.div`
@@ -469,7 +462,10 @@ const defaultGrantApplication: GrantApplication = {
         revisionNumber: 0,
         document: {
             allocationRequests: [],
-            form: "",
+            form: {
+                type: "personal_workspace",
+                personalProject: ""
+            },
             recipient: {
                 username: "",
                 type: "personal_workspace"
@@ -538,10 +534,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const history = useHistory();
         const avatars = useAvatars();
 
-        const [grantGivers, setGrantGivers] = useState<UCloud.PageV2<ProjectWithTitle>>(emptyPageV2);
-        React.useEffect(() => {
-            fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
-        }, []);
+        const [grantGivers, fetchGrantGivers] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(browseAffiliations({itemsPerPage: 250}), emptyPage);
 
         const {appId} = useParams<{appId?: string;}>();
         const documentRef = useRef<HTMLTextAreaElement>(null);
@@ -559,57 +552,23 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const [walletsByOwner, setWallets] = useState<Record<string, UCloud.PageV2<Wallet>>>({});
         React.useEffect(() => {
-            const requests = grantGivers.items.map(it => ({...browseWallets({itemsPerPage: 250}), projectOverride: it.projectId}));
+            const requests = grantGivers.data.items.map(it => ({...browseWallets({itemsPerPage: 250}), projectOverride: it.projectId}));
             Promise.allSettled(requests.map(r => runWork<UCloud.PageV2<Wallet>>(r))).then(resolvedPromises => {
                 const result: Record<string, UCloud.PageV2<Wallet>> = {};
                 for (const [index, promise] of resolvedPromises.entries()) {
                     if (promise.status === "fulfilled" && promise.value != null) {
-
-                        if (DEBUGGING) {
-                            switch (requests[index].projectOverride) {
-                                case "just-some-id-we-cant-consider-valid":
-                                    result["just-some-id-we-cant-consider-valid"] = {
-                                        itemsPerPage: 250,
-                                        items: [
-                                            debugWallet("COMPUTE", "just-some-id-we-cant-consider-valid", "Ballista", "UAC"),
-                                            debugWallet("STORAGE", "just-some-id-we-cant-consider-valid", "SSG", "UAC"),
-                                            debugWallet("COMPUTE", "just-some-id-we-cant-consider-valid", "Ballista", "UAC"),
-                                        ]
-                                    };
-                                    break;
-                                case "just-some-other-id-we-cant-consider-valid":
-                                    result["just-some-other-id-we-cant-consider-valid"] = {
-                                        itemsPerPage: 250,
-                                        items: [
-                                            debugWallet("STORAGE", "just-some-other-id-we-cant-consider-valid", "PlasmaR", "HELL"),
-                                            debugWallet("COMPUTE", "just-some-other-id-we-cant-consider-valid", "SSG", "HELL"),
-                                        ]
-                                    };
-                                    break;
-                                case "the-final-one":
-                                    result["the-final-one"] = {
-                                        itemsPerPage: 250,
-                                        items: [
-                                            debugWallet("STORAGE", "the-final-one", "CyberD", "Cultist Base"),
-                                            debugWallet("NETWORK_IP", "the-final-one", "SSG", "Cultist Base"),
-                                        ]
-                                    };
-                                    break;
-                            }
-                        } else {
-                            result[requests[index].projectOverride] = promise.value;
-                        }
+                        result[requests[index].projectOverride] = promise.value;
                     }
                 };
                 setWallets(result);
             });
-        }, [grantGivers.items]);
+        }, [grantGivers.data]);
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
 
         React.useEffect(() => {
             if (documentRef.current) {
-                documentRef.current.value = grantApplication.currentRevision.document.form;
+                documentRef.current.value = formTextFromGrantApplication(grantApplication);
             }
         }, [grantApplication, documentRef.current]);
 
@@ -626,9 +585,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const approvers: ApproverMap = {};
                 const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
                     runWork<UserInProject>(viewProject({
-                        // TODO(Jonas): use correct projectId:
-                        // id: p.id,
-                        id: "da469561-0e73-4696-8034-756c98c78a71"
+                        id: p.id,
                     }))
                 ));
                 promises.then(resolvedPromises => {
@@ -639,8 +596,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             );
                         }
                     }
-                    // TODO(Jonas): Re-add the following line:
-                    // setApprovers(approvers);
+                    setApprovers(approvers);
                 });
             }
         }, [grantApplication.status.stateBreakdown]);
@@ -723,24 +679,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     revisionComment,
                     recipient: grantApplication.currentRevision.document.recipient,
                     allocationRequests: requestedResourcesByAffiliate,
-                    form: formText,
+                    form: toForm(target, grantApplication, formText),
                     parentProjectId: grantApplication.currentRevision.document.parentProjectId,
                 };
 
-                // TODO(Jonas): Remove
-                if (Math.random() + 1) {
-                    setSubmissionsLoading(false);
-                    return;
-                }
-                // TODO(Jonas): End
-                const [id] = await runWork(apiUpdate(bulkRequestOf({document: documentToSubmit}), "grant", "submit-application"));
-                // Note(Jonas): Necessary? 
-                reload();
-                history.push(`/project/grants/view/${id}`);
+                const result = await runWork<[id: string]>(apiUpdate(bulkRequestOf({document: documentToSubmit}), "grant", "submit-application"));
+                if (result != null) history.push(`/project/grants/view/${result[0]}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
-            console.log("Submit TODO", requestedResourcesByAffiliate);
             setSubmissionsLoading(false);
         }, [grantGiversInUse, grantProductCategories, grantApplication]); // TODO(Jonas): Find out which are actually needed.
 
@@ -806,68 +753,62 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
 
+            let recipient: Recipient;
+            switch (target) {
+                case RequestTarget.EXISTING_PROJECT: {
+                    recipient = {
+                        type: "existing_project",
+                        id: Client.projectId ?? "", // TODO(Jonas): Is this the correct one?
+                    };
+                } break;
+                case RequestTarget.NEW_PROJECT: {
+                    const newProjectTitle = projectTitleRef.current?.value;
+                    if (!newProjectTitle) {
+                        snackbarStore.addFailure("Project title can't be empty.", false);
+                        setSubmissionsLoading(false);
+                        return;
+                    }
+                    recipient = {
+                        type: "new_project",
+                        title: newProjectTitle
+                    };
+                } break;
+                case RequestTarget.PERSONAL_PROJECT: {
+                    recipient = {
+                        type: "personal_workspace",
+                        // TODO(Jonas): Ensure that this is the correct username.
+                        username: Client.username ?? "",
+                    };
+                } break;
+                case RequestTarget.VIEW_APPLICATION: {
+                    recipient = grantApplication.currentRevision.document.recipient;
+                } break;
+            }
+
+            const formText = documentRef.current?.value;
+            if (!formText) {
+                snackbarStore.addFailure("Please explain why this application is being submitted.", false);
+                setSubmissionsLoading(false);
+                return;
+            }
+
+            const documentToSubmit: Document = {
+                referenceId: null,
+                revisionComment: null,
+                recipient: recipient,
+                allocationRequests: requestedResourcesByAffiliate,
+                form: toForm(target, grantApplication, formText),
+                parentProjectId: grantApplication.currentRevision.document.parentProjectId,
+            };
+
+            const payload = bulkRequestOf({document: documentToSubmit});
+
             try {
-                let recipient: Recipient;
-                switch (target) {
-                    case RequestTarget.EXISTING_PROJECT: {
-                        recipient = {
-                            type: "existing_project",
-                            id: Client.projectId ?? "", // TODO(Jonas): Is this the correct one?
-                        };
-                    } break;
-                    case RequestTarget.NEW_PROJECT: {
-                        const newProjectTitle = projectTitleRef.current?.value;
-                        if (!newProjectTitle) {
-                            snackbarStore.addFailure("Project title can't be empty.", false);
-                            setSubmissionsLoading(false);
-                            return;
-                        }
-                        recipient = {
-                            type: "new_project",
-                            title: newProjectTitle
-                        };
-                    } break;
-                    case RequestTarget.PERSONAL_PROJECT: {
-                        recipient = {
-                            type: "personal_workspace",
-                            // TODO(Jonas): Ensure that this is the correct username.
-                            username: Client.username,
-                        };
-                    } break;
-                    case RequestTarget.VIEW_APPLICATION: {
-                        recipient = grantApplication.currentRevision.document.recipient;
-                    } break;
-                }
-
-                const formText = documentRef.current?.value;
-                if (!formText) {
-                    snackbarStore.addFailure("Please explain why this application is being submitted.", false);
-                    setSubmissionsLoading(false);
-                    return;
-                }
-
-                const documentToSubmit: Document = {
-                    referenceId: null,
-                    revisionComment: null,
-                    recipient: recipient,
-                    allocationRequests: requestedResourcesByAffiliate,
-                    form: formText,
-                    parentProjectId: grantApplication.currentRevision.document.parentProjectId,
-                };
-
-                // TODO(Jonas): Remove
-                if (Math.random() + 1) {
-                    setSubmissionsLoading(false);
-                    return;
-                }
-                // TODO(Jonas): End
-                const payload = bulkRequestOf({document: documentToSubmit});
-                const [id] = await runWork(apiCreate(payload, "grant", "submit-application"));
+                const [id] = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
-            console.log("Submit TODO", requestedResourcesByAffiliate);
             setSubmissionsLoading(false);
         }, [grantGiversInUse, grantProductCategories, grantApplication]);
 
@@ -892,7 +833,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication.id]);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
-            await runWork(updateState({applicationId: grantApplication.id, newState: State.REJECTED, notify: true}));
+            await runWork(updateState({applicationId: grantApplication.id, newState: State.REJECTED, notify: notify}));
         }, [grantApplication.id]);
 
         const transferRequest = useCallback(async (toProjectId: string) => {
@@ -908,35 +849,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [appId]);
 
         const reload = useCallback(() => {
-            fetchGrantGivers().then((page: UCloud.PageV2<ProjectWithTitle>) => setGrantGivers(page));
+            fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
             if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
-            // TODO(Jonas): Re-add
             // fetchWallets(browseWallets({itemsPerPage: 250}));
         }, [appId]);
 
         const discardChanges = useCallback(() => {
             setIsLocked(true);
         }, [reload]);
-
-        // TODO(Jonas): REMOVE
-        const [DEBUGGING_project_id, DEBUGGING_set_project_id] = useState("just-some-id-we-cant-consider-valid");
-        React.useEffect(() => {
-            DEBUGGING;
-            Client.hasActiveProject = !!DEBUGGING_project_id;
-            Client.projectId = DEBUGGING_project_id;
-        }, [DEBUGGING, DEBUGGING_project_id]);
-        // TODO(Jonas): REMOVE
-
-        const status = {
-            projectId: "just-some-id-we-cant-consider-valid",
-            projectDetails: {
-                data: {
-                    whoami: {
-                        role: "ADMIN"
-                    }
-                }
-            }
-        };// useProjectManagementStatus({isRootComponent: true});
 
         React.useEffect(() => {
             if (
@@ -947,19 +867,12 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             if (firstGrantGiver != null) dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId: firstGrantGiver}});
         }, [grantGiversInUse, grantApplication]);
 
-
-        // TODO(Jonas): Remove
-        useEffect(() => {
-            setApprovers({[DEBUGGING_project_id]: true});
-        }, [DEBUGGING_project_id]);
-        // TODO(Jonas) END
-
         const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
 
         const isAnyApprover = Object.keys(approverMap).length > 0;
 
         const grantGiverDropdown = React.useMemo(() =>
-            target === RequestTarget.VIEW_APPLICATION || (grantGivers.items.length - grantGiversInUse.length) === 0 ? null :
+            target === RequestTarget.VIEW_APPLICATION || (grantGivers.data.items.length - grantGiversInUse.length) === 0 ? null :
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
@@ -974,7 +887,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                                {grantGivers.items.filter(grantGiver => !grantGiversInUse.includes(grantGiver.projectId)).map(grantGiver =>
+                                {grantGivers.data.items.filter(grantGiver => !grantGiversInUse.includes(grantGiver.projectId)).map(grantGiver =>
                                     <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
                                         <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
                                         <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
@@ -987,7 +900,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             [grantGivers, grantGiversInUse]);
 
         const grantGiverEntries = React.useMemo(() =>
-            grantGivers.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
+            grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
                 <GrantGiver
                     key={it.projectId}
                     grantApplication={grantApplication}
@@ -1001,7 +914,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     isRecipient={isRecipient}
                     isApprover={approverMap[it.projectId]}
                 />
-            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient, DEBUGGING_project_id]);
+            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient]);
 
         const recipient = getDocument(grantApplication).recipient;
 
@@ -1012,17 +925,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 }
                 sidebar={null}
                 main={<>
-                    {DEBUGGING ? <Box backgroundColor={"red"}>
-                        <Button onClick={() => runWork(browseAffiliations({grantId: "", itemsPerPage: 250, page: 0}))}>Request</Button>
-                        DEBUGGING
-                        <select>
-                            <option onClick={() => DEBUGGING_set_project_id("just-some-id-we-cant-consider-valid")}>UAC</option>
-                            <option onClick={() => DEBUGGING_set_project_id("just-some-other-id-we-cant-consider-valid")}>HELL</option>
-                            <option onClick={() => DEBUGGING_set_project_id("the-final-one")}>Cultist Base</option>
-                            <option onClick={() => DEBUGGING_set_project_id("")}>None</option>
-                        </select>
-                        DEBUGGING
-                    </Box> : null}
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
                             {target !== RequestTarget.NEW_PROJECT ? null : (
@@ -1222,7 +1124,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                             {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                grantGivers.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
+                                grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
                                     <GrantGiver
                                         key={grantGiver.projectId}
                                         isApprover={approverMap[grantGiver.projectId]}
@@ -1410,12 +1312,12 @@ function GrantGiver(props: {
     /* TODO(Jonas): Why is this done over two parts instead of one?  */
     const [products, setProducts] = useState<{availableProducts: Product[];}>({availableProducts: []});
     React.useEffect(() => {
-        fetchProducts(grantApi.retrieveProducts({
+        fetchProducts({
             projectId: props.project.projectId,
             recipientType: recipient.type,
             recipientId,
             showHidden: false
-        })).then(it => setProducts(it));
+        }).then(it => setProducts(it));
     }, []);
 
     const productCategories: GrantProductCategory[] = useMemo(() => {
@@ -1541,7 +1443,7 @@ const ParentProjectIcon = styled(Icon) <{isSelected: boolean;}>`
 
     transition: color 0.4s;
 
-    margin-top: 6px;
+    margin-top: 12px;
     margin-left: 8px;
 
     &:hover {
@@ -1565,7 +1467,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
 
     React.useEffect(() => {
         if (grantId) {
-            fetchProjects(browseAffiliations({page: 0, itemsPerPage: 100, grantId}));
+            fetchProjects(browseAffiliations({itemsPerPage: 100}));
         }
     }, [grantId]);
 
@@ -1726,7 +1628,7 @@ const PostCommentWidget: React.FunctionComponent<{
                 comment: commentBoxRef.current!.value,
                 createdAt: new Date().getTime(),
                 id: id!,
-                username: Client.activeUsername
+                username: Client.activeUsername!
             });
 
             if (commentBoxRef.current) commentBoxRef.current!.value = "";
@@ -1786,6 +1688,62 @@ async function promptRevisionComment(): Promise<string | null> {
         })).result;
     } catch {
         return null;
+    }
+}
+
+function toForm(request: RequestTarget, grantApplication: GrantApplication, formText: string): Form {
+    const text = formText;
+
+    switch (request) {
+        case RequestTarget.EXISTING_PROJECT:
+            return {
+                type: "existing_project",
+                plain_text: text,
+            };
+        case RequestTarget.NEW_PROJECT: {
+            return {
+                type: "new_project",
+                plain_text: text,
+            };
+        }
+        case RequestTarget.PERSONAL_PROJECT: {
+            return {
+                type: "personal_workspace",
+                plain_text: text,
+            };
+        }
+        case RequestTarget.VIEW_APPLICATION: {
+            switch (grantApplication.currentRevision.document.recipient.type) {
+                case RequestTarget.EXISTING_PROJECT:
+                    return {
+                        type: "existing_project",
+                        plain_text: text,
+                    };
+                case RequestTarget.NEW_PROJECT: {
+                    return {
+                        type: "new_project",
+                        plain_text: text,
+                    };
+                }
+                case RequestTarget.PERSONAL_PROJECT:
+                default:
+                    return {
+                        type: "personal_workspace",
+                        plain_text: text,
+                    };
+            }
+        }
+    }
+}
+
+function formTextFromGrantApplication(grantApplication: GrantApplication): string {
+    switch (grantApplication.currentRevision.document.form.type) {
+        case "existing_project":
+            return grantApplication.currentRevision.document.form.personalProject;
+        case "new_project":
+            return grantApplication.currentRevision.document.form.newProject;
+        case "personal_workspace":
+            return grantApplication.currentRevision.document.form.personalProject;
     }
 }
 

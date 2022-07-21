@@ -293,7 +293,6 @@ data class ProjectWithTitle(val projectId: String, val title: String)
 
 @Serializable
 data class GrantsBrowseAffiliationsRequest(
-    val grantId: Long,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,

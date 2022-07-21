@@ -65,9 +65,8 @@ class GrantController(
         }
 
         implement(Grants.browseAffiliations) {
-            val app = applications.retrieveGrantApplication(request.grantId, actorAndProject)
             ok(settings.browse(
-                ActorAndProject(Actor.SystemOnBehalfOfUser(app.requestedBy), null),
+                actorAndProject,
                 request
             ))
         }

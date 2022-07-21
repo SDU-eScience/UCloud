@@ -428,7 +428,7 @@ export interface GrantsRetrieveAffiliationsRequest {
     itemsPerPage: number,
     page: number
 }
-export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
+export type GrantsRetrieveAffiliationsResponse = PageV2<{projectId: string, title: string}>;
 
 export function findAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
     return {

@@ -4,7 +4,9 @@ import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
-import {apiBrowse, apiDelete, apiUpdate} from "@/Authentication/DataHook";
+import {apiBrowse, apiDelete, apiUpdate, callAPI} from "@/Authentication/DataHook";
+
+const grantBaseContext = "api/grant";
 
 export interface GrantApplication {
 
@@ -52,7 +54,7 @@ export interface Document {
         Updateable by: Original creator
         Immutable after creation: No
     */
-    form: string,
+    form: Form;
 
     /*
         A reference used for out-of-band book-keeping
@@ -78,10 +80,15 @@ export interface Document {
     parentProjectId: string | null;
 }
 
+export type Form =
+    {type: "existing_project", plain_text: string;} |
+    {type: "new_project", plain_text: string;} |
+    {type: "personal_workspace", plain_text: string;};
+
 export type Recipient =
-    {type: "existing_project", id: string} |
-    {type: "new_project", title: string} |
-    {type: "personal_workspace", username: string};
+    {type: "existing_project", id: string;} |
+    {type: "new_project", title: string;} |
+    {type: "personal_workspace", username: string;};
 
 export interface AllocationRequest {
     category: string;
@@ -158,19 +165,15 @@ export interface DeleteGrantApplicationCommentRequest {
 export function deleteGrantApplicationComment(
     request: DeleteGrantApplicationCommentRequest
 ): APICallParameters<DeleteGrantApplicationCommentRequest> {
-    return apiDelete(request, "/grant/comment")
+    return apiDelete(request, "api/grant/comment");
 }
 
-export interface GrantsRetrieveAffiliationsRequest {
-    grantId: string;
-    itemsPerPage: number;
-    page: number;
-}
+export type GrantsRetrieveAffiliationsRequest = PaginationRequestV2;
 
-export type GrantsRetrieveAffiliationsResponse = Page<{projectId: string, title: string}>;
+export type GrantsRetrieveAffiliationsResponse = PageV2<ProjectWithTitle>;
 
 export function browseAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
-    return apiBrowse(request, "grant", "affiliations")
+    return apiBrowse(request, grantBaseContext, "affiliations");
 }
 
 export interface CommentOnGrantApplicationRequest {
@@ -185,7 +188,7 @@ export function commentOnGrantApplication(
 ): APICallParameters<CommentOnGrantApplicationRequest> {
     return {
         method: "POST",
-        path: "/grant/comment",
+        path: grantBaseContext + "comment",
         parameters: request,
         payload: request,
         reloadId: Math.random()
@@ -206,7 +209,7 @@ export function retrieveGrantApplication(request: RetrieveGrantApplicationReques
         parameters: request,
         payload: request,
         reloadId: Math.random()
-    }
+    };
 };
 
 export interface RejectGrantApplicationRequest {
@@ -219,7 +222,7 @@ export function rejectGrantApplication(
 ): APICallParameters<RejectGrantApplicationRequest> {
     return {
         method: "POST",
-        path: "/grant/reject",
+        path: grantBaseContext + "reject",
         parameters: request,
         payload: request,
         reloadId: Math.random()
@@ -247,7 +250,7 @@ export function approveGrantApplication(
 
 export interface TransferApplicationRequest {
     applicationId: string;
-    transferToProjectId: string
+    transferToProjectId: string;
 }
 
 export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
@@ -259,90 +262,6 @@ export function transferApplication(request: TransferApplicationRequest): APICal
         reloadId: Math.random()
     };
 }
-
-
-// ========================= TEMPORARY ===================================
-export function fetchGrantApplicationFake(request: FetchGrantApplicationRequest): Promise<GrantApplication> {
-    const now = new Date().getTime();
-
-    const grantApplication: GrantApplication = {
-        id: `${(Math.random() * 1000) | 0}`,
-        createdAt: now - 100000,
-        updatedAt: now - 11231,
-        createdBy: FlynnTaggart,
-        currentRevision: {
-            createdAt: now - 10,
-            updatedBy: FlynnTaggart,
-            revisionNumber: 0,
-            document: {
-                recipient: {
-                    type: "personal_workspace",
-                    username: FlynnTaggart
-                },
-                allocationRequests: [{
-                    balanceRequested: 500,
-                    category: "SSG",
-                    provider: "UAC",
-                    sourceAllocation: null,
-                    grantGiver: "UAC",
-                    period: {
-                        start: now - 12343456,
-                        end: undefined
-                    }
-                }],
-                form: "I believe that providing me with cannon resources (technically compute), I can achieve new academic heights.",
-                referenceId: null,
-                revisionComment: null,
-                parentProjectId: null
-            }
-        },
-        status: {
-            overallState: State.PENDING,
-            stateBreakdown: [{
-                id: "just-some-id-we-cant-consider-valid",
-                title: "UAC",
-                state: State.APPROVED,
-            }, {
-                id: "just-some-other-id-we-cant-consider-valid",
-                title: "HELL",
-                state: State.REJECTED,
-            }, {
-                id: "the-final-one",
-                title: "Cultist Base",
-                state: State.PENDING
-            }],
-            comments: [{
-                id: "0",
-                username: FlynnTaggart,
-                createdAt: now - 12334,
-                comment: "It's imperative that I recieve the funding to get to Mars. I need to find the lost city of Hebeth."
-            }, {
-                id: "1",
-                username: DrSamHayden,
-                createdAt: now - 12300,
-                comment: "Using what?"
-            }, {
-                id: "2",
-                username: DrSamHayden,
-                createdAt: now - 12200,
-                comment: "The cannon?"
-            }, {
-                id: "3",
-                username: DrSamHayden,
-                createdAt: now - 12100,
-                comment: "That is a weapon, not a teleporter."
-            }],
-            revisions: []
-        }
-    };
-
-    return new Promise((resolve) => {
-        window.setTimeout(() => resolve(grantApplication), 200);
-    });
-}
-
-const FlynnTaggart = "FlynnTaggart#1777";
-const DrSamHayden = "SamuelHayden#1666";
 
 function browseProjects(request: PaginationRequestV2): APICallParameters {
     return {
@@ -359,56 +278,15 @@ export interface GrantProductCategory {
     requestedBalance?: number;
 }
 
-interface FakeClient {
-    activeUsername: string;
-    username: string;
-    userInfo?: {
-        firstNames: string;
-        lastName: string;
-    },
-    hasActiveProject: boolean,
-    projectId?: string
-}
-
-export const Client: FakeClient = {
-    activeUsername: FlynnTaggart,
-    username: FlynnTaggart,
-    userInfo: {
-        firstNames: "Flynn",
-        lastName: "Taggart"
-    },
-    hasActiveProject: true,
-    projectId: "foobarbaz"
-}
-
 export interface FetchGrantApplicationRequest {
     id: string;
 }
 
 export type FetchGrantApplicationResponse = GrantApplication;
 
-export function fetchGrantGiversFake(): PageV2<ProjectWithTitle> {
-    const items: ProjectWithTitle[] = [{
-        projectId: "just-some-id-we-cant-consider-valid",
-        title: "UAC",
-    }, {
-        projectId: "just-some-other-id-we-cant-consider-valid",
-        title: "HELL",
-    }, {
-        projectId: "the-final-one",
-        title: "Cultist Base",
-    }];
-
-    return {
-        items,
-        itemsPerPage: 250,
-        next: undefined
-    };
-}
-
 export interface EditReferenceIDRequest {
     id: string;
-    newReferenceId?: string
+    newReferenceId?: string;
 }
 
 export function editReferenceId(
@@ -418,344 +296,7 @@ export function editReferenceId(
 }
 
 export async function fetchProducts(
-    request: APICallParameters<UCloud.grant.GrantsRetrieveProductsRequest, UCloud.grant.GrantsRetrieveProductsResponse>
-): Promise<{availableProducts: Product[]}> {
-    switch (request.parameters?.projectId) {
-        // UAC
-        case "just-some-id-we-cant-consider-valid": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "UAC",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "compute",
-                    productType: "COMPUTE",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "Ballista",
-                        provider: "UAC",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-        // HELL
-        case "just-some-other-id-we-cant-consider-valid": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "HELL",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "compute",
-                    productType: "COMPUTE",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "PlasmaR",
-                        provider: "HELL",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-        // Cultist Base
-        case "the-final-one": {
-            return new Promise(resolve => resolve({
-                availableProducts: [{
-                    balance: 123123,
-                    category: {
-                        name: "SSG",
-                        provider: "Cultist Base",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "network_ip",
-                    productType: "NETWORK_IP",
-                    description: "Didn't appear in the first iteration. Introduced for the second one. Beats all",
-                    priority: 0
-                }, {
-                    balance: 123123,
-                    category: {
-                        name: "CyberD",
-                        provider: "Cultist Base",
-                    },
-                    chargeType: "DIFFERENTIAL_QUOTA",
-                    freeToUse: false,
-                    hiddenInGrantApplications: false,
-                    name: "name",
-                    pricePerUnit: 1203,
-                    unitOfPrice: "PER_UNIT",
-                    type: "storage",
-                    productType: "STORAGE",
-                    description: "Efficient and noisy",
-                    priority: 0
-                }]
-            }));
-        }
-    }
-    return new Promise(resolve => resolve({
-        availableProducts: []
-    }));
+    request: UCloud.grant.GrantsRetrieveProductsRequest
+): Promise<{availableProducts: Product[];}> {
+    return callAPI(apiBrowse(request, "/api/grant", "products"));
 }
-
-export function debugWallet(type: ProductType, projectId: string, name: string, provider: string): Wallet {
-    return {
-        "owner": {
-            "type": "project",
-            "projectId": projectId,
-        },
-        "paysFor": {
-            "name": name,
-            "provider": provider
-        },
-        "allocations": [
-            {
-                "id": `${(Math.random() * 12390) | 0}`,
-                "allocationPath":
-                    "120"
-                ,
-                "balance": 9999999888,
-                "initialBalance": 10000000000,
-                "localBalance": 10000000000,
-                "startDate": 1652854470991,
-                "endDate": null,
-            }
-        ],
-        "chargePolicy": "EXPIRE_FIRST",
-        "productType": type,
-        "chargeType": "ABSOLUTE",
-        "unit": "UNITS_PER_MINUTE"
-    };
-}
-
-export function listOfDebugWallets(type: ProductType, projectId: string, name: string, provider: string, count: number): Wallet[] {
-    const result: Wallet[] = [];
-    for (let i = 0; i < count; i++) {
-        result.push(debugWallet(type, projectId, name, provider));
-    }
-    return result;
-}
-
-
-const DEBUGGING_WALLETS: Wallet[] = [
-    {
-        owner: {
-            type: "project",
-            projectId: "just-some-id-we-cant-consider-valid"
-        },
-        paysFor: {
-            name: "Ballista",
-            provider: "UAC"
-        },
-        allocations: [
-            {
-                id: "120",
-                allocationPath: "120",
-                balance: 9999999888,
-                initialBalance: 10000000000,
-                localBalance: 10000000000,
-                startDate: 1652854470991,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "COMPUTE",
-        chargeType: "ABSOLUTE",
-        unit: "UNITS_PER_MINUTE"
-    },
-    {
-        owner: {
-            type: "project",
-            projectId: "just-some-other-id-we-cant-consider-valid"
-        },
-        paysFor: {
-            name: "home",
-            provider: "hippo"
-        },
-        allocations: [
-            {
-                id: "78",
-                allocationPath: "78",
-                balance: 9999999998,
-                initialBalance: 10000000000,
-                localBalance: 10000000000,
-                startDate: 1652257657990,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "STORAGE",
-        chargeType: "DIFFERENTIAL_QUOTA",
-        unit: "PER_UNIT"
-    },
-    {
-        owner: {
-            type: "project",
-            projectId: "the-final-one"
-        },
-        paysFor: {
-            name: "PlasmaR",
-            provider: "HELL"
-        },
-        allocations: [
-            {
-                id: "79",
-                allocationPath: "79",
-                balance: 9999999998,
-                initialBalance: 10000000000,
-                localBalance: 10000000000,
-                startDate: 1652257659253,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "STORAGE",
-        chargeType: "DIFFERENTIAL_QUOTA",
-        unit: "PER_UNIT"
-    },
-    {
-        owner: {
-            type: "project",
-            projectId: "the-final-one"
-        },
-        paysFor: {
-            name: "tek-comsol",
-            provider: "ucloud"
-        },
-        allocations: [
-            {
-                id: "29",
-                allocationPath: "29",
-                balance: 9999999989,
-                initialBalance: 10000000000,
-                localBalance: 10000000000,
-                startDate: 1644496228171,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "LICENSE",
-        chargeType: "ABSOLUTE",
-        unit: "PER_UNIT"
-    },
-    {
-        "owner": {
-            "type": "project",
-            "projectId": "just-some-id-we-cant-consider-valid"
-        },
-        paysFor: {
-            name: "HELL",
-            provider: "PlasmaR"
-        },
-        allocations: [
-            {
-                id: "1",
-                allocationPath: "1",
-                balance: 999999999999982,
-                initialBalance: 1000000000000000,
-                localBalance: 1000000000000000,
-                startDate: 1642670509286,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "STORAGE",
-        chargeType: "DIFFERENTIAL_QUOTA",
-        unit: "PER_UNIT"
-    },
-    {
-        owner: {
-            type: "project",
-            projectId: "just-some-id-we-cant-consider-valid"
-        },
-        paysFor: {
-            name: "foo",
-            provider: "HELL"
-        },
-        allocations: [
-            {
-                "id": "2",
-                allocationPath:
-                    "2"
-                ,
-                "balance": 999999999999986,
-                "initialBalance": 1000000000000000,
-                "localBalance": 999999999999986,
-                "startDate": 1642670511339,
-                "endDate": null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "INGRESS",
-        chargeType: "ABSOLUTE",
-        unit: "PER_UNIT"
-    },
-    {
-        owner: {
-            type: "project",
-            projectId: "the-final-one"
-        },
-        paysFor: {
-            name: "SSG",
-            provider: "HELL"
-        },
-        allocations: [
-            {
-                id: "3",
-                allocationPath: "3",
-                balance: 999999892945986,
-                initialBalance: 1000000000000000,
-                localBalance: 999999896725000,
-                startDate: 1642670512116,
-                endDate: null,
-            }
-        ],
-        chargePolicy: "EXPIRE_FIRST",
-        productType: "COMPUTE",
-        chargeType: "ABSOLUTE",
-        unit: "CREDITS_PER_MINUTE"
-    }
-];
