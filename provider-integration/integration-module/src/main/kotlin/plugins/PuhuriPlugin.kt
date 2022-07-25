@@ -30,28 +30,16 @@ class PuhuriPlugin {
         val projectUrl = "https://puhuri-core-beta.neic.no/api/projects/3d57c5bca6ee413badbf974629872f9c/"
         val projectId = "3d57c5bca6ee413badbf974629872f9c"
 
-        // TODO
-        val endDate = ""
-
-        // TODO Uncomment
-        //val project = createProject(id, name, description)
-        //log.debug("project url is: ${project.url}")
-        //
-        // TODO Get user ID
+        /*
+        val project = createProject(id, name, description)
         val userId = getUserId("dca0a8ca-652b-4e5d-aa6b-caa60ea8fff9@myaccessid.org")
-        //println("Found userId: $userId")
-        // TODO Add user as PI
+
         if (userId != null) {
-            println("Setting user as PI")
-            //setProjectPermission(userId, projectId, ProjectRole.PI)
+            setProjectPermission(userId, project.uuid, ProjectRole.PI)
         }
 
-        val permissions = listProjectPermissions(projectId)
-
-
-
-        // Create order
-        //createOrder(projectUrl, PuhuriAllocation(0, 0, 0), expires)
+        createOrder(projectUrl, PuhuriAllocation(0, 0, 0))
+        */
     }
 
     private suspend fun getUserId(username: String): String? {
@@ -62,7 +50,7 @@ class PuhuriPlugin {
             )
             defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.body()).uuid
         } catch (e: Exception) {
-            log.info("Failed to find UUID for user in Puhuri")
+            log.error("Failed to find UUID for user")
             null
         }
     }
@@ -119,8 +107,6 @@ class PuhuriPlugin {
     }
     private suspend fun removeProjectPermission(userId: String, projectId: String) {
         val lookup = listProjectPermissions(projectId).firstOrNull { it.userId == userId } ?: return
-
-        log.debug("removeProjectPermission found ${lookup.pk}")
         removeProjectPermission(lookup.pk)
     }
 
