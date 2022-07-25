@@ -799,7 +799,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Configure sync";
+    if (devices.length === 0) return "Sync setup (BETA)";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
@@ -809,7 +809,7 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync";
+        return "Add to sync (BETA)";
     }
 }
 

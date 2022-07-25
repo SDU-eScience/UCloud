@@ -37,6 +37,7 @@ import * as Sync from "@/Syncthing/api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {getCookie} from "@/Login/Wayf";
+import {TextSpan} from "@/ui-components/Text";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -358,7 +359,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 <Box flexGrow={1} />
                 {//!hasSyncCookie ? null :
                     <Link to={"/syncthing"}>
-                        <Button>Manage Synchronization</Button>
+                        <Button>Manage synchronization (BETA)</Button>
                     </Link>
                 }
             </>
