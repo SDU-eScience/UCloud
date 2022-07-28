@@ -1,6 +1,5 @@
 package dk.sdu.cloud.audit.ingestion.processors
 
-import com.fasterxml.jackson.databind.node.ObjectNode
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.events.EventConsumer
 import dk.sdu.cloud.events.EventStream
@@ -13,13 +12,11 @@ import org.elasticsearch.action.bulk.BulkRequest
 import org.elasticsearch.action.index.IndexRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.xcontent.XContentType
+import org.elasticsearch.xcontent.XContentType
 import java.net.ConnectException
-import java.text.DateFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.*
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
