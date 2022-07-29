@@ -123,7 +123,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             </HighlightedCard>
                         ) : null}
                         <HighlightedCard
-                            title={"Resources"}
+                            title={"Resource Usage"}
                             icon="grant"
                             color="green"
                             isLoading={false}

@@ -137,7 +137,7 @@ const Resources: React.FunctionComponent = () => {
         <MainContainer
             header={<Spacer
                 width={"calc(100% - var(--sidebarWidth))"}
-                left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resources"}]} />}
+                left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Resource Usage"}]} />}
                 right={<Box ml="12px" width="512px">Viewing usage from {filterStart} to {filterEnd}</Box>}
             />}
             sidebar={<ResourceFilter

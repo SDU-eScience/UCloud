@@ -431,7 +431,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={"/project/allocations"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
