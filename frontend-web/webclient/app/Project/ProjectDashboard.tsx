@@ -131,7 +131,7 @@ const ProjectDashboard: React.FunctionComponent<ProjectDashboardOperations> = ()
                             subtitle={<RightArrow />}
                         />
                         <HighlightedCard
-                            title={"Allocations"}
+                            title={"Resource Allocations"}
                             icon="grant"
                             color="darkGreen"
                             isLoading={false}

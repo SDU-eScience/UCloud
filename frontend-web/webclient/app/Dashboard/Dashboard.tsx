@@ -323,7 +323,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resource Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
