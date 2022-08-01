@@ -39,7 +39,9 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.plugins.PuhuriAllocation
 import dk.sdu.cloud.plugins.PuhuriPlugin
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
@@ -50,7 +52,16 @@ fun main(args: Array<String>) {
     if (true) {
         val puhuri = PuhuriPlugin()
         runBlocking {
-            puhuri.approveGrant()
+            puhuri.approveGrant(
+                Project(
+                    title = "TestProjectPleaseIgnore2",
+                    id = "ID124",
+                    fullPath = "Full/path/TestProjectPleaseIgnore2",
+                    archived = false
+                ),
+                PuhuriAllocation(0, 0, 0),
+                "dca0a8ca-652b-4e5d-aa6b-caa60ea8fff9@myaccessid.org"
+            )
         }
         return
     }

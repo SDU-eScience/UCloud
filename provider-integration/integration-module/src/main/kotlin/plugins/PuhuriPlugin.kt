@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
 import io.ktor.client.*
@@ -26,26 +27,40 @@ class PuhuriPlugin {
         expectSuccess = false
     }
 
-    // NOTE(Brian): For test purposes
-    suspend fun approveGrant() {
-        // Test values
-        val id = "UCLOUD_TEST_API_ID"
-        val name = "Test name API"
-        val description = "Test description"
-        val projectUrl = "https://puhuri-core-beta.neic.no/api/projects/3d57c5bca6ee413badbf974629872f9c/"
-        val projectId = "3d57c5bca6ee413badbf974629872f9c"
+    suspend fun approveGrant(project: Project, allocation: PuhuriAllocation, username: String) {
+        val existingProject = projectLookup(project.id)
 
-        /*
-        val project = createProject(id, name, description)
-        val userId = getUserId("dca0a8ca-652b-4e5d-aa6b-caa60ea8fff9@myaccessid.org")
+        val resolvedProject = if (existingProject == null) {
+            val puhuriProject = createProject(project.id, project.title, project.fullPath ?: project.title)
+            val userId = getUserId(username)
+            setProjectPermission(userId, puhuriProject.uuid, ProjectRole.PI)
 
-        setProjectPermission(userId, project.uuid, ProjectRole.PI)
+            puhuriProject
+        } else {
+            existingProject
+        }
 
-        createOrder(projectUrl, PuhuriAllocation(0, 0, 0))
-        */
+        createOrder(resolvedProject.url, allocation)
+    }
+
+    private suspend fun projectLookup(ucloudProjectId: String) : PuhuriProject? {
+        val resp = httpClient.get(
+            apiPath("projects") + "?backend_id=$ucloudProjectId",
+            apiRequest()
+        ).orThrow()
+
+        val results = defaultMapper.decodeFromString<List<PuhuriProject>>(resp.body())
+
+        return if (results.isNotEmpty()) {
+            results[0]
+        } else {
+            null
+        }
     }
 
     private suspend fun getUserId(username: String): String {
+        log.debug("Getting user id")
+
         val resp = httpClient.post(
             apiPath("remote-eduteams"),
             apiRequestWithBody(PuhuriGetUserIdRequest(username))
@@ -54,6 +69,8 @@ class PuhuriPlugin {
     }
 
     private suspend fun createOrder(projectUrl: String, allocation: PuhuriAllocation) {
+        log.debug("Creating order")
+
         val payload = PuhuriCreateOrderRequest(
             projectUrl,
             listOf(
@@ -66,11 +83,12 @@ class PuhuriPlugin {
             )
         )
 
-        val resp = httpClient.post(apiPath("marketplace-orders"), apiRequestWithBody(payload)).orThrow()
-        log.debug("Puhuri createOrder response: ${resp.status}")
+        httpClient.post(apiPath("marketplace-orders"), apiRequestWithBody(payload)).orThrow()
     }
 
     private suspend fun setProjectPermission(userId: String, projectId: String, role: ProjectRole) {
+        log.debug("Set project permission for user")
+
         val puhuriRole = when (role) {
             ProjectRole.PI -> PuhuriProjectRole.PI
             ProjectRole.ADMIN -> PuhuriProjectRole.ADMIN
@@ -89,8 +107,7 @@ class PuhuriPlugin {
         // NOTE(Brian): Requires deletion of old entry if it exists
         removeProjectPermission(userId, projectId)
 
-        val resp = httpClient.post(apiPath("project-permissions"), apiRequestWithBody(payload)).orThrow()
-        log.debug("Puhuri setProjectPermissions response: ${resp.status}: ${resp.body<String>()}")
+        httpClient.post(apiPath("project-permissions"), apiRequestWithBody(payload)).orThrow()
     }
 
     private suspend fun listProjectPermissions(projectId: String): List<PuhuriProjectPermissionEntry> {
@@ -112,17 +129,17 @@ class PuhuriPlugin {
         httpClient.delete(apiPath("project-permissions/${pk}"), apiRequest()).orThrow()
     }
 
-    private suspend fun createProject(id: String, name: String, description: String): PuhuriCreateProjectResponse {
+    private suspend fun createProject(id: String, name: String, description: String): PuhuriProject {
         val payload = PuhuriCreateProjectRequest(
             id,
             customer,
             description,
             name,
-            "1.1"
+            null // TODO How should we set this?
         )
 
         val resp = httpClient.post(apiPath("projects"), apiRequestWithBody(payload)).orThrow()
-        return defaultMapper.decodeFromJsonElement(PuhuriCreateProjectResponse.serializer(), resp.body())
+        return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.body())
     }
 
 
@@ -148,7 +165,7 @@ class PuhuriPlugin {
             }
 
             headers {
-                append("Authorization", apiToken)
+                append("Authorization", "Token $apiToken")
             }
         }
     }
@@ -178,11 +195,11 @@ data class PuhuriCreateProjectRequest(
     val name: String,
 
     @SerialName("oecs_fos_2007_code")
-    val oecsFos2007Code: String
+    val oecsFos2007Code: String?
 )
 
 @Serializable
-data class PuhuriCreateProjectResponse(
+data class PuhuriProject(
     val url: String,
     val uuid: String,
     val name: String,
@@ -216,10 +233,10 @@ data class PuhuriCreateProjectResponse(
     @SerialName("is_industry")
     val isIndustry: Boolean,
 
-    val image: String,
+    val image: String?,
 
-    //@SerialName("marketplace_resource_count")
-    //val marketplaceResourceCount: MarketplaceResourceCount,
+    @SerialName("marketplace_resource_count")
+    val marketplaceResourceCount: Map<String, Int>,
 
     @SerialName("billing_price_estimate")
     val billingPriceEstimate: PuhuriBillingPriceEstimate,
