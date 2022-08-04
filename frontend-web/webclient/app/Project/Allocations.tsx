@@ -19,6 +19,8 @@ import {ResourceProgress} from "@/ui-components/ResourcesProgress";
 import styled from "styled-components";
 import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
+import {Spacer} from "@/ui-components/Spacer";
+import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 
 const FORMAT = "dd/MM/yyyy";
 
@@ -66,6 +68,11 @@ function Allocations(): JSX.Element {
     }, []);
 
     return <MainContainer
+        header={<Spacer
+            width={"calc(100% - var(--sidebarWidth))"}
+            left={<ProjectBreadcrumbs allowPersonalProject crumbs={[{title: "Allocations"}]} />}
+            right={<Box ml="12px" width="512px"></Box>}
+        />}
         main={<>
             <Grid gridGap="0px">
                 <Wallets wallets={wallets.data.items} />
