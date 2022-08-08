@@ -7,6 +7,17 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 08-08-22
+
+Syncthing public
+
+```
+✅  Deployment(app-kubernetes, 2022.2.0) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.2.0) (UP-TO-DATE)
+
+```
+
+
 
 ## 08-08-22
 
