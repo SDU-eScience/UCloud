@@ -6,9 +6,9 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
-import org.elasticsearch.common.xcontent.XContentType
 import dk.sdu.cloud.file.ucloud.services.FileScanner.Companion.FILES_INDEX
 import dk.sdu.cloud.service.Loggable
+import org.elasticsearch.xcontent.XContentType
 import java.net.ConnectException
 import java.util.concurrent.ExecutionException
 

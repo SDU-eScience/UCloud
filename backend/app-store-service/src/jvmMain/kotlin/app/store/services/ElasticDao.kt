@@ -18,10 +18,9 @@ import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
 import org.elasticsearch.common.settings.Settings
-import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
-import org.elasticsearch.index.reindex.DeleteByQueryRequest
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.xcontent.XContentType
 
 private const val SEARCH_RESPONSE_SIZE = 200
 
@@ -55,7 +54,7 @@ class ElasticDao(
                             }
                         }
                     }
-                }""".trimIndent(),XContentType.JSON)
+                }""".trimIndent(), XContentType.JSON)
             elasticClient.indices().create(request, RequestOptions.DEFAULT)
             flushElastic()
             return null

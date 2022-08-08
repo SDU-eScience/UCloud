@@ -189,7 +189,7 @@ class ElasticAlerting(
             log.info("Number of Active shards: $numberOfActiveShards")
 
             val settingsResponse = elastic.cluster().getSettings(ClusterGetSettingsRequest(), RequestOptions.DEFAULT)
-            val maximumNumberOfShardsPerDataNode = settingsResponse.getSetting("cluster.max_shards_per_node")
+            val maximumNumberOfShardsPerDataNode = settingsResponse.getSetting("cluster.max_shards_per_node") ?: "10000"
 
             val totalMaximumNumberOfShards = maximumNumberOfShardsPerDataNode.toInt() * numberOfDataNodes
 
