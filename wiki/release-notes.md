@@ -13,7 +13,7 @@ Syncthing public
 
 ```
 ✅  Deployment(app-kubernetes, 2022.2.0) (UP-TO-DATE)
-✅  Deployment(webclient, 2022.2.0) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.2.1) (UP-TO-DATE)
 
 ```
 
