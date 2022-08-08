@@ -331,7 +331,7 @@ export const FilesBrowse: React.FunctionComponent<{
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject]);
 
-    //const hasSyncCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    const hasSyncCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
 
     return <ResourceBrowse
         api={FilesApi}
@@ -357,7 +357,7 @@ export const FilesBrowse: React.FunctionComponent<{
         extraSidebar={
             <>
                 <Box flexGrow={1} />
-                {//!hasSyncCookie ? null :
+                {!hasSyncCookie ? null :
                     <Link to={"/syncthing"}>
                         <Button>Manage synchronization (BETA)</Button>
                     </Link>
