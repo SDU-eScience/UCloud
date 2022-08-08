@@ -396,14 +396,14 @@ export const Overview: React.FunctionComponent = () => {
             <TwoPanelLayout>
                 <HighlightedCard
                     icon="hdd"
-                    title="My Devices"
+                    title="My devices"
                     color="blue"
                     className="devices"
                     subtitle={<Flex>
                         <ExternalLink href="https://syncthing.net/downloads/" mr="8px">
                             <Button><Icon name="open" mr="4px" size="14px"/> Download Syncthing</Button>
                         </ExternalLink>
-                        <Button onClick={openWizard}>Add Device</Button>
+                        <Button onClick={openWizard}>Add device</Button>
                     </Flex>}
                 >
                     <Text color="darkGray" fontSize={1}>
@@ -431,7 +431,7 @@ export const Overview: React.FunctionComponent = () => {
                     <HighlightedCard
                         className="servers"
                         icon="globeEuropeSolid"
-                        title={folders.length > 1 ? "Syncthing Servers" : "Syncthing Server"}
+                        title={folders.length > 1 ? "Syncthing servers" : "Syncthing server"}
                         color="blue"
                     >
                         <Text color="darkGray" fontSize={1}>
@@ -466,7 +466,7 @@ export const Overview: React.FunctionComponent = () => {
             <HighlightedCard
                 className="folders"
                 icon="ftFolder"
-                title="Synchronized Folders"
+                title="Synchronized folders"
                 color="blue"
                 subtitle={<Button onClick={openFileSelector}>Add Folder</Button>}
             >
@@ -591,7 +591,7 @@ const FolderRenderer: ItemRenderer<SyncthingFolder> = {
 
 const folderOperations: Operation<SyncthingFolder, OperationCallbacks>[] = [
     {
-        text: "Remove from Sync",
+        text: "Remove from sync",
         icon: "trash",
         color: "red",
         confirm: true,
@@ -748,7 +748,7 @@ const EmptyFolders: React.FunctionComponent<{
                     <p><b>Mark a folder for synchronization</b></p>
 
                     <Flex justifyContent="center">
-                        <Button onClick={onAddFolder}>Add Folder</Button>
+                        <Button onClick={onAddFolder}>Add folder</Button>
                     </Flex>
                 </li>
             }

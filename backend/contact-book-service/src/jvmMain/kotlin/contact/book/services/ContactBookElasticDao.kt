@@ -14,13 +14,12 @@ import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
 import org.elasticsearch.client.indices.CreateIndexRequest
 import org.elasticsearch.client.indices.GetIndexRequest
-import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.search.SearchHit
 import org.elasticsearch.search.SearchHits
 import org.elasticsearch.search.builder.SearchSourceBuilder
+import org.elasticsearch.xcontent.XContentType
 import java.net.ConnectException
-import java.util.*
 import kotlin.collections.HashMap
 
 class ContactBookElasticDao(private val elasticClient: RestHighLevelClient) {
