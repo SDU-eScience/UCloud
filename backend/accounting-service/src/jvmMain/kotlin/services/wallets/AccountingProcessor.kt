@@ -5,13 +5,11 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.isFrozen
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.Time
@@ -814,6 +812,15 @@ class AccountingProcessor(
                 var charged = 0L
 
                 run {
+                    // Strategy:
+                    // - For each allocation (even if charge remaining is 0):
+                    //   - We return the amount that _WE_ are consuming immediately to the hierarchy.
+                    //   - Then we determine the largest current balance we can charge (up to amount)
+                    //   - This charge is deducted from currentBalance in all allocations
+                    //   - This charge is deducted from localBalance only in the leaf
+                    // - If the amount is still > 0 then this is split, as evenly as possible, amongst all allocations
+                    //   - The split amount is deducted, without further checks, on currentBalance (and local in leaf)
+
                     // NOTE(Dan): Charge all allocations involved in this transaction. This can potentially
                     // return credits to an allocation if usage was lower than last time a charge was made.
                     // As a result, we also process _all_ allocations even if the amount ends up being 0.
@@ -844,9 +851,9 @@ class AccountingProcessor(
 
                     var idx = 0
                     while (idx < allocations.size) {
-                        val isLeaf = idx == 0
+                        val isFirst = idx == 0
                         val toCharge = amountToDeductPerAllocation +
-                            (if (!isLeaf) 0 else amountMissing % allocations.size)
+                            (if (!isFirst) 0 else amountMissing % allocations.size)
 
                         deductWithoutChecks(
                             charge,
@@ -964,15 +971,6 @@ class AccountingProcessor(
         isInitial: Boolean,
         dryRun: Boolean,
     ): Long {
-        // Strategy:
-        // - For each allocation (even if charge remaining is 0):
-        //   - We return the amount that _WE_ are consuming immediately to the hierarchy.
-        //   - Then we determine the largest current balance we can charge (up to amount)
-        //   - This charge is deducted from currentBalance in all allocations
-        //   - This charge is deducted from localBalance only in the leaf
-        // - If the amount is still > 0 then this is split, as evenly as possible, amongst all allocations
-        //   - The split amount is deducted, without further checks, on currentBalance (and local in leaf)
-
         var maximumCharge = amount
 
         val initial = allocations[allocation]!!
@@ -1120,6 +1118,29 @@ class AccountingProcessor(
             allocation.localBalance -= currentUse
         }
 
+        // TODO Deal with this situation. Probably want to do this in charge and make sure we don't go above the
+        //  initialBalance
+
+        // Initial state:
+        // 1000
+        // 500
+        // 100
+
+        // Charge 50 in leaf
+        // 1000 (950)
+        // 500 (450)
+        // 100 (50)
+
+        // Update leaf to have 10 only
+        // 10 (-40)
+        // 500 (450)
+        // 100 (50)
+
+        // Charge 0 in leaf
+        // 10 (60)
+        // 500 (500)
+        // 100 (50)
+
         val transactionId = transactionId()
         dirtyTransactions.add(
             Transaction.AllocationUpdate(
@@ -1178,7 +1199,7 @@ class AccountingProcessor(
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
-                        .onEach { it.isDirty = false }
+                        .onEach { it.isDirty = false } // TODO(Dan): Should probably only happen when we have done a commit
                         .takeIfNotEmpty()
                         ?.toList()
                         ?: return@forEach
@@ -1284,7 +1305,7 @@ class AccountingProcessor(
                             unnest(:local_balances::bigint[]),
                             to_timestamp(unnest(:start_dates::bigint[]) / 1000),
                             to_timestamp(unnest(:end_dates::bigint[]) / 1000),
-                            null,
+                            null, -- TODO
                             null
                         on conflict (id) do update set
                             balance = excluded.balance,
