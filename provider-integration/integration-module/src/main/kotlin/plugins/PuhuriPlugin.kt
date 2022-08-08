@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
@@ -16,16 +17,53 @@ import io.ktor.http.content.*
 import io.ktor.util.*
 import kotlinx.serialization.*
 import kotlinx.datetime.Instant
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
-class PuhuriPlugin {
-    private val rootEndPoint = "https://puhuri-core-beta.neic.no/api/"
-    private val customer = "https://puhuri-core-beta.neic.no/api/customers/579f3e4d309a4b208026e784bf0775a3/"
-    private val offering =
-        "https://puhuri-core-beta.neic.no/api/marketplace-offerings/5c93748e796b47eaaec0805153e66fb4/"
-    private val plan = "https://puhuri-core-beta.neic.no/api/marketplace-plans/a274fc378464423390bf596991e10328/"
+class PuhuriPlugin : ProjectPlugin {
+    override val pluginTitle: String = "Puhuri"
+
+    private lateinit var pluginConfig: ConfigSchema.Plugins.Projects.Puhuri
+    private lateinit var rootEndpoint: String
+    private lateinit var customer: String
+    private lateinit var offering: String
+    private lateinit var plan: String
+
     private val httpClient = HttpClient(CIO) {
         expectSuccess = false
     }
+
+    override fun configure(config: ConfigSchema.Plugins.Projects) {
+        this.pluginConfig = config as ConfigSchema.Plugins.Projects.Puhuri
+
+        this.rootEndpoint = pluginConfig.endpoint.removeSuffix("/") + "/"
+        this.customer = rootEndpoint + "customers/" + pluginConfig.customerId + "/"
+        this.offering = rootEndpoint + "marketplace-offerings/" + pluginConfig.offeringId + "/"
+        this.plan = rootEndpoint + "marketplace-plans/" + pluginConfig.planId + "/"
+    }
+
+    // NOTE(Dan): Since this requires "no user instance" mode, these just go away.
+    override suspend fun PluginContext.lookupLocalId(ucloudId: String): Int? = null
+    override suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int) {
+        // Do nothing
+    }
+
+    override suspend fun PluginContext.onProjectUpdated(newProject: dk.sdu.cloud.project.api.v2.Project) {
+        // TODO(Dan): Not yet implemented
+    }
+
+    /*
+        puhuri.approveGrant(
+            Project(
+                title = "TestProjectPleaseIgnore2",
+                id = "ID124",
+                fullPath = "Full/path/TestProjectPleaseIgnore2",
+                archived = false
+            ),
+            PuhuriAllocation(0, 0, 0),
+            "dca0a8ca-652b-4e5d-aa6b-caa60ea8fff9@myaccessid.org"
+        )
+     */
 
     suspend fun approveGrant(project: Project, allocation: PuhuriAllocation, username: String) {
         val existingProject = projectLookup(project.id)
@@ -49,7 +87,7 @@ class PuhuriPlugin {
             apiRequest()
         ).orThrow()
 
-        val results = defaultMapper.decodeFromString<List<PuhuriProject>>(resp.body())
+        val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.body())
 
         return if (results.isNotEmpty()) {
             results[0]
@@ -63,7 +101,7 @@ class PuhuriPlugin {
 
         val resp = httpClient.post(
             apiPath("remote-eduteams"),
-            apiRequestWithBody(PuhuriGetUserIdRequest(username))
+            apiRequestWithBody(PuhuriGetUserIdRequest.serializer(), PuhuriGetUserIdRequest(username))
         ).orThrow()
         return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.body()).uuid
     }
@@ -71,43 +109,51 @@ class PuhuriPlugin {
     private suspend fun createOrder(projectUrl: String, allocation: PuhuriAllocation) {
         log.debug("Creating order")
 
-        val payload = PuhuriCreateOrderRequest(
-            projectUrl,
-            listOf(
-                PuhuriOrderItem(
-                    offering,
-                    PuhuriOrderItemAttributes("UCloud allocation"),
-                    plan,
-                    allocation
+        httpClient.post(
+            apiPath("marketplace-orders"),
+            apiRequestWithBody(
+                PuhuriCreateOrderRequest.serializer(),
+                PuhuriCreateOrderRequest(
+                    projectUrl,
+                    listOf(
+                        PuhuriOrderItem(
+                            offering,
+                            PuhuriOrderItemAttributes("UCloud allocation"),
+                            plan,
+                            allocation
+                        )
+                    )
                 )
             )
-        )
-
-        httpClient.post(apiPath("marketplace-orders"), apiRequestWithBody(payload)).orThrow()
+        ).orThrow()
     }
 
     private suspend fun setProjectPermission(userId: String, projectId: String, role: ProjectRole) {
         log.debug("Set project permission for user")
 
         val puhuriRole = when (role) {
-            ProjectRole.PI -> PuhuriProjectRole.PI
+            ProjectRole.PI -> PuhuriProjectRole.MANAGER
             ProjectRole.ADMIN -> PuhuriProjectRole.ADMIN
             else -> PuhuriProjectRole.USER
         }
 
-        val projectUrl = "${rootEndPoint}projects/$projectId/"
-        val userUrl = "${rootEndPoint}users/$userId/"
-
-        val payload = PuhuriSetProjectPermissionRequest(
-            userUrl,
-            projectUrl,
-            puhuriRole
-        )
+        val projectUrl = "${rootEndpoint}projects/$projectId/"
+        val userUrl = "${rootEndpoint}users/$userId/"
 
         // NOTE(Brian): Requires deletion of old entry if it exists
         removeProjectPermission(userId, projectId)
 
-        httpClient.post(apiPath("project-permissions"), apiRequestWithBody(payload)).orThrow()
+        httpClient.post(
+            apiPath("project-permissions"),
+            apiRequestWithBody(
+                PuhuriSetProjectPermissionRequest.serializer(),
+                PuhuriSetProjectPermissionRequest(
+                    userUrl,
+                    projectUrl,
+                    puhuriRole
+                )
+            )
+        ).orThrow()
     }
 
     private suspend fun listProjectPermissions(projectId: String): List<PuhuriProjectPermissionEntry> {
@@ -130,42 +176,47 @@ class PuhuriPlugin {
     }
 
     private suspend fun createProject(id: String, name: String, description: String): PuhuriProject {
-        val payload = PuhuriCreateProjectRequest(
-            id,
-            customer,
-            description,
-            name,
-            null // TODO How should we set this?
-        )
+        val resp = httpClient.post(
+            apiPath("projects"),
+            apiRequestWithBody(
+                PuhuriCreateProjectRequest.serializer(),
+                PuhuriCreateProjectRequest(
+                    id,
+                    customer,
+                    description,
+                    name,
+                    null // TODO How should we set this?
+                )
+            )
+        ).orThrow()
 
-        val resp = httpClient.post(apiPath("projects"), apiRequestWithBody(payload)).orThrow()
         return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.body())
     }
 
-
     private fun apiPath(path: String): String {
-        return rootEndPoint + path.removePrefix("/").removeSuffix("/") + "/"
+        return rootEndpoint + path.removePrefix("/").removeSuffix("/") + "/"
     }
 
     private fun apiRequest(): HttpRequestBuilder.() -> Unit {
-        return apiRequestWithBody<Unit>(null)
+        return apiRequestWithBody(Unit.serializer(), null)
     }
 
-    private inline fun <reified T> apiRequestWithBody(
+    private fun <T> apiRequestWithBody(
+        serializer: KSerializer<T>,
         payload: T?
     ): HttpRequestBuilder.() -> Unit {
         return {
             if (payload != null) {
                 setBody(
                     TextContent(
-                        defaultMapper.encodeToString(payload),
+                        defaultMapper.encodeToString(serializer, payload),
                         ContentType.Application.Json
                     )
                 )
             }
 
             headers {
-                append("Authorization", "Token $apiToken")
+                append("Authorization", "Token ${pluginConfig.apiToken}")
             }
         }
     }
@@ -183,6 +234,29 @@ class PuhuriPlugin {
 
     companion object : Loggable {
         override val log = logger()
+    }
+}
+
+class PuhuriAllocationPlugin : AllocationPlugin {
+    override val pluginTitle: String = "Puhuri (Allocations)"
+    private lateinit var puhuriPlugin: PuhuriPlugin
+
+    override suspend fun PluginContext.initialize() {
+        puhuriPlugin = config.plugins.projects as? PuhuriPlugin ?: run {
+            throw IllegalStateException("The Puhuri allocation plugin cannot be used without the corresponding " +
+                    "project plugin")
+        }
+    }
+
+    override suspend fun PluginContext.onResourceAllocation(
+        notifications: List<AllocationNotification>
+    ): List<OnResourceAllocationResult> {
+        // TODO(Dan): Not yet implemented. Should dispatch to puhuriPlugin.
+        return notifications.map { OnResourceAllocationResult.ManageThroughUCloud }
+    }
+
+    override suspend fun PluginContext.onResourceSynchronization(notifications: List<AllocationNotification>) {
+        // TODO(Dan): Not yet implemented. Should dispatch to puhuriPlugin.
     }
 }
 
@@ -295,7 +369,7 @@ data class PuhuriGetUserIdResponse(
 data class PuhuriSetProjectPermissionRequest(
     val user: String,
     val project: String,
-    val role: PuhuriProjectRole// TODO Should be ProjectRole
+    val role: PuhuriProjectRole
 )
 
 @Serializable
@@ -303,7 +377,7 @@ data class PuhuriProjectPermissionEntry(
     val url: String,
     val pk: Int,
 
-    val role: PuhuriProjectRole, // TODO Should be ProjectRole
+    val role: PuhuriProjectRole,
 
     val created: Instant,
 
@@ -348,7 +422,7 @@ data class PuhuriProjectPermissionEntry(
 @Serializable
 enum class PuhuriProjectRole(val ucloudRole: ProjectRole) {
     @SerialName("manager")
-    PI(ProjectRole.PI),
+    MANAGER(ProjectRole.PI),
 
     @SerialName("admin")
     ADMIN(ProjectRole.ADMIN),

@@ -49,23 +49,6 @@ import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
-    if (true) {
-        val puhuri = PuhuriPlugin()
-        runBlocking {
-            puhuri.approveGrant(
-                Project(
-                    title = "TestProjectPleaseIgnore2",
-                    id = "ID124",
-                    fullPath = "Full/path/TestProjectPleaseIgnore2",
-                    archived = false
-                ),
-                PuhuriAllocation(0, 0, 0),
-                "dca0a8ca-652b-4e5d-aa6b-caa60ea8fff9@myaccessid.org"
-            )
-        }
-        return
-    }
-
     try {
         // NOTE(Dan): The integration module of UCloud can start in one of three modes. What the integration module
         // does and starts depends heavily on the mode we are started in. We present a short summary of the modes here,

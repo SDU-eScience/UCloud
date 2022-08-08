@@ -17,10 +17,12 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // Projects
     // =========================================================================
     ConfigSchema.Plugins.Projects.Simple::class to { SimpleProjectPlugin() },
+    ConfigSchema.Plugins.Projects.Puhuri::class to { PuhuriPlugin() },
 
     // Allocations
     // =========================================================================
     ConfigSchema.Plugins.Allocations.Extension::class to { ExtensionAllocationPlugin() },
+    ConfigSchema.Plugins.Allocations.Puhuri::class to { PuhuriAllocationPlugin() },
 
     // Jobs
     // =========================================================================

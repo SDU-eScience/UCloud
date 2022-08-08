@@ -150,7 +150,8 @@ data class ConfigSchema(
                 data class Extensions(
                     val onConnectionComplete: String,
                 )
-            }        }
+            }
+        }
 
         @Serializable
         sealed class Projects {
@@ -183,6 +184,22 @@ data class ConfigSchema(
                 )
             }
 
+            @Serializable
+            @SerialName("Puhuri")
+            data class Puhuri(
+                val endpoint: String,
+                val apiToken: String,
+                val customerId: String,
+                val offeringId: String,
+                val planId: String,
+            ) : Projects() {
+                /*
+                    endpoint = "https://puhuri-core-beta.neic.no/api/"
+                    customerId = "579f3e4d309a4b208026e784bf0775a3"
+                    offeringId = "5c93748e796b47eaaec0805153e66fb4"
+                    planId = "a274fc378464423390bf596991e10328"
+                 */
+            }
         }
 
         @Serializable
@@ -198,6 +215,10 @@ data class ConfigSchema(
                     val onSynchronization: String,
                 )
             }
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri : Allocations()
         }
 
         @Serializable
