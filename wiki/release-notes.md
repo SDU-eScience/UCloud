@@ -7,6 +7,35 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+
+## 08-08-22
+
+Elasticsearch upgrade 8.3 and backwards compatibility of Java API
+
+```
+✅  Deployment(accounting, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(alerting, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(app-kubernetes, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(app-orchestrator, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(app-store, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(audit-ingestion, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(auth, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(avatar, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(contact-book, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(elastic-management, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(file-orchestrator, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(file-ucloud, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(mail, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(news, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(notification, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(password-reset, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(redis-cleaner, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(slack, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(support, 2022.1.60) (UP-TO-DATE)
+✅  Deployment(task, 2022.1.60) (UP-TO-DATE)
+
+```
+
 ## 05-07-22
 
 ```
