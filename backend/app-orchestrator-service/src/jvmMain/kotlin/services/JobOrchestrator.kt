@@ -827,7 +827,6 @@ class JobOrchestrator(
         actorAndProject: ActorAndProject,
         request: JobsRetrieveUtilizationRequest
     ): JobsRetrieveUtilizationResponse {
-        JobsRetrieveUtilizationResponse
         return proxy.proxy(
             actorAndProject,
             request,
@@ -874,8 +873,8 @@ class JobOrchestrator(
                 override suspend fun beforeCall(
                     provider: String,
                     resource: RequestWithRefOrResource<JobsRetrieveUtilizationRequest, Job>
-                ) {
-                    // Empty
+                ): JobsProviderUtilizationRequest {
+                    return JobsProviderUtilizationRequest(resource.second.reference.category)
                 }
             }
         )

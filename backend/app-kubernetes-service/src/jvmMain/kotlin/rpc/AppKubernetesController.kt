@@ -144,9 +144,9 @@ class AppKubernetesController(
 
         implement(computeApi.retrieveUtilization) {
             ok(JobsProviderUtilizationResponse(
-                utilizationService.retrieveCapacity(),
-                utilizationService.retrieveUsedCapacity(),
-                utilizationService.retrieveQueueStatus()
+                utilizationService.retrieveCapacity(request.categoryId),
+                utilizationService.retrieveUsedCapacity(request.categoryId),
+                utilizationService.retrieveQueueStatus(request.categoryId)
             ))
         }
 
