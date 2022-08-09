@@ -17,4 +17,5 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V4__SlurmAccounting())
     migrationHandler.addScript(V5__FixSlurmAccountMapper())
     migrationHandler.addScript(V1__MessageSigning())
+    migrationHandler.addScript(V1__Puhuri())
 }

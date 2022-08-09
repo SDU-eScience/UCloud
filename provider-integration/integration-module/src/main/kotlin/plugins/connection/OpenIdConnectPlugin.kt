@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.calls.*
@@ -25,6 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 class OpenIdConnectPlugin : ConnectionPlugin {
     override val pluginTitle: String = "OpenIdConnect"
@@ -33,6 +35,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var tokenEndpoint: String
     private lateinit var authEndpoint: String
     private val log = Logger("OpenIdConnect")
+
+    val customPropertiesRequested = ArrayList<String>()
+    private var onConnectionCompleteCustomCallback: (suspend (subject: OpenIdConnectSubject) -> Unit)? = null
+    fun registerOnConnectionCompleteCallback(cb: (suspend (subject: OpenIdConnectSubject) -> Unit)) {
+        this.onConnectionCompleteCustomCallback = cb
+    }
 
     private fun ConfigSchema.Plugins.Connection.OpenIdConnect.hostInfo(): HostInfo {
         val tokenEndpoint = endpoints.token
@@ -211,6 +219,21 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     val phoneNumber = jwt["phone_number"]?.takeIf { !it.isNull }?.asString()
                     val phoneNumberVerified = jwt["phone_number_verified"]?.takeIf { !it.isNull }?.asBoolean() ?: false
 
+                    val customProperties = ArrayList<CustomProperty>()
+                    for (prop in customPropertiesRequested) {
+                        val value = jwt[prop]
+                        val valueAsJson = when {
+                            value == null || value.isNull -> JsonNull
+                            value.asBoolean() != null -> JsonPrimitive(value.asBoolean())
+                            value.asInt() != null -> JsonPrimitive(value.asInt())
+                            value.asLong() != null -> JsonPrimitive(value.asLong())
+                            value.asString() != null -> JsonPrimitive(value.asString())
+                            else -> JsonNull
+                        }
+
+                        customProperties.add(CustomProperty(prop, valueAsJson))
+                    }
+
                     OpenIdConnectSubject(
                         ucloudIdentity.username,
                         subject,
@@ -224,18 +247,24 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         emailVerified,
                         phoneNumber,
                         phoneNumberVerified,
+                        customProperties,
                     )
                 }
 
                 log.debug("OIDC success! Subject is $subject")
 
-                val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
-                UserMapping.insertMapping(
-                    subject.ucloudIdentity,
-                    result.uid,
-                    this@initializeRpcServer,
-                    ucloudIdentity.connectionId
-                )
+                val customCallback = onConnectionCompleteCustomCallback
+                if (customCallback == null) {
+                    val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
+                    UserMapping.insertMapping(
+                        subject.ucloudIdentity,
+                        result.uid,
+                        this@initializeRpcServer,
+                        ucloudIdentity.connectionId
+                    )
+                } else {
+                    customCallback(subject)
+                }
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
@@ -337,5 +366,8 @@ data class OpenIdConnectSubject(
     val emailVerified: Boolean?,
     val phoneNumber: String?,
     val phoneNumberVerified: Boolean?,
+    val customProperties: List<CustomProperty>
 )
 
+@Serializable
+data class CustomProperty(val name: String, val value: JsonElement)

@@ -270,6 +270,10 @@ class ConnectionController(
         }
 
         implement(im.init) {
+            if (!config.core.launchRealUserInstances) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
             // NOTE(Dan): This code is responsible for launching new instances of IM/User.
 
             // First we map the UCloud username to a local UID.

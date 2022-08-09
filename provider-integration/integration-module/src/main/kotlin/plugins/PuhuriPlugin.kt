@@ -3,10 +3,15 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
+import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
 import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withSession
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -22,6 +27,8 @@ import kotlinx.serialization.builtins.serializer
 
 class PuhuriPlugin : ProjectPlugin {
     override val pluginTitle: String = "Puhuri"
+
+    private lateinit var openIdConnectPlugin: OpenIdConnectPlugin
 
     private lateinit var pluginConfig: ConfigSchema.Plugins.Projects.Puhuri
     private lateinit var rootEndpoint: String
@@ -40,6 +47,30 @@ class PuhuriPlugin : ProjectPlugin {
         this.customer = rootEndpoint + "customers/" + pluginConfig.customerId + "/"
         this.offering = rootEndpoint + "marketplace-offerings/" + pluginConfig.offeringId + "/"
         this.plan = rootEndpoint + "marketplace-plans/" + pluginConfig.planId + "/"
+    }
+
+    override suspend fun PluginContext.initialize() {
+        openIdConnectPlugin = config.plugins.connection as? OpenIdConnectPlugin
+            ?: error("OpenIdConnectPlugin must be registered with Puhuri plugin")
+
+        openIdConnectPlugin.registerOnConnectionCompleteCallback { subject ->
+            val ucloudUser = subject.ucloudIdentity
+            val puhuriUserId = subject.email ?: error("Expected user ID to be present") // TODO(Dan): Change with the correct attribute
+
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        insert into puhuri_connections(ucloud_identity, puhuri_identity) 
+                        values (:ucloud_identity, :puhuri_identity)
+                        on conflict (ucloud_identity) do update set
+                            puhuri_identity = excluded.puhuri_identity;
+                    """
+                ).useAndInvokeAndDiscard {
+                    bindString("ucloud_identity", ucloudUser)
+                    bindString("puhuri_identity", puhuriUserId)
+                }
+            }
+        }
     }
 
     override fun supportsRealUserMode(): Boolean = false
