@@ -35,7 +35,7 @@ class NotificationController(
     private val nextPull = AtomicLong(0L)
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
 
         controllerContext.configuration.plugins.temporary
             .onConnectionCompleteHandlers.add(this@NotificationController::onConnectionComplete)

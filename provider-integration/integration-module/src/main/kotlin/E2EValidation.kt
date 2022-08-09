@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicReference
 
 suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext) {
     val config = pluginContext.config
-    if (config.serverMode != ServerMode.User) return
+    if (config.rawServerMode() != ServerMode.User) return
     val connectionPlugin = config.plugins.connection ?: return
     val signingRequired = pluginContext.run { connectionPlugin.run { requireMessageSigning() } }
     if (!signingRequired) return

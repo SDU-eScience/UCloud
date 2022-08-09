@@ -42,6 +42,9 @@ class PuhuriPlugin : ProjectPlugin {
         this.plan = rootEndpoint + "marketplace-plans/" + pluginConfig.planId + "/"
     }
 
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+
     // NOTE(Dan): Since this requires "no user instance" mode, these just go away.
     override suspend fun PluginContext.lookupLocalId(ucloudId: String): Int? = null
     override suspend fun PluginContext.onUserMappingInserted(ucloudId: String, localId: Int) {

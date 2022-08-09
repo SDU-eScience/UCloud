@@ -66,7 +66,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private val stateTable = HashMap<OidcState, ConnectionState>()
 
     override suspend fun PluginContext.initialize() {
-        if (config.serverMode != ServerMode.Server) return
+        if (!config.shouldRunServerCode()) return
 
         ownHost = config.core.hosts.self
             ?: throw IllegalStateException("The OpenIdConnectPlugin requires core.ownHost to be defined!")

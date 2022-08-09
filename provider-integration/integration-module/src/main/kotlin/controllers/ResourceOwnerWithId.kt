@@ -29,29 +29,37 @@ sealed class ResourceOwnerWithId {
 
     companion object {
         suspend fun loadFromUsername(username: String, ctx: PluginContext): User? {
-            when (ctx.config.serverMode) {
-                ServerMode.FrontendProxy -> throw IllegalStateException("Should not be invoked from a frontend proxy")
-                ServerMode.Server -> {
-                    val uid = UserMapping.ucloudIdToLocalId(username) ?: return null
-                    return User(username, uid)
-                }
+            val config = ctx.config
+            if (config.core.launchRealUserInstances) {
+                when {
+                    config.shouldRunProxyCode() -> throw IllegalStateException("Should not be invoked from a frontend proxy")
+                    config.shouldRunServerCode() -> {
+                        val uid = UserMapping.ucloudIdToLocalId(username) ?: return null
+                        return User(username, uid)
+                    }
 
-                is ServerMode.Plugin -> {
-                    return ctx.ipcClient.sendRequest(ConnectionIpc.browse, PaginationRequestV2(250))
-                        .items.find { it.username == username }
-                        ?.let { User(it.username, it.uid) }
-                }
+                    config.shouldRunAnyPluginCode() -> {
+                        return ctx.ipcClient.sendRequest(ConnectionIpc.browse, PaginationRequestV2(250))
+                            .items.find { it.username == username }
+                            ?.let { User(it.username, it.uid) }
+                    }
 
-                ServerMode.User -> {
-                    return User(username, clib.getuid())
+                    config.shouldRunUserCode() -> {
+                        return User(username, clib.getuid())
+                    }
+
+                    else -> error("Missing case in loadFromUsername")
                 }
+            } else {
+                TODO("Not yet implemented for launchRealUserInstances = false")
             }
         }
 
         suspend fun loadFromProject(projectId: String, ctx: PluginContext): Project? {
-            when (ctx.config.serverMode) {
-                ServerMode.FrontendProxy -> throw IllegalStateException("Should not be invoked from a frontend proxy")
-                ServerMode.Server -> {
+            val config = ctx.config
+            when {
+                config.shouldRunProxyCode() -> throw IllegalStateException("Should not be invoked from a frontend proxy")
+                config.shouldRunServerCode() -> {
                     val projectPlugin = ctx.config.plugins.projects ?: return null
 
                     val gid = with(ctx) {
@@ -63,8 +71,7 @@ sealed class ResourceOwnerWithId {
                     return Project(projectId, gid)
                 }
 
-                is ServerMode.Plugin,
-                ServerMode.User -> TODO("Not obvious if this should work or not")
+                else -> TODO("Not obvious if this should work or not")
             }
         }
 

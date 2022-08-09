@@ -52,7 +52,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
-        if (config.serverMode == ServerMode.Server) {
+        if (config.shouldRunServerCode()) {
             if (accountMapperOrNull == null) accountMapperOrNull = AccountMapper(this)
             if (productEstimatorOrNull == null) productEstimatorOrNull = ProductEstimator(config)
             jobCache = JobCache(rpcClient)
@@ -387,7 +387,7 @@ class SlurmPlugin : ComputePlugin {
     }
 
     override suspend fun PluginContext.runMonitoringLoop() {
-        if (config.serverMode != ServerMode.Server) return
+        if (!config.shouldRunServerCode()) return
 
         var nextAccountingScan = 0L
 

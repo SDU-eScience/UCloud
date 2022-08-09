@@ -225,7 +225,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
         }
     })
 
-    if (config.serverMode == ServerMode.Server) {
+    if (config.shouldRunServerCode()) {
         val rpcClient = pluginContext.rpcClient
 
         pluginContext.ipcServer.addHandler(ProductsIpc.preview.handler { user, request ->

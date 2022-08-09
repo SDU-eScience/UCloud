@@ -38,6 +38,7 @@ data class ConfigSchema(
         val hosts: Hosts,
         val ipc: Ipc? = null,
         val logs: Logs? = null,
+        val launchRealUserInstances: Boolean = true,
     ) {
         @Serializable
         data class Hosts(

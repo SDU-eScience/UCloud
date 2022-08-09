@@ -39,9 +39,6 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
-import dk.sdu.cloud.plugins.PuhuriAllocation
-import dk.sdu.cloud.plugins.PuhuriPlugin
-import dk.sdu.cloud.project.api.Project
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import kotlinx.coroutines.*
@@ -254,7 +251,10 @@ fun main(args: Array<String>) {
             // -------------------------------------------------------------------------------------------------------
             val rpcServerPort = when (serverMode) {
                 is ServerMode.Plugin, ServerMode.FrontendProxy -> null
-                ServerMode.Server -> UCLOUD_IM_PORT
+                ServerMode.Server -> {
+                    if (config.core.launchRealUserInstances) UCLOUD_IM_PORT
+                    else config.server.network.listenPort
+                }
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
             }
 
@@ -369,7 +369,7 @@ fun main(args: Array<String>) {
 
             // L7 router (Envoy)
             // -------------------------------------------------------------------------------------------------------
-            val envoyConfig = if (serverMode == ServerMode.Server) {
+            val envoyConfig = if (serverMode == ServerMode.Server && config.core.launchRealUserInstances) {
                 EnvoyConfigurationService(ENVOY_CONFIG_PATH)
             } else {
                 null
@@ -598,7 +598,7 @@ fun main(args: Array<String>) {
 
                 val empty = "" to ""
                 val stats = ArrayList<Pair<String, String>>()
-                stats.add("Mode" to config.serverMode.toString())
+                stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/${System.getProperty("log.module")}.log")

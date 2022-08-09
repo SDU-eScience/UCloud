@@ -29,11 +29,11 @@ class ComputeController(
     override fun retrieveApi(providerId: String): JobsProvider = JobsProvider(providerId)
 
     override fun RpcServer.configureCustomEndpoints(plugins: Collection<ComputePlugin>, api: JobsProvider) {
-        val serverMode = controllerContext.configuration.serverMode
+        val config = controllerContext.configuration
         val shells = Shells(controllerContext.configuration.core.providerId)
 
         implement(api.extend) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
                 dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
@@ -46,7 +46,7 @@ class ComputeController(
         val streams = Array<AtomicReference<String?>>(maxStreams) { AtomicReference(null) }
 
         implement(api.follow) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             val wsContext = ctx as WSCall
 
             when (request) {
@@ -122,7 +122,7 @@ class ComputeController(
         }
 
         implement(api.openInteractiveSession) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             val results = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
                 with(plugin) { openInteractiveSessionBulk(request) }
@@ -141,12 +141,12 @@ class ComputeController(
         }
 
         implement(api.retrieveUtilization) {
-            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
             TODO("Issue #2425")
         }
 
         implement(api.suspend) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             val result = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
                 with(plugin) { suspendBulk(request) }
@@ -156,7 +156,7 @@ class ComputeController(
         }
 
         implement(api.terminate) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
                 dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
@@ -167,7 +167,7 @@ class ComputeController(
 
         implement(shells.open) {
             runBlocking {
-                if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 val wsContext = ctx as WSCall
 
                 when (request) {

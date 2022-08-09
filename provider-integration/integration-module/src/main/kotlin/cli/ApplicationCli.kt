@@ -239,7 +239,7 @@ fun ApplicationCli(controllerContext: ControllerContext) {
         }
     })
 
-    if (config.serverMode == ServerMode.Server) {
+    if (config.shouldRunServerCode()) {
         val rpcClient = pluginCtx.rpcClient
         pluginCtx.ipcServer.addHandler(ApplicationIpc.uploadTool.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)

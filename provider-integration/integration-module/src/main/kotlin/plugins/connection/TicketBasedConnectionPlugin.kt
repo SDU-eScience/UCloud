@@ -37,7 +37,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
 
     override suspend fun PluginContext.initialize() {
         val log = Logger("TicketBasedConnectionPlugin")
-        if (config.serverMode == ServerMode.Server) {
+        if (config.shouldRunServerCode()) {
             ipcServer.addHandler(
                 IpcHandler("connect.approve") { user, jsonRequest ->
                     log.debug("Asked to approve connection!")

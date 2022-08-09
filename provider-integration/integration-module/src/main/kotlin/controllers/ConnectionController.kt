@@ -80,7 +80,7 @@ class ConnectionController(
     private val uimLaunched = HashSet<String>()
 
     override fun configureIpc(server: IpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(ConnectionIpc.registerSessionProxy.handler { user, request ->
@@ -124,7 +124,7 @@ class ConnectionController(
     }
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
         val config = controllerContext.configuration
 
         val providerId = config.core.providerId

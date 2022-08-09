@@ -88,11 +88,11 @@ abstract class BaseResourceController<
             println("No plugins active for ${this@BaseResourceController::class.simpleName}")
             return
         }
-        val serverMode = controllerContext.configuration.serverMode
         val api = retrieveApi(controllerContext.configuration.core.providerId)
+        val config = controllerContext.configuration
 
         implement(api.create) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             ok(
                 dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
@@ -102,7 +102,8 @@ abstract class BaseResourceController<
         }
 
         implement(api.retrieveProducts) {
-            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             runBlocking {
                 ok(
                     BulkResponse(
@@ -131,7 +132,7 @@ abstract class BaseResourceController<
 
         api.delete?.let { delete ->
             implement(delete) {
-                if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
                 ok(
                     dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
@@ -142,7 +143,8 @@ abstract class BaseResourceController<
         }
 
         implement(api.verify) {
-            if (serverMode != ServerMode.Server) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             dispatchToPlugin(plugins, request.items, { it }) { plugin, request ->
                 with(plugin) {
                     verify(request)
@@ -154,7 +156,8 @@ abstract class BaseResourceController<
         }
 
         implement(api.init) {
-            if (serverMode != ServerMode.User) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+
             plugins.forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
