@@ -331,7 +331,7 @@ export const FilesBrowse: React.FunctionComponent<{
         </Box>;
     }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject]);
 
-    const hasSyncCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    const hasSyncCookie = true;
 
     return <ResourceBrowse
         api={FilesApi}

@@ -814,7 +814,7 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
-    const hasCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    const hasCookie = true;
     if (!hasCookie) return false;
 
     const support = cb.collection?.status.resolvedSupport?.support;
