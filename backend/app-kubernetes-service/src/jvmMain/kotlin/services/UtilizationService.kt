@@ -47,16 +47,20 @@ class UtilizationService(
     }
 
     suspend fun retrieveUsedCapacity(productId: String): CpuAndMemory {
-        val jobs = k8.client.listResources<VolcanoJob>(
+        val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         ).filter { job ->
             job.status?.state?.phase == VolcanoJobPhase.Running
         }
 
+        val jobs = allJobs.filter { job ->
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productId
+        }.ifEmpty { allJobs }
+
         val cpuUsage = jobs.sumOf { job ->
             job.spec?.tasks?.sumOf { task ->
                 task.template?.spec?.containers?.sumOf { container ->
-                    cpuStringToCores(container.resources?.limits?.get("cpu")?.toString()) * (job?.status?.running ?: 0)
+                    cpuStringToCores(container.resources?.limits?.get("cpu")?.toString()) * (job.status?.running ?: 0)
                 } ?: 0.0
             } ?: 0.0
         }
@@ -64,7 +68,7 @@ class UtilizationService(
         val memoryUsage = jobs.sumOf { job ->
             job.spec?.tasks?.sumOf { task ->
                 task.template?.spec?.containers?.sumOf { container ->
-                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job?.status?.running
+                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job.status?.running
                         ?: 0)
                 } ?: 0
             } ?: 0
@@ -74,9 +78,13 @@ class UtilizationService(
     }
 
     suspend fun retrieveQueueStatus(productId: String): QueueStatus {
-        val jobs = k8.client.listResources<VolcanoJob>(
+        val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         )
+
+        val jobs = allJobs.filter { job ->
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productId
+        }.ifEmpty { allJobs }
 
         val runningJobs = jobs.filter { job ->
             job.status?.state?.phase == VolcanoJobPhase.Running
