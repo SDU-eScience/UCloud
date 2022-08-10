@@ -15,7 +15,7 @@ import kotlinx.serialization.json.JsonPrimitive
 class UtilizationService(
     private val k8: K8Dependencies,
 ) {
-    suspend fun retrieveCapacity(productId: String): CpuAndMemory {
+    suspend fun retrieveCapacity(productCategoryId: String): CpuAndMemory {
         val namespace = k8.client.getResource<Namespace>(
             KubernetesResources.namespaces.withName(NameAllocator.namespace)
         )
@@ -32,7 +32,7 @@ class UtilizationService(
             }
 
         val nodes = allNodes.filter { node ->
-            (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productId
+            (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
         }.ifEmpty { allNodes }
 
         val nodeAllocatableCpu = nodes.sumOf { node ->
@@ -46,7 +46,7 @@ class UtilizationService(
         return CpuAndMemory(nodeAllocatableCpu, nodeAllocatableMemory)
     }
 
-    suspend fun retrieveUsedCapacity(productId: String): CpuAndMemory {
+    suspend fun retrieveUsedCapacity(productCategoryId: String): CpuAndMemory {
         val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         ).filter { job ->
@@ -54,7 +54,7 @@ class UtilizationService(
         }
 
         val jobs = allJobs.filter { job ->
-            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productId
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
         }.ifEmpty { allJobs }
 
         val cpuUsage = jobs.sumOf { job ->
@@ -77,13 +77,13 @@ class UtilizationService(
         return CpuAndMemory(cpuUsage, memoryUsage)
     }
 
-    suspend fun retrieveQueueStatus(productId: String): QueueStatus {
+    suspend fun retrieveQueueStatus(productCategoryId: String): QueueStatus {
         val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         )
 
         val jobs = allJobs.filter { job ->
-            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productId
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
         }.ifEmpty { allJobs }
 
         val runningJobs = jobs.filter { job ->
