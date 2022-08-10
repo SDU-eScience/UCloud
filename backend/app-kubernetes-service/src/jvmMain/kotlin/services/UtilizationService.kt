@@ -15,7 +15,7 @@ import kotlinx.serialization.json.JsonPrimitive
 class UtilizationService(
     private val k8: K8Dependencies,
 ) {
-    suspend fun retrieveCapacity(): CpuAndMemory {
+    suspend fun retrieveCapacity(productCategoryId: String): CpuAndMemory {
         val namespace = k8.client.getResource<Namespace>(
             KubernetesResources.namespaces.withName(NameAllocator.namespace)
         )
@@ -24,12 +24,16 @@ class UtilizationService(
             (namespace.metadata?.annotations?.get("scheduler.alpha.kubernetes.io/node-selector") as? JsonPrimitive)
                 ?.content
 
-        val nodes = k8.client.listResources<Node>(KubernetesResources.node.withNamespace(NAMESPACE_ANY))
+        val allNodes = k8.client.listResources<Node>(KubernetesResources.node.withNamespace(NAMESPACE_ANY))
             .items
             .filter { node ->
                 computeAnnotation != "${NameAllocator.nodeLabel}=true" ||
                     (node.metadata?.labels?.get(NameAllocator.nodeLabel) as? JsonPrimitive)?.content == "true"
             }
+
+        val nodes = allNodes.filter { node ->
+            (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+        }.ifEmpty { allNodes }
 
         val nodeAllocatableCpu = nodes.sumOf { node ->
             node.status?.allocatable?.cpu?.toDouble() ?: 0.0
@@ -42,17 +46,21 @@ class UtilizationService(
         return CpuAndMemory(nodeAllocatableCpu, nodeAllocatableMemory)
     }
 
-    suspend fun retrieveUsedCapacity(): CpuAndMemory {
-        val jobs = k8.client.listResources<VolcanoJob>(
+    suspend fun retrieveUsedCapacity(productCategoryId: String): CpuAndMemory {
+        val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         ).filter { job ->
             job.status?.state?.phase == VolcanoJobPhase.Running
         }
 
+        val jobs = allJobs.filter { job ->
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+        }.ifEmpty { allJobs }
+
         val cpuUsage = jobs.sumOf { job ->
             job.spec?.tasks?.sumOf { task ->
                 task.template?.spec?.containers?.sumOf { container ->
-                    cpuStringToCores(container.resources?.limits?.get("cpu")?.toString()) * (job?.status?.running ?: 0)
+                    cpuStringToCores(container.resources?.limits?.get("cpu")?.toString()) * (job.status?.running ?: 0)
                 } ?: 0.0
             } ?: 0.0
         }
@@ -60,7 +68,7 @@ class UtilizationService(
         val memoryUsage = jobs.sumOf { job ->
             job.spec?.tasks?.sumOf { task ->
                 task.template?.spec?.containers?.sumOf { container ->
-                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job?.status?.running
+                    memoryStringToBytes(container.resources?.limits?.get("memory")?.toString()) * (job.status?.running
                         ?: 0)
                 } ?: 0
             } ?: 0
@@ -69,10 +77,14 @@ class UtilizationService(
         return CpuAndMemory(cpuUsage, memoryUsage)
     }
 
-    suspend fun retrieveQueueStatus(): QueueStatus {
-        val jobs = k8.client.listResources<VolcanoJob>(
+    suspend fun retrieveQueueStatus(productCategoryId: String): QueueStatus {
+        val allJobs = k8.client.listResources<VolcanoJob>(
             KubernetesResources.volcanoJob.withNamespace(NameAllocator.namespace)
         )
+
+        val jobs = allJobs.filter { job ->
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+        }.ifEmpty { allJobs }
 
         val runningJobs = jobs.filter { job ->
             job.status?.state?.phase == VolcanoJobPhase.Running
