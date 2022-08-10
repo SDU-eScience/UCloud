@@ -15,11 +15,24 @@ fun V1__Puhuri() = MigrationScript("V1__Puhuri") { session ->
 
     session.prepareStatement(
         """
-            create table puhuri_unknown_users(
-                ucloud_identity text,
-                ucloud_project text,
+            create table puhuri_project_users(
+                ucloud_identity text not null,
+                ucloud_project text not null,
+                puhuri_identity text not null,
                 ucloud_project_role text,
+                synchronized_to_puhuri bool,
                 primary key(ucloud_identity, ucloud_project)
+            );
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        """
+            create table puhuri_allocations(
+                allocation_id text primary key,
+                balance bigint not null,
+                product_type text not null,
+                synchronized_to_puhuri bool
             );
         """
     ).useAndInvokeAndDiscard()

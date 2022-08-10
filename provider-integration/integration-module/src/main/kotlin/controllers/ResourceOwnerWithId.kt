@@ -1,7 +1,6 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.PaginationRequestV2
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
@@ -51,27 +50,31 @@ sealed class ResourceOwnerWithId {
                     else -> error("Missing case in loadFromUsername")
                 }
             } else {
-                TODO("Not yet implemented for launchRealUserInstances = false")
+                return User(username, 0)
             }
         }
 
         suspend fun loadFromProject(projectId: String, ctx: PluginContext): Project? {
             val config = ctx.config
-            when {
-                config.shouldRunProxyCode() -> throw IllegalStateException("Should not be invoked from a frontend proxy")
-                config.shouldRunServerCode() -> {
-                    val projectPlugin = ctx.config.plugins.projects ?: return null
+            if (config.core.launchRealUserInstances) {
+                when {
+                    config.shouldRunProxyCode() -> throw IllegalStateException("Should not be invoked from a frontend proxy")
+                    config.shouldRunServerCode() -> {
+                        val projectPlugin = ctx.config.plugins.projects ?: return null
 
-                    val gid = with(ctx) {
-                        with(projectPlugin) {
-                            lookupLocalId(projectId)
-                        }
-                    } ?: return null
+                        val gid = with(ctx) {
+                            with(projectPlugin) {
+                                lookupLocalId(projectId)
+                            }
+                        } ?: return null
 
-                    return Project(projectId, gid)
+                        return Project(projectId, gid)
+                    }
+
+                    else -> TODO("Not obvious if this should work or not")
                 }
-
-                else -> TODO("Not obvious if this should work or not")
+            } else {
+                return Project(projectId, 0)
             }
         }
 
