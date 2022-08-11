@@ -1,5 +1,8 @@
 package dk.sdu.cloud.micro
 
+import co.elastic.clients.elasticsearch.ElasticsearchClient
+import co.elastic.clients.json.jackson.JacksonJsonpMapper
+import co.elastic.clients.transport.rest_client.RestClientTransport
 import dk.sdu.cloud.ServiceDescription
 import dk.sdu.cloud.service.Loggable
 import org.apache.http.HttpHost
@@ -8,6 +11,7 @@ import org.apache.http.auth.UsernamePasswordCredentials
 import org.apache.http.impl.client.BasicCredentialsProvider
 import org.elasticsearch.client.RestClient
 import org.elasticsearch.client.RestHighLevelClient
+import org.elasticsearch.client.RestHighLevelClientBuilder
 import java.net.InetAddress
 import java.net.UnknownHostException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -53,9 +57,17 @@ class ElasticFeature : MicroFeature {
 
         ctx.elasticLowLevelClient = lowLevelClient.build()
 
-        ctx.elasticHighLevelClient = RestHighLevelClient(
-            lowLevelClient
+        ctx.elasticHighLevelClient = RestHighLevelClientBuilder(
+            ctx.elasticLowLevelClient
+        ).setApiCompatibilityMode(true)
+            .build()
+
+        val transport = RestClientTransport(
+            ctx.elasticLowLevelClient,
+            JacksonJsonpMapper()
         )
+
+        ctx.elasticClient = ElasticsearchClient(transport)
 
         if (shouldLog) {
             log.info("Connected to elasticsearch at ${configuration.hostname}. " +
@@ -69,6 +81,7 @@ class ElasticFeature : MicroFeature {
         override fun create(config: Unit): ElasticFeature = ElasticFeature()
         override val log = logger()
 
+        internal val CLIENT = MicroAttributeKey<ElasticsearchClient>("elastic-client")
         internal val HIGH_LEVEL = MicroAttributeKey<RestHighLevelClient>("elastic-high-level-client")
         internal val LOW_LEVEL = MicroAttributeKey<RestClient>("elastic-low-level-client")
 
@@ -99,6 +112,15 @@ class ElasticFeature : MicroFeature {
         private val didLog = AtomicBoolean(false)
     }
 }
+
+var Micro.elasticClient: ElasticsearchClient
+    get() {
+        requireFeature(ElasticFeature)
+        return attributes[ElasticFeature.CLIENT]
+    }
+    internal set(value) {
+        attributes[ElasticFeature.CLIENT] = value
+    }
 
 var Micro.elasticHighLevelClient: RestHighLevelClient
     get() {

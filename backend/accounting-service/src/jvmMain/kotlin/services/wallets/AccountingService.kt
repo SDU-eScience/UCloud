@@ -760,7 +760,7 @@ class AccountingService(
                     }
                 },
                 """
-                    select bool_or(valid) is_valid
+                    select bool_and(valid) is_valid
                     from (
                         select
                             (ancestor.start_date <= updated.start_date) and
@@ -946,7 +946,9 @@ class AccountingService(
                                 'workspaceId', coalesce(alloc_project.id, alloc_owner.username),
                                 'workspaceTitle', coalesce(alloc_project.title, alloc_owner.username),
                                 'workspaceIsProject', alloc_project.id is not null,
+                                'projectPI', pm.username,
                                 'remaining', alloc.balance,
+                                'initialBalance', alloc.initial_balance,
                                 'productCategoryId', jsonb_build_object(
                                     'name', pc.category,
                                     'provider', pc.provider
@@ -976,7 +978,10 @@ class AccountingService(
                             project.project_members owner_pm on
                                 owner.project_id = owner_pm.project_id and
                                 owner_pm.username = :username and
-                                (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI')
+                                (owner_pm.role = 'ADMIN' or owner_pm.role = 'PI') left join
+                            project.project_members pm on 
+                                alloc_project.id = pm.project_id  and
+                                pm.role = 'PI'
                         where
                             (
                                 (

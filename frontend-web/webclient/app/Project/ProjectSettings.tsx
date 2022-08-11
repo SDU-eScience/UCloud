@@ -24,7 +24,7 @@ import {
 import * as Heading from "@/ui-components/Heading";
 import styled from "styled-components";
 import {addStandardDialog} from "@/UtilityComponents";
-import {callAPIWithErrorHandler, useAsyncCommand, useCloudAPI} from "@/Authentication/DataHook";
+import {callAPIWithErrorHandler, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {useHistory, useParams} from "react-router";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {MainContainer} from "@/MainContainer/MainContainer";
@@ -178,7 +178,7 @@ interface ChangeProjectTitleProps {
 
 export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     const newProjectTitle = React.useRef<HTMLInputElement>(null);
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
     const [saveDisabled, setSaveDisabled] = React.useState<boolean>(true);
 
     const [allowRenaming, setAllowRenaming] = useCloudAPI<AllowSubProjectsRenamingResponse, AllowSubProjectsRenamingRequest>(
@@ -202,7 +202,14 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
                 const titleValue = titleField.value;
 
-                if (titleValue === "") return;
+                if (titleValue === "") {
+                    snackbarStore.addFailure("Projectname cannot be empty", false);
+                    return;
+                }
+                if (titleValue.trim().length != titleValue.length) {
+                    snackbarStore.addFailure("Project name cannot end or start with whitespace.", false);
+                    return;
+                }
 
                 const success = await invokeCommand(renameProject(
                     {

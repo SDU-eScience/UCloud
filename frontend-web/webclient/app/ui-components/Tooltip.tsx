@@ -1,10 +1,10 @@
 import * as React from "react";
 import styled from "styled-components";
 import {SpaceProps} from "styled-system";
-import {Flex, Relative} from "@/ui-components";
+import {Flex} from "@/ui-components";
 import Box, {BoxProps} from "./Box";
 import theme from "./theme";
-import {useCallback, useRef, useState} from "react";
+import {useCallback, useRef} from "react";
 
 interface TooltipContentProps extends BoxProps, SpaceProps {
     bg?: any;
@@ -71,6 +71,14 @@ const Tooltip = (
         if (!tooltip) return;
 
         tooltip.style.left = ev.clientX + "px";
+        
+        if (tooltipContentWidth && parseInt(tooltipContentWidth)) {
+            const parsedWidth = parseInt(tooltipContentWidth);
+            if (ev.clientX + parsedWidth > window.innerWidth) {
+                tooltip.style.left = ev.clientX - parsedWidth + "px";
+            }
+        }
+
         tooltip.style.top = ev.clientY + "px";
         tooltip.style.opacity = "1";
     }, []);

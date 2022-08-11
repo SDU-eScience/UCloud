@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.actorAndProject
 
 class AccountingController(
@@ -21,6 +22,7 @@ class AccountingController(
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
+                req.startDate = req.startDate ?: Time.now()
             }
             ok(accounting.deposit(actorAndProject, request))
         }
@@ -40,6 +42,7 @@ class AccountingController(
         implement(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
+                req.startDate = (req.startDate + 60000) //adds a single minute to handle that we divide with 1000 before entering it to the DB (millisecs are cut)
                 req.transactionId = "${user}-${req.transactionId}"
             }
             ok(accounting.updateAllocation(actorAndProject, request))
@@ -49,6 +52,7 @@ class AccountingController(
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
+                req.startDate = req.startDate ?: Time.now()
             }
             ok(accounting.rootDeposit(actorAndProject, request))
         }

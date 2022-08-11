@@ -22,19 +22,15 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.encodeToString
 import org.elasticsearch.ElasticsearchException
 import org.elasticsearch.action.bulk.BulkRequest
-import org.elasticsearch.action.delete.DeleteRequest
 import org.elasticsearch.action.index.IndexRequest
-import org.elasticsearch.action.search.SearchRequest
-import org.elasticsearch.action.update.UpdateRequest
 import org.elasticsearch.client.RequestOptions
 import org.elasticsearch.client.RestHighLevelClient
-import org.elasticsearch.common.xcontent.XContentType
 import org.elasticsearch.index.query.QueryBuilders
 import org.elasticsearch.index.reindex.DeleteByQueryRequest
+import org.elasticsearch.xcontent.XContentType
 import org.joda.time.LocalDateTime
 import java.net.SocketTimeoutException
 import java.util.*
-import java.util.concurrent.Executors
 import kotlin.collections.ArrayDeque
 
 class FileScanner(

@@ -132,7 +132,10 @@ data class JobsProviderOpenInteractiveSessionRequestItem(
 
 typealias JobsProviderOpenInteractiveSessionResponse = BulkResponse<OpenSession?>
 
-typealias JobsProviderUtilizationRequest = Unit
+@Serializable
+data class JobsProviderUtilizationRequest(
+    val categoryId: String
+)
 
 typealias JobsProviderUtilizationResponse = JobsRetrieveUtilizationResponse
 

@@ -12,6 +12,7 @@ RUN tar xzf syncthing.tar.gz
 RUN rm syncthing.tar.gz
 RUN mv syncthing-linux-amd64-v1.19.1 syncthing
 
+RUN useradd --uid 11042 syncthing
 USER 11042
 WORKDIR /
 

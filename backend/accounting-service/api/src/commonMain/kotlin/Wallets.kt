@@ -231,8 +231,10 @@ data class SubAllocation(
     val workspaceId: String,
     val workspaceTitle: String,
     val workspaceIsProject: Boolean,
+    val projectPI: String?,
 
     val remaining: Long,
+    val initialBalance: Long
 )
 
 interface SubAllocationQuery : WithPaginationRequestV2 {
@@ -505,7 +507,7 @@ data class DepositToWalletRequestItem(
         immediately.
     """
     )
-    val startDate: Long? = null,
+    var startDate: Long? = null,
     @UCloudApiDoc(
         """
         A timestamp for when this deposit should become invalid
@@ -562,7 +564,7 @@ typealias TransferToWalletResponse = Unit
 data class UpdateAllocationRequestItem(
     val id: String,
     val balance: Long,
-    val startDate: Long,
+    var startDate: Long,
     val endDate: Long? = null,
     val reason: String,
     @UCloudApiDoc("An traceable id for this specific transaction. Used to counter duplicate transactions and to trace cascading transactions")
@@ -579,7 +581,7 @@ data class RootDepositRequestItem(
     val recipient: WalletOwner,
     val amount: Long,
     val description: String,
-    val startDate: Long? = null,
+    var startDate: Long? = null,
     val endDate: Long? = null,
     var transactionId: String = Random.nextLong().toString() + Time.now(),
     val providerGeneratedId: String? = null

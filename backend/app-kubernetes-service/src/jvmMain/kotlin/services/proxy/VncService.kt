@@ -77,7 +77,7 @@ class VncService(
         val job = jobCache.findJob(jobId) ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         val resources = resources.findResources(job)
         val port = resources.application.invocation.vnc?.port ?: 5900
-        return tunnelManager.createOrUseExistingTunnel(jobId, port, rank)
+        return tunnelManager.createOrRecreateTunnel(jobId, port, rank)
     }
 
     companion object : Loggable {

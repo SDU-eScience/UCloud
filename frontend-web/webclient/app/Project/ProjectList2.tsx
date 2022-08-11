@@ -170,7 +170,7 @@ interface Callbacks {
 
 const operations: Operation<Project, Callbacks>[] = [
     {
-        text: "New Project Application",
+        text: "New project application",
         canAppearInLocation: loc => loc === "SIDEBAR",
         primary: true,
         enabled: () => true,

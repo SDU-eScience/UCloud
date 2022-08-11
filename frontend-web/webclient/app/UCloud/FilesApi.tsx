@@ -799,7 +799,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Configure sync";
+    if (devices.length === 0) return "Sync setup (BETA)";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
@@ -809,12 +809,12 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync";
+        return "Add to sync (BETA)";
     }
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
-    const hasCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    const hasCookie = true;
     if (!hasCookie) return false;
 
     const support = cb.collection?.status.resolvedSupport?.support;
@@ -822,6 +822,11 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
 
     const isUCloud = cb.collection?.specification?.product?.provider === "ucloud"
     if (!isUCloud) return false;
+
+    const isShare = cb.collection?.specification.product.id === "share";
+    if (isShare) {
+        return false;
+    }
 
     if (cb.syncthingConfig === undefined) return false;
     if (cb.setSynchronization === undefined) return false;

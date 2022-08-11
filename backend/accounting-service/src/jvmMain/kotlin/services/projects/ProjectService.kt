@@ -84,6 +84,10 @@ class ProjectService(
         parent: String?,
         principalInvestigatorOverride: String?
     ): String {
+        if (title.trim().length != title.length) {
+            throw RPCException("Project names cannot start or end with whitespace.", HttpStatusCode.BadRequest)
+        }
+
         if (actor !is Actor.System) {
             val role = if (actor is Actor.User) actor.principal.role else Role.USER
             if (role !in Roles.PRIVILEGED) {
@@ -784,6 +788,9 @@ class ProjectService(
         projectId: String,
         newTitle: String
     ) {
+        if (newTitle.trim().length != newTitle.length) {
+            throw RPCException("Project names cannot start or end with whitespace.", HttpStatusCode.BadRequest)
+        }
         ctx.withSession(remapExceptions = true) { session ->
             requireAdmin(session, projectId, actor)
             session.sendPreparedStatement(
