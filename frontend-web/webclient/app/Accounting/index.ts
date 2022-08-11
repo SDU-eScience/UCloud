@@ -554,23 +554,23 @@ export function normalizeBalanceForFrontend(
             switch (type) {
                 case "INGRESS": {
                     const factor = DAY / inputIs;
-                    return Math.floor(balance * factor).toString();
+                    return Math.floor(balance / factor).toString();
                 }
                 case "NETWORK_IP": {
                     const factor = DAY / inputIs;
-                    return Math.floor(balance * factor).toString();
+                    return Math.floor(balance / factor).toString();
                 }
                 case "LICENSE": {
                     const factor = DAY / inputIs;
-                    return Math.floor(balance * factor).toString();
+                    return Math.floor(balance / factor).toString();
                 }
                 case "STORAGE": {
                     const factor = DAY / inputIs;
-                    return Math.floor(balance * factor).toString();
+                    return Math.floor(balance / factor).toString();
                 }
                 case "COMPUTE": {
                     const factor = HOUR / inputIs;
-                    return Math.floor(balance * factor).toString();
+                    return Math.floor(balance / factor).toString();
                 }
             }
         }
