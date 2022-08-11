@@ -16,10 +16,7 @@ services:
 
 
   slurmdbd:
-    image: slurm-ssh-openmpi:latest
-    build: 
-      context: ./provider-integration/integration-module
-      target: slurm-ssh-openmpi
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
     command: ["slurmdbd", "sshd", "user-sync"]
     hostname: slurmdbd
     volumes:
@@ -38,10 +35,7 @@ services:
 
       
   slurmctld:
-    image: slurm-ssh-openmpi:latest
-    build: 
-      context: ./provider-integration/integration-module
-      target: slurm-ssh-openmpi
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
     command: ["slurmctld", "sshd", "user-sync"]
     hostname: slurmctld
     volumes:
@@ -61,10 +55,7 @@ services:
     
 
   c1:
-    image: slurm-ssh-openmpi:latest
-    build: 
-      context: ./provider-integration/integration-module
-      target: slurm-ssh-openmpi
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
     command: ["slurmd", "sshd", "user-sync"]
     hostname: c1
     volumes:
@@ -84,10 +75,7 @@ services:
     
 
   c2:
-    image: slurm-ssh-openmpi:latest
-    build: 
-      context: ./provider-integration/integration-module
-      target: slurm-ssh-openmpi
+    image: dreg.cloud.sdu.dk/ucloud-dev/slurm:2022.2.0
     command: ["slurmd", "sshd", "user-sync"]
     hostname: c2
     volumes:

@@ -22,7 +22,10 @@ private const val CERT_CHUNK_SIZE = 64
 
 typealias TokenValidationJWT = TokenValidation<DecodedJWT>
 
-class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<DecodedJWT> {
+class InternalTokenValidationJWT(
+    val algorithm: Algorithm,
+    private val issuer: String? = "cloud.sdu.dk"
+) : TokenValidation<DecodedJWT> {
     //override val tokenType = DecodedJWT::class.java
 
     override fun canHandleToken(token: Any?): Boolean {
@@ -31,7 +34,7 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
 
     private fun createVerifier(audience: List<String>? = null): JWTVerifier {
         return JWT.require(algorithm).run {
-            withIssuer("cloud.sdu.dk")
+            if (issuer != null) withIssuer("cloud.sdu.dk")
             if (audience != null) {
                 withAudience(*audience.toTypedArray())
             }
@@ -98,12 +101,12 @@ class InternalTokenValidationJWT(val algorithm: Algorithm) : TokenValidation<Dec
             return newStr
         }
 
-        fun withPublicCertificate(publicCertificate: String): TokenValidationJWT {
-            return InternalTokenValidationJWT(Algorithm.RSA256(parsePublicKey(publicCertificate), null))
+        fun withPublicCertificate(publicCertificate: String, issuer: String? = "cloud.sdu.dk"): TokenValidationJWT {
+            return InternalTokenValidationJWT(Algorithm.RSA256(parsePublicKey(publicCertificate), null), issuer)
         }
 
-        fun withSharedSecret(sharedSecret: String): TokenValidationJWT {
-            return InternalTokenValidationJWT(Algorithm.HMAC512(sharedSecret))
+        fun withSharedSecret(sharedSecret: String, issuer: String? = "cloud.sdu.dk"): TokenValidationJWT {
+            return InternalTokenValidationJWT(Algorithm.HMAC512(sharedSecret), issuer)
         }
 
         fun parsePublicKey(key: String): RSAPublicKey {

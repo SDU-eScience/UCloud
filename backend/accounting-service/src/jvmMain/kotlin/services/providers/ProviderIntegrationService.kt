@@ -209,11 +209,11 @@ class ProviderIntegrationService(
                     {
                         setParameter("username", username)
                         setParameter("provider_id", providerId)
-                        setParameter("expires_after", expireAfterMs)
+                        setParameter("expires_after", expireAfterMs?.let { it / 1000})
                     },
                     """
                         insert into provider.connected_with (username, provider_id, expires_at)
-                        select :username, p.resource, now() + (:expires_after::bigint || 'ms')::interval
+                        select :username, p.resource, now() + (:expires_after::bigint || 's')::interval
                         from provider.providers p
                         where p.unique_name = :provider_id
                         on conflict (username, provider_id) do update set expires_at = excluded.expires_at 

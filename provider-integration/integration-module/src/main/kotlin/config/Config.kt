@@ -89,8 +89,17 @@ data class ConfigSchema(
         val jobs: Map<String, Jobs>? = null,
         val files: Map<String, Files>? = null,
         val fileCollections: Map<String, FileCollections>? = null,
-        val allocations: Map<ProductType, Allocations>? = null,
+        val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
+        enum class AllocationsProductType(val type: ProductType?) {
+            STORAGE(ProductType.STORAGE),
+            COMPUTE(ProductType.COMPUTE),
+            INGRESS(ProductType.INGRESS),
+            LICENSE(ProductType.LICENSE),
+            NETWORK_IP(ProductType.NETWORK_IP),
+            ALL(null)
+        }
+
         @Serializable
         sealed class Connection {
             @Serializable
@@ -246,6 +255,10 @@ data class ConfigSchema(
                     data class Extension(val extension: String) : AccountMapper()
                 }
             }
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : Jobs()
         }
 
         @Serializable
@@ -255,6 +268,10 @@ data class ConfigSchema(
             data class Posix(
                 override val matches: String,
             ) : Files()
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : Files()
         }
 
         @Serializable
@@ -279,6 +296,9 @@ data class ConfigSchema(
                 )
             }
 
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : FileCollections()
         }
 
         interface ProductBased {

@@ -72,13 +72,14 @@ data class VerifiedConfig(
         )
     }
 
+
     data class Plugins(
         val connection: ConnectionPlugin?,
         val projects: ProjectPlugin?,
         val jobs: Map<String, ComputePlugin>,
         val files: Map<String, FilePlugin>,
         val fileCollections: Map<String, FileCollectionPlugin>,
-        val allocations: Map<ProductType, AllocationPlugin>,
+        val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
         // ConnectionController. I don't have a good solution right now, so we will have to live with this weird
@@ -510,10 +511,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 loadPlugin(config.plugins.projects, core.launchRealUserInstances) as ProjectPlugin
             }
 
-            val allocations: Map<ProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
+            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
                 emptyMap()
             } else {
-                val result = HashMap<ProductType, AllocationPlugin>()
+                val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
                 for ((productType, cfg) in config.plugins.allocations) {
                     result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
                 }
@@ -560,10 +561,10 @@ class PluginLoadingException(val pluginTitle: String, message: String) : Runtime
 private fun <Cfg : Any> loadPlugin(config: Cfg, realUserMode: Boolean): Plugin<Cfg> {
     val result = instantiatePlugin(config)
     if (!result.supportsRealUserMode() && realUserMode) {
-        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is true but not supported for this plugin")
+        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${result.pluginTitle}")
     }
     if (!result.supportsServiceUserMode() && !realUserMode) {
-        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is false but not supported for this plugin")
+        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${result.pluginTitle}")
     }
     result.configure(config)
     return result
@@ -631,10 +632,10 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
             }
         }
         if (!plugin.supportsRealUserMode() && realUserMode) {
-            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is true but not supported for this plugin")
+            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle}")
         }
         if (!plugin.supportsServiceUserMode() && !realUserMode) {
-            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is false but not supported for this plugin")
+            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}")
         }
         plugin.configure(pluginConfig)
         result[id] = plugin

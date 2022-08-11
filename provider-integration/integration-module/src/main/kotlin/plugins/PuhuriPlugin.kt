@@ -3,21 +3,30 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
+import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.handler
+import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
 import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.provider.api.IntegrationControl
+import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.sql.bindStringNullable
-import dk.sdu.cloud.sql.bindTableUpload
-import dk.sdu.cloud.sql.safeSqlTableUpload
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.sendTerminalMessage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.cio.*
@@ -29,11 +38,17 @@ import io.ktor.util.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.serialization.*
 import kotlinx.datetime.Instant
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.JsonObject
 import kotlin.math.ceil
+import kotlin.system.exitProcess
 
 class PuhuriPlugin : ProjectPlugin {
     override val pluginTitle: String = "Puhuri"
@@ -42,6 +57,7 @@ class PuhuriPlugin : ProjectPlugin {
 
     private lateinit var pluginConfig: ConfigSchema.Plugins.Projects.Puhuri
     private lateinit var puhuri: PuhuriClient
+    private lateinit var pluginContext: PluginContext
 
     override fun configure(config: ConfigSchema.Plugins.Projects) {
         this.pluginConfig = config as ConfigSchema.Plugins.Projects.Puhuri
@@ -51,6 +67,11 @@ class PuhuriPlugin : ProjectPlugin {
 
     @OptIn(DelicateCoroutinesApi::class)
     override suspend fun PluginContext.initialize() {
+        pluginContext = this
+
+        addDevelopmentCommandLine()
+        if (!config.shouldRunServerCode()) return
+
         openIdConnectPlugin = config.plugins.connection as? OpenIdConnectPlugin
             ?: error("OpenIdConnectPlugin must be registered with Puhuri plugin")
 
@@ -171,7 +192,7 @@ class PuhuriPlugin : ProjectPlugin {
                         insert into puhuri_project_users
                             (ucloud_identity, ucloud_project, puhuri_identity, ucloud_project_role, synchronized_to_puhuri)
                         values
-                            (:ucloud_user, ucloud_project, :puhuri_identity, :role, false)
+                            (:ucloud_user, :ucloud_project, :puhuri_identity, :role, false)
                         on conflict (ucloud_identity, ucloud_project) do update set
                             synchronized_to_puhuri = excluded.synchronized_to_puhuri,
                             ucloud_project_role = excluded.ucloud_project_role,
@@ -275,6 +296,68 @@ class PuhuriPlugin : ProjectPlugin {
         }
 
         attemptProjectSynchronize(usernameFilter = ucloudUser)
+
+        IntegrationControl.approveConnection.call(
+            IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
+            pluginContext.rpcClient
+        ).orThrow()
+    }
+
+    private object Ipc : IpcContainer("puhuri") {
+        val connect = updateHandler("connect", ConnectRequest.serializer(), Unit.serializer())
+
+        @Serializable
+        data class ConnectRequest(val ucloudUsername: String, val puhuriCuid: String)
+    }
+
+    private suspend fun PluginContext.addDevelopmentCommandLine() {
+        if (config.shouldRunAnyPluginCode()) {
+            fun printUsage(): Nothing {
+                sendTerminalMessage {
+                    bold { inline("Usage: ") }
+                    code { inline("ucloud puhuri connect <ucloudUsername> <puhuriCuid>") }
+                }
+
+                exitProcess(0)
+            }
+
+            (commandLineInterface ?: return).addHandler(CliHandler("puhuri") { args ->
+                if (args.isEmpty()) printUsage()
+
+                when(args[0]) {
+                    "connect" -> {
+                        if (args.size != 3) printUsage()
+                        try {
+                            ipcClient.sendRequest(Ipc.connect, Ipc.ConnectRequest(args[1], args[2]))
+                            sendTerminalMessage { line("OK") }
+                        } catch (ex: RPCException) {
+                            sendTerminalMessage {
+                                bold { red { inline("Error! ") } }
+                                inline(ex.why)
+                            }
+                        } catch (ex: Throwable) {
+                            ex.printStackTrace()
+                        }
+                    }
+
+                    else -> printUsage()
+                }
+
+                exitProcess(0)
+            })
+        } else if (config.shouldRunServerCode()) {
+            ipcServer.addHandler(Ipc.connect.handler { user, request ->
+                if (user.uid != 0) throw RPCException("You must run this command as root", HttpStatusCode.Forbidden)
+
+                onConnectionComplete(
+                    OpenIdConnectSubject(
+                        request.ucloudUsername,
+                        request.puhuriCuid,
+                        email = request.puhuriCuid
+                    )
+                )
+            })
+        }
     }
 
     private suspend fun attemptProjectSynchronize(usernameFilter: String? = null) {
@@ -330,28 +413,24 @@ class PuhuriPlugin : ProjectPlugin {
 
         val alreadySynchronized = HashMap<String, Boolean>()
         dbConnection.withSession { session ->
-            val allocationTable = allocations.map { alloc ->
-                mapOf(
-                    "id" to alloc.allocationId,
-                    "balance" to alloc.balance,
-                    "product_type" to alloc.productType.name,
+            for (alloc in allocations) {
+                session.prepareStatement(
+                    """
+                        insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
+                        values (:id, :balance, :product_type, false)
+                        on conflict (allocation_id) do update set 
+                            synchronized_to_puhuri = synchronized_to_puhuri
+                        returning allocation_id, synchronized_to_puhuri
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindString("id", alloc.allocationId)
+                        bindLong("balance", alloc.balance)
+                        bindString("product_type", alloc.productType.name)
+                    },
+                    readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
                 )
             }
-
-            session.prepareStatement(
-                """
-                    with allocations as (${safeSqlTableUpload("allocs", allocationTable)}
-                    insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
-                    select id, balance, product_type, false
-                    from allocations
-                    on conflict (allocation_id) do update set 
-                        synchronized_to_puhuri = synchronized_to_puhuri
-                    returning allocation_id, synchronized_to_puhuri
-                """
-            ).useAndInvoke(
-                prepare = { bindTableUpload("allocs", allocationTable) },
-                readRow = { row -> alreadySynchronized[row.getString(0)!!] = row.getBoolean(1)!! }
-            )
         }
 
         for ((owner, allocs) in allocations.groupBy { it.owner }) {
@@ -409,8 +488,11 @@ class PuhuriPlugin : ProjectPlugin {
 }
 
 class PuhuriAllocationPlugin : AllocationPlugin {
-    override val pluginTitle: String = "Puhuri (Allocations)"
+    override val pluginTitle: String = "Puhuri"
     private lateinit var puhuriPlugin: PuhuriPlugin
+
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
 
     override suspend fun PluginContext.initialize() {
         puhuriPlugin = config.plugins.projects as? PuhuriPlugin ?: run {
@@ -433,6 +515,24 @@ class PuhuriAllocationPlugin : AllocationPlugin {
     }
 }
 
+class PuhuriFilePlugin : EmptyFilePlugin() {
+    override val pluginTitle: String = "Puhuri"
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+}
+
+class PuhuriFileCollectionPlugin : EmptyFileCollectionPlugin() {
+    override val pluginTitle = "Puhuri"
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+}
+
+class PuhuriComputePlugin : EmptyComputePlugin() {
+    override val pluginTitle = "Puhuri"
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+}
+
 class PuhuriClient(
     endpoint: String,
     customerId: String,
@@ -450,17 +550,26 @@ class PuhuriClient(
     }
 
     suspend fun lookupProject(ucloudProjectId: String): PuhuriProject? {
-        val resp = httpClient.get(
-            apiPath("projects") + "?backend_id=$ucloudProjectId",
-            apiRequest()
-        ).orThrow()
+        return debugSystem.enterContext("lookupProject $ucloudProjectId") {
+            val resp = httpClient.get(
+                apiPath("projects") + "?backend_id=$ucloudProjectId",
+                apiRequest()
+            ).orThrow()
 
-        val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.body())
+            val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.body())
 
-        return if (results.isNotEmpty()) {
-            results[0]
-        } else {
-            null
+
+            if (results.isNotEmpty()) {
+                logExit(
+                    "Response",
+                    defaultMapper.encodeToJsonElement(PuhuriProject.serializer().nullable, results.getOrNull(0)) as JsonObject,
+                    MessageImportance.IMPLEMENTATION_DETAIL
+                )
+
+                results[0]
+            } else {
+                null
+            }
         }
     }
 
@@ -472,13 +581,13 @@ class PuhuriClient(
         return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.body()).uuid
     }
 
-    suspend fun createOrder(projectUrl: String, allocation: PuhuriAllocation) {
+    suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
         httpClient.post(
             apiPath("marketplace-orders"),
             apiRequestWithBody(
                 PuhuriCreateOrderRequest.serializer(),
                 PuhuriCreateOrderRequest(
-                    projectUrl,
+                    "${rootEndpoint}projects/$projectId/",
                     listOf(
                         PuhuriOrderItem(
                             offering,

@@ -1,8 +1,10 @@
 package libc
 
+import dk.sdu.cloud.utils.sendTerminalMessage
 import io.ktor.util.*
 import java.io.File
 import java.nio.ByteBuffer
+import kotlin.system.exitProcess
 
 class LibC {
     external fun open(path: String?, flags: Int, mode: Int): Int
@@ -46,8 +48,35 @@ class LibC {
                 if (!file.exists()) continue
                 System.load(file.absolutePath)
                 didLoad = true
+                break
             }
-            if (!didLoad) error("Could not load native library")
+
+            if (!didLoad) {
+                sendTerminalMessage {
+                    bold { red { line("Could not load native library!") } }
+                    line()
+                    line("The native support library must be loaded but it wasn't found in any of the expected locations.")
+                    line()
+
+                    inline("You can build the native library by running ")
+                    code { inline("./build.sh") }
+                    inline(" from the ")
+                    code { inline("./native") }
+                    inline(" directory of the integration module's source.")
+                    line()
+
+                    line()
+                    line("We tried to locate the library in the following locations:")
+                    for (loc in potentialLocations) {
+                        inline(" - ")
+                        code { line(loc.absolutePath) }
+                    }
+
+                    line()
+                    line("Remember to ensure that the service user has the appropiate permissions for loading this library!")
+                }
+                exitProcess(1)
+            }
         }
     }
 }

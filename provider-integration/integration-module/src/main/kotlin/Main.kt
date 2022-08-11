@@ -172,9 +172,9 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(
-                    __ClassLoaderDummy::class.java.classLoader.getResourceAsStream("logback_no_autoload.xml")
-                )
+                // NOTE(Dan): For some reason this is not working with GraalVM AOT native images when using a resource
+                // stream.
+                configurator.doConfigure(logbackConfiguration.encodeToByteArray().inputStream())
             }
 
             run {
@@ -525,6 +525,7 @@ fun main(args: Array<String>) {
 
                     plugins.connection?.apply { initialize() }
                     plugins.projects?.apply { initialize() }
+                    for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }

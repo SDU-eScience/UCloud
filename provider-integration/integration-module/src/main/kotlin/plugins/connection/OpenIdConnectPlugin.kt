@@ -67,6 +67,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         this.authEndpoint = this.configuration.endpoints.auth.removeSuffix("?").removeSuffix("/")
     }
 
+    // NOTE(Dan): This is required by Puhuri plugin. It uses registerOnConnectionCompleteCallback for custom logic
+    // instead of dispatching to an extension.
+    override fun supportsServiceUserMode(): Boolean = true
+
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private class ConnectionState(val username: String, val connectionId: String)
     @JvmInline private value class OidcState(val state: String)
@@ -82,7 +86,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Token validator used to verify tokens returned by the OpenID provider (explained below).
-        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate)
+        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate,
+            issuer = null)
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
@@ -356,17 +361,17 @@ data class OpenIdConnectToken(
 data class OpenIdConnectSubject(
     val ucloudIdentity: String,
     val subject: String,
-    val preferredUsername: String?,
-    val name: String?,
-    val givenName: String?,
-    val familyName: String?,
-    val middleName: String?,
-    val nickname: String?,
-    val email: String?,
-    val emailVerified: Boolean?,
-    val phoneNumber: String?,
-    val phoneNumberVerified: Boolean?,
-    val customProperties: List<CustomProperty>
+    val preferredUsername: String? = null,
+    val name: String? = null,
+    val givenName: String? = null,
+    val familyName: String? = null,
+    val middleName: String? = null,
+    val nickname: String? = null,
+    val email: String? = null,
+    val emailVerified: Boolean? = null,
+    val phoneNumber: String? = null,
+    val phoneNumberVerified: Boolean? = null,
+    val customProperties: List<CustomProperty> = emptyList()
 )
 
 @Serializable

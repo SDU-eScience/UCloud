@@ -27,14 +27,17 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // Jobs
     // =========================================================================
     SlurmConfig::class to { SlurmPlugin() },
+    ConfigSchema.Plugins.Jobs.Puhuri::class to { PuhuriComputePlugin() },
 
     // Files
     // =========================================================================
     ConfigSchema.Plugins.Files.Posix::class to { PosixFilesPlugin() },
+    ConfigSchema.Plugins.Files.Puhuri::class to { PuhuriFilePlugin() },
 
     // File Collections
     // =========================================================================
     ConfigSchema.Plugins.FileCollections.Posix::class to { PosixCollectionPlugin() },
+    ConfigSchema.Plugins.FileCollections.Puhuri::class to { PuhuriFileCollectionPlugin() },
 )
 
 fun <Cfg : Any> instantiatePlugin(config: Cfg): Plugin<Cfg> {
