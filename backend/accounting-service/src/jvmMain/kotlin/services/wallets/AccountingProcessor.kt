@@ -65,6 +65,8 @@ private data class WalletAllocation(
     var localBalance: Long,
 
     var isDirty: Boolean = false,
+
+    var grantedIn: Long?,
 ) {
     var inProgress: Boolean = false
         private set
@@ -73,6 +75,7 @@ private data class WalletAllocation(
     var beginInitialBalance: Long = 0L
     var beginCurrentBalance: Long = 0L
     var beginLocalBalance: Long = 0L
+    var beginGrantedIn: Long? = null
     var lastBegin: Throwable? = null
 
     fun begin() {
@@ -84,6 +87,7 @@ private data class WalletAllocation(
         beginInitialBalance = initialBalance
         beginLocalBalance = localBalance
         beginCurrentBalance = currentBalance
+        beginGrantedIn = grantedIn
         inProgress = true
     }
 
@@ -96,7 +100,8 @@ private data class WalletAllocation(
                 beginNotAfter != notAfter ||
                 beginInitialBalance != initialBalance ||
                 beginLocalBalance != localBalance ||
-                beginCurrentBalance != currentBalance
+                beginCurrentBalance != currentBalance ||
+                beginGrantedIn != grantedIn
         inProgress = false
 
         verifyIntegrity()
@@ -146,6 +151,7 @@ sealed class AccountingRequest {
         val notBefore: Long,
         val notAfter: Long?,
         override var id: Long = -1,
+        val grantedIn: Long?,
     ) : AccountingRequest()
 
     sealed class Charge() : AccountingRequest() {
@@ -440,7 +446,8 @@ class AccountingProcessor(
                         provider.timestamp_to_unix(alloc.end_date),
                         alloc.initial_balance,
                         alloc.balance,
-                        alloc.local_balance
+                        alloc.local_balance,
+                        alloc.granted_in
                     from
                         accounting.wallet_allocations alloc
                     order by
@@ -460,6 +467,7 @@ class AccountingProcessor(
                     val initialBalance = row.getLong(5)!!
                     val currentBalance = row.getLong(6)!!
                     val localBalance = row.getLong(7)!!
+                    val grantedIn = row.getLong(8)
 
                     val emptySlots = id - allocations.size
                     require(emptySlots >= 0) { "Duplicate allocations detected (or bad logic): $id" }
@@ -478,7 +486,8 @@ class AccountingProcessor(
                             endDate,
                             initialBalance,
                             currentBalance,
-                            localBalance
+                            localBalance,
+                            grantedIn = grantedIn
                         ).also { it.verifyIntegrity() }
                     )
                 }
@@ -567,7 +576,8 @@ class AccountingProcessor(
         balance: Long,
         parentAllocation: Int?,
         notBefore: Long,
-        notAfter: Long?
+        notAfter: Long?,
+        grantedIn: Long?,
     ): WalletAllocation {
         val alloc = WalletAllocation(
             allocationIdGenerator++,
@@ -578,7 +588,8 @@ class AccountingProcessor(
             balance,
             balance,
             balance,
-            isDirty = true
+            isDirty = true,
+            grantedIn = grantedIn
         )
 
         allocations.add(alloc)
@@ -605,7 +616,7 @@ class AccountingProcessor(
             localBalance,
             notBefore,
             notAfter,
-            null
+            grantedIn
         )
     }
 
@@ -689,6 +700,7 @@ class AccountingProcessor(
             null,
             now,
             null,
+            null
         ).id
 
         val transactionId = transactionId()
@@ -742,7 +754,8 @@ class AccountingProcessor(
             request.amount,
             request.parentAllocation,
             request.notBefore,
-            request.notAfter
+            request.notAfter,
+            request.grantedIn
         ).id
 
         val now = System.currentTimeMillis()
@@ -1264,7 +1277,6 @@ class AccountingProcessor(
                 allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
-                        .onEach { it.isDirty = false }
                         .takeIfNotEmpty()
                         ?: return@forEach
 
@@ -1290,6 +1302,7 @@ class AccountingProcessor(
                                 into("local_balances") { it.localBalance }
                                 into("start_dates") { it.notBefore }
                                 into("end_dates") { it.notAfter }
+                                into("granted_ins") { it.grantedIn }
                             }
                         },
                         """
@@ -1305,14 +1318,15 @@ class AccountingProcessor(
                             unnest(:local_balances::bigint[]),
                             to_timestamp(unnest(:start_dates::bigint[]) / 1000),
                             to_timestamp(unnest(:end_dates::bigint[]) / 1000),
-                            null, -- TODO
+                            unnest(:granted_ins::bigint[]),
                             null
                         on conflict (id) do update set
                             balance = excluded.balance,
                             initial_balance = excluded.initial_balance,
                             local_balance = excluded.local_balance,
                             start_date = excluded.start_date,
-                            end_date = excluded.end_date
+                            end_date = excluded.end_date,
+                            granted_in = excluded.granted_in
                     """
                     )
                 }
@@ -1437,6 +1451,13 @@ class AccountingProcessor(
                 }
             }
 
+            //Clear dirty checks
+            wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
+                chunk.filter { it.isDirty }.onEach { it.isDirty = false }
+            }
+            allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
+                chunk.filter { it.isDirty }.onEach { it.isDirty = false }
+            }
             dirtyTransactions.clear()
 
             logExit("Done!")
