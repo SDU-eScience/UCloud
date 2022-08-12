@@ -12,6 +12,7 @@ import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
 import dk.sdu.cloud.file.orchestrator.api.*
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.rpcClient
@@ -20,8 +21,6 @@ import dk.sdu.cloud.service.SimpleCache
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-
-@JvmInline value class InternalFile(val path: String)
 
 class PathConverter(private val ctx: PluginContext) {
     private val idPrefix = ctx.config.core.providerId + "-"

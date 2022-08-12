@@ -7,6 +7,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.MessageImportance

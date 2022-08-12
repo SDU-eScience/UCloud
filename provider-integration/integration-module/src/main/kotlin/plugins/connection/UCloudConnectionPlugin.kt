@@ -2,6 +2,7 @@ package dk.sdu.cloud.plugins.connection
 
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.provider.api.*
@@ -16,7 +17,7 @@ class UCloudConnectionPlugin : ConnectionPlugin {
         this.pluginConfig = config as ConfigSchema.Plugins.Connection.UCloud
     }
 
-    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse {
         try {
             val subject = UCloudSubject(username)
             val result = onConnectionComplete.invoke(pluginConfig.extensions.onConnectionComplete, subject)

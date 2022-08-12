@@ -4,6 +4,7 @@ import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.controllers.RequestContext
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -62,13 +63,13 @@ value class HTML(val html: String) {
 }
 
 interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
-    suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse
+    suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse
 
     fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Default is empty
     }
 
-    suspend fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
+    suspend fun RequestContext.showInstructions(query: Map<String, List<String>>): HTML {
         // By default, this is not required. This is useful if initiateConnection returns a redirect.
         throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }

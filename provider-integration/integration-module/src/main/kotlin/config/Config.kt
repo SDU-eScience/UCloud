@@ -272,6 +272,16 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : Files()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val mountLocation: String,
+                val useCephStats: Boolean = false,
+                val accountingEnabled: Boolean = false,
+                val indexingEnabled: Boolean = false,
+            ) : Files()
         }
 
         @Serializable
@@ -299,6 +309,10 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : FileCollections()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(override val matches: String) : FileCollections()
         }
 
         interface ProductBased {

@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.cli.CommandLineInterface
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.ipc.IpcClient
 import dk.sdu.cloud.ipc.IpcServer

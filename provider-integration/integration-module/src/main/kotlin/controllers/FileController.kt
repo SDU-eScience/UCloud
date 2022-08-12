@@ -271,7 +271,7 @@ class FileController(
                 ?: throw RPCException("Bad request from UCloud (no  path)", HttpStatusCode.BadRequest)
 
             val plugin = lookupPlugin(request.resolvedCollection.specification.product)
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     ok(browse(UCloudFile.create(path), request))
                 }
@@ -280,7 +280,7 @@ class FileController(
 
         implement(api.retrieve) {
             val plugin = lookupPlugin(request.resolvedCollection.specification.product)
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     ok(retrieve(request))
                 }
@@ -294,7 +294,7 @@ class FileController(
                 ) ?: return@map null
 
                 val plugin = lookupPlugin(collection.specification.product)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createFolder(bulkRequestOf(createFolderRequest)).single()
                     }
@@ -308,7 +308,7 @@ class FileController(
                 val collection = moveRequest.resolvedNewCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         move(bulkRequestOf(moveRequest)).single()
                     }
@@ -321,7 +321,7 @@ class FileController(
             val result = request.items.map { copyRequest ->
                 val collection = copyRequest.resolvedNewCollection.specification.product
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         copy(bulkRequestOf(copyRequest)).single()
                     }
@@ -335,7 +335,7 @@ class FileController(
                 val collection = request.resolvedCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         moveToTrash(bulkRequestOf(request)).single()
                     }
@@ -349,7 +349,7 @@ class FileController(
                 val collection = request.resolvedCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         emptyTrash(bulkRequestOf(request)).single()
                     }
@@ -365,7 +365,7 @@ class FileController(
                 val plugin = lookupPlugin(downloadRequest.resolvedCollection.specification.product)
                 val name = plugin.pluginName
 
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createDownload(bulkRequestOf(downloadRequest)).forEach {
                             sessions.add(
@@ -407,7 +407,7 @@ class FileController(
             }
 
             val token = request.token
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesDownloadIpc.retrieve, FindByStringId(token))
 
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
@@ -428,7 +428,7 @@ class FileController(
                 val plugin = lookupPlugin(uploadRequest.resolvedCollection.specification.product)
                 val name = plugin.pluginName
 
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
@@ -459,7 +459,7 @@ class FileController(
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)

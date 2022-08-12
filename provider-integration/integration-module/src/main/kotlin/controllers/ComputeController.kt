@@ -1,7 +1,6 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.ProcessingScope
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -72,7 +71,7 @@ class ComputeController(
                     )
 
                     val ctx = ComputePlugin.FollowLogsContext(
-                        controllerContext.pluginContext,
+                        requestContext(controllerContext),
                         isActive = { streams[streamId].compareAndSet(token, token) && wsContext.session.isActive },
                         emitStdout = { rank, message ->
                             wsContext.sendMessage(
@@ -172,7 +171,7 @@ class ComputeController(
 
                 when (request) {
                     is ShellRequest.Initialize -> {
-                        val pluginHandler = with(controllerContext.pluginContext) {
+                        val pluginHandler = with(requestContext(controllerContext)) {
                             plugins.find { plugin ->
                                 with(plugin) { canHandleShellSession(request) }
                             }
@@ -180,7 +179,7 @@ class ComputeController(
 
                         val channel = Channel<ShellRequest>(Channel.BUFFERED)
                         val ctx = ComputePlugin.ShellContext(
-                            controllerContext.pluginContext,
+                            requestContext(controllerContext),
                             { wsContext.session.isActive },
                             channel,
                             emitData = { data ->

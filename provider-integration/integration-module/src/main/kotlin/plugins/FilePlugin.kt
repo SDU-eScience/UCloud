@@ -10,35 +10,64 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.file.orchestrator.api.*
 import io.ktor.utils.io.*
-import java.nio.ByteBuffer
+
+interface PathLike<T> {
+    val path: String
+    fun withNewPath(path: String): T
+}
 
 @JvmInline
-value class UCloudFile private constructor(val path: String) {
+value class InternalFile(override val path: String) : PathLike<InternalFile> {
+    override fun withNewPath(path: String): InternalFile = InternalFile(path)
+}
+
+/**
+ * An internal file where the path is relative to the file-system hosting UCloud/Storage.
+ *
+ * This path will always start with '/'.
+ */
+@JvmInline
+value class RelativeInternalFile(override val path: String) : PathLike<RelativeInternalFile> {
+    override fun withNewPath(path: String): RelativeInternalFile = RelativeInternalFile(path)
+}
+
+@JvmInline
+value class UCloudFile private constructor(override val path: String) : PathLike<UCloudFile> {
+    override fun withNewPath(path: String): UCloudFile = UCloudFile(path)
+
     companion object {
         fun create(path: String) = UCloudFile(path.normalize())
         fun createFromPreNormalizedString(path: String) = UCloudFile(path)
     }
 }
 
+fun <T : PathLike<T>> T.parent(): T = withNewPath(path.parent())
+fun <T : PathLike<T>> T.parents(): List<T> = path.parents().map { withNewPath(it) }
+fun <T : PathLike<T>> T.normalize(): T = withNewPath(path.normalize())
+fun <T : PathLike<T>> T.components(): List<String> = path.components()
+fun <T : PathLike<T>> T.fileName(): String = path.fileName()
+
+
 data class FileDownloadSession(val session: String, val pluginData: String)
 data class FileUploadSession(val session: String, val pluginData: String)
 
 interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigSchema.Plugins.Files> {
-    suspend fun PluginContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile>
-    suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
-    suspend fun PluginContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession>
-    suspend fun PluginContext.handleDownload(ctx: HttpCall, session: String, pluginData: String)
-    suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
-    suspend fun PluginContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel)
-    suspend fun PluginContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
-    suspend fun PluginContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile>
+    suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile
+    suspend fun RequestContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession>
+    suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String)
+    suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession>
+    suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel)
+    suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?>
+    suspend fun RequestContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?>
 
-    override suspend fun PluginContext.create(resource: UFile): FindByStringId? {
+    override suspend fun RequestContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")
     }
 
@@ -50,20 +79,20 @@ abstract class EmptyFilePlugin : FilePlugin {
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
     override var productAllocationResolved: List<Product> = emptyList()
 
-    override suspend fun PluginContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun PluginContext.delete(resource: UFile) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.browse(path: UCloudFile, request: FilesProviderBrowseRequest): PageV2<PartialUFile> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.handleUpload(session: String, pluginData: String, offset: Long, chunk: ByteReadChannel) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.emptyTrash(request: BulkRequest<FilesProviderEmptyTrashRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.move(req: BulkRequest<FilesProviderMoveRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.copy(req: BulkRequest<FilesProviderCopyRequestItem>): List<LongRunningTask?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.delete(resource: UFile) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
 
-    override suspend fun PluginContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<FSSupport> {
+    override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<FSSupport> {
         return BulkResponse(knownProducts.map { FSSupport(it) })
     }
 }

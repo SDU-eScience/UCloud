@@ -5,6 +5,8 @@ import dk.sdu.cloud.plugins.compute.slurm.*
 import dk.sdu.cloud.plugins.connection.*
 import dk.sdu.cloud.plugins.storage.posix.*
 import dk.sdu.cloud.plugins.allocations.*
+import dk.sdu.cloud.plugins.storage.ucloud.UCloudFileCollectionPlugin
+import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlin.reflect.KClass
 
 private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
@@ -33,11 +35,13 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // =========================================================================
     ConfigSchema.Plugins.Files.Posix::class to { PosixFilesPlugin() },
     ConfigSchema.Plugins.Files.Puhuri::class to { PuhuriFilePlugin() },
+    ConfigSchema.Plugins.Files.UCloud::class to { UCloudFilePlugin() },
 
     // File Collections
     // =========================================================================
     ConfigSchema.Plugins.FileCollections.Posix::class to { PosixCollectionPlugin() },
     ConfigSchema.Plugins.FileCollections.Puhuri::class to { PuhuriFileCollectionPlugin() },
+    ConfigSchema.Plugins.FileCollections.UCloud::class to { UCloudFileCollectionPlugin() },
 )
 
 fun <Cfg : Any> instantiatePlugin(config: Cfg): Plugin<Cfg> {

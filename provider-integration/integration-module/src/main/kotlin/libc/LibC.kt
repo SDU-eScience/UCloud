@@ -38,6 +38,11 @@ class LibC {
     external fun retrieveUserIdFromName(name: String): Int
     external fun retrieveGroupIdFromName(name: String): Int
 
+    // Required by file-ucloud TODO implement them
+    external fun getErrno(): Int
+    external fun mkdirat(dirfd: Int, pathName: String, mode: Int): Int
+    external fun closedir(dirp: Long)
+
     external fun getuid(): Int
 
     companion object {
