@@ -24,11 +24,11 @@ class LimitChecker(
                 session.prepareStatement(
                     """
                         select true
-                        from file_ucloud.quota_locked
+                        from ucloud_storage_quota_locked
                         where
-                            username is not distinct from :username and
-                            project_id is not distinct from :project_id and
-                            category is not distinct from :category
+                            username is :username and
+                            project_id is :project_id and
+                            category is :category
                     """,
                 ).useAndInvoke(
                     prepare = {

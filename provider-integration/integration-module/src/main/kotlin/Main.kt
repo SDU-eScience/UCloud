@@ -398,6 +398,8 @@ fun main(args: Array<String>) {
                 allResourcePlugins.addAll(config.plugins.fileCollections.values)
                 allResourcePlugins.addAll(config.plugins.files.values)
                 allResourcePlugins.addAll(config.plugins.jobs.values)
+                allResourcePlugins.addAll(config.plugins.ingresses.values)
+                allResourcePlugins.addAll(config.plugins.publicIps.values)
             }
 
             // Resolving products for plugins
@@ -529,6 +531,8 @@ fun main(args: Array<String>) {
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.ingresses) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.publicIps) plugin.apply { initialize() }
                 }
             }
 
@@ -579,6 +583,8 @@ fun main(args: Array<String>) {
                     FileController(controllerContext, envoyConfig),
                     FileCollectionController(controllerContext),
                     ComputeController(controllerContext),
+                    IngressController(controllerContext),
+                    PublicIPController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     NotificationController(controllerContext),
                 )
@@ -613,10 +619,16 @@ fun main(args: Array<String>) {
                     val connection = config.plugins.connection?.pluginTitle
                     val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
                     val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
 
-                    stats.add("Jobs" to (jobs ?: "No plugins"))
                     stats.add("Files" to (files ?: "No plugins"))
                     stats.add("Drives" to (fileCollections ?: "No plugins"))
+
+                    stats.add("Jobs" to (jobs ?: "No plugins"))
+                    stats.add("Public links" to (ingresses ?: "No plugins"))
+                    stats.add("Public IPs" to (publicIps ?: "No plugins"))
+
                     stats.add("Projects" to (projects ?: "No plugins"))
                     stats.add("Connection" to (connection ?: "No plugins"))
                 }

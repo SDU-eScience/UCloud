@@ -21,5 +21,10 @@
     "name": "libc.Dirent",
     "allDeclaredFields": true,
     "allDeclaredConstructors": true
+  },
+  {
+    "name": "libc.NativeStat",
+    "allDeclaredFields": true,
+    "allDeclaredConstructors": true
   }
 ]

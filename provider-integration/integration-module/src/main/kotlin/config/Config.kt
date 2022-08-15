@@ -89,6 +89,8 @@ data class ConfigSchema(
         val jobs: Map<String, Jobs>? = null,
         val files: Map<String, Files>? = null,
         val fileCollections: Map<String, FileCollections>? = null,
+        val ingress: Map<String, Ingresses>? = null,
+        val publicIps: Map<String, PublicIPs>? = null,
         val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
         enum class AllocationsProductType(val type: ProductType?) {
@@ -106,7 +108,7 @@ data class ConfigSchema(
             @SerialName("UCloud")
             data class UCloud(
                 val redirectTo: String,
-                val extensions: Extensions,
+                val extensions: Extensions = Extensions(),
 
                 // NOTE(Dan): The message signing protocol directly requires safe authentication between end-user and provider
                 // directly. The UCloud connection plugin provides no such thing and implicitly trusts UCloud. This trust makes
@@ -116,14 +118,13 @@ data class ConfigSchema(
             ): Connection() {
                 @Serializable
                 data class Extensions(
-                    val onConnectionComplete: String
+                    val onConnectionComplete: String? = null
                 )
             }
 
             @Serializable
             @SerialName("Ticket")
             class Ticket : Connection()
-
 
             @Serializable
             @SerialName("OpenIdConnect")
@@ -202,14 +203,7 @@ data class ConfigSchema(
                 val customerId: String,
                 val offeringId: String,
                 val planId: String,
-            ) : Projects() {
-                /*
-                    endpoint = "https://puhuri-core-beta.neic.no/api/"
-                    customerId = "579f3e4d309a4b208026e784bf0775a3"
-                    offeringId = "5c93748e796b47eaaec0805153e66fb4"
-                    planId = "a274fc378464423390bf596991e10328"
-                 */
-            }
+            ) : Projects()
         }
 
         @Serializable
@@ -259,6 +253,22 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : Jobs()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val kubeConfig: String? = null,
+                val useMachineSelector: Boolean = false,
+                val systemReservedCpuMillis: Int = 0,
+                val systemReservedMemMegabytes: Int = 0,
+                val forceMinimumReservation: Boolean = false,
+                val nodeToleration: TolerationKeyAndValue? = null,
+                val namespace: String = "app-kubernetes",
+            ) : Jobs() {
+                @Serializable
+                data class TolerationKeyAndValue(val key: String, val value: String)
+            }
         }
 
         @Serializable
@@ -315,6 +325,28 @@ data class ConfigSchema(
             class UCloud(override val matches: String) : FileCollections()
         }
 
+        @Serializable
+        sealed class Ingresses : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val domainPrefix: String,
+                val domainSuffix: String,
+            ) : Ingresses()
+        }
+
+        @Serializable
+        sealed class PublicIPs : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val iface: String,
+                val gatewayCidr: String?
+            ) : PublicIPs()
+        }
+
         interface ProductBased {
             val matches: String
         }
@@ -324,6 +356,8 @@ data class ConfigSchema(
     data class Products(
         val compute: Map<String, List<ConfigProduct.Compute>>? = null,
         val storage: Map<String, List<ConfigProduct.Storage>>? = null,
+        val ingress: Map<String, List<ConfigProduct.Ingress>>? = null,
+        val publicIps: Map<String, List<ConfigProduct.NetworkIP>>? = null,
     )
 
     @Serializable

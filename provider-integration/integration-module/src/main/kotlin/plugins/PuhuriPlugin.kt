@@ -46,7 +46,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
 import kotlin.math.ceil
 import kotlin.system.exitProcess
@@ -627,7 +626,7 @@ class PuhuriClient(
         if (projectId.isEmpty()) return emptyList()
 
         val resp = httpClient.get(apiPath("project-permissions") + "?project=$projectId", apiRequest()).orThrow()
-        return defaultMapper.decodeFromString(resp.body())
+        return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.body())
     }
 
     suspend fun removeUserFromProject(userId: String, projectId: String) {

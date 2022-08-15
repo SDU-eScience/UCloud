@@ -382,7 +382,7 @@ class SlurmPlugin : ComputePlugin {
 
     // Server Mode
     // =================================================================================================================
-    override suspend fun RequestContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
+    override suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 

@@ -14,26 +14,24 @@ import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.service.Loggable
 import io.ktor.util.*
 import io.ktor.utils.io.pool.*
+import libc.NativeStat
+import libc.S_ISREG
 import libc.clib
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.collections.ArrayList
 
-data class NativeStat(
-    val size: Long,
-    val modifiedAt: Long,
-    val fileType: FileType,
-    val ownerUid: Int,
-    val ownerGid: Int,
-    val mode: Int,
-)
-
 sealed class CopyResult {
     object CreatedFile : CopyResult()
     class CreatedDirectory(val outputFile: InternalFile) : CopyResult()
     object NothingToCreate : CopyResult()
 }
+
+val NativeStat.fileType: FileType
+    get() {
+        return if ((mode and S_ISREG) == 0) FileType.DIRECTORY else FileType.FILE
+    }
 
 const val LINUX_FS_USER_UID = 11042
 
@@ -167,29 +165,10 @@ class NativeFS(
     }
 
     private fun nativeStat(handle: LinuxFileHandle, autoClose: Boolean): NativeStat {
-        TODO()
-        /*
-        val st = stat()
-        st.write()
-        val err = clib.__fxstat64(1, handle.fd, st.pointer)
-        st.read()
-
-        if (autoClose) {
-            handle.close()
-        }
-        if (err < 0) {
-            throw FSException.NotFound()
-        }
-
-        return NativeStat(
-            st.st_size,
-            (st.m_sec * 1000) + (st.m_nsec / 1_000_000),
-            if (st.st_mode and S_ISREG == 0) FileType.DIRECTORY else FileType.FILE,
-            st.st_uid,
-            st.st_gid,
-            st.st_mode
-        )
-         */
+        val result = clib.fstat(handle.fd)
+        if (autoClose) handle.close()
+        if (!result.valid) throw FSException.NotFound()
+        return result
     }
 
     private fun createAccordingToPolicy(

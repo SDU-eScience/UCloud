@@ -73,6 +73,6 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
         // NOTE(Dan): The default is to do nothing
     }
 
-    suspend fun PluginContext.runMonitoringLoop()
+    suspend fun PluginContext.runMonitoringLoop() {}
 }
 

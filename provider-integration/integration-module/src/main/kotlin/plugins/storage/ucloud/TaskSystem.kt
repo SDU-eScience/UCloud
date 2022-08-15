@@ -84,7 +84,7 @@ class TaskSystem(
         db.withSession { session ->
             session.prepareStatement(
                 """
-                    insert into file_ucloud.tasks
+                    insert into ucloud_storage_tasks
                     (id, request_name, requirements, request, progress, last_update, processor_id) 
                     values (:id, :request_name, :requirements, :request, :progress, null, null) 
                 """
@@ -113,7 +113,7 @@ class TaskSystem(
                                         """
                                             select processor_id, id, request_name, requirements, request, progress,
                                                    last_update
-                                            from file_ucloud.tasks 
+                                            from ucloud_storage_tasks 
                                             where 
                                                 complete = false and
                                                 (
@@ -156,7 +156,7 @@ class TaskSystem(
                                 var success = false
                                 session.prepareStatement(
                                     """
-                                        update file_ucloud.tasks 
+                                        update ucloud_storage_tasks 
                                         set processor_id = :processor_id 
                                         where 
                                             id = :id and
@@ -237,7 +237,7 @@ class TaskSystem(
     private suspend fun markJobAsComplete(ctx: DBContext, id: String) {
         ctx.withSession { session ->
             session.prepareStatement(
-                "update file_ucloud.tasks set complete = true where id = :id"
+                "update ucloud_storage_tasks set complete = true where id = :id"
             ).useAndInvokeAndDiscard(
                 prepare = { bindString("id", id) },
             )

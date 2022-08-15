@@ -5,6 +5,9 @@ import dk.sdu.cloud.plugins.compute.slurm.*
 import dk.sdu.cloud.plugins.connection.*
 import dk.sdu.cloud.plugins.storage.posix.*
 import dk.sdu.cloud.plugins.allocations.*
+import dk.sdu.cloud.plugins.compute.ucloud.UCloudComputePlugin
+import dk.sdu.cloud.plugins.compute.ucloud.UCloudIngressPlugin
+import dk.sdu.cloud.plugins.compute.ucloud.UCloudPublicIPPlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFileCollectionPlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlin.reflect.KClass
@@ -30,6 +33,15 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // =========================================================================
     SlurmConfig::class to { SlurmPlugin() },
     ConfigSchema.Plugins.Jobs.Puhuri::class to { PuhuriComputePlugin() },
+    ConfigSchema.Plugins.Jobs.UCloud::class to { UCloudComputePlugin() },
+
+    // Ingress
+    // =========================================================================
+    ConfigSchema.Plugins.Ingresses.UCloud::class to { UCloudIngressPlugin() },
+
+    // Public IPs
+    // =========================================================================
+    ConfigSchema.Plugins.PublicIPs.UCloud::class to { UCloudPublicIPPlugin() },
 
     // Files
     // =========================================================================

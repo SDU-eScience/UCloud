@@ -36,6 +36,10 @@ suspend fun <T> Iterable<T>.forEachGraal(consumer: suspend (T) -> Unit) {
     asSequence().forEach { consumer(it) }
 }
 
+suspend fun <K, V> Map<K, V>.forEachGraal(consumer: suspend (K, V) -> Unit) {
+    asSequence().forEach { (k, v) -> consumer(k, v) }
+}
+
 suspend fun BooleanArray.forEachGraal(consumer: suspend (Boolean) -> Unit) {
     asSequence().forEach { consumer(it) }
 }

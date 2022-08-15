@@ -24,15 +24,18 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.CreateFolderTask
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.DeleteTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.EmptyTrashRequestItem
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.EmptyTrashTask
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
+import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
-import dk.sdu.cloud.provider.api.UpdatedAclWithResource
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.encodeToJsonElement
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -61,11 +64,14 @@ class UCloudFilePlugin : FilePlugin {
     }
 
     override suspend fun PluginContext.initialize() {
-        val storageProduct = productAllocationResolved.getOrNull(0) ?: return
+        if (!config.shouldRunServerCode()) return
+
+        // NOTE(Dan): This is working around an initialization issue when the product hasn't been registered yet
+        val storageProductCategory = productAllocationResolved.getOrNull(0)?.category?.name ?: "UNRESOLVED"
 
         pathConverter = PathConverter(
             config.core.providerId,
-            storageProduct.category.name,
+            storageProductCategory,
             InternalFile(pluginConfig.mountLocation),
             rpcClient
         )
@@ -78,6 +84,15 @@ class UCloudFilePlugin : FilePlugin {
         memberFiles = MemberFiles(fs, pathConverter, rpcClient)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(dbConnection, pathConverter, fs)
+
+        with (tasks) {
+            install(CopyTask())
+            install(CreateFolderTask())
+            install(DeleteTask())
+            install(EmptyTrashTask())
+            install(MoveTask())
+            install(TrashTask(memberFiles, trash))
+        }
     }
 
     override suspend fun RequestContext.browse(
@@ -212,7 +227,50 @@ class UCloudFilePlugin : FilePlugin {
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<FSSupport> {
-        TODO("Not yet implemented")
+        val defaultFsSupport = FSSupport(
+            ProductReference("", "", ""),
+            FSProductStatsSupport(
+                sizeInBytes = true,
+                sizeIncludingChildrenInBytes = true,
+                modifiedAt = true,
+                createdAt = true,
+                accessedAt = true,
+                unixPermissions = true,
+                unixOwner = true,
+                unixGroup = true
+            ),
+            FSCollectionSupport(
+                aclModifiable = true,
+                usersCanCreate = true,
+                usersCanDelete = true,
+                usersCanRename = true
+            ),
+            FSFileSupport(
+                aclModifiable = false,
+                trashSupported = true,
+                isReadOnly = false
+            )
+        )
+
+        return BulkResponse(
+            knownProducts.map { product ->
+                if (product.id == "project-home") {
+                    defaultFsSupport.copy(
+                        product = product,
+                        collection = FSCollectionSupport(
+                            aclModifiable = false,
+                            usersCanCreate = false,
+                            usersCanDelete = true,
+                            usersCanRename = false
+                        )
+                    )
+                } else {
+                    defaultFsSupport.copy(
+                        product = product
+                    )
+                }
+            }
+        )
     }
 
     override suspend fun RequestContext.delete(resource: UFile) {
@@ -233,7 +291,11 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var filePlugin: UCloudFilePlugin
 
+    override fun supportsRealUserMode(): Boolean = false
+    override fun supportsServiceUserMode(): Boolean = true
+
     override suspend fun PluginContext.initialize() {
+        if (!config.shouldRunServerCode()) return
         filePlugin = config.plugins.files[pluginName] as? UCloudFilePlugin ?: run {
             error(
                 "The UCloud file collection plugin ($pluginName) must be used together with a " +

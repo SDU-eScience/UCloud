@@ -23,6 +23,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import libc.NativeStat
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 

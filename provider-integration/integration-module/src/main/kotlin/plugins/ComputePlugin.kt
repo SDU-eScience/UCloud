@@ -43,7 +43,7 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
 
     suspend fun RequestContext.verify(jobs: List<Job>) {}
 
-    suspend fun RequestContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse
+    suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse
 
     suspend fun RequestContext.openInteractiveSessionBulk(
         request: JobsProviderOpenInteractiveSessionRequest
@@ -87,7 +87,7 @@ abstract class EmptyComputePlugin : ComputePlugin {
     override suspend fun RequestContext.terminateBulk(request: BulkRequest<Job>): BulkResponse<Unit?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.terminate(resource: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun RequestContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.openInteractiveSessionBulk(request: JobsProviderOpenInteractiveSessionRequest): JobsProviderOpenInteractiveSessionResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.delete(resource: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)

@@ -1,0 +1,193 @@
+package dk.sdu.cloud.plugins.compute.ucloud
+
+import dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType
+import dk.sdu.cloud.app.orchestrator.api.JobsProvider
+import dk.sdu.cloud.app.orchestrator.api.OpenSession
+import dk.sdu.cloud.app.orchestrator.api.ingressPoints
+import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.DBContext
+import dk.sdu.cloud.sql.withSession
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.util.date.*
+import io.ktor.util.pipeline.*
+
+const val cookieName = "ucloud-compute-session-"
+
+class WebService(
+    private val providerId: String,
+    private val k8: K8Dependencies,
+    private val db: DBContext,
+    private val sessions: SessionDao,
+    private val prefix: String,
+    private val domain: String,
+    private val ingress: FeatureIngress?,
+    private val devMode: Boolean = false,
+) {
+    private val api = JobsProvider(providerId)
+    // Relatively low maxAge to make sure that we renew the session id regularly
+    private val sessionCache = SimpleCache<String, JobIdAndRank>(maxAge = 60_000 * 15L) { sessionId ->
+        sessions.findSessionOrNull(db, sessionId, InteractiveSessionType.WEB)
+    }
+
+    private val ingressCache = SimpleCache<String, JobIdAndRank>(maxAge = 60_000 * 15L) { domain ->
+        ingress?.retrieveJobIdByDomainOrNull(domain)?.let { JobIdAndRank(it, 0) }
+    }
+
+    suspend fun createSession(jobAndRank: JobAndRank): OpenSession.Web {
+        if (ingress != null) {
+            if (jobAndRank.job.ingressPoints.isNotEmpty()) {
+                val domain = ingress.retrieveDomainsByJobId(jobAndRank.job.id).firstOrNull()
+                if (domain != null) {
+                    return OpenSession.Web(
+                        jobAndRank.job.id,
+                        jobAndRank.rank,
+                        "http://$domain"
+                    )
+                }
+            }
+        }
+
+        val webSessionId = db.withSession { session ->
+            sessions.createSession(session, jobAndRank, InteractiveSessionType.WEB)
+        }
+
+        sessionCache.insert(webSessionId, JobIdAndRank(jobAndRank.job.id, jobAndRank.rank))
+        return OpenSession.Web(
+            jobAndRank.job.id,
+            jobAndRank.rank,
+            "${api.baseContext}/authorize-app/$webSessionId"
+        )
+    }
+
+    fun install(routing: Route): Unit = with(routing) {
+        // Called when entering the application. This sets the cookie containing the refresh token.
+        get("${api.baseContext}/authorize-app/{id}") {
+            val sessionId = call.parameters["id"] ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            val jobAndRank = sessionCache.get(sessionId) ?: run {
+                call.respond(HttpStatusCode.BadRequest)
+                return@get
+            }
+
+            call.response.cookies.append(
+                name = cookieName + jobAndRank.jobId,
+                value = sessionId,
+                secure = call.request.origin.scheme == "https",
+                httpOnly = true,
+                expires = GMTDate(Time.now() + (1000L * 60 * 60 * 24 * 30)),
+                path = "/",
+                domain = domain
+            )
+
+            if (!devMode) {
+                call.respondRedirect("http://$prefix${jobAndRank.jobId}-${jobAndRank.rank}.$domain/")
+            } else {
+                // NOTE(Dan): Doesn't currently support multiple ranks
+                // Development mode will attempt to use minikube and use node-port
+                @Suppress("BlockingMethodInNonBlockingContext")
+                run {
+                    log.info("Attempting to use minikube")
+                    val start = ProcessBuilder("minikube", "ip").start()
+                    val minikubeIpAddress = start.inputStream.bufferedReader().readText().lines().first()
+                    start.waitFor()
+
+                    val name = k8.nameAllocator.jobIdToJobName(jobAndRank.jobId)
+                    val namespace = k8.nameAllocator.namespace()
+
+                    val nodePort = k8.client
+                        .getResource(
+                            Service.serializer(),
+                            KubernetesResources.services.withNameAndNamespace(
+                                name + FeatureMinikube.SERVICE_SUFFIX,
+                                namespace
+                            )
+                        )
+                        .spec
+                        ?.ports
+                        ?.first()
+                        ?.nodePort
+                        ?: error("No NodePort attached to job: $jobAndRank")
+
+                    call.respondRedirect("http://${minikubeIpAddress}:$nodePort")
+                }
+            }
+        }
+
+        // One of these are called. It does not seem obvious which one.
+        route("${api.baseContext}/app-authorization") {
+            handleAppAuthorization(this, this@WebService)
+        }
+        route("${api.baseContext}/app-authorization/{...}") {
+            handleAppAuthorization(this, this@WebService)
+        }
+        route("${api.baseContext}/app-authorization/") {
+            handleAppAuthorization(this, this@WebService)
+        }
+    }
+
+    // Called by envoy before every single request. We are allowed to control the "Cookie" header.
+    private fun handleAppAuthorization(
+        route: Route,
+        webService: WebService,
+    ) {
+        val handler: PipelineInterceptor<Unit, ApplicationCall> = handler@{
+            val host = call.request.host()
+
+            if (ingressCache.get(host) != null) {
+                call.respondText("", status = HttpStatusCode.OK)
+                return@handler
+            }
+
+            if (!host.startsWith(prefix) || !host.endsWith(domain)) {
+                call.respondText("Forbidden", status = HttpStatusCode.Forbidden)
+                return@handler
+            }
+
+            val jobId = host.removePrefix(prefix).removeSuffix(".$domain").substringBeforeLast('-')
+            val rank = host.removePrefix(prefix).removeSuffix(".$domain").substringAfterLast('-').toInt()
+            if (webService.authorizeUser(call, JobIdAndRank(jobId, rank))) {
+                val requestCookies = HashMap(call.request.cookies.rawCookies).filterKeys {
+                    it != "refreshToken" && !it.startsWith(cookieName)
+                }
+                call.response.header(
+                    HttpHeaders.Cookie,
+                    requestCookies.entries.joinToString("; ") { "${it.key}=${it.value}" }
+                )
+
+                call.respondText("", status = HttpStatusCode.OK)
+            }
+        }
+        route.handle(handler)
+        route.route("/") {
+            handle(handler)
+        }
+    }
+
+    private suspend fun authorizeUser(call: ApplicationCall, jobIdAndRank: JobIdAndRank): Boolean {
+        val sessionId = call.request.cookies[cookieName + jobIdAndRank.jobId] ?: run {
+            call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
+            return false
+        }
+
+        if (sessionCache.get(sessionId) != jobIdAndRank) {
+            call.respondText(status = HttpStatusCode.Forbidden) { "Unauthorized." }
+            return false
+        }
+
+        return true
+    }
+
+    companion object : Loggable {
+        override val log = logger()
+    }
+}

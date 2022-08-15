@@ -40,7 +40,7 @@ class ChunkedUploadService(
             db.withSession { session ->
                 session.prepareStatement(
                     """
-                        insert into file_ucloud.upload_sessions (id, relative_path, last_update) values
+                        insert into ucloud_storage_upload_sessions (id, relative_path, last_update) values
                         (:id, :destination, now())
                     """
                 ).useAndInvokeAndDiscard(
@@ -70,7 +70,7 @@ class ChunkedUploadService(
             session
                 .prepareStatement(
                     """
-                        update file_ucloud.upload_sessions
+                        update ucloud_storage_upload_sessions
                         set last_update = now()
                         where 
                             id = :id and
@@ -106,7 +106,7 @@ class ChunkedUploadService(
 
         db.withSession { session ->
             session
-                .prepareStatement("update file_ucloud.upload_sessions set last_update = now() where id = :id")
+                .prepareStatement("update ucloud_storage_upload_sessions set last_update = now() where id = :id")
                 .useAndInvokeAndDiscard(
                     prepare = {
                         bindString("id", request.token)

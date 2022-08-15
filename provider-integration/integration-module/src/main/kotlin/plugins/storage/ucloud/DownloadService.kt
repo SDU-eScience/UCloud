@@ -50,7 +50,7 @@ class DownloadService(
             for ((resp, path) in responses.zip(relativePaths)) {
                 session.prepareStatement(
                     """
-                        insert into file_ucloud.download_sessions(id, relative_path)
+                        insert into ucloud_storage_download_sessions(id, relative_path)
                         values (:id, :relative_path)
                     """
                 ).useAndInvokeAndDiscard(
@@ -71,7 +71,7 @@ class DownloadService(
                 .prepareStatement(
                     """
                         select relative_path
-                        from file_ucloud.download_sessions
+                        from ucloud_storage_download_sessions
                         where
                             id = :token and
                             now() - last_update < '24 hours'::interval

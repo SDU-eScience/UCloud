@@ -95,6 +95,44 @@ sealed class ConfigProduct<T : Product> {
     }
 
     @Serializable
+    @SerialName("ingress")
+    data class Ingress(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+    ) : ConfigProduct<Product.Ingress>() {
+        override fun toProduct(category: String, provider: String): Product.Ingress {
+            return Product.Ingress(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("networkip")
+    data class NetworkIP(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+    ) : ConfigProduct<Product.NetworkIP>() {
+        override fun toProduct(category: String, provider: String): Product.NetworkIP {
+            return Product.NetworkIP(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+            )
+        }
+    }
+
+    @Serializable
     @SerialName("compute")
     data class Compute(
         override val name: String,

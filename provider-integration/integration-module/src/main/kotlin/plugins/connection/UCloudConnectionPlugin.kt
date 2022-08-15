@@ -17,14 +17,30 @@ class UCloudConnectionPlugin : ConnectionPlugin {
         this.pluginConfig = config as ConfigSchema.Plugins.Connection.UCloud
     }
 
+    override fun supportsRealUserMode(): Boolean = true
+    override fun supportsServiceUserMode(): Boolean = true
+
+    override suspend fun PluginContext.initialize() {
+        if (pluginConfig.extensions.onConnectionComplete == null && config.core.launchRealUserInstances) {
+            error("$pluginTitle connection plugin does not work with real-user mode without an appropriate extension")
+        }
+    }
+
     override suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse {
         try {
             val subject = UCloudSubject(username)
-            val result = onConnectionComplete.invoke(pluginConfig.extensions.onConnectionComplete, subject)
+            val extension = pluginConfig.extensions.onConnectionComplete
+            val result = if (extension != null) {
+                onConnectionComplete.invoke(extension, subject)
+            } else {
+                null
+            }
             val token = secureToken(32)
 
             return ConnectionResponse.Redirect(pluginConfig.redirectTo, token, beforeRedirect = {
-                UserMapping.insertMapping(username, result.uid, this, token)
+                if (result != null) {
+                    UserMapping.insertMapping(username, result.uid, this, token)
+                }
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(username),

@@ -21,5 +21,6 @@ class FileCollectionController(
         plugins: Collection<FileCollectionPlugin>,
         api: FileCollectionsProvider
     ) {
+
     }
 }

@@ -79,6 +79,8 @@ data class VerifiedConfig(
         val jobs: Map<String, ComputePlugin>,
         val files: Map<String, FilePlugin>,
         val fileCollections: Map<String, FileCollectionPlugin>,
+        val ingresses: Map<String, IngressPlugin>,
+        val publicIps: Map<String, PublicIPPlugin>,
         val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
@@ -95,6 +97,8 @@ data class VerifiedConfig(
                 jobs.values.iterator(),
                 files.values.iterator(),
                 fileCollections.values.iterator(),
+                ingresses.values.iterator(),
+                publicIps.values.iterator(),
             )
             var idx = 0
 
@@ -548,7 +552,26 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 core.launchRealUserInstances
             ) as Map<String, FileCollectionPlugin>
 
-            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, allocations)
+            @Suppress("unchecked_cast")
+            val ingresses: Map<String, IngressPlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.ingress),
+                config.plugins.ingress ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, IngressPlugin>
+
+            @Suppress("unchecked_cast")
+            val publicIps: Map<String, PublicIPPlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.publicIps),
+                config.plugins.publicIps ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, PublicIPPlugin>
+
+            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, ingresses, publicIps,
+                allocations)
         }
     }
 
