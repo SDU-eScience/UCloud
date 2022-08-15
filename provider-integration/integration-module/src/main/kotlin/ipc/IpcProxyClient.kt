@@ -3,7 +3,6 @@ package dk.sdu.cloud.ipc
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.OutgoingCall
 import dk.sdu.cloud.calls.client.OutgoingCallCompanion

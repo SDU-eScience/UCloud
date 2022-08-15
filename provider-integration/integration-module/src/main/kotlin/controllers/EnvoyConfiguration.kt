@@ -14,6 +14,7 @@ import kotlin.random.*
 
 class EnvoyConfigurationService(
     private val configDir: String,
+    private val useUCloudUsernameHeader: Boolean,
 ) {
     private sealed class ConfigurationMessage {
         data class NewCluster(
@@ -32,7 +33,7 @@ class EnvoyConfigurationService(
         if (!fileExists("$configDir/$rdsFile") || !fileExists("$configDir/$clustersFile")) {
             NativeFile.open("$configDir/$rdsFile", readOnly = false).writeText("{}")
             NativeFile.open("$configDir/$clustersFile", readOnly = false).writeText("{}")
-            configure(configDir, emptyList(), emptyList())
+            configure(emptyList(), emptyList())
         }
     }
 
@@ -61,15 +62,14 @@ class EnvoyConfigurationService(
             val wsRoutes = ArrayList<EnvoyRoute.ShellSession>()
 
             run {
-                val id = "_UCloud"
-                entries[id] = Pair(
-                    EnvoyRoute.Standard(null, id),
-                    EnvoyCluster.create(id, "127.0.0.1", UCLOUD_IM_PORT)
+                entries[IM_SERVER_CLUSTER] = Pair(
+                    EnvoyRoute.Standard(null, IM_SERVER_CLUSTER),
+                    EnvoyCluster.create(IM_SERVER_CLUSTER, "127.0.0.1", UCLOUD_IM_PORT)
                 )
 
                 val routes = entries.values.map { it.first }
                 val clusters = entries.values.mapNotNull { it.second }
-                configure(configDir, routes, clusters)
+                configure(routes, clusters)
             }
 
             while (isActive) {
@@ -90,7 +90,7 @@ class EnvoyConfigurationService(
                 allRoutes.addAll(routes)
                 allRoutes.addAll(wsRoutes)
 
-                configure(configDir, allRoutes, clusters)
+                configure(allRoutes, clusters)
             }
         }
 
@@ -160,6 +160,27 @@ static_resources:
         }
     }
 
+    private fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
+        val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
+        NativeFile.open(tempRouteFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
+                EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes, useUCloudUsernameHeader)))
+            )
+        )
+
+        val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
+        NativeFile.open(tempClusterFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyCluster.serializer()),
+                EnvoyResources(clusters)
+            )
+        )
+
+        renameFile(tempRouteFile, "$configDir/$rdsFile")
+        renameFile(tempClusterFile, "$configDir/$clustersFile")
+    }
+
     companion object : Loggable {
         override val log = logger()
         private const val tempPrefix = "temp-"
@@ -167,26 +188,7 @@ static_resources:
         private const val clustersFile = "clusters.yaml"
         private const val configFile = "config.yaml"
 
-        private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
-            val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
-            NativeFile.open(tempRouteFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(
-                    EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
-                    EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes)))
-                )
-            )
-
-            val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
-            NativeFile.open(tempClusterFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(
-                    EnvoyResources.serializer(EnvoyCluster.serializer()),
-                    EnvoyResources(clusters)
-                )
-            )
-
-            renameFile(tempRouteFile, "$configDir/$rdsFile")
-            renameFile(tempClusterFile, "$configDir/$clustersFile")
-        }
+        const val IM_SERVER_CLUSTER = "_UCloud"
     }
 }
 
@@ -240,7 +242,7 @@ class EnvoyRouteConfiguration(
     val virtualHosts: List<JsonObject>,
 ) {
     companion object {
-        fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
+        fun create(routes: List<EnvoyRoute>, useUCloudUsernameHeader: Boolean): EnvoyRouteConfiguration {
 
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
@@ -279,24 +281,28 @@ class EnvoyRouteConfiguration(
                                         val cluster = route.cluster
                                         JsonObject(
                                             "match" to JsonObject(
-                                                "prefix" to JsonPrimitive("/"),
-                                                "headers" to JsonArray(
-                                                    JsonObject(
-                                                        buildMap {
-                                                            put("name", JsonPrimitive("UCloud-Username"))
-                                                            if (ucloudIdentity == null) {
-                                                                put("invert_match", JsonPrimitive(true))
-                                                                put("present_match", JsonPrimitive(true))
-                                                            } else {
-                                                                put(
-                                                                    "exact_match", JsonPrimitive(
-                                                                        base64Encode(ucloudIdentity.encodeToByteArray())
-                                                                    )
-                                                                )
-                                                            }
-                                                        }
-                                                    )
-                                                )
+                                                buildMap {
+                                                    put("prefix", JsonPrimitive("/"))
+                                                    if (useUCloudUsernameHeader) {
+                                                        put("headers", JsonArray(
+                                                            JsonObject(
+                                                                buildMap {
+                                                                    put("name", JsonPrimitive("UCloud-Username"))
+                                                                    if (ucloudIdentity == null) {
+                                                                        put("invert_match", JsonPrimitive(true))
+                                                                        put("present_match", JsonPrimitive(true))
+                                                                    } else {
+                                                                        put(
+                                                                            "exact_match", JsonPrimitive(
+                                                                                base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                }
+                                                            )
+                                                        ))
+                                                    }
+                                                }
                                             ),
                                             "route" to standardRouteConfig
                                         )

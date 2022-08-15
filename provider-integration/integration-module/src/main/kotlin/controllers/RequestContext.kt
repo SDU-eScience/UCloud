@@ -6,9 +6,9 @@ import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.ipc.IpcClient
+import dk.sdu.cloud.ipc.RealIpcClient
 import dk.sdu.cloud.ipc.IpcServer
 import dk.sdu.cloud.plugins.PluginContext
-import dk.sdu.cloud.service.Controller
 
 interface RequestContext : PluginContext {
     val ucloudUsername: String?

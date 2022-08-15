@@ -1,20 +1,11 @@
 package dk.sdu.cloud.plugins.storage.ucloud
 
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.file.orchestrator.api.FileType
-import dk.sdu.cloud.file.orchestrator.api.FilesCreateDownloadResponseItem
-import dk.sdu.cloud.file.orchestrator.api.FilesProviderCreateDownloadRequestItem
 import dk.sdu.cloud.file.orchestrator.api.fileName
-import dk.sdu.cloud.plugins.RelativeInternalFile
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.useAndInvoke
-import dk.sdu.cloud.sql.useAndInvokeAndDiscard
-import dk.sdu.cloud.sql.withSession
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.application.*
@@ -22,72 +13,13 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
-import java.util.*
 
 class DownloadService(
-    private val providerId: String,
-    private val db: DBContext,
     private val pathConverter: PathConverter,
     private val fs: NativeFS,
 ) {
-    suspend fun createSessions(
-        request: BulkRequest<FilesProviderCreateDownloadRequestItem>
-    ): BulkResponse<FilesCreateDownloadResponseItem?> {
-        val responses = ArrayList<FilesCreateDownloadResponseItem>()
-        for (reqItem in request.items) {
-            responses.add(FilesCreateDownloadResponseItem(endpoint + UUID.randomUUID().toString()))
-        }
-
-        val relativePaths = ArrayList<String>()
-        for (reqItem in request.items) {
-            val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-            val relativeFile = pathConverter.internalToRelative(internalFile)
-            fs.stat(internalFile)
-            relativePaths.add(relativeFile.path)
-        }
-
-        db.withSession { session ->
-            for ((resp, path) in responses.zip(relativePaths)) {
-                session.prepareStatement(
-                    """
-                        insert into ucloud_storage_download_sessions(id, relative_path)
-                        values (:id, :relative_path)
-                    """
-                ).useAndInvokeAndDiscard(
-                    prepare = {
-                        bindString("id", resp.endpoint.removePrefix(endpoint))
-                        bindString("relative_path", path)
-                    }
-                )
-            }
-        }
-        return BulkResponse(responses)
-    }
-
-    suspend fun download(token: String, ctx: HttpCall) {
-        val relativeFile = RelativeInternalFile(db.withSession { session ->
-            val rows = ArrayList<String>()
-            session
-                .prepareStatement(
-                    """
-                        select relative_path
-                        from ucloud_storage_download_sessions
-                        where
-                            id = :token and
-                            now() - last_update < '24 hours'::interval
-                    """
-                )
-                .useAndInvoke(
-                    prepare = { bindString("token", token) },
-                    readRow = { row -> rows.add(row.getString(0)!!)}
-                )
-
-            rows
-                .singleOrNull()
-                ?: throw RPCException("Invalid download link. Try again later.", dk.sdu.cloud.calls.HttpStatusCode.NotFound)
-        })
-
-        val internalFile = pathConverter.relativeToInternal(relativeFile)
+    suspend fun download(file: UCloudFile, ctx: HttpCall) {
+        val internalFile = pathConverter.ucloudToInternal(file)
 
         val stat = fs.stat(internalFile)
         if (stat.fileType != FileType.FILE) {
@@ -150,9 +82,6 @@ class DownloadService(
             }
         )
     }
-
-    private val endpointWithoutToken = "/ucloud/$providerId/download"
-    private val endpoint = "$endpointWithoutToken?token="
 
     companion object : Loggable {
         override val log = logger()

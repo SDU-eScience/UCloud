@@ -191,11 +191,13 @@ fun main(args: Array<String>) {
                     }
 
                     ServerMode.Server -> {
-                        if (uid == 0) throw IllegalStateException("Refusing the start the server as root")
+                        if (uid == 0 && !config.core.allowRootMode) {
+                            throw IllegalStateException("Refusing to start the server as root")
+                        }
                     }
 
                     ServerMode.User -> {
-                        if (uid == 0) throw IllegalStateException("Refusing the start a user instance as root")
+                        if (uid == 0) throw IllegalStateException("Refusing to start a user instance as root")
                     }
                 }
             }
@@ -229,9 +231,13 @@ fun main(args: Array<String>) {
             // Inter Process Communication Client (IPC)
             // -------------------------------------------------------------------------------------------------------
             val ipcSocketDirectory = config.core.ipc.directory
-            val ipcClient = when (serverMode) {
-                ServerMode.Server, ServerMode.FrontendProxy -> null
-                else -> IpcClient(ipcSocketDirectory)
+            val ipcClient: IpcClient? = when (serverMode) {
+                ServerMode.FrontendProxy -> null
+                ServerMode.Server -> {
+                    if (config.core.launchRealUserInstances) null
+                    else EmbeddedIpcClient()
+                }
+                else -> RealIpcClient(ipcSocketDirectory)
             }
 
             // IpcServer comes later, since it requires knowledge of the RpcServer. TODO(Dan): Change this?
@@ -251,10 +257,7 @@ fun main(args: Array<String>) {
             // -------------------------------------------------------------------------------------------------------
             val rpcServerPort = when (serverMode) {
                 is ServerMode.Plugin, ServerMode.FrontendProxy -> null
-                ServerMode.Server -> {
-                    if (config.core.launchRealUserInstances) UCLOUD_IM_PORT
-                    else config.server.network.listenPort
-                }
+                ServerMode.Server -> UCLOUD_IM_PORT
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
             }
 
@@ -367,10 +370,12 @@ fun main(args: Array<String>) {
                 else -> null
             }
 
+            if (ipcClient is EmbeddedIpcClient && ipcServer != null) ipcClient.server = ipcServer
+
             // L7 router (Envoy)
             // -------------------------------------------------------------------------------------------------------
-            val envoyConfig = if (serverMode == ServerMode.Server && config.core.launchRealUserInstances) {
-                EnvoyConfigurationService(ENVOY_CONFIG_PATH)
+            val envoyConfig = if (serverMode == ServerMode.Server) {
+                EnvoyConfigurationService(ENVOY_CONFIG_PATH, config.core.launchRealUserInstances)
             } else {
                 null
             }

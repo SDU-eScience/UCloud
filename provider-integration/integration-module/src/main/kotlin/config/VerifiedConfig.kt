@@ -31,6 +31,7 @@ data class VerifiedConfig(
         val ipc: Ipc,
         val logs: Logs,
         val launchRealUserInstances: Boolean,
+        val allowRootMode: Boolean,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -334,7 +335,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Core.Logs(directory)
         }
 
-        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances)
+        if (core.launchRealUserInstances && core.allowRootMode) {
+            emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
+        }
+
+        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances, core.allowRootMode)
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {

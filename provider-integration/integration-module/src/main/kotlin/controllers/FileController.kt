@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.causedBy
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -120,8 +119,12 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
-            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
-                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+                UserMapping.localIdToUCloudId(user.uid) ?:
+                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            } else {
+                null
+            }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -138,12 +141,11 @@ class FileController(
                 )
             }
 
-
             envoyConfig.requestConfiguration(
                 EnvoyRoute.DownloadSession(
                     request.session,
                     controllerContext.configuration.core.providerId,
-                    ucloudIdentity
+                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
                 ),
                 null,
             )
@@ -176,8 +178,12 @@ class FileController(
         })
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
-            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
-                ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
+            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+                UserMapping.localIdToUCloudId(user.uid) ?:
+                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            } else {
+                null
+            }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -199,7 +205,7 @@ class FileController(
                 EnvoyRoute.UploadSession(
                     request.session,
                     controllerContext.configuration.core.providerId,
-                    ucloudIdentity
+                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
                 ),
                 null,
             )
@@ -388,7 +394,8 @@ class FileController(
         }
 
         implement(downloadApi.download) {
-            if (controllerContext.configuration.shouldRunServerCode()) {
+            val config = controllerContext.configuration
+            if (config.shouldRunServerCode() && !config.shouldRunUserCode()) {
                 // NOTE(Dan): For some reason, it would appear that the configuration in Envoy is not yet active.
                 // Delay for a small while and ask the client to retry at almost the same address.
                 val sctx = (ctx as? HttpCall)

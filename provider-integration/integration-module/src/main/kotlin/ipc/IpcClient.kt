@@ -81,13 +81,19 @@ fun <R> JsonRpcResponse.orThrow(serializer: KSerializer<R>): R {
 
 data class IpcMessage(val payload: JsonRpcRequest, val callback: SendChannel<Result<JsonRpcResponse>>)
 
-class IpcClient(
+interface IpcClient {
+    fun connect()
+
+    suspend fun sendRequest(request: JsonRpcRequest): JsonRpcResponse
+}
+
+class RealIpcClient(
     private val ipcDirectory: String,
-) {
+) : IpcClient {
     private val writeChannel = Channel<IpcMessage>(capacity = Channel.UNLIMITED)
     private val isProcessing = AtomicBoolean(false)
 
-    fun connect() {
+    override fun connect() {
         if (!isProcessing.compareAndSet(false, true)) {
             throw IpcException("We are already processing messages")
         }
@@ -185,7 +191,7 @@ class IpcClient(
         }
     }
 
-    suspend fun sendRequest(request: JsonRpcRequest): JsonRpcResponse {
+    override suspend fun sendRequest(request: JsonRpcRequest): JsonRpcResponse {
         val channel = Channel<Result<JsonRpcResponse>>(1)
         writeChannel.send(IpcMessage(request, channel))
         return channel.receive().getOrThrow()
@@ -193,6 +199,51 @@ class IpcClient(
 
     companion object : Loggable {
         override val log = logger()
+    }
+}
+
+class EmbeddedIpcClient : IpcClient {
+    lateinit var server: IpcServer
+
+    override fun connect() {
+        // Do nothing
+    }
+
+    override suspend fun sendRequest(request: JsonRpcRequest): JsonRpcResponse {
+        for (handler in server.handlers) {
+            if (!handler.matches(request.method)) continue
+            try {
+                val resp = handler.handler(IpcUser(0), request)
+                return JsonRpcResponse.Success(
+                    resp,
+                    request.id ?: "?"
+                )
+            } catch (ex: RPCException) {
+                return JsonRpcResponse.Error(
+                    JsonRpcResponse.ErrorObject(
+                        ex.httpStatusCode.value,
+                        ex.why
+                    ),
+                    request.id ?: "?"
+                )
+            } catch (ex: Throwable) {
+                return JsonRpcResponse.Error(
+                    JsonRpcResponse.ErrorObject(
+                        500,
+                        "Internal server error"
+                    ),
+                    request.id ?: "?"
+                )
+            }
+        }
+
+        return JsonRpcResponse.Error(
+            JsonRpcResponse.ErrorObject(
+                404,
+                "No such method"
+            ),
+            request.id ?: "?"
+        )
     }
 }
 

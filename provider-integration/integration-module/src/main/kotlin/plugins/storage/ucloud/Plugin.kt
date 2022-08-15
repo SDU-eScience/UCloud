@@ -33,6 +33,7 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.utils.secureToken
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.serialization.json.JsonObject
@@ -79,11 +80,11 @@ class UCloudFilePlugin : FilePlugin {
         trash = TrashService(pathConverter)
         cephStats = CephFsFastDirectoryStats(fs)
         queries = FileQueries(pathConverter, NonDistributedStateFactory(), fs, trash, cephStats)
-        downloads = DownloadService(config.core.providerId, dbConnection, pathConverter, fs)
+        downloads = DownloadService(pathConverter, fs)
         limitChecker = LimitChecker(dbConnection, pathConverter)
         memberFiles = MemberFiles(fs, pathConverter, rpcClient)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
-        uploads = ChunkedUploadService(dbConnection, pathConverter, fs)
+        uploads = ChunkedUploadService(pathConverter, fs)
 
         with (tasks) {
             install(CopyTask())
@@ -113,12 +114,13 @@ class UCloudFilePlugin : FilePlugin {
     }
 
     override suspend fun RequestContext.createDownload(request: BulkRequest<FilesProviderCreateDownloadRequestItem>): List<FileDownloadSession> {
-        // TODO Need to change to plugin format
-        TODO("Not yet implemented")
+        return request.items.map {
+            FileDownloadSession(secureToken(32), it.id)
+        }
     }
 
     override suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) {
-        TODO("Not yet implemented")
+        downloads.download(UCloudFile.create(pluginData), ctx)
     }
 
     override suspend fun RequestContext.createFolder(req: BulkRequest<FilesProviderCreateFolderRequestItem>): List<LongRunningTask?> {
@@ -146,7 +148,9 @@ class UCloudFilePlugin : FilePlugin {
     }
 
     override suspend fun RequestContext.createUpload(request: BulkRequest<FilesProviderCreateUploadRequestItem>): List<FileUploadSession> {
-        TODO("Not yet implemented")
+        return request.items.map {
+            FileUploadSession(secureToken(32), it.id)
+        }
     }
 
     override suspend fun RequestContext.handleUpload(
@@ -155,7 +159,7 @@ class UCloudFilePlugin : FilePlugin {
         offset: Long,
         chunk: ByteReadChannel
     ) {
-        TODO("Not yet implemented")
+        uploads.receiveChunk(UCloudFile.create(pluginData), offset, chunk)
     }
 
     override suspend fun RequestContext.moveToTrash(request: BulkRequest<FilesProviderTrashRequestItem>): List<LongRunningTask?> {

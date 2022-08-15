@@ -3,8 +3,6 @@ package dk.sdu.cloud.config
 import com.charleskorn.kaml.PolymorphismStyle
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
-import com.charleskorn.kaml.YamlNode
-import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
 import kotlinx.serialization.KSerializer
@@ -39,6 +37,7 @@ data class ConfigSchema(
         val ipc: Ipc? = null,
         val logs: Logs? = null,
         val launchRealUserInstances: Boolean = true,
+        val allowRootMode: Boolean = false,
     ) {
         @Serializable
         data class Hosts(
