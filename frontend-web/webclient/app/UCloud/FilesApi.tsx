@@ -849,6 +849,18 @@ function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UF
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
 
+    if (!allSynchronized) {
+        const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
+        const resolvedFolderNames = resolvedFiles.map(it => it.id.split("/").pop());
+
+        for (const folderName of resolvedFolderNames) {
+            if (synchronizedFolderNames.includes(folderName)) {
+                snackbarStore.addFailure("Folder with same name already exist in Syncthing", false)
+                return;
+            }
+        }
+    }
+
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {
         cb.history.push("/syncthing");
