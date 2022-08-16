@@ -42,6 +42,13 @@ class AccountingService(
         )).allocations
     }
 
+    suspend fun retrieveWallets(actorAndProject: ActorAndProject) {
+        return processor.retrieveWallets((AccountingRequest.RetrieveWallets(
+            Actor.System,
+            actorAndProject
+        )))
+    }
+
     suspend fun charge(
         actorAndProject: ActorAndProject,
         request: BulkRequest<ChargeWalletRequestItem>,
@@ -93,7 +100,7 @@ class AccountingService(
                     deposit.sourceAllocation.toIntOrNull() ?: return@map,
                     deposit.amount,
                     deposit.startDate ?: Time.now(),
-                    deposit.endDate
+                    deposit.endDate,
                 )
             )
         }

@@ -6,6 +6,7 @@ import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
+import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
@@ -48,7 +49,7 @@ private data class Wallet(
 
 private data class WalletAllocation(
     val id: Int,
-    val walletOwner: Int,
+    val associatedWallet: Int,
     val parentAllocation: Int?,
 
     var notBefore: Long,
@@ -151,7 +152,7 @@ sealed class AccountingRequest {
         val notBefore: Long,
         val notAfter: Long?,
         override var id: Long = -1,
-        val grantedIn: Long?,
+        val grantedIn: Long? = null,
     ) : AccountingRequest()
 
     sealed class Charge() : AccountingRequest() {
@@ -196,6 +197,12 @@ sealed class AccountingRequest {
         val category: ProductCategoryId,
         override var id: Long = -1,
     ) : AccountingRequest()
+
+    data class RetrieveWallets(
+        override val actor: Actor,
+        override var id: Long,
+        val owner: String
+    ): AccountingRequest()
 }
 
 sealed class AccountingResponse {
@@ -231,6 +238,11 @@ sealed class AccountingResponse {
         val allocations: List<ApiWalletAllocation>,
         override var id: Long = -1,
     ) : AccountingResponse()
+
+    data class RetrieveWallets(
+        val wallets: List<ApiWallet>,
+        override var id: Long = -1
+    ): AccountingResponse()
 }
 
 inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
@@ -258,6 +270,10 @@ suspend fun AccountingProcessor.update(request: AccountingRequest.Update): Accou
 }
 
 suspend fun AccountingProcessor.retrieveAllocations(request: AccountingRequest.RetrieveAllocations): AccountingResponse.RetrieveAllocations {
+    return sendRequest(request).orThrow()
+}
+
+suspend fun AccountingProcessor.retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse.RetrieveWallet {
     return sendRequest(request).orThrow()
 }
 
@@ -360,6 +376,7 @@ class AccountingProcessor(
             is AccountingRequest.Update -> update(request)
             is AccountingRequest.Charge -> charge(request)
             is AccountingRequest.RetrieveAllocations -> retrieveAllocations(request)
+            is AccountingRequest.RetrieveWallets -> retrieveWallets(request)
         }
 
         if (doDebug) {
@@ -730,7 +747,7 @@ class AccountingProcessor(
             ?: return AccountingResponse.Error("Bad parent allocation")
 
         if (request.actor != Actor.System) {
-            val wallet = wallets[parent.walletOwner]!!
+            val wallet = wallets[parent.associatedWallet]!!
             val role = projects.retrieveProjectRole(request.actor.safeUsername(), wallet.owner)
 
             if (role?.isAdmin() != true) {
@@ -743,7 +760,7 @@ class AccountingProcessor(
             if (error != null) return error
         }
 
-        val parentWallet = wallets[parent.walletOwner]!!
+        val parentWallet = wallets[parent.associatedWallet]!!
 
         val existingWallet = findWallet(request.owner, parentWallet.paysFor)
             ?: createWallet(request.owner, parentWallet.paysFor)
@@ -791,7 +808,7 @@ class AccountingProcessor(
             ?: return AccountingResponse.Charge(false)
 
         val allocations = allocations.filter {
-            it?.walletOwner == wallet.id && it.isValid(System.currentTimeMillis())
+            it?.associatedWallet == wallet.id && it.isValid(System.currentTimeMillis())
         }.filterNotNull()
 
         if (allocations.isEmpty()) {
@@ -933,7 +950,7 @@ class AccountingProcessor(
         var maximumCharge = amount
 
         var current: WalletAllocation? = allocations[allocation]
-        val sourceWallet = wallets[allocations[allocation]!!.walletOwner]!!
+        val sourceWallet = wallets[allocations[allocation]!!.associatedWallet]!!
         while (current != null) {
             maximumCharge = min(maximumCharge, current.currentBalance)
 
@@ -987,7 +1004,7 @@ class AccountingProcessor(
         var maximumCharge = amount
 
         val initial = allocations[allocation]!!
-        val sourceWallet = wallets[initial.walletOwner]!!
+        val sourceWallet = wallets[initial.associatedWallet]!!
         var current: WalletAllocation? = initial
         val leafUsage = initial.initialBalance - initial.localBalance
         while (current != null) {
@@ -1043,7 +1060,7 @@ class AccountingProcessor(
         initialId: String,
         dryRun: Boolean,
     ) {
-        val sourceWallet = wallets[allocations[allocation]!!.walletOwner]!!
+        val sourceWallet = wallets[allocations[allocation]!!.associatedWallet]!!
         var current: WalletAllocation? = allocations[allocation]
         while (current != null) {
             current.begin()
@@ -1086,7 +1103,7 @@ class AccountingProcessor(
         val allocation = allocations.getOrNull(request.allocationId)
             ?: return AccountingResponse.Error("Invalid allocation id supplied")
 
-        val wallet = wallets[allocation.walletOwner]
+        val wallet = wallets[allocation.associatedWallet]
             ?: return AccountingResponse.Error("Invalid allocation id supplied")
 
         if (request.actor != Actor.System) {
@@ -1100,7 +1117,7 @@ class AccountingProcessor(
 
             val role = projects.retrieveProjectRole(
                 request.actor.safeUsername(),
-                wallets[parentAllocation.walletOwner]!!.owner
+                wallets[parentAllocation.associatedWallet]!!.owner
             )
 
             if (role?.isAdmin() != true) {
@@ -1130,29 +1147,6 @@ class AccountingProcessor(
             allocation.currentBalance -= currentUse
             allocation.localBalance -= currentUse
         }
-
-        // TODO Deal with this situation. Probably want to do this in charge and make sure we don't go above the
-        //  initialBalance
-
-        // Initial state:
-        // 1000
-        // 500
-        // 100
-
-        // Charge 50 in leaf
-        // 1000 (950)
-        // 500 (450)
-        // 100 (50)
-
-        // Update leaf to have 10 only
-        // 10 (-40)
-        // 500 (450)
-        // 100 (50)
-
-        // Charge 0 in leaf
-        // 10 (60)
-        // 500 (500)
-        // 100 (50)
 
         val transactionId = transactionId()
         dirtyTransactions.add(
@@ -1186,10 +1180,15 @@ class AccountingProcessor(
             allocations
                 .asSequence()
                 .filterNotNull()
-                .filter { it.walletOwner == wallet.id && it.isValid(now) }
+                .filter { it.associatedWallet == wallet.id && it.isValid(now) }
                 .map { it.toApiAllocation() }
                 .toList()
         )
+    }
+
+    private suspend fun retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse {
+        val now = Time.now()
+        val wallet = wallets.filter { it.owner == request.owner }
     }
 
     // Database synchronization
@@ -1296,7 +1295,7 @@ class AccountingProcessor(
 
                                     reversePath.reversed().joinToString(".")
                                 }
-                                into("associated_wallets") { it.walletOwner.toLong() }
+                                into("associated_wallets") { it.associatedWallet.toLong() }
                                 into("balances") { it.currentBalance }
                                 into("initial_balances") { it.initialBalance }
                                 into("local_balances") { it.localBalance }
@@ -1441,7 +1440,7 @@ class AccountingProcessor(
 
             val depositForProviders = dirtyTransactions.asSequence()
                 .filterIsInstance<Transaction.Deposit>()
-                .map { wallets[allocations[it.affectedAllocationId.toInt()]!!.walletOwner]!!.paysFor.provider }
+                .map { wallets[allocations[it.affectedAllocationId.toInt()]!!.associatedWallet]!!.paysFor.provider }
                 .toSet()
 
             if (depositForProviders.isNotEmpty()) {
@@ -1509,10 +1508,10 @@ class AccountingProcessor(
 
             for (alloc in allocations) {
                 if (alloc == null) continue
-                val owner = wallets[alloc.walletOwner]?.owner ?: continue
+                val owner = wallets[alloc.associatedWallet]?.owner ?: continue
                 if (owner.startsWith("_filter")) continue
                 cell(alloc.id)
-                cell("$owner (${alloc.walletOwner})")
+                cell("$owner (${alloc.associatedWallet})")
                 cell(alloc.parentAllocation)
                 cell(alloc.initialBalance)
                 cell(alloc.currentBalance)

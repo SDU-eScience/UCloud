@@ -1,6 +1,7 @@
 package dk.sdu.cloud.accounting.rpc
 
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer

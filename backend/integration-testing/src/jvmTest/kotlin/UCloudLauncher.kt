@@ -458,6 +458,7 @@ object UCloudLauncher : Loggable {
                     add("--dev")
                     add("--no-implicit-config")
                     add("--no-scripts")
+                    add("--no-debugger")
                     add("--config-dir")
                     add(createConfiguration().absolutePath)
                     add("--config-dir")
