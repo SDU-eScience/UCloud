@@ -37,8 +37,6 @@ class MemberFiles(
                 false
             }
 
-            if (exists) return file
-
             try {
                 FileCollectionsControl.register.call(
                     bulkRequestOf(
@@ -59,6 +57,8 @@ class MemberFiles(
                 }
             }
 
+            if (exists) return file
+
             fs.createDirectories(file)
             return file
         } else {
@@ -73,21 +73,7 @@ class MemberFiles(
                 false
             }
 
-            if (exists) return file
-
             try {
-                fs.createDirectories(
-                    paths.relativeToInternal(
-                        RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Jobs")
-                    )
-                )
-
-                fs.createDirectories(
-                    paths.relativeToInternal(
-                        RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Trash")
-                    )
-                )
-
                 FileCollectionsControl.register.call(
                     bulkRequestOf(
                         ProviderRegisteredResource(
@@ -106,7 +92,22 @@ class MemberFiles(
                 }
             }
 
+            if (exists) return file
+
             fs.createDirectories(file)
+
+            fs.createDirectories(
+                paths.relativeToInternal(
+                    RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Jobs")
+                )
+            )
+
+            fs.createDirectories(
+                paths.relativeToInternal(
+                    RelativeInternalFile("/${PathConverter.HOME_DIRECTORY}/${username}/Trash")
+                )
+            )
+
             return file
         }
     }
