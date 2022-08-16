@@ -89,7 +89,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             request,
             bearer = ctx.attributes.outgoingAuthToken,
             project = ctx.project,
-            signedIntent = ctx.attributes[OutgoingWSCall.signedIntentAttribute],
+            signedIntent = ctx.attributes.getOrNull(OutgoingWSCall.signedIntentAttribute),
         )
         val writer = WSRequest.serializer(call.requestType)
         val subscription = session.subscribe(streamId)
