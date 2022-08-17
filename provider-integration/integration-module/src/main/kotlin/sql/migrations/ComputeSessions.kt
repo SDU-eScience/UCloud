@@ -18,3 +18,11 @@ fun V1__ComputeSessions() = MigrationScript("V1__ComputeSessions") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__ComputeSessions() = MigrationScript("V2__ComputeSessions") { session ->
+    session.prepareStatement(
+        """
+            alter table compute_sessions add column target text default '';
+        """
+    ).useAndInvokeAndDiscard()
+}

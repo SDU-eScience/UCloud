@@ -199,8 +199,11 @@ class UCloudComputePlugin : ComputePlugin {
                 val ingressFeature = jobManagement.featureOrNull<FeatureIngress>()
                     ?: throw RPCException("Not supported", HttpStatusCode.BadRequest)
 
-                val domain = ingressFeature.retrieveDomainsByJobId(job.job.id).firstOrNull()
+                val publicDomain = ingressFeature.retrieveDomainsByJobId(job.job.id).firstOrNull()
+                val domain = publicDomain
                     ?: ingressFeature.defaultDomainByJobIdAndRank(job.job.id, job.rank)
+
+                val isPublic = domain == publicDomain
 
                 val pod = jobManagement.k8.client.getResource(
                     Pod.serializer(),
@@ -216,7 +219,8 @@ class UCloudComputePlugin : ComputePlugin {
                     target = ComputeSessionIpc.SessionTarget(
                         domain,
                         ipAddress,
-                        job.job.status.resolvedApplication?.invocation?.web?.port ?: 80
+                        job.job.status.resolvedApplication?.invocation?.web?.port ?: 80,
+                        webSessionIsPublic = isPublic
                     )
                 )
             }

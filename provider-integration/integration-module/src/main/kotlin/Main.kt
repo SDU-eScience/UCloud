@@ -41,7 +41,6 @@ import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
-import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
@@ -234,10 +233,7 @@ fun main(args: Array<String>) {
             val ipcSocketDirectory = config.core.ipc.directory
             val ipcClient: IpcClient? = when (serverMode) {
                 ServerMode.FrontendProxy -> null
-                ServerMode.Server -> {
-                    if (config.core.launchRealUserInstances) null
-                    else EmbeddedIpcClient()
-                }
+                ServerMode.Server -> EmbeddedIpcClient()
                 else -> RealIpcClient(ipcSocketDirectory)
             }
 
@@ -420,7 +416,9 @@ fun main(args: Array<String>) {
                 for (plugin in allResourcePlugins) {
                     val allConfiguredProducts: List<Product> =
                         (config.products.compute ?: emptyMap()).values.flatten() +
-                            (config.products.storage ?: emptyMap()).values.flatten()
+                            (config.products.storage ?: emptyMap()).values.flatten() +
+                                (config.products.ingress ?: emptyMap()).values.flatten() +
+                                (config.products.publicIp ?: emptyMap()).values.flatten()
 
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {

@@ -25,6 +25,11 @@ sealed class ConfigProduct<T : Product> {
             return 1
         }
 
+        if (cost.currency == ConfigProductCost.Currency.FREE) {
+            if (cost.price != null) throw IllegalArgumentException("Price not supported when cost.currency = FREE for $name")
+            return 1
+        }
+
         if (cost.currency == ConfigProductCost.Currency.UNITS) {
             if (cost.price != null) throw IllegalArgumentException("Price not supported when cost.currency = UNITS for $name")
             return 1
@@ -51,6 +56,10 @@ sealed class ConfigProduct<T : Product> {
     protected fun unitOfPrice(): ProductPriceUnit {
         if (cost.quota) return ProductPriceUnit.PER_UNIT
         return when (cost.currency) {
+            ConfigProductCost.Currency.FREE -> {
+                ProductPriceUnit.PER_UNIT
+            }
+
             ConfigProductCost.Currency.DKK -> {
                 when (cost.frequency) {
                     ConfigProductCost.Frequency.ONE_TIME -> ProductPriceUnit.CREDITS_PER_UNIT
@@ -75,6 +84,8 @@ sealed class ConfigProduct<T : Product> {
         }
     }
 
+    protected fun isFree() = cost.currency == ConfigProductCost.Currency.FREE
+
     @Serializable
     @SerialName("storage")
     data class Storage(
@@ -90,6 +101,7 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
             )
         }
     }
@@ -109,6 +121,7 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
             )
         }
     }
@@ -128,6 +141,7 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
             )
         }
     }
@@ -150,6 +164,7 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
 
                 cpu = cpu,
                 memoryInGigs = memoryInGigs,
@@ -171,6 +186,7 @@ data class ConfigProductCost(
     enum class Currency {
         DKK,
         UNITS,
+        FREE,
     }
 
     enum class Frequency {

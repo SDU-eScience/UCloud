@@ -152,7 +152,6 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
-            println("Looking for token with ID ${request.id}")
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(

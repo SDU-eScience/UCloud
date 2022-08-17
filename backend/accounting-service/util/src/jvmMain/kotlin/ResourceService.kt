@@ -965,6 +965,7 @@ abstract class ResourceService<
             if (personalResource) null else actorAndProject.project
         )
         val relevantProviders = findRelevantProviders(actorAndProject)
+        println("The relevant providers for $actorAndProject is $relevantProviders")
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             val api = providerApi(comms)
@@ -1027,7 +1028,8 @@ abstract class ResourceService<
                                     product.free_to_use or
                                     (
                                         wo.username = :username and
-                                        w.id is not null
+                                        w.id is not null and
+                                        :project::text is null
                                     ) or
                                     (
                                         wo.project_id = :project::text and

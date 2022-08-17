@@ -157,10 +157,12 @@ static_resources:
                         allowed_headers:
                           patterns:
                             - exact: Cookie
+                              ignore_case: true
                       authorization_response:
                         allowed_upstream_headers:
                           patterns:
                             - exact: Cookie
+                              ignore_case: true
                 - name: envoy.filters.http.router
                   typed_config:
                     "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
@@ -269,6 +271,7 @@ sealed class EnvoyRoute {
     data class WebIngressSession(
         val identifier: String,
         val domain: String,
+        val isAuthorizationEnabled: Boolean,
         override val cluster: String,
     ) : EnvoyRoute()
 
@@ -424,17 +427,24 @@ class EnvoyRouteConfiguration(
 
                                     is EnvoyRoute.WebIngressSession -> {
                                         JsonObject(
-                                            "match" to JsonObject(
-                                                "prefix" to JsonPrimitive("/"),
-                                                "headers" to JsonArray(
-                                                    JsonObject(
-                                                        "header" to JsonPrimitive(":authority"),
-                                                        "exact_match" to JsonPrimitive(route.domain)
+                                            buildMap {
+                                                put("match", JsonObject(
+                                                    "prefix" to JsonPrimitive("/"),
+                                                    "headers" to JsonArray(
+                                                        JsonObject(
+                                                            "name" to JsonPrimitive(":authority"),
+                                                            "exact_match" to JsonPrimitive(route.domain)
+                                                        )
                                                     )
-                                                )
-                                            ),
-                                            "route" to standardRouteConfig,
-                                            // app authorization enabled by not disabling it
+                                                ))
+                                                put("route", standardRouteConfig)
+
+                                                if (!route.isAuthorizationEnabled) {
+                                                    put(disableAppAuthorization.first, disableAppAuthorization.second)
+                                                } else {
+                                                    // app authorization enabled by not disabling it
+                                                }
+                                            }
                                         )
                                     }
 

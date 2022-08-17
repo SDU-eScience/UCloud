@@ -88,7 +88,7 @@ data class ConfigSchema(
         val jobs: Map<String, Jobs>? = null,
         val files: Map<String, Files>? = null,
         val fileCollections: Map<String, FileCollections>? = null,
-        val ingress: Map<String, Ingresses>? = null,
+        val ingresses: Map<String, Ingresses>? = null,
         val publicIps: Map<String, PublicIPs>? = null,
         val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {

@@ -35,45 +35,41 @@ class K8Shell(
         ) {
             resizes.send(ExecResizeMessage(request.cols, request.rows))
 
-            try {
-                coroutineScope {
-                    launch {
-                        outputs.consumeEach { f ->
-                            emitData(f.bytes.toString(Charsets.UTF_8))
-                        }
+            coroutineScope {
+                launch {
+                    outputs.consumeEach { f ->
+                        emitData(f.bytes.toString(Charsets.UTF_8))
                     }
+                }
 
-                    while (isActive() && !receiveChannel.isClosedForReceive) {
-                        @Suppress("RemoveExplicitTypeArguments")
-                        select<Unit> {
-                            receiveChannel.onReceiveCatching {
-                                val message = it.getOrNull() ?: return@onReceiveCatching
-                                when (message) {
-                                    is ShellRequest.Initialize -> {
-                                        throw RPCException(
-                                            "Multiple initialize calls received",
-                                            HttpStatusCode.BadRequest
-                                        )
-                                    }
+                while (isActive() && !receiveChannel.isClosedForReceive) {
+                    @Suppress("RemoveExplicitTypeArguments")
+                    select<Unit> {
+                        receiveChannel.onReceiveCatching {
+                            val message = it.getOrNull() ?: return@onReceiveCatching
+                            when (message) {
+                                is ShellRequest.Initialize -> {
+                                    throw RPCException(
+                                        "Multiple initialize calls received",
+                                        HttpStatusCode.BadRequest
+                                    )
+                                }
 
-                                    is ShellRequest.Input -> {
-                                        stdin.send(message.data.toByteArray(Charsets.UTF_8))
-                                    }
+                                is ShellRequest.Input -> {
+                                    stdin.send(message.data.toByteArray(Charsets.UTF_8))
+                                }
 
-                                    is ShellRequest.Resize -> {
-                                        resizes.send(ExecResizeMessage(message.cols, message.rows))
-                                    }
+                                is ShellRequest.Resize -> {
+                                    resizes.send(ExecResizeMessage(message.cols, message.rows))
                                 }
                             }
+                        }
 
-                            onTimeout(500) {
-                                // Do nothing, just check if active
-                            }
+                        onTimeout(500) {
+                            // Do nothing, just check if active
                         }
                     }
                 }
-            } catch (ex: Throwable) {
-                ex.printStackTrace()
             }
         }
     }

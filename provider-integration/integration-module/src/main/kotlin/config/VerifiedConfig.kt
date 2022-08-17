@@ -2,7 +2,6 @@ package dk.sdu.cloud.config
 
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
@@ -176,6 +175,8 @@ data class VerifiedConfig(
     data class Products(
         val compute: Map<String, List<Product.Compute>>? = null,
         val storage: Map<String, List<Product.Storage>>? = null,
+        val ingress: Map<String, List<Product.Ingress>>? = null,
+        val publicIp: Map<String, List<Product.NetworkIP>>? = null,
     ) {
         var productsUnknownToUCloud: Set<Product> = emptySet()
     }
@@ -456,6 +457,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Products(
                 mapProducts(config.products.compute),
                 mapProducts(config.products.storage),
+                mapProducts(config.products.ingress),
+                mapProducts(config.products.publicIps),
             )
         }
     }
@@ -560,7 +563,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             @Suppress("unchecked_cast")
             val ingresses: Map<String, IngressPlugin> = loadProductBasedPlugins(
                 mapProducts(config.products?.ingress),
-                config.plugins.ingress ?: emptyMap(),
+                config.plugins.ingresses ?: emptyMap(),
                 productReference,
                 pluginReference,
                 core.launchRealUserInstances

@@ -21,6 +21,7 @@ import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -177,11 +178,20 @@ class ComputeController(
 
                 val session = when (request.sessionType) {
                     InteractiveSessionType.WEB -> {
-                        OpenSession.Web(
-                            request.job.id,
-                            request.rank,
-                            "/ucloud/$providerId/authorize-app?token=${sessionId}"
-                        )
+                        val target = response.target!!
+                        if (target.webSessionIsPublic) {
+                            OpenSession.Web(
+                                request.job.id,
+                                request.rank,
+                                "http://${target.ingress}"
+                            )
+                        } else {
+                            OpenSession.Web(
+                                request.job.id,
+                                request.rank,
+                                "/ucloud/$providerId/authorize-app?token=${sessionId}"
+                            )
+                        }
                     }
 
                     InteractiveSessionType.VNC -> {
@@ -246,85 +256,100 @@ class ComputeController(
         }
 
         implement(shells.open) {
-            runBlocking {
-                if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-                val wsContext = ctx as WSCall
-                val ipcClient = controllerContext.pluginContext.ipcClient
+            if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            val wsContext = ctx as WSCall
+            val ipcClient = controllerContext.pluginContext.ipcClient
 
-                when (request) {
-                    is ShellRequest.Initialize -> {
-                        val sessionInformation = runCatching {
-                            ipcClient.sendRequest(
-                                ComputeSessionIpc.retrieve,
-                                FindByStringId(request.sessionIdentifier)
-                            )
-                        }.getOrNull()
-
-                        println("Shell information is $sessionInformation")
-
-                        if (sessionInformation?.sessionType != InteractiveSessionType.SHELL) {
-                            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-                        }
-
-                        val pluginHandler = controllerContext.configuration.plugins.jobs[sessionInformation.pluginName]
-                            ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
-
-                        val channel = Channel<ShellRequest>(Channel.BUFFERED)
-                        val ctx = ComputePlugin.ShellContext(
-                            requestContext(controllerContext),
-                            sessionInformation.pluginData,
-                            sessionInformation.jobId,
-                            sessionInformation.jobRank,
-                            { wsContext.session.isActive },
-                            channel,
-                            emitData = { data ->
-                                wsContext.sendMessage(ShellResponse.Data(data), ShellResponse.serializer())
-                            }
+            when (val req = request) {
+                is ShellRequest.Initialize -> {
+                    val sessionInformation = runCatching {
+                        ipcClient.sendRequest(
+                            ComputeSessionIpc.retrieve,
+                            FindByStringId(req.sessionIdentifier)
                         )
+                    }.getOrNull()
 
-                        ProcessingScope.launch {
-                            with(ctx) {
-                                with(pluginHandler) {
-                                    handleShellSession(request)
-                                }
-                            }
-                        }
-
-                        sessionMapMutex.withLock {
-                            sessionMap[wsContext.session.id] = channel
-                        }
-
-                        // NOTE(Dan): We do not want to send a response yet. Which is why we tell the RPC system that
-                        // we have already sent what we need to send, which is nothing.
-                        okContentAlreadyDelivered()
-                        return@runBlocking
+                    if (sessionInformation?.sessionType != InteractiveSessionType.SHELL) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
                     }
 
-                    is ShellRequest.Input, is ShellRequest.Resize -> {
-                        val sendChannel = sessionMapMutex.withLock {
-                            sessionMap[wsContext.session.id]
-                        } ?: throw RPCException(
-                            "This session is not ready to accept such a request",
-                            HttpStatusCode.BadRequest
-                        )
+                    val pluginHandler = controllerContext.configuration.plugins.jobs[sessionInformation.pluginName]
+                        ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
 
-                        sendChannel.send(request)
+                    val channel = Channel<ShellRequest>(Channel.BUFFERED)
+                    val ctx = ComputePlugin.ShellContext(
+                        requestContext(controllerContext),
+                        sessionInformation.pluginData,
+                        sessionInformation.jobId,
+                        sessionInformation.jobRank,
+                        { wsContext.session.isActive },
+                        channel,
+                        emitData = { data ->
+                            wsContext.sendMessage(ShellResponse.Data(data), ShellResponse.serializer())
+                        }
+                    )
+
+                    ProcessingScope.launch {
+                        with(ctx) {
+                            with(pluginHandler) {
+                                handleShellSession(req)
+                            }
+                        }
                     }
+
+                    sessionMapMutex.withLock {
+                        sessionMap[wsContext.session.id] = channel
+                    }
+
+                    // NOTE(Dan): We do not want to send a response yet. Which is why we tell the RPC system that
+                    // we have already sent what we need to send, which is nothing.
+                    okContentAlreadyDelivered()
+                    return@implement
                 }
 
-                ok(ShellResponse.Acknowledged())
+                is ShellRequest.Input, is ShellRequest.Resize -> {
+                    val sendChannel = sessionMapMutex.withLock {
+                        sessionMap[wsContext.session.id]
+                    } ?: throw RPCException(
+                        "This session is not ready to accept such a request",
+                        HttpStatusCode.BadRequest
+                    )
+
+                    sendChannel.send(request)
+                    ok(ShellResponse.Acknowledged())
+                }
             }
         }
     }
 
     override fun onServerReady(rpcServer: RpcServer) {
         val providerId = controllerContext.configuration.core.providerId
+        val ipcClient = controllerContext.pluginContext.ipcClient
 
-        val authorizeApp: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = {
-            val host = call.request.host()
+        val authorizeApp: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = fn@{
+            val host = call.request.header(HttpHeaders.Host)
             val requestCookies = HashMap(call.request.cookies.rawCookies)
-            println("Checking if you are allowed to access $host with $requestCookies")
-            call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
+            val relevantCookie = requestCookies[cookieName + host]
+            if (relevantCookie == null) {
+                call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
+                return@fn
+            }
+
+            try {
+                val session = ipcClient.sendRequest(
+                    ComputeSessionIpc.retrieve,
+                    FindByStringId(relevantCookie)
+                )
+
+                if (session.sessionType != InteractiveSessionType.WEB) error("Unauthorized")
+                val target = session.target ?: error("Unauthorized")
+                if (host != target.ingress) error("Unauthorized")
+
+                call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
+            } catch (ex: Throwable) {
+                call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
+                return@fn
+            }
         }
 
         ktor.routing {
@@ -361,7 +386,7 @@ class ComputeController(
 
                     val target = sessionInformation.target!!
                     call.response.cookies.append(
-                        name = cookieName + sessionInformation.jobId,
+                        name = cookieName + target.ingress,
                         value = token,
                         secure = call.request.origin.scheme == "https",
                         httpOnly = true,
@@ -370,7 +395,7 @@ class ComputeController(
                         domain = call.request.origin.host
                     )
 
-                    call.respondRedirect(target.ingress)
+                    call.respondRedirect("http://" + target.ingress.removePrefix("https://").removePrefix("http://"))
                 } catch (ex: RPCException) {
                     call.respondText(
                         defaultMapper.encodeToString(
@@ -428,8 +453,9 @@ class ComputeController(
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
-                        insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data)
-                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data)
+                        insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data,
+                            target)
+                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -439,6 +465,9 @@ class ComputeController(
                         bindInt("job_rank", request.jobRank)
                         bindString("plugin_name", request.pluginName)
                         bindString("plugin_data", request.pluginData)
+                        bindStringNullable("target", request.target?.let {
+                            defaultMapper.encodeToString(ComputeSessionIpc.SessionTarget.serializer(), it)
+                        })
                     }
                 )
             }
@@ -451,6 +480,7 @@ class ComputeController(
                         EnvoyRoute.WebIngressSession(
                             generatedSessionId,
                             target.ingress,
+                            isAuthorizationEnabled = !target.webSessionIsPublic,
                             "_$generatedSessionId"
                         ),
                         EnvoyCluster.create(
@@ -490,7 +520,7 @@ class ComputeController(
             dbConnection.withSession { session ->
                 session.prepareStatement(
                     """
-                        select session_type, job_id, job_rank, plugin_name, plugin_data
+                        select session_type, job_id, job_rank, plugin_name, plugin_data, target
                         from compute_sessions
                         where session = :id
                     """
@@ -504,7 +534,10 @@ class ComputeController(
                             row.getString(1)!!,
                             row.getInt(2)!!,
                             row.getString(3)!!,
-                            row.getString(4)!!
+                            row.getString(4)!!,
+                            row.getString(5)?.let {
+                                defaultMapper.decodeFromString(ComputeSessionIpc.SessionTarget.serializer(), it)
+                            }
                         )
                     }
                 )
@@ -539,11 +572,11 @@ object ComputeSessionIpc : IpcContainer("compute_sessions") {
         init {
             if (target == null) {
                 require(sessionType in setOf(InteractiveSessionType.SHELL)) {
-                    "target information must not be present for sessions of type $sessionType"
+                    "target information must be present for sessions of type $sessionType"
                 }
             } else {
                 require(sessionType in setOf(InteractiveSessionType.WEB, InteractiveSessionType.VNC)) {
-                    "target information must be present for sessions of type $sessionType"
+                    "target information must not be present for sessions of type $sessionType"
                 }
             }
         }
@@ -554,6 +587,8 @@ object ComputeSessionIpc : IpcContainer("compute_sessions") {
         val ingress: String,
         val clusterAddress: String,
         val clusterPort: Int,
+        // TODO(Dan): Might want to make this a sealed class at this point. It is ignored for anything but web
+        val webSessionIsPublic: Boolean = false,
     )
 
     val create = createHandler(Session.serializer(), FindByStringId.serializer())
