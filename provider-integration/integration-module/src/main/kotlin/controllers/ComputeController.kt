@@ -285,7 +285,6 @@ class ComputeController(
                         ProcessingScope.launch {
                             with(ctx) {
                                 with(pluginHandler) {
-                                    //handleShellSession(request.cols, request.rows)
                                     handleShellSession(request)
                                 }
                             }
@@ -302,7 +301,6 @@ class ComputeController(
                     }
 
                     is ShellRequest.Input, is ShellRequest.Resize -> {
-                        println("Receiving input!")
                         val sendChannel = sessionMapMutex.withLock {
                             sessionMap[wsContext.session.id]
                         } ?: throw RPCException(
@@ -310,7 +308,6 @@ class ComputeController(
                             HttpStatusCode.BadRequest
                         )
 
-                        println("Sending the input!")
                         sendChannel.send(request)
                     }
                 }
