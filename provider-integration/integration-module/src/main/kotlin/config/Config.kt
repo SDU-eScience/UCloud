@@ -38,6 +38,7 @@ data class ConfigSchema(
         val hosts: Hosts,
         val ipc: Ipc? = null,
         val logs: Logs? = null,
+        val launchRealUserInstances: Boolean = true,
     ) {
         @Serializable
         data class Hosts(
@@ -88,8 +89,17 @@ data class ConfigSchema(
         val jobs: Map<String, Jobs>? = null,
         val files: Map<String, Files>? = null,
         val fileCollections: Map<String, FileCollections>? = null,
-        val allocations: Map<ProductType, Allocations>? = null,
+        val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
+        enum class AllocationsProductType(val type: ProductType?) {
+            STORAGE(ProductType.STORAGE),
+            COMPUTE(ProductType.COMPUTE),
+            INGRESS(ProductType.INGRESS),
+            LICENSE(ProductType.LICENSE),
+            NETWORK_IP(ProductType.NETWORK_IP),
+            ALL(null)
+        }
+
         @Serializable
         sealed class Connection {
             @Serializable
@@ -150,7 +160,8 @@ data class ConfigSchema(
                 data class Extensions(
                     val onConnectionComplete: String,
                 )
-            }        }
+            }
+        }
 
         @Serializable
         sealed class Projects {
@@ -183,6 +194,22 @@ data class ConfigSchema(
                 )
             }
 
+            @Serializable
+            @SerialName("Puhuri")
+            data class Puhuri(
+                val endpoint: String,
+                val apiToken: String,
+                val customerId: String,
+                val offeringId: String,
+                val planId: String,
+            ) : Projects() {
+                /*
+                    endpoint = "https://puhuri-core-beta.neic.no/api/"
+                    customerId = "579f3e4d309a4b208026e784bf0775a3"
+                    offeringId = "5c93748e796b47eaaec0805153e66fb4"
+                    planId = "a274fc378464423390bf596991e10328"
+                 */
+            }
         }
 
         @Serializable
@@ -198,6 +225,10 @@ data class ConfigSchema(
                     val onSynchronization: String,
                 )
             }
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri : Allocations()
         }
 
         @Serializable
@@ -224,6 +255,10 @@ data class ConfigSchema(
                     data class Extension(val extension: String) : AccountMapper()
                 }
             }
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : Jobs()
         }
 
         @Serializable
@@ -233,6 +268,10 @@ data class ConfigSchema(
             data class Posix(
                 override val matches: String,
             ) : Files()
+
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : Files()
         }
 
         @Serializable
@@ -257,6 +296,9 @@ data class ConfigSchema(
                 )
             }
 
+            @Serializable
+            @SerialName("Puhuri")
+            class Puhuri(override val matches: String) : FileCollections()
         }
 
         interface ProductBased {

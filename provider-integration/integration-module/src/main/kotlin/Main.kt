@@ -177,9 +177,9 @@ fun main(args: Array<String>) {
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                configurator.doConfigure(
-                    __ClassLoaderDummy::class.java.classLoader.getResourceAsStream("logback_no_autoload.xml")
-                )
+                // NOTE(Dan): For some reason this is not working with GraalVM AOT native images when using a resource
+                // stream.
+                configurator.doConfigure(logbackConfiguration.encodeToByteArray().inputStream())
             }
 
             run {
@@ -256,7 +256,10 @@ fun main(args: Array<String>) {
             // -------------------------------------------------------------------------------------------------------
             val rpcServerPort = when (serverMode) {
                 is ServerMode.Plugin, ServerMode.FrontendProxy -> null
-                ServerMode.Server -> UCLOUD_IM_PORT
+                ServerMode.Server -> {
+                    if (config.core.launchRealUserInstances) UCLOUD_IM_PORT
+                    else config.server.network.listenPort
+                }
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
             }
 
@@ -371,7 +374,7 @@ fun main(args: Array<String>) {
 
             // L7 router (Envoy)
             // -------------------------------------------------------------------------------------------------------
-            val envoyConfig = if (serverMode == ServerMode.Server) {
+            val envoyConfig = if (serverMode == ServerMode.Server && config.core.launchRealUserInstances) {
                 EnvoyConfigurationService(ENVOY_CONFIG_PATH)
             } else {
                 null
@@ -527,6 +530,7 @@ fun main(args: Array<String>) {
 
                     plugins.connection?.apply { initialize() }
                     plugins.projects?.apply { initialize() }
+                    for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
@@ -600,7 +604,7 @@ fun main(args: Array<String>) {
 
                 val empty = "" to ""
                 val stats = ArrayList<Pair<String, String>>()
-                stats.add("Mode" to config.serverMode.toString())
+                stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/${System.getProperty("log.module")}.log")

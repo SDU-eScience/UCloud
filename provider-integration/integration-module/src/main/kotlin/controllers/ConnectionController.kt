@@ -80,7 +80,7 @@ class ConnectionController(
     private val uimLaunched = HashSet<String>()
 
     override fun configureIpc(server: IpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(ConnectionIpc.registerSessionProxy.handler { user, request ->
@@ -124,7 +124,7 @@ class ConnectionController(
     }
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
         val config = controllerContext.configuration
 
         val providerId = config.core.providerId
@@ -270,6 +270,10 @@ class ConnectionController(
         }
 
         implement(im.init) {
+            if (!config.core.launchRealUserInstances) {
+                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+            }
+
             // NOTE(Dan): This code is responsible for launching new instances of IM/User.
 
             // First we map the UCloud username to a local UID.

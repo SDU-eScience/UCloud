@@ -166,7 +166,13 @@ class ProviderService(
                         insert into provider.approval_request
                             (shared_secret, requested_id, domain, https, port)
                         values
-                            (:shared_secret, :requested_id, :domain, :https, :port::int);
+                            (:shared_secret, :requested_id, :domain, :https, :port::int)
+                        on conflict (requested_id)
+                        do update set
+                            shared_secret = excluded.shared_secret,
+                            domain = excluded.domain,
+                            https = excluded.https,
+                            port = excluded.port
                     """,
                 )
         }

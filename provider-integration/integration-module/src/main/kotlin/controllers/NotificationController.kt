@@ -2,14 +2,15 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.plugins.AllocationNotification
+import dk.sdu.cloud.plugins.AllocationPlugin
 import dk.sdu.cloud.plugins.OnResourceAllocationResult
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
@@ -35,7 +36,7 @@ class NotificationController(
     private val nextPull = AtomicLong(0L)
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
 
         controllerContext.configuration.plugins.temporary
             .onConnectionCompleteHandlers.add(this@NotificationController::onConnectionComplete)
@@ -213,7 +214,7 @@ class NotificationController(
 
         for ((type, list) in notificationsByType) {
             val plugins = controllerContext.configuration.plugins
-            val allocationPlugin = plugins.allocations[type]
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
 
             with(controllerContext.pluginContext) {
                 if (allocationPlugin != null) {
@@ -230,6 +231,16 @@ class NotificationController(
 
             for ((_, notification) in list) {
                 notifyPlugins(notification)
+            }
+        }
+
+        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+            t == ConfigSchema.Plugins.AllocationsProductType.ALL
+        }?.value
+
+        allPlugin?.run {
+            with(controllerContext.pluginContext) {
+                onResourceAllocation(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
             }
         }
 
@@ -309,7 +320,8 @@ class NotificationController(
 
             for (notification in notifications) {
                 val plugins = controllerContext.configuration.plugins
-                val allocationPlugin = plugins.allocations[notification.productType]
+                val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == notification.productType }
+                    ?.value
                 if (allocationPlugin != null) {
                     with(controllerContext.pluginContext) {
                         with(allocationPlugin) {
@@ -319,6 +331,19 @@ class NotificationController(
                 }
 
                 notifyPlugins(notification)
+            }
+
+
+            val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+                t == ConfigSchema.Plugins.AllocationsProductType.ALL
+            }?.value
+
+            if (allPlugin != null) {
+                with(controllerContext.pluginContext) {
+                    with(allPlugin) {
+                        onResourceAllocation(notifications)
+                    }
+                }
             }
         }
     }
@@ -354,15 +379,18 @@ class NotificationController(
             val notificationsByType = providerSummary.groupBy { it.productType }
 
             for ((type, list) in notificationsByType) {
-                val plugin = controllerContext.configuration.plugins.allocations[type] ?: continue
+                val plugin = controllerContext.configuration.plugins.allocations.entries.find { (pluginType) ->
+                    pluginType.type == type
+                }?.value ?: continue
 
-                with(controllerContext.pluginContext) {
-                    with(plugin) {
-                        val items = list.mapNotNull { prepareAllocationNotification(it) }
-                        if (items.isNotEmpty()) onResourceSynchronization(items)
-                    }
-                }
+                dispatchSyncToPlugin(plugin, list)
             }
+
+            val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (pluginType) ->
+                pluginType == ConfigSchema.Plugins.AllocationsProductType.ALL
+            }?.value
+
+            if (allPlugin != null) dispatchSyncToPlugin(allPlugin, providerSummary)
         }
 
         debug.logD(
@@ -372,6 +400,15 @@ class NotificationController(
             if (allocationsScanned == 0) MessageImportance.IMPLEMENTATION_DETAIL
             else MessageImportance.THIS_IS_NORMAL
         )
+    }
+
+    private suspend fun dispatchSyncToPlugin(plugin: AllocationPlugin, list: List<ProviderWalletSummary>) {
+        with(controllerContext.pluginContext) {
+            with(plugin) {
+                val items = list.mapNotNull { prepareAllocationNotification(it) }
+                if (items.isNotEmpty()) onResourceSynchronization(items)
+            }
+        }
     }
 
     companion object : Loggable {

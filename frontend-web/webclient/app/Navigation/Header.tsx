@@ -7,7 +7,7 @@ import Notification from "@/Notifications";
 import {usePromiseKeeper} from "@/PromiseKeeper";
 import * as React from "react";
 import {connect} from "react-redux";
-import {useHistory, useLocation} from "react-router";
+import {useHistory} from "react-router";
 import {Dispatch} from "redux";
 import styled from "styled-components";
 import * as ui from "@/ui-components";

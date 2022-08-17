@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.calls.*
@@ -25,6 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 class OpenIdConnectPlugin : ConnectionPlugin {
     override val pluginTitle: String = "OpenIdConnect"
@@ -33,6 +35,12 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private lateinit var tokenEndpoint: String
     private lateinit var authEndpoint: String
     private val log = Logger("OpenIdConnect")
+
+    val customPropertiesRequested = ArrayList<String>()
+    private var onConnectionCompleteCustomCallback: (suspend (subject: OpenIdConnectSubject) -> Unit)? = null
+    fun registerOnConnectionCompleteCallback(cb: (suspend (subject: OpenIdConnectSubject) -> Unit)) {
+        this.onConnectionCompleteCustomCallback = cb
+    }
 
     private fun ConfigSchema.Plugins.Connection.OpenIdConnect.hostInfo(): HostInfo {
         val tokenEndpoint = endpoints.token
@@ -59,6 +67,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         this.authEndpoint = this.configuration.endpoints.auth.removeSuffix("?").removeSuffix("/")
     }
 
+    // NOTE(Dan): This is required by Puhuri plugin. It uses registerOnConnectionCompleteCallback for custom logic
+    // instead of dispatching to an extension.
+    override fun supportsServiceUserMode(): Boolean = true
+
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private class ConnectionState(val username: String, val connectionId: String)
     @JvmInline private value class OidcState(val state: String)
@@ -66,7 +78,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
     private val stateTable = HashMap<OidcState, ConnectionState>()
 
     override suspend fun PluginContext.initialize() {
-        if (config.serverMode != ServerMode.Server) return
+        if (!config.shouldRunServerCode()) return
 
         ownHost = config.core.hosts.self
             ?: throw IllegalStateException("The OpenIdConnectPlugin requires core.ownHost to be defined!")
@@ -74,7 +86,8 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Token validator used to verify tokens returned by the OpenID provider (explained below).
-        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate)
+        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate,
+            issuer = null)
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
@@ -211,6 +224,21 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     val phoneNumber = jwt["phone_number"]?.takeIf { !it.isNull }?.asString()
                     val phoneNumberVerified = jwt["phone_number_verified"]?.takeIf { !it.isNull }?.asBoolean() ?: false
 
+                    val customProperties = ArrayList<CustomProperty>()
+                    for (prop in customPropertiesRequested) {
+                        val value = jwt[prop]
+                        val valueAsJson = when {
+                            value == null || value.isNull -> JsonNull
+                            value.asBoolean() != null -> JsonPrimitive(value.asBoolean())
+                            value.asInt() != null -> JsonPrimitive(value.asInt())
+                            value.asLong() != null -> JsonPrimitive(value.asLong())
+                            value.asString() != null -> JsonPrimitive(value.asString())
+                            else -> JsonNull
+                        }
+
+                        customProperties.add(CustomProperty(prop, valueAsJson))
+                    }
+
                     OpenIdConnectSubject(
                         ucloudIdentity.username,
                         subject,
@@ -224,18 +252,24 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                         emailVerified,
                         phoneNumber,
                         phoneNumberVerified,
+                        customProperties,
                     )
                 }
 
                 log.debug("OIDC success! Subject is $subject")
 
-                val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
-                UserMapping.insertMapping(
-                    subject.ucloudIdentity,
-                    result.uid,
-                    this@initializeRpcServer,
-                    ucloudIdentity.connectionId
-                )
+                val customCallback = onConnectionCompleteCustomCallback
+                if (customCallback == null) {
+                    val result = onConnectionComplete.invoke(configuration.extensions.onConnectionComplete, subject)
+                    UserMapping.insertMapping(
+                        subject.ucloudIdentity,
+                        result.uid,
+                        this@initializeRpcServer,
+                        ucloudIdentity.connectionId
+                    )
+                } else {
+                    customCallback(subject)
+                }
 
                 IntegrationControl.approveConnection.call(
                     IntegrationControlApproveConnectionRequest(subject.ucloudIdentity),
@@ -327,15 +361,18 @@ data class OpenIdConnectToken(
 data class OpenIdConnectSubject(
     val ucloudIdentity: String,
     val subject: String,
-    val preferredUsername: String?,
-    val name: String?,
-    val givenName: String?,
-    val familyName: String?,
-    val middleName: String?,
-    val nickname: String?,
-    val email: String?,
-    val emailVerified: Boolean?,
-    val phoneNumber: String?,
-    val phoneNumberVerified: Boolean?,
+    val preferredUsername: String? = null,
+    val name: String? = null,
+    val givenName: String? = null,
+    val familyName: String? = null,
+    val middleName: String? = null,
+    val nickname: String? = null,
+    val email: String? = null,
+    val emailVerified: Boolean? = null,
+    val phoneNumber: String? = null,
+    val phoneNumberVerified: Boolean? = null,
+    val customProperties: List<CustomProperty> = emptyList()
 )
 
+@Serializable
+data class CustomProperty(val name: String, val value: JsonElement)

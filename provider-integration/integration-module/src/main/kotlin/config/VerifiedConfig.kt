@@ -11,7 +11,7 @@ import kotlin.system.exitProcess
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
 
 data class VerifiedConfig(
-    val serverMode: ServerMode,
+    private val serverMode: ServerMode,
     val coreOrNull: Core?,
     val serverOrNull: Server?,
     val pluginsOrNull: Plugins?,
@@ -30,6 +30,7 @@ data class VerifiedConfig(
         val hosts: Hosts,
         val ipc: Ipc,
         val logs: Logs,
+        val launchRealUserInstances: Boolean,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -71,13 +72,14 @@ data class VerifiedConfig(
         )
     }
 
+
     data class Plugins(
         val connection: ConnectionPlugin?,
         val projects: ProjectPlugin?,
         val jobs: Map<String, ComputePlugin>,
         val files: Map<String, FilePlugin>,
         val fileCollections: Map<String, FileCollectionPlugin>,
-        val allocations: Map<ProductType, AllocationPlugin>,
+        val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
         // ConnectionController. I don't have a good solution right now, so we will have to live with this weird
@@ -177,6 +179,24 @@ data class VerifiedConfig(
         val sharedSecret: String,
         val remote: Host
     )
+
+    fun shouldRunUserCode(): Boolean {
+        return serverMode == ServerMode.User || (serverMode == ServerMode.Server && !core.launchRealUserInstances)
+    }
+
+    fun shouldRunServerCode(): Boolean {
+        return serverMode == ServerMode.Server
+    }
+
+    fun shouldRunProxyCode(): Boolean {
+        return serverMode == ServerMode.FrontendProxy
+    }
+
+    fun shouldRunAnyPluginCode(): Boolean {
+        return serverMode is ServerMode.Plugin
+    }
+
+    fun rawServerMode(): ServerMode = serverMode
 }
 
 // NOTE(Dan): Make sure you understand `loadConfiguration()` of `Config.kt` before you read this function. This
@@ -310,7 +330,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Core.Logs(directory)
         }
 
-        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs)
+        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances)
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {
@@ -482,21 +502,21 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             val connection: ConnectionPlugin? = if (config.plugins.connection == null) {
                 null
             } else {
-                loadPlugin(config.plugins.connection) as ConnectionPlugin
+                loadPlugin(config.plugins.connection, core.launchRealUserInstances) as ConnectionPlugin
             }
 
             val projects: ProjectPlugin? = if (config.plugins.projects == null) {
                 null
             } else {
-                loadPlugin(config.plugins.projects) as ProjectPlugin
+                loadPlugin(config.plugins.projects, core.launchRealUserInstances) as ProjectPlugin
             }
 
-            val allocations: Map<ProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
+            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
                 emptyMap()
             } else {
-                val result = HashMap<ProductType, AllocationPlugin>()
+                val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
                 for ((productType, cfg) in config.plugins.allocations) {
-                    result[productType] = loadPlugin(cfg) as AllocationPlugin
+                    result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
                 }
                 result
             }
@@ -506,7 +526,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 mapProducts(config.products?.compute),
                 config.plugins.jobs ?: emptyMap(),
                 productReference,
-                pluginReference
+                pluginReference,
+                core.launchRealUserInstances
             ) as Map<String, ComputePlugin>
 
             @Suppress("unchecked_cast")
@@ -514,7 +535,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 mapProducts(config.products?.storage),
                 config.plugins.files ?: emptyMap(),
                 productReference,
-                pluginReference
+                pluginReference,
+                core.launchRealUserInstances
             ) as Map<String, FilePlugin>
 
             @Suppress("unchecked_cast")
@@ -522,7 +544,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 mapProducts(config.products?.storage),
                 config.plugins.fileCollections ?: emptyMap(),
                 productReference,
-                pluginReference
+                pluginReference,
+                core.launchRealUserInstances
             ) as Map<String, FileCollectionPlugin>
 
             VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, allocations)
@@ -533,8 +556,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 }
 
 // Plugin loading
-private fun <Cfg : Any> loadPlugin(config: Cfg): Plugin<Cfg> {
+class PluginLoadingException(val pluginTitle: String, message: String) : RuntimeException(message)
+
+private fun <Cfg : Any> loadPlugin(config: Cfg, realUserMode: Boolean): Plugin<Cfg> {
     val result = instantiatePlugin(config)
+    if (!result.supportsRealUserMode() && realUserMode) {
+        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${result.pluginTitle}")
+    }
+    if (!result.supportsServiceUserMode() && !realUserMode) {
+        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${result.pluginTitle}")
+    }
     result.configure(config)
     return result
 }
@@ -543,7 +574,8 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     products: Map<String, List<Product>>,
     plugins: Map<String, Cfg>,
     productRef: ConfigurationReference,
-    pluginRef: ConfigurationReference
+    pluginRef: ConfigurationReference,
+    realUserMode: Boolean,
 ): Map<String, Plugin<Cfg>> {
     val result = HashMap<String, Plugin<Cfg>>()
     val relevantProducts = products.entries.flatMap { (category, products) ->
@@ -598,6 +630,12 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
                     pluginRef
                 )
             }
+        }
+        if (!plugin.supportsRealUserMode() && realUserMode) {
+            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle}")
+        }
+        if (!plugin.supportsServiceUserMode() && !realUserMode) {
+            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}")
         }
         plugin.configure(pluginConfig)
         result[id] = plugin

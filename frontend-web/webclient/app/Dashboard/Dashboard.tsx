@@ -260,7 +260,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resource Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -368,7 +368,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={"/project/allocations"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}

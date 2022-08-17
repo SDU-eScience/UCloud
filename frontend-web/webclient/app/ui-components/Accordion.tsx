@@ -1,3 +1,4 @@
+import {stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import * as React from "react";
 import styled from "styled-components";
 import Flex from "./Flex";
@@ -16,6 +17,7 @@ export function Accordion(props: React.PropsWithChildren<{
     titleContentOnOpened?: React.ReactNode;
     forceOpen?: boolean;
     noBorder?: boolean;
+    omitChevron?: boolean
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
@@ -26,11 +28,11 @@ export function Accordion(props: React.PropsWithChildren<{
                 <Spacer
                     left={<>
                         {props.icon ? <Icon color2={props.iconColor2} mr="12px" color={color} name={props.icon} /> :
-                            <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
+                            props.omitChevron ? null : <RotatingIcon color="text" size={15} mt="6px" name="chevronDown" rotation={open ? 0 : -90} />
                         }
                         <Text color="text">{props.title}</Text>
                     </>}
-                    right={<Flex width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
+                    right={<Flex onClick={stopPropagationAndPreventDefault} width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
                 />
             </AccordionStyle>
             <Panel active={isOpen} noBorder={props.noBorder ?? false}>

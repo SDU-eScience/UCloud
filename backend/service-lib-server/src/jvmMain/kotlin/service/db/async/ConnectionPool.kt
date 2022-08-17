@@ -139,6 +139,7 @@ class AsyncDBSessionFactory(
             this.maxIdleTime = 30_000
             this.username = username
             this.password = password
+            this.maximumMessageSize = 1024 * 1024 * 32
         }
     }
 

@@ -392,6 +392,7 @@ class SyncthingService(
                             "memory" to JsonPrimitive("500Mi")
                         ))
                     )
+                    c.imagePullPolicy = "Always"
                 }
             }
         }

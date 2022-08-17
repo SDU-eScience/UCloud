@@ -61,7 +61,7 @@ class FileController(
     override fun retrieveApi(providerId: String): FilesProvider = FilesProvider(providerId)
 
     override fun configureIpc(server: IpcServer) {
-        if (controllerContext.configuration.serverMode != ServerMode.Server) return
+        if (!controllerContext.configuration.shouldRunServerCode()) return
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
@@ -388,7 +388,7 @@ class FileController(
         }
 
         implement(downloadApi.download) {
-            if (controllerContext.configuration.serverMode == ServerMode.Server) {
+            if (controllerContext.configuration.shouldRunServerCode()) {
                 // NOTE(Dan): For some reason, it would appear that the configuration in Envoy is not yet active.
                 // Delay for a small while and ask the client to retry at almost the same address.
                 val sctx = (ctx as? HttpCall)

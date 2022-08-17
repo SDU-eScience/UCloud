@@ -30,6 +30,7 @@ const ProjectList = React.lazy(() => import("@/Project/ProjectList"));
 const ProjectMembers = React.lazy(() => import("@/Project/Members"));
 const ProjectSettings = React.lazy(() => import("@/Project/ProjectSettings"));
 const ProjectResources = React.lazy(() => import("@/Project/Resources"));
+const ProjectAllocations = React.lazy(() => import("@/Project/Allocations"));
 const ProjectList2 = React.lazy(() => import("@/Project/ProjectList2"));
 const ProjectDashboard2 = React.lazy(() => import("@/Project/Dashboard2"));
 const ProjectMembers2 = React.lazy(() => import("@/Project/Members2"));
@@ -93,7 +94,7 @@ const Core = (): JSX.Element => (
         <Uploader />
         <Sidebar />
         <ErrorBoundary>
-            <React.Suspense fallback={<div>Loading</div>}>
+            <React.Suspense fallback={<MainContainer main={"Fetching data..."} />}>
                 <Switch>
                     <Route exact path="/login" component={LoginPage} />
                     <Route exact path="/loginSuccess" component={LoginSuccess} />
@@ -174,6 +175,7 @@ const Core = (): JSX.Element => (
                     <Route exact path="/project/dashboard" component={requireAuth(ProjectDashboard)} />
                     <Route exact path="/project/settings/:page?" component={requireAuth(ProjectSettings)} />
                     <Route exact path="/project/resources" component={requireAuth(ProjectResources)} />
+                    <Route exact path="/project/allocations" component={requireAuth(ProjectAllocations)} />
                     <Route
                         exact
                         path="/project/grants-landing"
@@ -249,9 +251,11 @@ function requireAuth<T>(Delegate: React.FunctionComponent<T>, opts?: RequireAuth
 }
 
 const LoginSuccess = (props: {history: History}): null => {
-    dispatchUserAction(USER_LOGIN);
-    onLogin();
-    props.history.push("/");
+    React.useEffect(() => {
+        dispatchUserAction(USER_LOGIN);
+        onLogin();
+        props.history.push("/");
+    }, []);
     return null;
 };
 

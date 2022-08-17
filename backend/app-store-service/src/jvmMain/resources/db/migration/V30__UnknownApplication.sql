@@ -1,3 +1,6 @@
+delete from app_store.tools where name = 'unknown' and version = 'unknown';
+delete from app_store.applications where name = 'unknown' and version = 'unknown';
+
 insert into app_store.tools
     (name, version, created_at, modified_at, original_document, owner, tool)
 values

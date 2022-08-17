@@ -83,6 +83,9 @@ export const Create: React.FunctionComponent = () => {
     const jobBeingLoaded = useRef<Partial<JobSpecification> | null>(null);
 
     useEffect(() => {
+        if (appName === "syncthing") {
+            history.push("/syncthing");
+        }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
     }, [appName, appVersion]);

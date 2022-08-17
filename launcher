@@ -12,7 +12,18 @@ if shutil.which("docker") == None:
     print("https://www.docker.com/")
     sys.exit(1)
 
-if shutil.which("docker-compose") == None:
+# detect docker compose
+command = []
+
+# classic docker-compose style
+if shutil.which("docker-compose"):
+    command = ["docker-compose"]
+
+# plugin style (takes precedence if both are available)
+if shutil.which("/usr/libexec/docker/cli-plugins/docker-compose"):
+    command = ["docker", "compose"]
+
+if len(command) == 0:
     print("Docker Compose is required to run the quick launch script!")
     print("Installation instructions are available here: https://docs.docker.com/compose/install/")
     sys.exit(1)
@@ -48,20 +59,25 @@ if not os.path.exists('.compose/passwd/passwd'):
     with open('.compose/passwd/shadow', 'w') as outfile:
         outfile.write('ucloud:!:19110::::::')
 
+
 def printCheckbox(value):
     if value:
-        print("\033[35m[ ON] \033[0m", end = "")
+        print("\033[35m[ ON] \033[0m", end="")
     else:
-        print("\033[36m[OFF] \033[0m", end = "")
+        print("\033[36m[OFF] \033[0m", end="")
+
 
 def code(message):
     return "\033[32m" + message + "\033[0m"
 
+
 def location(message):
     return "\033[34m" + message + "\033[0m"
 
+
 def header(message):
     return "\033[1m" + message + "\033[0m"
+
 
 try:
     while True:
@@ -79,7 +95,6 @@ try:
 
         printCheckbox(keycloak)
         print("5) Keycloak")
-
 
         print()
         print("Enter) Start selected modules")
@@ -105,10 +120,9 @@ except KeyboardInterrupt:
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
     sys.exit(0)
 
-
 termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
 
-command = ["docker-compose", "-f", "docker-compose.yml", "-f", "compose/base.yml"]
+command.extend(["-f", "docker-compose.yml", "-f", "compose/base.yml"])
 if frontend:
     command.append("-f")
     command.append("compose/frontend.yml")
@@ -180,7 +194,6 @@ if backend:
     print()
     print()
 
-
 if integrationModule:
     print(header("# Integration Module"))
     print()
@@ -191,21 +204,23 @@ if integrationModule:
     print("  1. Server running on " + location("http://localhost:8889"))
     print("  2. Start a developer shell: " + code("docker-compose exec integration-module bash"))
     print("  3. Compile and start the module (from the developer shell): " +
-        code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
+          code("(cd /opt/ucloud ; gradle linkDebugExecutableNative ; ucloud)"))
     print()
     print()
 
 if slurm:
     print(header("# Slurm Cluster"))
     print()
-    print("Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
+    print(
+        "Deploying a slurm cluster using setup defined at https://github.com/giovtorres/slurm-docker-cluster for questions readme.md")
     print()
     print()
     print("register and restart cluster with below command")
-    print(code("docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld"))
+    print(code(
+        "docker-compose exec slurmctld bash -c '/usr/bin/sacctmgr --immediate add cluster name=linux' && docker-compose restart slurmdbd slurmctld"))
     print()
     print(header("Instructions:"))
-    print("Interact with " + code("docker-compose exec slurmctld bash") )
+    print("Interact with " + code("docker-compose exec slurmctld bash"))
     print()
 
 print(header("# UCloud is now starting..."))

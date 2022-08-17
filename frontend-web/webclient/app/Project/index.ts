@@ -232,6 +232,17 @@ export interface ProjectGroup {
     title: string
 }
 
+export function emptyUserInProject(id: string): UserInProject {
+    return {
+        projectId: id,
+        title: "",
+        whoami: {role: ProjectRole.USER, username: ""},
+        needsVerification: false,
+        favorite: false,
+        archived: false,
+    };
+}
+
 export const emptyProject = (id: string): Project => ({
     id,
     title: "",
@@ -704,14 +715,16 @@ export interface SubAllocation {
     workspaceId: string;
     workspaceTitle: string;
     workspaceIsProject: boolean;
+    projectPI?: string;
 
     remaining: number;
+    initialBalance: number;
 }
 
 export function browseSubAllocations(request: PaginationRequestV2): APICallParameters {
     return apiBrowse(request, "/api/accounting/wallets", "subAllocation");
 }
 
-export function searchSubAllocations(request: { query: string } & PaginationRequestV2): APICallParameters {
+export function searchSubAllocations(request: {query: string} & PaginationRequestV2): APICallParameters {
     return apiSearch(request, "/api/accounting/wallets", "subAllocation");
 }
