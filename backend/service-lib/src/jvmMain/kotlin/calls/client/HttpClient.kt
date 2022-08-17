@@ -16,6 +16,9 @@ internal fun createHttpClient() = HttpClient(CIO) {
 fun createWebsocketClient(): HttpClient = HttpClient(CIO) {
     install(WebSockets)
     expectSuccess = false
+    engine {
+        requestTimeout = 0
+    }
 }
 
 actual fun urlEncode(value: String): String {

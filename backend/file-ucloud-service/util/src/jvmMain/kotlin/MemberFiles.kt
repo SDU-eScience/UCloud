@@ -93,6 +93,8 @@ class MemberFiles(
             }
 
             if (exists) return file
+            
+            fs.createDirectories(file)
 
             fs.createDirectories(
                 paths.relativeToInternal(
@@ -106,8 +108,6 @@ class MemberFiles(
                 )
             )
 
-
-            fs.createDirectories(file)
             return file
         }
     }
