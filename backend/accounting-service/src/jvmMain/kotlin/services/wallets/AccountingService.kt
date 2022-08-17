@@ -42,11 +42,11 @@ class AccountingService(
         )).allocations
     }
 
-    suspend fun retrieveWallets(actorAndProject: ActorAndProject) {
+    suspend fun retrieveWallets(walletOwner: WalletOwner): List<Wallet> {
         return processor.retrieveWallets((AccountingRequest.RetrieveWallets(
             Actor.System,
-            actorAndProject
-        )))
+            walletOwner.toProcessorOwner()
+        ))).wallets
     }
 
     suspend fun charge(

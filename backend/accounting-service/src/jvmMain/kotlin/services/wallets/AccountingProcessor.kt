@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
+import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
@@ -42,7 +43,10 @@ private data class Wallet(
     val id: Int,
     val owner: String,
     val paysFor: ProductCategoryId,
-    val paymentType: ChargeType,
+    val chargePolicy: AllocationSelectorPolicy,
+    val productType: ProductType,
+    val chargeType: ChargeType,
+    val unit: ProductPriceUnit,
 
     var isDirty: Boolean = false,
 )
@@ -200,8 +204,8 @@ sealed class AccountingRequest {
 
     data class RetrieveWallets(
         override val actor: Actor,
-        override var id: Long,
-        val owner: String
+        val owner: String,
+        override var id: Long = -1,
     ): AccountingRequest()
 }
 
@@ -273,7 +277,7 @@ suspend fun AccountingProcessor.retrieveAllocations(request: AccountingRequest.R
     return sendRequest(request).orThrow()
 }
 
-suspend fun AccountingProcessor.retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse.RetrieveWallet {
+suspend fun AccountingProcessor.retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse.RetrieveWallets {
     return sendRequest(request).orThrow()
 }
 
@@ -410,7 +414,7 @@ class AccountingProcessor(
                 {},
                 """
                     declare wallet_load cursor for
-                    select w.id, wo.username, wo.project_id, pc.category, pc.provider, pc.charge_type
+                    select w.id, wo.username, wo.project_id, pc.category, pc.provider, pc.product_type, pc.charge_type, w.allocation_selector_policy, pc.unit_of_price
                     from
                         accounting.wallets w join
                         accounting.wallet_owner wo
@@ -430,8 +434,10 @@ class AccountingProcessor(
                     val project = row.getString(2)
                     val category = row.getString(3)!!
                     val provider = row.getString(4)!!
-                    val chargeType = ChargeType.valueOf(row.getString(5)!!)
-
+                    val productType = ProductType.valueOf(row.getString(5)!!)
+                    val chargeType = ChargeType.valueOf(row.getString(6)!!)
+                    val allocationPolicy = AllocationSelectorPolicy.valueOf(row.getString(7)!!)
+                    val unit = ProductPriceUnit.valueOf(row.getString(8)!!)
                     val emptySlots = id - wallets.size
                     require(emptySlots >= 0) { "Duplicate wallet detected (or bad logic): $id ${wallets.size} $emptySlots" }
                     repeat(emptySlots) { wallets.add(null) }
@@ -442,7 +448,10 @@ class AccountingProcessor(
                             id,
                             project ?: username ?: error("Bad wallet owner $id"),
                             ProductCategoryId(category, provider),
-                            chargeType
+                            allocationPolicy,
+                            productType,
+                            chargeType,
+                            unit,
                         )
                     )
                 }
@@ -574,13 +583,18 @@ class AccountingProcessor(
     }
 
     private suspend fun createWallet(owner: String, category: ProductCategoryId): Wallet? {
-        val paymentType = products.retrieveChargeType(category) ?: return null
-
+        val chargeType = products.retrieveChargeType(category) ?: return null
+        val productType = products.retrieveProductType(category) ?: return null
+        val selectorPolicy = AllocationSelectorPolicy.EXPIRE_FIRST
+        val unit = products.retrieveUnitType(category) ?: return null
         val wallet = Wallet(
             walletsIdGenerator++,
             owner,
             category,
-            paymentType,
+            selectorPolicy,
+            productType,
+            chargeType,
+            unit,
             isDirty = true
         )
 
@@ -613,6 +627,21 @@ class AccountingProcessor(
         return alloc
     }
 
+    private fun Wallet.toApiWallet(): ApiWallet {
+        return ApiWallet(
+            if (owner.contains("#")) {
+                ApiWalletOwner.User(owner)
+            } else {
+                ApiWalletOwner.Project(owner)
+            },
+            paysFor,
+            allocations.mapNotNull { it?.toApiAllocation() },
+            chargePolicy,
+            productType,
+            chargeType,
+            unit
+        )
+    }
     private fun WalletAllocation.toApiAllocation(): ApiWalletAllocation {
         return ApiWalletAllocation(
             id.toString(),
@@ -818,7 +847,7 @@ class AccountingProcessor(
         val initialTransactionId = transactionId()
         val now = System.currentTimeMillis()
 
-        when (wallet.paymentType) {
+        when (wallet.chargeType) {
             ChargeType.ABSOLUTE -> {
                 var idx = 0
                 var charged = 0L
@@ -1140,7 +1169,7 @@ class AccountingProcessor(
         allocation.notBefore = request.notBefore
         allocation.notAfter = request.notAfter
 
-        if (wallet.paymentType == ChargeType.DIFFERENTIAL_QUOTA) {
+        if (wallet.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
             // NOTE(Dan): Without this, we will break the entire tree as it has recorded usage which otherwise
             // won't be returned on next charge. This is not true for ABSOLUTE, which doesn't have this property
             // and as a result it is correct not to set the localBalance in that case.
@@ -1188,7 +1217,14 @@ class AccountingProcessor(
 
     private suspend fun retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse {
         val now = Time.now()
-        val wallet = wallets.filter { it.owner == request.owner }
+        val wallets = wallets.filter { it?.owner == request.owner }
+        return AccountingResponse.RetrieveWallets(
+            wallets
+                .asSequence()
+                .filterNotNull()
+                .map { it.toApiWallet() }
+                .toList()
+        )
     }
 
     // Database synchronization
@@ -1485,7 +1521,7 @@ class AccountingProcessor(
                     cell(wallet.id)
                     cell(wallet.owner)
                     cell(wallet.paysFor.name)
-                    cell(wallet.paymentType)
+                    cell(wallet.chargeType)
                     cell(wallet.isDirty)
                     nextRow()
                 }
@@ -1665,6 +1701,20 @@ private class ProductCache(private val db: DBContext) {
         return product
     }
 
+    suspend fun retrieveProductType(category: ProductCategoryId, allowCacheRefill: Boolean = true): ProductType? {
+        val products = products.get()
+        val product = products.find {
+            it.first.category.name == category.name &&
+                it.first.category.provider == category.provider
+        }
+
+        if (product == null && allowCacheRefill) {
+            fillCache()
+            return retrieveProductType(category, false)
+        }
+
+        return product?.first?.productType
+    }
     suspend fun retrieveChargeType(category: ProductCategoryId, allowCacheRefill: Boolean = true): ChargeType? {
         val products = products.get()
         val product = products.find {
@@ -1678,6 +1728,21 @@ private class ProductCache(private val db: DBContext) {
         }
 
         return product?.first?.chargeType
+    }
+
+    suspend fun retrieveUnitType(category: ProductCategoryId, allowCacheRefill: Boolean = true): ProductPriceUnit? {
+        val products = products.get()
+        val product = products.find {
+            it.first.category.name == category.name &&
+                it.first.category.provider == category.provider
+        }
+
+        if (product == null && allowCacheRefill) {
+            fillCache()
+            return retrieveUnitType(category, false)
+        }
+
+        return product?.first?.unitOfPrice
     }
 }
 

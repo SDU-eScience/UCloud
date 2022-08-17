@@ -212,6 +212,24 @@ data class WalletBrowseRequest(
     val filterType: ProductType? = null
 ) : WithPaginationRequestV2
 
+@Serializable
+data class WalletsInternalRetrieveRequest(
+    val owner: WalletOwner? = null
+)
+@Serializable
+data class WalletsInternalRetrieveResponse(
+    val wallets: List<Wallet>
+)
+@Serializable
+data class WalletAllocationsInternalRetrieveRequest (
+    val owner: WalletOwner? = null,
+    val categoryId: ProductCategoryId
+)
+@Serializable
+data class WalletAllocationsInternalRetrieveResponse(
+    val allocations: List<WalletAllocation>
+)
+
 typealias PushWalletChangeResponse = Unit
 
 @Serializable
@@ -383,6 +401,41 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
 
         documentation {
             summary = "Browses the catalog of accessible Wallets"
+        }
+    }
+
+    val retrieveWalletsInternal = call(
+        "retrieveWalletsInternal",
+        WalletsInternalRetrieveRequest.serializer(),
+        WalletsInternalRetrieveResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
+        httpRetrieve(baseContext)
+
+        documentation {
+            summary = "Retrieves a list of up-to-date wallets from the in-memory DB"
+            description = """
+                This endpoint will return a list of $TYPE_REF Wallet s which are related to the active workspace.
+                This is mainly for backend use. For frontend, use the browse call instead for a paginated response
+            """.trimIndent()
+        }
+    }
+
+    val retrieveAllocationsInternal = call(
+        "retrieveAllocationsInternal",
+        WalletAllocationsInternalRetrieveRequest.serializer(),
+        WalletAllocationsInternalRetrieveResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
+        httpRetrieve(baseContext)
+
+        documentation {
+            summary = "Retrieves a list of product specific up-to-date allocation from the in-memory DB"
+            description = """
+                This endpoint will return a list of $TYPE_REF WalletAllocation s which are related to the given product
+                available to the user.
+                This is mainly for backend use. For frontend, use the browse call instead for a paginated response
+            """.trimIndent()
         }
     }
 

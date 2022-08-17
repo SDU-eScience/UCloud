@@ -2221,57 +2221,5 @@ class AccountingTest : IntegrationTest() {
                 }
             }
         }
-
-        testFilter = { title, subtitle ->
-            title == "Differential new test"
-        }
-        run {
-            class In(
-                val rootBalance: Long,
-                val chainFromRoot: List<Allocation>,
-                val breadth: Int = 1,
-                val chargeAmount: Long = 100,
-                val extraAllocateAndCharge: Boolean = false
-            )
-
-            class Out(
-                val wallets: List<Wallet>
-            )
-
-            test<In, Out>("Differential new test") {
-                execute {
-                    println("STASETING")
-                    val leaves = prepareProjectChain(
-                        input.rootBalance, input.chainFromRoot,
-                        sampleStorageDifferential.category, breadth = input.breadth
-                    )
-
-                    val subproject = leaves.first()
-                    val leaf = leaves.last()
-
-                    println(leaves)
-
-                    Out(
-                        leaves.map {
-                            findWallet(it.client, sampleStorageDifferential.category)!!
-                        }
-                    )
-                }
-
-                case("charge twice") {
-                    input(
-                        In(
-                            rootBalance = 1000L,
-                            chainFromRoot = listOf(Allocation(true, 500L), Allocation(true, 100L)),
-                            chargeAmount = 100L
-                        )
-                    )
-
-                    check {
-                        println("SURE")
-                    }
-                }
-            }
-        }
     }
 }

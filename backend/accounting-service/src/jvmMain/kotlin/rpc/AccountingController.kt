@@ -1,10 +1,12 @@
 package dk.sdu.cloud.accounting.rpc
 
+import dk.sdu.cloud.Role
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
@@ -56,6 +58,34 @@ class AccountingController(
 
         implement(Wallets.browse) {
             ok(accounting.browseWallets(actorAndProject, request))
+        }
+
+        implement(Wallets.retrieveWalletsInternal) {
+            val walletOwner = if (setOf(Role.ADMIN, Role.SERVICE).contains(ctx.securityPrincipal.role) && request.owner != null) {
+                request.owner!!
+            } else {
+                if (ctx.project != null) {
+                    val projectId = ctx.project!!
+                    WalletOwner.Project(projectId)
+                } else {
+                    WalletOwner.User(ctx.securityPrincipal.username)
+                }
+            }
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWallets(walletOwner)))
+        }
+
+        implement(Wallets.retrieveAllocationsInternal) {
+            val walletOwner = if (setOf(Role.ADMIN, Role.SERVICE).contains(ctx.securityPrincipal.role) && request.owner != null) {
+                request.owner!!
+            } else {
+                if (ctx.project != null) {
+                    val projectId = ctx.project!!
+                    WalletOwner.Project(projectId)
+                } else {
+                    WalletOwner.User(ctx.securityPrincipal.username)
+                }
+            }
+            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocations(walletOwner, request.categoryId)))
         }
 
         implement(Wallets.searchSubAllocations) {
