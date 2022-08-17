@@ -145,7 +145,7 @@ async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLeve
     return (await findSensitivity(file)) ?? "PRIVATE";
 }
 
-async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
+export async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
