@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins.compute.ucloud
+package dk.sdu.cloud.controllers
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
@@ -13,21 +13,25 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
-val webSocketClient = HttpClient(CIO).config {
+val webSocketClient = HttpClient(CIO) {
     install(WebSockets)
     expectSuccess = false
+    engine {
+        requestTimeout = 0
+    }
 }
 
 suspend fun WebSocketServerSession.runWSProxy(
-    tunnel: Tunnel,
+    ipAddress: String,
+    port: Int,
     uri: String = "/",
     cookies: Map<String, String> = emptyMap()
 ) {
     val clientConn = this
     webSocketClient.ws(
         method = HttpMethod.Get,
-        host = tunnel.ipAddress,
-        port = tunnel.localPort,
+        host = ipAddress,
+        port = port,
         path = uri,
         request = {
             // We must use the same protocol and extensions for the proxying to work.
@@ -42,7 +46,7 @@ suspend fun WebSocketServerSession.runWSProxy(
             }
 
             // Must add an origin for the remote server to trust us
-            header(HttpHeaders.Origin, "http://${tunnel.ipAddress}:${tunnel.localPort}")
+            header(HttpHeaders.Origin, "http://${ipAddress}:${port}")
 
             if (cookies.entries.isNotEmpty()) {
                 header(
@@ -81,4 +85,4 @@ suspend fun WebSocketServerSession.runWSProxy(
     }
 }
 
-private val log = LoggerFactory.getLogger("dk.sdu.cloud.app.kubernetes.services.WSProxy")
+private val log = LoggerFactory.getLogger("dk.sdu.cloud.controllers.WSProxy")

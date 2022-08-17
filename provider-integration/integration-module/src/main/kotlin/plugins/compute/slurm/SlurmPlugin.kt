@@ -279,25 +279,23 @@ class SlurmPlugin : ComputePlugin {
 
     override suspend fun RequestContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
-    ): OpenSession {
-        val sessionId = secureToken(16)
-        ipcClient.sendRequest(SlurmSessionIpc.create, InteractiveSession(sessionId, job.rank, job.job.id))
+    ): ComputeSession {
+        if (job.sessionType != InteractiveSessionType.SHELL) {
+            throw RPCException("Not supported", HttpStatusCode.BadRequest)
+        }
 
-        return OpenSession.Shell(job.job.id, job.rank, sessionId)
-    }
-
-    override suspend fun RequestContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        val session: InteractiveSession =
-            ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
-        return request.sessionIdentifier == session.token
+        return ComputeSession()
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
+        val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
+        val nodeToUse = nodes[jobRank]
+
         /*
         val session: InteractiveSession =
             ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
-        val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
 
         val process = startProcess(
             args = listOf(
@@ -678,7 +676,6 @@ class SlurmPlugin : ComputePlugin {
         })
     }
 
-    @Suppress("VARIABLE_IN_SINGLETON_WITHOUT_THREAD_LOCAL")
     companion object {
         private val log = Logger("SlurmPlugin")
 

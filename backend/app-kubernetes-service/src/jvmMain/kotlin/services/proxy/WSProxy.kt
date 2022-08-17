@@ -14,9 +14,12 @@ import kotlinx.coroutines.channels.ClosedReceiveChannelException
 import kotlinx.coroutines.launch
 import org.slf4j.LoggerFactory
 
-val webSocketClient = HttpClient(CIO).config {
+val webSocketClient = HttpClient(CIO) {
     install(WebSockets)
     expectSuccess = false
+    engine {
+        requestTimeout = 0
+    }
 }
 
 suspend fun WebSocketServerSession.runWSProxy(

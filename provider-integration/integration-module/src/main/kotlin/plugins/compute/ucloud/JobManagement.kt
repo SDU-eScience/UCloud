@@ -1,11 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
-import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductReference
-import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.providers.*
-import dk.sdu.cloud.accounting.api.ProductsBrowseRequest
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.calls.*
@@ -19,10 +14,7 @@ import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
-import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.DBContext
-import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -41,7 +33,7 @@ interface JobFeature {
     suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {}
 
     /**
-     * Provides a hook for features to cleanup after a job has finished
+     * Provides a hook for features to clean up after a job has finished
      *
      * Note: Plugins should assume that partial cleanup might have taken place already.
      */
@@ -73,13 +65,10 @@ interface JobFeature {
 }
 
 class JobManagement(
-    private val providerId: String,
     val k8: K8Dependencies,
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
-    private val db: DBContext,
-    private val sessions: SessionDao,
 ) {
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
@@ -174,7 +163,9 @@ class JobManagement(
             if (jobAlreadyExists) {
                 unsuspendMutex.withLock {
                     if (!unsuspendQueue.any { it.job.id == verifiedJob.id }) {
-                        unsuspendQueue.add(UnsuspendItem(verifiedJob, queueExpiration ?: Time.now() + (1000L * 60 * 2)))
+                        unsuspendQueue.add(
+                            UnsuspendItem(verifiedJob, queueExpiration ?: (Time.now() + (1000L * 60 * 2)))
+                        )
                     }
                 }
                 return
@@ -182,7 +173,7 @@ class JobManagement(
                 unsuspendMutex.withLock {
                     val iterator = unsuspendQueue.iterator()
                     while (iterator.hasNext()) {
-                        val (job, expiry) = iterator.next()
+                        val (job, _) = iterator.next()
                         if (job.id == verifiedJob.id) iterator.remove()
                     }
                 }
@@ -198,14 +189,11 @@ class JobManagement(
             features.forEach {
                 k8.debug?.everything("Running feature (onCreate): ${it.javaClass.simpleName}")
                 with(it) {
-                    with(k8) {
-                        onCreate(verifiedJob, builder)
-                    }
+                    onCreate(verifiedJob, builder)
                 }
             }
 
             k8.debug?.everything("Creating resource")
-            @Suppress("BlockingMethodInNonBlockingContext")
             k8.client.createResource(
                 KubernetesResources.volcanoJob.withNamespace(namespace),
                 defaultMapper.encodeToString(VolcanoJob.serializer(), builder)
@@ -217,7 +205,7 @@ class JobManagement(
         }
     }
 
-    suspend fun cleanup(jobId: String) {
+    private suspend fun cleanup(jobId: String) {
         try {
             k8.client.deleteResource(
                 KubernetesResources.volcanoJob.withNameAndNamespace(
@@ -236,27 +224,15 @@ class JobManagement(
 
     }
 
-    suspend fun extend(request: BulkRequest<JobsProviderExtendRequestItem>) {
-        request.items.forEach { extension ->
-            extend(extension.job, extension.requestedTime)
-        }
-    }
-
     suspend fun extend(job: Job, newMaxTime: SimpleDuration) {
         FeatureExpiry.extendJob(k8, job.id, newMaxTime)
-    }
-
-    suspend fun cancel(request: BulkRequest<Job>) {
-        request.items.forEach { job ->
-            cancel(job)
-        }
     }
 
     suspend fun cancel(verifiedJob: Job) {
         cancel(verifiedJob.id)
     }
 
-    suspend fun cancel(jobId: String) {
+    private suspend fun cancel(jobId: String) {
         val exists = markJobAsComplete(jobId, null)
         cleanup(jobId)
         if (exists) {
@@ -336,8 +312,7 @@ class JobManagement(
             // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
             delay(15_000)
 
-            var lastIteration = Time.now()
-            var isAlive = true
+            val isAlive = true
             whileGraal({currentCoroutineContext().isActive && isAlive}) {
                 k8.debug.enterContext("Unsuspend queue") {
                     // NOTE(Dan): Need to take a copy and release the lock to avoid issues with the mutex not being 
@@ -370,12 +345,9 @@ class JobManagement(
                 }
 
                 k8.debug.enterContext("K8 Job monitoring") {
-                    val now = Time.now()
-                    val time = now - lastIteration
-                    lastIteration = now
                     val resources = k8.client.listResources(
                         VolcanoJob.serializer(),
-                        KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
+                        KubernetesResources.volcanoJob.withNamespace(k8.nameAllocator.namespace())
                     )
 
                     val events = processScan(resources)
@@ -385,7 +357,6 @@ class JobManagement(
 
                     var debugTerminations = 0
                     var debugExpirations = 0
-                    var debugDeletions = 0
                     var debugUpdates = 0
 
                     events.forEachGraal { event ->
@@ -423,7 +394,7 @@ class JobManagement(
                                     val message = job.status?.state?.message
 
                                     var newState: JobState? = null
-                                    var expectedDifferentState: Boolean = false
+                                    var expectedDifferentState = false
 
                                     val statusUpdate = buildString {
                                         when (job.status?.state?.phase) {
@@ -568,16 +539,12 @@ class JobManagement(
         }
         features.forEach { feature ->
             with(feature) {
-                with(k8) {
-                    onJobComplete(jobId, job)
-                }
+                onJobComplete(jobId, job)
             }
         }
-        with(k8) {
-            features.forEach { feature ->
-                with(feature) {
-                    onCleanup(jobId)
-                }
+        features.forEach { feature ->
+            with(feature) {
+                onCleanup(jobId)
             }
         }
         return true
@@ -597,7 +564,7 @@ class JobManagement(
                     if (job.status.state == JobState.SUSPENDED) continue
 
                     if (jobId !in knownJobs) {
-                        log.info("We appear to have lost the following job: ${jobId}")
+                        log.info("We appear to have lost the following job: $jobId")
                         JobsControl.update.call(
                             bulkRequestOf(
                                 ResourceUpdateAndId(
@@ -614,40 +581,6 @@ class JobManagement(
                 }
             }
         }
-    }
-
-    suspend fun openShellSession(
-        jobs: List<JobAndRank>
-    ): List<String> {
-        return db.withSession { session ->
-            jobs.map { job ->
-                sessions.createSession(session, job, InteractiveSessionType.SHELL)
-            }
-        }
-    }
-
-    private val productCache = SimpleCache<Unit, List<Product.Compute>>(lookup = {
-        Products.browse.call(
-            ProductsBrowseRequest(filterProvider = providerId, filterArea = ProductType.COMPUTE),
-            k8.serviceClient
-        ).orThrow().items.filterIsInstance<Product.Compute>()
-    })
-
-    suspend fun retrieveProductsTemporary(): BulkResponse<ComputeSupport> {
-        return BulkResponse(productCache.get(Unit)?.map {
-            ComputeSupport(
-                ProductReference(it.name, it.category.name, it.category.provider),
-                ComputeSupport.Docker(
-                    enabled = true,
-                    web = true,
-                    vnc = true,
-                    logs = true,
-                    terminal = true,
-                    peers = true,
-                    timeExtension = true,
-                )
-            )
-        } ?: emptyList())
     }
 
     companion object : Loggable {

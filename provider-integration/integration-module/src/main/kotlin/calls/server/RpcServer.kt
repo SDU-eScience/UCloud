@@ -6,7 +6,6 @@ import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.service.microWhichIsConfiguringCalls
 import io.ktor.http.*
 import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.serialization.ExperimentalSerializationApi

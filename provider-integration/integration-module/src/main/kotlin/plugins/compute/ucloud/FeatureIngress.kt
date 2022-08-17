@@ -199,6 +199,10 @@ class FeatureIngress(
         }
     }
 
+    fun defaultDomainByJobIdAndRank(jobId: String, jobRank: Int): String {
+        return "${domainPrefix}$jobId-$jobRank.$domainSuffix"
+    }
+
     companion object : Loggable {
         override val log = logger()
         private val regex = Regex("([-_a-z0-9]){5,255}")

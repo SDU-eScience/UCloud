@@ -60,7 +60,7 @@ class MaintenanceService(
         val jobIds = k8.client
             .listResources(
                 Pod.serializer(),
-                KubernetesResources.pod.withNamespace(NAMESPACE_ANY),
+                KubernetesResources.pod.withNamespace(k8.nameAllocator.namespace()),
                 mapOf(
                     "fieldSelector" to "spec.nodeName=$node"
                 )
@@ -83,7 +83,7 @@ class MaintenanceService(
         k8.client
             .listResources(
                 VolcanoJob.serializer(),
-                KubernetesResources.volcanoJob.withNamespace(NAMESPACE_ANY)
+                KubernetesResources.volcanoJob.withNamespace(k8.nameAllocator.namespace())
             )
             .forEach {
                 killJob(k8.nameAllocator.jobNameToJobId(it.metadata?.name ?: return@forEach))

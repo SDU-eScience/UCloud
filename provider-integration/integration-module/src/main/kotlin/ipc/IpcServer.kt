@@ -8,6 +8,10 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.bearer
 import dk.sdu.cloud.config.VerifiedConfig
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugCoroutineContext
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.plugins.storage.posix.toInt
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -15,6 +19,7 @@ import dk.sdu.cloud.utils.secureToken
 import jdk.net.ExtendedSocketOptions
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.*
 import kotlinx.serialization.json.JsonObject
 import libc.clib
@@ -81,7 +86,7 @@ abstract class IpcContainer(val namespace: String) {
         request: KSerializer<Request>,
         response: KSerializer<Response>
     ): TypedIpcHandler<Request, Response> {
-        return ipcHandler("$namespace.delete", request, response)
+        return ipcHandler("$namespace.create", request, response)
     }
 
     inline fun <reified Request, reified Response> deleteHandler(
@@ -119,13 +124,67 @@ data class IpcHandler(
     val method: String,
     val methodIsPrefix: Boolean = false,
     var allowProxyToRemoteIntegrationModule: Boolean = false,
-    val handler: suspend (user: IpcUser, request: JsonRpcRequest) -> JsonObject
+    private val handler: suspend (user: IpcUser, request: JsonRpcRequest) -> JsonObject
 ) {
     fun matches(method: String): Boolean {
         return if (methodIsPrefix) {
             method.startsWith(this.method)
         } else {
             method == this.method
+        }
+    }
+
+    suspend fun invokeHandler(user: IpcUser, request: JsonRpcRequest): JsonObject {
+        val context = DebugContext.create()
+        return withContext(DebugCoroutineContext(context)) {
+            val start = Time.now()
+            debugSystem?.sendMessage(
+                DebugMessage.ServerRequest(
+                    context,
+                    start,
+                    null,
+                    MessageImportance.IMPLEMENTATION_DETAIL,
+                    request.method,
+                    request.params
+                )
+            )
+
+            try {
+                val result = handler(user, request)
+                val end = Time.now()
+                debugSystem?.sendMessage(
+                    DebugMessage.ServerResponse(
+                        DebugContext.createWithParent(context.id),
+                        end,
+                        null,
+                        MessageImportance.THIS_IS_NORMAL,
+                        request.method,
+                        result,
+                        200,
+                        end - start
+                    )
+                )
+
+                result
+            } catch (ex: Throwable) {
+                val end = Time.now()
+                val stack =
+                    defaultMapper.encodeToJsonElement(ReadableStackTrace.serializer(), ex.toReadableStacktrace())
+                debugSystem?.sendMessage(
+                    DebugMessage.ServerResponse(
+                        DebugContext.createWithParent(context.id),
+                        end,
+                        null,
+                        MessageImportance.THIS_IS_WRONG,
+                        request.method,
+                        stack,
+                        500,
+                        end - start
+                    )
+                )
+
+                throw ex
+            }
         }
     }
 }
@@ -206,7 +265,7 @@ class IpcServer(
 
             for (ipcHandler in handlers) {
                 if (ipcHandler.matches(request.request.method) && ipcHandler.allowProxyToRemoteIntegrationModule) {
-                    val response = ipcHandler.handler(IpcUser(request.uid), request.request)
+                    val response = ipcHandler.invokeHandler(IpcUser(request.uid), request.request)
                     ok(response)
                     return@implement
                 }
@@ -326,7 +385,7 @@ class IpcServer(
         val response: Result<JsonObject> = runCatching {
             for (handler in handlers) {
                 if (!handler.matches(request.method)) continue
-                return@runCatching runBlocking { handler.handler(user, request) }
+                return@runCatching runBlocking { handler.invokeHandler(user, request) }
             }
 
             throw RPCException.fromStatusCode(HttpStatusCode.NotFound)

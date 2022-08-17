@@ -8,9 +8,28 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.UCloudApiDoc
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import kotlinx.coroutines.channels.ReceiveChannel
+
+data class ComputeSession(
+    @UCloudApiDoc("""
+        A string which is returned to the plugin when the session is opened. 
+        
+        The plugin can use this to identify which request it is supposed to handle. If a plugin does not need to know
+        anything about the session, then an empty string can be returned.
+    """)
+    val pluginData: String = "",
+
+    @UCloudApiDoc("""
+        Information about the target to forward traffic to.
+        
+        This property is mandatory for VNC and web sessions. It is required to be null for any other session type.
+    """)
+    val target: ComputeSessionIpc.SessionTarget? = null,
+)
 
 interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, ConfigSchema.Plugins.Jobs> {
     suspend fun RequestContext.extendBulk(request: JobsProviderExtendRequest): JobsExtendResponse {
@@ -45,13 +64,11 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
 
     suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse
 
-    suspend fun RequestContext.openInteractiveSessionBulk(
-        request: JobsProviderOpenInteractiveSessionRequest
-    ): JobsProviderOpenInteractiveSessionResponse {
-        return JobsProviderOpenInteractiveSessionResponse(request.items.map { openInteractiveSession(it) })
+    suspend fun RequestContext.openInteractiveSessionBulk(request: BulkRequest<JobsProviderOpenInteractiveSessionRequestItem>): BulkResponse<ComputeSession> {
+        return BulkResponse(request.items.map { openInteractiveSession(it) })
     }
 
-    suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
+    suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): ComputeSession {
         throw RPCException("Interactive sessions are not supported by this cluster", HttpStatusCode.BadRequest)
     }
 
@@ -59,12 +76,11 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
         // Not supported by compute plugins
     }
 
-    suspend fun RequestContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        return false
-    }
-
     class ShellContext(
         delegate: RequestContext,
+        val pluginData: String,
+        val jobId: String,
+        val jobRank: Int,
         val isActive: () -> Boolean,
         val receiveChannel: ReceiveChannel<ShellRequest>,
         val emitData: suspend (data: String) -> Unit,
@@ -88,10 +104,9 @@ abstract class EmptyComputePlugin : ComputePlugin {
     override suspend fun RequestContext.terminate(resource: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun ComputePlugin.FollowLogsContext.follow(job: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun RequestContext.openInteractiveSessionBulk(request: JobsProviderOpenInteractiveSessionRequest): JobsProviderOpenInteractiveSessionResponse = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.openInteractiveSessionBulk(request: JobsProviderOpenInteractiveSessionRequest): BulkResponse<ComputeSession> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
+    override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): ComputeSession = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.delete(resource: Job) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
-    override suspend fun RequestContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.createBulk(request: BulkRequest<Job>): BulkResponse<FindByStringId?> = throw RPCException("Not supported", HttpStatusCode.BadRequest)
     override suspend fun RequestContext.create(resource: Job): FindByStringId? = throw RPCException("Not supported", HttpStatusCode.BadRequest)

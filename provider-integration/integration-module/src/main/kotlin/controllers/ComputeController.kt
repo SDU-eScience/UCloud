@@ -1,35 +1,61 @@
 package dk.sdu.cloud.controllers
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.app.orchestrator.api.*
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
+import dk.sdu.cloud.dbConnection
+import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.ipc.IpcContainer
+import dk.sdu.cloud.ipc.IpcServer
+import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ComputePlugin
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import io.ktor.http.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
+import io.ktor.server.websocket.*
+import io.ktor.util.date.*
+import io.ktor.util.pipeline.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
 import java.util.concurrent.atomic.AtomicReference
 
 class ComputeController(
     controllerContext: ControllerContext,
-) : BaseResourceController<Product.Compute, ComputeSupport, Job, ComputePlugin, JobsProvider>(controllerContext) {
+    private val envoyConfig: EnvoyConfigurationService?,
+    private val ktor: Application,
+) : BaseResourceController<Product.Compute, ComputeSupport, Job, ComputePlugin, JobsProvider>(controllerContext),
+    IpcController {
     override fun retrievePlugins() = controllerContext.configuration.plugins.jobs.values
     override fun retrieveApi(providerId: String): JobsProvider = JobsProvider(providerId)
 
     override fun RpcServer.configureCustomEndpoints(plugins: Collection<ComputePlugin>, api: JobsProvider) {
         val config = controllerContext.configuration
-        val shells = Shells(controllerContext.configuration.core.providerId)
+        val providerId = controllerContext.configuration.core.providerId
+        val shells = Shells(providerId)
 
         implement(api.extend) {
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
@@ -123,25 +149,80 @@ class ComputeController(
         implement(api.openInteractiveSession) {
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
-            val results = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
-                with(plugin) { openInteractiveSessionBulk(request) }
-            }
-
-            for (result in results.responses) {
-                if (result != null && result is OpenSession.Shell) {
-                    controllerContext.pluginContext.ipcClient.sendRequest(
-                        ConnectionIpc.registerSessionProxy,
-                        result
+            val pluginResults = dispatchToPlugin(plugins, request.items, { it.job }) { plugin, request ->
+                with(plugin) {
+                    BulkResponse(
+                        openInteractiveSessionBulk(request).responses.map { plugin.pluginName to it }
                     )
                 }
             }
 
-            ok(results)
+            val results = ArrayList<OpenSession>()
+            val ipcClient = controllerContext.pluginContext.ipcClient
+
+            for ((request, nameAndResponse) in request.items.zip(pluginResults.responses)) {
+                val (pluginName, response) = nameAndResponse
+
+                val sessionId = ipcClient.sendRequest(
+                    ComputeSessionIpc.create,
+                    ComputeSessionIpc.Session(
+                        request.sessionType,
+                        request.job.id,
+                        request.rank,
+                        pluginName,
+                        response.pluginData,
+                        response.target
+                    )
+                ).id
+
+                val session = when (request.sessionType) {
+                    InteractiveSessionType.WEB -> {
+                        OpenSession.Web(
+                            request.job.id,
+                            request.rank,
+                            "/ucloud/$providerId/authorize-app?token=${sessionId}"
+                        )
+                    }
+
+                    InteractiveSessionType.VNC -> {
+                        val password = request.job.status.resolvedApplication?.invocation?.vnc?.password
+
+                        OpenSession.Vnc(
+                            request.job.id,
+                            request.rank,
+                            "/ucloud/$providerId/vnc?token=${sessionId}",
+                            password
+                        )
+                    }
+
+                    InteractiveSessionType.SHELL -> {
+                        OpenSession.Shell(request.job.id, request.rank, sessionId)
+                    }
+                }
+
+                results.add(session)
+            }
+
+            ok(BulkResponse(results))
         }
 
         implement(api.retrieveUtilization) {
             if (!config.shouldRunServerCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            TODO("Issue #2425")
+
+            for (plugin in retrievePlugins()) {
+                if (plugin.productAllocationResolved.any { it.category.name == request.categoryId }) {
+                    val result = with(requestContext(controllerContext)) {
+                        with(plugin) {
+                            retrieveClusterUtilization(request.categoryId)
+                        }
+                    }
+
+                    ok(result)
+                    return@implement
+                }
+            }
+
+            throw RPCException("Not supported", HttpStatusCode.BadRequest)
         }
 
         implement(api.suspend) {
@@ -168,18 +249,32 @@ class ComputeController(
             runBlocking {
                 if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
                 val wsContext = ctx as WSCall
+                val ipcClient = controllerContext.pluginContext.ipcClient
 
                 when (request) {
                     is ShellRequest.Initialize -> {
-                        val pluginHandler = with(requestContext(controllerContext)) {
-                            plugins.find { plugin ->
-                                with(plugin) { canHandleShellSession(request) }
-                            }
-                        } ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
+                        val sessionInformation = runCatching {
+                            ipcClient.sendRequest(
+                                ComputeSessionIpc.retrieve,
+                                FindByStringId(request.sessionIdentifier)
+                            )
+                        }.getOrNull()
+
+                        println("Shell information is $sessionInformation")
+
+                        if (sessionInformation?.sessionType != InteractiveSessionType.SHELL) {
+                            throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                        }
+
+                        val pluginHandler = controllerContext.configuration.plugins.jobs[sessionInformation.pluginName]
+                            ?: throw RPCException("Bad session identifier supplied", HttpStatusCode.Unauthorized)
 
                         val channel = Channel<ShellRequest>(Channel.BUFFERED)
                         val ctx = ComputePlugin.ShellContext(
                             requestContext(controllerContext),
+                            sessionInformation.pluginData,
+                            sessionInformation.jobId,
+                            sessionInformation.jobRank,
                             { wsContext.session.isActive },
                             channel,
                             emitData = { data ->
@@ -207,6 +302,7 @@ class ComputeController(
                     }
 
                     is ShellRequest.Input, is ShellRequest.Resize -> {
+                        println("Receiving input!")
                         val sendChannel = sessionMapMutex.withLock {
                             sessionMap[wsContext.session.id]
                         } ?: throw RPCException(
@@ -214,6 +310,7 @@ class ComputeController(
                             HttpStatusCode.BadRequest
                         )
 
+                        println("Sending the input!")
                         sendChannel.send(request)
                     }
                 }
@@ -223,11 +320,245 @@ class ComputeController(
         }
     }
 
+    override fun onServerReady(rpcServer: RpcServer) {
+        val providerId = controllerContext.configuration.core.providerId
+
+        val authorizeApp: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = {
+            val host = call.request.host()
+            val requestCookies = HashMap(call.request.cookies.rawCookies)
+            println("Checking if you are allowed to access $host with $requestCookies")
+            call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
+        }
+
+        ktor.routing {
+            val handler: Route.() -> Unit = {
+                handle(authorizeApp)
+                route("/") { handle(authorizeApp) }
+            }
+
+            route("/app-authorize-request", handler)
+            route("/app-authorize-request/", handler)
+            route("/app-authorize-request/{...}", handler)
+        }
+
+        ktor.routing {
+            if (!controllerContext.configuration.shouldRunUserCode()) return@routing
+
+            val ipcClient = controllerContext.pluginContext.ipcClient
+
+            get("/ucloud/$providerId/authorize-app") {
+                try {
+                    val token = call.request.queryParameters["token"]
+                        ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                    val sessionInformation = runCatching {
+                        ipcClient.sendRequest(
+                            ComputeSessionIpc.retrieve,
+                            FindByStringId(token)
+                        )
+                    }.getOrNull()
+
+                    if (sessionInformation?.sessionType != InteractiveSessionType.WEB) {
+                        throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                    }
+
+                    val target = sessionInformation.target!!
+                    call.response.cookies.append(
+                        name = cookieName + sessionInformation.jobId,
+                        value = token,
+                        secure = call.request.origin.scheme == "https",
+                        httpOnly = true,
+                        expires = GMTDate(Time.now() + (1000L * 60 * 60 * 24 * 30)),
+                        path = "/",
+                        domain = call.request.origin.host
+                    )
+
+                    call.respondRedirect(target.ingress)
+                } catch (ex: RPCException) {
+                    call.respondText(
+                        defaultMapper.encodeToString(
+                            CommonErrorMessage.serializer(),
+                            CommonErrorMessage(ex.why, ex.errorCode)
+                        ),
+                        ContentType.Application.Json,
+                        io.ktor.http.HttpStatusCode.fromValue(ex.httpStatusCode.value)
+                    )
+                } catch (ex: Throwable) {
+                    call.respondText(
+                        defaultMapper.encodeToString(
+                            CommonErrorMessage.serializer(),
+                            CommonErrorMessage("Internal server error")
+                        ),
+                        ContentType.Application.Json,
+                        io.ktor.http.HttpStatusCode.InternalServerError
+                    )
+                }
+            }
+
+            webSocket("/ucloud/$providerId/vnc", protocol = "binary") {
+                val token = call.request.queryParameters["token"]
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                val sessionInformation = runCatching {
+                    ipcClient.sendRequest(
+                        ComputeSessionIpc.retrieve,
+                        FindByStringId(token)
+                    )
+                }.getOrNull()
+
+                if (sessionInformation?.sessionType != InteractiveSessionType.VNC) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
+                }
+
+                val target = sessionInformation.target!!
+                runWSProxy(target.clusterAddress, target.clusterPort, "/websockify")
+            }
+        }
+    }
+
+    override fun configureIpc(server: IpcServer) {
+        val envoy = envoyConfig ?: return
+        val realUserMode = controllerContext.configuration.core.launchRealUserInstances
+
+        fun noSuchUser(): Nothing = throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+
+        server.addHandler(ComputeSessionIpc.create.handler { user, request ->
+            val ucloudIdentity =
+                if (realUserMode) UserMapping.localIdToUCloudId(user.uid) ?: noSuchUser()
+                else null
+
+            val generatedSessionId = secureToken(32)
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data)
+                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data)
+                    """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("session", generatedSessionId)
+                        bindString("session_type", request.sessionType.name)
+                        bindString("job_id", request.jobId)
+                        bindInt("job_rank", request.jobRank)
+                        bindString("plugin_name", request.pluginName)
+                        bindString("plugin_data", request.pluginData)
+                    }
+                )
+            }
+
+            when (request.sessionType) {
+                InteractiveSessionType.WEB -> {
+                    val target = request.target!!
+
+                    envoy.requestConfiguration(
+                        EnvoyRoute.WebIngressSession(
+                            generatedSessionId,
+                            target.ingress,
+                            "_$generatedSessionId"
+                        ),
+                        EnvoyCluster.create(
+                            "_$generatedSessionId",
+                            target.clusterAddress,
+                            target.clusterPort
+                        )
+                    )
+                }
+
+                InteractiveSessionType.VNC -> {
+                    envoy.requestConfiguration(
+                        EnvoyRoute.VncSession(
+                            generatedSessionId,
+                            controllerContext.configuration.core.providerId,
+                            ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
+                        )
+                    )
+                }
+
+                InteractiveSessionType.SHELL -> {
+                    envoy.requestConfiguration(
+                        EnvoyRoute.ShellSession(
+                            generatedSessionId,
+                            controllerContext.configuration.core.providerId,
+                            ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
+                        )
+                    )
+                }
+            }
+
+            FindByStringId(generatedSessionId)
+        })
+
+        server.addHandler(ComputeSessionIpc.retrieve.handler { _, request ->
+            var response: ComputeSessionIpc.Session? = null
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select session_type, job_id, job_rank, plugin_name, plugin_data
+                        from compute_sessions
+                        where session = :id
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindString("id", request.id)
+                    },
+                    readRow = { row ->
+                        response = ComputeSessionIpc.Session(
+                            InteractiveSessionType.valueOf(row.getString(0)!!),
+                            row.getString(1)!!,
+                            row.getInt(2)!!,
+                            row.getString(3)!!,
+                            row.getString(4)!!
+                        )
+                    }
+                )
+            }
+
+            response ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        })
+    }
+
     companion object : Loggable {
         override val log: Logger = logger()
+
+        private const val cookieName = "ucloud-compute-session-"
     }
 }
 
 // TODO(Dan): Not a great idea, probably leaks memory.
 val sessionMap = HashMap<String, SendChannel<ShellRequest>>()
 val sessionMapMutex = Mutex()
+
+object ComputeSessionIpc : IpcContainer("compute_sessions") {
+    @Serializable
+    data class Session(
+        val sessionType: InteractiveSessionType,
+        val jobId: String,
+        val jobRank: Int,
+        val pluginName: String,
+        val pluginData: String,
+        val target: SessionTarget? = null,
+        val sessionId: String = "",
+    ) {
+        init {
+            if (target == null) {
+                require(sessionType in setOf(InteractiveSessionType.SHELL)) {
+                    "target information must not be present for sessions of type $sessionType"
+                }
+            } else {
+                require(sessionType in setOf(InteractiveSessionType.WEB, InteractiveSessionType.VNC)) {
+                    "target information must be present for sessions of type $sessionType"
+                }
+            }
+        }
+    }
+
+    @Serializable
+    data class SessionTarget(
+        val ingress: String,
+        val clusterAddress: String,
+        val clusterPort: Int,
+    )
+
+    val create = createHandler(Session.serializer(), FindByStringId.serializer())
+    val retrieve = retrieveHandler(FindByStringId.serializer(), Session.serializer())
+}

@@ -33,6 +33,7 @@ suspend fun KubernetesClient.exec(
         install(WebSockets)
         expectSuccess = false
         engine {
+            requestTimeout = 0
             https {
                 trustManager = k8Client.conn.trustManager
             }

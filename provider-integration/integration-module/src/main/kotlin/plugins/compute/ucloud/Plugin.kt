@@ -14,7 +14,6 @@ import dk.sdu.cloud.app.orchestrator.api.JobsProviderSuspendRequestItem
 import dk.sdu.cloud.app.orchestrator.api.JobsProviderUtilizationResponse
 import dk.sdu.cloud.app.orchestrator.api.NetworkIP
 import dk.sdu.cloud.app.orchestrator.api.NetworkIPSupport
-import dk.sdu.cloud.app.orchestrator.api.OpenSession
 import dk.sdu.cloud.app.orchestrator.api.ShellRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -22,14 +21,17 @@ import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
+import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.plugins.ComputePlugin
+import dk.sdu.cloud.plugins.ComputeSession
 import dk.sdu.cloud.plugins.IngressPlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.PublicIPPlugin
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.selects.select
@@ -51,13 +53,13 @@ class UCloudComputePlugin : ComputePlugin {
     lateinit var logService: K8LogService
     lateinit var licenseService: LicenseService
     lateinit var utilization: UtilizationService
-    lateinit var sessions: SessionDao
     lateinit var shell: K8Shell
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         pluginConfig = config as ConfigSchema.Plugins.Jobs.UCloud
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     override suspend fun PluginContext.initialize() {
         if (!config.shouldRunServerCode()) return
 
@@ -82,21 +84,17 @@ class UCloudComputePlugin : ComputePlugin {
             debugSystem,
             jobCache
         )
-        sessions = SessionDao()
         jobManagement = JobManagement(
-            config.core.providerId,
             k8,
             jobCache,
             MaintenanceService(dbConnection, k8),
-            ResourceCache(k8),
-            dbConnection,
-            sessions
+            ResourceCache(k8)
         )
 
         logService = K8LogService(k8)
         licenseService = LicenseService(config.core.providerId, k8, dbConnection)
         utilization = UtilizationService(k8)
-        shell = K8Shell(sessions, k8)
+        shell = K8Shell(k8)
 
         with(jobManagement) {
             register(
@@ -141,7 +139,6 @@ class UCloudComputePlugin : ComputePlugin {
             register(FeatureMiscellaneous)
             register(FeatureNetworkLimit)
             register(FeatureFairShare)
-//            if (micro.developmentModeEnabled) register(FeatureMinikube)
 //            register(FeatureProxy(broadcastingStream, ingressService))
             register(FeatureFileOutput(files.pathConverter, files.fs, logService, fileMountPlugin))
 
@@ -176,6 +173,7 @@ class UCloudComputePlugin : ComputePlugin {
         while (isActive() && !channel.isClosedForReceive) {
             select {
                 channel.onReceiveCatching { message ->
+                    @Suppress("RedundantUnitExpression")
                     val log = message.getOrNull() ?: return@onReceiveCatching Unit
                     emitStdout(log.rank, log.message)
                 }
@@ -191,22 +189,60 @@ class UCloudComputePlugin : ComputePlugin {
         }
     }
 
-    override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): OpenSession {
-        return when (job.sessionType) {
-            InteractiveSessionType.WEB -> TODO()
-            InteractiveSessionType.VNC -> TODO()
-            InteractiveSessionType.SHELL -> {
-                OpenSession.Shell(
-                    job.job.id,
-                    job.rank,
-                    jobManagement.openShellSession(listOf(JobAndRank(job.job, job.rank))).single()
-                )
-            }
-        }
+    override suspend fun RequestContext.verify(jobs: List<Job>) {
+        jobManagement.verifyJobs(jobs)
     }
 
-    override suspend fun RequestContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        return sessions.findSessionOrNull(dbConnection, request.sessionIdentifier, InteractiveSessionType.SHELL) != null
+    override suspend fun RequestContext.openInteractiveSession(job: JobsProviderOpenInteractiveSessionRequestItem): ComputeSession {
+        return when (job.sessionType) {
+            InteractiveSessionType.WEB -> {
+                val ingressFeature = jobManagement.featureOrNull<FeatureIngress>()
+                    ?: throw RPCException("Not supported", HttpStatusCode.BadRequest)
+
+                val domain = ingressFeature.retrieveDomainsByJobId(job.job.id).firstOrNull()
+                    ?: ingressFeature.defaultDomainByJobIdAndRank(job.job.id, job.rank)
+
+                val pod = jobManagement.k8.client.getResource(
+                    Pod.serializer(),
+                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
+                        k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
+                        k8.nameAllocator.namespace()
+                    )
+                )
+
+                val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+
+                ComputeSession(
+                    target = ComputeSessionIpc.SessionTarget(
+                        domain,
+                        ipAddress,
+                        job.job.status.resolvedApplication?.invocation?.web?.port ?: 80
+                    )
+                )
+            }
+
+            InteractiveSessionType.VNC -> {
+                val pod = jobManagement.k8.client.getResource(
+                    Pod.serializer(),
+                    KubernetesResourceLocator.common.pod.withNameAndNamespace(
+                        k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
+                        k8.nameAllocator.namespace()
+                    )
+                )
+
+                val ipAddress = pod.status?.podIP ?: throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+
+                ComputeSession(
+                    target = ComputeSessionIpc.SessionTarget(
+                        "",
+                        ipAddress,
+                        job.job.status.resolvedApplication?.invocation?.vnc?.port ?: 5900
+                    )
+                )
+            }
+
+            InteractiveSessionType.SHELL -> ComputeSession()
+        }
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
@@ -269,17 +305,6 @@ class UCloudIngressPlugin : IngressPlugin {
         service = FeatureIngress(pluginConfig.domainPrefix, pluginConfig.domainSuffix, dbConnection, compute.k8)
 
         compute.jobManagement.register(service)
-
-        // TODO Do something with this (requires some changes to envoy)
-        WebService(
-            config.core.providerId,
-            compute.k8,
-            dbConnection,
-            compute.sessions,
-            pluginConfig.domainPrefix,
-            pluginConfig.domainSuffix,
-            service
-        )
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<IngressSupport> {

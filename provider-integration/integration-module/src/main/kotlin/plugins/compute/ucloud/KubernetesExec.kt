@@ -16,7 +16,7 @@ class ExecContext(
     val resizes: SendChannel<ExecResizeMessage>,
 )
 
-@OptIn(ExperimentalCoroutinesApi::class, io.ktor.util.InternalAPI::class)
+@OptIn(io.ktor.util.InternalAPI::class)
 suspend fun KubernetesClient.exec(
     resource: KubernetesResourceLocator,
     command: List<String>,
@@ -31,6 +31,7 @@ suspend fun KubernetesClient.exec(
         install(WebSockets)
         expectSuccess = false
         engine {
+            requestTimeout = 0
             https {
                 trustManager = k8Client.conn.trustManager
             }
@@ -40,7 +41,7 @@ suspend fun KubernetesClient.exec(
     webSocketClient.webSocket(
         request = {
             this.method = HttpMethod.Get
-            val buildUrl = buildUrl(
+            val builtUrl = buildUrl(
                 resource,
                 mapOf(
                     "stdin" to stdin.toString(),
@@ -49,23 +50,14 @@ suspend fun KubernetesClient.exec(
                     "stderr" to stderr.toString(),
                 ),
                 "exec"
-            )
+            ).replace("https://", "wss://").replace("http://", "ws://")
+
             url(
-                buildUrl.also { println("Connecting to $it") }
+                URLBuilder(builtUrl).apply {
+                    command.forEach { parameters.append("command", it) }
+                }.build()
             )
             configureRequest(this)
-            url(url.fixedClone().let {
-                URLBuilder(it).apply {
-                    parameters.clear()
-
-                    it.parameters.entries().forEach { (k, values) ->
-                        parameters.appendAll(k, values)
-                    }
-                    command.forEach { parameters.append("command", it) }
-
-                    protocol = if (buildUrl.startsWith("https://")) URLProtocol.WSS else URLProtocol.WS
-                }
-            }.toString().also { println("After fix: $it") })
         },
 
         block = {
@@ -84,8 +76,8 @@ suspend fun KubernetesClient.exec(
                             Frame.Binary(
                                 true,
                                 byteArrayOf(4) +
-                                    """{"Width": ${nextMessage.cols}, "Height": ${nextMessage.rows}}"""
-                                        .toByteArray(Charsets.UTF_8)
+                                        """{"Width": ${nextMessage.cols}, "Height": ${nextMessage.rows}}"""
+                                            .toByteArray(Charsets.UTF_8)
                             )
                         )
                     }

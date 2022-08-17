@@ -5,7 +5,6 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__FileUploadSessions(): MigrationScript = MigrationScript("V1__FileUploadSessions") { conn ->
     conn.prepareStatement(
-        //language=SQLite
         """
             create table file_upload_sessions(
                 session text primary key,

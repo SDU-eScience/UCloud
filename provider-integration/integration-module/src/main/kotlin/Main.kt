@@ -41,6 +41,7 @@ import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
@@ -265,12 +266,14 @@ fun main(args: Array<String>) {
                 ServerMode.Server, ServerMode.User -> RpcServer()
                 else -> null
             }
+            var ktorEngine: ApplicationEngine? = null
 
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
 
                 val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
+                ktorEngine = engine
                 engine.application.install(CORS) {
                     // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
                     // with local backend.
@@ -587,14 +590,12 @@ fun main(args: Array<String>) {
                     controllerContext,
                     FileController(controllerContext, envoyConfig),
                     FileCollectionController(controllerContext),
-                    ComputeController(controllerContext),
+                    ComputeController(controllerContext, envoyConfig, ktorEngine!!.application),
                     IngressController(controllerContext),
                     PublicIPController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     NotificationController(controllerContext),
                 )
-
-                rpcServer.start()
             }
 
             sendTerminalMessage {
@@ -660,9 +661,6 @@ fun main(args: Array<String>) {
     }
 }
 
-// NOTE(Dan): Used to access the class loader from the main function
-private object __ClassLoaderDummy
-
 // TODO(Dan): We have a number of utilities which should probably be moved out of this file.
 
 private fun RpcServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
@@ -674,6 +672,10 @@ private fun RpcServer.configureControllers(ctx: ControllerContext, vararg contro
             if (it is IpcController) it.configureIpc(ipcServer)
         }
     }
+
+    start()
+
+    controllers.forEach { it.onServerReady(this) }
 }
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(

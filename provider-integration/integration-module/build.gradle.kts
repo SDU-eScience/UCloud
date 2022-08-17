@@ -16,7 +16,7 @@ repositories {
 }
 
 dependencies {
-    implementation("dk.sdu.cloud:integration-module-support:2022.1.54-devel-hippo")
+    implementation("dk.sdu.cloud:integration-module-support:2022.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
     implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")

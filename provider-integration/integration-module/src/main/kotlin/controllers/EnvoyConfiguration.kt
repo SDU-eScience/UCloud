@@ -51,7 +51,7 @@ class EnvoyConfigurationService(
                 "--config-path",
                 "$configDir/$configFile"
             ),
-            envs = listOf("ENVOY_VERSION=1.19.0"),
+            envs = listOf("ENVOY_VERSION=1.23.0"),
             attachStdout = false,
             attachStderr = false,
             attachStdin = false,
@@ -143,18 +143,53 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 codec_type: HTTP1
                 http_filters:
+                - name: envoy.filters.http.ext_authz 
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                    failure_mode_allow: false
+                    http_service:
+                      path_prefix: /app-authorize-request
+                      server_uri:
+                        uri: http://0.0.0.0/
+                        cluster: ext-authz
+                        timeout: 0.25s
+                      authorization_request:
+                        allowed_headers:
+                          patterns:
+                            - exact: Cookie
+                      authorization_response:
+                        allowed_upstream_headers:
+                          patterns:
+                            - exact: Cookie
                 - name: envoy.filters.http.router
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
                 stat_prefix: ingress_http
                 rds:
                   route_config_name: local_route
                   config_source:
                     path: $configDir/$rdsFile
-  clusters: []
+  clusters:
+  - name: ext-authz
+    connect_timeout: 0.25s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    upstream_connection_options:
+      tcp_keepalive: {}
+    load_assignment:
+      cluster_name: ext-authz
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 42000
           """
         )
     }
 
-    fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster?) {
+    fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster? = null) {
         runBlocking {
             channel.send(ConfigurationMessage.NewCluster(route, cluster))
         }
@@ -230,6 +265,24 @@ sealed class EnvoyRoute {
         val providerId: String,
         override val cluster: String
     ) : EnvoyRoute()
+
+    data class WebIngressSession(
+        val identifier: String,
+        val domain: String,
+        override val cluster: String,
+    ) : EnvoyRoute()
+
+    data class WebAuthorizeSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String,
+    ) : EnvoyRoute()
+
+    data class VncSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String,
+    ) : EnvoyRoute()
 }
 
 
@@ -243,17 +296,23 @@ class EnvoyRouteConfiguration(
 ) {
     companion object {
         fun create(routes: List<EnvoyRoute>, useUCloudUsernameHeader: Boolean): EnvoyRouteConfiguration {
-
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
                 when (it) {
-                    is EnvoyRoute.UploadSession -> 1
-                    is EnvoyRoute.DownloadSession -> 1
-                    is EnvoyRoute.ShellSession -> 1
                     is EnvoyRoute.Standard -> 2
+                    else -> 1
                 }
             }
+
+            // NOTE(Dan): Annoyingly we cannot enable it per route, we have to disable it for all
+            // other routes.
+            val disableAppAuthorization = "typed_per_filter_config" to JsonObject(
+                "envoy.filters.http.ext_authz" to JsonObject(
+                    "@type" to JsonPrimitive("type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute"),
+                    "disabled" to JsonPrimitive(true)
+                )
+            )
 
             return EnvoyRouteConfiguration(
                 virtualHosts = listOf(
@@ -304,7 +363,8 @@ class EnvoyRouteConfiguration(
                                                     }
                                                 }
                                             ),
-                                            "route" to standardRouteConfig
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
 
@@ -322,6 +382,59 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.VncSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive("/ucloud/${route.providerId}/vnc"),
+                                                "query_parameters" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("token"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.WebAuthorizeSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive("/ucloud/${route.providerId}/authorize-app"),
+                                                "query_parameters" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("token"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.WebIngressSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "prefix" to JsonPrimitive("/"),
+                                                "headers" to JsonArray(
+                                                    JsonObject(
+                                                        "header" to JsonPrimitive(":authority"),
+                                                        "exact_match" to JsonPrimitive(route.domain)
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                            // app authorization enabled by not disabling it
                                         )
                                     }
 
@@ -339,6 +452,7 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
 
@@ -356,6 +470,7 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
                                 }
@@ -365,7 +480,8 @@ class EnvoyRouteConfiguration(
                                 ),
                                 "direct_response" to JsonObject(
                                     "status" to JsonPrimitive(449)
-                                )
+                                ),
+                                disableAppAuthorization
                             )
                         )
                     )

@@ -213,7 +213,7 @@ class EmbeddedIpcClient : IpcClient {
         for (handler in server.handlers) {
             if (!handler.matches(request.method)) continue
             try {
-                val resp = handler.handler(IpcUser(0), request)
+                val resp = handler.invokeHandler(IpcUser(0), request)
                 return JsonRpcResponse.Success(
                     resp,
                     request.id ?: "?"
