@@ -10,7 +10,8 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiDoc("A partial UFile returned by providers and made complete by UCloud/Core")
@@ -119,61 +120,58 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         UFile.serializer(),
-        typeOf<UFile>(),
+        typeOfIfPossible<UFile>(),
         UFileSpecification.serializer(),
-        typeOf<UFileSpecification>(),
+        typeOfIfPossible<UFileSpecification>(),
         UFileUpdate.serializer(),
-        typeOf<UFileUpdate>(),
+        typeOfIfPossible<UFileUpdate>(),
         UFileIncludeFlags.serializer(),
-        typeOf<UFileIncludeFlags>(),
+        typeOfIfPossible<UFileIncludeFlags>(),
         UFileStatus.serializer(),
-        typeOf<UFileStatus>(),
+        typeOfIfPossible<UFileStatus>(),
         FSSupport.serializer(),
-        typeOf<FSSupport>(),
+        typeOfIfPossible<FSSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
-    val browse = call<FilesProviderBrowseRequest, FilesProviderBrowseResponse, CommonErrorMessage>("browse") {
+    val browse = call("browse", FilesProviderBrowseRequest.serializer(), PageV2.serializer(PartialUFile.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "browse", roles = Roles.SERVICE) // TODO FIXME
     }
 
-    val retrieve = call<FilesProviderRetrieveRequest, FilesProviderRetrieveResponse, CommonErrorMessage>("retrieve") {
+    val retrieve = call("retrieve", FilesProviderRetrieveRequest.serializer(), FilesProviderRetrieveResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "retrieve", roles = Roles.SERVICE) // TODO FIXME
     }
 
-    val move = call<BulkRequest<FilesProviderMoveRequestItem>, FilesProviderMoveResponse, CommonErrorMessage>("move") {
+    val move = call("move", BulkRequest.serializer(FilesProviderMoveRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "move", roles = Roles.SERVICE)
     }
 
-    val copy = call<BulkRequest<FilesProviderCopyRequestItem>, FilesProviderCopyResponse, CommonErrorMessage>("copy") {
+    val copy = call("copy", BulkRequest.serializer(FilesProviderCopyRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "copy", roles = Roles.SERVICE)
     }
 
-    val createFolder = call<BulkRequest<FilesProviderCreateFolderRequestItem>, FilesProviderCreateFolderResponse,
-        CommonErrorMessage>("createFolder") {
+    val createFolder = call("createFolder", BulkRequest.serializer(FilesProviderCreateFolderRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "folder", roles = Roles.SERVICE)
     }
 
-    val trash = call<BulkRequest<FilesProviderTrashRequestItem>, FilesProviderTrashResponse, CommonErrorMessage>("trash") {
+    val trash = call("trash", BulkRequest.serializer(FilesProviderTrashRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "trash", roles = Roles.SERVICE)
     }
 
-    val emptyTrash = call<BulkRequest<FilesProviderEmptyTrashRequestItem>, FilesProviderEmptyTrashResponse, CommonErrorMessage>("emptyTrash") {
+    val emptyTrash = call("emptyTrash", BulkRequest.serializer(FilesProviderEmptyTrashRequestItem.serializer()), BulkResponse.serializer(LongRunningTask.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "emptyTrash", roles = Roles.SERVICE)
     }
 
-    val createUpload = call<BulkRequest<FilesProviderCreateUploadRequestItem>, FilesProviderCreateUploadResponse,
-        CommonErrorMessage>("createUpload") {
+    val createUpload = call("createUpload", BulkRequest.serializer(FilesProviderCreateUploadRequestItem.serializer()), BulkResponse.serializer(FilesCreateUploadResponseItem.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "upload", roles = Roles.SERVICE)
     }
 
-    val createDownload = call<BulkRequest<FilesProviderCreateDownloadRequestItem>, FilesProviderCreateDownloadResponse,
-        CommonErrorMessage>("createDownload") {
+    val createDownload = call("createDownload", BulkRequest.serializer(FilesProviderCreateDownloadRequestItem.serializer()), BulkResponse.serializer(FilesCreateDownloadResponseItem.serializer().nullable), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "download", roles = Roles.SERVICE)
     }
 
-    val search = call<FilesProviderSearchRequest, PageV2<PartialUFile>, CommonErrorMessage>("search") {
+    val search = call("search", FilesProviderSearchRequest.serializer(), PageV2.serializer(PartialUFile.serializer()), CommonErrorMessage.serializer()) {
         httpSearch(baseContext, roles = Roles.SERVICE)
     }
 

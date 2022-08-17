@@ -13,7 +13,7 @@ repositories {
 
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.6.2-native-mm-eap-196"
+    val ktorVersion = "2.0.2"
 
     macosX64()
     linuxX64()
@@ -51,16 +51,12 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
-                api("io.ktor:ktor-client-okhttp:$ktorVersion")
                 api("io.ktor:ktor-client-websockets:$ktorVersion")
                 api("io.ktor:ktor-client-cio:$ktorVersion")
                 api("io.ktor:ktor-client-core:$ktorVersion")
 
                 api("org.apache.logging.log4j:log4j-api:2.17.1")
                 api("org.apache.logging.log4j:log4j-core:2.17.1")
-                implementation(kotlin("reflect"))
-                implementation("com.google.guava:guava:27.0.1-jre")
                 api("com.auth0:java-jwt:3.8.3")
             }
         }

@@ -23,17 +23,14 @@ import dk.sdu.cloud.service.TokenValidation
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.toSecurityToken
-import io.ktor.application.Application
-import io.ktor.application.ApplicationCallPipeline
-import io.ktor.application.call
-import io.ktor.application.install
-import io.ktor.features.CachingHeaders
 import io.ktor.http.CacheControl
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.content.CachingOptions
-import io.ktor.request.header
-import io.ktor.response.header
+import io.ktor.server.application.*
+import io.ktor.server.plugins.cachingheaders.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.util.*
 import org.slf4j.LoggerFactory
 import java.net.MalformedURLException
@@ -86,7 +83,7 @@ class CoreAuthController(
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         ktor?.apply {
             install(CachingHeaders) {
-                options {
+                options { call, content ->
                     // For some reason there is no other way to specify which version we want.
                     // Likely working around a bug.
                     CachingOptions(CacheControl.NoStore(CacheControl.Visibility.Private), null)

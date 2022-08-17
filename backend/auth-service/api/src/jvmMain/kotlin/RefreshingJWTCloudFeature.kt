@@ -23,7 +23,7 @@ typealias RefreshingJWTCloudFeature = AuthenticatorFeature
 class AuthenticatorFeature : MicroFeature {
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         val clientContext = ctx.client
-        val refreshToken = ctx.configuration.requestChunkAt<String>("refreshToken")
+        val refreshToken = ctx.configuration.requestChunkAt(String::class, "refreshToken")
 
         val tokenValidation = ctx.tokenValidation as? InternalTokenValidationJWT
             ?: throw IllegalStateException("Token validation needs to use JWTs!")

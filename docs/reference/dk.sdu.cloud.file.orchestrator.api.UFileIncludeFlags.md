@@ -18,7 +18,6 @@ data class UFileIncludeFlags(
     val includeSizes: Boolean?,
     val includeUnixInfo: Boolean?,
     val includeMetadata: Boolean?,
-    val includeSyncStatus: Boolean?,
     val filterCreatedBy: String?,
     val filterCreatedAfter: Long?,
     val filterCreatedBefore: Long?,
@@ -133,17 +132,6 @@ data class UFileIncludeFlags(
 <details>
 <summary>
 <code>includeMetadata</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeSyncStatus</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

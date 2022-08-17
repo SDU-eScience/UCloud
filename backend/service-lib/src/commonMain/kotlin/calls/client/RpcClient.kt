@@ -3,6 +3,7 @@ package dk.sdu.cloud.calls.client
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
 import kotlin.reflect.KClass
 
 interface OutgoingCall {
@@ -41,7 +42,8 @@ sealed class OutgoingCallFilter : OutgoingContextFilter {
         abstract suspend fun run(
             context: OutgoingCall,
             callDescription: CallDescription<*, *, *>,
-            response: IngoingCallResponse<*, *>
+            response: IngoingCallResponse<*, *>,
+            responseTimeMs: Long,
         )
     }
 }
@@ -69,6 +71,7 @@ class RpcClient {
         beforeHook: (suspend (Ctx) -> Unit)? = null,
         afterHook: (suspend (Ctx) -> Unit)? = null
     ): IngoingCallResponse<S, E> {
+        val start = Time.now()
         val interceptor =
             requestInterceptors[backend] ?: throw IllegalStateException("No handler exists for this backend: $backend")
 
@@ -89,7 +92,7 @@ class RpcClient {
         val response = interceptor.finalizeCall(callDescription, request, ctx)
         callFilters.filterIsInstance<OutgoingCallFilter.AfterCall>().forEach {
             if (it.canUseContext(ctx)) {
-                it.run(ctx, callDescription, response)
+                it.run(ctx, callDescription, response, Time.now() - start)
             }
         }
         return response

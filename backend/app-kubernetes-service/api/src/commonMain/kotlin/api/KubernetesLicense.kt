@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.app.orchestrator.api.LicenseProvider
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class KubernetesLicense(
@@ -47,15 +48,15 @@ typealias KubernetesLicenseUpdateResponse = Unit
 class KubernetesLicenseMaintenance(providerId: String) : CallDescriptionContainer("compute.licenses.ucloud.maintenance") {
     val baseContext = LicenseProvider(providerId).baseContext + "/maintenance"
 
-    val create = call<KubernetesLicenseCreateRequest, KubernetesLicenseCreateResponse, CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(KubernetesLicense.serializer()), KubernetesLicenseCreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, roles = Roles.ADMIN)
     }
 
-    val browse = call<KubernetesLicenseBrowseRequest, KubernetesLicenseBrowseResponse, CommonErrorMessage>("browse") {
+    val browse = call("browse", KubernetesLicenseBrowseRequest.serializer(), KubernetesLicenseBrowseResponse.serializer(KubernetesLicense.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, roles = Roles.ADMIN)
     }
 
-    val update = call<KubernetesLicenseUpdateRequest, KubernetesLicenseUpdateResponse, CommonErrorMessage>("update") {
+    val update = call("update", KubernetesLicenseUpdateRequest.serializer(KubernetesLicense.serializer()), KubernetesLicenseUpdateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "update", roles = Roles.ADMIN)
     }
 }

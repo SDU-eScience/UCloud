@@ -1,167 +1,438 @@
 import {WSFactory} from "@/Authentication/HttpClientInstance";
 import {formatDistance} from "date-fns/esm";
-import {NotificationsReduxObject} from "@/DefaultObjects";
 import * as React from "react";
-import {connect, useSelector} from "react-redux";
-import {Redirect, useHistory} from "react-router";
-import {Dispatch} from "redux";
 import {Snack} from "@/Snackbar/Snackbars";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import styled, {ThemeProvider} from "styled-components";
-import {Absolute, Badge, Box, Button, Divider, Error, Flex, Icon, Relative} from "@/ui-components";
-import ClickableDropdown from "@/ui-components/ClickableDropdown";
+import {Link, Button, Absolute, Badge, Flex, Icon, Relative} from "@/ui-components";
 import {IconName} from "@/ui-components/Icon";
 import {TextSpan} from "@/ui-components/Text";
-import theme, {Theme, ThemeColor} from "@/ui-components/theme";
+import theme, {ThemeColor} from "@/ui-components/theme";
 import * as UF from "@/UtilityFunctions";
-import {
-    fetchNotifications,
-    notificationRead,
-    readAllNotifications,
-    receiveSingleNotification
-} from "./Redux/NotificationsActions";
+import {NotificationProps as NormalizedNotification} from "./Card";
+import * as Snooze from "./Snooze";
+import {callAPI} from "@/Authentication/DataHook";
+import {buildQueryString} from "@/Utilities/URIUtilities";
+import {triggerNotificationPopup, NotificationPopups} from "./Popups";
+import {useForcedRender} from "@/Utilities/ReactUtilities";
+import {timestampUnixMs} from "@/UtilityFunctions";
+import * as H from "history";
+import {Dispatch} from "redux";
+import {useHistory} from "react-router";
+import {useDispatch, useSelector} from "react-redux";
+import {getStoredProject} from "@/Project/Redux";
 import {dispatchSetProjectAction} from "@/Project/Redux";
-import {useProjectStatus} from "@/Project/cache";
-import {getProjectNames} from "@/Utilities/ProjectUtilities";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import * as Heading from "@/ui-components/Heading";
+import {WebSocketConnection} from "@/Authentication/ws";
 
-interface NotificationProps {
-    items: Notification[];
-    redirectTo: string;
-    fetchNotifications: () => void;
-    notificationRead: (id: number | string) => void;
-    error?: string;
+// NOTE(Dan): If you are in here, then chances are you want to attach logic to one of the notifications coming from
+// the backend. You can do this by editing the following two functions: `resolveNotification()` and
+// `onNotificationAction()`.
+//
+// If you are here to learn about sending a notification, then you can jump down to `sendNotification()`.
+//
+// Otherwise, look further down where the general concepts are explained.
+function resolveNotification(event: Notification): {
+    icon: IconName; 
+    color?: ThemeColor; 
+    color2?: ThemeColor;
+    modifiedTitle?: string;
+    modifiedMessage?: JSX.Element | string;
+} {
+    switch (event.type) {
+        case "REVIEW_PROJECT":
+            return {icon: "projects", color: "black", color2: "midGray"};
+        case "SHARE_REQUEST":
+            return {icon: "share", color: "black", color2: "black"};
+        case "PROJECT_INVITE":
+            return {icon: "projects", color: "black", color2: "midGray"};
+        case "PROJECT_ROLE_CHANGE":
+            return {icon: "projects", color: "black", color2: "midGray"};
+        case "PROJECT_USER_LEFT":
+            return {icon: "projects", color: "black", color2: "midGray"};
+        case "PROJECT_USER_REMOVED":
+            return {icon: "projects", color: "black", color2: "midGray"};
+        case "NEW_GRANT_APPLICATION":
+            const icon = "mail";
+            const oldPrefix = "New grant application to ";
+            if (event.message.indexOf(oldPrefix) === 0) {
+                const modifiedTitle = event.message.substring(oldPrefix.length);
+                const modifiedMessage = "You have received a new grant application to review.";
+                return {icon, modifiedMessage, modifiedTitle};
+            }
+            return {icon};
+        case "APP_COMPLETE":
+        default:
+            return {icon: "info", color: "white", color2: "black"};
+    }
 }
 
-type Notifications = NotificationProps & NotificationsOperations;
-
-function Notifications(props: Notifications): JSX.Element {
-    const history = useHistory();
-    const projectNames = getProjectNames(useProjectStatus());
-    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
-
-    const [showError, setShowError] = React.useState(false);
-
-    React.useEffect(() => {
-        setShowError(!!props.error);
-    }, [props.error]);
-
-    React.useEffect(() => {
-        reload();
-        const conn = WSFactory.open("/notifications", {
-            init: c => {
-                c.subscribe({
-                    call: "notifications.subscription",
-                    payload: {},
-                    handler: message => {
-                        if (message.type === "message") {
-                            props.receiveNotification(message.payload);
-                        }
-                    }
-                });
+function onNotificationAction(notification: Notification, history: H.History, dispatch: Dispatch) {
+    const currentProject = getStoredProject();
+    switch (notification.type) {
+        case "APP_COMPLETE":
+            history.push(`/applications/results/${notification.meta.jobId}`);
+            break;
+        case "SHARE_REQUEST":
+            history.push("/shares");
+            break;
+        case "REVIEW_PROJECT":
+        case "PROJECT_INVITE":
+            history.push("/projects/");
+            break;
+        case "NEW_GRANT_APPLICATION":
+        case "COMMENT_GRANT_APPLICATION":
+        case "GRANT_APPLICATION_RESPONSE":
+        case "GRANT_APPLICATION_UPDATED": {
+            const {meta} = notification;
+            history.push(`/project/grants/view/${meta.appId}`);
+            break;
+        }
+        case "PROJECT_ROLE_CHANGE": {
+            const {projectId} = notification.meta;
+            if (currentProject !== projectId) {
+                dispatchSetProjectAction(dispatch, projectId);
             }
-        });
-        const subscriber = (snack?: Snack): void => {
-            if (snack && snack.addAsNotification) {
-                props.receiveNotification({
-                    id: -new Date().getTime(),
-                    message: snack.message,
-                    read: false,
-                    type: "info",
-                    ts: new Date().getTime(),
-                    meta: ""
-                });
-            }
-        };
-        snackbarStore.subscribe(subscriber);
+            history.push("/project/members");
+            break;
+        }
+        default:
+            console.warn("unhandled");
+            console.warn(notification);
+            break;
+    }
+}
 
-        return () => conn.close();
-    }, []);
+// NOTE(Dan): The code of this module contain all the relevant logic and components to control the notification system
+// of UCloud. A notification is UCloud acts as a hint to the user that an interesting event has occured, in doing so
+// it invites the user to take action in response to said event. This is the main difference between the "Snackbar"
+// functionality of UCloud which is only meant to notify the user of some event which does not require any user
+// action.
+//
+// The anatomy of an notification is roughly as follows:
+//
+//    
+//  /-----------------------------------------\ 
+// X +--+ --Title--                      Date  X
+// X |  | --Message----------------            X
+// X +--+                                      X
+//  \-----------------------------------------/ 
+//                                              
+// Each notification has:
+//
+// - An icon, which indicates roughly the type of event which has occured.
+// - A title and a message, which provides a more detailed description of the event.
+// - A timestamp, telling the user when this occured. Old notifications are rarely useful.
+// - An action, which allows the user to act on the notification.
+// - A flag which indicates if the user has read the message or not.
+//
+// Two types of notifications exist in UCloud. Normal notifications and pinned notifications. A normal notification
+// will popup on the user's screen for a few seconds after which it disappears and can be found in the notification
+// tray. The notification tray is placed in the header, and can be opened to view the most recent notifications (see
+// `<Notifications>`). A pinned notification, however, stays on the user's screen until they are either dealt with or
+// snoozed. A snoozed notification will eventually return to the user. After the user has snoozed a notification a few
+// times, the snooze option is replaced with a "dismiss" option. After which the notification will not re-appear.
+// Pinned notifications are used to notify the end-user of critical events which are important that they act on.
+//
+// Notifications, in the frontend, come from a few different sources:
+//
+// 1. Backend notification system. Old ones are fetched through a normal RPC call while new ones are fetched using a
+//    WebSocket subscription.
+// 2. From the `sendNotification` call. This allows the frontend to generate its own notifications. This is currently
+//    the only way of generating a pinned notification.
+// 3. From the `snackbarStore`. This is done mostly for legacy reasons with the old snackbars, which could optionally
+//    be added to the notification tray. Using the snackbars this way will no longer generate a snackbar, since this
+//    would have caused two distinct popups instead of one.
+//
+// All notifications, regardless of source, are normalized using the `normalizeNotification()` function. The output of
+// this function is used throughout all the other components. These notifications are stored in the
+// `notificationStore` and UI components can subscribe to changes through the `notificationCallbacks`:
+const notificationStore: NormalizedNotification[] = [];
 
-    function reload(): void {
-        props.fetchNotifications();
+const notificationCallbacks = new Set<() => void>();
+function renderNotifications() {
+    for (const callback of notificationCallbacks) {
+        callback();
+    }
+}
+
+// NOTE(Dan): The frontend can generate its own notification thorugh `sendNotification()`. This is generally prefered
+// over using the `snackbar` functions, as these allow for greater flexibility.
+export function sendNotification(notification: NormalizedNotification) {
+    const normalized = normalizeNotification(notification);
+    for (const item of notificationStore) {
+        if (item.uniqueId === normalized.uniqueId) return;
     }
 
-    function onNotificationAction(notification: Notification): void {
-        reload();
-        const before = history.location.pathname;
-        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames, props.notificationRead);
-        const after = history.location.pathname;
-        if (before === after) {
-            if (globalRefresh) globalRefresh();
+    notificationStore.unshift(normalized);
+    renderNotifications();
+
+    if (!notification.isPinned || Snooze.shouldAppear(normalized.uniqueId)) {
+        if (notification.isPinned) Snooze.trackAppearance(normalized.uniqueId);
+        triggerNotificationPopup(normalized);
+    }
+}
+
+// NOTE(Dan): The `notificationStore` is filled from various sources (as described above). The `initializeStore()`
+// function is responsible for pulling information from these sources and pushing it into the `notificationStore`.
+// When UI updates are required, then this function will invoke `renderNotifications()` to trigger a UI update in all
+// relevant components.
+let wsConnection: WebSocketConnection | undefined = undefined; 
+let snackbarSubscription: (snack?: Snack) => void = () => {};
+let snoozeLoop: any;
+function initializeStore() {
+    // NOTE(Dan): We first fetch a history of old events. These are only added to the tray and do not trigger a popup.
+    callAPI<Page<Notification>>({ 
+        context: "",
+        path: buildQueryString("/api/notifications", {itemsPerPage: 250}),
+    }).then(resp => {
+        for (const item of resp.items) {
+            notificationStore.push(normalizeNotification(item));
+        }
+        renderNotifications();
+    });
+
+    // NOTE(Dan): New messages from the WebSocket subscription do trigger a notification, since we will only receive
+    // notifications which are created after the subscription.
+    wsConnection = WSFactory.open("/notifications", {
+        init: c => {
+            c.subscribe({
+                call: "notifications.subscription",
+                payload: {},
+                handler: message => {
+                    if (message.type === "message") {
+                        sendNotification(normalizeNotification(message.payload));
+                    }
+                }
+            });
+        }
+    });
+
+    // NOTE(Dan): Sets up the subscriber to the snackbarStore. This is here mostly for legacy reasons. Generally you
+    // should prefer generating frontend notifications through `sendNotification()`.
+    snackbarSubscription = (snack?: Snack): void => {
+        if (snack && snack.addAsNotification) {
+            sendNotification(normalizeNotification({
+                id: -new Date().getTime(),
+                message: snack.message,
+                read: false,
+                type: "info",
+                ts: new Date().getTime(),
+                meta: ""
+            }));
+        }
+    };
+    snackbarStore.subscribe(snackbarSubscription);
+
+    // NOTE(Dan): A pinned notification which has been snoozed should automatically re-appear as a popup after some
+    // time. This small `setInterval()` handler is responsible for doing this.
+    snoozeLoop = setInterval(() => {
+        for (const notification of notificationStore) {
+            if (notification.isPinned && Snooze.shouldAppear(notification.uniqueId)) {
+                triggerNotificationPopup(notification);
+                Snooze.trackAppearance(notification.uniqueId);
+            }
+        }
+    }, 500);
+}
+
+function deinitStore() {
+    notificationStore.length = 0;
+    wsConnection?.close();
+    wsConnection = undefined;
+
+    if (snoozeLoop) clearInterval(snoozeLoop);
+    snackbarStore.unsubscribe(snackbarSubscription);
+}
+
+// NOTE(Dan): Whenever a user has read a message, we mark it as read and notify the backend (if relevant). This is
+// done through the `markAllAsRead()` and `markAsRead()` functions.
+export function markAllAsRead() {
+    markAsRead(notificationStore);
+}
+
+export function markAsRead(notifications: NormalizedNotification[]) {
+    for (const notification of notifications) {
+        notification.read = true; 
+    }
+    renderNotifications();
+
+    const idsToUpdate: string[] = [];
+    for (const notification of notifications) {
+        if (!notification.isPinned && notification.uniqueId.indexOf("-") !== 0) {
+            idsToUpdate.push(notification.uniqueId);
         }
     }
 
-    const entries: JSX.Element[] = React.useMemo(() => props.items.map((notification, index) => (
-        <NotificationEntry
-            key={index}
-            notification={notification}
-            onMarkAsRead={it => props.notificationRead(it.id)}
-            onAction={onNotificationAction}
-        />
-    )), [props.items]);
-
-    if (props.redirectTo) {
-        return <Redirect to={props.redirectTo} />;
+    if (idsToUpdate.length > 0) {
+        callAPI({
+            context: "",
+            method: "POST",
+            path: "/api/notifications/read",
+            payload: {ids: idsToUpdate},
+        });
     }
-
-    const unreadLength = props.items.filter(e => !e.read).length;
-    const readAllButton = unreadLength ? (
-        <>
-            <Button onClick={props.readAll} fullWidth>Mark all as read</Button>
-            <Divider />
-        </>
-    ) : null;
-    return (
-        <ClickableDropdown
-            data-component={"notifications"}
-            colorOnHover={false}
-            top="37px"
-            width="380px"
-            left="-270px"
-            trigger={(
-                <Flex onClick={() => showError ? setShowError(false) : undefined}>
-                    <Relative top="0" left="0">
-                        <Flex justifyContent="center" width="48px">
-                            <Icon
-                                cursor="pointer"
-                                name="notification"
-                                color="headerIconColor"
-                                color2="headerIconColor2"
-                            />
-                        </Flex>
-                        {unreadLength > 0 ? (
-                            <ThemeProvider theme={theme}>
-                                <Absolute top="-12px" left="28px">
-                                    <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
-                                </Absolute>
-                            </ThemeProvider>
-                        ) : null}
-                        {showError ? (
-                            <ThemeProvider theme={theme}>
-                                <Absolute top="-12px" left="28px">
-                                    <Badge bg="red">!</Badge>
-                                </Absolute>
-                            </ThemeProvider>
-                        ) : null}
-                    </Relative>
-                </Flex>
-            )}
-        >
-            <ContentWrapper>
-                <Error error={props.error} />
-                {entries.length ? <>{readAllButton}{entries}</> : <NoNotifications />}
-            </ContentWrapper>
-        </ClickableDropdown>
-    );
-
 }
 
-const ContentWrapper = styled(Box)`
+// HACK(Dan): I would agree this isn't great.
+let normalizationDependencies: { 
+    history: H.History; 
+    dispatch: Dispatch;
+    refresh: { current?: () => void }
+} | null = null;
+
+// The <Notifications> component is the main component for notifications. It is almost always mounted and visible in
+// the navigation header. Here it leaves a bell icon, which can be clicked to open the notification tray. This
+// function is responsible for initializing the notification store. It is also responsible for mounting the popup
+// component. 
+export const Notifications: React.FunctionComponent = () => {
+    const history = useHistory();
+    const dispatch = useDispatch();
+    const rerender = useForcedRender();
+    const [notificationsVisible, setNotificationsVisible] = React.useState(false);
+
+    const globalRefresh = useSelector<ReduxObject, (() => void) | undefined>(it => it.header.refresh);
+    const globalRefreshRef = React.useRef<(() => void) | undefined>(undefined);
+    React.useEffect(() => {
+        globalRefreshRef.current = globalRefresh;
+    }, [globalRefresh]);
+
+    const toggleNotifications = React.useCallback((ev?: React.SyntheticEvent) => {
+        ev?.stopPropagation();
+        setNotificationsVisible(prev => !prev);
+    }, []);
+
+    React.useEffect(() => {
+        const evHandler = () => { setNotificationsVisible(false) };
+        document.addEventListener("click", evHandler);
+        return () => {
+            document.removeEventListener("click", evHandler);
+        };
+    }, []);
+
+    React.useEffect(() => {
+        notificationCallbacks.add(rerender);
+        normalizationDependencies = { history, dispatch, refresh: globalRefreshRef };
+        initializeStore();
+
+        return () => {
+            notificationCallbacks.delete(rerender);
+            normalizationDependencies = null;
+            deinitStore();
+        };
+    }, []);
+
+    const pinnedEntries: JSX.Element | null = (() => {
+        const pinnedItems = notificationStore.filter(it => normalizeNotification(it).isPinned);
+        if (pinnedItems.length === 0) return null;
+        return <div className="container">
+            {pinnedItems.map((notification, index) => {
+                const normalized = normalizeNotification(notification);
+                return <NotificationEntry key={index} notification={normalized} />
+            })}
+        </div>;
+    })();
+
+    const entries: JSX.Element = (() => {
+        if (notificationStore.length === 0) return <NoNotifications />;
+        return <>
+            {notificationStore.map((notification, index) => {
+                if (notification.isPinned) return null;
+
+                return <NotificationEntry key={index} notification={notification} />
+            })}
+        </>;
+    })();
+
+    const unreadLength = notificationStore.filter(e => !e.read).length;
+
+    return <>
+        <NotificationPopups />
+        <Flex onClick={toggleNotifications} data-component="notifications" cursor="pointer">
+            <Relative top="0" left="0">
+                <Flex justifyContent="center" width="48px">
+                    <Icon
+                        cursor="pointer"
+                        name="notification"
+                        color="headerIconColor"
+                        color2="headerIconColor2"
+                    />
+                </Flex>
+                {unreadLength > 0 ? (
+                    <ThemeProvider theme={theme}>
+                        <Absolute top="-12px" left="28px">
+                            <Badge bg="red" data-component={"notifications-unread"}>{unreadLength}</Badge>
+                        </Absolute>
+                    </ThemeProvider>
+                ) : null}
+            </Relative>
+        </Flex>
+
+        {!notificationsVisible ? null :
+            <ContentWrapper onClick={UF.stopPropagation}>
+                <div className="header">
+                    <h3>Notifications</h3>
+                    <Icon name="checkDouble" className="read-all" color="iconColor" color2="iconColor2"
+                          onClick={markAllAsRead} />
+                </div>
+
+                {pinnedEntries}
+
+                <div className="container-wrapper">
+                    <div className="container">{entries}</div>
+                </div>
+            </ContentWrapper>
+        }
+    </>;
+}
+
+const ContentWrapper = styled.div`
+    position: fixed;
+    top: 60px;
+    right: 16px;
+    width: 450px;
     height: 600px;
-    overflow-y: auto;
-    padding: 5px;
-    // this is to compensate for the negative margin in the dropdown element
-    padding-right: 17px;
+    z-index: 10000;
+    background: var(--white);
+    color: var(--black);
+    padding: 16px;
+    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 20%);
+
+    display: flex;
+    flex-direction: column;
+
+    box-shadow: ${theme.shadows.sm};
+
+    .container-wrapper {
+        flex-grow: 1;
+        overflow-y: auto;
+    }
+
+    .container {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 16px;
+        flex-direction: column;
+    }
+
+    .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 20px;
+
+        h3 {
+            flex-grow: 1;
+            margin: 0;
+            font-size: 22px;
+            font-weight: normal;
+        }
+
+        .read-all {
+            cursor: pointer;
+        }
+    }
 `;
 
 const NoNotifications = (): JSX.Element => <TextSpan>No notifications</TextSpan>;
@@ -175,93 +446,205 @@ export interface Notification {
     meta: any;
 }
 
-interface NotificationEntryProps {
-    notification: Notification;
-    onMarkAsRead?: (notification: Notification) => void;
-    onAction?: (notification: Notification) => void;
+function normalizeNotification(
+    notification: Notification | NormalizedNotification, 
+): NormalizedNotification & { onSnooze?: () => void } {
+    const {history, dispatch, refresh} = normalizationDependencies!;
+
+    if ("isPinned" in notification) {
+        const result = {
+            ...notification, 
+            onSnooze: () => Snooze.snooze(notification.uniqueId),
+        };
+        result.onAction = () => {
+            const before = history.location.pathname;
+
+            markAsRead([result]);
+            notification.onAction?.();
+
+            const after = history.location.pathname;
+            if (before === after && refresh.current) refresh.current();
+        };
+        return result;
+    }
+
+    const resolved = resolveNotification(notification);
+    const result: NormalizedNotification & { onSnooze?: () => void } = {
+        icon: resolved.icon,
+        iconColor: resolved.color ?? "iconColor",
+        iconColor2: resolved.color2 ?? "iconColor2",
+        title: resolved.modifiedTitle ?? "Information",
+        body: resolved.modifiedMessage ?? notification.message,
+        isPinned: false,
+        ts: notification.ts,
+        read: notification.read,
+        uniqueId: `${notification.id}`,
+        onSnooze: () => Snooze.snooze(`${notification.id}`),
+    };
+
+    result.onAction = () => {
+        const before = history.location.pathname;
+
+        markAsRead([result]);
+        onNotificationAction(notification, history, dispatch);
+
+        const after = history.location.pathname;
+        if (before === after && refresh.current) refresh.current();
+    };
+
+    return result;
 }
 
-export function NotificationEntry(props: NotificationEntryProps): JSX.Element {
+interface NotificationEntryProps {
+    notification: NormalizedNotification;
+}
+
+function NotificationEntry(props: NotificationEntryProps): JSX.Element {
     const {notification} = props;
+
+    const classes: string[] = [];
+    {
+        if (notification.isPinned) classes.push("pinned");
+        else classes.push("unpinned");
+
+        if (notification.read !== true) classes.push("unread");
+    }
+
+    const onAction = React.useCallback(() => {
+        markAsRead([props.notification]);
+        props.notification.onAction?.();
+    }, [props.notification]);
+
     return (
-        <NotificationWrapper
-            alignItems="center"
-            read={notification.read}
-            flexDirection="row"
-            onClick={handleAction}
-        >
-            <Box mr="0.4em" width="10%">
-                <Icon {...resolveEventType(notification.type)} />
-            </Box>
-            <Flex width="90%" flexDirection="column">
-                <TextSpan color="grey" fontSize={1}>
-                    {formatDistance(notification.ts, new Date(), {addSuffix: true})}
-                </TextSpan>
-                <TextSpan fontSize={1}>{notification.message}</TextSpan>
-            </Flex>
+        <NotificationWrapper onClick={onAction} className={classes.join(" ")}>
+            <Icon name={notification.icon} size="24px" color={notification.iconColor ?? "iconColor"} 
+                  color2={notification.iconColor2 ?? "iconColor2"} />
+            <div className="notification-content">
+                <Flex>
+                    <b>{notification.title}</b>
+                    <div className="time">
+                        {formatDistance(notification.ts ?? timestampUnixMs(), new Date(), {addSuffix: true})}
+                    </div>
+                </Flex>
+
+                <div className="notification-body">{notification.body}</div>
+            </div>
         </NotificationWrapper>
     );
-
-    function handleRead(): void {
-        if (props.onMarkAsRead) props.onMarkAsRead(props.notification);
-    }
-
-    function handleAction(): void {
-        handleRead();
-        if (props.onAction) props.onAction(props.notification);
-    }
-
-    function resolveEventType(eventType: string): {name: IconName; color: ThemeColor; color2: ThemeColor} {
-        switch (eventType) {
-            case "REVIEW_PROJECT":
-                return {name: "projects", color: "black", color2: "midGray"};
-            case "SHARE_REQUEST":
-                return {name: "share", color: "black", color2: "black"};
-            case "PROJECT_INVITE":
-                return {name: "projects", color: "black", color2: "midGray"};
-            case "PROJECT_ROLE_CHANGE":
-                return {name: "projects", color: "black", color2: "midGray"};
-            case "PROJECT_USER_LEFT":
-                return {name: "projects", color: "black", color2: "midGray"};
-            case "PROJECT_USER_REMOVED":
-                return {name: "projects", color: "black", color2: "midGray"};
-            case "APP_COMPLETE":
-            default:
-                return {name: "info", color: "white", color2: "black"};
-        }
-    }
 }
 
-const read = (p: {read: boolean; theme: Theme}): {backgroundColor: string} => p.read ?
-    {backgroundColor: "var(--white, #f00)"} : {backgroundColor: "var(--lightGray, #f00)"};
-
-const NotificationWrapper = styled(Flex) <{read: boolean}>`
-    ${read};
-    margin: 0.1em 0.1em 0.1em 0.1em;
-    padding: 0.3em 0.3em 0.3em 0.3em;
-    border-radius: 3px;
-    cursor: pointer;
+const NotificationWrapper = styled.div`
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    background: var(--white);
+    border-radius: 6px;
+    padding: 10px;
     width: 100%;
+    user-select: none;
+    cursor: pointer;
+
+    &.pinned {
+        background: rgba(255, 100, 0, 20%);
+    }
+
+    &.unread.unpinned {
+        background: rgba(204, 221, 255, 20%);
+    }
+
     &:hover {
-        background-color: var(--lightGray, #f00);
+        background: rgba(240, 246, 255, 50%);
+    }
+
+    &.unread.unpinned:hover {
+        background: rgba(204, 221, 255, 50%);
+    }
+
+    &.pinned:hover {
+        background: rgba(255, 100, 0, 30%);
+    }
+
+    b {
+        margin: 0;
+        font-size: 14px;
+        flex-grow: 1;
+
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+    }
+
+    .notification-content {
+        width: calc(100% - 34px);
+    }
+
+    .notification-body {
+        font-size: 12px;
+        margin-bottom: 5px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        overflow: hidden;
+        margin-top: -3px;
+    }
+
+    .time {
+        font-size: 12px;
+        flex-shrink: 0;
+    }
+
+    a {
+        color: var(--blue);
+        cursor: pointer;
+    }
+
+    .time {
+        color: var(--midGray);
     }
 `;
 
-interface NotificationsOperations {
-    receiveNotification: (notification: Notification) => void;
-    fetchNotifications: () => void;
-    notificationRead: (id: number) => void;
-    readAll: () => void;
-    setActiveProject: (projectId?: string) => void;
-}
+export const NotificationDashboardCard: React.FunctionComponent = () => {
+    const rerender = useForcedRender();
 
-const mapDispatchToProps = (dispatch: Dispatch): NotificationsOperations => ({
-    receiveNotification: notification => dispatch(receiveSingleNotification(notification)),
-    fetchNotifications: async () => dispatch(await fetchNotifications()),
-    notificationRead: async id => dispatch(await notificationRead(id)),
-    readAll: async () => dispatch(await readAllNotifications()),
-    setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId)
-});
-const mapStateToProps = (state: ReduxObject): NotificationsReduxObject => state.notifications;
+    React.useEffect(() => {
+        notificationCallbacks.add(rerender);
+        return () => {
+            notificationCallbacks.delete(rerender);
+        }
+    }, []);
 
-export default connect(mapStateToProps, mapDispatchToProps)(Notifications);
+    return <HighlightedCard
+        color="darkGreen"
+        icon="notification"
+        title="Recent notifications"
+        subtitle={
+            <Icon name="checkDouble" color="iconColor" color2="iconColor2" title="Mark all as read" cursor="pointer"
+                  onClick={markAllAsRead} />
+        }
+    >
+        {notificationStore.length !== 0 ? null :
+            <Flex
+                alignItems="center"
+                justifyContent="center"
+                height="calc(100% - 60px)"
+                minHeight="250px"
+                mt="-30px"
+                width="100%"
+                flexDirection="column"
+            >
+                <Heading.h4>No notifications</Heading.h4>
+                As you use UCloud notifications will appear here.
+
+                <Link to="/applications/overview" mt={8}>
+                    <Button fullWidth mt={8}>Explore UCloud</Button>
+                </Link>
+            </Flex>
+        }
+
+        <div style={{display: "flex", gap: "10px", flexDirection: "column", margin: "10px 0"}}>
+            {notificationStore.slice(0, 7).map(it => <NotificationEntry key={it.uniqueId} notification={it} />)}
+        </div>
+    </HighlightedCard>;
+};
+
+export default Notifications;
+

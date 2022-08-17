@@ -18,12 +18,10 @@ import dk.sdu.cloud.grant.api.IsEnabledResponse
 import dk.sdu.cloud.grant.api.SubmitApplicationResponse
 import dk.sdu.cloud.grant.api.ViewApplicationRequest
 import dk.sdu.cloud.service.*
-import dk.sdu.cloud.service.db.async.DBContext
-import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.http.content.*
-import io.ktor.request.*
-import io.ktor.response.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.util.cio.*
 import io.ktor.utils.io.*
 import java.io.ByteArrayInputStream

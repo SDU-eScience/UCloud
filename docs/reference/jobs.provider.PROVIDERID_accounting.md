@@ -114,8 +114,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "63489", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
@@ -255,6 +257,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -384,6 +388,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }

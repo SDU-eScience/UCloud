@@ -15,7 +15,7 @@ import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.withTransaction
-import io.ktor.routing.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.security.SecureRandom

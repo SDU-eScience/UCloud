@@ -12,17 +12,18 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.escapeHtml
-import io.ktor.application.ApplicationCall
 import io.ktor.content.TextContent
-import io.ktor.features.origin
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
-import io.ktor.request.accept
-import io.ktor.request.userAgent
-import io.ktor.response.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import io.ktor.util.date.GMTDate
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.serializer
 
 /**
  * Shared utility code for responding to successful login attempts.
@@ -68,7 +69,11 @@ class LoginResponder(
                 )
             } else {
                 // This will happen if we get a redirect from SAML (WAYF)
-                appendAuthStateInCookie(call, twoFactorJsonChallenge(loginChallenge))
+                appendAuthStateInCookie(
+                    call,
+                    twoFactorJsonChallenge(loginChallenge),
+                    MapSerializer(String.serializer(), String.serializer())
+                )
                 call.respondRedirect(resolvedService.endpoint)
             }
         } else {
@@ -123,7 +128,7 @@ class LoginResponder(
             )
         } else {
             // This will happen if we get a redirect from SAML (WAYF)
-            appendAuthStateInCookie(call, tokens)
+            appendAuthStateInCookie(call, tokens, OptionalAuthenticationTokens.serializer())
             appendRefreshToken(call, refreshToken, expiry)
 
             // Using a 301 redirect causes Apple browsers (at least Safari likely more) to ignore the cookie.
@@ -146,10 +151,10 @@ class LoginResponder(
         }
     }
 
-    private inline fun <reified T> appendAuthStateInCookie(call: ApplicationCall, value: T) {
+    private fun <T> appendAuthStateInCookie(call: ApplicationCall, value: T, serializer: KSerializer<T>) {
         call.response.cookies.append(
             name = CoreAuthController.REFRESH_WEB_AUTH_STATE_COOKIE,
-            value = defaultMapper.encodeToString(serializer(), value),
+            value = defaultMapper.encodeToString(serializer, value),
             secure = call.request.origin.scheme == "https",
             httpOnly = false,
             expires = GMTDate(Time.now() + 1000L * 60 * 5),

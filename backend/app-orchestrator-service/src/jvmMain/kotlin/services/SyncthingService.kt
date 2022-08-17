@@ -51,7 +51,8 @@ class SyncthingService(
             { SyncthingProvider(request.providerId).retrieveConfiguration },
             IAppsProviderRetrieveConfigRequest(
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
-            )
+            ),
+            actorAndProject.signedIntentFromUser,
         ).also { result ->
             result.copy(
                 config = result.config.copy(orchestratorInfo = null)
@@ -104,7 +105,8 @@ class SyncthingService(
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 newConfig,
                 request.expectedETag,
-            )
+            ),
+            actorAndProject.signedIntentFromUser,
         )
     }
 
@@ -119,7 +121,8 @@ class SyncthingService(
             IAppsProviderResetConfigRequest(
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
                 request.expectedETag,
-            )
+            ),
+            actorAndProject.signedIntentFromUser,
         )
     }
 
@@ -133,7 +136,8 @@ class SyncthingService(
             { SyncthingProvider(request.providerId).restart },
             IAppsProviderRestartRequest(
                 ResourceOwner(actorAndProject.actor.safeUsername(), null),
-            )
+            ),
+            actorAndProject.signedIntentFromUser,
         )
     }
 }

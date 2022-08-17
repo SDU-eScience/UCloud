@@ -6,6 +6,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.project.api.CreateProjectRequest
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 val Int.DKK: Long get() = toLong() * 1_000_000
 fun Long.creditsToDKK(): Long = this / 1_000_000
@@ -433,7 +434,7 @@ ${ApiConventions.nonConformingApiWarning}
      * @see setEnabledStatus
      * @see isEnabled
      */
-    val uploadDescription = call<UploadDescriptionRequest, UploadDescriptionResponse, CommonErrorMessage>("uploadDescription") {
+    val uploadDescription = call("uploadDescription", UploadDescriptionRequest.serializer(), UploadDescriptionResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -451,7 +452,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val fetchDescription = call<FetchDescriptionRequest, FetchDescriptionResponse, CommonErrorMessage>("fetchDescription") {
+    val fetchDescription = call("fetchDescription", FetchDescriptionRequest.serializer(), FetchDescriptionResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -475,7 +476,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
+    val uploadLogo = call("uploadLogo", UploadLogoRequest.serializer(), UploadLogoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -505,7 +506,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
+    val fetchLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC
@@ -537,7 +538,7 @@ ${ApiConventions.nonConformingApiWarning}
      * @see isEnabled
      * @see setEnabledStatus
      */
-    val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
+    val uploadTemplates = call("uploadTemplates", UploadTemplatesRequest.serializer(), UploadTemplatesResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -560,8 +561,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val uploadRequestSettings =
-        call<UploadRequestSettingsRequest, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
+    val uploadRequestSettings = call("uploadRequestSettings", UploadRequestSettingsRequest.serializer(), UploadRequestSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
             }
@@ -583,8 +583,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val readRequestSettings =
-        call<ReadRequestSettingsRequest, ReadRequestSettingsResponse, CommonErrorMessage>("readRequestSettings") {
+    val readRequestSettings = call("readRequestSettings", ReadRequestSettingsRequest.serializer(), ReadRequestSettingsResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -603,7 +602,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val readTemplates = call<ReadTemplatesRequest, ReadTemplatesResponse, CommonErrorMessage>("readTemplates") {
+    val readTemplates = call("readTemplates", ReadTemplatesRequest.serializer(), ReadTemplatesResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -630,8 +629,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val submitApplication =
-        call<SubmitApplicationRequest, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
+    val submitApplication = call("submitApplication", SubmitApplicationRequest.serializer(), SubmitApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
             }
@@ -656,8 +654,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val commentOnApplication =
-        call<CommentOnApplicationRequest, CommentOnApplicationResponse, CommonErrorMessage>("commentOnApplication") {
+    val commentOnApplication = call("commentOnApplication", CommentOnApplicationRequest.serializer(), CommentOnApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
             }
@@ -682,7 +679,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val deleteComment = call<DeleteCommentRequest, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
+    val deleteComment = call("deleteComment", DeleteCommentRequest.serializer(), DeleteCommentResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -706,7 +703,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val approveApplication = call<ApproveApplicationRequest, ApproveApplicationResponse, CommonErrorMessage>("approveApplication") {
+    val approveApplication = call("approveApplication", ApproveApplicationRequest.serializer(), ApproveApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -729,7 +726,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val rejectApplication = call<RejectApplicationRequest, RejectApplicationResponse, CommonErrorMessage>("rejectApplication") {
+    val rejectApplication = call("rejectApplication", RejectApplicationRequest.serializer(), RejectApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -756,9 +753,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val editApplication = call<EditApplicationRequest, EditApplicationResponse, CommonErrorMessage>(
-        "editApplication"
-    ) {
+    val editApplication = call("editApplication", EditApplicationRequest.serializer(), EditApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -780,13 +775,11 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val editReferenceId = call<EditReferenceIdRequest, EditReferenceIdResponse, CommonErrorMessage>("editReferenceId") {
+    val editReferenceId = call("editReferenceId", EditReferenceIdRequest.serializer(), EditReferenceIdResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "editReference")
     }
 
-    val closeApplication = call<CloseApplicationRequest, CloseApplicationResponse, CommonErrorMessage>(
-        "closeApplication"
-    ) {
+    val closeApplication = call("closeApplication", CloseApplicationRequest.serializer(), CloseApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -809,8 +802,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val transferApplication =
-        call<TransferApplicationRequest, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
+    val transferApplication = call("transferApplication", TransferApplicationRequest.serializer(), TransferApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
                 roles = Roles.AUTHENTICATED
@@ -832,8 +824,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val ingoingApplications =
-        call<IngoingApplicationsRequest, IngoingApplicationsResponse, CommonErrorMessage>("ingoingApplications") {
+    val ingoingApplications = call("ingoingApplications", IngoingApplicationsRequest.serializer(), PageV2.serializer(Application.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -861,8 +852,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val outgoingApplications =
-        call<OutgoingApplicationsRequest, OutgoingApplicationsResponse, CommonErrorMessage>("outgoingApplications") {
+    val outgoingApplications = call("outgoingApplications", OutgoingApplicationsRequest.serializer(), PageV2.serializer(Application.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -889,8 +879,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val setEnabledStatus =
-        call<SetEnabledStatusRequest, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
+    val setEnabledStatus = call("setEnabledStatus", SetEnabledStatusRequest.serializer(), SetEnabledStatusResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ_WRITE
                 roles = Roles.PRIVILEGED
@@ -916,7 +905,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
+    val isEnabled = call("isEnabled", IsEnabledRequest.serializer(), IsEnabledResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -940,7 +929,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
+    val browseProjects = call("browseProjects", BrowseProjectsRequest.serializer(), PageV2.serializer(ProjectWithTitle.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -970,11 +959,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrieveAffiliations = call<
-            GrantsRetrieveAffiliationsRequest,
-            GrantsRetrieveAffiliationsResponse,
-            CommonErrorMessage
-            >("retrieveAffiliations") {
+    val retrieveAffiliations = call("retrieveAffiliations", GrantsRetrieveAffiliationsRequest.serializer(), PageV2.serializer(ProjectWithTitle.serializer()), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -996,9 +981,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrieveProducts = call<GrantsRetrieveProductsRequest, GrantsRetrieveProductsResponse, CommonErrorMessage>(
-        "retrieveProducts"
-    ) {
+    val retrieveProducts = call("retrieveProducts", GrantsRetrieveProductsRequest.serializer(), GrantsRetrieveProductsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -1021,7 +1004,7 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     // This needs to be last
-    val viewApplication = call<ViewApplicationRequest, ViewApplicationResponse, CommonErrorMessage>("viewApplication") {
+    val viewApplication = call("viewApplication", ViewApplicationRequest.serializer(), ViewApplicationResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

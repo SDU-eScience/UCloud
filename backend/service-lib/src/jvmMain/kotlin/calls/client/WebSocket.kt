@@ -8,11 +8,10 @@ import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import io.ktor.client.*
-import io.ktor.client.features.websocket.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.http.cio.websocket.*
-import io.ktor.util.KtorExperimentalAPI
+import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ClosedReceiveChannelException
@@ -34,10 +33,11 @@ class OutgoingWSCall : OutgoingCall {
 
         internal val SUBSCRIPTION_HANDLER_KEY = AttributeKey<suspend (Any) -> Unit>("ws-subscription-handler")
         val proxyAttribute = AttributeKey<String>("ucloud-username")
+        val signedIntentAttribute = AttributeKey<String>("ucloud-signed-intent")
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, OutgoingWSCall.Companion> {
     override val companion = OutgoingWSCall
     private val connectionPool = WSConnectionPool()
@@ -88,7 +88,8 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
             streamId,
             request,
             bearer = ctx.attributes.outgoingAuthToken,
-            project = ctx.project
+            project = ctx.project,
+            signedIntent = ctx.attributes.getOrNull(OutgoingWSCall.signedIntentAttribute),
         )
         val writer = WSRequest.serializer(call.requestType)
         val subscription = session.subscribe(streamId)
@@ -190,7 +191,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
     }
 }
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
+@OptIn(ExperimentalCoroutinesApi::class)
 internal class WSClientSession constructor(
     val underlyingSession: ClientWebSocketSession
 ) {
@@ -220,7 +221,7 @@ internal class WSClientSession constructor(
 
                     if (frame is Frame.Text) {
                         val text = frame.readText()
-                        val frameNode = runCatching { defaultMapper.decodeFromString<WSRawMessage>(text) }.getOrNull()
+                        val frameNode = runCatching { defaultMapper.decodeFromString(WSRawMessage.serializer(), text) }.getOrNull()
                             ?: continue
 
                         mutex.withLock {
@@ -275,7 +276,6 @@ internal data class WSRawMessage(
     val payload: JsonObject
 )
 
-@OptIn(ExperimentalCoroutinesApi::class, KtorExperimentalAPI::class)
 internal class WSConnectionPool {
     private val connectionPool = HashMap<String, WSClientSession>()
     private val mutex = Mutex()

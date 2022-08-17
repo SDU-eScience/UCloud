@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 /**
  * A serialized avatar. Should be used whenever going over the wire.
@@ -66,7 +67,7 @@ working in projects.
         """.trimIndent()
     }
 
-    val update = call<UpdateRequest, UpdateResponse, CommonErrorMessage>("update") {
+    val update = call("update", UpdateRequest.serializer(), UpdateResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -83,7 +84,7 @@ working in projects.
         }
     }
 
-    val findAvatar = call<FindRequest, FindResponse, CommonErrorMessage>("findAvatar") {
+    val findAvatar = call("findAvatar", FindRequest.serializer(), FindResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
         }
@@ -98,7 +99,7 @@ working in projects.
         }
     }
 
-    val findBulk = call<FindBulkRequest, FindBulkResponse, CommonErrorMessage>("findBulk") {
+    val findBulk = call("findBulk", FindBulkRequest.serializer(), FindBulkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.AUTHENTICATED

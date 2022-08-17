@@ -19,6 +19,7 @@ import io.ktor.client.utils.EmptyContent
 import io.ktor.http.*
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
@@ -65,6 +66,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         return OutgoingHttpCall(call, KtorHttpRequestBuilder())
     }
 
+    @OptIn(InternalAPI::class)
     @Suppress("NestedBlockDepth", "BlockingMethodInNonBlockingContext")
     override suspend fun <R : Any, S : Any, E : Any> finalizeCall(
         call: CallDescription<R, S, E>,
@@ -117,7 +119,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
             log.trace("Sending request")
             val resp = createHttpClient().use { httpClient ->
                 try {
-                    httpClient.request<HttpResponse>(ctx.builder)
+                    httpClient.request(ctx.builder)
                 } catch (ex: Throwable) {
                     if (ex.stackTraceToString().contains("ConnectException")) {
                         log.debug("[$callId] ConnectException: ${ex.message}")
@@ -162,7 +164,7 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         type: KSerializer<S>,
     ): S {
         if (type.descriptor.serialName == "kotlin.Unit") return Unit as S
-        return defaultMapper.decodeFromString(type, resp.content.readRemaining().readText())
+        return defaultMapper.decodeFromString(type, resp.bodyAsText())
     }
 
     private suspend fun <E : Any, R : Any, S : Any> parseResponse(

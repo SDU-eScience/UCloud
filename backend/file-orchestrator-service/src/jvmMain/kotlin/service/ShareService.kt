@@ -25,7 +25,6 @@ import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.db.async.*
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.serializer
 
 typealias ShareSvc = ResourceService<Share, Share.Spec, Share.Update, ShareFlags, Share.Status, Product.Storage,
         ShareSupport, StorageCommunication>
@@ -45,8 +44,8 @@ class ShareService(
         "sourceFilePath" to defaultSortColumn
     )
 
-    override val serializer = serializer<Share>()
-    override val updateSerializer = serializer<Share.Update>()
+    override val serializer = Share.serializer()
+    override val updateSerializer = Share.Update.serializer()
     override val productArea = ProductType.STORAGE
 
     override fun userApi() = Shares

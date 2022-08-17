@@ -361,6 +361,10 @@ fun Graphics2D.drawVisualization(
         is DocVisualization.Inline -> {
             drawString(visualization.value, x, y + metrics.height)
         }
+
+        is DocVisualization.Placeholder -> {
+            drawVisualization(replacePlaceholderVisualization(visualization.value), x, y, maxWidth, depth)
+        }
     }
     font = previousFont
     color = previousColor
@@ -392,6 +396,10 @@ fun Graphics2D.estimateHeight(
 
         is DocVisualization.Inline -> {
             metrics.height
+        }
+
+        is DocVisualization.Placeholder -> {
+            estimateHeight(replacePlaceholderVisualization(visualization.value))
         }
     }.also { visualization.estimatedHeight = it }
 }

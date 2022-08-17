@@ -1,4 +1,4 @@
-import {emptyPage} from "@/DefaultObjects";
+import { emptyPage, emptyPageV2 } from "@/DefaultObjects";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import * as React from "react";
 import {useCallback, useEffect, useState} from "react";
@@ -20,6 +20,9 @@ import {compute} from "@/UCloud";
 import ApplicationSummaryWithFavorite = compute.ApplicationSummaryWithFavorite;
 import {AppToolLogo} from "@/Applications/AppToolLogo";
 import {ReducedApiInterface, useResourceSearch} from "@/Resource/Search";
+import {PageV2, provider} from "@/UCloud";
+import IntegrationApi = provider.im;
+import { inDevEnvironment, onDevSite } from "@/UtilityFunctions";
 
 export const ApiLike: ReducedApiInterface = {
     routingNamespace: "applications",
@@ -62,6 +65,11 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
         "Bioinformatics"
     ];
 
+    const [providers, fetchProviders] = useCloudAPI<PageV2<provider.IntegrationBrowseResponseItem>>(
+        {noop: true},
+        emptyPageV2
+    );
+
     const [refreshId, setRefreshId] = useState<number>(0);
 
     useResourceSearch(ApiLike);
@@ -75,6 +83,10 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
 
     const [loadingCommand, invokeCommand] = useCloudCommand();
     const [favoriteStatus, setFavoriteStatus] = useState<FavoriteStatus>({});
+
+    useEffect(() => {
+        fetchProviders(IntegrationApi.browse({}));
+    }, []);
 
     const onFavorite = useCallback(async (app: ApplicationSummaryWithFavorite) => {
         if (!loadingCommand) {
@@ -116,6 +128,21 @@ export const ApplicationsOverview: React.FunctionComponent = () => {
                 onFavorite={onFavorite}
                 refreshId={refreshId}
             />
+
+            {!inDevEnvironment() && !onDevSite() ? null :
+                providers.data.items.map(provider =>
+                    <TagGrid
+                        key={provider.providerTitle}
+                        tag={provider.providerTitle}
+                        columns={7}
+                        rows={1}
+                        favoriteStatus={favoriteStatus}
+                        onFavorite={onFavorite}
+                        tagBanList={defaultTools}
+                        refreshId={refreshId}
+                    />
+                )
+            }
 
             {featuredTags.map(tag =>
                 <TagGrid

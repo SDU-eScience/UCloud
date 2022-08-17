@@ -2,7 +2,6 @@ package dk.sdu.cloud.app.orchestrator.api
 
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
-import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductPriceUnit
@@ -11,7 +10,6 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
 
 @Serializable
 data class IngressSupport(
@@ -133,19 +131,19 @@ object Ingresses : ResourceApi<
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Ingress.serializer(),
-        typeOf<Ingress>(),
+        typeOfIfPossible<Ingress>(),
         IngressSpecification.serializer(),
-        typeOf<IngressSpecification>(),
+        typeOfIfPossible<IngressSpecification>(),
         IngressUpdate.serializer(),
-        typeOf<IngressUpdate>(),
+        typeOfIfPossible<IngressUpdate>(),
         IngressIncludeFlags.serializer(),
-        typeOf<IngressIncludeFlags>(),
+        typeOfIfPossible<IngressIncludeFlags>(),
         IngressStatus.serializer(),
-        typeOf<IngressStatus>(),
+        typeOfIfPossible<IngressStatus>(),
         IngressSupport.serializer(),
-        typeOf<IngressSupport>(),
+        typeOfIfPossible<IngressSupport>(),
         Product.Ingress.serializer(),
-        typeOf<Product.Ingress>(),
+        typeOfIfPossible<Product.Ingress>(),
     )
 
     init {
@@ -246,19 +244,19 @@ object IngressControl : ResourceControlApi<Ingress, IngressSpecification, Ingres
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Ingress.serializer(),
-        typeOf<Ingress>(),
+        typeOfIfPossible<Ingress>(),
         IngressSpecification.serializer(),
-        typeOf<IngressSpecification>(),
+        typeOfIfPossible<IngressSpecification>(),
         IngressUpdate.serializer(),
-        typeOf<IngressUpdate>(),
+        typeOfIfPossible<IngressUpdate>(),
         IngressIncludeFlags.serializer(),
-        typeOf<IngressIncludeFlags>(),
+        typeOfIfPossible<IngressIncludeFlags>(),
         IngressStatus.serializer(),
-        typeOf<IngressStatus>(),
+        typeOfIfPossible<IngressStatus>(),
         IngressSupport.serializer(),
-        typeOf<IngressSupport>(),
+        typeOfIfPossible<IngressSupport>(),
         Product.Ingress.serializer(),
-        typeOf<Product.Ingress>(),
+        typeOfIfPossible<Product.Ingress>(),
     )
 }
 
@@ -267,19 +265,19 @@ open class IngressProvider(provider: String) : ResourceProviderApi<Ingress, Ingr
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Ingress.serializer(),
-        typeOf<Ingress>(),
+        typeOfIfPossible<Ingress>(),
         IngressSpecification.serializer(),
-        typeOf<IngressSpecification>(),
+        typeOfIfPossible<IngressSpecification>(),
         IngressUpdate.serializer(),
-        typeOf<IngressUpdate>(),
+        typeOfIfPossible<IngressUpdate>(),
         IngressIncludeFlags.serializer(),
-        typeOf<IngressIncludeFlags>(),
+        typeOfIfPossible<IngressIncludeFlags>(),
         IngressStatus.serializer(),
-        typeOf<IngressStatus>(),
+        typeOfIfPossible<IngressStatus>(),
         IngressSupport.serializer(),
-        typeOf<IngressSupport>(),
+        typeOfIfPossible<IngressSupport>(),
         Product.Ingress.serializer(),
-        typeOf<Product.Ingress>(),
+        typeOfIfPossible<Product.Ingress>(),
     )
 
     override val delete: CallDescription<BulkRequest<Ingress>, BulkResponse<Unit?>, CommonErrorMessage>

@@ -34,7 +34,6 @@ import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.coroutines.*
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.encodeToString
-import kotlinx.serialization.serializer
 
 interface JobListener {
     suspend fun onVerified(ctx: DBContext, job: Job) {
@@ -102,7 +101,7 @@ class JobOrchestrator(
     }
 
     override val productArea: ProductType = ProductType.COMPUTE
-    override val serializer: KSerializer<Job> = serializer()
+    override val serializer: KSerializer<Job> = Job.serializer()
     override val table: SqlObject.Table = SqlObject.Table("app_orchestrator.jobs")
     override val sortColumns = mapOf(
         "resource" to SqlObject.Column(table, "resource"),
@@ -110,7 +109,7 @@ class JobOrchestrator(
 
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
     override val defaultSortDirection: SortDirection = SortDirection.descending
-    override val updateSerializer: KSerializer<JobUpdate> = serializer()
+    override val updateSerializer: KSerializer<JobUpdate> = JobUpdate.serializer()
 
     override fun controlApi() = JobsControl
     override fun userApi() = Jobs
@@ -133,6 +132,12 @@ class JobOrchestrator(
 
             ToolBackend.VIRTUAL_MACHINE -> {
                 if (support.virtualMachine.enabled != true) {
+                    throw JobException.VerificationError("Application is not supported by provider")
+                }
+            }
+
+            ToolBackend.NATIVE -> {
+                if (support.native.enabled != true) {
                     throw JobException.VerificationError("Application is not supported by provider")
                 }
             }
@@ -527,7 +532,8 @@ class JobOrchestrator(
 
                     val isSupported =
                         (appBackend == ToolBackend.DOCKER && support.docker.timeExtension == true) ||
-                                (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true)
+                                (appBackend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.timeExtension == true) ||
+                                (appBackend == ToolBackend.NATIVE && support.native.timeExtension == true)
 
                     if (!isSupported) {
                         throw RPCException(
@@ -624,9 +630,10 @@ class JobOrchestrator(
 
             providers.invokeCall(
                 job.specification.product.provider,
-                actorAndProject, // TODO This is going to cause issues with #3367
+                actorAndProject,
                 { it.api.unsuspend },
                 BulkRequest(listOf(JobsProviderUnsuspendRequestItem(job))),
+                signedIntentFromEndUser = null, // TODO This is going to cause issues with #3367
             )
         }
     }
@@ -645,9 +652,10 @@ class JobOrchestrator(
             val backend = app.invocation.tool.tool!!.description.backend
             val logsSupported =
                 (backend == ToolBackend.DOCKER && support.docker.logs == true) ||
-                        (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true)
+                        (backend == ToolBackend.VIRTUAL_MACHINE && support.virtualMachine.logs == true) ||
+                        (backend == ToolBackend.NATIVE && support.native.logs == true)
 
-            // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
+                    // NOTE(Dan): We do _not_ send the initial list of updates, instead we assume that clients will
             // retrieve them by themselves.
             sendWSMessage(JobsFollowResponse(emptyList(), emptyList(), initialJob.status))
 
@@ -861,6 +869,14 @@ class JobOrchestrator(
                         }
                     } else if (backend == ToolBackend.VIRTUAL_MACHINE) {
                         if (support.virtualMachine.utilization != true) {
+                            throw RPCException(
+                                "Not supported",
+                                HttpStatusCode.BadRequest,
+                                FEATURE_NOT_SUPPORTED_BY_PROVIDER
+                            )
+                        }
+                    } else if (backend == ToolBackend.NATIVE) {
+                        if (support.native.utilization != true) {
                             throw RPCException(
                                 "Not supported",
                                 HttpStatusCode.BadRequest,

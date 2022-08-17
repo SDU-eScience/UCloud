@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class Create2FACredentialsResponse(
@@ -82,7 +83,7 @@ https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via t
         }
     }
 
-    val createCredentials = call<Unit, Create2FACredentialsResponse, CommonErrorMessage>("createCredentials") {
+    val createCredentials = call("createCredentials", Unit.serializer(), Create2FACredentialsResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -99,7 +100,7 @@ https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via t
         }
     }
 
-    val answerChallenge = call<AnswerChallengeRequest, Unit, CommonErrorMessage>("answerChallenge") {
+    val answerChallenge = call("answerChallenge", AnswerChallengeRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE
@@ -120,7 +121,7 @@ https://cloud.sdu.dk uses this by enforcing 2FA of all users authenticated via t
         }
     }
 
-    val twoFactorStatus = call<Unit, TwoFactorStatusResponse, CommonErrorMessage>("twoFactorStatus") {
+    val twoFactorStatus = call("twoFactorStatus", Unit.serializer(), TwoFactorStatusResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }

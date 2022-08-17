@@ -12,9 +12,8 @@ import dk.sdu.cloud.slack.api.Ticket
 import dk.sdu.cloud.support.api.SupportDescriptions
 import dk.sdu.cloud.support.services.TicketService
 import dk.sdu.cloud.support.util.LocalRateLimiter
-import io.ktor.application.call
 import io.ktor.http.*
-import io.ktor.request.userAgent
+import io.ktor.server.request.*
 
 class SupportController(
     private val ticketService: TicketService

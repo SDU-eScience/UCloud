@@ -19,8 +19,7 @@ import dk.sdu.cloud.auth.api.AuthProvidersRefreshRequestItem
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.serializer
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiDoc("""
@@ -122,6 +121,9 @@ data class ProviderUpdate(
     override val timestamp: Long,
     override val status: String? = null,
 ) : ResourceUpdate
+
+typealias ProvidersUpdateSpecificationRequest = BulkRequest<ProviderSpecification>
+typealias ProvidersUpdateSpecificationResponse = BulkResponse<FindByStringId>
 
 @Serializable
 @UCloudApiDoc("Request type for renewing the tokens of a Provider")
@@ -432,27 +434,37 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Provider.serializer(),
-        typeOf<Provider>(),
+        typeOfIfPossible<Provider>(),
         ProviderSpecification.serializer(),
-        typeOf<ProviderSpecification>(),
+        typeOfIfPossible<ProviderSpecification>(),
         ProviderUpdate.serializer(),
-        typeOf<ProviderUpdate>(),
+        typeOfIfPossible<ProviderUpdate>(),
         ProviderIncludeFlags.serializer(),
-        typeOf<ProviderIncludeFlags>(),
+        typeOfIfPossible<ProviderIncludeFlags>(),
         ProviderStatus.serializer(),
-        typeOf<ProviderStatus>(),
+        typeOfIfPossible<ProviderStatus>(),
         ProviderSupport.serializer(),
-        typeOf<ProviderSupport>(),
+        typeOfIfPossible<ProviderSupport>(),
         Product.serializer(),
-        typeOf<Product>()
+        typeOfIfPossible<Product>()
     )
 
     override val create get() = super.create!!
     override val delete: Nothing? = null
     override val search get() = super.search!!
 
-    val renewToken = call<BulkRequest<ProvidersRenewRefreshTokenRequestItem>,
-            ProvidersRenewRefreshTokenResponse, CommonErrorMessage>("renewToken") {
+    val update = call("update", BulkRequest.serializer(ProviderSpecification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "update", Roles.END_USER)
+
+        documentation {
+            summary = "Updates the specification of one or more providers"
+            description = """
+                This endpoint can only be invoked by a UCloud administrator.
+            """
+        }
+    }
+
+    val renewToken = call("renewToken", BulkRequest.serializer(ProvidersRenewRefreshTokenRequestItem.serializer()), ProvidersRenewRefreshTokenResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "renewToken")
 
         documentation {
@@ -468,8 +480,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         }
     }
 
-    val retrieveSpecification = call<ProvidersRetrieveSpecificationRequest,
-            ProvidersRetrieveSpecificationResponse, CommonErrorMessage>("retrieveSpecification") {
+    val retrieveSpecification = call("retrieveSpecification", ProvidersRetrieveSpecificationRequest.serializer(), ProvidersRetrieveSpecificationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "specification", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -480,9 +491,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         }
     }
 
-    val requestApproval = call<ProvidersRequestApprovalRequest, ProvidersRequestApprovalResponse, CommonErrorMessage>(
-        "requestApproval"
-    ) {
+    val requestApproval = call("requestApproval", ProvidersRequestApprovalRequest.serializer(), ProvidersRequestApprovalResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "requestApproval", roles = Roles.PUBLIC)
 
         documentation {
@@ -495,7 +504,7 @@ object Providers : ResourceApi<Provider, ProviderSpecification, ProviderUpdate, 
         }
     }
 
-    val approve = call<ProvidersApproveRequest, ProvidersApproveResponse, CommonErrorMessage>("approve") {
+    val approve = call("approve", ProvidersApproveRequest.serializer(), ProvidersApproveResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "approve", roles = Roles.PUBLIC)
 
         documentation {

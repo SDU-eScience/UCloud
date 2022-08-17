@@ -5,6 +5,8 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.NormalizedToolDescription
 import dk.sdu.cloud.app.store.api.Tool
+import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
@@ -36,7 +38,7 @@ class ToolAsyncDao {
                 },
                 """
                     FROM tools
-                    WHERE name = ?name
+                    WHERE name = :name
                 """.trimIndent()
             ).mapItems { it.toTool() }
         }
@@ -96,8 +98,8 @@ class ToolAsyncDao {
                         GROUP BY name
                     )
                     ORDER BY A.name 
-                    LIMIT ?limit
-                    OFFSET ?offset
+                    LIMIT :limit
+                    OFFSET :offset
                 """.trimIndent()
             ).rows.map { it.toTool() }
         }
@@ -112,16 +114,17 @@ class ToolAsyncDao {
 
     suspend fun create(
         ctx: DBContext,
-        user: SecurityPrincipal,
+        user: ActorAndProject,
         description: NormalizedToolDescription,
         originalDocument: String
     ) {
-        val existingOwner =
-            ctx.withSession { session ->
-                findOwner(session, description.info.name)
-            }
-        if (existingOwner != null && !canUserPerformWrite(existingOwner, user)) {
-            throw ToolException.NotAllowed()
+        val username = user.actor.safeUsername()
+        val isProvider = username.startsWith(AuthProviders.PROVIDER_PREFIX)
+        val providerName = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+
+        if (isProvider) {
+            if (description.backend != ToolBackend.NATIVE) throw ToolException.NotAllowed()
+            if (description.supportedProviders != listOf(providerName)) throw ToolException.NotAllowed()
         }
 
         val existing =
@@ -132,7 +135,7 @@ class ToolAsyncDao {
 
         ctx.withSession { session ->
             session.insert(ToolTable) {
-                set(ToolTable.owner, user.username)
+                set(ToolTable.owner, username)
                 set(ToolTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ToolTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ToolTable.tool, defaultMapper.encodeToString(description))
@@ -143,57 +146,7 @@ class ToolAsyncDao {
         }
     }
 
-    suspend fun updateDescription(
-        ctx: DBContext,
-        user: SecurityPrincipal,
-        name: String,
-        version: String,
-        newDescription: String?,
-        newAuthors: List<String>?
-    ) {
-        val existing =
-            ctx.withSession { session ->
-                internalByNameAndVersion(session, name, version) ?: throw ToolException.NotFound()
-            }
-        if (!canUserPerformWrite(existing.getField(ToolTable.owner), user)) throw ToolException.NotAllowed()
-
-        if (newDescription != null) {
-            ctx.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("description", defaultMapper.encodeToString(newDescription))
-                        setParameter("name", name)
-                        setParameter("version", version)
-                    },
-                    """
-                        UPDATE tools
-                        SET tool = jsonb_set(tool, '{description}', ?description)
-                        WHERE (name = ?name) AND (version = ?version) 
-                    """.trimIndent()
-                )
-            }
-        }
-        if (!newAuthors.isNullOrEmpty()) {
-            ctx.withSession { session ->
-                session.sendPreparedStatement(
-                    {
-                        setParameter("authors", defaultMapper.encodeToString(newAuthors))
-                        setParameter("name", name)
-                        setParameter("version", version)
-                    },
-                    """
-                        UPDATE tools
-                        SET tool = jsonb_set(tool, '{authors}', ?authors)
-                        WHERE (name = ?name) AND (version = ?version) 
-                    """.trimIndent()
-                )
-            }
-        }
-        // We allow for this to be cached for some time. But this instance might as well clear the cache now.
-        byNameAndVersionCache.remove(NameAndVersion(name, version))
-    }
-
-    suspend fun createLogo(ctx: DBContext, user: SecurityPrincipal?, name: String, imageBytes: ByteArray) {
+    suspend fun createLogo(ctx: DBContext, actorAndProject: ActorAndProject, name: String, imageBytes: ByteArray) {
         val logo = ctx.withSession { session ->
             fetchLogo(session, name)
         }
@@ -206,8 +159,8 @@ class ToolAsyncDao {
                     },
                     """
                         UPDATE tool_logos
-                        SET data = ?bytes
-                        WHERE (application = ?appname)
+                        SET data = :bytes
+                        WHERE (application = :appname)
                     """.trimIndent()
                 )
             }
@@ -244,7 +197,7 @@ class ToolAsyncDao {
                 """
                     SELECT data
                     FROM tool_logos
-                    WHERE (application = ?appname)
+                    WHERE (application = :appname)
                 """.trimIndent()
             )
         }.rows.singleOrNull()?.getField(ToolLogoTable.data)
@@ -284,30 +237,10 @@ class ToolAsyncDao {
                     SELECT *
                     FROM tools
                     WHERE 
-                        (name = ?name) and
-                        (version = ?version)
+                        (name = :name) and
+                        (version = :version)
                 """.trimIndent()
             ).rows.singleOrNull()
-        }
-    }
-
-    private fun canUserPerformWrite(owner: String, user: SecurityPrincipal): Boolean {
-        if (user.role == Role.ADMIN) return true
-        return owner == user.username
-    }
-
-    private suspend fun findOwner(ctx: DBContext, name: String): String? {
-        return ctx.withSession { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("name", name)
-                },
-                """
-                    SELECT * 
-                    FROM tools
-                    WHERE name = ?name
-                """.trimIndent()
-            ).rows.singleOrNull()?.getField(ToolTable.owner)
         }
     }
 }

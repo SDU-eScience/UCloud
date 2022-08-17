@@ -1,12 +1,12 @@
 package dk.sdu.cloud.app.store.services
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
 import dk.sdu.cloud.NormalizedPaginationRequestV2
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
+import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.*
@@ -419,16 +419,15 @@ class AppStoreAsyncDao(
 
     suspend fun create(
         ctx: DBContext,
-        user: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         description: Application,
         originalDocument: String
     ) {
-        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, description.metadata.name)}
-        if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
-            throw ApplicationException.NotAllowed()
-        }
+        val username = actorAndProject.actor.safeUsername()
+        val isProvider = username.startsWith(AuthProviders.PROVIDER_PREFIX)
+        val providerName = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
 
-        val existing = ctx.withSession { session -> internalByNameAndVersion(session, description.metadata.name, description.metadata.version)}
+        val existing = ctx.withSession { session -> internalByNameAndVersion(session, description.metadata.name, description.metadata.version) }
         if (existing != null) throw ApplicationException.AlreadyExists()
 
         val existingTool = ctx.withSession { session ->
@@ -439,9 +438,15 @@ class AppStoreAsyncDao(
             )
         } ?: throw ApplicationException.BadToolReference()
 
+        if (isProvider) {
+            val tool = existingTool.toTool()
+            if (tool.description.backend != ToolBackend.NATIVE) throw ApplicationException.NotAllowed()
+            if (tool.description.supportedProviders != listOf(providerName)) throw ApplicationException.NotAllowed()
+        }
+
         ctx.withSession { session ->
             session.insert(ApplicationTable) {
-                set(ApplicationTable.owner, user.username)
+                set(ApplicationTable.owner, username)
                 set(ApplicationTable.createdAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ApplicationTable.modifiedAt, LocalDateTime(Time.now(), DateTimeZone.UTC))
                 set(ApplicationTable.authors, defaultMapper.encodeToString(description.metadata.authors))
@@ -454,7 +459,40 @@ class AppStoreAsyncDao(
                 set(ApplicationTable.idName, description.metadata.name)
                 set(ApplicationTable.idVersion, description.metadata.version)
                 set(ApplicationTable.application, defaultMapper.encodeToString(description.invocation))
+            }
 
+            if (isProvider) {
+                // TODO(Dan): Need to rework how this app-store works. There isn't even a unique constraint on
+                //  (application, tag)
+                val tagExists = session
+                    .sendPreparedStatement(
+                        {
+                            setParameter("name", description.metadata.name)
+                            setParameter("provider_tag", providerName)
+                        },
+                        """
+                            select 1
+                            from
+                                app_store.application_tags tag
+                            where
+                                tag.application_name = :name and
+                                tag.tag = :provider_tag
+                        """
+                    )
+                    .rows.isNotEmpty()
+
+                if (!tagExists) {
+                    session.sendPreparedStatement(
+                        {
+                            setParameter("name", description.metadata.name)
+                            setParameter("provider_tag", providerName)
+                        },
+                        """
+                            insert into app_store.application_tags (id, application_name, tag) 
+                            values (nextval('app_store.hibernate_sequence'), :name, :provider_tag)
+                        """
+                    )
+                }
             }
         }
     }
@@ -467,11 +505,6 @@ class AppStoreAsyncDao(
         appName: String,
         appVersion: String
     ) {
-        val existingOwner = ctx.withSession { session -> findOwnerOfApplication(session, appName) }
-        if (existingOwner != null && !canUserPerformWriteOperation(existingOwner, user)) {
-            throw ApplicationException.NotAllowed()
-        }
-
         // Prevent deletion of last version of application
         val isLast = ctx.withSession { session ->
                 internalFindAllByName(
@@ -527,49 +560,6 @@ class AppStoreAsyncDao(
                 .rows
         }
     }
-
-    suspend fun updateDescription(
-        ctx: DBContext,
-        user: SecurityPrincipal,
-        appName: String,
-        appVersion: String,
-        newDescription: String?,
-        newAuthors: List<String>?
-    ) {
-        ctx.withSession { session ->
-            val existing = internalByNameAndVersion(session, appName, appVersion) ?: throw ApplicationException.NotFound()
-            if (!canUserPerformWriteOperation(
-                    existing.getField(ApplicationTable.owner),
-                    user
-                )
-            ) throw ApplicationException.NotAllowed()
-
-            val existingApplication = existing.toApplicationWithInvocation()
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("newdesc", newDescription)
-                        setParameter(
-                            "newauthors",
-                            defaultMapper.encodeToString(newAuthors ?: existingApplication.metadata.authors)
-                        )
-                        setParameter("name", appName)
-                        setParameter("version", appVersion)
-                    },
-                    """
-                        UPDATE applications
-                        SET description = COALESCE(:newdesc, description), authors = :newauthors
-                        WHERE (name = :name) AND (version = :version)
-                    """
-                )
-        }
-        // We allow for this to be cached for some time. But this instance might as well clear the cache now.
-        byNameAndVersionCache.remove(NameAndVersion(appName, appVersion))
-    }
-
-    suspend fun isOwnerOfApplication(ctx: DBContext, user: SecurityPrincipal, appName: String): Boolean =
-        ctx.withSession {session -> findOwnerOfApplication(session, appName)!! == user.username}
-
 
     suspend fun preparePageForUser(
         ctx: DBContext,

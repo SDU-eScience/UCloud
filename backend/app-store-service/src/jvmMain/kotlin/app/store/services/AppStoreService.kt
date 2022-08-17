@@ -1,6 +1,7 @@
 package dk.sdu.cloud.app.store.services
 
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
@@ -147,21 +148,19 @@ class AppStoreService(
     }
 
     suspend fun updatePermissions(
-        securityPrincipal: SecurityPrincipal,
+        actorAndProject: ActorAndProject,
         applicationName: String,
         changes: List<ACLEntryRequest>
     ) {
         return db.withTransaction { session ->
-            if (securityPrincipal.role == Role.ADMIN) {
-                changes.forEach { change ->
-                    if (!change.revoke) {
-                        updatePermissionsWithSession(session, applicationName, change.entity, change.rights)
-                    } else {
-                        revokePermissionWithSession(session, applicationName, change.entity)
-                    }
+            verifyAppUpdatePermission(actorAndProject, session, applicationName)
+
+            changes.forEach { change ->
+                if (!change.revoke) {
+                    updatePermissionsWithSession(session, applicationName, change.entity, change.rights)
+                } else {
+                    revokePermissionWithSession(session, applicationName, change.entity)
                 }
-            } else {
-                throw RPCException("Request to update permissions unauthorized", HttpStatusCode.Unauthorized)
             }
         }
     }
@@ -318,9 +317,9 @@ class AppStoreService(
         }
     }
 
-    suspend fun create(securityPrincipal: SecurityPrincipal, application: Application, content: String) {
+    suspend fun create(actorAndProject: ActorAndProject, application: Application, content: String) {
         db.withTransaction { session ->
-            applicationDao.create(session, securityPrincipal, application, content)
+            applicationDao.create(session, actorAndProject, application, content)
         }
         elasticDao.createApplicationInElastic(
             application.metadata.name,

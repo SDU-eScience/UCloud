@@ -28,7 +28,6 @@ import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
 import kotlinx.serialization.decodeFromString
-import okhttp3.internal.toLongOrDefault
 
 class AccountingService(
     val db: DBContext,
@@ -1033,7 +1032,7 @@ class AccountingService(
                     setParameter("filter_provider", request.filterProvider)
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrDefault(-1))
+                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull() ?: -1)
                     setParameter("filter_workspace", request.filterWorkspace)
                     setParameter("filter_workspace_project", request.filterWorkspaceProject)
                     setParameter("num_buckets", 30 as Int)
@@ -1238,7 +1237,7 @@ class AccountingService(
                     setParameter("filter_provider", request.filterProvider)
                     setParameter("filter_category", request.filterProductCategory)
                     setParameter("filter_type", request.filterType?.name)
-                    setParameter("filter_allocation", request.filterAllocation?.toLongOrDefault(-1))
+                    setParameter("filter_allocation", request.filterAllocation?.toLongOrNull() ?: -1)
                     setParameter("filter_workspace", request.filterWorkspace)
                     setParameter("filter_workspace_project", request.filterWorkspaceProject)
                 },

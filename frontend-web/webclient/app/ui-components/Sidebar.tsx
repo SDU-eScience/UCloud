@@ -267,18 +267,9 @@ const Sidebar = ({sideBarEntries = sideBarMenuElements, page, loggedIn}: Sidebar
             {inDevEnvironment() ? <Flex mb={"5px"} width={190} ml={19} justifyContent="left"><RBox /> </Flex> : null}
             {window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1" ? <>
                 <SidebarTextLabel icon={"bug"} iconSize="1em" textSize={1} height={"25px"} hover={false} space={".5em"}>
-                    <Box
-                        cursor={"pointer"}
-                        onClick={() => {
-                            window.open(
-                                "/debugger?hide-frame",
-                                undefined,
-                                "width=1000,height=1000,status=no"
-                            );
-                        }}
-                    >
+                    <ExternalLink href="/debugger?hide-frame">
                         Open debugger
-                    </Box>
+                    </ExternalLink>
                 </SidebarTextLabel>
             </> : null}
             {!projectId ? null : <>

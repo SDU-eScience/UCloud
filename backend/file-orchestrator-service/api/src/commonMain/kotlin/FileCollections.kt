@@ -20,7 +20,8 @@ import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
 import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.Serializable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.builtins.serializer
 
 typealias FileCollectionsRenameRequest = BulkRequest<FileCollectionsRenameRequestItem>
 
@@ -68,19 +69,19 @@ object FileCollections : ResourceApi<FileCollection, FileCollection.Spec, FileCo
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         FileCollection.serializer(),
-        typeOf<FileCollection>(),
+        typeOfIfPossible<FileCollection>(),
         FileCollection.Spec.serializer(),
-        typeOf<FileCollection.Spec>(),
+        typeOfIfPossible<FileCollection.Spec>(),
         FileCollection.Update.serializer(),
-        typeOf<FileCollection.Update>(),
+        typeOfIfPossible<FileCollection.Update>(),
         FileCollectionIncludeFlags.serializer(),
-        typeOf<FileCollectionIncludeFlags>(),
+        typeOfIfPossible<FileCollectionIncludeFlags>(),
         FileCollection.Status.serializer(),
-        typeOf<FileCollection.Status>(),
+        typeOfIfPossible<FileCollection.Status>(),
         FSSupport.serializer(),
-        typeOf<FSSupport>(),
+        typeOfIfPossible<FSSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
     init {
@@ -270,7 +271,7 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
     override val delete get() = super.delete!!
     override val search get() = super.search!!
 
-    val rename = call<FileCollectionsRenameRequest, FileCollectionsRenameResponse, CommonErrorMessage>("rename") {
+    val rename = call("rename", BulkRequest.serializer(FileCollectionsRenameRequestItem.serializer()), FileCollectionsRenameResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rename")
     }
 }
@@ -281,19 +282,19 @@ object FileCollectionsControl : ResourceControlApi<FileCollection, FileCollectio
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         FileCollection.serializer(),
-        typeOf<FileCollection>(),
+        typeOfIfPossible<FileCollection>(),
         FileCollection.Spec.serializer(),
-        typeOf<FileCollection.Spec>(),
+        typeOfIfPossible<FileCollection.Spec>(),
         FileCollection.Update.serializer(),
-        typeOf<FileCollection.Update>(),
+        typeOfIfPossible<FileCollection.Update>(),
         FileCollectionIncludeFlags.serializer(),
-        typeOf<FileCollectionIncludeFlags>(),
+        typeOfIfPossible<FileCollectionIncludeFlags>(),
         FileCollection.Status.serializer(),
-        typeOf<FileCollection.Status>(),
+        typeOfIfPossible<FileCollection.Status>(),
         FSSupport.serializer(),
-        typeOf<FSSupport>(),
+        typeOfIfPossible<FSSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 }
 
@@ -305,23 +306,22 @@ open class FileCollectionsProvider(
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         FileCollection.serializer(),
-        typeOf<FileCollection>(),
+        typeOfIfPossible<FileCollection>(),
         FileCollection.Spec.serializer(),
-        typeOf<FileCollection.Spec>(),
+        typeOfIfPossible<FileCollection.Spec>(),
         FileCollection.Update.serializer(),
-        typeOf<FileCollection.Update>(),
+        typeOfIfPossible<FileCollection.Update>(),
         FileCollectionIncludeFlags.serializer(),
-        typeOf<FileCollectionIncludeFlags>(),
+        typeOfIfPossible<FileCollectionIncludeFlags>(),
         FileCollection.Status.serializer(),
-        typeOf<FileCollection.Status>(),
+        typeOfIfPossible<FileCollection.Status>(),
         FSSupport.serializer(),
-        typeOf<FSSupport>(),
+        typeOfIfPossible<FSSupport>(),
         Product.Storage.serializer(),
-        typeOf<Product.Storage>(),
+        typeOfIfPossible<Product.Storage>(),
     )
 
-    val rename = call<FileCollectionsProviderRenameRequest, BulkResponse<Unit?>,
-        CommonErrorMessage>("rename") {
+    val rename = call("rename", BulkRequest.serializer(FileCollectionsProviderRenameRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rename", roles = Roles.SERVICE)
     }
 

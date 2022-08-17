@@ -19,6 +19,7 @@ data class JobSpecification(
     val resources: List<AppParameterValue>?,
     val timeAllocation: SimpleDuration?,
     val openedFile: String?,
+    val restartOnExit: Boolean?,
 )
 ```
 
@@ -139,6 +140,27 @@ This value is null if the application is not launched using the "Open with..." f
 is passed to the compute environment in a provider specific way. We encourage providers to expose this as
 an environment variable named `UCLOUD_OPEN_WITH_FILE` containing the absolute path of the file (in the
 current environment). Remember that this path is the _UCloud_ path to the file and not the provider's path.
+
+
+</details>
+
+<details>
+<summary>
+<code>restartOnExit</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A flag which indicates if this job should be restarted on exit.
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+Not all providers support this feature and the Job will be rejected if not supported. This information can
+also be queried through the product support feature.
+
+If this flag is `true` then the Job will automatically be restarted when the provider notifies the
+orchestrator about process termination. It is the responsibility of the orchestrator to notify the provider
+about restarts. If the restarts are triggered by the provider, then the provider must not notify the
+orchestrator about the termination. The orchestrator will trigger a new `create` request in a timely manner.
+The orchestrator decides when to trigger a new `create`. For example, if a process is terminating often,
+then the orchestrator might decide to wait before issuing a new `create`.
 
 
 </details>

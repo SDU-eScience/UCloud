@@ -81,9 +81,9 @@ Documentation not yet written.
 
 ## Indexing
 
-The indexing system of UCloud/Storage currently depends on CephFS. Files are indexed into an ElasticSearch database.
-The file-system is traversed and the index is updated accordingly. The indexing algorithm attempts to skip folders
-by comparing modification times with the data stored in the index.
+The indexing system of UCloud/Storage currently depends on CephFS. Files are indexed into an ElasticSearch database. The
+file-system is traversed and the index is updated accordingly. The indexing algorithm attempts to skip folders by
+comparing modification times with the data stored in the index.
 
 ## Accounting
 
@@ -94,7 +94,55 @@ recorded and aggregated at the workspace level. Finally, the service notifies th
 any operation which can increase the amount of bytes stored in the system. If an account was previously locked, and the
 current usage is below the quota, then the account is removed from the locked table.
 
-## SyncThing
+## Syncthing
 
-Documentation not yet written (pre-production feature).
+**Note: This features is in development/testing.**
+
+The synchronization feature of UCloud/Storage depends on [Syncthing](https://syncthing.net). The provider maintains
+communication with one or more Syncthing instances, running in seperate containers, through the Syncthing API.
+
+The provider also maintains two types of resources:
+
+- SyncDevice: A user's Syncthing device ID,
+- SyncFolder: Folder on UCloud which should be synchronized by Syncthing,
+
+as well as communication with a separate service, SyncMounter.
+
+When a request to add a folder to Syncthing is received, the provider will add the SyncFolder resource and send a
+request to SyncMounter to bind-mount the internal path to a new location. The provider will then fetch all SyncFolder
+and SyncDevice resources and generate a new Syncthing configuration which will be sent to one of the Syncthing
+instances.
+
+To shield the Syncthing instances from access to the rest of the filesystem, it will only receive paths to the
+bind-mounted location of folders.
+
+The provider will attempt to add the SyncFolder to the Syncthing instance with the least usage (sum of the size of files
+in the current SyncFolders for that instance) to distribute load. A draw-back to this method is that SyncDevices for a
+single end-user might be added to multiple different Syncthing instances. Thus, the end-user might need to add multiple
+UCloud Syncthing devices to their locally running instance of Syncthing.
+
+When a SyncFolder is removed, the provider will request the responsible Syncthing instance to update its configuration,
+then request SyncMounter to unmount the bind-mounted location of the folder. In some cases the SyncMounter might fail to
+unmount the bind-mounted folder. This can happen if the Syncthing instance does not update its configuration in time. In
+this case the provider will retry the request a few times, but otherwise proceed without alerting the user. In this case
+the folder will be unmounted the next time the SyncMounter service is restarted.
+
+Adding or removing SyncFolders and SyncDevices will always result in a request to one or more Syncthing instances to
+overwrite their configuration, thus the configuration of a Syncthing instance is always a reflexion of a subset of the
+providers knowledge.
+
+On start-up the SyncMounter service will automatically request the provider for a list of SyncFolders, mount them, and
+then mark itself as ready. The provider will wait for SyncMounter to respond that it is ready, before requesting all
+Syncthing instances to update their configuration.
+
+When the SyncMounter process ends it will unmount all SyncFolder paths and when the provider process ends, it will
+request all Syncthing instances to drain/empty their configuration.
+
+**Current status:** Requests to Syncthing might currently fail unexpectedly due to a problem with ktor and/or the
+Syncthing HTTP server. The current work-around is that the provider restricts the number of continuous requests to
+Syncthing by delaying requests and by retrying in case of failure. In case all retries fail, the provider will attempt
+to revert the changes to the database before throwing an error.
+
+
+
 

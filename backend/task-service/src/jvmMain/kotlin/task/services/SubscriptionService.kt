@@ -14,7 +14,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.serialization.serializer
 import java.util.*
 
 private typealias Socket = CallHandler<*, TaskUpdate, *>
@@ -90,7 +89,7 @@ class SubscriptionService(
     }
 
     private fun eventStream(user: String) =
-        JsonEventStream<TaskUpdate>("task-sub-${user}", serializer(), { it.jobId })
+        JsonEventStream("task-sub-${user}", TaskUpdate.serializer(), { it.jobId })
 
     suspend fun onDisconnect(session: WSSession) {
         globalLock.withLock {

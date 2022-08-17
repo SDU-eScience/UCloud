@@ -6,6 +6,7 @@ import dk.sdu.cloud.app.store.services.ApplicationPublicService
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
+import dk.sdu.cloud.service.actorAndProject
 
 class AppPublicController (
     private val publicService: ApplicationPublicService
@@ -17,7 +18,7 @@ class AppPublicController (
         }
 
         implement(AppStore.setPublic) {
-            ok(publicService.setPublic(ctx.securityPrincipal, request.appName, request.appVersion, request.public))
+            ok(publicService.setPublic(actorAndProject, request.appName, request.appVersion, request.public))
         }
 
     }

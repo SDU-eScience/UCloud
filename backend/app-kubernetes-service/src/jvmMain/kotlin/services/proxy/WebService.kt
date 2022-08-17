@@ -13,12 +13,12 @@ import dk.sdu.cloud.service.db.async.withSession
 import dk.sdu.cloud.service.k8.KubernetesResources
 import dk.sdu.cloud.service.k8.Service
 import dk.sdu.cloud.service.k8.getResource
-import io.ktor.application.*
-import io.ktor.features.*
 import io.ktor.http.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import io.ktor.util.date.*
 import io.ktor.util.pipeline.*
 
@@ -109,7 +109,8 @@ class WebService(
                     val namespace = k8.nameAllocator.jobIdToNamespace(jobAndRank.jobId)
 
                     val nodePort = k8.client
-                        .getResource<Service>(
+                        .getResource(
+                            Service.serializer(),
                             KubernetesResources.services.withNameAndNamespace(
                                 name + MinikubePlugin.SERVICE_SUFFIX,
                                 namespace

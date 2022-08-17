@@ -80,6 +80,7 @@ sealed class Person : Principal() {
         override val phoneNumber: String? = null,
         override val orcId: String? = null,
         override val email: String? = null,
+        @Deprecated("Will be removed in future release")
         override val uid: Long = 0,
         override val serviceLicenseAgreement: Int,
 
@@ -121,6 +122,7 @@ sealed class Person : Principal() {
         override val phoneNumber: String? = null,
         override val orcId: String? = null,
         override val email: String? = null,
+        @Deprecated("Will be removed in future release")
         override val uid: Long = 0,
         override val twoFactorAuthentication: Boolean,
         override val serviceLicenseAgreement: Int,

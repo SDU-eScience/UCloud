@@ -41,6 +41,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -114,6 +115,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -121,6 +123,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = 1633347776235, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -130,16 +133,20 @@ Job(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -226,6 +233,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -233,6 +241,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = 1633351376235, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -242,16 +251,20 @@ Job(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -333,6 +346,7 @@ Job(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -340,6 +354,7 @@ Job(
         ), 
     ), 
     status = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -349,24 +364,30 @@ Job(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.IN_QUEUE, 
         status = "Your job is now waiting in the queue!", 
         timestamp = 1633329776235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
         status = "Your job is now running!", 
         timestamp = 1633329781235, 
     ), JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 
@@ -415,7 +436,8 @@ await callAPI(JobsApi.create(
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -475,6 +497,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -484,6 +508,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         }
     ],
@@ -507,7 +533,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "RUNNING",
@@ -516,7 +543,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": 1633347776235,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -594,6 +622,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -603,6 +633,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         }
     ],
@@ -626,7 +658,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "RUNNING",
@@ -635,7 +668,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": 1633351376235,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -708,6 +742,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329776235
         },
         {
@@ -717,6 +753,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633329781235
         },
         {
@@ -726,6 +764,8 @@ await callAPI(JobsApi.retrieve(
             "expectedState": null,
             "expectedDifferentState": null,
             "newTimeAllocation": null,
+            "allowRestart": null,
+            "newMounts": null,
             "timestamp": 1633336981235
         }
     ],
@@ -749,7 +789,8 @@ await callAPI(JobsApi.retrieve(
             "minutes": 0,
             "seconds": 0
         },
-        "openedFile": null
+        "openedFile": null,
+        "restartOnExit": null
     },
     "status": {
         "state": "SUCCESS",
@@ -758,7 +799,8 @@ await callAPI(JobsApi.retrieve(
         "expiresAt": null,
         "resolvedApplication": null,
         "resolvedSupport": null,
-        "resolvedProduct": null
+        "resolvedProduct": null,
+        "allowRestart": false
     },
     "createdAt": 1633329776235,
     "output": null,
@@ -807,7 +849,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "minutes": 0,
                 "seconds": 0
             },
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -839,6 +882,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -848,6 +893,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -871,7 +918,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -880,7 +928,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": 1633347776235,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
@@ -928,6 +977,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -937,6 +988,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         }
 #     ],
@@ -960,7 +1013,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -969,7 +1023,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": 1633351376235,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,
@@ -1012,6 +1067,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329776235
 #         },
 #         {
@@ -1021,6 +1078,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633329781235
 #         },
 #         {
@@ -1030,6 +1089,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "expectedState": null,
 #             "expectedDifferentState": null,
 #             "newTimeAllocation": null,
+#             "allowRestart": null,
+#             "newMounts": null,
 #             "timestamp": 1633336981235
 #         }
 #     ],
@@ -1053,7 +1114,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "minutes": 0,
 #             "seconds": 0
 #         },
-#         "openedFile": null
+#         "openedFile": null,
+#         "restartOnExit": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -1062,7 +1124,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "expiresAt": null,
 #         "resolvedApplication": null,
 #         "resolvedSupport": null,
-#         "resolvedProduct": null
+#         "resolvedProduct": null,
+#         "allowRestart": false
 #     },
 #     "createdAt": 1633329776235,
 #     "output": null,

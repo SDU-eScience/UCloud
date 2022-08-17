@@ -16,7 +16,8 @@ class UtilizationService(
     private val k8: K8Dependencies,
 ) {
     suspend fun retrieveCapacity(productCategoryId: String): CpuAndMemory {
-        val namespace = k8.client.getResource<Namespace>(
+        val namespace = k8.client.getResource(
+            Namespace.serializer(),
             KubernetesResources.namespaces.withName(NameAllocator.namespace)
         )
 

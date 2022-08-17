@@ -11,7 +11,7 @@ repositories {
 }
 
 kotlin {
-    val ktorVersion = "1.6.2-native-mm-eap-196"
+    val ktorVersion = "2.0.2"
 
     jvm {
         withJava()
@@ -46,7 +46,7 @@ kotlin {
 
         val jvmMain by getting {
             dependencies {
-                val ktorVersion = "1.4.0"
+                val ktorVersion = "2.0.2"
 
                 api(project(":service-lib"))
                 api(project(":service-lib-server"))
@@ -60,6 +60,7 @@ kotlin {
                 }
                 api("io.mockk:mockk:1.9.3")
                 api("io.zonky.test:embedded-postgres:1.2.6")
+                api(kotlin("test"))
             }
         }
 

@@ -7,45 +7,36 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Time
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.serializer
 import kotlin.coroutines.AbstractCoroutineContextElement
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.coroutineContext
+import kotlin.random.Random
+import kotlin.random.nextULong
+
+private val uniquePrefix = "${Random.nextULong().toString(16)}-${Random.nextULong().toString(16)}"
+private val logIdGenerator = atomicInt(0)
 
 @Serializable
-sealed class DebugContext {
-    abstract val id: String
-    abstract val parent: String?
-    abstract var depth: Int
+class DebugContext private constructor(val id: String, val parent: String?) {
+    val type: String = "job"
 
-    @SerialName("server")
-    @Serializable
-    data class Server(
-        override val id: String,
-        override val parent: String? = null,
-        override var depth: Int = 0,
-    ) : DebugContext()
+    companion object {
+        suspend fun create(): DebugContext {
+            return DebugContext(uniquePrefix + "-" + logIdGenerator.getAndIncrement(), parentContextId())
+        }
 
-    @SerialName("client")
-    @Serializable
-    data class Client(
-        override val id: String,
-        override val parent: String? = null,
-        override var depth: Int = 0,
-    ) : DebugContext()
-
-    @SerialName("job")
-    @Serializable
-    data class Job(
-        override val id: String,
-        override val parent: String? = null,
-        override var depth: Int = 0,
-    ) : DebugContext()
+        fun createWithParent(parent: String): DebugContext {
+            return DebugContext(uniquePrefix + "-" + logIdGenerator.getAndIncrement(), parent)
+        }
+    }
 }
 
 @Serializable
@@ -81,7 +72,8 @@ sealed class DebugMessage {
         override val importance: MessageImportance,
         val call: String?,
         val response: JsonElement?,
-        val responseCode: Int
+        val responseCode: Int,
+        val responseTime: Long,
     ) : DebugMessage() {
         override val messageType = MessageType.CLIENT
         override val id = idGenerator.getAndIncrement()
@@ -110,7 +102,8 @@ sealed class DebugMessage {
         override val importance: MessageImportance,
         val call: String?,
         val response: JsonElement?,
-        val responseCode: Int
+        val responseCode: Int,
+        val responseTime: Long,
     ) : DebugMessage() {
         override val messageType = MessageType.SERVER
         override val id = idGenerator.getAndIncrement()
@@ -154,7 +147,7 @@ sealed class DebugMessage {
         override val context: DebugContext,
         val query: String,
         val parameters: JsonObject,
-        override val importance: MessageImportance = MessageImportance.THIS_IS_NORMAL,
+        override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
         override val timestamp: Long = Time.now(),
         override val principal: SecurityPrincipal? = null,
     ) : DebugMessage() {
@@ -166,6 +159,7 @@ sealed class DebugMessage {
     @Serializable
     data class DatabaseResponse(
         override val context: DebugContext,
+        val responseTime: Long,
         override val importance: MessageImportance = MessageImportance.IMPLEMENTATION_DETAIL,
         override val timestamp: Long = Time.now(),
         override val principal: SecurityPrincipal? = null,
@@ -250,14 +244,15 @@ suspend inline fun parentContextId(): String? {
     return ctx[DebugCoroutineContext]?.context?.id
 }
 
-val logIdGenerator = atomicInt(0)
+suspend inline fun currentContext(): DebugContext? {
+    val ctx = coroutineContext
+    return ctx[DebugCoroutineContext]?.context
+}
+
 suspend fun DebugSystem.log(message: String, structured: JsonObject?, level: MessageImportance) {
     sendMessage(
         DebugMessage.Log(
-            DebugContext.Job(
-                logIdGenerator.getAndIncrement().toString(),
-                parentContextId(),
-            ),
+            DebugContext.create(),
             message,
             structured,
             level
@@ -291,6 +286,7 @@ suspend fun DebugSystem.dangerous(message: String, structured: JsonObject? = nul
 
 suspend inline fun <reified R> DebugSystem?.logD(
     message: String,
+    serializer: KSerializer<R>,
     structured: R,
     level: MessageImportance,
     context: DebugContext? = null
@@ -302,14 +298,14 @@ suspend inline fun <reified R> DebugSystem?.logD(
         kotlin.collections.Set::class,
         kotlin.collections.Collection::class -> {
             defaultMapper.encodeToJsonElement(
-                serializer<Map<String, R>>(),
+                MapSerializer(String.serializer(), serializer),
                 mapOf("wrapper" to structured)
             ) as JsonObject
         }
 
         else -> {
             defaultMapper.encodeToJsonElement(
-                serializer<R>(),
+                serializer,
                 structured
             ) as JsonObject
         }
@@ -317,10 +313,7 @@ suspend inline fun <reified R> DebugSystem?.logD(
 
     sendMessage(
         DebugMessage.Log(
-            context ?: DebugContext.Job(
-                logIdGenerator.getAndIncrement().toString(),
-                parentContextId(),
-            ),
+            context ?: DebugContext.create(),
             message,
             encoded,
             level
@@ -328,28 +321,28 @@ suspend inline fun <reified R> DebugSystem?.logD(
     )
 }
 
-suspend inline fun <reified R> DebugSystem?.everythingD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.TELL_ME_EVERYTHING, context)
+suspend inline fun <reified R> DebugSystem?.everythingD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.TELL_ME_EVERYTHING, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.detailD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
+suspend inline fun <reified R> DebugSystem?.detailD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.IMPLEMENTATION_DETAIL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.normalD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_NORMAL, context)
+suspend inline fun <reified R> DebugSystem?.normalD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_NORMAL, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.oddD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_ODD, context)
+suspend inline fun <reified R> DebugSystem?.oddD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_ODD, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, structured: R, context: DebugContext? = null) {
-    logD(message, structured, MessageImportance.THIS_IS_DANGEROUS, context)
+suspend inline fun <reified R> DebugSystem?.dangerousD(message: String, serializer: KSerializer<R>, structured: R, context: DebugContext? = null) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_DANGEROUS, context)
 }
 
-suspend inline fun <reified R> DebugSystem?.wrongD(message: String, structured: R) {
-    logD(message, structured, MessageImportance.THIS_IS_WRONG)
+suspend inline fun <reified R> DebugSystem?.wrongD(message: String, serializer: KSerializer<R>, structured: R) {
+    logD(message, serializer, structured, MessageImportance.THIS_IS_WRONG)
 }
 
 class DebugSystemLogContext(
@@ -380,7 +373,7 @@ suspend inline fun <R> DebugSystem?.enterContext(
 ): R {
     val debug = this
 
-    val debugContext = DebugContext.Job(logIdGenerator.getAndIncrement().toString(), parentContextId())
+    val debugContext = DebugContext.create()
     val logContext = DebugSystemLogContext(name, debug, debugContext)
     if (debug == null) return block(logContext)
 
@@ -404,27 +397,23 @@ interface DebugSystem {
 fun DebugSystem.installCommon(client: RpcClient) {
     val key = AttributeKey<String>("debug-id")
     client.attachFilter(object : OutgoingCallFilter.BeforeCall() {
-        private val baseKey = "Client-"
-        private val idGenerator = atomicInt(0)
         override fun canUseContext(ctx: OutgoingCall): Boolean = true
 
         override suspend fun run(context: OutgoingCall, callDescription: CallDescription<*, *, *>, request: Any?) {
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
-            val id = baseKey + idGenerator.getAndIncrement()
+            val debugContext = DebugContext.create()
+            val id = debugContext.id
             context.attributes[key] = id
             sendMessage(
                 DebugMessage.ClientRequest(
-                    DebugContext.Client(
-                        id,
-                        parentContextId(),
-                    ),
+                    debugContext,
                     Time.now(),
                     null,
-                    MessageImportance.THIS_IS_NORMAL,
+                    MessageImportance.IMPLEMENTATION_DETAIL,
                     callDescription.fullName,
                     if (request == null) JsonNull
                     else defaultMapper.encodeToJsonElement(call.requestType, request),
-                    context.attributes.outgoingTargetHost.toString(),
+                    context.attributes.outgoingTargetHostOrNull.toString(),
                 )
             )
         }
@@ -436,19 +425,26 @@ fun DebugSystem.installCommon(client: RpcClient) {
         override suspend fun run(
             context: OutgoingCall,
             callDescription: CallDescription<*, *, *>,
-            response: IngoingCallResponse<*, *>
+            response: IngoingCallResponse<*, *>,
+            responseTimeMs: Long
         ) {
             val id = context.attributes[key]
             @Suppress("UNCHECKED_CAST") val call = callDescription as CallDescription<Any, Any, Any>
             sendMessage(
                 DebugMessage.ClientResponse(
-                    DebugContext.Client(
-                        id,
-                        parentContextId(),
-                    ),
+                    DebugContext.createWithParent(id),
                     Time.now(),
                     null,
-                    MessageImportance.THIS_IS_NORMAL,
+                    when {
+                        responseTimeMs >= 300 || response.statusCode.value in 500..599 ->
+                            MessageImportance.THIS_IS_WRONG
+
+                        responseTimeMs >= 150 || response.statusCode.value in 400..499 ->
+                            MessageImportance.THIS_IS_ODD
+
+                        else ->
+                            MessageImportance.THIS_IS_NORMAL
+                    },
                     callDescription.fullName,
                     when (response) {
                         is IngoingCallResponse.Error -> {
@@ -462,7 +458,8 @@ fun DebugSystem.installCommon(client: RpcClient) {
                             defaultMapper.encodeToJsonElement(call.successType, response.result)
                         }
                     },
-                    response.statusCode.value
+                    response.statusCode.value,
+                    responseTimeMs,
                 )
             )
         }

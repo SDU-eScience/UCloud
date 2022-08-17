@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.databind.jsontype.NamedType
 import com.fasterxml.jackson.module.kotlin.readValue
 import dk.cloud.sdu.app.store.rpc.AppLogoController
+import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.Role
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.app.store.api.*
@@ -33,7 +35,6 @@ import dk.sdu.cloud.app.store.services.ToolAsyncDao
 import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
 import dk.sdu.cloud.app.store.util.yamlMapper
 import dk.sdu.cloud.auth.api.authenticator
-import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
@@ -104,14 +105,14 @@ class Server(override val micro: Micro) : CommonServer {
                 }
 
                 if (listOfApps.itemsInTotal == 0) {
-                    val dummyUser = SecurityPrincipal("admin@dev", Role.ADMIN, "admin", "admin", 42000)
+                    val systemUser = ActorAndProject(Actor.System, null)
                     @Suppress("TooGenericExceptionCaught")
                     db.withTransaction { session ->
                         val tools = File("yaml", "tools")
                         tools.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ToolDescription>(it)
-                                toolDAO.create(session, dummyUser, description.normalize(), "original")
+                                toolDAO.create(session, systemUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create tool: $it")
                                 log.info(ex.stackTraceToString())
@@ -122,7 +123,7 @@ class Server(override val micro: Micro) : CommonServer {
                         apps.listFiles()?.forEach {
                             try {
                                 val description = yamlMapper.readValue<ApplicationDescription>(it)
-                                applicationDAO.create(session, dummyUser, description.normalize(), "original")
+                                applicationDAO.create(session, systemUser, description.normalize(), "original")
                             } catch (ex: Exception) {
                                 log.info("Could not create app: $it")
                                 log.info(ex.stackTraceToString())
@@ -183,21 +184,6 @@ class Server(override val micro: Micro) : CommonServer {
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.PROPERTY, property = "type")
 abstract class SealedClassMixin
-
-fun configureJackson(callContainer: CallDescriptionContainer, mapper: ObjectMapper) {
-    callContainer.callContainer.forEach { call ->
-        // TODO Need to traverse the types for generics
-        // TODO need to traverse dependencies also
-        val requestClassifier = call.requestClass.classifier
-        if (requestClassifier is KClass<*>) configureJackson(requestClassifier, mapper)
-
-        val successClassifier = call.successClass.classifier
-        if (successClassifier is KClass<*>) configureJackson(successClassifier, mapper)
-
-        val errorClassifier = call.errorClass.classifier
-        if (errorClassifier is KClass<*>) configureJackson(errorClassifier, mapper)
-    }
-}
 
 private fun configureJackson(klass: KClass<*>, mapper: ObjectMapper) {
     val javaClass = klass.java

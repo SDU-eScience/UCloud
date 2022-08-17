@@ -11,9 +11,9 @@ import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
-import kotlin.reflect.typeOf
 
 // Useful links:
 //   - https://github.com/ginkgobioworks/react-json-schema-form-builder
@@ -180,19 +180,19 @@ object FileMetadataTemplateNamespaces : ResourceApi<
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         FileMetadataTemplateNamespace.serializer(),
-        typeOf<FileMetadataTemplateNamespace>(),
+        typeOfIfPossible<FileMetadataTemplateNamespace>(),
         FileMetadataTemplateNamespace.Spec.serializer(),
-        typeOf<FileMetadataTemplateNamespace.Spec>(),
+        typeOfIfPossible<FileMetadataTemplateNamespace.Spec>(),
         FileMetadataTemplateNamespace.Update.serializer(),
-        typeOf<FileMetadataTemplateNamespace.Update>(),
+        typeOfIfPossible<FileMetadataTemplateNamespace.Update>(),
         FileMetadataTemplateNamespaceFlags.serializer(),
-        typeOf<FileMetadataTemplateNamespaceFlags>(),
+        typeOfIfPossible<FileMetadataTemplateNamespaceFlags>(),
         FileMetadataTemplateNamespace.Status.serializer(),
-        typeOf<FileMetadataTemplateNamespace.Status>(),
+        typeOfIfPossible<FileMetadataTemplateNamespace.Status>(),
         FileMetadataTemplateSupport.serializer(),
-        typeOf<FileMetadataTemplateSupport>(),
+        typeOfIfPossible<FileMetadataTemplateSupport>(),
         Product.serializer(),
-        typeOf<Product>(),
+        typeOfIfPossible<Product>(),
     )
 
     init {
@@ -276,26 +276,23 @@ Only administrators of a workspace can approve such changes.
         )
     }
 
-    val createTemplate = call<BulkRequest<FileMetadataTemplate>, BulkResponse<FileMetadataTemplateAndVersion>,
-        CommonErrorMessage>("createTemplate") {
+    val createTemplate = call("createTemplate", BulkRequest.serializer(FileMetadataTemplate.serializer()), BulkResponse.serializer(FileMetadataTemplateAndVersion.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, "templates")
     }
 
-    val retrieveLatest = call<FindByStringId, FileMetadataTemplate, CommonErrorMessage>("retrieveLatest") {
+    val retrieveLatest = call("retrieveLatest", FindByStringId.serializer(), FileMetadataTemplate.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "latest")
     }
 
-    val retrieveTemplate = call<FileMetadataTemplateAndVersion, FileMetadataTemplate,
-        CommonErrorMessage>("retrieveTemplate") {
+    val retrieveTemplate = call("retrieveTemplate", FileMetadataTemplateAndVersion.serializer(), FileMetadataTemplate.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "templates")
     }
 
-    val browseTemplates = call<FileMetadataTemplatesBrowseTemplatesRequest, PageV2<FileMetadataTemplate>,
-        CommonErrorMessage>("browseTemplates") {
+    val browseTemplates = call("browseTemplates", FileMetadataTemplatesBrowseTemplatesRequest.serializer(), PageV2.serializer(FileMetadataTemplate.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, "templates")
     }
 
-    val deprecate = call<BulkRequest<FindByStringId>, BulkResponse<Unit>, CommonErrorMessage>("deprecate") {
+    val deprecate = call("deprecate", BulkRequest.serializer(FindByStringId.serializer()), BulkResponse.serializer(Unit.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deprecate")
     }
 

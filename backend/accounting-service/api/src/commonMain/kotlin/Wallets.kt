@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlin.random.Random
 
 @Serializable
@@ -363,9 +364,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    val push = call<BulkRequest<PushWalletChangeRequestItem>, PushWalletChangeResponse, CommonErrorMessage>(
-        "push"
-    ) {
+    val push = call("push", BulkRequest.serializer(PushWalletChangeRequestItem.serializer()), PushWalletChangeResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "push", roles = Roles.PROVIDER)
 
         documentation {
@@ -373,7 +372,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val register = call<BulkRequest<RegisterWalletRequestItem>, Unit, CommonErrorMessage>("register") {
+    val register = call("register", BulkRequest.serializer(RegisterWalletRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "register", roles = Roles.PROVIDER)
 
         documentation {
@@ -381,7 +380,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browse = call<WalletBrowseRequest, PageV2<Wallet>, CommonErrorMessage>("browse") {
+    val browse = call("browse", WalletBrowseRequest.serializer(), PageV2.serializer(Wallet.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
 
         documentation {
@@ -389,8 +388,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val searchSubAllocations = call<WalletsSearchSubAllocationsRequest, PageV2<SubAllocation>,
-        CommonErrorMessage>("searchSubAllocations") {
+    val searchSubAllocations = call("searchSubAllocations", WalletsSearchSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
         httpSearch(baseContext, "subAllocation")
         documentation {
             summary = "Searches the catalog of sub-allocations"
@@ -401,8 +399,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         }
     }
 
-    val browseSubAllocations = call<WalletsBrowseSubAllocationsRequest, WalletsBrowseSubAllocationsResponse,
-        CommonErrorMessage>("browseSubAllocations") {
+    val browseSubAllocations = call("browseSubAllocations", WalletsBrowseSubAllocationsRequest.serializer(), PageV2.serializer(SubAllocation.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, "subAllocation")
 
         documentation {
@@ -415,8 +412,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.BETA)
-    val retrieveRecipient = call<WalletsRetrieveRecipientRequest, WalletsRetrieveRecipientResponse,
-        CommonErrorMessage>("retrieveRecipient") {
+    val retrieveRecipient = call("retrieveRecipient", WalletsRetrieveRecipientRequest.serializer(), WalletsRetrieveRecipientResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "recipient")
 
         documentation {
@@ -429,8 +425,7 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
     }
 
     @UCloudApiExperimental(ExperimentalLevel.ALPHA)
-    val retrieveProviderSummary = call<WalletsRetrieveProviderSummaryRequest, PageV2<ProviderWalletSummary>,
-        CommonErrorMessage>("retrieveProviderSummary") {
+    val retrieveProviderSummary = call("retrieveProviderSummary", WalletsRetrieveProviderSummaryRequest.serializer(), PageV2.serializer(ProviderWalletSummary.serializer()), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "providerSummary", roles = Roles.PROVIDER)
 
         documentation {
@@ -1683,9 +1678,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         )
     }
 
-    val charge = call<BulkRequest<ChargeWalletRequestItem>, ChargeWalletResponse, CommonErrorMessage>(
-        "charge"
-    ) {
+    val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "charge", roles = Roles.SERVICE)
 
         documentation {
@@ -1762,9 +1755,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val deposit = call<BulkRequest<DepositToWalletRequestItem>, DepositToWalletResponse, CommonErrorMessage>(
-        "deposit"
-    ) {
+    val deposit = call("deposit", BulkRequest.serializer(DepositToWalletRequestItem.serializer()), DepositToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deposit")
 
         documentation {
@@ -1778,9 +1769,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val transfer = call<BulkRequest<TransferToWalletRequestItem>, TransferToWalletResponse, CommonErrorMessage>(
-        "transfer"
-    ) {
+    val transfer = call("transfer", BulkRequest.serializer(TransferToWalletRequestItem.serializer()), TransferToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "transfer")
 
         documentation {
@@ -1794,9 +1783,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val updateAllocation = call<BulkRequest<UpdateAllocationRequestItem>, UpdateAllocationResponse, CommonErrorMessage>(
-        "updateAllocation"
-    ) {
+    val updateAllocation = call("updateAllocation", BulkRequest.serializer(UpdateAllocationRequestItem.serializer()), UpdateAllocationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "allocation")
 
         documentation {
@@ -1814,7 +1801,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val check = call<BulkRequest<ChargeWalletRequestItem>, BulkResponse<Boolean>, CommonErrorMessage>("check") {
+    val check = call("check", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "check", roles = Roles.SERVICE)
 
         documentation {
@@ -1826,7 +1813,7 @@ object Accounting : CallDescriptionContainer("accounting") {
         }
     }
 
-    val rootDeposit = call<BulkRequest<RootDepositRequestItem>, Unit, CommonErrorMessage>("rootDeposit") {
+    val rootDeposit = call("rootDeposit", BulkRequest.serializer(RootDepositRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "rootDeposit", roles = Roles.PRIVILEGED)
     }
 }

@@ -22,6 +22,7 @@ import dk.sdu.cloud.integration.retrySection
 import dk.sdu.cloud.micro.Micro
 import dk.sdu.cloud.micro.client
 import dk.sdu.cloud.micro.configuration
+import dk.sdu.cloud.micro.requestChunkAtOrNull
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
@@ -111,7 +112,10 @@ object UCloudProvider {
                 // Check if volcano is present
                 run {
                     val hasVolcano = runCatching {
-                        k8.getResource<Namespace>(KubernetesResources.namespaces.withName("volcano-system"))
+                        k8.getResource(
+                            Namespace.serializer(),
+                            KubernetesResources.namespaces.withName("volcano-system")
+                        )
                     }.isSuccess
 
                     if (!hasVolcano) {
@@ -133,7 +137,10 @@ object UCloudProvider {
                     val deadline = Time.now() + 30_000
                     while (Time.now() < deadline) {
                         val hasNamespace = runCatching {
-                            k8.getResource<Namespace>(KubernetesResources.namespaces.withName("app-kubernetes"))
+                            k8.getResource(
+                                Namespace.serializer(),
+                                KubernetesResources.namespaces.withName("app-kubernetes")
+                            )
                         }.isSuccess
 
                         if (!hasNamespace) break

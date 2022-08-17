@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.CallDescriptionContainer
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.service.ScriptMetadata
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class ScriptsStartRequestItem(val scriptId: String)
@@ -29,11 +30,11 @@ data class ScriptsBrowseRequest(
 object Scripts : CallDescriptionContainer("scripts") {
     const val baseContext = "/api/scripts"
 
-    val browse = call<ScriptsBrowseRequest, PageV2<ScriptInfo>, CommonErrorMessage>("browse") {
+    val browse = call("browse", ScriptsBrowseRequest.serializer(), PageV2.serializer(ScriptInfo.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, roles = Roles.PRIVILEGED)
     }
 
-    val start = call<BulkRequest<ScriptsStartRequestItem>, Unit, CommonErrorMessage>("start") {
+    val start = call("start", BulkRequest.serializer(ScriptsStartRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "start", roles = Roles.PRIVILEGED)
     }
 }

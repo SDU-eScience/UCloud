@@ -361,7 +361,7 @@ interface CopyToClipboard {
  */
 export function copyToClipboard({value, message}: CopyToClipboard): void {
     navigator.clipboard.writeText(value ?? "");
-    snackbarStore.addSuccess(message, true);
+    snackbarStore.addSuccess(message, false);
 }
 
 export function errorMessageOrDefault(
@@ -472,59 +472,6 @@ export function getUserThemePreference(): "light" | "dark" {
     // options: dark, light and no-preference
     if (window.matchMedia("(prefers-color-scheme: dark)").matches) return "dark";
     return "light";
-}
-
-/**
- * Used when a user clicks a notification to handle what happens based on the notification type.
- * @param history used for redirection in some cases.
- * @param setProject used for setting the active project for some cases.
- * @param notification the notification that is being handled.
- * @param projectNames existing project names, used to map id to shown project name.
- * @param markAsRead used to mark the notification as read.
- */
-export function onNotificationAction(
-    history: History,
-    setProject: (projectId: string) => void,
-    notification: Notification,
-    projectNames: ProjectName[],
-    markAsRead: (id: number) => void
-): void {
-    const currentProject = getStoredProject();
-    switch (notification.type) {
-        case "APP_COMPLETE":
-            history.push(`/applications/results/${notification.meta.jobId}`);
-            break;
-        case "SHARE_REQUEST":
-            history.push("/shares");
-            break;
-        case "REVIEW_PROJECT":
-        case "PROJECT_INVITE":
-            history.push("/projects/");
-            break;
-        case "NEW_GRANT_APPLICATION":
-        case "COMMENT_GRANT_APPLICATION":
-        case "GRANT_APPLICATION_RESPONSE":
-        case "GRANT_APPLICATION_UPDATED": {
-            const {meta} = notification;
-            history.push(`/project/grants/view/${meta.appId}`);
-            break;
-        }
-        case "PROJECT_ROLE_CHANGE": {
-            const {projectId} = notification.meta;
-            if (currentProject !== projectId) {
-                setProject(projectId);
-                const projectName = projectNames.find(it => it.projectId === projectId)?.title ?? projectId;
-                snackbarStore.addInformation(`${projectName} is now active.`, false);
-            }
-            history.push("/project/members");
-            break;
-        }
-        default:
-            console.warn("unhandled");
-            console.warn(notification);
-            break;
-    }
-    markAsRead(notification.id);
 }
 
 function b64DecodeUnicode(str) {

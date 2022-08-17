@@ -172,7 +172,7 @@ object Transactions : CallDescriptionContainer("accounting.transactions") {
         )
     }
 
-    val browse = call<TransactionsBrowseRequest, PageV2<Transaction>, CommonErrorMessage>("browse") {
+    val browse = call("browse", TransactionsBrowseRequest.serializer(), PageV2.serializer(Transaction.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext)
     }
 }

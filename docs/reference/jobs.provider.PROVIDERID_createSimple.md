@@ -95,6 +95,7 @@ JobsProvider.create.call(
             ), 
             replicas = 1, 
             resources = null, 
+            restartOnExit = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -102,6 +103,7 @@ JobsProvider.create.call(
             ), 
         ), 
         status = JobStatus(
+            allowRestart = false, 
             expiresAt = null, 
             jobParametersJson = null, 
             resolvedApplication = Application(
@@ -298,8 +300,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.RUNNING, 
@@ -323,8 +327,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
@@ -432,7 +438,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "minutes": 0,
                         "seconds": 0
                     },
-                    "openedFile": null
+                    "openedFile": null,
+                    "restartOnExit": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -621,7 +628,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "chargeType": "ABSOLUTE",
                         "hiddenInGrantApplications": false,
                         "productType": "COMPUTE"
-                    }
+                    },
+                    "allowRestart": false
                 },
                 "createdAt": 1633329776235,
                 "output": null,
@@ -662,6 +670,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -691,6 +701,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -798,7 +810,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -987,7 +1000,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "chargeType": "ABSOLUTE",
                     "hiddenInGrantApplications": false,
                     "productType": "COMPUTE"
-                }
+                },
+                "allowRestart": false
             },
             "createdAt": 1633329776235,
             "output": null,
@@ -1024,6 +1038,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }
@@ -1049,6 +1065,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }

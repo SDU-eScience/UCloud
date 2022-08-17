@@ -3,6 +3,8 @@ package dk.sdu.cloud.app.store.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.encodeToJsonElement
 
 @Serializable
@@ -501,7 +503,7 @@ ${ApiConventions.nonConformingApiWarning}
         )
     }
 
-    val toggleFavorite = call<FavoriteRequest, Unit, CommonErrorMessage>("toggleFavorite") {
+    val toggleFavorite = call("toggleFavorite", FavoriteRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -522,8 +524,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val retrieveFavorites =
-        call<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("retrieveFavorites") {
+    val retrieveFavorites = call("retrieveFavorites", PaginationRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -547,7 +548,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val searchTags = call<TagSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchTags") {
+    val searchTags = call("searchTags", TagSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -574,7 +575,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val searchApps = call<AppSearchRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("searchApps") {
+    val searchApps = call("searchApps", AppSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -600,8 +601,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findByName =
-        call<FindByNameAndPagination, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("findByName") {
+    val findByName = call("findByName", FindByNameAndPagination.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.AUTHENTICATED
                 access = AccessRight.READ
@@ -625,8 +625,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val isPublic =
-        call<IsPublicRequest, IsPublicResponse, CommonErrorMessage>("isPublic") {
+    val isPublic = call("isPublic", IsPublicRequest.serializer(), IsPublicResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ
@@ -651,9 +650,9 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val setPublic = call<SetPublicRequest, Unit, CommonErrorMessage>("setPublic")  {
+    val setPublic = call("setPublic", SetPublicRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ_WRITE
         }
 
@@ -675,7 +674,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val advancedSearch = call<AdvancedSearchRequest, Page<ApplicationSummaryWithFavorite>,CommonErrorMessage>("advancedSearch") {
+    val advancedSearch = call("advancedSearch", AdvancedSearchRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()),CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -699,10 +698,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findByNameAndVersion = call<
-            FindApplicationAndOptionalDependencies,
-            ApplicationWithFavoriteAndTags,
-            CommonErrorMessage>("findByNameAndVersion") {
+    val findByNameAndVersion = call("findByNameAndVersion", FindApplicationAndOptionalDependencies.serializer(), ApplicationWithFavoriteAndTags.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -725,10 +721,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val hasPermission = call<
-            HasPermissionRequest,
-            Boolean,
-            CommonErrorMessage>("hasPermission") {
+    val hasPermission = call("hasPermission", HasPermissionRequest.serializer(), Boolean.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -754,10 +747,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val listAcl = call<
-            ListAclRequest,
-            List<DetailedEntityWithPermission>,
-            CommonErrorMessage>("listAcl") {
+    val listAcl = call("listAcl", ListAclRequest.serializer(), ListSerializer(DetailedEntityWithPermission.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ
@@ -779,9 +769,9 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val updateAcl = call<UpdateAclRequest, Unit, CommonErrorMessage>("updateAcl") {
+    val updateAcl = call("updateAcl", UpdateAclRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ_WRITE
         }
 
@@ -801,8 +791,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val findBySupportedFileExtension =
-        call<FindBySupportedFileExtension, PageV2<ApplicationWithExtension>, CommonErrorMessage>("findBySupportedFileExtension") {
+    val findBySupportedFileExtension = call("findBySupportedFileExtension", FindBySupportedFileExtension.serializer(), PageV2.serializer(ApplicationWithExtension.serializer()), CommonErrorMessage.serializer()) {
             auth {
                 access = AccessRight.READ
             }
@@ -825,9 +814,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val findLatestByTool = call<FindLatestByToolRequest, FindLatestByToolResponse, CommonErrorMessage>(
-        "findLatestByTool"
-    ) {
+    val findLatestByTool = call("findLatestByTool", FindLatestByToolRequest.serializer(), Page.serializer(Application.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -851,7 +838,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val listAll = call<PaginationRequest, Page<ApplicationSummaryWithFavorite>, CommonErrorMessage>("listAll") {
+    val listAll = call("listAll", PaginationRequest.serializer(), Page.serializer(ApplicationSummaryWithFavorite.serializer()), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.AUTHENTICATED
             access = AccessRight.READ
@@ -874,9 +861,9 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val create = call<Unit, Unit, CommonErrorMessage>("create") {
+    val create = call("create", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
-            roles = Roles.PRIVILEGED
+            roles = setOf(Role.ADMIN, Role.SERVICE, Role.PROVIDER)
             access = AccessRight.READ
         }
 
@@ -891,7 +878,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val delete = call<DeleteAppRequest, DeleteAppResponse, CommonErrorMessage>("delete") {
+    val delete = call("delete", DeleteAppRequest.serializer(), DeleteAppResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.ADMIN
             access = AccessRight.READ_WRITE
@@ -912,7 +899,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val createTag = call<CreateTagsRequest, Unit, CommonErrorMessage>("createTag") {
+    val createTag = call("createTag", CreateTagsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -934,7 +921,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val removeTag = call<DeleteTagsRequest, Unit, CommonErrorMessage>("removeTag") {
+    val removeTag = call("removeTag", DeleteTagsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PRIVILEGED
             access = AccessRight.READ_WRITE
@@ -956,8 +943,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val uploadLogo =
-        call<UploadApplicationLogoRequest, UploadApplicationLogoResponse, CommonErrorMessage>("uploadLogo") {
+    val uploadLogo = call("uploadLogo", UploadApplicationLogoRequest.serializer(), UploadApplicationLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
@@ -987,8 +973,7 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val clearLogo =
-        call<ClearLogoRequest, ClearLogoResponse, CommonErrorMessage>("clearLogo") {
+    val clearLogo = call("clearLogo", ClearLogoRequest.serializer(), ClearLogoResponse.serializer(), CommonErrorMessage.serializer()) {
             auth {
                 roles = Roles.PRIVILEGED
                 access = AccessRight.READ_WRITE
@@ -1011,7 +996,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
 
-    val fetchLogo = call<FetchLogoRequest, FetchLogoResponse, CommonErrorMessage>("fetchLogo") {
+    val fetchLogo = call("fetchLogo", FetchLogoRequest.serializer(), FetchLogoResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ
             roles = Roles.PUBLIC

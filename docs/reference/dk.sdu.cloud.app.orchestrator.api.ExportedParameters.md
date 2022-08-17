@@ -11,6 +11,7 @@
 data class ExportedParameters(
     val siteVersion: Int,
     val request: ExportedParametersRequest,
+    val resolvedResources: ExportedParameters.Resources?,
     val machineType: JsonObject,
 )
 ```
@@ -34,6 +35,17 @@ data class ExportedParameters(
 <details>
 <summary>
 <code>request</code>: <code><code><a href='#exportedparametersrequest'>ExportedParametersRequest</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>resolvedResources</code>: <code><code><a href='#exportedparameters.resources'>ExportedParameters.Resources</a>?</code></code>
 </summary>
 
 

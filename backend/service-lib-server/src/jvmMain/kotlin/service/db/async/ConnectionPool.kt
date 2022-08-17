@@ -9,7 +9,6 @@ import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.AtomicInteger
-import dk.sdu.cloud.calls.server.jobIdOrNull
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.micro.DatabaseConfig
 import dk.sdu.cloud.micro.Micro
@@ -153,7 +152,7 @@ class AsyncDBSessionFactory(
 
         debug?.sendMessage(
             DebugMessage.DatabaseConnection(
-                session.context,
+                DebugContext.createWithParent(session.context.id),
                 isOpen = false
             )
         )
@@ -163,7 +162,7 @@ class AsyncDBSessionFactory(
         session.sendQuery("commit")
         debug?.sendMessage(
             DebugMessage.DatabaseTransaction(
-                session.context,
+                DebugContext.createWithParent(session.context.id),
                 DebugMessage.DBTransactionEvent.COMMIT
             )
         )
@@ -174,7 +173,7 @@ class AsyncDBSessionFactory(
     }
 
     override suspend fun openSession(): AsyncDBConnection {
-        val context = DebugContext.Job(baseId + sessionId.getAndIncrement(), parentContextId())
+        val context = DebugContext.create()
         val result = AsyncDBConnection(
             pool.take().await().asSuspending as SuspendingConnectionImpl,
             context,
@@ -193,7 +192,7 @@ class AsyncDBSessionFactory(
         session.sendQuery("rollback")
         debug?.sendMessage(
             DebugMessage.DatabaseTransaction(
-                session.context,
+                DebugContext.createWithParent(session.context.id),
                 DebugMessage.DBTransactionEvent.ROLLBACK
             )
         )
@@ -202,7 +201,7 @@ class AsyncDBSessionFactory(
     override suspend fun openTransaction(session: AsyncDBConnection, transactionMode: TransactionMode?) {
         debug?.sendMessage(
             DebugMessage.DatabaseTransaction(
-                session.context,
+                DebugContext.createWithParent(session.context.id),
                 DebugMessage.DBTransactionEvent.OPEN
             )
         )
@@ -227,9 +226,6 @@ class AsyncDBSessionFactory(
 
     companion object : Loggable {
         override val log = logger()
-
-        val baseId = "DB-"
-        private val sessionId = AtomicInteger(0)
         private val setJitOff = AtomicBoolean(true)
     }
 }

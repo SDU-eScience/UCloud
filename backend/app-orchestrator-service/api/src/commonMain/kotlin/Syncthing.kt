@@ -1,9 +1,9 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import dk.sdu.cloud.calls.typeOfIfPossible
 import dk.sdu.cloud.provider.api.Permission
 import kotlinx.serialization.*
 import kotlinx.serialization.builtins.serializer
-import kotlin.reflect.typeOf
 
 @Serializable
 data class SyncthingConfig(
@@ -31,12 +31,12 @@ data class SyncthingConfig(
 }
 
 object Syncthing : IntegratedApplicationApi<SyncthingConfig>("syncthing") {
-    override val configType = typeOf<SyncthingConfig>()
+    override val configType = typeOfIfPossible<SyncthingConfig>()
     override val configSerializer = SyncthingConfig.serializer()
 }
 
 class SyncthingProvider(provider: String) : IntegratedApplicationProviderApi<SyncthingConfig>("syncthing", provider) {
-    override val configType = typeOf<SyncthingConfig>()
+    override val configType = typeOfIfPossible<SyncthingConfig>()
     override val configSerializer = SyncthingConfig.serializer()
 }
 

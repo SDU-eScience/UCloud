@@ -85,7 +85,7 @@ Icon.defaultProps = {
 export const EveryIcon = (): JSX.Element => (
     <>
         {Object.keys(icons).map((it: IconName, i: number) =>
-            (<span key={i}><span>{it}</span>: <Icon name={it} key={i} /></span>)
+            (<span key={i}><span>{it}</span>: <Icon name={it} key={i} color="iconColor" color2="iconColor2" /></span>)
         )}
     </>
 );

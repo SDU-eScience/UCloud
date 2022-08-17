@@ -104,13 +104,11 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
         """.trimIndent()
     }
 
-    val retrieveUsage = call<VisualizationRetrieveUsageRequest, VisualizationRetrieveUsageResponse,
-            CommonErrorMessage>("retrieveUsage") {
+    val retrieveUsage = call("retrieveUsage", VisualizationRetrieveUsageRequest.serializer(), VisualizationRetrieveUsageResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "usage")
     }
 
-    val retrieveBreakdown = call<VisualizationRetrieveBreakdownRequest, VisualizationRetrieveBreakdownResponse,
-            CommonErrorMessage>("retrieveBreakdown") {
+    val retrieveBreakdown = call("retrieveBreakdown", VisualizationRetrieveBreakdownRequest.serializer(), VisualizationRetrieveBreakdownResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "breakdown")
     }
 }

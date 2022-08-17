@@ -22,6 +22,9 @@ export const HighlightedCard: React.FunctionComponent<{
     onClick?: () => void;
     onContextMenu?: (e: React.MouseEvent) => void;
     className?: string;
+    highlightSize?: string;
+    innerPaddingX?: string;
+    innerPaddingY?: string;
 }> = ({
     title,
     subtitle,
@@ -36,7 +39,10 @@ export const HighlightedCard: React.FunctionComponent<{
     width = "100%",
     minWidth,
     onContextMenu,
-    className
+    className,
+    highlightSize = "5px",
+    innerPaddingX = "16px",
+    innerPaddingY = "4px",
 }) => (
         <Card
             onClick={onClick}
@@ -51,8 +57,8 @@ export const HighlightedCard: React.FunctionComponent<{
             onContextMenu={onContextMenu}
             className={className}
         >
-            <Box style={{borderTop: `5px solid var(--${color}, #f00)`}} />
-            <Box px={3} py={1} height={"calc(100% - 5px)"}>
+            <Box style={{borderTop: `${highlightSize} solid var(--${color}, #f00)`}} />
+            <Box px={innerPaddingX} py={innerPaddingY} height={"calc(100% - 5px)"}>
                 <Flex alignItems="center">
                     {icon !== undefined ? (
                         <Icon

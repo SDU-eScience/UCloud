@@ -6,12 +6,9 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.*
-import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
-import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 @Serializable
 data class ProviderProducts<Support : ProductSupport>(
@@ -65,9 +62,9 @@ abstract class ResourceProviderApi<
             requestType = ResourceInitializationRequest.serializer(),
             successType = Unit.serializer(),
             errorType =  CommonErrorMessage.serializer(),
-            requestClass = typeOf<ResourceInitializationRequest>(),
-            successClass = typeOf<Unit>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<ResourceInitializationRequest>(),
+            successClass = typeOfIfPossible<Unit>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
 
@@ -80,9 +77,9 @@ abstract class ResourceProviderApi<
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = BulkResponse.serializer(FindByStringId.serializer().nullable),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<Res>>(),
-            successClass = typeOf<BulkResponse<FindByStringId>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<Res>>(),
+            successClass = typeOfIfPossible<BulkResponse<FindByStringId>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     open val delete: CallDescription<BulkRequest<Res>, BulkResponse<Unit?>, CommonErrorMessage>?
@@ -94,9 +91,9 @@ abstract class ResourceProviderApi<
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = BulkResponse.serializer(Unit.serializer().nullable),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<Res>>(),
-            successClass = typeOf<BulkResponse<Unit?>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<Res>>(),
+            successClass = typeOfIfPossible<BulkResponse<Unit?>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val verify: CallDescription<BulkRequest<Res>, Unit, CommonErrorMessage>
@@ -118,16 +115,16 @@ abstract class ResourceProviderApi<
             requestType = BulkRequest.serializer(typeInfo.resSerializer),
             successType = Unit.serializer(),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<Res>>(),
-            successClass = typeOf<Unit>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<Res>>(),
+            successClass = typeOfIfPossible<Unit>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val retrieveProducts: CallDescription<Unit, BulkResponse<Support>, CommonErrorMessage>
         get() = call(
             name = "retrieveProducts",
             handler = {
-                httpRetrieve(Unit.serializer(), typeOf<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
+                httpRetrieve(Unit.serializer(), typeOfIfPossible<Unit>(), baseContext, "products", roles = Roles.PRIVILEGED)
 
                 documentation {
                     summary = "Retrieve product support for this providers"
@@ -142,9 +139,9 @@ abstract class ResourceProviderApi<
             requestType = Unit.serializer(),
             successType = BulkResponse.serializer(typeInfo.supportSerializer),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<Unit>(),
-            successClass = typeOf<BulkResponse<Support>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<Unit>(),
+            successClass = typeOfIfPossible<BulkResponse<Support>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 
     val updateAcl: CallDescription<BulkRequest<UpdatedAclWithResource<Res>>, BulkResponse<Unit?>, CommonErrorMessage>
@@ -171,8 +168,8 @@ abstract class ResourceProviderApi<
             requestType = BulkRequest.serializer(UpdatedAclWithResource.serializer(typeInfo.resSerializer)),
             successType = BulkResponse.serializer(Unit.serializer().nullable),
             errorType = CommonErrorMessage.serializer(),
-            requestClass = typeOf<BulkRequest<UpdatedAclWithResource<Res>>>(),
-            successClass = typeOf<BulkResponse<Unit?>>(),
-            errorClass = typeOf<CommonErrorMessage>()
+            requestClass = typeOfIfPossible<BulkRequest<UpdatedAclWithResource<Res>>>(),
+            successClass = typeOfIfPossible<BulkResponse<Unit?>>(),
+            errorClass = typeOfIfPossible<CommonErrorMessage>()
         )
 }

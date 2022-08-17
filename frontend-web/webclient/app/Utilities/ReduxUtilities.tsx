@@ -2,7 +2,6 @@ import dashboard from "@/Dashboard/Redux/DashboardReducer";
 import {initObject} from "@/DefaultObjects";
 import header, {CONTEXT_SWITCH, USER_LOGIN, USER_LOGOUT} from "@/Navigation/Redux/HeaderReducer";
 import status from "@/Navigation/Redux/StatusReducer";
-import notifications from "@/Notifications/Redux/NotificationsReducer";
 import * as ProjectRedux from "@/Project/Redux";
 import {Action, AnyAction, combineReducers, createStore, Store} from "redux";
 import {composeWithDevTools} from "redux-devtools-extension";
@@ -35,7 +34,6 @@ export const store = configureStore(initObject(), {
     dashboard,
     header,
     status,
-    notifications,
     hookStore,
     avatar,
     loading,

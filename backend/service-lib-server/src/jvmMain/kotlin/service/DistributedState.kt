@@ -10,7 +10,6 @@ import io.lettuce.core.SetArgs
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 
 /**
  * A factory for creating [DistributedState].
@@ -75,8 +74,8 @@ class RedisDistributedStateFactory(micro: Micro) : DistributedStateFactory {
  *
  * @see DistributedState
  */
-inline fun <reified T> DistributedStateFactory.create(name: String, expiry: Long? = null): DistributedState<T> {
-    return create(serializer(), name, expiry)
+fun <T> DistributedStateFactory.create(serializer: KSerializer<T>, name: String, expiry: Long? = null): DistributedState<T> {
+    return create(serializer, name, expiry)
 }
 
 /**

@@ -2,10 +2,10 @@ package dk.sdu.cloud.service.k8
 
 import io.ktor.client.*
 import io.ktor.client.engine.cio.*
-import io.ktor.client.features.websocket.*
+import io.ktor.client.plugins.websocket.*
 import io.ktor.client.request.*
 import io.ktor.http.*
-import io.ktor.http.cio.websocket.*
+import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.*
 import kotlinx.coroutines.flow.mapNotNull
@@ -30,9 +30,10 @@ suspend fun KubernetesClient.exec(
 ) {
     val k8Client = this
     val webSocketClient = HttpClient(CIO) {
-        install(io.ktor.client.features.websocket.WebSockets)
+        install(WebSockets)
         expectSuccess = false
         engine {
+            requestTimeout = 0
             https {
                 trustManager = k8Client.conn.trustManager
             }
@@ -42,7 +43,7 @@ suspend fun KubernetesClient.exec(
     webSocketClient.webSocket(
         request = {
             this.method = HttpMethod.Get
-            val buildUrl = buildUrl(
+            val builtUrl = buildUrl(
                 resource,
                 mapOf(
                     "stdin" to stdin.toString(),
@@ -51,22 +52,14 @@ suspend fun KubernetesClient.exec(
                     "stderr" to stderr.toString(),
                 ),
                 "exec"
-            )
+            ).replace("https://", "wss://").replace("http://", "ws://")
+
             url(
-                buildUrl.also { println("Connecting to $it") }
+                URLBuilder(builtUrl).apply {
+                    command.forEach { parameters.append("command", it) }
+                }.build()
             )
             configureRequest(this)
-            url(url.fixedClone().let {
-                it.copy(
-                    parameters = Parameters.build {
-                        it.parameters.entries().forEach { (k, values) ->
-                            appendAll(k, values)
-                        }
-                        command.forEach { append("command", it) }
-                    },
-                    protocol = if (buildUrl.startsWith("https://")) URLProtocol.WSS else URLProtocol.WS
-                )
-            }.toString().also { println("After fix: $it") })
         },
 
         block = {

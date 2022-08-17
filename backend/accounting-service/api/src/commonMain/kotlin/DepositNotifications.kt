@@ -11,6 +11,7 @@ import dk.sdu.cloud.calls.documentation
 import dk.sdu.cloud.calls.httpRetrieve
 import dk.sdu.cloud.calls.httpUpdate
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class DepositNotification(
@@ -31,7 +32,7 @@ data class DepositNotificationsMarkAsReadRequestItem(
 object DepositNotifications : CallDescriptionContainer("accounting.depositnotifications") {
     const val baseContext = "/api/accounting/depositNotifications"
 
-    val retrieve = call<Unit, DepositNotificationsRetrieveResponse, CommonErrorMessage>("retrieve") {
+    val retrieve = call("retrieve", Unit.serializer(), BulkResponse.serializer(DepositNotification.serializer()), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.PROVIDER)
 
         documentation {
@@ -47,7 +48,7 @@ object DepositNotifications : CallDescriptionContainer("accounting.depositnotifi
         }
     }
 
-    val markAsRead = call<BulkRequest<DepositNotificationsMarkAsReadRequestItem>, Unit, CommonErrorMessage>("markAsRead") {
+    val markAsRead = call("markAsRead", BulkRequest.serializer(DepositNotificationsMarkAsReadRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "markAsRead", roles = Roles.PROVIDER)
 
         documentation {
@@ -61,7 +62,7 @@ open class DepositNotificationsProvider(
 ) : CallDescriptionContainer("accounting.depositnotifications.provider.$provider") {
     val baseContext = "/ucloud/$provider/depositNotifications"
 
-    val pullRequest = call<Unit, Unit, CommonErrorMessage>("pullRequest") {
+    val pullRequest = call("pullRequest", Unit.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "pullRequest", roles = Roles.SERVICE)
 
         documentation {

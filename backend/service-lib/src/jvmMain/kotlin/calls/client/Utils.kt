@@ -6,6 +6,7 @@ import io.ktor.util.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.core.*
 
+@OptIn(InternalAPI::class)
 fun AuthenticatedClient.withHttpBody(
     contentType: ContentType,
     contentLength: Long?,
@@ -17,7 +18,6 @@ fun AuthenticatedClient.withHttpBody(
             call.builder.body = object : OutgoingContent.ReadChannelContent() {
                 override val contentType: ContentType = contentType
                 override val contentLength: Long? = contentLength
-                @OptIn(ExperimentalIoApi::class, KtorExperimentalAPI::class)
                 override fun readFrom(): ByteReadChannel = channel
             }
         }

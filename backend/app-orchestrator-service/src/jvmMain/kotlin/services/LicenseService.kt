@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.parameterList
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
-import kotlinx.serialization.serializer
 
 class LicenseService(
     projectCache: ProjectCache,
@@ -31,8 +30,8 @@ class LicenseService(
     override val defaultSortColumn: SqlObject.Column = SqlObject.Column(table, "resource")
     override val currentStateColumn: SqlObject.Column = SqlObject.Column(table, "current_state")
     override val statusBoundToColumn: SqlObject.Column = SqlObject.Column(table, "status_bound_to")
-    override val serializer = serializer<License>()
-    override val updateSerializer = serializer<LicenseUpdate>()
+    override val serializer = License.serializer()
+    override val updateSerializer = LicenseUpdate.serializer()
     override val productArea = ProductArea.LICENSE
 
     override fun bindsExclusively(): Boolean = false

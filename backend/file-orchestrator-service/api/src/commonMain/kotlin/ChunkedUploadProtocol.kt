@@ -6,6 +6,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.CallDescriptionContainer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class ChunkedUploadProtocolUploadChunkRequest(
@@ -16,8 +17,7 @@ data class ChunkedUploadProtocolUploadChunkRequest(
 typealias ChunkedUploadProtocolUploadChunkResponse = Unit
 
 class ChunkedUploadProtocol(namespace: String, val endpoint: String) : CallDescriptionContainer(namespace) {
-    val uploadChunk = call<ChunkedUploadProtocolUploadChunkRequest, ChunkedUploadProtocolUploadChunkResponse,
-        CommonErrorMessage>("uploadChunk") {
+    val uploadChunk = call("uploadChunk", ChunkedUploadProtocolUploadChunkRequest.serializer(), ChunkedUploadProtocolUploadChunkResponse.serializer(), CommonErrorMessage.serializer()) {
         auth {
             access = AccessRight.READ_WRITE
             roles = Roles.PUBLIC

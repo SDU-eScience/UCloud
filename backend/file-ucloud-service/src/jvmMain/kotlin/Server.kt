@@ -2,11 +2,7 @@ package dk.sdu.cloud.file.ucloud
 
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
-import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.calls.client.call
-import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.debug.DebugSystemFeature
 import dk.sdu.cloud.file.ucloud.rpc.FileCollectionsController
 import dk.sdu.cloud.file.ucloud.rpc.FilesController
@@ -16,10 +12,8 @@ import dk.sdu.cloud.file.ucloud.services.tasks.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import java.io.File
-import java.util.concurrent.atomic.AtomicLong
 
 class Server(
     override val micro: Micro,

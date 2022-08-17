@@ -49,4 +49,4 @@ fun SecurityPrincipal.toActor(): Actor.User = Actor.User(this)
 fun SecurityPrincipal?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 fun SecurityPrincipalToken?.toActorOrGuest(): Actor = this?.toActor() ?: Actor.guest
 
-data class ActorAndProject(val actor: Actor, val project: String?)
+data class ActorAndProject(val actor: Actor, val project: String?, val signedIntentFromUser: String? = null)

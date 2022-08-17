@@ -4,8 +4,8 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlin.native.concurrent.ThreadLocal
-import kotlin.reflect.typeOf
 
 @Deprecated("Replace with ProductType", ReplaceWith("ProductType"))
 typealias ProductArea = ProductType
@@ -192,6 +192,7 @@ sealed class Product : DocVisualizable {
                 }
             }
 
+            ProductPriceUnit.CREDITS_PER_UNIT,
             ProductPriceUnit.CREDITS_PER_MINUTE,
             ProductPriceUnit.CREDITS_PER_HOUR,
             ProductPriceUnit.CREDITS_PER_DAY -> {
@@ -744,7 +745,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         )
     }
 
-    val create = call<BulkRequest<Product>, Unit, CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(Product.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, roles = setOf(Role.SERVICE, Role.ADMIN, Role.PROVIDER))
 
         documentation {
@@ -769,7 +770,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         }
     }
 
-    val retrieve = call<ProductsRetrieveRequest, Product, CommonErrorMessage>("retrieve") {
+    val retrieve = call("retrieve", ProductsRetrieveRequest.serializer(), Product.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.AUTHENTICATED)
 
         documentation {
@@ -778,7 +779,7 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         }
     }
 
-    val browse = call<ProductsBrowseRequest, ProductsBrowseResponse, CommonErrorMessage>(
+    val browse = call(
         "browse",
         {
             httpBrowse(baseContext, roles = Roles.PUBLIC)
@@ -794,8 +795,8 @@ __Table:__ ✅ Correct implementation of prices in UCloud ✅
         ProductsBrowseRequest.serializer(),
         PageV2.serializer(Product.serializer()),
         CommonErrorMessage.serializer(),
-        typeOf<ProductsBrowseRequest>(),
-        typeOf<ProductsBrowseResponse>(),
-        typeOf<CommonErrorMessage>()
+        typeOfIfPossible<ProductsBrowseRequest>(),
+        typeOfIfPossible<ProductsBrowseResponse>(),
+        typeOfIfPossible<CommonErrorMessage>()
     )
 }

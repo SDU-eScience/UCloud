@@ -4,6 +4,7 @@ import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 typealias ProjectRole = dk.sdu.cloud.project.api.ProjectRole
 
@@ -138,90 +139,90 @@ object Projects : CallDescriptionContainer("projects.v2") {
     const val groupMemberResource = "groupMembers"
 
     // Project management
-    val retrieve = call<ProjectsRetrieveRequest, Project, CommonErrorMessage>("retrieve") {
+    val retrieve = call("retrieve", ProjectsRetrieveRequest.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
     }
 
-    val browse = call<ProjectsBrowseRequest, PageV2<Project>, CommonErrorMessage>("browse") {
+    val browse = call("browse", ProjectsBrowseRequest.serializer(), PageV2.serializer(Project.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
     }
 
-    val create = call<ProjectsCreateRequest, BulkResponse<FindByStringId>, CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(Project.Specification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext)
     }
 
-    val archive = call<ProjectsArchiveRequest, Unit, CommonErrorMessage>("archive") {
+    val archive = call("archive", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "archive")
     }
 
-    val unarchive = call<ProjectsUnarchiveRequest, Unit, CommonErrorMessage>("unarchive") {
+    val unarchive = call("unarchive", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "unarchive")
     }
 
-    val toggleFavorite = call<ProjectsToggleFavoriteRequest, Unit, CommonErrorMessage>("toggleFavorite") {
+    val toggleFavorite = call("toggleFavorite", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "toggleFavorite")
     }
 
-    val updateSettings = call<ProjectsUpdateSettingsRequest, Unit, CommonErrorMessage>("updateSettings") {
+    val updateSettings = call("updateSettings", ProjectsUpdateSettingsRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "updateSettings")
     }
 
     // TODO Rename
     // TODO verification status
 
-    val verifyMembership = call<ProjectsVerifyMembershipRequest, Unit, CommonErrorMessage>("verifyMembership") {
+    val verifyMembership = call("verifyMembership", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "verifyMembership")
     }
 
     // Invitations
-    val browseInvites = call<ProjectsBrowseInvitesRequest, PageV2<ProjectInvite>, CommonErrorMessage>("browseInvites") {
+    val browseInvites = call("browseInvites", ProjectsBrowseInvitesRequest.serializer(), PageV2.serializer(ProjectInvite.serializer()), CommonErrorMessage.serializer()) {
         httpBrowse(baseContext, inviteResource)
     }
 
-    val createInvite = call<ProjectsCreateInviteRequest, Unit, CommonErrorMessage>("createInvite") {
+    val createInvite = call("createInvite", BulkRequest.serializer(ProjectsCreateInviteRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, inviteResource)
     }
 
-    val acceptInvite = call<ProjectsAcceptInviteRequest, Unit, CommonErrorMessage>("acceptInvite") {
+    val acceptInvite = call("acceptInvite", BulkRequest.serializer(FindByProjectId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "acceptInvite")
     }
 
-    val deleteInvite = call<ProjectsDeleteInviteRequest, Unit, CommonErrorMessage>("deleteInvite") {
+    val deleteInvite = call("deleteInvite", BulkRequest.serializer(ProjectsDeleteInviteRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteInvite")
     }
 
     // Member management
-    val deleteMember = call<ProjectsDeleteMemberRequest, Unit, CommonErrorMessage>("deleteMember") {
+    val deleteMember = call("deleteMember", BulkRequest.serializer(ProjectsDeleteMemberRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteMember")
     }
 
-    val changeRole = call<ProjectsChangeRoleRequest, Unit, CommonErrorMessage>("changeRole") {
+    val changeRole = call("changeRole", BulkRequest.serializer(ProjectsChangeRoleRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "changeRole")
     }
 
     // Group management
-    val retrieveGroup = call<ProjectsRetrieveGroupRequest, Group, CommonErrorMessage>("retrieveGroup") {
+    val retrieveGroup = call("retrieveGroup", ProjectsRetrieveGroupRequest.serializer(), Group.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, groupResource, roles = Roles.END_USER + Roles.PROVIDER)
     }
 
-    val createGroup = call<ProjectsCreateGroupRequest, BulkResponse<FindByStringId>, CommonErrorMessage>("createGroup") {
+    val createGroup = call("createGroup", BulkRequest.serializer(Group.Specification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, groupResource)
     }
 
-    val renameGroup = call<ProjectsRenameGroupRequest, Unit, CommonErrorMessage>("renameGroup") {
+    val renameGroup = call("renameGroup", BulkRequest.serializer(ProjectsRenameGroupRequestItem.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "renameGroup")
     }
 
-    val deleteGroup = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("deleteGroup") {
+    val deleteGroup = call("deleteGroup", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteGroup")
     }
 
     // Group member management
-    val createGroupMember = call<ProjectsCreateGroupMemberRequest, Unit, CommonErrorMessage>("createGroupMember") {
+    val createGroupMember = call("createGroupMember", BulkRequest.serializer(GroupMember.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext, groupMemberResource)
     }
 
-    val deleteGroupMember = call<ProjectsDeleteGroupMemberRequest, Unit, CommonErrorMessage>("deleteGroupMember") {
+    val deleteGroupMember = call("deleteGroupMember", BulkRequest.serializer(GroupMember.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteGroupMember")
     }
 }

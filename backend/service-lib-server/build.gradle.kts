@@ -13,7 +13,6 @@ repositories {
 
 kotlin {
     val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.6.2-native-mm-eap-196"
     val jasyncVersion = "1.1.3"
 
     jvm {
@@ -36,12 +35,32 @@ kotlin {
             dependencies {
                 api(project(":service-lib"))
                 api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
-                api("io.ktor:ktor-server-core:$ktorVersion")
-                api("io.ktor:ktor-server-netty:$ktorVersion")
-                api("io.ktor:ktor-server-host-common:$ktorVersion")
-                api("io.ktor:ktor-websockets:$ktorVersion")
+
+                run {
+                    val ktorVersion = "2.0.2"
+                    fun ktor(module: String) {
+                        api("io.ktor:ktor-$module:$ktorVersion")
+                    }
+
+                    ktor("client-websockets")
+                    ktor("client-cio")
+                    ktor("client-core")
+
+                    ktor("server-core")
+                    ktor("server-netty")
+                    ktor("server-websockets")
+                    ktor("server-cors")
+                    ktor("server-host-common")
+                    ktor("server-forwarded-header")
+                    ktor("server-default-headers")
+                    ktor("server-call-logging")
+                    ktor("server-caching-headers")
+
+                    ktor("websockets")
+                }
+
                 api("org.jetbrains:annotations:16.0.2")
-                api("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
+                api(kotlin("reflect"))
 
                 api("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
                 api("com.auth0:java-jwt:3.8.3")

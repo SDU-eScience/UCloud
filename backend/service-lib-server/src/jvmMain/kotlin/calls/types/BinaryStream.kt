@@ -1,15 +1,15 @@
 package dk.sdu.cloud.calls.types
 
 import dk.sdu.cloud.calls.server.HttpCall
-import io.ktor.application.call
 import io.ktor.client.statement.*
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.contentLength
 import io.ktor.http.contentType
-import io.ktor.request.contentType
-import io.ktor.request.receiveChannel
+import io.ktor.server.application.*
+import io.ktor.server.request.*
+import io.ktor.util.*
 import io.ktor.utils.io.*
 import java.nio.charset.Charset
 
@@ -34,6 +34,7 @@ sealed class BinaryStream {
     fun asIngoing(): BinaryStream.Ingoing = this as BinaryStream.Ingoing
 
     companion object {
+        @OptIn(InternalAPI::class)
         suspend fun clientIngoingBody(
             call: HttpResponse,
         ): BinaryStream {
@@ -47,9 +48,9 @@ sealed class BinaryStream {
 
         suspend fun serverIngoingBody(call: HttpCall): BinaryStream {
             return Ingoing(
-                call.call.receiveChannel(),
-                call.call.request.contentType(),
-                call.call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
+                call.ktor.call.receiveChannel(),
+                call.ktor.call.request.contentType(),
+                call.ktor.call.request.headers[HttpHeaders.ContentLength]?.toLongOrNull()
             )
         }
 

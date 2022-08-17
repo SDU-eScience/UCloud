@@ -88,7 +88,7 @@ export const ReservationParameter: React.FunctionComponent<{
                 />
                 {errors["name"] ? <TextP color={"red"}>{errors["name"]}</TextP> : null}
             </Label>
-            {toolBackend === "DOCKER" ?
+            {toolBackend === "DOCKER" || toolBackend === "NATIVE" ?
                 <>
                     <Box ml="4px" />
 
@@ -100,7 +100,7 @@ export const ReservationParameter: React.FunctionComponent<{
                             step={1}
                             min={1}
                             onBlur={recalculateCost}
-                            defaultValue={application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1}
+                            defaultValue={Math.max(1, application.invocation.tool.tool?.description?.defaultTimeAllocation?.hours ?? 1)}
                         />
                     </Label>
                 </>

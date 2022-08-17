@@ -5,6 +5,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class PasswordResetRequest(val email: String)
@@ -41,7 +42,7 @@ ${ApiConventions.nonConformingApiWarning}
     }
     val baseContext = "/api/password/reset"
 
-    val reset = call<PasswordResetRequest, Unit, CommonErrorMessage>("reset") {
+    val reset = call("reset", PasswordResetRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ
@@ -58,7 +59,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val newPassword = call<NewPasswordRequest, Unit, CommonErrorMessage>("newPassword") {
+    val newPassword = call("newPassword", NewPasswordRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
         auth {
             roles = Roles.PUBLIC
             access = AccessRight.READ_WRITE

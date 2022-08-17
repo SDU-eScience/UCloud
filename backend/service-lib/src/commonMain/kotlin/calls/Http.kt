@@ -46,13 +46,9 @@ sealed class HttpPathSegment<Request : Any> {
     ) : HttpPathSegment<Request>()
 }
 
-fun HttpPath<*>.toPath(fullyQualified: Boolean = false): String {
+fun HttpPath<*>.toPath(): String {
     val primaryPart = segments.joinToString("/") { it.toPath() }
-    return if (fullyQualified) {
-        (basePath.removeSuffix("/") + "/" + primaryPart).removeSuffix("/")
-    } else {
-        primaryPart.removeSuffix("/")
-    }
+    return (basePath.removeSuffix("/") + "/" + primaryPart).removeSuffix("/")
 }
 
 private fun <R : Any> HttpPathSegment<R>.toPath(): String = when (this) {

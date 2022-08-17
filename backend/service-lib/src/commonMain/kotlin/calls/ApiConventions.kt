@@ -6,11 +6,10 @@ import dk.sdu.cloud.*
 import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.descriptors.StructureKind
 import kotlinx.serialization.descriptors.elementNames
-import kotlinx.serialization.serializer
 import kotlin.reflect.KType
-import kotlin.reflect.typeOf
 
 object UCloudApi {
     const val RETRIEVE = "retrieve"
@@ -71,7 +70,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpCreate(
     roles: Set<Role> = Roles.END_USER,
 ) {
     httpCreate(
-        containerRef.fixedSerializer(),
+        requestType,
         baseContext,
         subResource,
         roles
@@ -85,10 +84,10 @@ private fun CallDescriptionContainer.httpCreateExample() {
 
     // NOTE: We use a separate data model which only contains the model specification (i.e. without additional
     // metadata about the resource, such as unique id)
-    data class MyResourceSpecification(val number: Int)
-    data class ResourcesCreateResponse(val ids: List<String>)
+    @Serializable data class MyResourceSpecification(val number: Int)
+    @Serializable data class ResourcesCreateResponse(val ids: List<String>)
 
-    val create = call<BulkRequest<MyResourceSpecification>, ResourcesCreateResponse, CommonErrorMessage>("create") {
+    val create = call("create", BulkRequest.serializer(MyResourceSpecification.serializer()), ResourcesCreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpCreate(baseContext)
     }
 }
@@ -117,7 +116,7 @@ private fun CallDescriptionContainer.httpCreateExample() {
 @OptIn(ExperimentalSerializationApi::class, kotlin.ExperimentalStdlibApi::class)
 fun <R : Any> CallDescription<R, *, *>.httpBrowse(
     serializer: KSerializer<R>,
-    type: KType,
+    type: KType?,
     baseContext: String,
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
@@ -135,7 +134,7 @@ fun <R : Any> CallDescription<R, *, *>.httpBrowse(
             +(UCloudApi.BROWSE + (subResource ?: "").replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() })
         }
 
-        if (type != typeOf<Unit>()) {
+        if (serializer != Unit.serializer()) {
             params {
                 for (i in 0 until serializer.descriptor.elementsCount) {
                     val name = serializer.descriptor.getElementName(i)
@@ -160,24 +159,24 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpBrowse(
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER
 ) {
-    httpBrowse(containerRef.fixedSerializer(), typeOf<R>(), baseContext, subResource, roles)
+    httpBrowse(requestType, typeOfIfPossible<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpBrowseExample() {
-    data class MyResource(val id: String, val number: Int)
+    @Serializable data class MyResource(val id: String, val number: Int)
 
     val baseContext = "/api/myresources"
 
     run {
         // Browse via the pagination v2 API
-        data class ResourcesBrowseRequest(
+        @Serializable data class ResourcesBrowseRequest(
             override val itemsPerPage: Int? = null,
             override val next: String? = null,
             override val consistency: PaginationRequestV2Consistency? = null,
             override val itemsToSkip: Long? = null,
         ) : WithPaginationRequestV2
 
-        val browse = call<ResourcesBrowseRequest, PageV2<MyResource>, CommonErrorMessage>("browse") {
+        val browse = call("browse", ResourcesBrowseRequest.serializer(), PageV2.serializer(MyResource.serializer()), CommonErrorMessage.serializer()) {
             httpBrowse(baseContext)
         }
     }
@@ -206,7 +205,7 @@ private fun CallDescriptionContainer.httpBrowseExample() {
 @OptIn(ExperimentalSerializationApi::class, kotlin.ExperimentalStdlibApi::class, kotlin.ExperimentalStdlibApi::class)
 fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
     serializer: KSerializer<R>,
-    type: KType,
+    type: KType?,
     baseContext: String,
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
@@ -224,7 +223,7 @@ fun <R : Any> CallDescription<R, *, *>.httpRetrieve(
             +"${UCloudApi.RETRIEVE}${subResource?.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() } ?: ""}"
         }
 
-        if (type != typeOf<Unit>()) {
+        if (serializer != Unit.serializer()) {
             params {
                 for (i in 0 until serializer.descriptor.elementsCount) {
                     val name = serializer.descriptor.getElementName(i)
@@ -249,26 +248,26 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpRetrieve(
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
-    httpRetrieve(containerRef.fixedSerializer<R>(), typeOf<R>(), baseContext, subResource, roles)
+    httpRetrieve(requestType, typeOfIfPossible<R>(), baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpRetrieveExample() {
-    data class MyResource(val id: String, val number: Int)
+    @Serializable data class MyResource(val id: String, val number: Int)
 
     val baseContext = "/api/myresources"
 
     run {
         // Retrieve by unique identifier
-        data class ResourcesRetrieveRequest(val id: String)
+        @Serializable data class ResourcesRetrieveRequest(val id: String)
 
-        val retrieve = call<ResourcesRetrieveRequest, MyResource, CommonErrorMessage>("retrieve") {
+        val retrieve = call("retrieve", ResourcesRetrieveRequest.serializer(), MyResource.serializer(), CommonErrorMessage.serializer()) {
             httpRetrieve(baseContext)
         }
     }
 
     run {
         // Retrieve by one or more unique parameters
-        data class ResourcesRetrieveRequest(
+        @Serializable data class ResourcesRetrieveRequest(
             val id: String? = null, // optional parameters should have a default value in Kotlin code
             val number: Int? = null,
         ) {
@@ -282,7 +281,7 @@ private fun CallDescriptionContainer.httpRetrieveExample() {
             }
         }
 
-        val retrieve = call<ResourcesRetrieveRequest, MyResource, CommonErrorMessage>("retrieve") {
+        val retrieve = call("retrieve", ResourcesRetrieveRequest.serializer(), MyResource.serializer(), CommonErrorMessage.serializer()) {
             httpRetrieve(baseContext)
         }
     }
@@ -349,17 +348,17 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpSearch(
     subResource: String? = null,
     roles: Set<Role> = Roles.END_USER,
 ) {
-    httpSearch(serializer<R>(), baseContext, subResource, roles)
+    httpSearch(requestType, baseContext, subResource, roles)
 }
 
 private fun CallDescriptionContainer.httpSearchExample() {
-    data class MyResource(val id: String, val number: Int)
+    @Serializable data class MyResource(val id: String, val number: Int)
 
     val baseContext = "/api/myresources"
 
     run {
         // Search via the pagination v2 API
-        data class ResourcesSearchRequest(
+        @Serializable data class ResourcesSearchRequest(
             // Note: if next != null then the service is allowed to assume that your search criteria hasn't changed
             // since last query.
             val query: String,
@@ -369,7 +368,7 @@ private fun CallDescriptionContainer.httpSearchExample() {
             override val itemsToSkip: Long? = null,
         ) : WithPaginationRequestV2
 
-        val search = call<ResourcesSearchRequest, PageV2<MyResource>, CommonErrorMessage>("search") {
+        val search = call("search", ResourcesSearchRequest.serializer(), PageV2.serializer(MyResource.serializer()), CommonErrorMessage.serializer()) {
             httpSearch(baseContext)
         }
     }
@@ -436,7 +435,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpUpdate(
     operation: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
-    httpUpdate(containerRef.fixedSerializer(), baseContext, operation, roles)
+    httpUpdate(requestType, baseContext, operation, roles)
 }
 
 private fun CallDescriptionContainer.httpUpdateExample() {
@@ -444,12 +443,10 @@ private fun CallDescriptionContainer.httpUpdateExample() {
 
     val baseContext = "/api/myresources"
 
-    data class ResourcesIncrementRequestItem(val incrementStep: Int = 1)
-    data class ResourcesCreateResponse(val ids: List<String>)
+    @Serializable data class ResourcesIncrementRequestItem(val incrementStep: Int = 1)
+    @Serializable data class ResourcesCreateResponse(val ids: List<String>)
 
-    val increment = call<BulkRequest<ResourcesIncrementRequestItem>, ResourcesCreateResponse, CommonErrorMessage>(
-        "increment"
-    ) {
+    val increment = call("increment", BulkRequest.serializer(ResourcesIncrementRequestItem.serializer()), ResourcesCreateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "increment")
     }
 }
@@ -504,7 +501,7 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpDelete(
     baseContext: String,
     roles: Set<Role> = Roles.END_USER,
 ) {
-    httpDelete(containerRef.fixedSerializer(), baseContext, roles)
+    httpDelete(requestType, baseContext, roles)
 }
 
 private fun CallDescriptionContainer.httpDeleteExample() {
@@ -512,7 +509,7 @@ private fun CallDescriptionContainer.httpDeleteExample() {
 
     val baseContext = "/api/myresources"
 
-    val delete = call<BulkRequest<FindByStringId>, Unit, CommonErrorMessage>("delete") {
+    val delete = call("delete", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpDelete(baseContext)
     }
 }
@@ -562,13 +559,13 @@ inline fun <reified R : Any> CallDescription<R, *, *>.httpVerify(
 }
 
 private fun CallDescriptionContainer.httpVerifyExample() {
-    data class MyResource(val id: String, val number: Int)
+    @Serializable data class MyResource(val id: String, val number: Int)
 
     val baseContext = "/api/myresources"
 
     // Note: We send the entire resource in the request to make sure both sides have enough information to verify
     // that state is in-sync.
-    val verify = call<BulkRequest<MyResource>, Unit, CommonErrorMessage>("verify") {
+    val verify = call("verify", BulkRequest.serializer(MyResource.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpVerify(baseContext)
     }
 }

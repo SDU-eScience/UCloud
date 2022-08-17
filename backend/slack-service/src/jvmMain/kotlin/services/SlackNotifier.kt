@@ -12,14 +12,14 @@ import dk.sdu.cloud.slack.api.Ticket
 import io.ktor.client.HttpClient
 import io.ktor.client.call.receive
 import io.ktor.client.engine.cio.FailToConnectException
-import io.ktor.client.request.request
-import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.response
+import io.ktor.client.request.*
+import io.ktor.client.statement.*
 import io.ktor.content.TextContent
 import io.ktor.http.*
-import io.ktor.util.KtorExperimentalAPI
+import io.ktor.util.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import java.net.ConnectException
 
 @Serializable
 private data class SlackMessage(val text: String)
@@ -105,7 +105,6 @@ The following message was attached:
         attemptSend(message)
     }
 
-    @OptIn(KtorExperimentalAPI::class)
     private suspend fun attemptSend(message: String) {
         log.debug("Attempting to send notification:\n${message}")
 
@@ -116,16 +115,16 @@ The following message was attached:
                 throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
             }
             val postResult = try {
-                httpClient.request<HttpResponse>(hook) {
+                httpClient.request(hook) {
                     method = HttpMethod.Post
-                    body = TextContent(
+                    setBody(TextContent(
                         defaultMapper.encodeToString(SlackMessage(message)),
                         ContentType.Application.Json
-                    )
+                    ))
                 }
             } catch (ex: Exception) {
                 when (ex) {
-                    is java.net.ConnectException -> {
+                    is ConnectException -> {
                         log.debug("Java.net.Connect Exception caught : ${ex.message}")
 
                     }
@@ -135,10 +134,10 @@ The following message was attached:
                 }
                 continue
             }
-            val status = postResult.response.status
+            val status = postResult.status
             if (!status.isSuccess()) {
                 log.warn("unsuccessful message from slack ($status)")
-                runCatching { log.warn(postResult.receive()) }
+                runCatching { log.warn(postResult.bodyAsText()) }
                 throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
             }
             return

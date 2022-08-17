@@ -1,8 +1,6 @@
 package dk.sdu.cloud.calls
 
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.Serializer
 
 class WebSocketRequest<R : Any, S : Any, E : Any> internal constructor(
     val context: CallDescription<R, S, E>,
@@ -46,7 +44,8 @@ data class WSRequest<T>(
     val payload: T,
     val bearer: String? = null,
     val causedBy: String? = null,
-    val project: String? = null
+    val project: String? = null,
+    val signedIntent: String? = null,
 ) {
     companion object {
         val CALL_FIELD = WSRequest<*>::call.name

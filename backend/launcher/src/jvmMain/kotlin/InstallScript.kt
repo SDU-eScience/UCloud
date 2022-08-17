@@ -7,19 +7,16 @@ import dk.sdu.cloud.service.db.withTransaction
 import dk.sdu.cloud.service.escapeHtml
 import dk.sdu.cloud.service.findValidHostname
 import dk.sdu.cloud.service.k8.*
-import io.ktor.application.*
 import io.ktor.http.*
-import io.ktor.request.*
-import io.ktor.response.*
-import io.ktor.routing.*
+import io.ktor.server.application.*
 import io.ktor.server.engine.*
 import io.ktor.server.netty.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
+import io.ktor.server.routing.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import org.w3c.dom.Document
-import org.w3c.dom.Element
-import javax.xml.parsers.DocumentBuilderFactory
 import java.io.*
 import java.nio.file.Files
 import kotlin.system.exitProcess
@@ -46,7 +43,7 @@ const val installerFile = "installing.yaml"
 fun runInstaller(configDir: File) {
     var step = InstallStep.INIT
 
-    suspend fun Application.checkDatabaseConfig(): Boolean {
+    suspend fun checkDatabaseConfig(): Boolean {
         val dbConfig = retrieveDatabaseConfig()
 
         val db = AsyncDBSessionFactory(dbConfig)
@@ -59,7 +56,7 @@ fun runInstaller(configDir: File) {
             }
         } catch (ex: Throwable) {
             errorMessage = "Could not connect to postgresql (${ex.javaClass.simpleName} ${ex.message})"
-            log.warn(ex.stackTraceToString())
+            ex.printStackTrace()
         } finally {
             db.close()
         }

@@ -3,6 +3,7 @@ package dk.sdu.cloud.service.db.async
 import com.github.jasync.sql.db.QueryResult
 import dk.sdu.cloud.debug.DebugContext
 import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -154,11 +155,7 @@ class EnhancedPreparedStatement(
         release: Boolean = false,
         tagName: String = "Untitled query"
     ): QueryResult {
-        val context = DebugContext.Job(
-            session.context.id + "-" + queryCounter.getAndIncrement(),
-            session.context.id,
-            -1
-        )
+        val context = DebugContext.createWithParent(session.context.id)
 
         val start = Time.now()
         session.debug?.sendMessage(
@@ -213,7 +210,23 @@ class EnhancedPreparedStatement(
                 }
             }
         }
-        session.debug?.sendMessage(DebugMessage.DatabaseResponse(context))
+
+        session.debug?.sendMessage(
+            DebugMessage.DatabaseResponse(
+                DebugContext.createWithParent(context.id),
+                end - start,
+                when {
+                    end - start >= 300 ->
+                        MessageImportance.THIS_IS_WRONG
+
+                    end - start >= 150 ->
+                        MessageImportance.THIS_IS_ODD
+
+                    else ->
+                        MessageImportance.THIS_IS_NORMAL
+                },
+            )
+        )
         return response
     }
 

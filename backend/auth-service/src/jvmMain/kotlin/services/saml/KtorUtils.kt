@@ -2,13 +2,11 @@ package dk.sdu.cloud.auth.services.saml
 
 import com.onelogin.saml2.http.HttpRequest
 import com.onelogin.saml2.util.Util
-import io.ktor.application.ApplicationCall
-import io.ktor.features.origin
 import io.ktor.http.Parameters
-import io.ktor.request.port
-import io.ktor.request.queryString
-import io.ktor.request.uri
-import io.ktor.response.respondRedirect
+import io.ktor.server.application.*
+import io.ktor.server.plugins.*
+import io.ktor.server.request.*
+import io.ktor.server.response.*
 import java.io.IOException
 
 private const val NORMAL_PORT_1 = 80

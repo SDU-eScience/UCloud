@@ -13,7 +13,6 @@ import dk.sdu.cloud.service.db.async.AsyncDBConnection
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 
 class IngressService(
     projectCache: ProjectCache,
@@ -32,8 +31,8 @@ class IngressService(
     override val currentStateColumn = SqlObject.Column(table, "current_state")
     override val statusBoundToColumn = SqlObject.Column(table, "status_bound_to")
     override val productArea: ProductArea = ProductArea.INGRESS
-    override val serializer: KSerializer<Ingress> = serializer()
-    override val updateSerializer: KSerializer<IngressUpdate> = serializer()
+    override val serializer: KSerializer<Ingress> = Ingress.serializer()
+    override val updateSerializer: KSerializer<IngressUpdate> = IngressUpdate.serializer()
     override val browseStrategy: ResourceBrowseStrategy = ResourceBrowseStrategy.NEW
 
     override fun boundUpdate(binding: JobBinding): IngressUpdate = IngressUpdate(binding = binding)

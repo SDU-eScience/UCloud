@@ -4,12 +4,8 @@ services:
     environment:
       - SLURM_CONF=/etc/slurm/slurm.conf
       - DATA_MOUNT=/data
-    build:
-      context: ./provider-integration/integration-module
-      target: ucloud-im
     init: true
-    # image: dreg.cloud.sdu.dk/ucloud/ucloud-dev:2021.2.0-storage2
-    image: ucloud-im
+    image: dreg.cloud.sdu.dk/ucloud-dev/integration-module:2022.2.0
     volumes:
       - imKonan:/root/.konan
       - imGradle:/root/.gradle
@@ -20,6 +16,8 @@ services:
       - slurm_jobdir:/data
       - ${PWD}/.compose/passwd:/mnt/passwd
       - ${PWD}/.compose/cluster-home:/home
+      - ${PWD}/.compose/im-config:/etc/ucloud
+      - ucloudLogs:/var/log/ucloud
     volumes_from:
       - slurmdbd:ro
     command:

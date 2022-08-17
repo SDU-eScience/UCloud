@@ -12,5 +12,5 @@ data class ProxyEvent(
 )
 
 object ProxyEvents : EventStreamContainer() {
-    val events = stream<ProxyEvent>("appk8-proxy", { it.id })
+    val events = stream(ProxyEvent.serializer(), "appk8-proxy", { it.id })
 }

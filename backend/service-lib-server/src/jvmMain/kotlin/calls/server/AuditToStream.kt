@@ -13,13 +13,12 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.ServiceInstance
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.TokenValidation
-import io.ktor.application.call
 import io.ktor.http.HttpHeaders
-import io.ktor.request.header
+import io.ktor.server.application.*
+import io.ktor.server.request.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
-import kotlinx.serialization.serializer
 
 private typealias HttpEventProducer = EventProducer<HttpCallLogEntry>
 private typealias AuditProducer = EventProducer<AuditEvent<*>>
@@ -90,7 +89,8 @@ class AuditToEventStream(
                 context: IngoingCall,
                 call: CallDescription<*, *, *>,
                 request: Any?,
-                result: OutgoingCallResponse<*, *>
+                result: OutgoingCallResponse<*, *>,
+                responseTimeMs: Long
             ) {
                 val auditDescription = call.auditOrNull
                 val auditData = context.audit
@@ -101,7 +101,7 @@ class AuditToEventStream(
 
                 val bearerToken = context.bearer
                 val requestContentLength =
-                    (context as? HttpCall)?.call?.request?.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
+                    (context as? HttpCall)?.ktor?.call?.request?.header(HttpHeaders.ContentLength)?.toLongOrNull() ?: 0
                 val causedBy = context.causedBy
                 val remoteOrigin = context.remoteHost
                 val userAgent = context.userAgent
@@ -157,7 +157,7 @@ class AuditToEventStream(
     companion object : Loggable {
         override val log = logger()
 
-        private val httpLogsStream = JsonEventStream<HttpCallLogEntry>("http.logs", serializer(), { it.jobId })
+        private val httpLogsStream = JsonEventStream("http.logs", HttpCallLogEntry.serializer(), { it.jobId })
     }
 }
 

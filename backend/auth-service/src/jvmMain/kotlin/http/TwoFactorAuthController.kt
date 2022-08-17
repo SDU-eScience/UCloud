@@ -10,10 +10,9 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.securityPrincipal
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.Loggable
-import io.ktor.application.ApplicationCall
-import io.ktor.application.call
 import io.ktor.http.HttpStatusCode
-import io.ktor.response.respond
+import io.ktor.server.application.*
+import io.ktor.server.response.*
 
 class TwoFactorAuthController(
     private val twoFactorChallengeService: TwoFactorChallengeService,

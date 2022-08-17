@@ -1,30 +1,23 @@
 package dk.sdu.cloud.service.test
 
-import com.fasterxml.jackson.module.kotlin.readValue
 import dk.sdu.cloud.SecurityPrincipal
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.server.JobId
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.service.CommonServer
-import dk.sdu.cloud.service.Controller
-import dk.sdu.cloud.service.configureControllers
-import io.ktor.application.Application
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpMethod
 import io.ktor.http.HttpStatusCode
 import io.ktor.http.encodeURLParameter
 import io.ktor.http.isSuccess
-import io.ktor.server.engine.*
+import io.ktor.server.application.*
 import io.ktor.server.testing.TestApplicationCall
 import io.ktor.server.testing.TestApplicationEngine
 import io.ktor.server.testing.TestApplicationRequest
 import io.ktor.server.testing.setBody
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
-import org.apache.logging.log4j.core.config.*
 import java.util.*
-import java.util.concurrent.TimeUnit
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -105,7 +98,6 @@ inline fun <reified RequestType : Any> TestApplicationCall.parseSuccessful(): Re
 }
 
 fun TestApplicationCall.assertHandled() {
-    assert(requestHandled)
     assertNotNull(this.response)
 }
 

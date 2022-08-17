@@ -17,40 +17,13 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.SimpleDuration
 import dk.sdu.cloud.app.store.api.exampleBatchApplication
-import dk.sdu.cloud.calls.BulkRequest
-import dk.sdu.cloud.calls.BulkResponse
-import dk.sdu.cloud.calls.CALL_REF
-import dk.sdu.cloud.calls.ExperimentalLevel
-import dk.sdu.cloud.calls.ProviderApiRequirements
-import dk.sdu.cloud.calls.TYPE_REF
-import dk.sdu.cloud.calls.TYPE_REF_LINK
-import dk.sdu.cloud.calls.UCloudApiDoc
-import dk.sdu.cloud.calls.UCloudApiExampleValue
-import dk.sdu.cloud.calls.UCloudApiExperimental
-import dk.sdu.cloud.calls.auth
-import dk.sdu.cloud.calls.bulkRequestOf
-import dk.sdu.cloud.calls.call
-import dk.sdu.cloud.calls.comment
-import dk.sdu.cloud.calls.description
-import dk.sdu.cloud.calls.documentProviderCall
-import dk.sdu.cloud.calls.documentation
-import dk.sdu.cloud.calls.httpRetrieve
-import dk.sdu.cloud.calls.httpUpdate
-import dk.sdu.cloud.calls.provider
-import dk.sdu.cloud.calls.providerDescription
-import dk.sdu.cloud.calls.serializerEntry
-import dk.sdu.cloud.calls.serializerLookupTable
-import dk.sdu.cloud.calls.success
-import dk.sdu.cloud.calls.title
-import dk.sdu.cloud.calls.ucloudCore
-import dk.sdu.cloud.calls.useCase
-import dk.sdu.cloud.calls.websocket
+import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
-import kotlin.reflect.typeOf
+import kotlinx.serialization.builtins.serializer
 
 typealias JobsProviderExtendRequest = BulkRequest<JobsProviderExtendRequestItem>
 typealias JobsProviderExtendResponse = BulkResponse<Unit?>
@@ -202,44 +175,86 @@ data class ComputeSupport(
 
     @UCloudApiDoc("Support for `Tool`s using the `VIRTUAL_MACHINE` backend")
     val virtualMachine: VirtualMachine = VirtualMachine(),
+
+    @UCloudApiDoc("Support for `Tool`s using the `NATIVE` backend")
+    val native: Native = Native(),
 ) : ProductSupport {
+    interface UniversalBackendSupport {
+        var enabled: Boolean?
+        var vnc: Boolean?
+        var logs: Boolean?
+        var terminal: Boolean?
+        var timeExtension: Boolean?
+        var utilization: Boolean?
+    }
+
+    interface WithPeers {
+        var peers: Boolean?
+    }
+
+    interface WithWeb {
+        var web: Boolean?
+    }
+
+    interface WithSuspension {
+        var suspension: Boolean?
+    }
+
     @Serializable
     data class Docker(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean? = null,
+        override var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
-        var web: Boolean? = null,
+        override var web: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive interface of `VNC` `Application`s")
-        var vnc: Boolean? = null,
+        override var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean? = null,
+        override var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean? = null,
+        override var terminal: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable connection between peering `Job`s")
-        var peers: Boolean? = null,
+        override var peers: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
-        var timeExtension: Boolean? = null,
+        override var timeExtension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
-        var utilization: Boolean? = null,
-    )
+        override var utilization: Boolean? = null,
+    ) : UniversalBackendSupport, WithPeers, WithWeb
 
     @Serializable
     data class VirtualMachine(
         @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
-        var enabled: Boolean? = null,
+        override var enabled: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the log API")
-        var logs: Boolean? = null,
+        override var logs: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the VNC API")
-        var vnc: Boolean? = null,
+        override var vnc: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
-        var terminal: Boolean? = null,
+        override var terminal: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable extension of jobs")
-        var timeExtension: Boolean? = null,
+        override var timeExtension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable suspension of jobs")
-        var suspension: Boolean? = null,
+        override var suspension: Boolean? = null,
         @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
-        var utilization: Boolean? = null,
-    )
+        override var utilization: Boolean? = null,
+    ) : UniversalBackendSupport, WithSuspension
+
+    @Serializable
+    data class Native(
+        @UCloudApiDoc("Flag to enable/disable this feature\n\nAll other flags are ignored if this is `false`.")
+        override var enabled: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the log API")
+        override var logs: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the VNC API")
+        override var vnc: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the interactive terminal API")
+        override var terminal: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable extension of jobs")
+        override var timeExtension: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the retrieveUtilization of jobs")
+        override var utilization: Boolean? = null,
+        @UCloudApiDoc("Flag to enable/disable the interactive interface of `WEB` `Application`s")
+        override var web: Boolean? = null,
+    ) : UniversalBackendSupport, WithWeb
 }
 
 @Serializable
@@ -257,19 +272,19 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
     @OptIn(ExperimentalStdlibApi::class)
     override val typeInfo = ResourceTypeInfo(
         Job.serializer(),
-        typeOf<Job>(),
+        typeOfIfPossible<Job>(),
         JobSpecification.serializer(),
-        typeOf<JobSpecification>(),
+        typeOfIfPossible<JobSpecification>(),
         JobUpdate.serializer(),
-        typeOf<JobUpdate>(),
+        typeOfIfPossible<JobUpdate>(),
         JobIncludeFlags.serializer(),
-        typeOf<JobIncludeFlags>(),
+        typeOfIfPossible<JobIncludeFlags>(),
         JobStatus.serializer(),
-        typeOf<JobStatus>(),
+        typeOfIfPossible<JobStatus>(),
         ComputeSupport.serializer(),
-        typeOf<ComputeSupport>(),
+        typeOfIfPossible<ComputeSupport>(),
         Product.Compute.serializer(),
-        typeOf<Product.Compute>(),
+        typeOfIfPossible<Product.Compute>(),
     )
 
     init {
@@ -830,7 +845,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
             )
     }
 
-    val extend = call<JobsProviderExtendRequest, JobsProviderExtendResponse, CommonErrorMessage>("extend") {
+    val extend = call("extend", BulkRequest.serializer(JobsProviderExtendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "extend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -846,7 +861,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val terminate = call<BulkRequest<Job>, BulkResponse<Unit?>, CommonErrorMessage>("terminate") {
+    val terminate = call("terminate", BulkRequest.serializer(Job.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "terminate", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -857,7 +872,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val suspend = call<JobsProviderSuspendRequest, JobsProviderSuspendResponse, CommonErrorMessage>("suspend") {
+    val suspend = call("suspend", BulkRequest.serializer(JobsProviderSuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "suspend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -872,7 +887,7 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         }
     }
 
-    val unsuspend = call<JobsProviderUnsuspendRequest, JobsProviderUnsuspendResponse, CommonErrorMessage>("unsuspend") {
+    val unsuspend = call("unsuspend", BulkRequest.serializer(JobsProviderUnsuspendRequestItem.serializer()), BulkResponse.serializer(Unit.serializer().nullable), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "unsuspend", roles = Roles.PRIVILEGED)
 
         documentation {
@@ -912,9 +927,9 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         JobsProviderFollowRequest.serializer(),
         JobsProviderFollowResponse.serializer(),
         CommonErrorMessage.serializer(),
-        typeOf<JobsProviderFollowRequest>(),
-        typeOf<JobsProviderFollowResponse>(),
-        typeOf<CommonErrorMessage>(),
+        typeOfIfPossible<JobsProviderFollowRequest>(),
+        typeOfIfPossible<JobsProviderFollowResponse>(),
+        typeOfIfPossible<CommonErrorMessage>(),
     )
 
     val openInteractiveSession = call(
@@ -940,13 +955,12 @@ open class JobsProvider(provider: String) : ResourceProviderApi<Job, JobSpecific
         BulkRequest.serializer(JobsProviderOpenInteractiveSessionRequestItem.serializer()),
         BulkResponse.serializer(OpenSession.serializer().nullable),
         CommonErrorMessage.serializer(),
-        typeOf<JobsProviderOpenInteractiveSessionRequest>(),
-        typeOf<JobsProviderOpenInteractiveSessionResponse>(),
-        typeOf<CommonErrorMessage>(),
+        typeOfIfPossible<JobsProviderOpenInteractiveSessionRequest>(),
+        typeOfIfPossible<JobsProviderOpenInteractiveSessionResponse>(),
+        typeOfIfPossible<CommonErrorMessage>(),
     )
 
-    val retrieveUtilization = call<JobsProviderUtilizationRequest, JobsProviderUtilizationResponse,
-            CommonErrorMessage>("retrieveUtilization") {
+    val retrieveUtilization = call("retrieveUtilization", JobsProviderUtilizationRequest.serializer(), JobsProviderUtilizationResponse.serializer(), CommonErrorMessage.serializer()) {
         httpRetrieve(baseContext, "utilization", roles = Roles.PRIVILEGED)
 
         documentation {

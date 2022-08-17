@@ -15,6 +15,8 @@ import dk.sdu.cloud.service.DistributedStateFactory
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.NormalizedPaginationRequestV2
 import dk.sdu.cloud.service.create
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -120,7 +122,7 @@ class FileQueries(
         var foundFiles: List<InternalFile>? = null
 
         if (next != null) {
-            val initialState = distributedStateFactory.create<List<String>>(next)
+            val initialState = distributedStateFactory.create(ListSerializer(String.serializer()), next)
             foundFiles = initialState.get()?.map { InternalFile(it) }
         }
 
@@ -214,7 +216,7 @@ class FileQueries(
             val nextId = sessionIdCounter.getAndIncrement()
             val newToken = "${i}_${cachedFilesPrefix}${nextId}"
 
-            val state = distributedStateFactory.create<List<String>>(newToken, DIR_CACHE_EXPIRATION)
+            val state = distributedStateFactory.create(ListSerializer(String.serializer()), newToken, DIR_CACHE_EXPIRATION)
             state.set(foundFiles.map { it.path })
 
             newToken
