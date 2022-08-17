@@ -16,6 +16,7 @@ import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.provider.api.Permission
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.*
 import java.util.*
 
@@ -325,8 +326,11 @@ class SyncthingService(
     }
 
     private fun SyncthingConfig.Folder.normalize(): SyncthingConfig.Folder {
+        val path = runBlocking {
+            pathConverter.ucloudToRelative(UCloudFile.create(ucloudPath)).path
+        }
         return copy(
-            path = "/work/${ucloudPath.fileName()}",
+            path = "/work/${path.normalize().fileName()}",
             id = if (id != "") id else UUID.randomUUID().toString()
         )
     }
