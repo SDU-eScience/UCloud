@@ -3,8 +3,8 @@ package dk.sdu.cloud.accounting.services.grants
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.Configuration
 import dk.sdu.cloud.accounting.api.grants.RetrieveTemplatesResponse
+import dk.sdu.cloud.accounting.api.grants.Templates
 import dk.sdu.cloud.accounting.api.grants.UploadTemplatesRequest
-import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.grant.api.GrantApplication
@@ -27,17 +27,18 @@ class GrantTemplateService(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("projectId", actorAndProject.project)
-                    when (template.form) {
-                        is GrantApplication.Form.PlainText -> {
-                            val form = template.form as GrantApplication.Form.PlainText
-                            setParameter("personalProject", form.personalProject)
-                            setParameter("existingProject", form.existingProject)
-                            setParameter("newProject", form.newProject)
+                    when (template) {
+                        is Templates.PlainText -> {
+                            setParameter("personalProject", template.personalProject)
+                            setParameter("existingProject", template.existingProject)
+                            setParameter("newProject", template.newProject)
                         }
-                        else -> throw RPCException.fromStatusCode(
-                            HttpStatusCode.BadRequest,
-                            "Missing expected form format"
-                        )
+                        else -> {
+                            throw RPCException.fromStatusCode(
+                                HttpStatusCode.BadRequest,
+                                "Missing expected form format"
+                            )
+                        }
                     }
                 },
 
@@ -106,13 +107,11 @@ class GrantTemplateService(
                             )
                         )
                 """
-            ).rows.map { RetrieveTemplatesResponse(
-                GrantApplication.Form.PlainText(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!))
+            ).rows.map {
+                Templates.PlainText(it.getString(0)!!, it.getString(1)!!, it.getString(2)!!)
             }.singleOrNull()
                 ?:
-                RetrieveTemplatesResponse(
-                    GrantApplication.Form.PlainText(config.defaultTemplate, config.defaultTemplate, config.defaultTemplate)
-                )
+                    Templates.PlainText(config.defaultTemplate, config.defaultTemplate, config.defaultTemplate)
         }
     }
 }

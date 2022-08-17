@@ -80,15 +80,27 @@ export interface Document {
     parentProjectId: string | null;
 }
 
-export type Form =
-    {type: "existing_project", plain_text: string;} |
-    {type: "new_project", plain_text: string;} |
-    {type: "personal_workspace", plain_text: string;};
+type Form = PersonalWorkspaceForm | NewProjectForm | ExistingProjectForm;
+
+interface PersonalWorkspaceForm {
+    type: "plain_text";
+    text: string;
+}
+
+interface NewProjectForm {
+    type: "plain_text";
+    text: string;
+}
+
+interface ExistingProjectForm {
+    type: "plain_text";
+    text: string;
+}
 
 export type Recipient =
-    {type: "existing_project", id: string;} |
-    {type: "new_project", title: string;} |
-    {type: "personal_workspace", username: string;};
+    {type: "existingProject", id: string;} |
+    {type: "newProject", title: string;} |
+    {type: "personalWorkspace", username: string;};
 
 export interface AllocationRequest {
     category: string;

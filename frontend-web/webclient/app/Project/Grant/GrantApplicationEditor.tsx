@@ -18,7 +18,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiRetrieve, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     ProductCategoryId,
     ProductMetadata,
@@ -52,7 +52,6 @@ import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import * as UCloud from "@/UCloud";
-import grantApi = UCloud.grant.grant;
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {TextSpan} from "@/ui-components/Text";
@@ -82,7 +81,6 @@ import {
     FetchGrantApplicationResponse,
     editReferenceId,
     fetchProducts,
-    Form,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
@@ -99,10 +97,6 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
-        - Remove debugging code.
-        - Handle when grantGivers (or others) are empty
-      */
-/*
         - Find out of an approval can be rescinded. (Same for rejection.)
 */
 
@@ -222,8 +216,7 @@ const Wrapper = styled.div`
 function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
     // TODO(Jonas): So checking if active user is "createdBy" could work, but shouldn't admins and PIs also work for a grantApplication?
-    if (grantApplication.createdBy === Client.username) return true;
-    return false;
+    return grantApplication.createdBy === Client.username;
 }
 
 const GenericRequestCard: React.FunctionComponent<{
@@ -378,7 +371,7 @@ const GenericRequestCard: React.FunctionComponent<{
 };
 
 export async function fetchGrantApplication(request: FetchGrantApplicationRequest): Promise<FetchGrantApplicationResponse> {
-    return await callAPI<FetchGrantApplicationResponse>(apiRetrieve(request, "grant"));
+    return callAPI<FetchGrantApplicationResponse>(apiRetrieve(request, "api/grant"));
 }
 
 const AllocationBox = styled.div`
@@ -463,12 +456,12 @@ const defaultGrantApplication: GrantApplication = {
         document: {
             allocationRequests: [],
             form: {
-                type: "personal_workspace",
-                personalProject: ""
+                type: "plain_text",
+                text: ""
             },
             recipient: {
                 username: "",
-                type: "personal_workspace"
+                type: "personalWorkspace"
             },
             referenceId: "",
             revisionComment: "",
@@ -574,9 +567,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         React.useEffect(() => {
             if (appId) {
-                fetchGrantApplication({id: appId}).then(g => dispatch({
-                    type: "FETCHED_GRANT_APPLICATION", payload: g
-                }));
+                fetchGrantApplication({id: appId}).then(g =>
+                    dispatch({
+                        type: "FETCHED_GRANT_APPLICATION", payload: g
+                    })
+                );
             };
         }, [appId]);
 
@@ -648,7 +643,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
                         period: {
                             start,
-                            end
+                            end: end ?? null
                         }
                     } as AllocationRequest;
                 }).filter(it => it != null)
@@ -741,7 +736,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
                         period: {
                             start,
-                            end
+                            end: end ?? null
                         }
                     } as AllocationRequest;
                 }).filter(it => it != null)
@@ -757,7 +752,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             switch (target) {
                 case RequestTarget.EXISTING_PROJECT: {
                     recipient = {
-                        type: "existing_project",
+                        type: "existingProject",
                         id: Client.projectId ?? "", // TODO(Jonas): Is this the correct one?
                     };
                 } break;
@@ -769,13 +764,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         return;
                     }
                     recipient = {
-                        type: "new_project",
+                        type: "newProject",
                         title: newProjectTitle
                     };
                 } break;
                 case RequestTarget.PERSONAL_PROJECT: {
                     recipient = {
-                        type: "personal_workspace",
+                        type: "personalWorkspace",
                         // TODO(Jonas): Ensure that this is the correct username.
                         username: Client.username ?? "",
                     };
@@ -804,7 +799,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             const payload = bulkRequestOf({document: documentToSubmit});
 
             try {
-                const [id] = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
+                const {id} = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -1076,7 +1071,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                     text={"Reject without notify"}
                                                                                 />
                                                                             </ClickableDropdown>
-                                                                            {recipient.type !== "existing_project" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                            {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
                                                                                 <Button
                                                                                     color="blue"
                                                                                     onClick={() => setTransferringApplication(true)}
@@ -1264,19 +1259,19 @@ function GrantGiverDescription(props: {projectId: string;}): JSX.Element {
 
 function recipientTypeToText(recipient: Recipient): string {
     switch (recipient.type) {
-        case "existing_project":
+        case "existingProject":
             return "Existing Project";
-        case "new_project":
+        case "newProject":
             return "New Project";
-        case "personal_workspace":
+        case "personalWorkspace":
             return "Personal Workspace";
     }
 }
 
 function getRecipientId(recipient: Recipient): string {
-    return recipient.type === "existing_project" ? recipient.id :
-        recipient.type === "new_project" ? recipient.title :
-            recipient.type === "personal_workspace" ? recipient.username : "";
+    return recipient.type === "existingProject" ? recipient.id :
+        recipient.type === "newProject" ? recipient.title :
+            recipient.type === "personalWorkspace" ? recipient.username : "";
 }
 
 function getAllocationRequests(grantApplication: GrantApplication): AllocationRequest[] {
@@ -1603,6 +1598,10 @@ interface UpdateStateRequest {
     notify: boolean;
 }
 
+function isAnyAllocationsOfParentProject(allocations: AllocationRequest[], parentProject: string) {
+    return allocations.find(it => it.grantGiver === parentProject) != null;
+}
+
 function updateState(request: UpdateStateRequest): APICallParameters<UpdateStateRequest> {
     return apiUpdate(request, "grant", "update-state");
 }
@@ -1691,45 +1690,25 @@ async function promptRevisionComment(): Promise<string | null> {
     }
 }
 
-function toForm(request: RequestTarget, grantApplication: GrantApplication, formText: string): Form {
-    const text = formText;
-
+function toForm(request: RequestTarget, grantApplication: GrantApplication, formText: string): {type: "plain_text", text: string;} {
     switch (request) {
         case RequestTarget.EXISTING_PROJECT:
-            return {
-                type: "existing_project",
-                plain_text: text,
-            };
-        case RequestTarget.NEW_PROJECT: {
-            return {
-                type: "new_project",
-                plain_text: text,
-            };
-        }
+        case RequestTarget.NEW_PROJECT:
         case RequestTarget.PERSONAL_PROJECT: {
             return {
-                type: "personal_workspace",
-                plain_text: text,
+                type: "plain_text",
+                text: formText,
             };
         }
         case RequestTarget.VIEW_APPLICATION: {
             switch (grantApplication.currentRevision.document.recipient.type) {
-                case RequestTarget.EXISTING_PROJECT:
-                    return {
-                        type: "existing_project",
-                        plain_text: text,
-                    };
-                case RequestTarget.NEW_PROJECT: {
-                    return {
-                        type: "new_project",
-                        plain_text: text,
-                    };
-                }
-                case RequestTarget.PERSONAL_PROJECT:
+                case "existingProject":
+                case "newProject":
+                case "personalWorkspace":
                 default:
                     return {
-                        type: "personal_workspace",
-                        plain_text: text,
+                        type: "plain_text",
+                        text: formText
                     };
             }
         }
@@ -1737,14 +1716,7 @@ function toForm(request: RequestTarget, grantApplication: GrantApplication, form
 }
 
 function formTextFromGrantApplication(grantApplication: GrantApplication): string {
-    switch (grantApplication.currentRevision.document.form.type) {
-        case "existing_project":
-            return grantApplication.currentRevision.document.form.personalProject;
-        case "new_project":
-            return grantApplication.currentRevision.document.form.newProject;
-        case "personal_workspace":
-            return grantApplication.currentRevision.document.form.personalProject;
-    }
+    return grantApplication.currentRevision.document.form.text;
 }
 
 export default GrantApplicationEditor;

@@ -551,16 +551,10 @@ class GrantApplicationService(
                                 is GrantApplication.Recipient.PersonalWorkspace -> GrantApplication.Recipient.PERSONAL_TYPE
                             }
                         )
-                        val form = document.form
-                        setParameter(
-                            "form", when (form) {
-                                is GrantApplication.Form.PlainText -> when (recipient) {
-                                    is GrantApplication.Recipient.ExistingProject -> form.existingProject
-                                    is GrantApplication.Recipient.NewProject -> form.newProject
-                                    is GrantApplication.Recipient.PersonalWorkspace -> form.personalProject
-                                }
-                            }
-                        )
+                        val formText = when (val form = document.form) {
+                            is GrantApplication.Form.PlainText -> form.text
+                        }
+                        setParameter("form", formText)
                         setParameter("reference_id", document.referenceId)
                         setParameter("parent_project_id", document.parentProjectId)
                     },

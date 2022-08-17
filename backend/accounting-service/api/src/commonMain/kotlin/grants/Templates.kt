@@ -5,13 +5,27 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.Grants
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
-data class UploadTemplatesRequest(
-    val form: GrantApplication.Form
-)
+@SerialName("templates")
+sealed class Templates {
+    @Serializable
+    @SerialName("plain_text")
+    data class PlainText(
+        @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
+        val personalProject: String,
 
+        @UCloudApiDoc("The template provided for new grant applications when the grant requester is a new project")
+        val newProject: String,
+
+        @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
+        val existingProject: String
+    ) : Templates()
+}
+
+typealias UploadTemplatesRequest = Templates
 typealias UploadTemplatesResponse = Unit
 
 @Serializable

@@ -194,19 +194,9 @@ data class GrantApplication(
     @Serializable
     @SerialName("form")
     sealed class Form {
-
         @Serializable
         @SerialName("plain_text")
-        data class PlainText(
-            @UCloudApiDoc("The template provided for new grant applications when the grant requester is a personal project")
-            val personalProject: String,
-
-            @UCloudApiDoc("The template provided for new grant applications when the grant requester is a new project")
-            val newProject: String,
-
-            @UCloudApiDoc("The template provided for new grant applications when the grant requester is an existing project")
-            val existingProject: String
-        ): Form()
+        data class PlainText(val text: String): Form()
     }
     @Serializable
     @SerialName("recipient")
@@ -287,6 +277,7 @@ data class BrowseProjectsRequest(
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
+
 typealias BrowseProjectsResponse = PageV2<ProjectWithTitle>
 @Serializable
 data class ProjectWithTitle(val projectId: String, val title: String)

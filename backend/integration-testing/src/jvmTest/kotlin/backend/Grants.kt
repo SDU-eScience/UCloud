@@ -122,7 +122,7 @@ class GrantTest : IntegrationTest() {
                                 GrantApplication.Document(
                                     GrantApplication.Recipient.NewProject("Say hello to my little friend"),
                                     listOfResourcesRequests,
-                                    GrantApplication.Form.PlainText("I would like resources", "I would like resources", "I would like resources"),
+                                    GrantApplication.Form.PlainText("I would like resources"),
                                     "reference",
                                     "revision Comments",
                                     root
@@ -361,7 +361,7 @@ class GrantTest : IntegrationTest() {
                                 GrantApplication.Document(
                                     actualRecipient,
                                     requestedResources,
-                                    GrantApplication.Form.PlainText(input.initialDocument,input.initialDocument,input.initialDocument),
+                                    GrantApplication.Form.PlainText(input.initialDocument),
                                     null,
                                     "revision",
                                     createdProject
@@ -473,11 +473,7 @@ class GrantTest : IntegrationTest() {
                                     GrantApplication.Document(
                                         actualRecipient,
                                         emptyList(),
-                                        GrantApplication.Form.PlainText(
-                                            input.document,
-                                            input.document,
-                                            input.document
-                                        )
+                                        GrantApplication.Form.PlainText(input.document),
                                     )
                                 )
                             ),
@@ -492,11 +488,7 @@ class GrantTest : IntegrationTest() {
                                 GrantApplication.Document(
                                     actualRecipient,
                                     requestedResources,
-                                    GrantApplication.Form.PlainText(
-                                        "Totally wrong document which should not be updated",
-                                        "Totally wrong document which should not be updated",
-                                        "Totally wrong document which should not be updated"
-                                    ),
+                                    GrantApplication.Form.PlainText("Totally wrong document which should not be updated"),
                                     parentProjectId = createdProject
                                 )
                             )
@@ -511,11 +503,7 @@ class GrantTest : IntegrationTest() {
                                 GrantApplication.Document(
                                     actualRecipient,
                                     requestedResources.map { it.copy(balanceRequested = 1337.DKK) },
-                                    GrantApplication.Form.PlainText(
-                                        "Evil document",
-                                        "Evil document",
-                                        "Evil document"
-                                    ),
+                                    GrantApplication.Form.PlainText("Evil document"),
                                     parentProjectId = createdProject
                                 )
                             )
@@ -1042,29 +1030,28 @@ class GrantTest : IntegrationTest() {
 
                     if (!input.useDefaultTemplate) {
                         GrantTemplates.uploadTemplates.call(
-                            UploadTemplatesRequest(
-                                GrantApplication.Form.PlainText(
-                                    input.personalTemplate,
-                                    input.newTemplate,
-                                    input.existingTemplate
-                                )
+                            Templates.PlainText(
+                                input.personalTemplate,
+                                input.newTemplate,
+                                input.existingTemplate
                             ),
                             grantPi.client.withProject(createdProject)
                         ).orThrow()
                     }
                     GrantTemplates.uploadTemplates.call(
-                        UploadTemplatesRequest(GrantApplication.Form.PlainText("Evil 1", "Evil 2", "Evil 3")),
+                        Templates.PlainText("Evil 1", "Evil 2", "Evil 3"),
                         evilUser.client.withProject(createdProject)
                     ).assertUserError()
 
                     val fetchedTemplates = GrantTemplates.retrieveTemplates.call(
                         RetrieveTemplatesRequest(createdProject),
                         grantPi.client
-                    ).orThrow()
+                    ).orThrow() as Templates.PlainText
                     Out(
-                        (fetchedTemplates.form as GrantApplication.Form.PlainText).personalProject,
-                        (fetchedTemplates.form as GrantApplication.Form.PlainText).newProject,
-                        (fetchedTemplates.form as GrantApplication.Form.PlainText).existingProject)
+                        fetchedTemplates.personalProject,
+                        fetchedTemplates.newProject,
+                        fetchedTemplates.existingProject
+                    )
                 }
 
                 case("Normal data - insert template") {
