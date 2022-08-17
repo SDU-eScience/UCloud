@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory
 val webSocketClient = HttpClient(CIO) {
     install(WebSockets)
     expectSuccess = false
+
     engine {
         requestTimeout = 0
     }

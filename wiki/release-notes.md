@@ -7,6 +7,15 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 16-08-22
+
+Fix to missing home files
+```
+✅  Deployment(file-ucloud, 2022.2.3) (UP-TO-DATE)
+
+```
+
+
 ## 08-08-22
 
 Syncthing public
