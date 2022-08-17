@@ -9,6 +9,7 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import java.io.File
 import kotlin.system.exitProcess
 
 // NOTE(Dan): The ConfigSchema contains the raw schema which is parsed directly from several configuration files
@@ -397,7 +398,8 @@ data class Host(val host: String, val scheme: String, val port: Int) {
 }
 
 fun loadConfiguration(): ConfigSchema {
-    val configDir = "/etc/ucloud"
+    val potentialAltConfigDir = runCatching { File("/etc/ucloud/configdir.txt").readText().trim() }.getOrNull()
+    val configDir = potentialAltConfigDir ?: "/etc/ucloud"
     val yaml = Yaml(
         configuration = YamlConfiguration(
             polymorphismStyle = PolymorphismStyle.Property,

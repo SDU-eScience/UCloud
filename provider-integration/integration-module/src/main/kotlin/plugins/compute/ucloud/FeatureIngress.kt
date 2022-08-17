@@ -200,7 +200,7 @@ class FeatureIngress(
     }
 
     fun defaultDomainByJobIdAndRank(jobId: String, jobRank: Int): String {
-        return "${domainPrefix}$jobId-$jobRank.$domainSuffix"
+        return "${domainPrefix}$jobId-$jobRank$domainSuffix"
     }
 
     companion object : Loggable {

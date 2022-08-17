@@ -609,6 +609,7 @@ fun main(args: Array<String>) {
 
                 val empty = "" to ""
                 val stats = ArrayList<Pair<String, String>>()
+                stats.add("Provider ID" to config.core.providerId)
                 stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
