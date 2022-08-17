@@ -1,6 +1,7 @@
 package dk.sdu.cloud.micro
 
 import dk.sdu.cloud.ServiceDescription
+import dk.sdu.cloud.service.Time
 import org.apache.logging.log4j.Level
 import org.apache.logging.log4j.LogManager
 import org.apache.logging.log4j.core.LoggerContext
@@ -16,6 +17,7 @@ import org.apache.logging.log4j.core.config.builder.api.ConfigurationBuilder
 import org.apache.logging.log4j.core.config.plugins.Plugin
 import org.apache.logging.log4j.core.filter.ThresholdFilter
 import org.apache.logging.log4j.core.layout.PatternLayout
+import java.io.File
 import java.net.URI
 
 @Order(Int.MAX_VALUE)
@@ -70,13 +72,35 @@ object Log4j2ConfigFactory : ConfigurationFactory() {
                     .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
             )
 
-            add(
-                newAppender(fileLog, "MemoryMappedFile")
-                    .addAttribute("fileName", "./logs/debug.log")
-                    .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
-            )
+            var logLocation: String? = null
+            val potentialLogFileLocations = listOf("./logs", "/var/log/ucloud", "/tmp/")
+            for (loc in potentialLogFileLocations) {
+                val dir = File(loc)
+                if (!dir.exists()) {
+                    if (!dir.mkdirs()) continue
+                }
 
-            add(newRootLogger(defaultLevel).add(newAppenderRef(fileLog)).add(newAppenderRef(stdoutLog)))
+                try {
+                    val testFile = File(dir, "log_test_${Time.now()}.txt").also { it.writeText("Test") }
+                    testFile.delete()
+
+                    logLocation = loc
+                } catch (ex: Throwable) {
+                    continue
+                }
+            }
+
+            var rootLogger = newRootLogger(defaultLevel)
+            if (logLocation != null) {
+                add(
+                    newAppender(fileLog, "MemoryMappedFile")
+                        .addAttribute("fileName", File(logLocation, "debug.log").absolutePath)
+                        .add(newLayout("PatternLayout").addAttribute("pattern", pattern))
+                )
+                rootLogger = rootLogger.add(newAppenderRef(fileLog))
+            }
+            rootLogger = rootLogger.add(newAppenderRef(stdoutLog))
+            add(rootLogger)
 
             configureLogLevelForPackage("io.lettuce", Level.INFO)
             configureLogLevelForPackage("io.netty", Level.INFO)
