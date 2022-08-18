@@ -85,7 +85,7 @@ data class GrantApplication(
     val id: String,
 
     @UCloudApiDoc("Username of the user who originially submitted the application")
-    val requestedBy: String,
+    val createdBy: String,
     @UCloudApiDoc("Timestamp representing when the application was originially submitted")
     val createdAt: Long,
     @UCloudApiDoc("Timestamp representing when the application was last updated")

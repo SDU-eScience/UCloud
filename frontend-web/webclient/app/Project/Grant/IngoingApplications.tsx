@@ -3,7 +3,6 @@ import {useCallback, useEffect, useState} from "react";
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {useCloudAPI} from "@/Authentication/DataHook";
 import {
-    GrantApplication,
     GrantApplicationFilter,
     grantApplicationFilterPrettify,
     GrantApplicationStatus,
@@ -28,6 +27,7 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
+import {GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
@@ -114,24 +114,24 @@ export const GrantApplicationList: React.FunctionComponent<{
     const history = useHistory();
     const avatars = useAvatars();
     useEffect(() => {
-        avatars.updateCache(applications.map(it => it.requestedBy));
+        avatars.updateCache(applications.map(it => it.createdBy));
     }, [applications]);
     return (
         <List>
             {applications.map(app => {
                 let icon: IconName;
                 let iconColor: ThemeColor;
-                switch (app.status) {
-                    case GrantApplicationStatus.APPROVED:
+                switch (app.status.overallState) {
+                    case State.APPROVED:
                         icon = "check";
                         iconColor = "green";
                         break;
-                    case GrantApplicationStatus.CLOSED:
-                    case GrantApplicationStatus.REJECTED:
+                    case State.CLOSED:
+                    case State.REJECTED:
                         icon = "close";
                         iconColor = "red";
                         break;
-                    case GrantApplicationStatus.IN_PROGRESS:
+                    case State.IN_PROGRESS:
                         icon = "ellipsis";
                         iconColor = "black";
                         break;
@@ -143,16 +143,17 @@ export const GrantApplicationList: React.FunctionComponent<{
                     icon={
                         slim ? null : (
                             <UserAvatar
-                                avatar={avatars.cache[app.requestedBy] ?? defaultAvatar}
+                                avatar={avatars.cache[app.createdBy] ?? defaultAvatar}
                                 width={"45px"}
                             />
                         )
                     }
                     truncateWidth="230px"
+                    //TODO (HENRIK: Might need to show something else here instead of an id. This is useless)
                     left={
                         <Flex width={1}>
-                            <Truncate title={app.grantRecipientTitle}>
-                                {app.grantRecipientTitle}
+                            <Truncate title={app.id}>
+                                {app.id}
                             </Truncate>
                             {slim ? null : (
                                 <Truncate>
@@ -161,7 +162,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                                         Does it have the correct semantic meaning or should we just use
                                         <Text> with smaller font?
                                     */}
-                                    <small>{app.document}</small>
+                                    <small>{app.currentRevision.document.form.text}</small>
                                 </Truncate>
                             )}
                         </Flex>
@@ -177,10 +178,10 @@ export const GrantApplicationList: React.FunctionComponent<{
                                 {dateToString(app.updatedAt)}
                             </ListRowStat>
                             <ListRowStat
-                                icon={app.grantRecipient.type === "personal" ? "user" : "projects"}
+                                icon={(console.log(app.currentRevision.document.recipient), app.currentRevision.document.recipient.type === "personalWorkspace" ? "user" : "projects")}
                             >
-                                {app.grantRecipient.type === "personal" ? "Personal" :
-                                    app.grantRecipient.type === "new_project" ? "New project" :
+                                {app.currentRevision.document.recipient.type === "personalWorkspace" ? "Personal" :
+                                    app.currentRevision.document.recipient.type === "newProject" ? "New project" :
                                         "Existing project"}
                             </ListRowStat>
                         </>

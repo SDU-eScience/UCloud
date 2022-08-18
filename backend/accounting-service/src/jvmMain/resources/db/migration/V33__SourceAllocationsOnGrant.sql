@@ -121,9 +121,7 @@ as $$
     begin
         return jsonb_build_object(
             'type', 'plain_text',
-            'personalProject', form_in.form,
-            'newProject', form_in.form,
-            'existingProject', form_in.form
+            'text', form_in.form
         );
     end
 $$;
@@ -261,7 +259,7 @@ create or replace function "grant".application_to_json(
         'createdAt', floor(extract(epoch from resolved_application.created_at)),
         'updatedAt', floor(extract(epoch from latest_revision.created_at)),
         'currentRevision', (select result from current_revision limit 1),
-        'requestedBy', resolved_application.requested_by,
+        'createdBy', resolved_application.requested_by,
         'status', jsonb_build_object(
             'overallState', resolved_application.overall_state,
             'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(approval_status))), null),

@@ -799,7 +799,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             const payload = bulkRequestOf({document: documentToSubmit});
 
             try {
-                const {id} = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
+                const [{id}] = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -1287,6 +1287,7 @@ function overallStateText(grantApplication: GrantApplication): string {
         case State.REJECTED:
             return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
     }
+    return "Unknown"
 }
 
 function GrantGiver(props: {

@@ -395,7 +395,7 @@ class GrantTest : IntegrationTest() {
                         ).orThrow().items,
                         "has the ingoing application"
                     ) {
-                        (it.size == 1) && (it.single().requestedBy == normalUser.username) &&
+                        (it.size == 1) && (it.single().createdBy == normalUser.username) &&
                             (it.single().id == applicationId.toString())
                     }
 
@@ -412,7 +412,7 @@ class GrantTest : IntegrationTest() {
                         ).orThrow().items,
                         "has the outgoing application"
                     ) {
-                        (it.size == 1) && (it.single().requestedBy == normalUser.username) &&
+                        (it.size == 1) && (it.single().createdBy == normalUser.username) &&
                             (it.single().id == applicationId.toString())
                     }
 

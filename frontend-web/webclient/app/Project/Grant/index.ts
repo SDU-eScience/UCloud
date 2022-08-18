@@ -1,5 +1,6 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
+import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -24,17 +25,17 @@ export type GrantRecipient = GrantRecipientPersonal | GrantRecipientExisting | G
 
 export interface GrantRecipientPersonal {
     username: string;
-    type: "personal"
+    type: "personalWorkspace"
 }
 
 export interface GrantRecipientExisting {
     projectId: string;
-    type: "existing_project";
+    type: "existingProject";
 }
 
 export interface GrantRecipientNew {
     projectTitle: string;
-    type: "new_project";
+    type: "newProject";
 }
 
 export interface ResourceRequest {
@@ -66,7 +67,7 @@ export interface CreateGrantApplication {
     requestedResources: ResourceRequest[]
 }
 
-export interface GrantApplication {
+/*export interface GrantApplication {
     resourcesOwnedBy: string;
     grantRecipient: GrantRecipient;
     document: string;
@@ -81,7 +82,7 @@ export interface GrantApplication {
     createdAt: number;
     statusChangedBy?: string;
     referenceId?: string;
-}
+}*/
 
 export type SubmitGrantApplicationRequest = CreateGrantApplication;
 

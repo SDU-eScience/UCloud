@@ -5,7 +5,7 @@ import {emptyPageV2} from "@/DefaultObjects";
 import * as Heading from "@/ui-components/Heading";
 import {ListV2 as PaginationList} from "@/Pagination";
 import {MainContainer} from "@/MainContainer/MainContainer";
-import {GrantApplication, GrantApplicationFilter, grantApplicationFilterPrettify, listOutgoingApplications} from ".";
+import {GrantApplicationFilter, grantApplicationFilterPrettify, listOutgoingApplications} from ".";
 import {GrantApplicationList} from "./IngoingApplications";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
@@ -19,6 +19,7 @@ import {useEffectSkipMount} from "@/UtilityFunctions";
 import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useProjectId} from "..";
+import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
 export const FilterTrigger = styled.div`
     user-select: none;

@@ -167,7 +167,9 @@ export interface GrantGiverApprovalState {
 export enum State {
     PENDING,
     APPROVED,
-    REJECTED
+    REJECTED,
+    CLOSED,
+    IN_PROGRESS
 }
 
 export interface DeleteGrantApplicationCommentRequest {

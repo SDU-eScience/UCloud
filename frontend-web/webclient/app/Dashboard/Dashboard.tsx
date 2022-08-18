@@ -26,7 +26,6 @@ import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
 import {
-    GrantApplication,
     GrantApplicationFilter,
     IngoingGrantApplicationsResponse,
 } from "@/Project/Grant";
@@ -56,6 +55,7 @@ import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 import {useProjectId} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
 interface BrowseApplicationsRequest {
     filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
