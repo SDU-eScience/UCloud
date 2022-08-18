@@ -320,7 +320,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider} [{allocation.id}]</b></div>
                     <Box flexGrow={1} />
                 </Flex>}
-                <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
+                <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>
