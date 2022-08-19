@@ -956,7 +956,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell>
                                                         <Box>
                                                             {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
-                                                                <Text>{state.title}</Text><StateIcon state={state.state} />
+                                                                <Text>{state.projectTitle}</Text><StateIcon state={state.state} />
                                                             </Flex>)}
                                                         </Box>
                                                     </TableCell>

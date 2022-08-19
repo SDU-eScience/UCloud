@@ -160,7 +160,7 @@ export interface Status {
 
 export interface GrantGiverApprovalState {
     projectId: string;
-    title: string;
+    projectTitle: string;
     state: State;
 }
 
