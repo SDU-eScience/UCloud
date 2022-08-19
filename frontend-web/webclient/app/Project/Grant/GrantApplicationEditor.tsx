@@ -586,7 +586,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 promises.then(resolvedPromises => {
                     for (const [index, promise] of resolvedPromises.entries()) {
                         if (promise.status === "fulfilled") {
-                            approvers[grantApplication.status.stateBreakdown[index].id] = (
+                            approvers[grantApplication.status.stateBreakdown[index].projectId] = (
                                 promise.value != null && [ProjectRole.ADMIN, ProjectRole.PI].includes(promise.value.whoami.role)
                             );
                         }
@@ -912,6 +912,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient]);
 
         const recipient = getDocument(grantApplication).recipient;
+        const recipientName = useRecipientName(getDocument(grantApplication).recipient);
 
         return (
             <MainContainer
@@ -955,7 +956,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell>Application Approver(s)</TableCell>
                                                     <TableCell>
                                                         <Box>
-                                                            {grantApplication.status.stateBreakdown.map(state => <Flex key={state.id}>
+                                                            {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
                                                                 <Text>{state.title}</Text><StateIcon state={state.state} />
                                                             </Flex>)}
                                                         </Box>
@@ -963,7 +964,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Project Title</TableCell>
-                                                    <TableCell>{getRecipientId(getDocument(grantApplication).recipient)}</TableCell>
+                                                    <TableCell>{recipientName}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
@@ -1119,7 +1120,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                             {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
                             {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.id).includes(it.projectId)).map(grantGiver => <>
+                                grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.projectId).includes(it.projectId)).map(grantGiver => <>
                                     <GrantGiver
                                         key={grantGiver.projectId}
                                         isApprover={approverMap[grantGiver.projectId]}
@@ -1268,6 +1269,21 @@ function recipientTypeToText(recipient: Recipient): string {
     }
 }
 
+function useRecipientName(recipient: Recipient): string {
+    const [recipientName, setName] = useState(
+        recipient.type === "existingProject" ? recipient.id :
+            recipient.type === "newProject" ? recipient.title :
+                recipient.type === "personalWorkspace" ? recipient.username : ""
+    );
+    const [, invokeCommand] = useCloudCommand();
+    useEffect(() => {
+        if (recipient.type === "existingProject") {
+            invokeCommand(viewProject({id: recipient.id})).then(r => setName(r.title)).catch(e => setName(""));
+        }
+    }, [recipient]);
+    return recipientName;
+}
+
 function getRecipientId(recipient: Recipient): string {
     return recipient.type === "existingProject" ? recipient.id :
         recipient.type === "newProject" ? recipient.title :
@@ -1287,7 +1303,7 @@ function overallStateText(grantApplication: GrantApplication): string {
         case State.REJECTED:
             return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
     }
-    return "Unknown"
+    return "Unknown";
 }
 
 function GrantGiver(props: {
