@@ -178,7 +178,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                             )}
 
                             <ListRowStat icon={"edit"}>
-                                {dateToString(app.updatedAt * 1000)}
+                                {dateToString(app.updatedAt)}
                             </ListRowStat>
                             <ListRowStat
                                 icon={(console.log(app.currentRevision.document.recipient), app.currentRevision.document.recipient.type === "personalWorkspace" ? "user" : "projects")}

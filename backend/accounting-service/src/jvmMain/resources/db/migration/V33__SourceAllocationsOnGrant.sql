@@ -256,8 +256,8 @@ create or replace function "grant".application_to_json(
     )
     select jsonb_build_object(
         'id', resolved_application.id,
-        'createdAt', floor(extract(epoch from resolved_application.created_at)),
-        'updatedAt', floor(extract(epoch from latest_revision.created_at)),
+        'createdAt', (floor(extract(epoch from resolved_application.created_at) * 1000)),
+        'updatedAt', (floor(extract(epoch from latest_revision.created_at)  * 1000)),
         'currentRevision', (select result from current_revision limit 1),
         'createdBy', resolved_application.requested_by,
         'status', jsonb_build_object(
