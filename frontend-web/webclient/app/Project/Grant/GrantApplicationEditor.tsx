@@ -911,6 +911,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient]);
 
         const recipient = getDocument(grantApplication).recipient;
+        const recipientName = useRecipientName(getDocument(grantApplication).recipient);
 
         return (
             <MainContainer
@@ -962,7 +963,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Project Title</TableCell>
-                                                    <TableCell>{getRecipientId(getDocument(grantApplication).recipient)}</TableCell>
+                                                    <TableCell>{recipientName}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
@@ -1265,6 +1266,21 @@ function recipientTypeToText(recipient: Recipient): string {
         case "personalWorkspace":
             return "Personal Workspace";
     }
+}
+
+function useRecipientName(recipient: Recipient): string {
+    const [recipientName, setName] = useState(
+        recipient.type === "existingProject" ? recipient.id :
+            recipient.type === "newProject" ? recipient.title :
+                recipient.type === "personalWorkspace" ? recipient.username : ""
+    );
+    const [, invokeCommand] = useCloudCommand();
+    useEffect(() => {
+        if (recipient.type === "existingProject") {
+            invokeCommand(viewProject({id: recipient.id})).then(r => setName(r.title)).catch(e => setName(""));
+        }
+    }, [recipient]);
+    return recipientName;
 }
 
 function getRecipientId(recipient: Recipient): string {
