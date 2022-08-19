@@ -470,7 +470,7 @@ const defaultGrantApplication: GrantApplication = {
     },
     id: "0",
     status: {
-        overallState: State.PENDING,
+        overallState: State.IN_PROGRESS,
         comments: [],
         revisions: [],
         stateBreakdown: []
@@ -1218,13 +1218,14 @@ function StateIcon({state}: {state: State;}) {
             icon = "check";
             color = "green";
             break;
-        case State.PENDING:
-            icon = "ellipsis";
-            color = "blue";
-            break;
+        case State.CLOSED:
         case State.REJECTED:
             icon = "close";
             color = "red";
+            break;
+        case State.IN_PROGRESS:
+            icon = "ellipsis";
+            color = "blue";
             break;
     }
     return <Icon ml="8px" name={icon} color={color} />;
@@ -1296,14 +1297,15 @@ function getAllocationRequests(grantApplication: GrantApplication): AllocationRe
 
 function overallStateText(grantApplication: GrantApplication): string {
     switch (grantApplication.status.overallState) {
-        case State.PENDING:
+        case State.IN_PROGRESS:
             return "In progress";
+        case State.CLOSED:
+            return "Closed";
         case State.APPROVED:
             return grantApplication.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.currentRevision.updatedBy;
         case State.REJECTED:
             return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
     }
-    return "Unknown";
 }
 
 function GrantGiver(props: {
@@ -1686,9 +1688,8 @@ const ProductLinkBox = styled.div`
     margin-top: -2px;
 `;
 
-// TODO(Jonas): Is this enough? Used to have more states see `GrantApplicationStatus`.
 export function isGrantFinalized(status: State): boolean {
-    return State.PENDING !== status;
+    return State.IN_PROGRESS != status;
 }
 
 async function promptRevisionComment(): Promise<string | null> {
