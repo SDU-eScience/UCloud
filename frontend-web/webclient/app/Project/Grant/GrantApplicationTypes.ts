@@ -159,7 +159,7 @@ export interface Status {
 }
 
 export interface GrantGiverApprovalState {
-    id: string;
+    projectId: string;
     title: string;
     state: State;
 }

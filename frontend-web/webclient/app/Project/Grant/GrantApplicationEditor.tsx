@@ -580,7 +580,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const approvers: ApproverMap = {};
                 const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
                     runWork<UserInProject>(viewProject({
-                        id: p.id,
+                        id: p.projectId,
                     }))
                 ));
                 promises.then(resolvedPromises => {
