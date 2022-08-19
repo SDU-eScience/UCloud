@@ -150,6 +150,15 @@ fun main(args: Array<String>) {
                 verifyConfiguration(serverMode, configSchema)
             }
 
+            val logDir = config.core.logs.directory
+
+            val logModule = when (serverMode) {
+                ServerMode.FrontendProxy -> "frontend-proxy"
+                is ServerMode.Plugin -> "plugin-${serverMode.name}"
+                ServerMode.Server -> "server"
+                ServerMode.User -> "user-${clib.getuid()}"
+            }
+
             run {
                 // Tell logback information about the log output. We need to do this as early as possible since we
                 // cannot do any real logging before these calls have been made.
@@ -158,23 +167,11 @@ fun main(args: Array<String>) {
                 // it would complain heavily about the fact that a bunch of loggers were loaded doing companion object
                 // initialization before these properties were set. Instead, we use the default config, which is to
                 // output to stdout until these properties are ready to be set.
-                System.setProperty("log.dir", config.core.logs.directory)
-                System.setProperty(
-                    "log.module", when (serverMode) {
-                        ServerMode.FrontendProxy -> "frontend-proxy"
-                        is ServerMode.Plugin -> "plugin-${serverMode.name}"
-                        ServerMode.Server -> "server"
-                        ServerMode.User -> "user-${clib.getuid()}"
-                    }
-                )
-
                 val ctx = LoggerFactory.getILoggerFactory() as LoggerContext
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                // NOTE(Dan): For some reason this is not working with GraalVM AOT native images when using a resource
-                // stream.
-                configurator.doConfigure(logbackConfiguration.encodeToByteArray().inputStream())
+                configurator.doConfigure(logbackConfiguration(logDir, logModule).encodeToByteArray().inputStream())
             }
 
             run {
@@ -275,6 +272,8 @@ fun main(args: Array<String>) {
                     // with local backend.
                     allowHost("frontend:9000")
                     allowHost("localhost:9000")
+                    val ucloudHost = config.core.hosts.ucloud.toStringOmitDefaultPort()
+                    allowHost(ucloudHost.substringAfter("://"), listOf(ucloudHost.substringBefore("://")))
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Put)
@@ -374,7 +373,7 @@ fun main(args: Array<String>) {
             // L7 router (Envoy)
             // -------------------------------------------------------------------------------------------------------
             val envoyConfig = if (serverMode == ServerMode.Server) {
-                EnvoyConfigurationService(ENVOY_CONFIG_PATH, config.core.launchRealUserInstances)
+                EnvoyConfigurationService(config)
             } else {
                 null
             }
@@ -613,7 +612,7 @@ fun main(args: Array<String>) {
                 stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
-                stats.add("My logs" to "${config.core.logs.directory}/${System.getProperty("log.module")}.log")
+                stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")
                 }
@@ -704,5 +703,4 @@ private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath
 }
 
-const val ENVOY_CONFIG_PATH = "/var/run/ucloud/envoy"
 const val UCLOUD_IM_PORT = 42000

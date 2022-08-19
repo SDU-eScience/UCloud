@@ -119,7 +119,7 @@ class Server(
         val fsRootFile =
             File((cephConfig.cephfsBaseMount ?: "/mnt/cephfs/") + cephConfig.subfolder).takeIf { it.exists() }
                 ?: if (micro.developmentModeEnabled) File("./fs") else throw IllegalStateException("No mount found!")
-        val pathConverter = PathConverter(configuration.providerId, "", InternalFile(fsRootFile.absolutePath), serviceClient)
+        val pathConverter = PathConverter(configuration.providerId, "u1-cephfs", InternalFile(fsRootFile.absolutePath), serviceClient)
         val fs = NativeFS(pathConverter)
         val memberFiles = MemberFiles(fs, pathConverter, serviceClient)
 

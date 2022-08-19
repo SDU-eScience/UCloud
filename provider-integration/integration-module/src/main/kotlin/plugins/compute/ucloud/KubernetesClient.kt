@@ -149,7 +149,7 @@ sealed class KubernetesConfigurationSource {
         }
     }
 
-    object InClusterConfiguration : KubernetesConfigurationSource() {
+    class InClusterConfiguration(val kubeSvcOverride: String? = null) : KubernetesConfigurationSource() {
         override fun retrieveConnection(): KubernetesConnection? {
             val serviceAccount = File("/var/run/secrets/kubernetes.io/serviceaccount")
                 .takeIf { it.exists() } ?: return null
@@ -164,12 +164,18 @@ sealed class KubernetesConfigurationSource {
             val keyStore = KeyStore.getInstance(KeyStore.getDefaultType())
             keyStore.load(null, null)
             keyStore.setCertificateEntry(alias, certificate)
+            if (kubeSvcOverride != null) {
+                keyStore.setCertificateEntry(
+                    kubeSvcOverride.removePrefix("http://").removePrefix("https://").substringBeforeLast(':'),
+                    certificate,
+                )
+            }
 
             val trustManagerFactory = TrustManagerFactory.getInstance("X509")
             trustManagerFactory.init(keyStore)
 
-            val trustManager = if (trustManagerFactory.trustManagers.size > 0) {
-                trustManagerFactory.trustManagers.get(0)
+            val trustManager = if (trustManagerFactory.trustManagers.isNotEmpty()) {
+                trustManagerFactory.trustManagers[0]
             } else {
                 null
             }
@@ -177,7 +183,7 @@ sealed class KubernetesConfigurationSource {
             if (token == null) return null
 
             return KubernetesConnection(
-                "https://kubernetes.default.svc",
+                kubeSvcOverride ?: "https://kubernetes.default.svc",
                 KubernetesAuthenticationMethod.Token(token),
                 namespace ?: "default",
                 trustManager
@@ -190,7 +196,7 @@ sealed class KubernetesConfigurationSource {
             val defaultKubeConfig = KubeConfigFile(null, null).retrieveConnection()
             if (defaultKubeConfig != null) return defaultKubeConfig
 
-            val inCluster = InClusterConfiguration.retrieveConnection()
+            val inCluster = InClusterConfiguration().retrieveConnection()
             if (inCluster != null) return inCluster
 
             val composeKubeConfigFile = File("/mnt/k3s/kubeconfig.yaml")

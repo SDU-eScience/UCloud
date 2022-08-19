@@ -189,7 +189,7 @@ class ComputeController(
                             OpenSession.Web(
                                 request.job.id,
                                 request.rank,
-                                "/ucloud/$providerId/authorize-app?token=${sessionId}"
+                                "http://${target.ingress}/ucloud/$providerId/authorize-app?token=${sessionId}"
                             )
                         }
                     }
@@ -327,26 +327,38 @@ class ComputeController(
         val ipcClient = controllerContext.pluginContext.ipcClient
 
         val authorizeApp: suspend PipelineContext<Unit, ApplicationCall>.(Unit) -> Unit = fn@{
+            for ((k, v)in call.request.headers.entries()) {
+                println("$k")
+                for (s in v) println(s.prependIndent("    "))
+            }
             val host = call.request.header(HttpHeaders.Host)
             val requestCookies = HashMap(call.request.cookies.rawCookies)
+            println("cookies $requestCookies")
             val relevantCookie = requestCookies[cookieName + host]
+            println("Found cookie $relevantCookie")
             if (relevantCookie == null) {
                 call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
                 return@fn
             }
 
             try {
+                println("Looking for client!")
                 val session = ipcClient.sendRequest(
                     ComputeSessionIpc.retrieve,
                     FindByStringId(relevantCookie)
                 )
+                println("Found something $session")
 
                 if (session.sessionType != InteractiveSessionType.WEB) error("Unauthorized")
+                println(1)
                 val target = session.target ?: error("Unauthorized")
+                println(2)
                 if (host != target.ingress) error("Unauthorized")
+                println(3)
 
                 call.respondText("", status = io.ktor.http.HttpStatusCode.OK)
             } catch (ex: Throwable) {
+                ex.printStackTrace()
                 call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)
                 return@fn
             }
@@ -385,6 +397,8 @@ class ComputeController(
                     }
 
                     val target = sessionInformation.target!!
+                    val ingressDomain = target.ingress.removePrefix("https://").removePrefix("http://")
+
                     call.response.cookies.append(
                         name = cookieName + target.ingress,
                         value = token,
@@ -392,10 +406,12 @@ class ComputeController(
                         httpOnly = true,
                         expires = GMTDate(Time.now() + (1000L * 60 * 60 * 24 * 30)),
                         path = "/",
-                        domain = call.request.origin.host
+                        domain = ingressDomain
                     )
 
-                    call.respondRedirect("http://" + target.ingress.removePrefix("https://").removePrefix("http://"))
+                    println("Setting cookie on $ingressDomain ${call.request.origin} ${call.request.host()}")
+
+                    call.respondRedirect("http://$ingressDomain")
                 } catch (ex: RPCException) {
                     call.respondText(
                         defaultMapper.encodeToString(

@@ -72,7 +72,9 @@ class UCloudComputePlugin : ComputePlugin {
         jobCache = VerifiedJobCache(rpcClient)
         k8 = K8Dependencies(
             KubernetesClient(
-                if (pluginConfig.kubeConfig != null) {
+                if (pluginConfig.kubeSvcOverride != null) {
+                    KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubeSvcOverride)
+                } else if (pluginConfig.kubeConfig != null) {
                     KubernetesConfigurationSource.KubeConfigFile(pluginConfig.kubeConfig, null)
                 } else {
                     KubernetesConfigurationSource.Auto

@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "1.7.0"
     application
-    id("org.graalvm.buildtools.native") version "0.9.12"
+    id("org.graalvm.buildtools.native") version "0.9.13"
     kotlin("plugin.serialization") version "1.7.0"
 }
 
@@ -62,6 +62,9 @@ application {
 }
 
 graalvmNative {
+    // See this section for how to run the agent to detect reflection:
+    // https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html#agent-support
+
     binaries {
         named("main") {
             fallback.set(false)

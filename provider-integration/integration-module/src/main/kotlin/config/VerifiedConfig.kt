@@ -10,6 +10,7 @@ import kotlin.system.exitProcess
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
 
 data class VerifiedConfig(
+    val configurationDirectory: String,
     private val serverMode: ServerMode,
     val coreOrNull: Core?,
     val serverOrNull: Server?,
@@ -51,6 +52,7 @@ data class VerifiedConfig(
         val network: Network,
         val developmentMode: DevelopmentMode,
         val database: Database,
+        val envoy: Envoy,
     ) {
         data class Network(
             val listenAddress: String,
@@ -69,6 +71,11 @@ data class VerifiedConfig(
 
         data class Database(
             val file: String,
+        )
+
+        data class Envoy(
+            val executable: String?,
+            val directory: String,
         )
     }
 
@@ -443,10 +450,18 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
 
         val database: VerifiedConfig.Server.Database = run {
-            VerifiedConfig.Server.Database(config.configurationDirectory + "/ucloud.sqlite3")
+            VerifiedConfig.Server.Database(
+                config.server.database?.file ?: (config.configurationDirectory + "/ucloud.sqlite3")
+            )
         }
 
-        VerifiedConfig.Server(refreshToken, network, developmentMode, database)
+        val envoy: VerifiedConfig.Server.Envoy = run {
+            val executable = config.server.envoy?.executable
+            val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
+            VerifiedConfig.Server.Envoy(executable, directory)
+        }
+
+        VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)
     }
 
     val products: VerifiedConfig.Products? = run {
@@ -583,7 +598,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    return VerifiedConfig(mode, core, server, plugins, products, frontendProxy)
+    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, products, frontendProxy)
 }
 
 // Plugin loading

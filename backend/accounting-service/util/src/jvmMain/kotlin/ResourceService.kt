@@ -946,7 +946,7 @@ abstract class ResourceService<
                     """,
                 ).rows.map { it.getLong(0)!! }
 
-            check(generatedIds.size == request.items.size, lazyMessage = { "Might be missing product" })
+            check(generatedIds.size == request.items.size, lazyMessage = { "Might be missing product $request" })
 
             createSpecifications(
                 actorAndProject,

@@ -9,6 +9,7 @@ import dk.sdu.cloud.io.CommonFile
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.json.JsonNull
+import java.io.File
 
 class DebugSystemFeature : MicroFeature, DebugSystem {
     private var developmentMode: Boolean = false
@@ -16,9 +17,28 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
 
     override fun init(ctx: Micro, serviceDescription: ServiceDescription, cliArgs: List<String>) {
         developmentMode = ctx.developmentModeEnabled
-        delegate = CommonDebugSystem(serviceDescription.name, CommonFile("/var/log/ucloud").also {
-            it.jvmFile.mkdirs()
-        })
+        var logLocation = "."
+        val potentialDirectories = listOf("/var/log/ucloud", "/tmp", "./")
+        for (loc in potentialDirectories) {
+            val dir = File(loc)
+            if (!dir.exists()) {
+                if (dir.mkdirs()) continue
+            }
+
+            val success = runCatching {
+                File(dir, "test.log")
+                    .also { it.writeText("Test") }
+                    .also { it.delete() }
+            }.isSuccess
+
+            if (!success) continue
+
+            logLocation = loc
+            break
+        }
+
+        val directory = CommonFile(logLocation)
+        delegate = CommonDebugSystem(serviceDescription.name, directory)
 
         installCommon(ctx.client)
 

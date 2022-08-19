@@ -62,6 +62,8 @@ data class ConfigSchema(
         val refreshToken: String,
         val network: Network? = null,
         val developmentMode: DevelopmentMode? = null,
+        val database: Database? = null,
+        val envoy: Envoy? = null,
     ) {
         @Serializable
         data class Network(
@@ -80,6 +82,17 @@ data class ConfigSchema(
                 val port: Int,
             )
         }
+
+        @Serializable
+        data class Database(
+            val file: String,
+        )
+
+        @Serializable
+        data class Envoy(
+            val executable: String? = null,
+            val directory: String,
+        )
     }
 
     @Serializable
@@ -259,6 +272,7 @@ data class ConfigSchema(
             class UCloud(
                 override val matches: String,
                 val kubeConfig: String? = null,
+                val kubeSvcOverride: String? = null,
                 val useMachineSelector: Boolean = false,
                 val systemReservedCpuMillis: Int = 0,
                 val systemReservedMemMegabytes: Int = 0,
