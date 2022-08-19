@@ -149,11 +149,14 @@ export const GrantApplicationList: React.FunctionComponent<{
                         )
                     }
                     truncateWidth="230px"
-                    //TODO (HENRIK: Might need to show something else here instead of an id. This is useless)
                     left={
                         <Flex width={1}>
-                            <Truncate title={app.id}>
-                                {app.id}
+                            <Truncate title={app.currentRevision.document.recipient.type === "personalWorkspace" ? app.currentRevision.document.recipient.username :
+                                app.currentRevision.document.recipient.type === "newProject" ? app.currentRevision.document.recipient.title :
+                                    app.currentRevision.document.recipient.id }>
+                                {app.currentRevision.document.recipient.type === "personalWorkspace" ? app.currentRevision.document.recipient.username :
+                                    app.currentRevision.document.recipient.type === "newProject" ? app.currentRevision.document.recipient.title :
+                                        app.currentRevision.document.recipient.id }
                             </Truncate>
                             {slim ? null : (
                                 <Truncate>
