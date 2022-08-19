@@ -14,27 +14,27 @@ import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
 import Checkbox from "@/ui-components/Checkbox";
-import Text from "@/ui-components/Text";
+import Text, {TextSpan} from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {apiCreate, apiRetrieve, apiUpdate, callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
-    ProductCategoryId,
-    ProductMetadata,
-    Product,
-    productCategoryEquals,
-    usageExplainer,
-    productTypeToIcon,
-    productTypeToTitle,
-    productTypes,
+    browseWallets,
     explainAllocation,
     normalizeBalanceForBackend,
-    browseWallets,
-    Wallet,
-    WalletAllocation,
     normalizeBalanceForFrontend,
-    ProductType
+    Product,
+    productCategoryEquals,
+    ProductCategoryId,
+    ProductMetadata,
+    ProductType,
+    productTypes,
+    productTypeToIcon,
+    productTypeToTitle,
+    usageExplainer,
+    Wallet,
+    WalletAllocation
 } from "@/Accounting";
 import styled from "styled-components";
 import HighlightedCard from "@/ui-components/HighlightedCard";
@@ -52,12 +52,10 @@ import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
 import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
 import * as UCloud from "@/UCloud";
-import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
-import {TextSpan} from "@/ui-components/Text";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Truncate} from "@/ui-components";
@@ -66,26 +64,27 @@ import {Logo} from "./ProjectBrowser";
 import {format} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {
-    GrantApplication,
     AllocationRequest,
-    Comment,
-    State,
-    deleteGrantApplicationComment,
-    Recipient,
     browseAffiliations,
+    Comment,
     commentOnGrantApplication,
+    deleteGrantApplicationComment,
     Document,
-    transferApplication,
-    GrantProductCategory,
+    editReferenceId,
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
-    editReferenceId,
     fetchProducts,
+    GrantApplication,
+    GrantProductCategory,
+    Recipient,
+    State,
+    transferApplication,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
+import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -1028,7 +1027,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
-                                                        {   /* TODO(Jonas): Maybe not correct enum? */
+                                                        {
                                                             overallStateText(grantApplication)
                                                         }
                                                         <ButtonGroup>
@@ -1297,14 +1296,14 @@ function getAllocationRequests(grantApplication: GrantApplication): AllocationRe
 
 function overallStateText(grantApplication: GrantApplication): string {
     switch (grantApplication.status.overallState) {
-        case State.IN_PROGRESS:
-            return "In progress";
-        case State.CLOSED:
-            return "Closed";
         case State.APPROVED:
             return grantApplication.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.currentRevision.updatedBy;
         case State.REJECTED:
             return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
+        case State.IN_PROGRESS:
+            return "In progress";
+        case State.CLOSED:
+            return grantApplication.currentRevision.updatedBy === null ? "Closed" : "Withdrawn by " + grantApplication.currentRevision.updatedBy;
     }
 }
 
@@ -1689,7 +1688,7 @@ const ProductLinkBox = styled.div`
 `;
 
 export function isGrantFinalized(status: State): boolean {
-    return State.IN_PROGRESS != status;
+    return State.IN_PROGRESS !== status;
 }
 
 async function promptRevisionComment(): Promise<string | null> {
