@@ -362,7 +362,7 @@ const GenericRequestCard: React.FunctionComponent<{
                     </tbody>
                 </table>
                 {props.showAllocationSelection ?
-                    <AllocationSelection wallets={wallets} wb={wb} isLocked={isLocked} /> : null
+                    <AllocationSelection allocationRequests={props.allocationRequests} wallets={wallets} wb={wb} isLocked={isLocked} /> : null
                 }
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
@@ -379,13 +379,27 @@ const AllocationBox = styled.div`
     border: 2px solid var(--borderGray); 
 `;
 
-function AllocationSelection({wallets, wb, isLocked}: {
+function AllocationSelection({wallets, wb, isLocked, allocationRequests}: {
     wallets: Wallet[];
     wb: GrantProductCategory;
     isLocked: boolean;
+    allocationRequests: AllocationRequest[];
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
     const allocationText = allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+    React.useEffect(() => {
+        for (const w of wallets) {
+            for (const a of w.allocations) {
+                if (allocationRequests.find(it =>
+                    it.sourceAllocation == a.id
+                )) {
+                    setAllocation({wallet: w, allocation: a});
+                    return;
+                }
+            }
+        }
+    }, [wallets, allocationRequests]);
+
     return <Box mb="8px" ml="6px">
         <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
         {!isLocked ?
@@ -580,7 +594,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 const promises = Promise.allSettled(grantApplication.status.stateBreakdown.map(p =>
                     runWork<UserInProject>(viewProject({
                         id: p.projectId,
-                    }))
+                    }), {defaultErrorHandler: false}) // Ignore failures as we don't have rights to view them.
                 ));
                 promises.then(resolvedPromises => {
                     for (const [index, promise] of resolvedPromises.entries()) {
@@ -668,7 +682,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     return;
                 }
 
-                const documentToSubmit: Document = {
+                const document: Document = {
                     referenceId: grantApplication.currentRevision.document.referenceId,
                     revisionComment,
                     recipient: grantApplication.currentRevision.document.recipient,
@@ -677,8 +691,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     parentProjectId: grantApplication.currentRevision.document.parentProjectId,
                 };
 
-                const result = await runWork<[id: string]>(apiUpdate(bulkRequestOf({document: documentToSubmit}), "grant", "submit-application"));
-                if (result != null) history.push(`/project/grants/view/${result[0]}`);
+                const toSubmit = {
+                    applicationId: appId,
+                    document
+                };
+
+                await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
+                setIsLocked(false);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
@@ -740,6 +759,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     } as AllocationRequest;
                 }).filter(it => it != null)
             ) as AllocationRequest[];
+
+            if (!isAnyAllocationsOfParentProject(
+                requestedResourcesByAffiliate,
+                grantApplication.currentRevision.document.parentProjectId
+            )) {
+
+            }
 
             if (requestedResourcesByAffiliate.length === 0) {
                 snackbarStore.addFailure("At least one resource field must be non-zero.", false);
@@ -1270,15 +1296,16 @@ function recipientTypeToText(recipient: Recipient): string {
 }
 
 function useRecipientName(recipient: Recipient): string {
-    const [recipientName, setName] = useState(
-        recipient.type === "existingProject" ? recipient.id :
-            recipient.type === "newProject" ? recipient.title :
-                recipient.type === "personalWorkspace" ? recipient.username : ""
-    );
+    const [recipientName, setName] = useState("");
     const [, invokeCommand] = useCloudCommand();
     useEffect(() => {
         if (recipient.type === "existingProject") {
-            invokeCommand(viewProject({id: recipient.id})).then(r => setName(r.title)).catch(e => setName(""));
+            invokeCommand(viewProject({id: recipient.id})).then(r => {
+                setName(r.title);
+            }).catch(e => console.error(e));
+        } else {
+            setName(recipient.type === "newProject" ? recipient.title :
+                recipient.type === "personalWorkspace" ? recipient.username : "");
         }
     }, [recipient]);
     return recipientName;
@@ -1616,12 +1643,13 @@ interface UpdateStateRequest {
     notify: boolean;
 }
 
-function isAnyAllocationsOfParentProject(allocations: AllocationRequest[], parentProject: string) {
+function isAnyAllocationsOfParentProject(allocations: AllocationRequest[], parentProject: string | null) {
+    if (parentProject == null) return false;
     return allocations.find(it => it.grantGiver === parentProject) != null;
 }
 
 function updateState(request: UpdateStateRequest): APICallParameters<UpdateStateRequest> {
-    return apiUpdate(request, "grant", "update-state");
+    return apiUpdate(request, "/api/grant", "update-state");
 }
 
 const PostCommentWidget: React.FunctionComponent<{
