@@ -78,7 +78,7 @@ enum SettingsPage {
 const PageTab: React.FunctionComponent<{
     page: SettingsPage,
     title: string,
-    activePage: SettingsPage
+    activePage: SettingsPage;
 }> = ({page, title, activePage}) => {
     return <SelectableText mr={"1em"} fontSize={3} selected={activePage === page}>
         <Link to={`/project/settings/${page}`}>
@@ -90,7 +90,7 @@ const PageTab: React.FunctionComponent<{
 export const ProjectSettings: React.FunctionComponent = () => {
     const {projectId, projectRole, projectDetails, projectDetailsParams, fetchProjectDetails, reloadProjectStatus} =
         useProjectManagementStatus({isRootComponent: true});
-    const params = useParams<{page?: SettingsPage}>();
+    const params = useParams<{page?: SettingsPage;}>();
     const page = params.page ?? SettingsPage.AVAILABILITY;
 
     useTitle("Project Settings");
@@ -187,9 +187,8 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
     );
 
     useEffect(() => {
-        setAllowRenaming(getRenamingStatus({projectId: props.projectId}))
-        if (newProjectTitle.current)
-            newProjectTitle.current.value = props.projectDetails.title;
+        setAllowRenaming(getRenamingStatusForSubProject({projectId: props.projectId}));
+        if (newProjectTitle.current) newProjectTitle.current.value = props.projectDetails.title;
     }, [props.projectId, props.projectDetails]);
 
     return (
@@ -259,7 +258,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
 
 interface AllowRenamingProps {
     projectId: string;
-    projectRole: ProjectRole
+    projectRole: ProjectRole;
     setLoading: (loading: boolean) => void;
 }
 
@@ -337,8 +336,8 @@ const SubprojectSettings: React.FC<AllowRenamingProps> = props => {
                 </Box>
             </ActionBox>
         )}
-    </>
-}
+    </>;
+};
 
 
 interface ArchiveSingleProjectProps {
@@ -417,7 +416,7 @@ export const ArchiveSingleProject: React.FC<ArchiveSingleProjectProps> = props =
 };
 
 interface ArchiveProjectProps {
-    projects: UserInProject[]
+    projects: UserInProject[];
     onSuccess: () => void;
 }
 
