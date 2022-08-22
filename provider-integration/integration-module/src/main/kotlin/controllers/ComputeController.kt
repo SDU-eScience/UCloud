@@ -33,6 +33,7 @@ import io.ktor.server.request.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
 import io.ktor.server.websocket.*
+import io.ktor.util.Identity.decode
 import io.ktor.util.date.*
 import io.ktor.util.pipeline.*
 import kotlinx.coroutines.channels.Channel
@@ -42,6 +43,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
+import java.net.URLDecoder
 import java.util.concurrent.atomic.AtomicReference
 
 class ComputeController(
@@ -334,7 +336,7 @@ class ComputeController(
             val host = call.request.header(HttpHeaders.Host)
             val requestCookies = HashMap(call.request.cookies.rawCookies)
             println("cookies $requestCookies")
-            val relevantCookie = requestCookies[cookieName + host]
+            val relevantCookie = URLDecoder.decode(requestCookies[cookieName + host], Charsets.UTF_8)
             println("Found cookie $relevantCookie")
             if (relevantCookie == null) {
                 call.respondText("", status = io.ktor.http.HttpStatusCode.Unauthorized)

@@ -66,6 +66,7 @@ class FeatureFirewall(
                 val egress = ArrayList<NetworkPolicy.EgressRule>()
                 this.ingress = ingress
                 this.egress = egress
+                podSelector = selectorForThisJob
 
                 for (peer in job.peers) {
                     val peerSelector = LabelSelector().apply {
@@ -157,7 +158,6 @@ class FeatureFirewall(
                     })
                 }
 
-                podSelector = selectorForThisJob
             }
         }
 

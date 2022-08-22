@@ -16,11 +16,15 @@ class NameAllocator(private val namespace: String) {
         return jobName.removePrefix("j-")
     }
 
+    fun jobIdFromPodName(podName: String): String {
+        return podName.substringBeforeLast('-').substringAfter('-')
+    }
+
     fun rankFromPodName(podName: String): Int {
         return podName.substringAfterLast('-').toInt()
     }
 
-    suspend fun jobIdAndRankToPodName(jobId: String, rank: Int): String {
+    fun jobIdAndRankToPodName(jobId: String, rank: Int): String {
         return jobIdToJobName(jobId) + "-job-" + rank
     }
 
