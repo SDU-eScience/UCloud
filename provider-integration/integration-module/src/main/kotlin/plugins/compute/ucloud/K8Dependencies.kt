@@ -11,20 +11,42 @@ import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.SimpleCache
 import kotlinx.coroutines.CoroutineScope
 
+interface K8Dependencies {
+    val scope: CoroutineScope
+    var serviceClient: AuthenticatedClient
+    val debug: DebugSystem?
+    val jobCache: VerifiedJobCache
+
+    suspend fun addStatus(jobId: String, message: String): Boolean
+
+    suspend fun changeState(
+        jobId: String,
+        state: JobState,
+        newStatus: String? = null,
+        expectedState: JobState? = null,
+        expectedDifferentState: Boolean = false,
+        allowRestart: Boolean? = null,
+    ): Boolean
+
+    suspend fun updateTimeAllocation(jobId: String, newAllocation: Long)
+
+    suspend fun updateMounts(jobId: String, mounts: List<String>)
+}
+
 /**
  * A small dependencies bundle used by most of the K8 services.
  */
-data class K8Dependencies(
+data class K8DependenciesImpl(
     var client: KubernetesClient,
-    val scope: CoroutineScope,
-    var serviceClient: AuthenticatedClient,
+    override val scope: CoroutineScope,
+    override var serviceClient: AuthenticatedClient,
     val nameAllocator: NameAllocator,
-    val debug: DebugSystem?,
-    val jobCache: VerifiedJobCache,
-) {
+    override val debug: DebugSystem?,
+    override val jobCache: VerifiedJobCache,
+) : K8Dependencies {
     private val lastMessage = SimpleCache<String, String>(maxAge = 60_000 * 10, lookup = { null })
 
-    suspend fun addStatus(jobId: String, message: String): Boolean {
+    override suspend fun addStatus(jobId: String, message: String): Boolean {
         val last = lastMessage.get(jobId)
         if (last != message) {
             JobsControl.update.call(
@@ -37,13 +59,13 @@ data class K8Dependencies(
         return false
     }
 
-    suspend fun changeState(
+    override suspend fun changeState(
         jobId: String,
         state: JobState,
-        newStatus: String? = null,
-        expectedState: JobState? = null,
-        expectedDifferentState: Boolean = false,
-        allowRestart: Boolean? = null,
+        newStatus: String?,
+        expectedState: JobState?,
+        expectedDifferentState: Boolean,
+        allowRestart: Boolean?,
     ): Boolean {
         val last = lastMessage.get(jobId)
         val messageAsString = "${state}-${newStatus}"
@@ -72,14 +94,14 @@ data class K8Dependencies(
         return false
     }
 
-    suspend fun updateTimeAllocation(jobId: String, newAllocation: Long) {
+    override suspend fun updateTimeAllocation(jobId: String, newAllocation: Long) {
         JobsControl.update.call(
             bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(newTimeAllocation = newAllocation))),
             serviceClient
         )
     }
 
-    suspend fun updateMounts(jobId: String, mounts: List<String>) {
+    override suspend fun updateMounts(jobId: String, mounts: List<String>) {
         JobsControl.update.call(
             bulkRequestOf(ResourceUpdateAndId(jobId, JobUpdate(newMounts = mounts))),
             serviceClient

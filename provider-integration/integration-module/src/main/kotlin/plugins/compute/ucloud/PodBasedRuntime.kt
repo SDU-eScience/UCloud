@@ -1,8 +1,86 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.app.orchestrator.api.IPProtocol
+import dk.sdu.cloud.app.orchestrator.api.JobState
+import dk.sdu.cloud.defaultMapper
+import io.ktor.client.statement.*
+import io.ktor.http.*
+import io.ktor.utils.io.*
+import io.ktor.utils.io.jvm.javaio.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import java.io.OutputStream
+
 abstract class PodBasedContainer : Container {
     protected abstract val k8Client: KubernetesClient
-    protected abstract val pod: Pod
+    abstract val pod: Pod
+
+    override val vCpuMillis: Int
+        get() {
+            val limit = pod.spec?.containers?.getOrNull(0)?.resources?.limits?.get("cpu")?.jsonPrimitive?.contentOrNull
+                ?: "1000m"
+
+            return limit.removeSuffix("m").toIntOrNull() ?: 1
+        }
+
+    override val memoryMegabytes: Int
+        get() {
+            val limit = pod.spec?.containers?.getOrNull(0)?.resources?.limits?.get("memory")?.jsonPrimitive
+                ?.contentOrNull ?: "1Gi"
+
+            return (memoryStringToBytes(limit) / (1024 * 1024)).toInt()
+        }
+
+    override val gpus: Int
+        get() {
+            val limit = pod.spec?.containers?.getOrNull(0)?.resources?.limits?.get("nvidia.com/gpu")
+                ?.jsonPrimitive?.contentOrNull ?: "0"
+
+            return limit.toInt()
+        }
+
+
+    private fun memoryStringToBytes(memory: String?): Long {
+        val numbersOnly = Regex("[^0-9]")
+        val ki = 1024
+        val mi = 1048576
+        val gi = 1073741824
+        val ti = 1099511627776
+        val pi = 1125899906842624
+
+        return if (memory.isNullOrBlank()) {
+            0
+        } else (when {
+            memory.contains("Ki") -> {
+                numbersOnly.replace(memory, "").toLong() * ki
+            }
+            memory.contains("Mi") -> {
+                numbersOnly.replace(memory, "").toLong() * mi
+            }
+            memory.contains("Gi") -> {
+                numbersOnly.replace(memory, "").toLong() * gi
+            }
+            memory.contains("Ti") -> {
+                numbersOnly.replace(memory, "").toLong() * ti
+            }
+            memory.contains("Pi") -> {
+                numbersOnly.replace(memory, "").toLong() * pi
+            }
+            else -> {
+                numbersOnly.replace(memory, "").toLong()
+            }
+        })
+    }
 
     override suspend fun downloadLogs(out: OutputStream) {
         try {
@@ -78,11 +156,6 @@ abstract class PodBasedContainer : Container {
     }
 
     override val ipAddress: String get() = pod.status!!.podIP!!
-    override val state: JobState
-        get() {
-            val status = pod.status ?: return JobState.SUCCESS
-            TODO()
-        }
 
     override val annotations: Map<String, String>
         get() {
@@ -118,7 +191,7 @@ abstract class PodBasedContainer : Container {
     }
 }
 
-abstract class PodBasedBuilder<C : PodBasedBuilder<C>> : ContainerBuilder<C> {
+abstract class PodBasedBuilder : ContainerBuilder {
     protected abstract val podSpec: Pod.Spec
 
     protected val container: Pod.Container get() = podSpec.containers!![0]
@@ -135,6 +208,9 @@ abstract class PodBasedBuilder<C : PodBasedBuilder<C>> : ContainerBuilder<C> {
                 volumeMounts = ArrayList(),
             )
         )
+
+        spec.restartPolicy = "Never"
+        spec.automountServiceAccountToken = false
 
         spec.volumes = arrayListOf(
             Volume(
@@ -171,12 +247,20 @@ abstract class PodBasedBuilder<C : PodBasedBuilder<C>> : ContainerBuilder<C> {
     }
 
     override fun mountSharedMemory(sharedMemorySizeMegabytes: Long) {
-        volumeMounts.add(
-            Pod.Container.VolumeMount(
-                name = "shm",
-                mountPath = "/dev/shm"
+        val hasMountedBefore = volumeMounts.any { it.name == "shm" }
+        if (!hasMountedBefore) {
+            volumeMounts.add(
+                Pod.Container.VolumeMount(
+                    name = "shm",
+                    mountPath = "/dev/shm"
+                )
             )
-        )
+        }
+
+        if (hasMountedBefore) {
+            val idx = volumes.indexOfFirst { it.name == "shm" }
+            if (idx != -1) volumes.removeAt(idx)
+        }
 
         volumes.add(
             Volume(
@@ -185,6 +269,24 @@ abstract class PodBasedBuilder<C : PodBasedBuilder<C>> : ContainerBuilder<C> {
                     medium = "Memory",
                     sizeLimit = "${sharedMemorySizeMegabytes}Mi"
                 )
+            )
+        )
+    }
+
+    override fun mountSharedVolume(volumeName: String, containerPath: String) {
+        if (!isSidecar) {
+            volumes.add(
+                Volume(
+                    name = volumeName,
+                    emptyDir = Volume.EmptyDirVolumeSource()
+                )
+            )
+        }
+
+        volumeMounts.add(
+            Pod.Container.VolumeMount(
+                name = volumeName,
+                mountPath = containerPath
             )
         )
     }
@@ -255,4 +357,19 @@ abstract class PodBasedBuilder<C : PodBasedBuilder<C>> : ContainerBuilder<C> {
 
         container.resources = Pod.Container.ResourceRequirements(JsonObject(limits), JsonObject(requests))
     }
+
+    override var shouldAllowRoot: Boolean
+        get() = error("read not allowed")
+        set(value) {
+            container.securityContext = Pod.Container.SecurityContext(
+                runAsNonRoot = !value,
+                allowPrivilegeEscalation = value
+            )
+        }
+
+    override var workingDirectory: String
+        get() = error("read not allowed")
+        set(value) {
+            container.workingDir = value
+        }
 }

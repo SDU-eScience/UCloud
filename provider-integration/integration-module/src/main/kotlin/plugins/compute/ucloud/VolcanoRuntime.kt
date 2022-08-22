@@ -1,7 +1,9 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
 import io.ktor.http.*
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonArray
@@ -9,26 +11,49 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 class VolcanoRuntime(
-    private val k8: K8Dependencies,
-) : ContainerRuntime<VolcanoContainer, VolcanoContainerBuilder> {
+    private val k8: K8DependenciesImpl,
+) : ContainerRuntime {
     override fun builder(
         jobId: String,
         replicas: Int,
-        block: VolcanoContainerBuilder.() -> Unit
-    ): VolcanoContainerBuilder {
+        block: ContainerBuilder.() -> Unit
+    ): ContainerBuilder {
         return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8).also(block)
     }
 
-    override suspend fun scheduleGroup(group: List<VolcanoContainerBuilder>) {
+    override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
         for (c in group) {
+            if (c !is VolcanoContainerBuilder) error("This runtime only accepts volcano jobs")
+
             k8.client.createResource(
-                KubernetesResourceLocator.common.volcanoJob,
+                KubernetesResourceLocator.common.volcanoJob.withNamespace(k8.nameAllocator.namespace()),
                 defaultMapper.encodeToString(VolcanoJob.serializer(), c.job)
             )
+
+            val networkPolicy = c.myPolicy
+            for (attempt in 1..5) {
+                try {
+                    k8.client.createResource(
+                        KubernetesResourceLocator.common.networkPolicies.withNamespace(k8.nameAllocator.namespace()),
+                        defaultMapper.encodeToString(NetworkPolicy.serializer(), networkPolicy)
+                    )
+                    break
+                } catch (ex: KubernetesException) {
+                    if (ex.statusCode == HttpStatusCode.Conflict) {
+                        k8.client.deleteResource(
+                            KubernetesResources.networkPolicies.withNameAndNamespace(
+                                networkPolicy.metadata!!.name!!,
+                                k8.nameAllocator.namespace()
+                            )
+                        )
+                    }
+                    delay(500)
+                }
+            }
         }
     }
 
-    override suspend fun retrieve(jobId: String, rank: Int): VolcanoContainer? {
+    override suspend fun retrieve(jobId: String, rank: Int): Container? {
         try {
             val pod = k8.client.getResource(
                 Pod.serializer(),
@@ -52,11 +77,12 @@ class VolcanoRuntime(
         }
     }
 
-    override suspend fun list(): List<VolcanoContainer> {
+    override suspend fun list(): List<Container> {
         val jobs = k8.client.listResources(
             VolcanoJob.serializer(),
             KubernetesResourceLocator.common.volcanoJob.withNamespace(k8.nameAllocator.namespace()),
         )
+
 
         val pods = k8.client.listResources(
             Pod.serializer(),
@@ -90,7 +116,7 @@ class VolcanoContainer(
     override val rank: Int,
     val volcanoJob: VolcanoJob,
     override val pod: Pod,
-    private val k8: K8Dependencies,
+    private val k8: K8DependenciesImpl,
 ) : PodBasedContainer() {
     override val k8Client: KubernetesClient get() = k8.client
     override val annotations: Map<String, String>
@@ -98,6 +124,35 @@ class VolcanoContainer(
             val annotationEntries = pod.metadata?.annotations?.entries ?: emptySet()
             return annotationEntries.associate { it.key to it.value.toString() }
         }
+
+    override fun stateAndMessage(): Pair<JobState, String> {
+        return when (val phase = volcanoJob.status?.state?.phase) {
+            VolcanoJobPhase.Pending -> {
+                Pair(JobState.IN_QUEUE, "Job is waiting in the queue")
+            }
+
+            VolcanoJobPhase.Running -> {
+                Pair(JobState.RUNNING, "Job is now running")
+            }
+
+            VolcanoJobPhase.Restarting -> {
+                Pair(JobState.IN_QUEUE, "Job is restarting")
+            }
+
+            VolcanoJobPhase.Failed -> {
+                Pair(JobState.SUCCESS, "Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
+            }
+
+            VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
+            VolcanoJobPhase.Completed, VolcanoJobPhase.Completing,
+            VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting,
+            -> {
+                Pair(JobState.SUCCESS, "Job is terminating")
+            }
+
+            else -> Pair(JobState.FAILURE, "Unknown state $phase")
+        }
+    }
 
     override suspend fun upsertAnnotation(key: String, value: String) {
         val shouldInsert = key !in annotations
@@ -127,22 +182,83 @@ class VolcanoContainer(
     }
 
     override suspend fun cancel() {
-        k8.client.deleteResource(
-            KubernetesResourceLocator.common.volcanoJob.withNameAndNamespace(
-                volcanoJob.metadata!!.name!!,
-                volcanoJob.metadata!!.namespace!!,
+        if (rank != 0) return // Only perform deletions on the root job
+
+        runCatching {
+            k8.client.deleteResource(
+                KubernetesResourceLocator.common.volcanoJob.withNameAndNamespace(
+                    volcanoJob.metadata!!.name!!,
+                    volcanoJob.metadata!!.namespace!!,
+                )
             )
-        )
+        }
+
+        runCatching {
+            k8.client.deleteResource(
+                KubernetesResources.networkPolicies.withNameAndNamespace(
+                    VOLCANO_NETWORK_POLICY_PREFIX + this.jobId,
+                    k8.nameAllocator.namespace()
+                )
+            )
+        }
     }
 
     override suspend fun allowNetworkTo(jobId: String, rank: Int?) {
-        // TODO("Not yet implemented")
-        repeat(10) { println("allowNetworkTo($jobId, $rank) not yet implemented" )}
+        k8.client.patchResource(
+            KubernetesResources.networkPolicies.withNameAndNamespace(
+                VOLCANO_NETWORK_POLICY_PREFIX + this.jobId,
+                k8.nameAllocator.namespace()
+            ),
+            defaultMapper.encodeToString(
+                ListSerializer(JsonObject.serializer()),
+                listOf(
+                    JsonObject(
+                        mapOf(
+                            "op" to JsonPrimitive("add"),
+                            "path" to JsonPrimitive("/spec/egress/-"),
+                            "value" to defaultMapper.encodeToJsonElement(
+                                NetworkPolicy.EgressRule.serializer(),
+                                NetworkPolicy.EgressRule().apply {
+                                    to = listOf(NetworkPolicy.Peer().apply {
+                                        podSelector = volcanoPodSelectorForJob(jobId, k8.nameAllocator)
+                                    })
+                                }
+                            )
+                        )
+                    ),
+                )
+            ),
+            ContentType("application", "json-patch+json")
+        )
     }
 
     override suspend fun allowNetworkFrom(jobId: String, rank: Int?) {
-        // TODO("Not yet implemented")
-        repeat(10) { println("allowNetworkFrom($jobId, $rank) not yet implemented" )}
+        k8.client.patchResource(
+            KubernetesResources.networkPolicies.withNameAndNamespace(
+                VOLCANO_NETWORK_POLICY_PREFIX + this.jobId,
+                k8.nameAllocator.namespace()
+            ),
+            defaultMapper.encodeToString(
+                ListSerializer(JsonObject.serializer()),
+                listOf(
+                    JsonObject(
+                        mapOf(
+                            "op" to JsonPrimitive("add"),
+                            "path" to JsonPrimitive("/spec/ingress/-"),
+                            "value" to defaultMapper.encodeToJsonElement(
+                                NetworkPolicy.IngressRule.serializer(),
+                                NetworkPolicy.IngressRule().apply {
+                                    from = listOf(NetworkPolicy.Peer().apply {
+                                        podSelector = volcanoPodSelectorForJob(jobId, k8.nameAllocator)
+                                    })
+                                }
+                            )
+                        )
+                    ),
+                )
+            ),
+            ContentType("application", "json-patch+json")
+        )
     }
 }
 
@@ -150,21 +266,22 @@ class VolcanoContainerBuilder(
     override val jobId: String,
     override val replicas: Int,
     private val nameAllocator: NameAllocator,
-    private val k8: K8Dependencies,
+    private val k8: K8DependenciesImpl,
     override val isSidecar: Boolean = false
-) : PodBasedBuilder<VolcanoContainerBuilder>() {
-    override var shouldAllowRoot: Boolean = false
+) : PodBasedBuilder() {
     override var workingDirectory: String = "/work"
 
     override var productCategoryRequired: String? = null
 
     override fun supportsSidecar(): Boolean = !isSidecar
 
-    override val sidecars = ArrayList<VolcanoContainerBuilder>()
+    override val sidecars = ArrayList<ContainerBuilder>()
 
+    lateinit var myPolicy: NetworkPolicy
     val job: VolcanoJob = VolcanoJob(
         metadata = ObjectMeta(nameAllocator.jobIdToJobName(jobId), nameAllocator.namespace()),
         spec = VolcanoJob.Spec(
+            schedulerName = "volcano",
             minAvailable = replicas,
             maxRetry = 0,
             queue = DEFAULT_QUEUE,
@@ -195,53 +312,60 @@ class VolcanoContainerBuilder(
 
     init {
         initPodSpec()
-    }
-
-    private var myPolicy: NetworkPolicy? = null
-
-    private fun initNetworkPolicyIfNeeded(): NetworkPolicy {
-        return myPolicy ?: NetworkPolicy(
-            metadata = ObjectMeta(name = "policy-${this.jobId}"),
+        myPolicy = NetworkPolicy(
+            metadata = ObjectMeta(name = VOLCANO_NETWORK_POLICY_PREFIX + this.jobId),
             spec = NetworkPolicy.Spec(
                 egress = ArrayList(),
                 ingress = ArrayList(),
-                podSelector = podSelectorForJob(this.jobId)
-            )
-        ).also { myPolicy = it }
-    }
-
-    private fun podSelectorForJob(jobId: String): LabelSelector = LabelSelector(
-        matchLabels = JsonObject(
-            mapOf(
-                VOLCANO_JOB_NAME_LABEL to JsonPrimitive(nameAllocator.jobIdToJobName(jobId))
+                podSelector = volcanoPodSelectorForJob(this.jobId, nameAllocator)
             )
         )
-    )
+    }
 
     override fun allowNetworkTo(jobId: String, rank: Int?) {
-        val policy = initNetworkPolicyIfNeeded()
-        val ingress = policy.spec!!.ingress as ArrayList
+        val ingress = myPolicy.spec!!.ingress as ArrayList
 
         ingress.add(
             NetworkPolicy.IngressRule(
-                from = listOf(NetworkPolicy.Peer(podSelector = podSelectorForJob(jobId)))
+                from = listOf(NetworkPolicy.Peer(podSelector = volcanoPodSelectorForJob(jobId, nameAllocator)))
             )
         )
     }
 
     override fun allowNetworkFrom(jobId: String, rank: Int?) {
-        val policy = initNetworkPolicyIfNeeded()
-        val egress = policy.spec!!.egress as ArrayList
+        val egress = myPolicy.spec!!.egress as ArrayList
         egress.add(
             NetworkPolicy.EgressRule(
-                to = listOf(NetworkPolicy.Peer(podSelector = podSelectorForJob(jobId)))
+                to = listOf(NetworkPolicy.Peer(podSelector = volcanoPodSelectorForJob(jobId, nameAllocator)))
             )
         )
     }
 
+    override fun allowNetworkFromSubnet(subnet: String) {
+        val ingress = myPolicy.spec!!.ingress as ArrayList
+        ingress.add(NetworkPolicy.IngressRule(
+            from = listOf(NetworkPolicy.Peer(
+                ipBlock = NetworkPolicy.IPBlock(
+                    cidr = subnet
+                )
+            ))
+        ))
+    }
+
+    override fun allowNetworkToSubnet(subnet: String) {
+        val egress = myPolicy.spec!!.egress as ArrayList
+        egress.add(NetworkPolicy.EgressRule(
+            to = listOf(NetworkPolicy.Peer(
+                ipBlock = NetworkPolicy.IPBlock(
+                    cidr = subnet
+                )
+            ))
+        ))
+    }
+
     override fun hostAlias(jobId: String, rank: Int, alias: String) {
-        podSpec.hostAliases = podSpec.hostAliases ?: ArrayList()
-        val aliases = podSpec.hostAliases as ArrayList
+        podSpec.hostAliases = podSpec.hostAliases?.toMutableList() ?: ArrayList()
+        val aliases = podSpec.hostAliases as MutableList
         val podIp = runBlocking {
             k8.client.getResource(
                 Pod.serializer(),
@@ -250,17 +374,40 @@ class VolcanoContainerBuilder(
                     k8.nameAllocator.namespace()
                 )
             ).status?.podIP
-        } ?: return
+        } ?: run {
+            return
+        }
 
         aliases.add(Pod.HostAlias(listOf(alias), podIp))
     }
 
-    override fun sidecar(builder: VolcanoContainerBuilder.() -> Unit) {
+    override fun sidecar(name: String, builder: ContainerBuilder.() -> Unit) {
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        initContainers.add(
-            VolcanoContainerBuilder(jobId, 1, nameAllocator, k8).also(builder).container
-        )
+        val sidecarContainer = VolcanoContainerBuilder(jobId, 1, nameAllocator, k8).also(builder).container
+        sidecarContainer.name = name
+        initContainers.add(sidecarContainer)
+    }
+
+    override fun upsertAnnotation(key: String, value: String) {
+        val annotationEntries = (job.metadata?.annotations?.entries ?: emptySet())
+            .associate { it.key to JsonPrimitive(it.value.toString()) }
+            .toMutableMap()
+
+        annotationEntries[key] = JsonPrimitive(value)
+
+        job.metadata!!.annotations = JsonObject(annotationEntries)
     }
 }
+
+private const val VOLCANO_NETWORK_POLICY_PREFIX = "policy-"
+
+
+private fun volcanoPodSelectorForJob(jobId: String, nameAllocator: NameAllocator): LabelSelector = LabelSelector(
+    matchLabels = JsonObject(
+        mapOf(
+            VOLCANO_JOB_NAME_LABEL to JsonPrimitive(nameAllocator.jobIdToJobName(jobId))
+        )
+    )
+)

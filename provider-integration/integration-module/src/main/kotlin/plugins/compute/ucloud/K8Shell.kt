@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 
 class K8Shell(
-    private val k8: K8Dependencies,
+    private val k8: K8DependenciesImpl,
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {

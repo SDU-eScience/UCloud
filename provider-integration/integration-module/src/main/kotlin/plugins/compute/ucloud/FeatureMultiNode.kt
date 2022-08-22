@@ -1,8 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.Job
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * A plugin which adds information about other 'nodes' in the job
@@ -21,108 +19,72 @@ import kotlinx.serialization.json.JsonPrimitive
  *   one used in `nodes.txt.
  */
 object FeatureMultiNode : JobFeature {
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        val tasks = builder.spec?.tasks ?: error("no volcano tasks")
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
+        if (!builder.supportsSidecar()) return
+
         val ucloudVolume = "ucloud-multinode"
         val mountPath = "/etc/ucloud"
-        tasks.forEach { t ->
-            val template = t.template?.spec ?: error("no template template")
-            val initContainers = template.initContainers?.toMutableList() ?: ArrayList()
-            initContainers.add(
-                Pod.Container().apply {
-                    image = "alpine:latest"
-                    imagePullPolicy = "IfNotPresent"
-                    name = "ucloud-compat"
-                    resources = Pod.Container.ResourceRequirements(
-                        requests = JsonObject(mapOf(
-                            "cpu" to JsonPrimitive("100m")
-                        ))
-                    )
-                    command = listOf(
-                        "/bin/sh",
-                        "-c",
-                        //language=sh
-                        """
-                            CONFIG_DIR="/etc/ucloud";
-                            FILE_NODE_COUNT="${'$'}{CONFIG_DIR}/number_of_nodes.txt";
-                            FILE_RANK="${'$'}{CONFIG_DIR}/rank.txt";
-                            FILE_NODES="${'$'}{CONFIG_DIR}/nodes.txt";
-                            FILE_NODE_PREFIX="${'$'}{CONFIG_DIR}/node-"
-                            FILE_NODE_SUFFIX=".txt"
+        builder.mountSharedVolume(ucloudVolume, mountPath)
+        builder.sidecar("ucloud-compat") {
+            mountSharedVolume(ucloudVolume, mountPath)
 
-                            function trim() {
-                              awk '{${'$'}1=${'$'}1};1'
-                            }
+            image("alpine:latest")
+            vCpuMillis = 100
+            memoryMegabytes = 64
+            command(listOf(
+                "/bin/sh",
+                "-c",
+                //language=sh
+                """
+                    CONFIG_DIR="/etc/ucloud";
+                    FILE_NODE_COUNT="${'$'}{CONFIG_DIR}/number_of_nodes.txt";
+                    FILE_RANK="${'$'}{CONFIG_DIR}/rank.txt";
+                    FILE_NODES="${'$'}{CONFIG_DIR}/nodes.txt";
+                    FILE_NODE_PREFIX="${'$'}{CONFIG_DIR}/node-"
+                    FILE_NODE_SUFFIX=".txt"
 
-                            while true
-                            do
-                              rm -f "${'$'}{CONFIG_DIR}/*";
-                              echo ${'$'}VC_TASK_INDEX > ${'$'}FILE_RANK;
-                              cat /etc/volcano/*_NUM > ${'$'}FILE_NODE_COUNT;
-                              cat /etc/volcano/*.host > ${'$'}FILE_NODES;
-                              idx=0;
-                              while IFS="" read -r p || [ -n "${'$'}p" ]
-                              do
-                                  printf '%s\n' "${'$'}p" > "${'$'}{FILE_NODE_PREFIX}${'$'}{idx}${'$'}{FILE_NODE_SUFFIX}";
-                                  idx=${'$'}((idx + 1))
-                              done < ${'$'}FILE_NODES;
+                    function trim() {
+                      awk '{${'$'}1=${'$'}1};1'
+                    }
 
-                              # Check that we have all the files and that they appear correct
-                              node_count_lines=`cat ${'$'}FILE_NODE_COUNT | trim | wc -l`
-                              if [[ ! -f "${'$'}{FILE_NODE_COUNT}" ]] || [ "1" != ${'$'}node_count_lines ]; then
-                                echo "${'$'}{FILE_NODE_COUNT} does not look correct"
-                                continue;
-                              fi
+                    while true
+                    do
+                      rm -f "${'$'}{CONFIG_DIR}/*";
+                      echo ${'$'}VC_TASK_INDEX > ${'$'}FILE_RANK;
+                      cat /etc/volcano/*_NUM > ${'$'}FILE_NODE_COUNT;
+                      cat /etc/volcano/*.host > ${'$'}FILE_NODES;
+                      idx=0;
+                      while IFS="" read -r p || [ -n "${'$'}p" ]
+                      do
+                          printf '%s\n' "${'$'}p" > "${'$'}{FILE_NODE_PREFIX}${'$'}{idx}${'$'}{FILE_NODE_SUFFIX}";
+                          idx=${'$'}((idx + 1))
+                      done < ${'$'}FILE_NODES;
 
-                              node_count_from_file=`cat ${'$'}FILE_NODE_COUNT`
-                              nodes_line_count=`cat ${'$'}FILE_NODES | trim | wc -l`
-                              if [[ ! -f "${'$'}{FILE_NODES}" ]] || [ ${'$'}node_count_from_file != ${'$'}nodes_line_count ]; then
-                                echo "Not enough entries in ${'$'}{FILE_NODES}"
-                                continue;
-                              fi
+                      # Check that we have all the files and that they appear correct
+                      node_count_lines=`cat ${'$'}FILE_NODE_COUNT | trim | wc -l`
+                      if [[ ! -f "${'$'}{FILE_NODE_COUNT}" ]] || [ "1" != ${'$'}node_count_lines ]; then
+                        echo "${'$'}{FILE_NODE_COUNT} does not look correct"
+                        continue;
+                      fi
 
-                              wildcard=${'$'}(echo "${'$'}{FILE_NODE_PREFIX}"*)
-                              node_file_count=`ls -1 ${'$'}wildcard | trim | wc -l`
-                              if [ ${'$'}node_file_count != ${'$'}node_count_from_file ]; then
-                                echo "Not enough individual node entries (Looking for: ${'$'}{FILE_NODE_PREFIX}*)"
-                                continue;
-                              fi
+                      node_count_from_file=`cat ${'$'}FILE_NODE_COUNT`
+                      nodes_line_count=`cat ${'$'}FILE_NODES | trim | wc -l`
+                      if [[ ! -f "${'$'}{FILE_NODES}" ]] || [ ${'$'}node_count_from_file != ${'$'}nodes_line_count ]; then
+                        echo "Not enough entries in ${'$'}{FILE_NODES}"
+                        continue;
+                      fi
 
-                              break;
-                            done;
-                        """
-                    )
-                    volumeMounts = listOf(
-                        Pod.Container.VolumeMount(
-                            name = ucloudVolume,
-                            readOnly = false,
-                            mountPath = mountPath
-                        )
-                    )
-                }
-            )
-            template.initContainers = initContainers
+                      wildcard=${'$'}(echo "${'$'}{FILE_NODE_PREFIX}"*)
+                      node_file_count=`ls -1 ${'$'}wildcard | trim | wc -l`
+                      if [ ${'$'}node_file_count != ${'$'}node_count_from_file ]; then
+                        echo "Not enough individual node entries (Looking for: ${'$'}{FILE_NODE_PREFIX}*)"
+                        continue;
+                      fi
 
-            template.containers?.forEach { c ->
-                val volumeMounts = c.volumeMounts?.toMutableList() ?: ArrayList()
-                volumeMounts.add(
-                    Pod.Container.VolumeMount(
-                        name = ucloudVolume,
-                        readOnly = false,
-                        mountPath = mountPath
-                    )
-                )
-                c.volumeMounts = volumeMounts
-            }
-
-            val volumes = template.volumes?.toMutableList() ?: ArrayList()
-            volumes.add(
-                Volume(
-                    name = ucloudVolume,
-                    emptyDir = Volume.EmptyDirVolumeSource()
-                )
-            )
-            template.volumes = volumes
+                      break;
+                    done;
+                """
+            ))
         }
     }
 }

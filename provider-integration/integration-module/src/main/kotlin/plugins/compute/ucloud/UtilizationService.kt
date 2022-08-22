@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
  * A service responsible for fetching utilization information
  */
 class UtilizationService(
-    private val k8: K8Dependencies,
+    private val k8: K8DependenciesImpl,
 ) {
     suspend fun retrieveCapacity(productCategoryId: String): CpuAndMemory {
         val namespace = k8.client.getResource(

@@ -48,7 +48,7 @@ class UCloudComputePlugin : ComputePlugin {
     override fun supportsServiceUserMode(): Boolean = true
 
     lateinit var jobCache: VerifiedJobCache
-    lateinit var k8: K8Dependencies
+    lateinit var k8: K8DependenciesImpl
     lateinit var jobManagement: JobManagement
     lateinit var logService: K8LogService
     lateinit var licenseService: LicenseService
@@ -70,7 +70,7 @@ class UCloudComputePlugin : ComputePlugin {
             }
 
         jobCache = VerifiedJobCache(rpcClient)
-        k8 = K8Dependencies(
+        k8 = K8DependenciesImpl(
             KubernetesClient(
                 if (pluginConfig.kubeSvcOverride != null) {
                     KubernetesConfigurationSource.InClusterConfiguration(pluginConfig.kubeSvcOverride)
@@ -141,9 +141,8 @@ class UCloudComputePlugin : ComputePlugin {
             register(FeatureMiscellaneous)
             register(FeatureNetworkLimit)
             register(FeatureFairShare)
-//            register(FeatureProxy(broadcastingStream, ingressService))
+            register(FeatureFirewall)
             register(FeatureFileOutput(files.pathConverter, files.fs, logService, fileMountPlugin))
-
         }
     }
 
@@ -207,7 +206,7 @@ class UCloudComputePlugin : ComputePlugin {
 
                 val isPublic = domain == publicDomain
 
-                val pod = jobManagement.k8.client.getResource(
+                val pod = k8.client.getResource(
                     Pod.serializer(),
                     KubernetesResourceLocator.common.pod.withNameAndNamespace(
                         k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
@@ -228,7 +227,7 @@ class UCloudComputePlugin : ComputePlugin {
             }
 
             InteractiveSessionType.VNC -> {
-                val pod = jobManagement.k8.client.getResource(
+                val pod = k8.client.getResource(
                     Pod.serializer(),
                     KubernetesResourceLocator.common.pod.withNameAndNamespace(
                         k8.nameAllocator.jobIdAndRankToPodName(job.job.id, job.rank),
@@ -349,8 +348,9 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
         compute = (config.plugins.jobs[pluginName] as? UCloudComputePlugin)
             ?: error("UCloud ingress plugin must run with a matching compute plugin (with the same name)")
 
-        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface, )
-        firewall = FeatureFirewall(dbConnection, pluginConfig.gatewayCidr)
+        ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface)
+        firewall = compute.jobManagement.featureOrNull() ?: error("No firewall feature detected")
+        firewall.gatewayCidr = pluginConfig.gatewayCidr
 
         compute.jobManagement.register(ipMounter)
         compute.jobManagement.register(firewall)

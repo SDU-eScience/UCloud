@@ -11,11 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
  * the project. Namespace creation is done, as needed, by the [FeatureFairShare].
  */
 object FeatureFairShare : JobFeature {
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        val jobMetadata = builder.metadata ?: error("no metadata")
-        (jobMetadata.annotations?.toMutableMap() ?: HashMap()).let { annotations ->
-            annotations["ucloud.dk/user"] = JsonPrimitive(job.owner.project ?: job.owner.createdBy)
-            jobMetadata.annotations = JsonObject(annotations)
-        }
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
+        builder.upsertAnnotation("ucloud.dk/user", job.owner.project ?: job.owner.createdBy)
     }
 }

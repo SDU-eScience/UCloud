@@ -19,11 +19,6 @@ data class NodeType(
     val gpus: Int,
 )
 
-data class CephConfiguration(
-    val cephfsBaseMount: String? = null,
-    val subfolder: String = ""
-)
-
 /**
  * A plugin which initializes the Volcano task
  *
@@ -38,101 +33,63 @@ class FeatureTask(
     private val useMachineSelector: Boolean,
     private val nodes: NodeConfiguration?,
 ) : JobFeature {
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val jobResources = resources.findResources(job)
         val app = jobResources.application.invocation
         val tool = app.tool.tool!!.description
 
-        val vSpec = builder.spec ?: error("no volcano job spec")
-        vSpec.minAvailable = job.specification.replicas
-        vSpec.queue = DEFAULT_QUEUE
-        vSpec.policies = emptyList()
-        vSpec.plugins = JsonObject(mapOf(
-            "env" to JsonArray(emptyList()),
-            "svc" to JsonArray(emptyList()),
-        ))
-        vSpec.maxRetry = 0
-        (vSpec.tasks?.toMutableList() ?: ArrayList()).let { tasks ->
-            tasks.add(VolcanoJob.TaskSpec().apply {
-                name = "job"
-                replicas = job.specification.replicas
-                policies = emptyList()
-                template = Pod.SpecTemplate().apply {
-                    metadata = ObjectMeta(name = "job-${job.id}")
-                    val pSpec = Pod.Spec()
-                    spec = pSpec
+        @Suppress("DEPRECATION")
+        builder.image(tool.container!!)
 
-                    val container = Pod.Container()
-                    pSpec.containers = listOf(container)
-                    if (toleration != null) {
-                        pSpec.tolerations = listOf(
-                            Pod.Toleration("NoSchedule", toleration.key, "Equal", null, toleration.value)
-                        )
-                    }
+        if (builder is PodBasedContainer) {
+            val pSpec = builder.pod.spec!!
 
-                    if (useMachineSelector) {
-                        pSpec.nodeSelector = JsonObject(mapOf(
-                            "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
-                        ))
-                    }
+            if (toleration != null) {
+                pSpec.tolerations = listOf(
+                    Pod.Toleration("NoSchedule", toleration.key, "Equal", null, toleration.value)
+                )
+            }
 
-                    container.name = "user-job"
-                    container.image = tool.container
-                    container.imagePullPolicy = "IfNotPresent"
-                    container.resources = run {
-                        val reservedCpu = nodes?.systemReservedCpuMillis ?: 0
-                        val reservedMem = nodes?.systemReservedMemMegabytes ?: 0
-                        val totalCpu = nodes?.types?.get(jobResources.product.category.id)?.cpuMillis
-                        val totalMem = nodes?.types?.get(jobResources.product.category.id)?.memMegabytes
+            if (useMachineSelector) {
+                pSpec.nodeSelector = JsonObject(
+                    mapOf(
+                        "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
+                    )
+                )
+            }
+        }
 
-                        val resources = HashMap<String, JsonElement>()
-                        val reservation = jobResources.product
+        val reservedCpu = nodes?.systemReservedCpuMillis ?: 0
+        val reservedMem = nodes?.systemReservedMemMegabytes ?: 0
+        val totalCpu = nodes?.types?.get(jobResources.product.category.name)?.cpuMillis
+        val totalMem = nodes?.types?.get(jobResources.product.category.name)?.memMegabytes
+        val reservation = jobResources.product
 
-                        if (reservation.cpu != null) {
-                            resources += if (useSmallReservation) {
-                                "cpu" to JsonPrimitive("${reservation.cpu!! * 100}m")
-                            } else {
-                                val requestedCpu = reservation.cpu!! * 1000
-                                val actualCpu = if (totalCpu != null) {
-                                    (requestedCpu - (reservedCpu * (requestedCpu / totalCpu.toDouble()))).toInt()
-                                } else {
-                                    requestedCpu
-                                }
-                                "cpu" to JsonPrimitive("${actualCpu}m")
-                            }
-                        }
+        if (useSmallReservation) {
+            builder.vCpuMillis = reservation.cpu!! * 100
+        } else {
+            val requestedCpu = reservation.cpu!! * 1000
+            builder.vCpuMillis = if (totalCpu != null) {
+                (requestedCpu - (reservedCpu * (requestedCpu / totalCpu.toDouble()))).toInt()
+            } else {
+                requestedCpu
+            }
+        }
 
-                        if (reservation.memoryInGigs != null) {
-                            resources += if (useSmallReservation) {
-                                "memory" to JsonPrimitive("${reservation.memoryInGigs!!}Mi")
-                            } else {
-                                val requestedMem = reservation.memoryInGigs!! * 1024
-                                val actualMem = if (totalMem != null) {
-                                    (requestedMem - (reservedMem * (requestedMem / totalMem.toDouble()))).toInt()
-                                } else {
-                                    requestedMem
-                                }
-                                "memory" to JsonPrimitive("${actualMem}Mi")
-                            }
-                        }
+        if (useSmallReservation) {
+            builder.memoryMegabytes = 128
+        } else {
+            val requestedMem = reservation.memoryInGigs!! * 1024
+            builder.memoryMegabytes = if (totalMem != null) {
+                (requestedMem - (reservedMem * (requestedMem / totalMem.toDouble()))).toInt()
+            } else {
+                requestedMem
+            }
+        }
 
-                        if (reservation.gpu != null) {
-                            resources += "nvidia.com/gpu" to JsonPrimitive("${reservation.gpu!!}")
-                        }
-
-                        if (resources.isNotEmpty()) {
-                            Pod.Container.ResourceRequirements(
-                                limits = JsonObject(resources),
-                                requests = JsonObject(resources),
-                            )
-                        } else {
-                            null
-                        }
-                    }
-                }
-            })
-
-            vSpec.tasks = tasks
+        val gpus = reservation.gpu
+        if (gpus != null) {
+            builder.gpus = gpus
         }
     }
 }

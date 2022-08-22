@@ -9,7 +9,6 @@ import java.io.OutputStream
 interface Container {
     val jobId: String
     val rank: Int
-    val state: JobState
     val annotations: Map<String, String>
     val ipAddress: String
 
@@ -29,34 +28,40 @@ interface Container {
         block: suspend ExecContext.() -> Unit,
     )
 
-    suspend fun allowNetworkTo(jobId: String, rank: Int?)
-    suspend fun allowNetworkFrom(jobId: String, rank: Int?)
+    suspend fun allowNetworkTo(jobId: String, rank: Int? = null)
+    suspend fun allowNetworkFrom(jobId: String, rank: Int? = null)
+
+    fun stateAndMessage(): Pair<JobState, String>
+
+    val vCpuMillis: Int
+    val memoryMegabytes: Int
+    val gpus: Int
 }
 
-interface ContainerRuntime<C : Container, B : ContainerBuilder<B>> {
-    fun builder(jobId: String, replicas: Int, block: B.() -> Unit = {}): B
+interface ContainerRuntime {
+    fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit = {}): ContainerBuilder
 
-    suspend fun scheduleGroup(group: List<B>)
-    suspend fun retrieve(jobId: String, rank: Int): C?
-    suspend fun list(): List<C>
+    suspend fun scheduleGroup(group: List<ContainerBuilder>)
+    suspend fun retrieve(jobId: String, rank: Int): Container?
+    suspend fun list(): List<Container>
 }
 
-interface ContainerBuilder<B : ContainerBuilder<B>> {
+interface ContainerBuilder {
     val jobId: String
     val replicas: Int
 
     var shouldAllowRoot: Boolean
     var workingDirectory: String
 
-    var productCategoryRequired: String?
+    var productCategoryRequired: String? // TODO implement this
     var vCpuMillis: Int
     var memoryMegabytes: Int
     var gpus: Int
 
     val isSidecar: Boolean
     fun supportsSidecar(): Boolean
-    fun sidecar(builder: B.() -> Unit)
-    val sidecars: List<B>
+    fun sidecar(name: String, builder: ContainerBuilder.() -> Unit)
+    val sidecars: List<ContainerBuilder>
 
     fun image(image: String)
     fun environment(name: String, value: String)
@@ -64,11 +69,16 @@ interface ContainerBuilder<B : ContainerBuilder<B>> {
 
     fun mountUCloudFileSystem(subPath: String, containerPath: String, readOnly: Boolean)
     fun mountSharedMemory(sharedMemorySizeMegabytes: Long)
+    fun mountSharedVolume(volumeName: String, containerPath: String)
 
     fun mountIpAddressToEnvVariable(variableName: String) {}
     fun mountIpAddress(ipAddress: String, networkInterface: String, ports: List<Pair<Int, IPProtocol>>)
 
-    fun allowNetworkTo(jobId: String, rank: Int?)
-    fun allowNetworkFrom(jobId: String, rank: Int?)
+    fun allowNetworkTo(jobId: String, rank: Int? = null)
+    fun allowNetworkFrom(jobId: String, rank: Int? = null)
+    fun allowNetworkFromSubnet(subnet: String)
+    fun allowNetworkToSubnet(subnet: String)
     fun hostAlias(jobId: String, rank: Int, alias: String)
+
+    fun upsertAnnotation(key: String, value: String)
 }

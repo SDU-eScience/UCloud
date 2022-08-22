@@ -332,7 +332,7 @@ class SyncthingService(
     }
 
     // Job management plugin
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         // NOTE(Dan): This plugin is designed to run after all the normal plugins have already run. As a result, this
         // plugin has full range to do whatever modifications it desires. Of course, this plugin is only interested in
         // syncthing related jobs, so we start by verifying that we are on the correct product.
@@ -367,45 +367,11 @@ class SyncthingService(
 
         // NOTE(Dan): Next, we make some modifications to the scheduling parameters. This ensures that we have better
         // utilization of our cluster resources.
-        val vSpec = builder.spec ?: error("no volcano job spec")
-        val tasks = (vSpec.tasks ?: emptyList())
-
-        run {
-            // Schedule with fewer resources attached
-            tasks.forEach { task ->
-                val containers = task?.template?.spec?.containers ?: emptyList()
-                containers.forEach { c -> 
-                    // TODO(Dan): Re-evaluate these numbers based on some proper tests. I am very much guessing at
-                    // what the values should be.
-                    c.resources = Pod.Container.ResourceRequirements(
-                        requests = JsonObject(mapOf(
-                            "cpu" to JsonPrimitive("100m"),
-                            "memory" to JsonPrimitive("200Mi")
-                        )),
-                        limits = JsonObject(mapOf(
-                            "cpu" to JsonPrimitive("2000m"),
-                            "memory" to JsonPrimitive("500Mi")
-                        ))
-                    )
-                    c.imagePullPolicy = "Always"
-                }
-            }
-        }
-
-        run {
-            // Reduce shared memory
-            tasks.forEach { task ->
-                val volumes = task?.template?.spec?.volumes ?: emptyList()
-                volumes.forEach { v ->
-                    if (v.name == FeatureSharedMemory.SHARED_MEMORY_VOLUME) {
-                        v.emptyDir = Volume.EmptyDirVolumeSource(
-                            medium = "Memory",
-                            sizeLimit = "200Mi"
-                        )
-                    }
-                }
-            }
-        }
+        // TODO(Dan): Re-evaluate these numbers based on some proper tests. I am very much guessing at
+        // what the values should be.
+        builder.vCpuMillis = 100
+        builder.memoryMegabytes = 200
+        builder.mountSharedMemory(200)
     }
 
     companion object : Loggable {

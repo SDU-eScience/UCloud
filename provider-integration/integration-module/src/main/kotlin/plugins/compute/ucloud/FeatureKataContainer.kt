@@ -10,8 +10,10 @@ import kotlin.math.max
  * A plugin which enables support for Kata Containers
  */
 object FeatureKataContainer : JobFeature {
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
-        val tasks = builder.spec?.tasks ?: error("no volcano tasks")
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
+        if (builder !is VolcanoContainerBuilder) return
+
+        val tasks = builder.job.spec?.tasks ?: error("no volcano tasks")
         tasks.forEach { task ->
             val pTemplate = task.template ?: error("no template")
             val pSpec = pTemplate.spec ?: error("no pod spec in task")

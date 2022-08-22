@@ -17,7 +17,7 @@ import java.nio.file.Files
  * A service responsible for downloading and streaming of K8 logs from user jobs.
  */
 class K8LogService(
-    private val k8: K8Dependencies
+    private val k8: K8DependenciesImpl
 ) {
     data class LogMessage(val rank: Int, val message: String)
 

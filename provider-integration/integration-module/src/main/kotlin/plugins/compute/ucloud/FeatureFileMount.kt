@@ -94,7 +94,7 @@ class FeatureFileMount(
         return file
     }
 
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         data class FileMount(val path: String, val readOnly: Boolean) {
             val fileName = path.normalize().fileName()
         }
@@ -136,52 +136,25 @@ class FeatureFileMount(
             k8.serviceClient
         ).orRethrowAs { throw RPCException("Internal error - Could not add output folder", HttpStatusCode.BadGateway) }
 
-        val tasks = builder.spec?.tasks ?: error("no volcano tasks")
-        tasks.forEach { task ->
-            val pSpec = task.template?.spec ?: error("no pod spec in task")
-            pSpec.containers?.forEach { c ->
-                (c.volumeMounts?.toMutableList() ?: ArrayList()).let { volumeMounts ->
-                    volumeMounts.add(
-                        Pod.Container.VolumeMount(
-                            name = VOL_NAME,
-                            mountPath = "/work",
-                            readOnly = false,
-                            subPath = buildString {
-                                append(relativeJobFolder.normalize().path.removePrefix("/"))
-                            }
-                        )
-                    )
+        builder.mountUCloudFileSystem(
+            relativeJobFolder.normalize().path.removePrefix("/"),
+            "/work",
+            readOnly = false
+        )
 
-                    fileMounts.forEach { mount ->
-                        volumeMounts.add(
-                            Pod.Container.VolumeMount(
-                                name = VOL_NAME,
-                                readOnly = mount.readOnly,
-                                mountPath = joinPath("/work", mount.fileName),
-                                subPath = buildString {
-                                    append(mount.path.normalize().removePrefix("/"))
-                                }
-                            )
-                        )
-                    }
-
-                    c.volumeMounts = volumeMounts
-                }
-            }
-
-            (pSpec.volumes?.toMutableList() ?: ArrayList()).let { volumes ->
-                volumes.add(
-                    Volume(
-                        name = VOL_NAME,
-                        persistentVolumeClaim = Volume.PersistentVolumeClaimSource(CEPHFS, false)
-                    )
-                )
-                pSpec.volumes = volumes
-            }
+        fileMounts.forEach { mount ->
+            builder.mountUCloudFileSystem(
+                mount.path.normalize().removePrefix("/"),
+                joinPath("/work", mount.fileName),
+                readOnly = mount.readOnly,
+            )
         }
     }
 
-    override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
+    override suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {
+        // TODO Cleaning up in job folders
+        repeat(10) { println("Need to clean up in job folders") }
+        /*
         val workMount = findWorkMount(jobFromServer)
         val volumeMounts =
             jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
@@ -212,15 +185,16 @@ class FeatureFileMount(
                 }
             }
         }
+         */
     }
 
-    fun findWorkMount(jobFromServer: VolcanoJob): RelativeInternalFile? {
-        return jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
-            ?.find { it.name == VOL_NAME }
-            ?.subPath
-            ?.let { path -> path }
-            ?.let { path -> RelativeInternalFile("/${path}") }
-    }
+//    fun findWorkMount(jobFromServer: Container): RelativeInternalFile? {
+//        return jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
+//            ?.find { it.name == VOL_NAME }
+//            ?.subPath
+//            ?.let { path -> path }
+//            ?.let { path -> RelativeInternalFile("/${path}") }
+//    }
 
     companion object : Loggable {
         const val CEPHFS = "cephfs"

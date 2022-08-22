@@ -118,7 +118,7 @@ class FeatureIngress(
         }
     }
 
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val ingressPoints = job.ingressPoints
         if (ingressPoints.isEmpty()) return
 

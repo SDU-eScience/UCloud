@@ -17,7 +17,7 @@ class NameAllocator(private val namespace: String) {
     }
 
     fun jobIdFromPodName(podName: String): String {
-        return podName.substringBeforeLast('-').substringAfter('-')
+        return podName.substringBeforeLast('-').removeSuffix("-job").substringAfter('-')
     }
 
     fun rankFromPodName(podName: String): Int {

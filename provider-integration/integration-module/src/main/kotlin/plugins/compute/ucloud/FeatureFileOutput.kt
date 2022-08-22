@@ -11,7 +11,10 @@ class FeatureFileOutput(
     private val logService: K8LogService,
     private val fileMountPlugin: FeatureFileMount,
 ) : JobFeature {
-    override suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {
+    override suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {
+        // TODO Download logs
+        repeat(10) { println("Download logs") }
+        /*
         val workMount = fileMountPlugin.findWorkMount(jobFromServer)
 
         if (workMount != null) {
@@ -32,5 +35,6 @@ class FeatureFileOutput(
                 dir?.deleteRecursively()
             }
         }
+         */
     }
 }

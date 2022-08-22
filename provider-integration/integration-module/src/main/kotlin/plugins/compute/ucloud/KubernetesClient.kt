@@ -351,6 +351,28 @@ data class KubernetesResourceLocator(
     fun withNameAndNamespace(name: String, namespace: String): KubernetesResourceLocator =
         copy(name = name, namespace = namespace)
 
+    override fun toString(): String {
+        return buildString {
+            when {
+                name == null && namespace == null -> {
+                    append("Any resource ")
+                }
+                name == null && namespace != null -> {
+                    append("Any resource in $namespace ")
+                }
+                name != null && namespace == null -> {
+                    append("$name in any namespace ")
+                }
+
+                name != null && namespace != null -> {
+                    append("$name in $namespace ")
+                }
+            }
+
+            append("of type $resourceType ($apiGroup/$version)")
+        }
+    }
+
     companion object {
         val common = KubernetesResources
     }
@@ -436,11 +458,16 @@ class KubernetesClient(
             ?.let { "?$it" } ?: ""
     }
 
-    suspend fun <T> parseResponse(serializer: KSerializer<T>, resp: HttpResponse): T {
+    suspend fun <T> parseResponse(
+        serializer: KSerializer<T>,
+        resp: HttpResponse,
+        errorContext: () -> String,
+    ): T {
         if (!resp.status.isSuccess()) {
             throw KubernetesException(
                 resp.status,
-                resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString()
+                "Kubernetes request has failed. Context is: ${errorContext()}\n" +
+                        resp.bodyAsChannel().toByteArray(1024 * 4096).decodeToString().prependIndent("    ")
             )
         }
 
@@ -496,7 +523,11 @@ suspend fun <T> KubernetesClient.getResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): T {
-    return parseResponse(serializer, sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute())
+    return parseResponse(
+        serializer,
+        sendRequest(HttpMethod.Get, locator, queryParameters, operation).execute(),
+        { "getResource($locator, $queryParameters, $operation)" }
+    )
 }
 
 data class KubernetesList<T>(
@@ -512,7 +543,11 @@ suspend fun <T> KubernetesClient.listResources(
 ): KubernetesList<T> {
     val resp = sendRequest(HttpMethod.Get, locator, queryParameters, operation)
 
-    val parsedResp = parseResponse(JsonObject.serializer(), resp.execute())
+    val parsedResp = parseResponse(
+        JsonObject.serializer(),
+        resp.execute(),
+        { "listResources($locator, $queryParameters, $operation)" }
+    )
     val items = parsedResp["items"] as? JsonArray ?: error("Could not parse items of response: $parsedResp")
 
     return KubernetesList(
@@ -555,7 +590,11 @@ suspend inline fun KubernetesClient.deleteResource(
     queryParameters: Map<String, String> = emptyMap(),
     operation: String? = null,
 ): JsonObject {
-    return parseResponse(JsonObject.serializer(), sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute())
+    return parseResponse(
+        JsonObject.serializer(),
+        sendRequest(HttpMethod.Delete, locator, queryParameters, operation).execute(),
+        { "deleteResource($locator, $queryParameters, $operation)" }
+    )
 }
 
 suspend inline fun KubernetesClient.replaceResource(
@@ -572,7 +611,8 @@ suspend inline fun KubernetesClient.replaceResource(
             queryParameters,
             operation,
             TextContent(replacementJson, ContentType.Application.Json)
-        ).execute()
+        ).execute(),
+        { "replaceResource($locator, $replacementJson, $queryParameters, $operation)" }
     )
 }
 
@@ -591,7 +631,8 @@ suspend fun KubernetesClient.patchResource(
             queryParameters,
             operation,
             TextContent(replacement, contentType)
-        ).execute()
+        ).execute(),
+        { "patchResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
     )
 }
 
@@ -610,7 +651,8 @@ suspend fun KubernetesClient.createResource(
             queryParameters,
             operation,
             TextContent(replacement, contentType)
-        ).execute()
+        ).execute(),
+        { "createResource($locator, $replacement, $contentType, $queryParameters, $operation)" }
     )
 }
 

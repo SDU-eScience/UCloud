@@ -11,7 +11,6 @@ import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.everything
 import dk.sdu.cloud.debug.detailD
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -25,12 +24,13 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 interface JobFeature {
     /**
-     * Provides a hook for features to modify the [VolcanoJob]
+     * Provides a hook for features to modify the [ContainerBuilder]
      */
-    suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {}
+    suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {}
 
     /**
      * Provides a hook for features to clean up after a job has finished
@@ -41,27 +41,21 @@ interface JobFeature {
 
     /**
      * Called when the job has been submitted to Kubernetes and has started
-     *
-     * Note: Unlike [onCreate] the value from [jobFromServer] should not be mutated as updates will not be pushed to
-     * the Kubernetes server.
      */
-    suspend fun JobManagement.onJobStart(jobId: String, jobFromServer: VolcanoJob) {}
+    suspend fun JobManagement.onJobStart(rootJob: Container, children: List<Container>) {}
 
     /**
      * Called when the job completes
-     *
-     * Note: Unlike [onCreate] the value from [jobFromServer] should not be mutated as updates will not be pushed to
-     * the Kubernetes server.
      */
-    suspend fun JobManagement.onJobComplete(jobId: String, jobFromServer: VolcanoJob) {}
+    suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {}
 
     /**
-     * Called when the [JobManagement] system decides a batch of [VolcanoJob] is due for monitoring
+     * Called when the [JobManagement] system decides a batch of [Container] is due for monitoring
      *
      * A feature may perform various actions, such as, checking if the deadline has expired or sending accounting
      * information back to UCloud app orchestration.
      */
-    suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<VolcanoJob>) {}
+    suspend fun JobManagement.onJobMonitoring(jobBatch: Collection<Container>) {}
 }
 
 class JobManagement(
@@ -70,6 +64,8 @@ class JobManagement(
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
 ) {
+    val runtime: ContainerRuntime = VolcanoRuntime(k8 as K8DependenciesImpl)
+
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
         get() = features
@@ -141,22 +137,7 @@ class JobManagement(
                 )
             }
 
-            val name = k8.nameAllocator.jobIdToJobName(verifiedJob.id)
-            val namespace = k8.nameAllocator.namespace()
-
-            val jobAlreadyExists = try {
-                k8.client.getResource(
-                    VolcanoJob.serializer(),
-                    KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
-                )
-                true
-            } catch (ex: KubernetesException) {
-                if (ex.statusCode.value == HttpStatusCode.NotFound.value) {
-                    false
-                } else {
-                    throw ex
-                }
-            }
+            val jobAlreadyExists = runtime.retrieve(verifiedJob.id, 0) != null
 
             // TODO(Dan): A poorly timed double unsuspend will still cause the job to be in the queue, even though 
             // it has been restarted correctly. On the bright side, it will quickly go away.
@@ -180,12 +161,7 @@ class JobManagement(
             }
 
             jobCache.cacheJob(verifiedJob)
-            val builder = VolcanoJob()
-            builder.metadata = ObjectMeta(
-                name = name,
-                namespace = namespace
-            )
-            builder.spec = VolcanoJob.Spec(schedulerName = "volcano")
+            val builder = runtime.builder(verifiedJob.id, verifiedJob.specification.replicas)
             features.forEach {
                 k8.debug?.everything("Running feature (onCreate): ${it.javaClass.simpleName}")
                 with(it) {
@@ -194,10 +170,7 @@ class JobManagement(
             }
 
             k8.debug?.everything("Creating resource")
-            k8.client.createResource(
-                KubernetesResources.volcanoJob.withNamespace(namespace),
-                defaultMapper.encodeToString(VolcanoJob.serializer(), builder)
-            )
+            runtime.scheduleGroup(listOf(builder))
             k8.debug?.everything("Resource has been created!")
         } catch (ex: Throwable) {
             log.warn(ex.stackTraceToString())
@@ -206,26 +179,19 @@ class JobManagement(
     }
 
     private suspend fun cleanup(jobId: String) {
-        try {
-            k8.client.deleteResource(
-                KubernetesResources.volcanoJob.withNameAndNamespace(
-                    k8.nameAllocator.jobIdToJobName(jobId),
-                    k8.nameAllocator.namespace()
-                )
-            )
-        } catch (ex: KubernetesException) {
-            if (ex.statusCode == io.ktor.http.HttpStatusCode.NotFound || ex.statusCode == io.ktor.http.HttpStatusCode.BadRequest) {
-                // NOTE(Dan): We ignore this status code as it simply indicates that the job has already been
-                // cleaned up. If we have more than one resource we should wrap that in a new try/catch block.
-            } else {
-                throw ex
-            }
+        val resolvedJob = jobCache.findJob(jobId) ?: return
+        for (i in 0 until resolvedJob.specification.replicas) {
+            runtime.retrieve(jobId, i)?.cancel()
         }
-
     }
 
     suspend fun extend(job: Job, newMaxTime: SimpleDuration) {
-        FeatureExpiry.extendJob(k8, job.id, newMaxTime)
+        val rootJob = runtime.retrieve(job.id, 0) ?: return
+        with(this) {
+            with(FeatureExpiry) {
+                extendJob(rootJob, newMaxTime)
+            }
+        }
     }
 
     suspend fun cancel(verifiedJob: Job) {
@@ -233,7 +199,7 @@ class JobManagement(
     }
 
     private suspend fun cancel(jobId: String) {
-        val exists = markJobAsComplete(jobId, null)
+        val exists = markJobAsComplete(jobId)
         cleanup(jobId)
         if (exists) {
             k8.changeState(
@@ -246,57 +212,50 @@ class JobManagement(
         }
     }
 
-    private var lastScan: Map<String, VolcanoJob> = emptyMap()
+    private var lastScan: Map<String, List<Container>> = emptyMap()
 
     @Serializable
-    private data class VolcanoJobEvent(
-        val jobName: String,
-        val oldJob: VolcanoJob?,
-        val newJob: VolcanoJob?,
+    private data class JobEvent(
+        val jobId: String,
+        val oldReplicas: List<Container>,
+        val newReplicas: List<Container>,
     ) {
-        val wasDeleted: Boolean get() = newJob == null
-        val updatedPhase: String?
-            get() {
-                val oldPhase = oldJob?.status?.state?.phase
-                val newPhase = newJob?.status?.state?.phase
+        val oldRoot: Container? get() = oldReplicas.find { it.rank == 0 }
+        val newRoot: Container? get() = newReplicas.find { it.rank == 0 }
 
-                return if (oldPhase != newPhase) {
-                    newPhase
-                } else {
-                    null
-                }
+        val wasDeleted: Boolean get() = newReplicas.isEmpty()
+        val updatedState: JobState?
+            get() {
+                val oldState = oldRoot?.stateAndMessage()?.first
+                val newState = newRoot?.stateAndMessage()?.first
+
+                if (newState != oldState) return newState
+                return null
             }
 
         val updatedRunning: Int?
             get() {
-                val oldRunning = oldJob?.status?.running
-                val newRunning = newJob?.status?.running
-
-                return if (oldRunning != newRunning) {
-                    newRunning
-                } else {
-                    null
-                }
+                if (oldReplicas.size != newReplicas.size) return newReplicas.size
+                return null
             }
     }
 
-    private fun processScan(newJobs: List<VolcanoJob>): List<VolcanoJobEvent> {
-        val newJobsGrouped = newJobs
-            .asSequence()
-            .filter { it.metadata?.name != null }
-            .associateBy { it.metadata!!.name!! }
+    private fun processScan(newJobs: List<Container>): List<JobEvent> {
+        val newJobsGrouped = newJobs.groupBy { it.jobId }
 
-        val result = ArrayList<VolcanoJobEvent>()
+        val result = ArrayList<JobEvent>()
         val observed = HashSet<String>()
-        for ((key, oldJob) in lastScan) {
-            val newJob = newJobsGrouped[key]
-            result.add(VolcanoJobEvent(key, oldJob, newJob))
-            observed.add(key)
+        for ((jobId, oldReplicas) in lastScan) {
+            val newReplicas = newJobsGrouped[jobId] ?: emptyList()
+
+            result.add(JobEvent(jobId, oldReplicas, newReplicas))
+            observed.add(jobId)
         }
 
-        for ((key, newJob) in newJobsGrouped) {
-            if (key in observed) continue
-            result.add(VolcanoJobEvent(key, null, newJob))
+        for ((jobId, replicas) in newJobsGrouped) {
+            if (jobId in observed) continue
+
+            result.add(JobEvent(jobId, emptyList(), replicas))
         }
 
         lastScan = newJobsGrouped
@@ -345,13 +304,11 @@ class JobManagement(
                 }
 
                 k8.debug.enterContext("K8 Job monitoring") {
-                    val resources = k8.client.listResources(
-                        VolcanoJob.serializer(),
-                        KubernetesResources.volcanoJob.withNamespace(k8.nameAllocator.namespace())
-                    )
+                    val resources = runtime.list()
 
                     val events = processScan(resources)
-                    k8.debug.detailD("Events fetched from K8", ListSerializer(VolcanoJobEvent.serializer()), events)
+                    k8.debug.detailD("Received ${resources.size} resources from runtime", Unit.serializer(), Unit)
+                    k8.debug.detailD("Events fetched from K8", ListSerializer(String.serializer()), events.map { it.jobId })
                     // TODO It looks like this code is aware of changes but they are not successfully received by 
                     // UCloud/sent by this service
 
@@ -360,23 +317,21 @@ class JobManagement(
                     var debugUpdates = 0
 
                     events.forEachGraal { event ->
-                        k8.debug.enterContext("Processing: ${event.jobName}") {
-                            val jobId = k8.nameAllocator.jobNameToJobId(event.jobName)
-
+                        k8.debug.enterContext("Processing: ${event.jobId}") l@{
                             when {
                                 event.wasDeleted -> {
-                                    val oldJob = event.oldJob!!
+                                    val oldJob = event.oldReplicas.find { it.rank == 0 } ?: return@l
                                     val expiry = oldJob.expiry
                                     if (expiry != null && Time.now() >= expiry) {
                                         // NOTE(Dan): Expiry feature will simply delete the object. This is why we must
                                         // check if the reason was expiration here.
-                                        markJobAsComplete(jobId, oldJob)
-                                        k8.changeState(jobId, JobState.EXPIRED, "Job has expired")
+                                        markJobAsComplete(event.jobId)
+                                        k8.changeState(event.jobId, JobState.EXPIRED, "Job has expired")
 
                                         debugExpirations++
                                     } else {
                                         k8.changeState(
-                                            jobId, 
+                                            event.jobId,
                                             JobState.SUCCESS, 
                                             "Job has terminated", 
                                             allowRestart = false,
@@ -387,90 +342,41 @@ class JobManagement(
                                     }
                                 }
 
-                                event.updatedPhase != null || event.updatedRunning != null -> {
-                                    val job = event.newJob!!
-                                    val running = job.status?.running
-                                    val minAvailable = job.status?.minAvailable
-                                    val message = job.status?.state?.message
-
-                                    var newState: JobState? = null
-                                    var expectedDifferentState = false
-
-                                    val statusUpdate = buildString {
-                                        when (job.status?.state?.phase) {
-                                            VolcanoJobPhase.Pending -> {
-                                                append("Job is waiting in the queue")
-                                            }
-
-                                            VolcanoJobPhase.Running -> {
-                                                append("Job is now running")
-                                                newState = JobState.RUNNING
-                                                expectedDifferentState = true
-                                            }
-
-                                            VolcanoJobPhase.Restarting -> {
-                                                append("Job is restarting")
-                                            }
-
-                                            VolcanoJobPhase.Failed -> {
-                                                append("Job is terminating (exit code ≠ 0 or terminated by UCloud/compute)")
-                                                newState = JobState.SUCCESS
-                                            }
-
-                                            VolcanoJobPhase.Terminated, VolcanoJobPhase.Terminating,
-                                            VolcanoJobPhase.Completed, VolcanoJobPhase.Completing,
-                                            VolcanoJobPhase.Aborted, VolcanoJobPhase.Aborting,
-                                            -> {
-                                                append("Job is terminating")
-                                                newState = JobState.SUCCESS
-                                            }
-                                        }
-
-                                        if (message != null) {
-                                            append(" ($message)")
-                                        }
-
-                                        if (running != null && minAvailable != null) {
-                                            append(" (${running}/${minAvailable} ready)")
-                                        }
-                                    }
+                                event.updatedState != null || event.updatedRunning != null -> {
+                                    val message = event.newRoot?.stateAndMessage()?.second
+                                    val newState: JobState? = event.updatedState
 
                                     if (newState != null) {
                                         if (newState == JobState.SUCCESS) {
                                             val didChange = k8.changeState(
-                                                jobId, 
+                                                event.jobId,
                                                 JobState.SUCCESS, 
-                                                statusUpdate,
+                                                message,
                                                 allowRestart = true,
                                                 expectedDifferentState = true,
                                             )
 
                                             if (didChange) {
-                                                markJobAsComplete(jobId, job)
-
-                                                k8.client.deleteResource(
-                                                    KubernetesResources.volcanoJob
-                                                        .withNameAndNamespace(event.jobName, job.metadata!!.namespace!!)
-                                                )
+                                                markJobAsComplete(event.jobId)
+                                                event.newRoot?.cancel()
                                             }
                                         } else {
                                             val didChangeState = k8.changeState(
-                                                jobId,
-                                                newState!!,
-                                                statusUpdate,
-                                                expectedDifferentState = expectedDifferentState
+                                                event.jobId,
+                                                newState,
+                                                message,
                                             )
 
                                             if (didChangeState) {
                                                 features.forEach { feature ->
                                                     with(feature) {
-                                                        onJobStart(jobId, job)
+                                                        onJobStart(event.newRoot!!, event.newReplicas)
                                                     }
                                                 }
                                             }
                                         }
                                     } else {
-                                        k8.addStatus(jobId, statusUpdate)
+                                        if (message != null) k8.addStatus(event.jobId, message)
                                     }
 
                                     debugUpdates++
@@ -520,26 +426,12 @@ class JobManagement(
         }
     }
 
-    private suspend fun markJobAsComplete(jobId: String, volcanoJob: VolcanoJob?): Boolean {
-        val job = volcanoJob ?: run {
-            val name = k8.nameAllocator.jobIdToJobName(jobId)
-            val namespace = k8.nameAllocator.namespace()
-            try {
-                k8.client.getResource(
-                    VolcanoJob.serializer(),
-                    KubernetesResources.volcanoJob.withNameAndNamespace(name, namespace)
-                )
-            } catch (ex: KubernetesException) {
-                if (ex.statusCode == io.ktor.http.HttpStatusCode.NotFound) {
-                    log.info("Job no longer exists: $jobId")
-                    return false
-                }
-                throw ex
-            }
-        }
+    private suspend fun markJobAsComplete(jobId: String): Boolean {
+        val replicas = runtime.list().filter { it.jobId == jobId }
+        val job = replicas.find { it.rank == 0 } ?: return false
         features.forEach { feature ->
             with(feature) {
-                onJobComplete(jobId, job)
+                onJobComplete(job, replicas)
             }
         }
         features.forEach { feature ->
@@ -552,32 +444,22 @@ class JobManagement(
 
     fun verifyJobs(jobs: List<Job>) {
         k8.scope.launch {
-            val jobsByNamespace = jobs.map { it.id }.groupBy { k8.nameAllocator.namespace() }
-            for ((ns, jobIds) in jobsByNamespace) {
-                val knownJobs = k8.client
-                    .listResources(VolcanoJob.serializer(), KubernetesResources.volcanoJob.withNamespace(ns))
-                    .mapNotNull { k8.nameAllocator.jobNameToJobId(it.metadata?.name ?: return@mapNotNull null) }
-                    .toSet()
-
-                for (jobId in jobIds) {
-                    val job = jobs.find { it.id == jobId } ?: error("Corrupt data in verifyJobs")
-                    if (job.status.state == JobState.SUSPENDED) continue
-
-                    if (jobId !in knownJobs) {
-                        log.info("We appear to have lost the following job: $jobId")
-                        JobsControl.update.call(
-                            bulkRequestOf(
-                                ResourceUpdateAndId(
-                                    jobId,
-                                    JobUpdate(
-                                        state = JobState.FAILURE,
-                                        status = "UCloud/Compute lost track of this job"
-                                    )
+            val knownJobs = runtime.list().groupBy { it.jobId }
+            for (ucloudJob in jobs) {
+                if (ucloudJob.status.state == JobState.SUSPENDED) continue
+                if (ucloudJob.id !in knownJobs) {
+                    JobsControl.update.call(
+                        bulkRequestOf(
+                            ResourceUpdateAndId(
+                                ucloudJob.id,
+                                JobUpdate(
+                                    state = JobState.FAILURE,
+                                    status = "UCloud/Compute lost track of this job"
                                 )
-                            ),
-                            k8.serviceClient
-                        ).orThrow()
-                    }
+                            )
+                        ),
+                        k8.serviceClient
+                    ).orThrow()
                 }
             }
         }

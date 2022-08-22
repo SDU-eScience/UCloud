@@ -23,8 +23,6 @@ import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlin.math.log2
 
 @Serializable
@@ -153,7 +151,7 @@ class FeaturePublicIP(
         }
     }
 
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val networks = job.networks
         if (networks.isEmpty()) return
 
@@ -200,55 +198,24 @@ class FeaturePublicIP(
             rows
         }
 
-        val volName = "ipman"
-
-        val podSpec = builder.spec?.tasks?.first()?.template?.spec
-        val containerSpec = podSpec?.containers?.first()
-        if (podSpec == null || containerSpec == null) {
-            log.warn("Could not attach IP. This probably shouldn't happen.")
-            return
-        }
-
-        idsAndIps.forEachIndexed { idx, (id, ip) ->
-            podSpec.volumes = (podSpec.volumes ?: emptyList()) + Volume().apply {
-                name = "$volName$idx"
-                flexVolume = Volume.FlexVolumeSource().apply {
-                    driver = "ucloud/ipman"
-                    fsType = "ext4"
-                    options = JsonObject(mapOf(
-                        "addr" to JsonPrimitive(ip),
-                        "iface" to JsonPrimitive(networkInterface)
-                    ))
-                }
-            }
-
-            containerSpec.volumeMounts = (containerSpec.volumeMounts ?: emptyList()) +
-                    Pod.Container.VolumeMount().apply {
-                        name = "$volName$idx"
-                        readOnly = true
-                        mountPath = "/mnt/.ucloud_ip$idx"
-                    }
-
+        idsAndIps.forEach { (id, ip) ->
             val retrievedNetwork = NetworkIPControl.retrieve.call(
                 ResourceRetrieveRequest(NetworkIPFlags(), id),
                 k8.serviceClient
             ).orThrow()
 
-            val openPorts = retrievedNetwork.specification.firewall?.openPorts ?: emptyList()
-            containerSpec.ports = (containerSpec.ports ?: emptyList()) + openPorts.flatMap { portRange ->
-                (portRange.start..portRange.end).map { port ->
-                    Pod.Container.ContainerPort(
-                        containerPort = port,
-                        hostPort = port,
-                        hostIP = ip,
-                        name = "pf${idx}-${port}",
-                        protocol = when (portRange.protocol) {
-                            IPProtocol.TCP -> "TCP"
-                            IPProtocol.UDP -> "UDP"
+            builder.mountIpAddress(
+                ip,
+                networkInterface,
+                run {
+                    val openPorts = retrievedNetwork.specification.firewall?.openPorts ?: emptyList()
+                    openPorts.flatMap { portRange ->
+                        (portRange.start..portRange.end).map { port ->
+                            Pair(port, portRange.protocol)
                         }
-                    )
+                    }
                 }
-            }
+            )
 
             k8.addStatus(job.id, "Successfully attached the following IP addresses: " +
                     idsAndIps.joinToString(", ") { it.external })

@@ -27,43 +27,31 @@ class FeatureParameter(
 ) : JobFeature {
     private val argBuilder = OurArgBuilder(pathConverter, licenseService)
 
-    override suspend fun JobManagement.onCreate(job: Job, builder: VolcanoJob) {
+    override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val app = resources.findResources(job).application.invocation
         val givenParameters =
             job.specification.parameters!!.mapNotNull { (paramName, value) ->
                 app.parameters.find { it.name == paramName }!! to value
             }.toMap()
 
-        (builder.spec?.tasks ?: error("no volcano tasks")).forEach { task ->
-            val containers = task.template?.spec?.containers ?: error("no containers in task")
-            containers.forEach { container ->
-                container.command = run {
-                    app.invocation.flatMap { parameter ->
-                        parameter.buildInvocationList(givenParameters, builder = argBuilder)
-                    }
-                }
+        builder.command(app.invocation.flatMap { parameter ->
+            parameter.buildInvocationList(givenParameters, builder = argBuilder)
+        })
 
-                container.env = run {
-                    val envVars = ArrayList<Pod.EnvVar>()
-                    app.environment?.forEach { (name, value) ->
-                        val resolvedValue = value.buildEnvironmentValue(givenParameters, builder = argBuilder)
-                        if (resolvedValue != null) {
-                            envVars.add(Pod.EnvVar(name, resolvedValue, null))
-                        }
-                    }
-
-                    val openedFile = job.specification.openedFile
-                    if (openedFile != null) {
-                        val lastComponents = pathConverter.ucloudToInternal(UCloudFile.create(openedFile)).components().takeLast(2)
-                        envVars.add(Pod.EnvVar(
-                            "UCLOUD_OPEN_WITH_FILE",
-                            joinPath("/work", *lastComponents.toTypedArray()).removeSuffix("/")
-                        ))
-                    }
-
-                    envVars
-                }
+        app.environment?.forEach { (name, value) ->
+            val resolvedValue = value.buildEnvironmentValue(givenParameters, builder = argBuilder)
+            if (resolvedValue != null) {
+                builder.environment(name, resolvedValue)
             }
+        }
+
+        val openedFile = job.specification.openedFile
+        if (openedFile != null) {
+            val lastComponents = pathConverter.ucloudToInternal(UCloudFile.create(openedFile)).components().takeLast(2)
+            builder.environment(
+                "UCLOUD_OPEN_WITH_FILE",
+                joinPath("/work", *lastComponents.toTypedArray()).removeSuffix("/")
+            )
         }
     }
 }

@@ -7,7 +7,7 @@ import dk.sdu.cloud.sql.withSession
 
 class MaintenanceService(
     private val db: DBContext,
-    private val k8: K8Dependencies
+    private val k8: K8DependenciesImpl
 ) {
     suspend fun isPaused(): Boolean {
         return db.withSession { session ->
