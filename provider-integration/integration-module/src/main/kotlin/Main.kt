@@ -152,9 +152,11 @@ fun main(args: Array<String>) {
 
             val logDir = config.core.logs.directory
 
+            // NOTE(Dan): This is passed directly to the config file, which doesn't escape anything. Be careful with
+            // potential XML injection here.
             val logModule = when (serverMode) {
                 ServerMode.FrontendProxy -> "frontend-proxy"
-                is ServerMode.Plugin -> "plugin-${serverMode.name}"
+                is ServerMode.Plugin -> "plugin-${Time.now()}"
                 ServerMode.Server -> "server"
                 ServerMode.User -> "user-${clib.getuid()}"
             }
@@ -403,6 +405,7 @@ fun main(args: Array<String>) {
                 allResourcePlugins.addAll(config.plugins.jobs.values)
                 allResourcePlugins.addAll(config.plugins.ingresses.values)
                 allResourcePlugins.addAll(config.plugins.publicIps.values)
+                allResourcePlugins.addAll(config.plugins.licenses.values)
             }
 
             // Resolving products for plugins
@@ -417,7 +420,8 @@ fun main(args: Array<String>) {
                         (config.products.compute ?: emptyMap()).values.flatten() +
                             (config.products.storage ?: emptyMap()).values.flatten() +
                                 (config.products.ingress ?: emptyMap()).values.flatten() +
-                                (config.products.publicIp ?: emptyMap()).values.flatten()
+                                (config.products.publicIp ?: emptyMap()).values.flatten() +
+                                (config.products.license ?: emptyMap()).values.flatten()
 
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {
@@ -538,6 +542,7 @@ fun main(args: Array<String>) {
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.ingresses) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.publicIps) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.licenses) plugin.apply { initialize() }
                 }
             }
 
@@ -590,6 +595,7 @@ fun main(args: Array<String>) {
                     ComputeController(controllerContext, envoyConfig, ktorEngine!!.application),
                     IngressController(controllerContext),
                     PublicIPController(controllerContext),
+                    LicenseController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     NotificationController(controllerContext),
                 )
@@ -625,6 +631,7 @@ fun main(args: Array<String>) {
                     val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
                     val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
                     val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
 
                     stats.add("Files" to (files ?: "No plugins"))
                     stats.add("Drives" to (fileCollections ?: "No plugins"))
@@ -632,6 +639,7 @@ fun main(args: Array<String>) {
                     stats.add("Jobs" to (jobs ?: "No plugins"))
                     stats.add("Public links" to (ingresses ?: "No plugins"))
                     stats.add("Public IPs" to (publicIps ?: "No plugins"))
+                    stats.add("Licenses" to (licenses ?: "No plugins"))
 
                     stats.add("Projects" to (projects ?: "No plugins"))
                     stats.add("Connection" to (connection ?: "No plugins"))

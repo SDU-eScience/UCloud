@@ -147,6 +147,28 @@ sealed class ConfigProduct<T : Product> {
     }
 
     @Serializable
+    @SerialName("license")
+    data class License(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+        val tags: List<String>
+    ) : ConfigProduct<Product.License>() {
+        override fun toProduct(category: String, provider: String): Product.License {
+            return Product.License(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+                freeToUse = isFree(),
+                tags = tags,
+            )
+        }
+    }
+
+    @Serializable
     @SerialName("compute")
     data class Compute(
         override val name: String,

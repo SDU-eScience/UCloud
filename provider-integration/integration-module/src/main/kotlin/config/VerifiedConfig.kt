@@ -88,6 +88,7 @@ data class VerifiedConfig(
         val fileCollections: Map<String, FileCollectionPlugin>,
         val ingresses: Map<String, IngressPlugin>,
         val publicIps: Map<String, PublicIPPlugin>,
+        val licenses: Map<String, LicensePlugin>,
         val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
@@ -106,6 +107,7 @@ data class VerifiedConfig(
                 fileCollections.values.iterator(),
                 ingresses.values.iterator(),
                 publicIps.values.iterator(),
+                licenses.values.iterator(),
             )
             var idx = 0
 
@@ -184,6 +186,7 @@ data class VerifiedConfig(
         val storage: Map<String, List<Product.Storage>>? = null,
         val ingress: Map<String, List<Product.Ingress>>? = null,
         val publicIp: Map<String, List<Product.NetworkIP>>? = null,
+        val license: Map<String, List<Product.License>>? = null,
     ) {
         var productsUnknownToUCloud: Set<Product> = emptySet()
     }
@@ -474,6 +477,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 mapProducts(config.products.storage),
                 mapProducts(config.products.ingress),
                 mapProducts(config.products.publicIps),
+                mapProducts(config.products.licenses),
             )
         }
     }
@@ -593,8 +597,17 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 core.launchRealUserInstances
             ) as Map<String, PublicIPPlugin>
 
+            @Suppress("unchecked_cast")
+            val licenses: Map<String, LicensePlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.licenses),
+                config.plugins.licenses ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, LicensePlugin>
+
             VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, ingresses, publicIps,
-                allocations)
+                licenses, allocations)
         }
     }
 

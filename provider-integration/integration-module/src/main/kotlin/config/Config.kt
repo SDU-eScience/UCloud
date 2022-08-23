@@ -104,6 +104,7 @@ data class ConfigSchema(
         val fileCollections: Map<String, FileCollections>? = null,
         val ingresses: Map<String, Ingresses>? = null,
         val publicIps: Map<String, PublicIPs>? = null,
+        val licenses: Map<String, Licenses>? = null,
         val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
         enum class AllocationsProductType(val type: ProductType?) {
@@ -367,6 +368,15 @@ data class ConfigSchema(
             ) : PublicIPs()
         }
 
+        @Serializable
+        sealed class Licenses : ProductBased {
+            @Serializable
+            @SerialName("Generic")
+            class Generic(
+                override val matches: String,
+            ) : Licenses()
+        }
+
         interface ProductBased {
             val matches: String
         }
@@ -378,6 +388,7 @@ data class ConfigSchema(
         val storage: Map<String, List<ConfigProduct.Storage>>? = null,
         val ingress: Map<String, List<ConfigProduct.Ingress>>? = null,
         val publicIps: Map<String, List<ConfigProduct.NetworkIP>>? = null,
+        val licenses: Map<String, List<ConfigProduct.License>>? = null,
     )
 
     @Serializable

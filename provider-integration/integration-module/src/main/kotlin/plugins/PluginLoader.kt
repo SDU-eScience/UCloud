@@ -8,6 +8,7 @@ import dk.sdu.cloud.plugins.allocations.*
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudComputePlugin
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudIngressPlugin
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudPublicIPPlugin
+import dk.sdu.cloud.plugins.licenses.generic.GenericLicensePlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFileCollectionPlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import kotlin.reflect.KClass
@@ -42,6 +43,10 @@ private val pluginLookupTable = mapOf<KClass<*>, () -> Plugin<*>>(
     // Public IPs
     // =========================================================================
     ConfigSchema.Plugins.PublicIPs.UCloud::class to { UCloudPublicIPPlugin() },
+
+    // Licenses
+    // =========================================================================
+    ConfigSchema.Plugins.Licenses.Generic::class to { GenericLicensePlugin() },
 
     // Files
     // =========================================================================
