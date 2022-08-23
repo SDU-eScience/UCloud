@@ -69,7 +69,6 @@ interface ContainerBuilder {
     val isSidecar: Boolean
     fun supportsSidecar(): Boolean
     fun sidecar(name: String, builder: ContainerBuilder.() -> Unit)
-    val sidecars: List<ContainerBuilder>
 
     fun image(image: String)
     fun environment(name: String, value: String)

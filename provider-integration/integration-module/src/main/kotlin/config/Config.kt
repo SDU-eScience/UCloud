@@ -279,9 +279,15 @@ data class ConfigSchema(
                 val forceMinimumReservation: Boolean = false,
                 val nodeToleration: TolerationKeyAndValue? = null,
                 val namespace: String = "app-kubernetes",
+                val scheduler: Scheduler = Scheduler.Volcano,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
+
+                enum class Scheduler {
+                    Volcano,
+                    Pods
+                }
             }
         }
 

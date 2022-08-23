@@ -21,6 +21,7 @@ import dk.sdu.cloud.app.orchestrator.api.Job
 object FeatureMultiNode : JobFeature {
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         if (!builder.supportsSidecar()) return
+        if (builder !is VolcanoContainerBuilder) return
 
         val ucloudVolume = "ucloud-multinode"
         val mountPath = "/etc/ucloud"

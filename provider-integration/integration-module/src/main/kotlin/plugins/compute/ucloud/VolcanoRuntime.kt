@@ -345,8 +345,6 @@ class VolcanoContainerBuilder(
     private val k8: K8DependenciesImpl,
     override val isSidecar: Boolean = false
 ) : PodBasedBuilder() {
-    override var workingDirectory: String = "/work"
-
     override var productCategoryRequired: String?
         get() = error("read not supported")
         set(value) {
@@ -358,8 +356,6 @@ class VolcanoContainerBuilder(
         }
 
     override fun supportsSidecar(): Boolean = !isSidecar
-
-    override val sidecars = ArrayList<ContainerBuilder>()
 
     val myPolicy: NetworkPolicy
     val job: VolcanoJob = VolcanoJob(
