@@ -147,7 +147,7 @@ class UCloudComputePlugin : ComputePlugin {
             register(FeatureNetworkLimit)
             register(FeatureFairShare)
             register(FeatureFirewall)
-            register(FeatureFileOutput(files.pathConverter, files.fs, logService, fileMountPlugin))
+            register(FeatureFileOutput(files.pathConverter, files.fs))
         }
     }
 

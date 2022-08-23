@@ -8,33 +8,37 @@ import dk.sdu.cloud.plugins.storage.ucloud.*
 class FeatureFileOutput(
     private val pathConverter: PathConverter,
     private val fs: NativeFS,
-    private val logService: K8LogService,
-    private val fileMountPlugin: FeatureFileMount,
 ) : JobFeature {
     override suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {
-        // TODO Download logs
-        repeat(10) { println("Download logs") }
-        /*
-        val workMount = fileMountPlugin.findWorkMount(jobFromServer)
+        val fileMountPlugin = featureOrNull<FeatureFileMount>() ?: return
+        val workMount = with(fileMountPlugin) {
+            findWorkMount(rootJob)
+        }
 
         if (workMount != null) {
-            val dir = logService.downloadLogsToDirectory(jobId)
-            try {
-                dir?.listFiles()?.forEach { file ->
-                    val outputFile = pathConverter.relativeToInternal(
-                        RelativeInternalFile(joinPath(workMount.path.removeSuffix("/"), file.name).removeSuffix("/"))
+            children.forEach { child ->
+                val outputFile = pathConverter.relativeToInternal(
+                    RelativeInternalFile(
+                        joinPath(
+                            workMount.path.removeSuffix("/"),
+                            buildString {
+                                append("stdout")
+                                if (child.rank != 0) {
+                                    append('-')
+                                    append(child.rank)
+                                }
+                                append(".txt")
+                            }
+                        )
                     )
+                )
 
-                    fs.openForWriting(outputFile, WriteConflictPolicy.RENAME).second.use { outs ->
-                        file.inputStream().use { ins ->
-                            ins.copyTo(outs)
-                        }
+                runCatching {
+                    fs.openForWriting(outputFile, WriteConflictPolicy.REJECT).second.use { outs ->
+                        child.downloadLogs(outs)
                     }
                 }
-            } finally {
-                dir?.deleteRecursively()
             }
         }
-         */
     }
 }

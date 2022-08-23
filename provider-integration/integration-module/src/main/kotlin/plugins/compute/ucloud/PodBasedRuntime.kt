@@ -97,24 +97,20 @@ abstract class PodBasedContainer : Container {
     }
 
     override suspend fun downloadLogs(out: OutputStream) {
-        try {
-            val podMeta = pod.metadata!!
-            val podName = podMeta.name!!
-            val namespace = podMeta.namespace!!
+        val podMeta = pod.metadata!!
+        val podName = podMeta.name!!
+        val namespace = podMeta.namespace!!
 
-            runCatching {
-                k8Client.sendRequest(
-                    HttpMethod.Get,
-                    KubernetesResources.pod.withNameAndNamespace(podName, namespace),
-                    mapOf("container" to USER_JOB_CONTAINER),
-                    "log"
-                ).execute { resp ->
-                    val channel = resp.bodyAsChannel()
-                    channel.copyTo(out)
-                }
+        runCatching {
+            k8Client.sendRequest(
+                HttpMethod.Get,
+                KubernetesResources.pod.withNameAndNamespace(podName, namespace),
+                mapOf("container" to USER_JOB_CONTAINER),
+                "log"
+            ).execute { resp ->
+                val channel = resp.bodyAsChannel()
+                channel.copyTo(out)
             }
-        } finally {
-            runCatching { out.close() }
         }
     }
 

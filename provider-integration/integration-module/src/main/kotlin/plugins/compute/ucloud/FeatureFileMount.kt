@@ -29,7 +29,7 @@ class FeatureFileMount(
     private val pathConverter: PathConverter,
     private val limitChecker: LimitChecker,
 ) : JobFeature {
-    private suspend fun JobManagement.findJobFolder(job: Job): InternalFile {
+    private suspend fun JobManagement.findJobFolder(job: Job, initializeFolder: Boolean): InternalFile {
         val username = job.owner.createdBy
         val project = job.owner.project
 
@@ -64,30 +64,32 @@ class FeatureFileMount(
             )
         }
 
-        try {
-            fs.createDirectories(file)
-        } catch (ex: FSException.NotFound) {
-            log.warn("Unable to create directory, needed for file mounts: $file")
-            throw ex
-        } catch (ex: FSException.AlreadyExists) {
-            // Ignored
-        }
-
-        val jobParameterJson = job.status.jobParametersJson
-        if (jobParameterJson != null) {
-            val jobParamsFile = InternalFile(
-                joinPath(
-                    file.path.removeSuffix("/"),
-                    "JobParameters.json"
-                ).removeSuffix("/")
-            )
+        if (initializeFolder) {
             try {
-                fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
-                    @Suppress("BlockingMethodInNonBlockingContext")
-                    it.write(prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson))
+                fs.createDirectories(file)
+            } catch (ex: FSException.NotFound) {
+                log.warn("Unable to create directory, needed for file mounts: $file")
+                throw ex
+            } catch (ex: FSException.AlreadyExists) {
+                // Ignored
+            }
+
+            val jobParameterJson = job.status.jobParametersJson
+            if (jobParameterJson != null) {
+                val jobParamsFile = InternalFile(
+                    joinPath(
+                        file.path.removeSuffix("/"),
+                        "JobParameters.json"
+                    ).removeSuffix("/")
+                )
+                try {
+                    fs.openForWriting(jobParamsFile, WriteConflictPolicy.RENAME).second.bufferedWriter().use {
+                        @Suppress("BlockingMethodInNonBlockingContext")
+                        it.write(prettyMapper.encodeToString(ExportedParameters.serializer(), jobParameterJson))
+                    }
+                } catch (ex: Throwable) {
+                    log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")
                 }
-            } catch (ex: Throwable) {
-                log.warn("Unable to create JobParameters.json for job: ${job.id} ${jobParamsFile}. ${ex.stackTraceToString()}")
             }
         }
 
@@ -116,7 +118,7 @@ class FeatureFileMount(
             allMounts.associateBy { it.path }.values
         }
 
-        val jobFolder = findJobFolder(job)
+        val jobFolder = findJobFolder(job, initializeFolder = true)
         val relativeJobFolder = pathConverter.internalToRelative(jobFolder)
         val ucloudJobFolder = pathConverter.internalToUCloud(jobFolder)
 
@@ -152,53 +154,44 @@ class FeatureFileMount(
     }
 
     override suspend fun JobManagement.onJobComplete(rootJob: Container, children: List<Container>) {
-        // TODO Cleaning up in job folders
-        repeat(10) { println("Need to clean up in job folders") }
-        /*
-        val workMount = findWorkMount(jobFromServer)
-        val volumeMounts =
-            jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
+        val workMount = findWorkMount(rootJob) ?: return
+        val subFolders = findSubMountNames(rootJob)
+        if (subFolders.isEmpty()) return
 
-        if (workMount != null && volumeMounts != null) {
-            for (mount in volumeMounts) {
-                val mountPath = (mount.mountPath)?.removeSuffix("/") ?: continue
-                if (mountPath == "/work" || !mountPath.startsWith("/work/") || mountPath.count { it == '/' } != 2) {
-                    continue
+        for (folder in subFolders) {
+            val file = pathConverter.relativeToInternal(RelativeInternalFile(joinPath(workMount.path, folder)))
+
+            try {
+                val internalStat = fs.stat(file)
+                if (internalStat.fileType == FileType.DIRECTORY) {
+                    fs.delete(file, allowRecursion = false)
                 }
-
-                val mountedDirectoryName = mountPath.removePrefix("/work/")
-                val mountedDirectory = pathConverter.relativeToInternal(
-                    RelativeInternalFile(joinPath(workMount.path, mountedDirectoryName).removeSuffix("/"))
+            } catch (ex: FSException.NotFound) {
+                // Ignored
+            } catch (ex: Throwable) {
+                log.info(
+                    "Caught exception while cleaning up empty mount directories for:" +
+                            "\n\tjob = ${rootJob.jobId}" +
+                            "\n\tmountedDirectory=$file"
                 )
-
-                try {
-                    fs.delete(mountedDirectory, allowRecursion = false)
-                } catch (ex: FSException.NotFound) {
-                    // Ignored
-                } catch (ex: Throwable) {
-                    log.info("Caught exception while cleaning up empty mount directories for:" +
-                        "\n\tjob = $jobId" +
-                        "\n\tmountedDirectory=$mountedDirectory" +
-                        "\n\tvolcanoJob=$jobFromServer"
-                    )
-                    log.info(ex.stackTraceToString())
-                }
+                log.info(ex.stackTraceToString())
             }
         }
-         */
     }
 
-//    fun findWorkMount(jobFromServer: Container): RelativeInternalFile? {
-//        return jobFromServer.spec?.tasks?.getOrNull(0)?.template?.spec?.containers?.getOrNull(0)?.volumeMounts
-//            ?.find { it.name == VOL_NAME }
-//            ?.subPath
-//            ?.let { path -> path }
-//            ?.let { path -> RelativeInternalFile("/${path}") }
-//    }
+    suspend fun JobManagement.findWorkMount(jobFromServer: Container): RelativeInternalFile? {
+        val cachedJob = k8.jobCache.findJob(jobFromServer.jobId) ?: return null
+        return pathConverter.internalToRelative(findJobFolder(cachedJob, initializeFolder = false))
+    }
+
+    private suspend fun JobManagement.findSubMountNames(rootJob: Container): List<String> {
+        val cachedJob = k8.jobCache.findJob(rootJob.jobId) ?: return emptyList()
+        return cachedJob.files.map { param ->
+            param.path.normalize().fileName()
+        }
+    }
 
     companion object : Loggable {
-        const val CEPHFS = "cephfs"
-        const val VOL_NAME = "data"
         const val JOBS_FOLDER = "Jobs"
 
         override val log = logger()
