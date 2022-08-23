@@ -72,12 +72,12 @@ const subprojectsRenderer: ItemRenderer<MemberInProject, MemberInProjectCallback
             >
                 <Text fontSize={2}>{projectRoleToString(resource.role)}</Text>
             </Tooltip> : null}
-        </>
+        </>;
     },
     Stats({resource}) {
         return <ListRowStat>{resource?.project.fullPath}</ListRowStat>;
     }
-}
+};
 
 const projectOperations: ProjectOperation[] = [
     {
@@ -112,7 +112,7 @@ const projectOperations: ProjectOperation[] = [
             if (isAdminOrPI(selected[0].role ?? ProjectRole.USER)) {
                 return true;
             } else {
-                return "Only Admins and PIs can rename."
+                return "Only Admins and PIs can rename.";
             }
         },
         onClick: ([{project}], extras) => extras.startRename(project.id),
@@ -126,11 +126,15 @@ export default function SubprojectList(): JSX.Element | null {
     const location = useLocation();
     const subprojectFromQuery = getQueryParamOrElse(location.search, "subproject", "");
     const history = useHistory();
-    const [overrideRedirect, setOverride] = React.useState(false)
+    const [overrideRedirect, setOverride] = React.useState(false);
 
     const projectId = useProjectId();
 
-    React.useEffect(() => {if (!overrideRedirect) history.push(`/subprojects?subproject=${projectId}`)}, [projectId, overrideRedirect]);
+    React.useEffect(() => {
+        if (!overrideRedirect) {
+            history.push(`/subprojects?subproject=${projectId}`);
+        }
+    }, [projectId, overrideRedirect]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
@@ -224,7 +228,7 @@ export default function SubprojectList(): JSX.Element | null {
                 next,
             }),
             projectOverride: subprojectFromQuery
-        })
+        });
     }, [subprojectFromQuery]);
 
     const extra: MemberInProjectCallbacks = {
@@ -289,7 +293,7 @@ export default function SubprojectList(): JSX.Element | null {
                         right={null}
                     /> : null}
                 {items.map(it => it.project.id === renameId ? (
-                    <form key={it.project.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(it.project.id)}}>
+                    <form key={it.project.id} onSubmit={e => {stopPropagationAndPreventDefault(e); onRenameProject(it.project.id);}}>
                         <Flex height="56px">
                             <Icon mx="8px" mt="17.3px" color={"iconColor"} color2={"iconColor2"} name="projects" />
                             <ButtonGroup height="36px" mt="8px">
@@ -312,6 +316,6 @@ export default function SubprojectList(): JSX.Element | null {
                     />
                 ))}
             </List>
-        )
+        );
     }
 }

@@ -97,6 +97,8 @@ export enum RequestTarget {
     TODO List:
         - Improve allocation selection UI.
         - Find out of an approval can be rescinded. (Same for rejection.)
+        - Handle case that:
+            - Source Allocations have been added, but user can edit them.
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -231,7 +233,17 @@ const GenericRequestCard: React.FunctionComponent<{
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
 
+    const allocRequest = props.allocationRequests
+        .find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name);
+
     const canEdit = props.isApprover || props.isRecipient;
+
+    React.useEffect(() => {
+        // TODO(Jonas): This might be wrong, I'm not sure the first allocationRequest is the right one.:
+        if (allocRequest && allocRequest.period.start) {
+            setStartDate(getStartOfDay(new Date(allocRequest.period.start)));
+        }
+    }, []);
 
     React.useEffect(() => {
         if (endDate == null) return;
@@ -280,7 +292,7 @@ const GenericRequestCard: React.FunctionComponent<{
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     } else {
-        const defaultValue = props.allocationRequests.find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name)?.balanceRequested;
+        const defaultValue = allocRequest?.balanceRequested;
         const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, false) : undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
@@ -611,56 +623,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const isRecipient = checkIsGrantRecipient(target, grantApplication);
 
-        // Note(Jonas): Almost entirely a duplicate of the submitApplication-function. Improve it.
         const editApplication = useCallback(async () => {
             setSubmissionsLoading(true);
 
-            const requestedResourcesByAffiliate = Object.keys(grantProductCategories).flatMap(entry =>
-                grantProductCategories[entry].map(wb => {
-                    let creditsRequested = parseIntegerFromInput(
-                        document.querySelector<HTMLInputElement>(
-                            `input[data-target="${productCategoryId(wb.metadata.category)}"]`
-                        )
-                    );
-
-                    const first = document.getElementsByClassName(
-                        productCategoryStartDate(wb.metadata.category)
-                    )?.[0] as HTMLInputElement;
-                    const start = parseDateFromInput(first);
-
-                    const second = document.getElementsByClassName(
-                        productCategoryEndDate(wb.metadata.category)
-                    )?.[0] as HTMLInputElement;
-                    const end = parseDateFromInput(second);
-
-                    const allocation = document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
-                    );
-
-                    if (creditsRequested) {
-                        creditsRequested = normalizeBalanceForBackend(
-                            creditsRequested,
-                            wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
-                        );
-                    }
-
-                    if (creditsRequested === undefined || creditsRequested <= 0) {
-                        return null;
-                    }
-
-                    return {
-                        category: wb.metadata.category.name,
-                        provider: wb.metadata.category.provider,
-                        balanceRequested: creditsRequested,
-                        grantGiver: entry,
-                        sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
-                        period: {
-                            start,
-                            end: end ?? null
-                        }
-                    } as AllocationRequest;
-                }).filter(it => it != null)
-            ) as AllocationRequest[];
+            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
 
             if (requestedResourcesByAffiliate.length === 0) {
                 snackbarStore.addFailure("At least one resource field must be non-zero.", false);
@@ -713,59 +679,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
 
-            const requestedResourcesByAffiliate = Object.keys(grantProductCategories).flatMap(entry =>
-                grantProductCategories[entry].map(wb => {
-                    let creditsRequested = parseIntegerFromInput(
-                        document.querySelector<HTMLInputElement>(
-                            `input[data-target="${productCategoryId(wb.metadata.category)}"]`
-                        )
-                    );
-
-                    const first = document.getElementsByClassName(
-                        productCategoryStartDate(wb.metadata.category)
-                    )?.[0] as HTMLInputElement;
-                    const start = parseDateFromInput(first);
-
-                    const second = document.getElementsByClassName(
-                        productCategoryEndDate(wb.metadata.category)
-                    )?.[0] as HTMLInputElement;
-                    const end = parseDateFromInput(second);
-
-                    const allocation = document.querySelector<HTMLInputElement>(
-                        `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
-                    );
-
-                    if (creditsRequested) {
-                        creditsRequested = normalizeBalanceForBackend(
-                            creditsRequested,
-                            wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
-                        );
-                    }
-
-                    if (creditsRequested === undefined || creditsRequested <= 0) {
-                        return null;
-                    }
-
-                    return {
-                        category: wb.metadata.category.name,
-                        provider: wb.metadata.category.provider,
-                        balanceRequested: creditsRequested,
-                        grantGiver: entry,
-                        sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
-                        period: {
-                            start,
-                            end: end ?? null
-                        }
-                    } as AllocationRequest;
-                }).filter(it => it != null)
-            ) as AllocationRequest[];
-
-            if (!isAnyAllocationsOfParentProject(
-                requestedResourcesByAffiliate,
-                grantApplication.currentRevision.document.parentProjectId
-            )) {
-
-            }
+            const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
 
             if (requestedResourcesByAffiliate.length === 0) {
                 snackbarStore.addFailure("At least one resource field must be non-zero.", false);
@@ -993,7 +907,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
-                                                    <TableCell>{"TODO: grantRecipient PI"}</TableCell>
+                                                    <TableCell>{grantApplication.createdBy}</TableCell>
                                                 </TableRow>
                                                 <TableRow>
                                                     <TableCell verticalAlign="top">
@@ -1049,7 +963,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                             </tbody>
                                                         </table>
                                                     </TableCell>
-                                                </TableRow>
+                                                </TableRow >
                                                 <TableRow>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
@@ -1144,21 +1058,23 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                             {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
-                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.projectId).includes(it.projectId)).map(grantGiver => <>
-                                    <GrantGiver
-                                        key={grantGiver.projectId}
-                                        isApprover={approverMap[grantGiver.projectId]}
-                                        isLocked={isLocked}
-                                        project={grantGiver}
-                                        setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
-                                        isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
-                                        grantApplication={grantApplication}
-                                        setGrantProductCategories={setGrantProductCategories}
-                                        wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
-                                        isRecipient={isRecipient}
-                                    />
-                                </>))}
+                            {
+                                target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                    grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.projectId).includes(it.projectId)).map(grantGiver => <>
+                                        <GrantGiver
+                                            key={grantGiver.projectId}
+                                            isApprover={approverMap[grantGiver.projectId]}
+                                            isLocked={isLocked}
+                                            project={grantGiver}
+                                            setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
+                                            isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                            grantApplication={grantApplication}
+                                            setGrantProductCategories={setGrantProductCategories}
+                                            wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
+                                            isRecipient={isRecipient}
+                                        />
+                                    </>))
+                            }
 
                             <CommentApplicationWrapper>
                                 <RequestFormContainer>
@@ -1221,8 +1137,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     )
                                 )}
                             </Box>
-                        </Box>
-                    </Flex>
+                        </Box >
+                    </Flex >
                 </>}
                 additional={
                     <TransferApplicationPrompt
@@ -1293,6 +1209,26 @@ function recipientTypeToText(recipient: Recipient): string {
         case "personalWorkspace":
             return "Personal Workspace";
     }
+}
+
+function extractNewResources(
+    previous: AllocationRequest[],
+    existing: AllocationRequest[]
+): AllocationRequest[] {
+    const newEntries: AllocationRequest[] = [];
+    for (const e of existing) {
+        if (!previous.find(p =>
+            p.balanceRequested === e.balanceRequested &&
+            p.category === e.category &&
+            p.grantGiver === e.grantGiver &&
+            p.period.start === e.period.start &&
+            p.period.end === e.period.end &&
+            p.provider === e.provider)
+        ) {
+            newEntries.push(e);
+        }
+    }
+    return newEntries;
 }
 
 function useRecipientName(recipient: Recipient): string {
@@ -1762,6 +1698,54 @@ function toForm(request: RequestTarget, grantApplication: GrantApplication, form
 
 function formTextFromGrantApplication(grantApplication: GrantApplication): string {
     return grantApplication.currentRevision.document.form.text;
+}
+function findRequestedResources(grantProductCategories: Record<string, GrantProductCategory[]>): AllocationRequest[] {
+    return Object.keys(grantProductCategories).flatMap(entry =>
+        grantProductCategories[entry].map(wb => {
+            let creditsRequested = parseIntegerFromInput(
+                document.querySelector<HTMLInputElement>(
+                    `input[data-target="${productCategoryId(wb.metadata.category)}"]`
+                )
+            );
+
+            const first = document.getElementsByClassName(
+                productCategoryStartDate(wb.metadata.category)
+            )?.[0] as HTMLInputElement;
+            const start = parseDateFromInput(first);
+
+            const second = document.getElementsByClassName(
+                productCategoryEndDate(wb.metadata.category)
+            )?.[0] as HTMLInputElement;
+            const end = parseDateFromInput(second);
+
+            const allocation = document.querySelector<HTMLInputElement>(
+                `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
+            );
+
+            if (creditsRequested) {
+                creditsRequested = normalizeBalanceForBackend(
+                    creditsRequested,
+                    wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice
+                );
+            }
+
+            if (creditsRequested === undefined || creditsRequested <= 0) {
+                return null;
+            }
+
+            return {
+                category: wb.metadata.category.name,
+                provider: wb.metadata.category.provider,
+                balanceRequested: creditsRequested,
+                grantGiver: entry,
+                sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
+                period: {
+                    start,
+                    end: end ?? null
+                }
+            } as AllocationRequest;
+        }).filter(it => it != null)
+    ) as AllocationRequest[];
 }
 
 export default GrantApplicationEditor;
