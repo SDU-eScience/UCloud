@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins.compute.ucloud
 
+import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.IPProtocol
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import kotlinx.coroutines.CoroutineScope
@@ -32,10 +33,16 @@ interface Container {
     suspend fun allowNetworkFrom(jobId: String, rank: Int? = null)
 
     fun stateAndMessage(): Pair<JobState, String>
+    suspend fun productCategory(): String?
 
     val vCpuMillis: Int
     val memoryMegabytes: Int
     val gpus: Int
+}
+
+interface ComputeNode {
+    suspend fun productCategory(): String?
+    suspend fun retrieveCapacity(): CpuAndMemory
 }
 
 interface ContainerRuntime {
@@ -44,6 +51,7 @@ interface ContainerRuntime {
     suspend fun scheduleGroup(group: List<ContainerBuilder>)
     suspend fun retrieve(jobId: String, rank: Int): Container?
     suspend fun list(): List<Container>
+    suspend fun listNodes(): List<ComputeNode>
 }
 
 interface ContainerBuilder {
@@ -53,7 +61,7 @@ interface ContainerBuilder {
     var shouldAllowRoot: Boolean
     var workingDirectory: String
 
-    var productCategoryRequired: String? // TODO implement this
+    var productCategoryRequired: String?
     var vCpuMillis: Int
     var memoryMegabytes: Int
     var gpus: Int

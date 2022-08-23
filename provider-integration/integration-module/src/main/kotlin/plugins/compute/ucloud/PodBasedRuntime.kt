@@ -20,6 +20,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.OutputStream
+import kotlin.math.roundToInt
 
 abstract class PodBasedContainer : Container {
     protected abstract val k8Client: KubernetesClient
@@ -30,7 +31,7 @@ abstract class PodBasedContainer : Container {
             val limit = pod.spec?.containers?.getOrNull(0)?.resources?.limits?.get("cpu")?.jsonPrimitive?.contentOrNull
                 ?: "1000m"
 
-            return limit.removeSuffix("m").toIntOrNull() ?: 1
+            return (cpuStringToCores(limit) * 1000).roundToInt()
         }
 
     override val memoryMegabytes: Int
@@ -49,7 +50,20 @@ abstract class PodBasedContainer : Container {
             return limit.toInt()
         }
 
+    private fun cpuStringToCores(cpus: String?): Double {
+        val numbersOnly = Regex("[^0-9]")
 
+        return if (cpus.isNullOrBlank()) {
+            0.toDouble()
+        } else (when {
+            cpus.contains("m") -> {
+                numbersOnly.replace(cpus, "").toDouble() / 1000
+            }
+            else -> {
+                numbersOnly.replace(cpus, "").toDouble()
+            }
+        })
+    }
     private fun memoryStringToBytes(memory: String?): Long {
         val numbersOnly = Regex("[^0-9]")
         val ki = 1024

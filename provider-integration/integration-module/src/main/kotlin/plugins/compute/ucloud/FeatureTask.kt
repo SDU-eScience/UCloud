@@ -2,10 +2,6 @@ package dk.sdu.cloud.plugins.compute.ucloud
 
 import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.config.ConfigSchema
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 
 data class NodeConfiguration(
     val systemReservedCpuMillis: Int,
@@ -49,15 +45,9 @@ class FeatureTask(
                     Pod.Toleration("NoSchedule", toleration.key, "Equal", null, toleration.value)
                 )
             }
-
-            if (useMachineSelector) {
-                pSpec.nodeSelector = JsonObject(
-                    mapOf(
-                        "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
-                    )
-                )
-            }
         }
+
+        if (useMachineSelector) builder.productCategoryRequired = job.specification.product.category
 
         val reservedCpu = nodes?.systemReservedCpuMillis ?: 0
         val reservedMem = nodes?.systemReservedMemMegabytes ?: 0

@@ -11,15 +11,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 
 class K8Shell(
-    private val k8: K8DependenciesImpl,
+    private val runtime: ContainerRuntime,
 ) {
     @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
-        val podName = k8.nameAllocator.jobIdAndRankToPodName(jobId, jobRank)
-        val namespace = k8.nameAllocator.namespace()
+        val container = runtime.retrieve(jobId, jobRank) ?: return
 
-        k8.client.exec(
-            KubernetesResources.pod.withNameAndNamespace(podName, namespace),
+        container.openShell(
             listOf(
                 "sh", "-c",
                 "TERM=xterm-256color; " +

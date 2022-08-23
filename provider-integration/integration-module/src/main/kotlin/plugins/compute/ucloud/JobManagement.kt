@@ -60,12 +60,11 @@ interface JobFeature {
 
 class JobManagement(
     val k8: K8Dependencies,
+    val runtime: ContainerRuntime,
     private val jobCache: VerifiedJobCache,
     private val maintenance: MaintenanceService,
     val resources: ResourceCache,
 ) {
-    val runtime: ContainerRuntime = VolcanoRuntime(k8 as K8DependenciesImpl)
-
     private val features = ArrayList<JobFeature>()
     val readOnlyFeatures: List<JobFeature>
         get() = features

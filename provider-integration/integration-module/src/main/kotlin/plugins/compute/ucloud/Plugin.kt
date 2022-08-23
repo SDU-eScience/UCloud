@@ -54,6 +54,7 @@ class UCloudComputePlugin : ComputePlugin {
     lateinit var licenseService: LicenseService
     lateinit var utilization: UtilizationService
     lateinit var shell: K8Shell
+    lateinit var runtime: ContainerRuntime
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         pluginConfig = config as ConfigSchema.Plugins.Jobs.UCloud
@@ -86,17 +87,21 @@ class UCloudComputePlugin : ComputePlugin {
             debugSystem,
             jobCache
         )
+
+        runtime = VolcanoRuntime(k8)
+
         jobManagement = JobManagement(
             k8,
+            runtime,
             jobCache,
             MaintenanceService(dbConnection, k8),
             ResourceCache(k8)
         )
 
-        logService = K8LogService(k8)
+        logService = K8LogService(k8, runtime)
         licenseService = LicenseService(config.core.providerId, k8, dbConnection)
-        utilization = UtilizationService(k8)
-        shell = K8Shell(k8)
+        utilization = UtilizationService(k8, runtime)
+        shell = K8Shell(runtime)
 
         with(jobManagement) {
             register(
