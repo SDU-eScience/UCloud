@@ -3,6 +3,7 @@ package dk.sdu.cloud.plugins.compute.ucloud
 import dk.sdu.cloud.app.orchestrator.api.CpuAndMemory
 import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.utils.forEachGraal
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -74,7 +75,7 @@ class VolcanoRuntime(
     }
 
     override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
-        for (c in group) {
+        group.forEachGraal { c ->
             if (c !is VolcanoContainerBuilder) error("This runtime only accepts volcano jobs")
 
             k8.client.createResource(

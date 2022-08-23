@@ -4,6 +4,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobState
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.utils.forEachGraal
 import io.ktor.http.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
@@ -134,7 +135,7 @@ class K8PodRuntime(
         // TODO(Dan): For a more robust implementation, we would need to check if all the jobs in the group can be
         //  scheduled together immediately. The current use-case is meant only for a proof-of-concept, as a result, we
         //  don't worry too much about this right now.
-        for (container in group) {
+        group.forEachGraal { container ->
             if (container !is K8PodContainerBuilder) error("This runtime only accepts K8PodContainerBuilder")
 
             if (container.replicas > 1) {
