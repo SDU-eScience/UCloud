@@ -1,16 +1,24 @@
 const fs = require('fs')
 const path = require('path')
 
-const dirname = path.join(__dirname, '../app/ui-components/icons/components')
-const icons = fs
-  .readdirSync(dirname)
-  .filter(filename => /\.tsx$/.test(filename))
-  .map(filename => path.basename(filename, '.tsx'))
+const dirname = path.join(__dirname, '../app/ui-components/icons/components/')
+const fileNames = fs
+    .readdirSync(dirname)
+    .filter(filename => /\.tsx$/.test(filename));
+//.map(filename => path.basename(filename, '.tsx'))
 
-const template = icons =>
-  icons.map(name => `export { default as ${name} } from './components/${name}'`).join('\n')
+const filename = path.join(__dirname, '../app/ui-components/icons/index.tsx')
+fs.writeFileSync(filename, "import * as React from \"react\";\n");
 
-const content = template(icons)
-const filename = path.join(__dirname, '../app/ui-components/icons/index.ts')
+for (var f of fileNames) {
+    const content = fs.readFileSync(path.join(dirname, f));
+    fs.appendFileSync(filename, Buffer.from(content, "base64").toString("utf-8"));
+}
 
-fs.writeFileSync(filename, content);
+for (var f of fileNames) {
+    fs.rm(path.join(dirname, f), (err) => {
+        if (err != null) {
+            console.warn(err);
+        } 
+    });
+}

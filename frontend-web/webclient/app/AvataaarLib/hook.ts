@@ -1,6 +1,6 @@
 import {AvatarType} from "@/UserSettings/Avataaar";
 import {useCallback, useState} from "react";
-import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 import {fetchBulkAvatars, FetchBulkAvatarsResponse} from "@/AvataaarLib/index";
 
 // Hack: It is really hard for these kind of global caches to avoid double loading if we go through the
@@ -14,7 +14,7 @@ export function useAvatars(): AvatarHook {
     // Hack: This dummy value is used to force a refresh in clients using this hook.
     const [, forceRefresh] = useState<number>(42);
 
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
     const updateCache = useCallback(async (usernames: string[]) => {
         {
             // eslint-disable-next-line no-prototype-builtins
