@@ -926,9 +926,8 @@ abstract class ResourceService<
                                     accounting.product_categories pc on 
                                         pc.category = t.cat and pc.provider = :provider join
                                     accounting.products p on pc.id = p.category and t.id = p.name
-                                on conflict (provider_generated_id) do update set
+                                on conflict (provider, provider_generated_id) do update set
                                     type = excluded.type,
-                                    provider = excluded.provider,
                                     created_by = excluded.created_by,
                                     project = excluded.project,
                                     product = excluded.product
