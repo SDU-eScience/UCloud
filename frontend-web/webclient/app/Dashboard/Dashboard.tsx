@@ -125,14 +125,14 @@ function Dashboard(props: DashboardProps): JSX.Element {
         }));
         fetchOutgoingApps(browseGrantsApplications({
             itemsPerPage: 10,
-            includeIngoingApplications: true,
-            includeOutgoingApplications: false,
-            filter: GrantApplicationFilter.SHOW_ALL
+            includeIngoingApplications: false,
+            includeOutgoingApplications: true,
+            filter: GrantApplicationFilter.ACTIVE
         }));
         fetchIngoingApps(browseGrantsApplications({
             itemsPerPage: 10,
-            includeIngoingApplications: false,
-            includeOutgoingApplications: true,
+            includeIngoingApplications: true,
+            includeOutgoingApplications: false,
             filter: GrantApplicationFilter.ACTIVE
         }));
         fetchFavoriteFiles(metadataApi.browse({
