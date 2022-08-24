@@ -612,7 +612,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
 });
 
 const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
-    notifications: {items: state.notifications.items, error: state.notifications.error},
+    notifications: state.notifications,
 });
 
 export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);
