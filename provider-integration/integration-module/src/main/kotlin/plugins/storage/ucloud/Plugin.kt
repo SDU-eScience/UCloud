@@ -289,6 +289,10 @@ class UCloudFilePlugin : FilePlugin {
             ) as JsonObject
         )
     }
+
+    override suspend fun PluginContext.runMonitoringLoop() {
+        TODO("Not yet implemented")
+    }
 }
 
 class UCloudFileCollectionPlugin : FileCollectionPlugin {
