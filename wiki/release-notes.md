@@ -7,6 +7,14 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 18-08-22
+
+Fix to storage scan
+```
+✅  Deployment(file-ucloud, 2022.2.4-StorageScanFix) (UP-TO-DATE)
+
+```
+
 ## 16-08-22
 
 Fix to missing home files
