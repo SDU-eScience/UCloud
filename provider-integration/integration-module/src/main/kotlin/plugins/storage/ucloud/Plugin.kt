@@ -21,8 +21,11 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
+import dk.sdu.cloud.plugins.SharePlugin
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CopyTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.CreateFolderTask
@@ -330,6 +333,40 @@ class UCloudFileCollectionPlugin : FileCollectionPlugin {
                 BulkRequest.serializer(FindByPath.serializer()),
                 bulkRequestOf(FindByPath("/${resource.id}"))
             ) as JsonObject
+        )
+    }
+}
+
+class UCloudSharePlugin : SharePlugin() {
+    override val pluginTitle = "UCloud"
+
+    private lateinit var filePlugin: UCloudFilePlugin
+
+    override suspend fun PluginContext.initialize() {
+        filePlugin = config.plugins.files[pluginName] as? UCloudFilePlugin ?: run {
+            error(
+                "The UCloud file collection plugin ($pluginName) must be used together with a " +
+                        "matching UCloud file plugin"
+            )
+        }
+    }
+
+    override suspend fun RequestContext.onCreate(resource: Share): ConfiguredShare {
+        val sourcePath = resource.specification.sourceFilePath
+        val file = filePlugin.pathConverter.ucloudToInternal(UCloudFile.create(sourcePath))
+        try {
+            val stat = filePlugin.fs.stat(file)
+            if (stat.fileType != FileType.DIRECTORY) {
+                throw RPCException("'${file.fileName()}' is not a directory", HttpStatusCode.BadRequest)
+            }
+        } catch (ex: FSException.NotFound) {
+            throw RPCException("'${file.fileName()}' no longer exists", HttpStatusCode.BadRequest)
+        }
+
+        return ConfiguredShare(
+            sourcePath.fileName(),
+            productAllocation.find { it.id == "share" }!!,
+            PathConverter.COLLECTION_SHARE_PREFIX + resource.id
         )
     }
 }

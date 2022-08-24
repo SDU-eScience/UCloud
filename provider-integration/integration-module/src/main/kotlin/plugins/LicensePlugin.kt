@@ -7,5 +7,5 @@ import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.config.ConfigSchema
 
 interface LicensePlugin : ResourcePlugin<Product.License, LicenseSupport, License, ConfigSchema.Plugins.Licenses> {
-    suspend fun buildParameter(param: AppParameterValue.License): String
+    suspend fun PluginContext.buildParameter(param: AppParameterValue.License): String
 }

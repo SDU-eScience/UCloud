@@ -181,7 +181,7 @@ how to use this feature. We generally recommend that you use a full-blown projec
                     "bob",
                     "/5123/work/my-project/my-collaboration",
                     listOf(Permission.EDIT),
-                    ProductReference("share", "example-ssd", "example")
+                    ProductReference("example-ssd", "example-ssd", "example")
                 )
                 success(
                     create,

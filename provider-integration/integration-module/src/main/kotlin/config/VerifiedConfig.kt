@@ -89,6 +89,7 @@ data class VerifiedConfig(
         val ingresses: Map<String, IngressPlugin>,
         val publicIps: Map<String, PublicIPPlugin>,
         val licenses: Map<String, LicensePlugin>,
+        val shares: Map<String, SharePlugin>,
         val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
@@ -108,6 +109,7 @@ data class VerifiedConfig(
                 ingresses.values.iterator(),
                 publicIps.values.iterator(),
                 licenses.values.iterator(),
+                shares.values.iterator(),
             )
             var idx = 0
 
@@ -606,8 +608,18 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 core.launchRealUserInstances
             ) as Map<String, LicensePlugin>
 
+            @Suppress("unchecked_cast")
+            val shares: Map<String, SharePlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.storage),
+                config.plugins.shares ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances,
+                requireProductAllocation = false
+            ) as Map<String, SharePlugin>
+
             VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, ingresses, publicIps,
-                licenses, allocations)
+                licenses, shares, allocations)
         }
     }
 
@@ -635,6 +647,7 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     productRef: ConfigurationReference,
     pluginRef: ConfigurationReference,
     realUserMode: Boolean,
+    requireProductAllocation: Boolean = true,
 ): Map<String, Plugin<Cfg>> {
     val result = HashMap<String, Plugin<Cfg>>()
     val relevantProducts = products.entries.flatMap { (category, products) ->
@@ -667,11 +680,13 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
         }
 
         if (bestMatch == null) {
-            emitWarning(
-                "Could not allocate product '$product' to a plugin. No plugins match it, " +
-                    "the integration module will ignore all requests for this product!",
-                productRef
-            )
+            if (requireProductAllocation) {
+                emitWarning(
+                    "Could not allocate product '$product' to a plugin. No plugins match it, " +
+                            "the integration module will ignore all requests for this product!",
+                    productRef
+                )
+            }
         } else {
             partitionedProducts[bestMatch] = (partitionedProducts[bestMatch] ?: emptyList()) + product
         }

@@ -84,8 +84,7 @@ object Visualization : CallDescriptionContainer("accounting.visualization") {
     init {
         title = "Usage Visualization"
         description = """
-            Visualization gives the user the possibility to get an easy overview of their usage during a set period or 
-            for a given product category. 
+            Visualization gives the user the possibility to get an easy overview of their usage during a set period or for a given product category. 
             
             There are currently two variations of usage visualization:
             

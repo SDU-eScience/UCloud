@@ -7,10 +7,13 @@ import dk.sdu.cloud.app.store.api.ArgumentBuilder
 import dk.sdu.cloud.app.store.api.buildEnvironmentValue
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.file.orchestrator.api.joinPath
+import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.components
 import dk.sdu.cloud.plugins.storage.ucloud.PathConverter
+import dk.sdu.cloud.utils.forEachGraal
 
 /**
  * A plugin which takes information from [ApplicationInvocationDescription.parameters] and makes the information
@@ -22,10 +25,10 @@ import dk.sdu.cloud.plugins.storage.ucloud.PathConverter
  * - Environment variables will be initialized with values from the user
  */
 class FeatureParameter(
-    private val licenseService: LicenseService,
+    private val pluginContext: PluginContext,
     private val pathConverter: PathConverter,
 ) : JobFeature {
-    private val argBuilder = OurArgBuilder(pathConverter, licenseService)
+    private val argBuilder = OurArgBuilder(pathConverter, pluginContext)
 
     override suspend fun JobManagement.onCreate(job: Job, builder: ContainerBuilder) {
         val app = resources.findResources(job).application.invocation
@@ -58,7 +61,7 @@ class FeatureParameter(
 
 private class OurArgBuilder(
     private val pathConverter: PathConverter,
-    private val licenseService: LicenseService,
+    private val pluginContext: PluginContext,
 ) : ArgumentBuilder {
     override suspend fun build(parameter: ApplicationParameter, value: AppParameterValue): String {
         return when (parameter) {
@@ -72,22 +75,20 @@ private class OurArgBuilder(
             }
 
             is ApplicationParameter.LicenseServer -> {
-                val retrievedLicense =
-                    licenseService.retrieveServerFromInstance((value as AppParameterValue.License).id)
-                        ?: throw RPCException(
-                            "Invalid license passed for parameter: ${parameter.name}",
-                            HttpStatusCode.BadRequest
-                        )
+                val licensePlugins = pluginContext.config.plugins.licenses.values
 
-                buildString {
-                    append(retrievedLicense.address)
-                    append(":")
-                    append(retrievedLicense.port)
-                    if (retrievedLicense.license != null) {
-                        append("/")
-                        append(retrievedLicense.license)
+                var licenseString: String? = null
+                licensePlugins.forEachGraal { plugin ->
+                    if (licenseString != null) return@forEachGraal
+
+                    with(pluginContext) {
+                        with(plugin) {
+                            licenseString = runCatching { buildParameter(value as AppParameterValue.License) }.getOrNull()
+                        }
                     }
                 }
+
+                licenseString ?: throw RPCException("Could not resolve license", HttpStatusCode.NotFound)
             }
 
             else -> ArgumentBuilder.Default.build(parameter, value)

@@ -4,12 +4,17 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
+import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.app.orchestrator.api.License
+import dk.sdu.cloud.app.orchestrator.api.LicenseControl
+import dk.sdu.cloud.app.orchestrator.api.LicenseIncludeFlags
 import dk.sdu.cloud.app.orchestrator.api.LicenseSupport
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.cli.CliHandler
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.config.ProductReferenceWithoutProvider
@@ -22,6 +27,7 @@ import dk.sdu.cloud.plugins.LicensePlugin
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
+import dk.sdu.cloud.plugins.rpcClient
 import dk.sdu.cloud.sql.bindIntNullable
 import dk.sdu.cloud.sql.bindStringNullable
 import dk.sdu.cloud.sql.useAndInvoke
@@ -310,6 +316,59 @@ class GenericLicensePlugin : LicensePlugin {
 
             PageV2(result.size, result, null)
         })
+
+        ipcServer.addHandler(GenericLicenseIpc.retrieve.handler { user, request ->
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+            // TODO Verify this request
+
+            val result = ArrayList<GenericLicenseServer>()
+
+            val retrievedLicense = LicenseControl.retrieve.call(
+                ResourceRetrieveRequest(LicenseIncludeFlags(), request.id),
+                rpcClient
+            ).orThrow()
+
+            dbConnection.withSession { session ->
+                session.prepareStatement(
+                    """
+                        select name, category, address, port, license 
+                        from generic_license_servers
+                        where
+                            name = :name and
+                            category = :category
+                        order by category, name
+                    """
+                ).useAndInvoke(
+                    prepare = {
+                        bindString("name", retrievedLicense.specification.product.id)
+                        bindString("category", retrievedLicense.specification.product.category)
+                    },
+                    readRow = { row ->
+                        result.add(
+                            GenericLicenseServer(
+                                ProductReferenceWithoutProvider(
+                                    row.getString(0)!!,
+                                    row.getString(1)!!,
+                                ),
+                                row.getString(2),
+                                row.getInt(3),
+                                row.getString(4)
+                            )
+                        )
+                    }
+                )
+            }
+
+            result.singleOrNull() ?: throw RPCException("Unknown license", HttpStatusCode.NotFound)
+        })
     }
 
     override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<LicenseSupport> {
@@ -325,8 +384,21 @@ class GenericLicensePlugin : LicensePlugin {
         // Nothing to delete
     }
 
-    override suspend fun buildParameter(param: AppParameterValue.License): String {
-        TODO("Not yet implemented")
+    override suspend fun PluginContext.buildParameter(param: AppParameterValue.License): String {
+        val licenseInfo = ipcClient.sendRequest(
+            GenericLicenseIpc.retrieve,
+            FindByStringId(param.id)
+        )
+
+        return buildString {
+            append(licenseInfo.address)
+            append(":")
+            append(licenseInfo.port)
+            if (licenseInfo.license != null) {
+                append("/")
+                append(licenseInfo.license)
+            }
+        }
     }
 }
 
@@ -347,4 +419,5 @@ object GenericLicenseIpc : IpcContainer("generic_licenses") {
     val upsert = updateHandler("upsert", GenericLicenseServer.serializer(), Unit.serializer())
     val delete = deleteHandler(ProductReferenceWithoutProvider.serializer(), Unit.serializer())
     val browse = browseHandler(Unit.serializer(), PageV2.serializer(GenericLicenseServer.serializer()))
+    val retrieve = retrieveHandler(FindByStringId.serializer(), GenericLicenseServer.serializer())
 }

@@ -105,6 +105,7 @@ data class ConfigSchema(
         val ingresses: Map<String, Ingresses>? = null,
         val publicIps: Map<String, PublicIPs>? = null,
         val licenses: Map<String, Licenses>? = null,
+        val shares: Map<String, Shares>? = null,
         val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
         enum class AllocationsProductType(val type: ProductType?) {
@@ -375,6 +376,15 @@ data class ConfigSchema(
             class Generic(
                 override val matches: String,
             ) : Licenses()
+        }
+
+        @Serializable
+        sealed class Shares : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String
+            ) : Shares()
         }
 
         interface ProductBased {

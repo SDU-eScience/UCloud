@@ -51,7 +51,6 @@ class UCloudComputePlugin : ComputePlugin {
     lateinit var k8: K8DependenciesImpl
     lateinit var jobManagement: JobManagement
     lateinit var logService: K8LogService
-    lateinit var licenseService: LicenseService
     lateinit var utilization: UtilizationService
     lateinit var shell: K8Shell
     lateinit var runtime: ContainerRuntime
@@ -102,7 +101,6 @@ class UCloudComputePlugin : ComputePlugin {
         )
 
         logService = K8LogService(k8, runtime)
-        licenseService = LicenseService(config.core.providerId, k8, dbConnection)
         utilization = UtilizationService(k8, runtime)
         shell = K8Shell(runtime)
 
@@ -134,7 +132,7 @@ class UCloudComputePlugin : ComputePlugin {
                 )
             )
 
-            register(FeatureParameter(licenseService, files.pathConverter))
+            register(FeatureParameter(this@initialize, files.pathConverter))
             val fileMountPlugin = FeatureFileMount(
                 files.fs,
                 files.memberFiles,

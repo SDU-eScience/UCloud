@@ -79,7 +79,7 @@ fun main(args: Array<String>) {
         //
         // 1. Process configuration and signal handlers:
         // -----------------------------------------------------------------------------------------------------------
-        // In the first phase we perform simple configuration of the process itself. Currently this involves querying
+        // In the first phase we perform simple configuration of the process itself. Currently, this involves querying
         // some information about the process and its environment, along with installing signal handlers.
         //
         // 2. Configuration:
@@ -99,7 +99,7 @@ fun main(args: Array<String>) {
         //
         // 4. Transferring control to services:
         // -----------------------------------------------------------------------------------------------------------
-        // In this phase we transfer control fully to all of the services which were constructed in the previous
+        // In this phase we transfer control fully to all the services which were constructed in the previous
         // phase. Almost all services are powered by some kind of loop running in a background coroutine/thread.
 
 
@@ -165,7 +165,7 @@ fun main(args: Array<String>) {
                 // Tell logback information about the log output. We need to do this as early as possible since we
                 // cannot do any real logging before these calls have been made.
                 //
-                // We have named the configuration in such a way that it is not auto-loaded by logback. If it were, then
+                // We have named the configuration in such a way that it is not autoloaded by logback. If it were, then
                 // it would complain heavily about the fact that a bunch of loggers were loaded doing companion object
                 // initialization before these properties were set. Instead, we use the default config, which is to
                 // output to stdout until these properties are ready to be set.
@@ -539,6 +539,7 @@ fun main(args: Array<String>) {
                     for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.shares) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.ingresses) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.publicIps) plugin.apply { initialize() }
@@ -596,6 +597,7 @@ fun main(args: Array<String>) {
                     IngressController(controllerContext),
                     PublicIPController(controllerContext),
                     LicenseController(controllerContext),
+                    ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     NotificationController(controllerContext),
                 )
