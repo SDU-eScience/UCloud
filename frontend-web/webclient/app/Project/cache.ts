@@ -4,7 +4,7 @@
 import {userProjectStatus, UserStatusResponse} from "@/Project";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {useCallback} from "react";
-import {useAsyncCommand} from "@/Authentication/DataHook";
+import {useCloudCommand} from "@/Authentication/DataHook";
 
 // This needs to be global
 let cacheIsLoading = false;
@@ -15,7 +15,7 @@ export function useProjectStatus(): ProjectStatus {
         {expiresAt: 0, status: {groups: [], membership: []}}
     );
 
-    const [, invokeCommand] = useAsyncCommand();
+    const [, invokeCommand] = useCloudCommand();
 
     const reload = useCallback(async () => {
         if (cacheIsLoading) return;
