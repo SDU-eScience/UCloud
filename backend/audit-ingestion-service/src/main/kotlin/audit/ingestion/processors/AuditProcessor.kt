@@ -80,7 +80,7 @@ class AuditProcessor(
                     try {
                         client.bulk(BulkRequest().also { it.add(chunk) }, RequestOptions.DEFAULT)
                     } catch (ex: Throwable) {
-                        if (ex is ExecutionException || ex is ConnectException) {
+                        if (ex is ExecutionException || ex is ConnectException || ex.cause is ExecutionException || ex.cause is ConnectException) {
                             if (isDevMode) {
                                 if (didWarnAboutDevMode.compareAndSet(false, true)) {
                                     log.info("Could not contact ElasticSearch. We are assuming that this is not needed in" +

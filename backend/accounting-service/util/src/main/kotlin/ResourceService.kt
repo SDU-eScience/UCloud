@@ -964,7 +964,6 @@ abstract class ResourceService<
             if (personalResource) null else actorAndProject.project
         )
         val relevantProviders = findRelevantProviders(actorAndProject)
-        println("The relevant providers for $actorAndProject is $relevantProviders")
         relevantProviders.forEach { provider ->
             val comms = providers.prepareCommunication(provider)
             val api = providerApi(comms)
