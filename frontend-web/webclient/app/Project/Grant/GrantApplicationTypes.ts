@@ -146,7 +146,7 @@ export interface Revision {
 }
 
 export interface Comment {
-    id: number;
+    id: string;
     username: string;
     createdAt: number;
     comment: string;
@@ -173,8 +173,8 @@ export enum State {
 }
 
 export interface DeleteGrantApplicationCommentRequest {
-    grantId: number;
-    commentId: number;
+    grantId: string;
+    commentId: string;
 }
 
 export function deleteGrantApplicationComment(
@@ -192,7 +192,7 @@ export function browseAffiliations(request: GrantsRetrieveAffiliationsRequest): 
 }
 
 export interface CommentOnGrantApplicationRequest {
-    grantId: number;
+    grantId: string;
     comment: string;
 }
 

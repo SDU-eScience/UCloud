@@ -1132,7 +1132,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     {grantApplication.status.comments.map(it => (
                                         <CommentBox
                                             key={it.id}
-                                            applicationId={appId}
+                                            grantId={appId}
                                             comment={it}
                                             avatar={avatars.cache[it.username] ?? defaultAvatar}
                                             reload={reload}
@@ -1140,7 +1140,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     ))}
                                     {!appId ? null :
                                         <PostCommentWidget
-                                            applicationId={appId  /* TODO(Jonas): Is this the samme as .id from before? */}
+                                            grantId={appId  /* TODO(Jonas): Is this the samme as .id from before? */}
                                             avatar={avatars.cache[Client.username!] ?? defaultAvatar}
                                             onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
                                             disabled={target !== RequestTarget.VIEW_APPLICATION}
@@ -1559,11 +1559,11 @@ const CommentBox: React.FunctionComponent<{
     comment: Comment,
     avatar: AvatarType,
     reload: () => void;
-    applicationId?: string;
-}> = ({comment, avatar, reload, applicationId}) => {
+    grantId?: string;
+}> = ({comment, avatar, reload, grantId}) => {
     const [, runCommand] = useCloudCommand();
     const onDelete = useCallback(() => {
-        if (!applicationId) return;
+        if (!grantId) return;
         addStandardDialog({
             title: "Confirm comment deletion",
             message: "Are you sure you wish to delete your comment?",
@@ -1571,7 +1571,6 @@ const CommentBox: React.FunctionComponent<{
             addToFront: true,
             onConfirm: async () => {
                 try {
-                    const grantId = parseInt(applicationId, 10);
                     await runCommand(deleteGrantApplicationComment({grantId, commentId: comment.id}));
                     reload();
                 } catch (err) {
@@ -1581,7 +1580,7 @@ const CommentBox: React.FunctionComponent<{
         });
     }, [comment.id]);
 
-    if (!applicationId) return null;
+    if (!grantId) return null;
 
     return <CommentBoxWrapper>
         <div className="avatar">
@@ -1630,19 +1629,18 @@ function updateState(request: UpdateStateRequest): APICallParameters<UpdateState
 }
 
 const PostCommentWidget: React.FunctionComponent<{
-    applicationId: string,
+    grantId: string,
     avatar: AvatarType,
     onPostedComment(comment: Comment): void;
     disabled: boolean;
-}> = ({applicationId, avatar, onPostedComment, disabled}) => {
+}> = ({grantId, avatar, onPostedComment, disabled}) => {
     const commentBoxRef = useRef<HTMLTextAreaElement>(null);
     const [loading, runWork] = useCloudCommand();
     const submitComment = useCallback(async (e) => {
         e.preventDefault();
         if (disabled) return;
         try {
-            const grantId = parseInt(applicationId, 10);
-            const result = await runWork<{id: number}[]>(commentOnGrantApplication({
+            const result = await runWork<{id: string}[]>(commentOnGrantApplication({
                 grantId,
                 comment: commentBoxRef.current!.value
             }), {defaultErrorHandler: false});
@@ -1660,7 +1658,7 @@ const PostCommentWidget: React.FunctionComponent<{
         } catch (error) {
             displayErrorMessageOrDefault(error, "Failed to post comment.");
         }
-    }, [runWork, applicationId, commentBoxRef.current]);
+    }, [runWork, grantId, commentBoxRef.current]);
 
     return <PostCommentWrapper onSubmit={submitComment}>
         <div className="wrapper">

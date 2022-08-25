@@ -2,6 +2,7 @@ package dk.sdu.cloud.accounting.services.grants
 
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.FindByLongId
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.grants.CreateCommentRequest
 import dk.sdu.cloud.accounting.api.grants.DeleteCommentRequest
 import dk.sdu.cloud.calls.BulkRequest
@@ -17,7 +18,7 @@ class GrantCommentService(
     suspend fun postComment(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateCommentRequest>
-    ): List<FindByLongId> {
+    ): List<FindByStringId> {
         return db.withSession(remapExceptions = true) { session ->
             request.items.map { req ->
                 val id = session.sendPreparedStatement(
@@ -60,7 +61,7 @@ class GrantCommentService(
                     .singleOrNull()
                     ?.getLong(0) ?: throw RPCException("Unable to post your comment", HttpStatusCode.BadRequest)
 
-                FindByLongId(id)
+                FindByStringId(id.toString())
                 // TODO Notify
             }
         }
