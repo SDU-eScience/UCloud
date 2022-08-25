@@ -326,13 +326,21 @@ fun sortFiles(
         FilesSortBy.SIZE -> kotlin.Comparator<InternalFile> { a, b ->
             val aSize = foundFilesToStat[a.path]?.size ?: 0L
             val bSize = foundFilesToStat[b.path]?.size ?: 0L
-            (aSize - bSize).toInt()
+            when {
+                aSize < bSize -> -1
+                aSize > bSize ->  1
+                else -> 0
+            }
         }.thenComparing(pathComparator)
 
         FilesSortBy.MODIFIED_AT -> kotlin.Comparator<InternalFile> { a, b ->
             val aModifiedAt = foundFilesToStat[a.path]?.modifiedAt ?: 0L
             val bModifiedAt = foundFilesToStat[b.path]?.modifiedAt ?: 0L
-            (aModifiedAt - bModifiedAt).toInt()
+            when {
+                aModifiedAt < bModifiedAt -> -1
+                aModifiedAt > bModifiedAt ->  1
+                else -> 0
+            }
         }.thenComparing(pathComparator)
     }
 
