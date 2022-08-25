@@ -1559,10 +1559,11 @@ const CommentBox: React.FunctionComponent<{
     comment: Comment,
     avatar: AvatarType,
     reload: () => void;
-    applicationId: string;
+    applicationId?: string;
 }> = ({comment, avatar, reload, applicationId}) => {
     const [, runCommand] = useCloudCommand();
     const onDelete = useCallback(() => {
+        if (!applicationId) return;
         addStandardDialog({
             title: "Confirm comment deletion",
             message: "Are you sure you wish to delete your comment?",
@@ -1579,6 +1580,8 @@ const CommentBox: React.FunctionComponent<{
             }
         });
     }, [comment.id]);
+
+    if (!applicationId) return null;
 
     return <CommentBoxWrapper>
         <div className="avatar">
