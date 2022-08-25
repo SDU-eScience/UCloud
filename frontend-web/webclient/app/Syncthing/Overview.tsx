@@ -29,7 +29,7 @@ import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {largeModalStyle} from "@/Utilities/ModalUtilities";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {FilesBrowse} from "@/Files/Files";
-import {api as FilesApi} from "@/UCloud/FilesApi";
+import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
 import {buildQueryString} from "@/Utilities/URIUtilities";
@@ -339,6 +339,11 @@ export const Overview: React.FunctionComponent = () => {
                 pathRef={pathRef}
                 onSelectRestriction={file => file.status.type === "DIRECTORY" && file.specification.product.id !== "share"}
                 onSelect={async (res) => {
+                    const sensitivity = await findSensitivity(res);
+                    if (sensitivity == "SENSITIVE") {
+                        snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false);
+                        return;
+                    }
                     const target = removeTrailingSlash(res.id === "" ? pathRef.current : res.id);
                     dispatch({type: "AddFolder", folderPath: target});
                     dialogStore.success();
@@ -431,7 +436,7 @@ export const Overview: React.FunctionComponent = () => {
                     <HighlightedCard
                         className="servers"
                         icon="globeEuropeSolid"
-                        title={folders.length > 1 ? "Syncthing servers" : "Syncthing server"}
+                        title={servers.length > 1 ? "Syncthing servers" : "Syncthing server"}
                         color="blue"
                     >
                         <Text color="darkGray" fontSize={1}>

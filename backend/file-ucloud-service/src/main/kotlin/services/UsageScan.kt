@@ -272,7 +272,8 @@ class UsageScan(
     private fun checkIfWeShouldTerminate() {
         val errorCounter = globalErrorCounter.get()
         val requestCounter = globalRequestCounter.get()
-        if (requestCounter > 100 && requestCounter / errorCounter.toDouble() >= 0.10) {
+        if (requestCounter > 1000 && errorCounter / requestCounter.toDouble() >= 0.10) {
+            log.warn("OVER 10 percent. reqCount = $requestCounter, error = $errorCounter.")
             throw IllegalStateException("Error threshold has been exceeded")
         }
     }

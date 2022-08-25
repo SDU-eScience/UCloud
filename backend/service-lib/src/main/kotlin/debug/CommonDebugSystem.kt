@@ -8,11 +8,12 @@ import dk.sdu.cloud.ThreadLocal
 import dk.sdu.cloud.calls.client.atomicInt
 import dk.sdu.cloud.defaultMapper
 
-class CommonDebugSystem(id: String, directory: CommonFile) : DebugSystem {
+class CommonDebugSystem(id: String, directory: CommonFile, private val disabled: Boolean = false) : DebugSystem {
     private val idGen = atomicInt(0)
     private val local = ThreadLocal { ThreadLocalDebugSystem(id, directory, idGen.getAndIncrement().toString()) }
 
     override suspend fun sendMessage(message: DebugMessage) {
+        if (disabled) return
         local.get().sendMessage(message)
     }
 }
