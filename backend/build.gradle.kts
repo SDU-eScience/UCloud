@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+import kotlin.system.exitProcess
 
 repositories {
     mavenCentral()
@@ -215,6 +216,10 @@ subprojects {
             }
 
             publications {
+                create<MavenPublication>("api") {
+                    from(components["java"])
+                }
+
                 all {
                     if (this is MavenPublication) {
                         this.groupId = "dk.sdu.cloud"

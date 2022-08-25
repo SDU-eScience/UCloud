@@ -70,6 +70,10 @@ extensions.configure<PublishingExtension>("publishing") {
     }
 
     publications {
+        create<MavenPublication>("api") {
+            from(components["java"])
+        }
+
         all {
             if (this is MavenPublication) {
                 this.groupId = "dk.sdu.cloud"
