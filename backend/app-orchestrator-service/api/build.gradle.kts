@@ -1,4 +1,4 @@
 dependencies {
-    commonMainApi(project(":app-store-service:api"))
-    commonMainApi(project(":accounting-service:api"))
+    api(project(":app-store-service:api"))
+    api(project(":accounting-service:api"))
 }

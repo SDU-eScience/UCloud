@@ -11,7 +11,6 @@ import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
-import dk.sdu.cloud.project.api.v2.Project
 import dk.sdu.cloud.project.api.v2.ProjectRole
 import dk.sdu.cloud.project.api.v2.Projects
 import dk.sdu.cloud.project.api.v2.ProjectsBrowseRequest

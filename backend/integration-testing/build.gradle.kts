@@ -1,8 +1,9 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 import org.gradle.api.tasks.testing.logging.TestExceptionFormat
 import org.gradle.api.tasks.testing.logging.TestLogEvent
 
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
     application
 }
@@ -16,24 +17,15 @@ application {
     mainClassName = "dk.sdu.cloud.integration.MainKt"
 }
 
-kotlin {
-    jvm {
-        withJava()
-        val main by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
-
-        val test by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "11"
     }
+}
 
+kotlin {
     sourceSets {
-        val jvmTest by getting {
+        val test by getting {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-test"))

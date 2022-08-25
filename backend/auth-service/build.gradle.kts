@@ -5,7 +5,7 @@ application {
 }
 
 kotlin.sourceSets {
-    val jvmMain by getting {
+    val main by getting {
         dependencies {
             // SAML
             implementation("com.onelogin:java-saml-core:2.5.0")
