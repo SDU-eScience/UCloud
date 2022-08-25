@@ -11,7 +11,7 @@ data class CreateCommentRequest(val grantId: Long, val comment: String)
 typealias CreateCommentResponse = List<FindByLongId>
 
 @Serializable
-data class DeleteCommentRequest(val grantId:Long, val commentId: Long)
+data class DeleteCommentRequest(val grantId: Long, val commentId: Long)
 typealias DeleteCommentResponse = Unit
 
 
@@ -33,13 +33,13 @@ object GrantComments : CallDescriptionContainer("grantComments") {
     val createComment =
         call<BulkRequest<CreateCommentRequest>, CreateCommentResponse, CommonErrorMessage>("createComment") {
             httpCreate(
-                Grants.baseContext
+                baseContext
             )
 
             documentation {
-                summary = "Adds a comment to an existing [GrantApplication]"
+                summary = "Adds a comment to an existing [$TYPE_REF GrantApplication]"
                 description = """
-                    Only the [GrantApplication] creator and [GrantApplication] reviewers are allowed to comment on the 
+                    Only the [$TYPE_REF GrantApplicationGrantApplication] creator and [GrantApplication] reviewers are allowed to comment on the 
                     [GrantApplication].
                 """.trimIndent()
             }
@@ -48,7 +48,7 @@ object GrantComments : CallDescriptionContainer("grantComments") {
     val deleteComment =
         call<BulkRequest<DeleteCommentRequest>, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
             httpDelete(
-                Grants.baseContext
+                baseContext
             )
 
             documentation {

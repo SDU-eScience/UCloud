@@ -4,9 +4,10 @@ import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
-import {apiBrowse, apiDelete, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiDelete, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {bulkRequestOf} from "@/DefaultObjects";
 
-const grantBaseContext = "api/grant";
+const grantBaseContext = "/api/grant/";
 
 export interface GrantApplication {
 
@@ -145,7 +146,7 @@ export interface Revision {
 }
 
 export interface Comment {
-    id: string;
+    id: number;
     username: string;
     createdAt: number;
     comment: string;
@@ -172,13 +173,14 @@ export enum State {
 }
 
 export interface DeleteGrantApplicationCommentRequest {
-    commentId: string;
+    grantId: number;
+    commentId: number;
 }
 
 export function deleteGrantApplicationComment(
     request: DeleteGrantApplicationCommentRequest
-): APICallParameters<DeleteGrantApplicationCommentRequest> {
-    return apiDelete(request, "api/grant/comment");
+): APICallParameters<UCloud.BulkRequest<DeleteGrantApplicationCommentRequest>> {
+    return apiDelete(bulkRequestOf(request), "api/grant/comment");
 }
 
 export type GrantsRetrieveAffiliationsRequest = PaginationRequestV2;
@@ -190,22 +192,18 @@ export function browseAffiliations(request: GrantsRetrieveAffiliationsRequest): 
 }
 
 export interface CommentOnGrantApplicationRequest {
-    requestId: string;
+    grantId: number;
     comment: string;
 }
 
 export type CommentOnGrantApplicationResponse = Record<string, never>;
 
+const commentBaseContent = "/api/grant/comment"
+
 export function commentOnGrantApplication(
     request: CommentOnGrantApplicationRequest
-): APICallParameters<CommentOnGrantApplicationRequest> {
-    return {
-        method: "POST",
-        path: grantBaseContext + "comment",
-        parameters: request,
-        payload: request,
-        reloadId: Math.random()
-    };
+): APICallParameters<UCloud.BulkRequest<CommentOnGrantApplicationRequest>> {
+    return apiCreate(bulkRequestOf(request), commentBaseContent)
 }
 
 interface RetrieveGrantApplicationRequest {

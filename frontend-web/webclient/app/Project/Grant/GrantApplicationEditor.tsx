@@ -82,7 +82,7 @@ import {
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {ProjectRole, UserInProject, viewProject} from "..";
-import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 
@@ -1132,18 +1132,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     {grantApplication.status.comments.map(it => (
                                         <CommentBox
                                             key={it.id}
+                                            applicationId={appId}
                                             comment={it}
                                             avatar={avatars.cache[it.username] ?? defaultAvatar}
                                             reload={reload}
                                         />
                                     ))}
-
-                                    <PostCommentWidget
-                                        applicationId={grantApplication.currentRevision.document.referenceId ?? "" /* TODO(Jonas): Is this the samme as .id from before? */}
-                                        avatar={avatars.cache[Client.username!] ?? defaultAvatar}
-                                        onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
-                                        disabled={target !== RequestTarget.VIEW_APPLICATION}
-                                    />
+                                    {!appId ? null :
+                                        <PostCommentWidget
+                                            applicationId={appId  /* TODO(Jonas): Is this the samme as .id from before? */}
+                                            avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                                            onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
+                                            disabled={target !== RequestTarget.VIEW_APPLICATION}
+                                        />
+                                    }
                                 </Box>
                             </CommentApplicationWrapper>
                             <Box p={32} pb={16}>
@@ -1557,7 +1559,8 @@ const CommentBox: React.FunctionComponent<{
     comment: Comment,
     avatar: AvatarType,
     reload: () => void;
-}> = ({comment, avatar, reload}) => {
+    applicationId: string;
+}> = ({comment, avatar, reload, applicationId}) => {
     const [, runCommand] = useCloudCommand();
     const onDelete = useCallback(() => {
         addStandardDialog({
@@ -1566,8 +1569,13 @@ const CommentBox: React.FunctionComponent<{
             confirmText: "Delete",
             addToFront: true,
             onConfirm: async () => {
-                await runCommand(deleteGrantApplicationComment({commentId: comment.id}));
-                reload();
+                try {
+                    const grantId = parseInt(applicationId, 10);
+                    await runCommand(deleteGrantApplicationComment({grantId, commentId: comment.id}));
+                    reload();
+                } catch (err) {
+                    displayErrorMessageOrDefault(err, "Failed to delete comment.")
+                }
             }
         });
     }, [comment.id]);
@@ -1630,19 +1638,22 @@ const PostCommentWidget: React.FunctionComponent<{
         e.preventDefault();
         if (disabled) return;
         try {
-            const id = await runWork<string>(commentOnGrantApplication({
-                requestId: applicationId,
+            const grantId = parseInt(applicationId, 10);
+            const result = await runWork<{id: number}[]>(commentOnGrantApplication({
+                grantId,
                 comment: commentBoxRef.current!.value
             }), {defaultErrorHandler: false});
+            if (result != null) {
+                const [{id}] = result;
+                onPostedComment({
+                    comment: commentBoxRef.current!.value,
+                    createdAt: new Date().getTime(),
+                    id,
+                    username: Client.activeUsername!
+                });
 
-            onPostedComment({
-                comment: commentBoxRef.current!.value,
-                createdAt: new Date().getTime(),
-                id: id!,
-                username: Client.activeUsername!
-            });
-
-            if (commentBoxRef.current) commentBoxRef.current!.value = "";
+                if (commentBoxRef.current) commentBoxRef.current!.value = "";
+            }
         } catch (error) {
             displayErrorMessageOrDefault(error, "Failed to post comment.");
         }
