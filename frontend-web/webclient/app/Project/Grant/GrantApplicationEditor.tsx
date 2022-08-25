@@ -373,9 +373,7 @@ const GenericRequestCard: React.FunctionComponent<{
                         </tr>
                     </tbody>
                 </table>
-                {props.showAllocationSelection ?
-                    <AllocationSelection allocationRequests={props.allocationRequests} wallets={wallets} wb={wb} isLocked={isLocked} /> : null
-                }
+                <AllocationSelection showAllocationSelection={props.showAllocationSelection} allocationRequest={allocRequest} wallets={wallets} wb={wb} isLocked={isLocked} />
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     }
@@ -391,30 +389,34 @@ const AllocationBox = styled.div`
     border: 2px solid var(--borderGray); 
 `;
 
-function AllocationSelection({wallets, wb, isLocked, allocationRequests}: {
+function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllocationSelection}: {
     wallets: Wallet[];
+    showAllocationSelection: boolean;
     wb: GrantProductCategory;
     isLocked: boolean;
-    allocationRequests: AllocationRequest[];
+    allocationRequest?: AllocationRequest;
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
+    // Note(Jonas): Allocation ID can be provided by an allocation request, where wallets can be empty,
+    // so we can always look it up. That's why it's divided into two 'useState's, but any friction-less solution
+    // that removes one is very welcome.
+    const [allocationId, setAllocationId] = useState<string | undefined>(allocationRequest?.sourceAllocation ?? "");
     const allocationText = allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
     React.useEffect(() => {
+        if (!allocationRequest) return;
         for (const w of wallets) {
             for (const a of w.allocations) {
-                if (allocationRequests.find(it =>
-                    it.sourceAllocation == a.id
-                )) {
+                if (allocationRequest.sourceAllocation == a.id) {
                     setAllocation({wallet: w, allocation: a});
                     return;
                 }
             }
         }
-    }, [wallets, allocationRequests]);
+    }, [wallets, allocationRequest]);
 
     return <Box mb="8px" ml="6px">
-        <HiddenInputField value={allocation ? allocation.allocation.id : ""} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
-        {!isLocked ?
+        <HiddenInputField value={allocationId} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
+        {!showAllocationSelection ? null : !isLocked ?
             <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={<AllocationBox>
                 {!allocation ?
                     <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
@@ -433,14 +435,17 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequests}: {
                             <AllocationRows
                                 key={w.paysFor.provider + w.paysFor.name + w.paysFor.title}
                                 wallet={w}
-                                onClick={(wallet, allocation) => setAllocation({wallet, allocation})}
+                                onClick={(wallet, allocation) => {
+                                    setAllocationId(allocation.id);
+                                    setAllocation({wallet, allocation});
+                                }}
                             />
                         )}
                     </tbody>
                 </Table>
             </ClickableDropdown> : allocation ? allocationText : "No allocation selected"
         }
-    </Box >;
+    </Box>
 }
 
 function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: WalletAllocation): void; wallet: Wallet;}) {
@@ -511,9 +516,11 @@ const UPDATE_PARENT_PROJECT_ID = "UPDATE_PARENT_PROJECT_ID";
 type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {parentProjectId: string;}>;
 const POSTED_COMMENT = "POSTED_COMMENT";
 type PostedComment = PayloadAction<typeof POSTED_COMMENT, Comment>;
+const UPDATE_DOCUMENT = "UPDATE_DOCUMENT";
+type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>
 
 
-type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment;
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
     switch (action.type) {
         case FETCHED_GRANT_APPLICATION: {
@@ -527,6 +534,10 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
         case UPDATE_PARENT_PROJECT_ID: {
             // TODO: Is this enough? Technically, we now have a new revision.
             state.currentRevision.document.parentProjectId = action.payload.parentProjectId;
+            return {...state};
+        }
+        case UPDATE_DOCUMENT: {
+            state.currentRevision.document = action.payload;
             return {...state};
         }
         case POSTED_COMMENT: {
@@ -628,6 +639,29 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
             const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
 
+            // Note(Jonas): Remove source allocations from modified requestedResources, 
+            // as long as user is not also approver for said resource.
+            if (isRecipient) {
+                for (const requestedResource of requestedResourcesByAffiliate) {
+                    if (approverMap[requestedResource.grantGiver]) {
+                        continue;
+                    }
+                    const oldAllocation = grantApplication.currentRevision.document.allocationRequests.find(it =>
+                        it.category === requestedResource.category &&
+                        it.provider === requestedResource.provider &&
+                        it.grantGiver === requestedResource.grantGiver
+                    );
+                    if (!oldAllocation) continue;
+                    if (
+                        oldAllocation.balanceRequested !== requestedResource.balanceRequested ||
+                        oldAllocation.period.start !== requestedResource.period.start ||
+                        oldAllocation.period.end !== requestedResource.period.end
+                    ) {
+                        requestedResource.sourceAllocation = null;
+                    }
+                }
+            }
+
             if (requestedResourcesByAffiliate.length === 0) {
                 snackbarStore.addFailure("At least one resource field must be non-zero.", false);
                 setSubmissionsLoading(false);
@@ -663,12 +697,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 };
 
                 await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
+                dispatch({type: UPDATE_DOCUMENT, payload: document});
                 setIsLocked(false);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
             setSubmissionsLoading(false);
-        }, [grantGiversInUse, grantProductCategories, grantApplication]); // TODO(Jonas): Find out which are actually needed.
+        }, [grantGiversInUse, grantProductCategories, grantApplication, isRecipient]);
 
         const submitRequest = useCallback(async () => {
             setSubmissionsLoading(true);
@@ -1579,11 +1614,6 @@ interface UpdateStateRequest {
     notify: boolean;
 }
 
-function isAnyAllocationsOfParentProject(allocations: AllocationRequest[], parentProject: string | null) {
-    if (parentProject == null) return false;
-    return allocations.find(it => it.grantGiver === parentProject) != null;
-}
-
 function updateState(request: UpdateStateRequest): APICallParameters<UpdateStateRequest> {
     return apiUpdate(request, "/api/grant", "update-state");
 }
@@ -1720,7 +1750,8 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
 
             const allocation = document.querySelector<HTMLInputElement>(
                 `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
-            );
+            )?.value ?? null;
+            const sourceAllocation = allocation === "" ? null : allocation;
 
             if (creditsRequested) {
                 creditsRequested = normalizeBalanceForBackend(
@@ -1738,7 +1769,7 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
                 provider: wb.metadata.category.provider,
                 balanceRequested: creditsRequested,
                 grantGiver: entry,
-                sourceAllocation: allocation?.value ?? null, // TODO(Jonas): null on initial request, required on the following.
+                sourceAllocation, // TODO(Jonas): null on initial request, required on the following.
                 period: {
                     start,
                     end: end ?? null
