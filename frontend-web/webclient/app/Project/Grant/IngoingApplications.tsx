@@ -181,7 +181,7 @@ export const GrantApplicationList: React.FunctionComponent<{
                                 {dateToString(app.updatedAt)}
                             </ListRowStat>
                             <ListRowStat
-                                icon={(console.log(app.currentRevision.document.recipient), app.currentRevision.document.recipient.type === "personalWorkspace" ? "user" : "projects")}
+                                icon={app.currentRevision.document.recipient.type === "personalWorkspace" ? "user" : "projects"}
                             >
                                 {app.currentRevision.document.recipient.type === "personalWorkspace" ? "Personal" :
                                     app.currentRevision.document.recipient.type === "newProject" ? "New project" :

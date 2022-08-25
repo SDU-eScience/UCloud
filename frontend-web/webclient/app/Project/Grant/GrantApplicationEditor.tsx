@@ -1741,6 +1741,7 @@ function toForm(request: RequestTarget, grantApplication: GrantApplication, form
 function formTextFromGrantApplication(grantApplication: GrantApplication): string {
     return grantApplication.currentRevision.document.form.text;
 }
+
 function findRequestedResources(grantProductCategories: Record<string, GrantProductCategory[]>): AllocationRequest[] {
     return Object.keys(grantProductCategories).flatMap(entry =>
         grantProductCategories[entry].map(wb => {
