@@ -18,7 +18,7 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
         developmentMode = ctx.developmentModeEnabled
         delegate = CommonDebugSystem(serviceDescription.name, CommonFile("/var/log/ucloud").also {
             it.jvmFile.mkdirs()
-        })
+        }, disabled = !ctx.developmentModeEnabled)
 
         installCommon(ctx.client)
 
