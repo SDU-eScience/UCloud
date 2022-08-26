@@ -16,12 +16,20 @@ repositories {
 }
 
 dependencies {
-    val ucloudVersion = "2022.2.7"
-    implementation("dk.sdu.cloud:file-orchestrator-service-api:2022.2.7")
-    implementation("dk.sdu.cloud:app-orchestrator-service-api:2022.2.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    run {
+        val version = "2022.2.7"
+        fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
+
+        ucloud("file-orchestrator-service-api")
+        ucloud("app-orchestrator-service-api")
+        ucloud("service-lib-lib")
+    }
+
+    run {
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    }
 
     run {
         val ktorVersion = "2.0.2"

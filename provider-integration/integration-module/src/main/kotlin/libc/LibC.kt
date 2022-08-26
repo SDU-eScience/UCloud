@@ -89,7 +89,7 @@ class LibC {
                     }
 
                     line()
-                    line("Remember to ensure that the service user has the appropiate permissions for loading this library!")
+                    bold { line("Remember to ensure that the service user has the appropriate permissions for loading this library!") }
                 }
                 exitProcess(1)
             }

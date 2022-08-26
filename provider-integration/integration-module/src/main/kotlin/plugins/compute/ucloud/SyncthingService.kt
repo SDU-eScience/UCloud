@@ -13,6 +13,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.plugins.InternalFile
+import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.storage.ucloud.*
 import dk.sdu.cloud.provider.api.Permission
