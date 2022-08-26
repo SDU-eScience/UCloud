@@ -20,7 +20,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         val daysInPeriod = Days.daysBetween(startDate, endDate).days
         val hoursInPeriod = daysInPeriod * 24L
         val usedCPUInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.CPU, aau)
-        val numberOfGPUCores = TYPE_1_GPU_CORES * hoursInPeriod
+        val numberOfGPUCores = if (aau) TYPE_1_GPU_CORES * hoursInPeriod else 0L
         val usedGPUHoursInPeriod = postgresDataService.calculateProductUsage(startDate, endDate, ProductType.GPU, aau)
 
         val storageUsed = if (aau) 17000000L else postgresDataService.calculateProductUsage(startDate, endDate, ProductType.STORAGE, aau)
@@ -34,7 +34,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
             //for aau just use used
             if (aau) usedCPUInPeriod else TYPE_1_CPU_CORES * hoursInPeriod,
             usedCPUInPeriod,
-            if (aau) usedGPUHoursInPeriod else numberOfGPUCores,
+            numberOfGPUCores,
             usedGPUHoursInPeriod,
             storageUsed,
             //networkUsed.toLong(),
@@ -95,7 +95,6 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
         for (day in 0..daysInPeriod) {
             println("days to go: ${daysInPeriod-day}")
             val start = startDate.plusDays(day)
-            val numberOfGPUCores = TYPE_1_GPU_CORES
             val usageSDUCOMPUTE = makeMappingOfUsage(postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.CPU))
             val usageSDUGPU = makeMappingOfUsage(postgresDataService.retrieveUsageSDU(start, start.plusDays(1), ProductType.GPU))
             val storageSDU = postgresDataService.getSDUStorage()
@@ -124,7 +123,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         accessType,
                         TYPE_1_CPU_CORES * 24,
                         foundCOMPUTE,
-                        numberOfGPUCores * 24,
+                        0 * 24,
                         foundGPU,
                         storage,
                         null,
@@ -152,7 +151,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                         accessType,
                         computeaau,
                         computeaau,
-                        gpuaau,
+                        TYPE_1_GPU_CORES * 24,
                         gpuaau,
                         storage,
                         null,
@@ -193,7 +192,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                             accessType,
                             TYPE_1_CPU_CORES * 24,
                             cpuUsedSDU,
-                            numberOfGPUCores * 24,
+                            0 * 24,
                             gpuUsedSDU,
                             storageUsedSDU,
                             null,
@@ -225,7 +224,7 @@ class DeicReportService(val postgresDataService: PostgresDataService) {
                             accessType,
                             cpuUsedAAU,
                             cpuUsedAAU,
-                            gpuUsedAAU,
+                            TYPE_1_GPU_CORES * 24,
                             gpuUsedAAU,
                             storageUsedAAU,
                             null,

@@ -386,37 +386,8 @@ class PostgresDataService(val db: AsyncDBSessionFactory) {
                             ?.getLong(0) ?: 0L
                     }
                 }
-            }
-            else {
-                runBlocking {
-                    db.withSession { session ->
-                        session
-                            .sendPreparedStatement(
-                                {
-                                    setParameter("startDate", startDate.toLocalDate().toString())
-                                    setParameter("endDate", endDate.toLocalDate().toString())
-                                },
-                                """
-                            SELECT -sum(usage)::bigint / 60
-                            from (
-                                SELECT ((tr.change/p.price_per_unit)) usage, tr.periods, tr.units, tr.change, price_per_unit, p.name
-                                FROM  "accounting"."transactions" tr
-                                    join accounting.products p on p.id = tr.product_id
-                                    join accounting.product_categories pc on pc.id = p.category
-                                WHERE
-                                    initial_transaction_id = transaction_id
-                                    AND created_at >= :startDate::timestamp
-                                    AND created_at <= :endDate::timestamp
-                                    AND tr.action_performed_by NOT LIKE '\_%'
-                                AND tr.type = 'charge'
-                                and p.name like '%gpu%'
-                            ) as used;
-                        """
-                            ).rows
-                            .firstOrNull()
-                            ?.getLong(0) ?: 0L
-                    }
-                }
+            } else { //SDU
+                0L
             }
             //Get Corehours by dividing amount with pricing and then with 60 to get in hours
             return amount

@@ -1,6 +1,5 @@
 package dk.sdu.cloud.extract.data.api
 
-import okhttp3.internal.UTC
 import org.joda.time.DateTimeZone
 import org.joda.time.Days
 import org.joda.time.LocalDateTime
@@ -32,7 +31,7 @@ const val TYPE_1_CPU_CORES = 2048L
 const val TYPE_1_CPU_CORE_PRICE_PER_MINUTE = 1434.0
 
 
-const val TYPE_1_GPU_CORES = 16L
+const val TYPE_1_GPU_CORES = 76L
 const val TYPE_1_GPU_CORE_PRICE_PER_MINUTE = 175800.0
 
 const val TYPE_1_CEPH_GB_PRICE_PER_DAY = 0.001667
