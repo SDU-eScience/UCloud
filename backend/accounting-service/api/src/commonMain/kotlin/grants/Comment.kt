@@ -23,7 +23,7 @@ object GrantComments : CallDescriptionContainer("grantComments") {
         title = "Grant Comments"
         description = """
             Comments are used as a grant application specific communication. All comments are associated with a single 
-            specific grant application. 
+            specific grant application.
             
             All participants in a grant application can comment on a grant application.
             
