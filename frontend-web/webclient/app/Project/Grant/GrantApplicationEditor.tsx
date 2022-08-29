@@ -18,7 +18,7 @@ import Text, {TextSpan} from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     browseWallets,
     explainAllocation,
@@ -1322,20 +1322,16 @@ function GrantGiver(props: {
     const {recipient} = props.grantApplication.currentRevision.document;
     const recipientId = getRecipientId(recipient);
 
-    /* TODO(Jonas): Why is this done over two parts instead of one?  */
-    const [products, setProducts] = useState<{availableProducts: Product[];}>({availableProducts: []});
-    React.useEffect(() => {
-        fetchProducts({
-            projectId: props.project.projectId,
-            recipientType: recipient.type,
-            recipientId,
-            showHidden: false
-        }).then(it => setProducts(it));
-    }, []);
+    const [products] = useCloudAPI<{availableProducts: Product[]}>(apiBrowse({
+        projectId: props.project.projectId,
+        recipientType: recipient.type,
+        recipientId,
+        showHidden: false
+    }, "/api/grant", "products"), {availableProducts: []});
 
     const productCategories: GrantProductCategory[] = useMemo(() => {
         const result: GrantProductCategory[] = [];
-        for (const product of products.availableProducts) {
+        for (const product of products.data.availableProducts) {
             const metadata: ProductMetadata = {
                 category: product.category,
                 freeToUse: product.freeToUse,
