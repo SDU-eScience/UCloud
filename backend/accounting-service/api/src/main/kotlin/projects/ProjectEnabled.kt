@@ -5,6 +5,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 
 @Serializable
@@ -32,7 +33,12 @@ object ProjectEnabled : CallDescriptionContainer("projectEnabled") {
     }
 
     val setEnabledStatus =
-        call<BulkRequest<SetEnabledStatusRequest>, SetEnabledStatusResponse, CommonErrorMessage>("setEnabledStatus") {
+        call(
+            "setEnabledStatus",
+            BulkRequest.serializer(SetEnabledStatusRequest.serializer()),
+            SetEnabledStatusResponse.serializer(),
+            CommonErrorMessage.serializer()
+        ) {
             httpUpdate(
                 Grants.baseContext,
                 "set-enabled",
@@ -48,7 +54,12 @@ object ProjectEnabled : CallDescriptionContainer("projectEnabled") {
             }
         }
 
-    val isEnabled = call<IsEnabledRequest, IsEnabledResponse, CommonErrorMessage>("isEnabled") {
+    val isEnabled = call(
+        "isEnabled",
+        IsEnabledRequest.serializer(),
+        IsEnabledResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(
             baseContext
         )

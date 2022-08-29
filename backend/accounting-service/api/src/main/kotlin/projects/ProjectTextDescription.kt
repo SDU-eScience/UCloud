@@ -4,6 +4,7 @@ import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 
 @Serializable
@@ -47,7 +48,12 @@ object ProjectTextDescription : CallDescriptionContainer("project_text_descripti
      * @see isEnabled
      */
     val uploadDescription =
-        call<BulkRequest<UploadDescriptionRequest>, UploadDescriptionResponse, CommonErrorMessage>("uploadDescription") {
+        call(
+            "uploadDescription",
+            BulkRequest.serializer(UploadDescriptionRequest.serializer()),
+            UploadDescriptionResponse.serializer(),
+            CommonErrorMessage.serializer()
+        ) {
             httpUpdate(
                 baseContext,
                 "upload"
@@ -59,7 +65,12 @@ object ProjectTextDescription : CallDescriptionContainer("project_text_descripti
         }
 
     val retrieveDescription =
-        call<RetrieveDescriptionRequest, RetrieveDescriptionResponse, CommonErrorMessage>("retrieveDescription") {
+        call(
+            "retrieveDescription",
+            RetrieveDescriptionRequest.serializer(),
+            RetrieveDescriptionResponse.serializer(),
+            CommonErrorMessage.serializer()
+        ) {
             httpRetrieve(
                 baseContext,
                 roles = Roles.PUBLIC

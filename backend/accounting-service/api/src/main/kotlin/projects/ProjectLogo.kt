@@ -6,6 +6,7 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 
 @Serializable
@@ -35,7 +36,12 @@ object ProjectLogo : CallDescriptionContainer("projects_logo") {
         """.trimIndent()
     }
 
-    val uploadLogo = call<UploadLogoRequest, UploadLogoResponse, CommonErrorMessage>("uploadLogo") {
+    val uploadLogo = call(
+        "uploadLogo",
+        UploadLogoRequest.serializer(),
+        UploadLogoResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -65,7 +71,12 @@ object ProjectLogo : CallDescriptionContainer("projects_logo") {
         }
     }
 
-    val retrieveLogo = call<RetrieveLogoRequest, RetrieveLogoResponse, CommonErrorMessage>("retrieveLogo") {
+    val retrieveLogo = call(
+        "retrieveLogo",
+        RetrieveLogoRequest.serializer(),
+        RetrieveLogoResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(
             baseContext,
             roles = Roles.PUBLIC

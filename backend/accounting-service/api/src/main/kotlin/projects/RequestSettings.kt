@@ -7,6 +7,7 @@ import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @UCloudApiDoc("""
@@ -101,7 +102,12 @@ object GrantSettings : CallDescriptionContainer("grantSettings") {
     }
 
     val uploadRequestSettings =
-        call<BulkRequest<UploadRequestSettingsRequest>, UploadRequestSettingsResponse, CommonErrorMessage>("uploadRequestSettings") {
+        call(
+            "uploadRequestSettings",
+            BulkRequest.serializer(UploadRequestSettingsRequest.serializer()),
+            UploadRequestSettingsResponse.serializer(),
+            CommonErrorMessage.serializer()
+            ) {
             httpUpdate(
                 baseContext,
                 "upload"
@@ -114,7 +120,12 @@ object GrantSettings : CallDescriptionContainer("grantSettings") {
         }
 
     val retrieveRequestSettings =
-        call<RetrieveRequestSettingsRequest, RetrieveRequestSettingsResponse, CommonErrorMessage>("retrieveRequestSettings") {
+        call(
+            "retrieveRequestSettings",
+            RetrieveRequestSettingsRequest.serializer(),
+            RetrieveRequestSettingsResponse.serializer(),
+            CommonErrorMessage.serializer()
+            ) {
             httpRetrieve(
                 baseContext
             )

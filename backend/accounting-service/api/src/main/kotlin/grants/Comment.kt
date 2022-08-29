@@ -6,9 +6,12 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class CreateCommentRequest(val grantId: String, val comment: String)
+// TODO(Jonas): Should return a bulkresponse, not a list
 typealias CreateCommentResponse = List<FindByStringId>
 
 @Serializable
@@ -32,7 +35,7 @@ object GrantComments : CallDescriptionContainer("grantComments") {
     }
 
     val createComment =
-        call<BulkRequest<CreateCommentRequest>, CreateCommentResponse, CommonErrorMessage>("createComment") {
+        call("createComment", BulkRequest.serializer(CreateCommentRequest.serializer()), ListSerializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
             httpCreate(
                 baseContext
             )
@@ -47,7 +50,7 @@ object GrantComments : CallDescriptionContainer("grantComments") {
         }
 
     val deleteComment =
-        call<BulkRequest<DeleteCommentRequest>, DeleteCommentResponse, CommonErrorMessage>("deleteComment") {
+        call("deleteComment", BulkRequest.serializer(DeleteCommentRequest.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
             httpDelete(
                 baseContext
             )

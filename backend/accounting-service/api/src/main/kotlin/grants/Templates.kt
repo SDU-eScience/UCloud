@@ -7,6 +7,7 @@ import dk.sdu.cloud.grant.api.GrantApplication
 import dk.sdu.cloud.grant.api.Grants
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.serializer
 
 @Serializable
 @SerialName("templates")
@@ -48,7 +49,12 @@ object GrantTemplates : CallDescriptionContainer("grant_template") {
         """.trimIndent()
     }
 
-    val uploadTemplates = call<UploadTemplatesRequest, UploadTemplatesResponse, CommonErrorMessage>("uploadTemplates") {
+    val uploadTemplates = call(
+        "uploadTemplates",
+        UploadTemplatesRequest.serializer(),
+        UploadTemplatesResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         auth {
             access = AccessRight.READ_WRITE
         }
@@ -71,7 +77,12 @@ object GrantTemplates : CallDescriptionContainer("grant_template") {
         }
     }
 
-    val retrieveTemplates = call<RetrieveTemplatesRequest, RetrieveTemplatesResponse, CommonErrorMessage>("retrieveTemplates") {
+    val retrieveTemplates = call(
+        "retrieveTemplates",
+        RetrieveTemplatesRequest.serializer(),
+        RetrieveTemplatesResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(
             baseContext
         )

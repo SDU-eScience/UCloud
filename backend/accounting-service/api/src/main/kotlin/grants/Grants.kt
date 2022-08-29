@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 
 val Int.DKK: Long get() = toLong() * 1_000_000
@@ -54,6 +55,7 @@ data class BrowseApplicationsRequest(
 typealias BrowseApplicationsResponse = PageV2<GrantApplication>
 
 typealias SubmitApplicationRequest = CreateApplication
+// TODO(Jonas): Should return a bulk response
 typealias SubmitApplicationResponse = List<FindByLongId>
 
 @Serializable
@@ -341,7 +343,7 @@ ${ApiConventions.nonConformingApiWarning}
      */
 
     val submitApplication =
-        call<BulkRequest<SubmitApplicationRequest>, SubmitApplicationResponse, CommonErrorMessage>("submitApplication") {
+        call("submitApplication", BulkRequest.serializer(SubmitApplicationRequest.serializer()), ListSerializer(FindByLongId.serializer()), CommonErrorMessage.serializer()) {
             httpCreate(
                 baseContext,
                 "submit-application"
@@ -357,7 +359,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
 
-    val updateApplicationState = call<BulkRequest<UpdateApplicationState>, UpdateApplicationStateResponse, CommonErrorMessage>("updateApplicationState") {
+    val updateApplicationState = call("updateApplicationState", BulkRequest.serializer(UpdateApplicationState.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
             "update-state"
@@ -371,8 +373,12 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
 
-    val editApplication = call<BulkRequest<EditApplicationRequest>, EditApplicationResponse, CommonErrorMessage>(
-        "editApplication"
+    val editApplication = call(
+        "editApplication",
+
+        BulkRequest.serializer(EditApplicationRequest.serializer()),
+        EditApplicationResponse.serializer(),
+        CommonErrorMessage.serializer()
     ) {
         httpUpdate(
             baseContext,
@@ -385,8 +391,11 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val closeApplication = call<BulkRequest<CloseApplicationRequest>, CloseApplicationResponse, CommonErrorMessage>(
-        "closeApplication"
+    val closeApplication = call(
+        "closeApplication",
+        BulkRequest.serializer(CloseApplicationRequest.serializer()),
+        Unit.serializer(),
+        CommonErrorMessage.serializer()
     ) {
         httpUpdate(
             baseContext,
@@ -401,7 +410,12 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     val transferApplication =
-        call<BulkRequest<TransferApplicationRequest>, TransferApplicationResponse, CommonErrorMessage>("transferApplication") {
+        call(
+            "transferApplication",
+            BulkRequest.serializer(TransferApplicationRequest.serializer()),
+            TransferApplicationResponse.serializer(),
+            CommonErrorMessage.serializer()
+        ) {
             httpUpdate(
                 baseContext,
                 "transfer",
@@ -414,7 +428,12 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
     val browseApplications =
-        call<BrowseApplicationsRequest, BrowseApplicationsResponse, CommonErrorMessage>("browseApplications") {
+        call(
+            "browseApplications",
+            BrowseApplicationsRequest.serializer(),
+            BrowseApplicationsResponse.serializer(GrantApplication.serializer()),
+            CommonErrorMessage.serializer()
+        ) {
             httpBrowse(
                 baseContext
             )
@@ -427,7 +446,12 @@ ${ApiConventions.nonConformingApiWarning}
             }
         }
 
-    val browseProjects = call<BrowseProjectsRequest, BrowseProjectsResponse, CommonErrorMessage>("browseProjects") {
+    val browseProjects = call(
+        "browseProjects",
+        BrowseProjectsRequest.serializer(),
+        BrowseProjectsResponse.serializer(ProjectWithTitle.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(
             baseContext,
             "projects"
@@ -442,19 +466,23 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val browseAffiliations = call<
-            GrantsBrowseAffiliationsRequest,
-            GrantsBrowseAffiliationsResponse,
-            CommonErrorMessage
-            >("retrieveAffiliations") {
+    val browseAffiliations = call(
+        "retrieveAffiliations",
+        GrantsBrowseAffiliationsRequest.serializer(),
+        GrantsBrowseAffiliationsResponse.serializer(ProjectWithTitle.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
         httpBrowse(
             baseContext,
             "affiliations"
         )
     }
 
-    val browseProducts = call<GrantsBrowseProductsRequest, GrantsBrowseProductsResponse, CommonErrorMessage>(
-        "browseProducts"
+    val browseProducts = call(
+        "browseProducts",
+        GrantsBrowseProductsRequest.serializer(),
+        GrantsBrowseProductsResponse.serializer(),
+        CommonErrorMessage.serializer()
     ) {
         httpBrowse(
             baseContext,
@@ -463,7 +491,12 @@ ${ApiConventions.nonConformingApiWarning}
     }
 
     // This needs to be last
-    val retrieveApplication = call<RetrieveApplicationRequest, RetrieveApplicationResponse, CommonErrorMessage>("viewApplication") {
+    val retrieveApplication = call(
+        "viewApplication",
+        RetrieveApplicationRequest.serializer(),
+        RetrieveApplicationResponse.serializer(),
+        CommonErrorMessage.serializer()
+    ) {
         httpRetrieve(
             baseContext
         )

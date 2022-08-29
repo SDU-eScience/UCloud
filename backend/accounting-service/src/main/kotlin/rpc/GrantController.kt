@@ -1,7 +1,5 @@
 package dk.sdu.cloud.grant.rpc
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.grants.GrantComments
 import dk.sdu.cloud.accounting.api.grants.GrantTemplates
 import dk.sdu.cloud.accounting.api.projects.*
@@ -15,7 +13,6 @@ import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.service.*
-import io.ktor.application.*
 import io.ktor.http.*
 import io.ktor.http.content.*
 import io.ktor.server.request.*
