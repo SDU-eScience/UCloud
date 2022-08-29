@@ -205,9 +205,9 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const asPercent = resultAsPercent(total);
         const doTruncate = total.initialBalance > 1_000_000;
         const usedBalance = doTruncate ? (total.initialBalance - total.balance) / 1_000 : (total.initialBalance - total.balance);
-        const initialBalance = doTruncate ? (total.initialBalance) / 1000 : total.initialBalance;
-        const used = normalizeBalanceForFrontend(usedBalance, productType, chargeType, unit, false);
-        const initial = normalizeBalanceForFrontend(initialBalance, productType, chargeType, unit, false);
+        const initialBalance = doTruncate ? (total.initialBalance) / 1_000 : total.initialBalance;
+        const used = normalizeBalanceForFrontend(Math.floor(usedBalance), productType, chargeType, unit, false);
+        const initial = normalizeBalanceForFrontend(Math.floor(initialBalance), productType, chargeType, unit, false);
         const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
         const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
         return <ResourceProgressWrapper key={unit + productType}>

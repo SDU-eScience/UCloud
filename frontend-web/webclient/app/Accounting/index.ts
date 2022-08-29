@@ -612,12 +612,12 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
     // Group into before and after decimal separator
     const stringified = credits.toString().padStart(6, "0");
 
-    let before = stringified.substr(0, stringified.length - 6);
-    let after = stringified.substr(stringified.length - 6);
+    let before = stringified.substring(0, stringified.length - 6);
+    let after = stringified.substring(stringified.length - 6);
     if (before === "") before = "0";
     if (after === "") after = "0";
     after = after.padStart(precision, "0");
-    after = after.substr(0, precision);
+    after = after.substring(0, precision);
 
     // Truncate trailing zeroes (but keep at least two)
     if (precision > 2) {
@@ -631,7 +631,7 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
         }
 
         if (firstZeroAt !== -1) { // We have trailing zeroes
-            after = after.substr(0, firstZeroAt);
+            after = after.substring(0, firstZeroAt);
         }
     }
 
