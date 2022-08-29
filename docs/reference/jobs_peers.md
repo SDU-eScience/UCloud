@@ -44,6 +44,7 @@ Jobs.create.call(
         ), 
         replicas = 1, 
         resources = null, 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -87,6 +88,7 @@ Jobs.create.call(
             hostname = "database", 
             jobId = "4101", 
         )), 
+        restartOnExit = null, 
         timeAllocation = null, 
     )),
     user
@@ -146,7 +148,8 @@ await callAPI(JobsApi.create(
                 },
                 "resources": null,
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -197,7 +200,8 @@ await callAPI(JobsApi.create(
                     }
                 ],
                 "timeAllocation": null,
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             }
         ]
     }
@@ -261,7 +265,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             },
             "resources": null,
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'
@@ -307,7 +312,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 }
             ],
             "timeAllocation": null,
-            "openedFile": null
+            "openedFile": null,
+            "restartOnExit": null
         }
     ]
 }'

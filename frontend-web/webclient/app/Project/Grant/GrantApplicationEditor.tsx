@@ -293,7 +293,7 @@ const GenericRequestCard: React.FunctionComponent<{
         </RequestForSingleResourceWrapper>;
     } else {
         const defaultValue = allocRequest?.balanceRequested;
-        const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, false) : undefined;
+        const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice) : undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
                 <table>

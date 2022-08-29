@@ -97,31 +97,7 @@ allows providers to give access to these [`Job`](/docs/reference/dk.sdu.cloud.ap
 </tr></thread>
 <tbody>
 <tr>
-<td><a href='#ingress'><code>Ingress</code></a></td>
-<td>An L7 ingress-point (HTTP)</td>
-</tr>
-<tr>
 <td><a href='#ingressincludeflags'><code>IngressIncludeFlags</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressspecification'><code>IngressSpecification</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressstate'><code>IngressState</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressstatus'><code>IngressStatus</code></a></td>
-<td>The status of an `Ingress`</td>
-</tr>
-<tr>
-<td><a href='#ingresssupport'><code>IngressSupport</code></a></td>
-<td><i>No description</i></td>
-</tr>
-<tr>
-<td><a href='#ingressupdate'><code>IngressUpdate</code></a></td>
 <td><i>No description</i></td>
 </tr>
 </tbody></table>
@@ -550,7 +526,7 @@ _Browses the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ingress'>Ingress</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest.md'>ResourceBrowseRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Ingress.md'>Ingress</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -564,7 +540,7 @@ _Retrieve a single resource_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='#ingress'>Ingress</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest.md'>ResourceRetrieveRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Ingress.md'>Ingress</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -578,7 +554,7 @@ _Retrieve product support for all accessible providers_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>, <a href='#ingresssupport'>IngressSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.SupportByProvider.md'>SupportByProvider</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>, <a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.IngressSupport.md'>IngressSupport</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 This endpoint will determine all providers that which the authenticated user has access to, in
 the current workspace. A user has access to a product, and thus a provider, if the product is
@@ -600,7 +576,7 @@ _Searches the catalog of available resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ingress'>Ingress</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#ingressincludeflags'>IngressIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Ingress.md'>Ingress</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -614,7 +590,7 @@ _Creates one or more resources_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#ingressspecification'>IngressSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.IngressSpecification.md'>IngressSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -666,130 +642,6 @@ _Updates the ACL attached to a resource_
 
 
 ## Data Models
-
-### `Ingress`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_An L7 ingress-point (HTTP)_
-
-```kotlin
-data class Ingress(
-    val id: String,
-    val specification: IngressSpecification,
-    val owner: ResourceOwner,
-    val createdAt: Long,
-    val status: IngressStatus,
-    val updates: List<IngressUpdate>?,
-    val permissions: ResourcePermissions?,
-    val providerGeneratedId: String?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>id</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> A unique identifier referencing the `Resource`
-</summary>
-
-
-
-The ID is unique across a provider for a single resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>specification</code>: <code><code><a href='#ingressspecification'>IngressSpecification</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code> Information about the owner of this resource
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>createdAt</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> Information about when this resource was created
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='#ingressstatus'>IngressStatus</a></code></code> The current status of this resource
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>updates</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#ingressupdate'>IngressUpdate</a>&gt;?</code></code> A list of updates for this `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>permissions</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourcePermissions.md'>ResourcePermissions</a>?</code></code> Permissions assigned to this resource
-</summary>
-
-
-
-A null value indicates that permissions are not supported by this resource type.
-
-
-</details>
-
-<details>
-<summary>
-<code>providerGeneratedId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
 
 ### `IngressIncludeFlags`
 
@@ -957,7 +809,7 @@ data class IngressIncludeFlags(
 
 <details>
 <summary>
-<code>filterState</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code>
+<code>filterState</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.IngressState.md'>IngressState</a>?</code></code>
 </summary>
 
 
@@ -991,321 +843,6 @@ data class IngressIncludeFlags(
 <details>
 <summary>
 <code>hideProvider</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressSpecification`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressSpecification(
-    val domain: String,
-    val product: ProductReference,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>domain</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code> The domain used for L7 load-balancing for use with this `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code> The product used for the `Ingress`
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressState`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-enum class IngressState {
-    PREPARING,
-    READY,
-    UNAVAILABLE,
-}
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>PREPARING</code> A state indicating that the `Ingress` is currently being prepared and is expected to reach `READY` soon.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>READY</code> A state indicating that the `Ingress` is ready for use or already in use.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>UNAVAILABLE</code> A state indicating that the `Ingress` is currently unavailable.
-</summary>
-
-
-
-This state can be used to indicate downtime or service interruptions by the provider.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressStatus`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-_The status of an `Ingress`_
-
-```kotlin
-data class IngressStatus(
-    val boundTo: List<String>?,
-    val state: IngressState,
-    val resolvedSupport: ResolvedSupport<Product.Ingress, IngressSupport>?,
-    val resolvedProduct: Product.Ingress?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>boundTo</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code> The ID of the `Job` that this `Ingress` is currently bound to
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>resolvedSupport</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResolvedSupport.md'>ResolvedSupport</a>&lt;<a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>, <a href='#ingresssupport'>IngressSupport</a>&gt;?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>resolvedProduct</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.Product.Ingress.md'>Product.Ingress</a>?</code></code> The resolved product referenced by `product`.
-</summary>
-
-
-
-This attribute is not included by default unless `includeProduct` is specified.
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressSupport`
-
-[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressSupport(
-    val domainPrefix: String,
-    val domainSuffix: String,
-    val product: ProductReference,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>domainPrefix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>domainSuffix</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>product</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductReference.md'>ProductReference</a></code></code>
-</summary>
-
-
-
-
-
-</details>
-
-
-
-</details>
-
-
-
----
-
-### `IngressUpdate`
-
-[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-
-
-
-```kotlin
-data class IngressUpdate(
-    val state: IngressState?,
-    val status: String?,
-    val timestamp: Long?,
-    val binding: JobBinding?,
-)
-```
-
-<details>
-<summary>
-<b>Properties</b>
-</summary>
-
-<details>
-<summary>
-<code>state</code>: <code><code><a href='#ingressstate'>IngressState</a>?</code></code> The new state that the `Ingress` transitioned to (if any)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>status</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code> A new status message for the `Ingress` (if any)
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>timestamp</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> A timestamp for when this update was registered by UCloud
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>binding</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobBinding.md'>JobBinding</a>?</code></code>
 </summary>
 
 

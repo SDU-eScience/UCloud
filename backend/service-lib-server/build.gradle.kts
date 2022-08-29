@@ -1,5 +1,7 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
     id("maven-publish")
 }
@@ -11,58 +13,14 @@ repositories {
     maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
 }
 
-kotlin {
-    val jacksonVersion = "2.10.0.pr3"
-    val ktorVersion = "1.6.2-native-mm-eap-196"
-    val jasyncVersion = "1.1.3"
-
-    jvm {
-        withJava()
-        val main by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
-
-        val test by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "11"
     }
+}
 
+kotlin {
     sourceSets {
-        val jvmMain by getting {
-            dependencies {
-                api(project(":service-lib"))
-                api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
-                api("io.ktor:ktor-server-core:$ktorVersion")
-                api("io.ktor:ktor-server-netty:$ktorVersion")
-                api("io.ktor:ktor-server-host-common:$ktorVersion")
-                api("io.ktor:ktor-websockets:$ktorVersion")
-                api("org.jetbrains:annotations:16.0.2")
-                api("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
-
-                api("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
-                api("com.auth0:java-jwt:3.8.3")
-
-                api("org.postgresql:postgresql:42.2.5")
-                api("org.flywaydb:flyway-core:5.2.4")
-
-                api("com.github.jasync-sql:jasync-common:$jasyncVersion")
-                api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
-                api("io.lettuce:lettuce-core:5.1.6.RELEASE")
-                api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.15.0")
-                api("com.google.guava:guava:27.0.1-jre")
-            }
-        }
-
-        val jvmTest by getting {
-            dependencies {
-                implementation(kotlin("test-junit5"))
-            }
-        }
-
         all {
             languageSettings.enableLanguageFeature("InlineClasses")
             languageSettings.progressiveMode = true
@@ -72,4 +30,50 @@ kotlin {
             languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
         }
     }
+}
+
+dependencies {
+    val jacksonVersion = "2.10.0.pr3"
+    api(project(":service-lib"))
+    api("com.fasterxml.jackson.module:jackson-module-kotlin:${jacksonVersion}")
+
+    run {
+        val ktorVersion = "2.0.2"
+        fun ktor(module: String) {
+            api("io.ktor:ktor-$module:$ktorVersion")
+        }
+
+        ktor("client-websockets")
+        ktor("client-cio")
+        ktor("client-core")
+
+        ktor("server-core")
+        ktor("server-netty")
+        ktor("server-websockets")
+        ktor("server-cors")
+        ktor("server-host-common")
+        ktor("server-forwarded-header")
+        ktor("server-default-headers")
+        ktor("server-call-logging")
+        ktor("server-caching-headers")
+
+        ktor("websockets")
+    }
+
+    api("org.jetbrains:annotations:16.0.2")
+    api(kotlin("reflect"))
+
+    api("org.apache.logging.log4j:log4j-slf4j-impl:2.17.1")
+    api("com.auth0:java-jwt:3.8.3")
+
+    api("org.postgresql:postgresql:42.2.5")
+    api("org.flywaydb:flyway-core:5.2.4")
+
+    val jasyncVersion = "1.1.3"
+    api("com.github.jasync-sql:jasync-common:$jasyncVersion")
+    api("com.github.jasync-sql:jasync-postgresql:$jasyncVersion")
+    api("io.lettuce:lettuce-core:5.1.6.RELEASE")
+    api("org.elasticsearch.client:elasticsearch-rest-high-level-client:7.17.0")
+    api("co.elastic.clients:elasticsearch-java:8.3.3")
+    api("com.google.guava:guava:27.0.1-jre")
 }

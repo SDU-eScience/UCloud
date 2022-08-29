@@ -145,7 +145,7 @@ async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLeve
     return (await findSensitivity(file)) ?? "PRIVATE";
 }
 
-async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
+export async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
@@ -799,7 +799,7 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
 
 function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): string {
     const devices: SyncthingDevice[] = callbacks.syncthingConfig?.devices ?? [];
-    if (devices.length === 0) return "Configure sync";
+    if (devices.length === 0) return "Sync setup (BETA)";
 
     const synchronized: SyncthingFolder[] = callbacks.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (callbacks.directory ? [callbacks.directory] : []) : files;
@@ -809,12 +809,12 @@ function synchronizationOpText(files: UFile[], callbacks: ResourceBrowseCallback
     if (allSynchronized) {
         return "Remove from sync";
     } else {
-        return "Add to sync";
+        return "Add to sync (BETA)";
     }
 }
 
 function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks): boolean | string {
-    const hasCookie = onDevSite() || inDevEnvironment() || !!getCookie("synchronization");
+    const hasCookie = true;
     if (!hasCookie) return false;
 
     const support = cb.collection?.status.resolvedSupport?.support;
@@ -844,10 +844,29 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+
+    if (!allSynchronized) {
+        const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
+
+        for (const folder of resolvedFiles) {
+            if (synchronizedFolderNames.includes(folder.id.split("/").pop())) {
+                snackbarStore.addFailure("Folder with same name already exist in Syncthing", false)
+                return;
+            }
+        }
+
+        for (const folder of resolvedFiles) {
+            const sensitivity = await findSensitivity(folder);
+            if (sensitivity == "SENSITIVE") {
+                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false)
+                return;
+            }
+        }
+    }
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {

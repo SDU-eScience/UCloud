@@ -71,10 +71,12 @@ interface ResourceField {
     id: string;
     label: DynamicProp<string>;
     required?: boolean;
+    disabled?: boolean;
     placeholder?: DynamicProp<string>;
     styling: LabelProps;
     leftLabel?: DynamicProp<string>;
     rightLabel?: DynamicProp<string>;
+    defaultValue?: DynamicProp<string | number>;
 
     dependencies?: string[];
 }
@@ -102,8 +104,10 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     /* Note(jonas): Seems passing "fields" only would work just as well. */
     createRequest: (d: DataType) => Promise<APICallParameters<Request>>;
     title: string;
+    submitText?: string;
     formatError?: (errors: string[]) => string;
     onSubmitSucceded?: (res: Response, d: DataType) => void;
+    onSubmitError?: (err: string) => void;
 }> {
     public data: DataType = {required: [], fields: {}};
 
@@ -114,12 +118,18 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
     private async onSubmit(): Promise<void> {
         const validated = this.validate();
         if (validated) {
+            if (this.data.fields.freeToUse) {
+                // Required if freeToUse is true
+                this.data.fields.pricePerUnit = 0.000001;
+            }
+
             const request = await this.props.createRequest(this.data);
             try {
                 const res = await callAPI<Response>(request);
                 this.props.onSubmitSucceded?.(res, this.data);
             } catch (err) {
-                errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
+                const message = errorMessageOrDefault(err, "Failed to create " + this.props.title.toLocaleLowerCase());
+                this.props.onSubmitError?.(message);
             }
         }
     }
@@ -133,7 +143,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                 <DataContext.Provider value={this.data}>
                     {this.props.children}
                 </DataContext.Provider>
-                <Button type="submit" my="12px" disabled={false}>Submit</Button>
+                <Button type="submit" my="12px" disabled={false}>{this.props.submitText ?? "Submit"}</Button>
             </form>
         );
     }
@@ -177,6 +187,12 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
         const ctx = useResourceFormField({id: props.id, required: props.required as boolean});
         const p = useEvaluatedProperties(ctx, props);
 
+        React.useEffect(() => {
+            if (p.defaultValue) {
+                ctx.fields[props.id] = p.defaultValue;
+            }
+        }, [p.defaultValue]);
+
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = props.styling;
 
@@ -192,6 +208,7 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                     leftLabel={!!p.leftLabel}
                     rightLabel={!!p.rightLabel}
                     {...p}
+                    defaultValue={p.defaultValue}
                 />
                 {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}
             </div>
@@ -234,6 +251,12 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
         const ctx = useResourceFormField({id: props.id, required: props.required})
         const p = useEvaluatedProperties(ctx, props);
 
+        React.useEffect(() => {
+            if (p.defaultValue) {
+                ctx.fields[props.id] = p.defaultValue;
+            }
+        }, [p.defaultValue]);
+
         /* Why in the world is color not allowed? */
         const {color, ...remainingStyle} = props.styling;
 
@@ -246,6 +269,8 @@ export default abstract class ResourceForm<Request, Response> extends React.Comp
                     onChange={e => ctx.fields[props.id] = e.target.value}
                     leftLabel={!!p.leftLabel}
                     rightLabel={!!p.rightLabel}
+                    disabled={!!p.disabled ?? false}
+                    defaultValue={p.defaultValue ?? ""}
                     {...p}
                 />
                 {p.rightLabel ? <InputLabel rightLabel>{p.rightLabel}</InputLabel> : null}

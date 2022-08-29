@@ -5,7 +5,7 @@ application {
 }
 
 kotlin.sourceSets {
-    val jvmMain by getting {
+    val main by getting {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation(project(":accounting-service:api"))

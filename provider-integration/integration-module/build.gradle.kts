@@ -1,115 +1,99 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("multiplatform") version "1.6.21"
-    kotlin("plugin.serialization") version "1.6.21"
+    kotlin("jvm") version "1.7.0"
+    application
+    id("org.graalvm.buildtools.native") version "0.9.13"
+    kotlin("plugin.serialization") version "1.7.0"
 }
 
 group = "dk.sdu.cloud"
-version = "2022.1.0-SNAPSHOT"
+version = "2022.3.0"
 
 repositories {
-    mavenLocal()
     mavenCentral()
-    jcenter()
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/kotlinx-coroutines/maven/") }
-    maven { setUrl("https://maven.pkg.jetbrains.space/public/p/ktor/eap/") }
-    maven {
-        name = "UCloudMaven"
-        url = uri("https://mvn.cloud.sdu.dk/releases")
-    }
+    mavenLocal()
 }
 
-kotlin {
-    val hostOs = System.getProperty("os.name")
-    val isMingwX64 = hostOs.startsWith("Windows")
-    val nativeTarget = when {
-        hostOs == "Mac OS X" -> macosX64("native")
-        hostOs == "Linux" -> linuxX64("native")
-        isMingwX64 -> mingwX64("native")
-        else -> throw GradleException("Host OS is not supported in Kotlin/Native.")
+dependencies {
+    run {
+        val version = "2022.2.7"
+        fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
+
+        ucloud("file-orchestrator-service-api")
+        ucloud("app-orchestrator-service-api")
+        ucloud("service-lib-lib")
     }
 
-    nativeTarget.apply {
-        binaries {
-            executable {
-                entryPoint = "dk.sdu.cloud.main"
-            }
-        }
-
-        compilations["main"].dependencies {
-            implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-            implementation("dk.sdu.cloud:integration-module-support:2022.1.52-devel-hippo")
-            implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.2.1")
-            implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-        }
-
-        compilations["main"].cinterops {
-            val libjwt by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libjwt"))
-                when (preset) {
-                    presets["macosX64"] -> {
-                        linkerOpts.addAll(
-                            listOf(
-                                "-l:",
-                                File(projectDir, "vendor/libjwt/macos/libjwt.a").absolutePath
-                            )
-                        )
-
-                        linkerOpts.addAll(
-                            "-L/usr/local/opt/openssl@1.1/lib -lssl -lcrypto -L/usr/local/opt/jansson/lib -ljansson".split(
-                                " "
-                            )
-                        )
-                    }
-
-                    presets["linuxX64"] -> {
-                    }
-                }
-            }
-
-            val libsqlite3 by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libsqlite3"))
-            }
-
-            val libucloud by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libucloud"))
-            }
-
-            val libmbedtls by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libmbedtls"))
-            }
-
-            val libyaml by creating {
-                includeDirs.allHeaders(File(projectDir, "vendor/libyaml"))
-            }
-        }
+    run {
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
     }
 
-    sourceSets {
-        val nativeMain by getting
-        val nativeTest by getting
+    run {
+        val ktorVersion = "2.0.2"
+        fun ktor(module: String) {
+            implementation("io.ktor:ktor-$module:$ktorVersion")
+        }
 
-        all {
-            languageSettings.progressiveMode = true
-            languageSettings.optIn("kotlin.RequiresOptIn")
-            languageSettings.optIn("kotlin.time.ExperimentalTime")
-            languageSettings.optIn("kotlin.ExperimentalStdlibApi")
-            languageSettings.optIn("kotlinx.coroutines.ExperimentalCoroutinesApi")
-            languageSettings.optIn("kotlin.ExperimentalUnsignedTypes")
+        ktor("client-websockets")
+        ktor("client-cio")
+        ktor("client-core")
+
+        ktor("server-core")
+        ktor("server-cio")
+        ktor("server-websockets")
+        ktor("server-cors")
+        ktor("server-host-common")
+
+        ktor("websockets")
+    }
+
+    implementation("ch.qos.logback:logback-classic:1.2.11")
+    implementation("com.auth0:java-jwt:3.8.3")
+    implementation("org.xerial:sqlite-jdbc:3.36.0.3")
+    implementation("com.charleskorn.kaml:kaml:0.46.0")
+
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+tasks.withType<KotlinCompile> {
+    kotlinOptions.jvmTarget = "11"
+    kotlinOptions.freeCompilerArgs += "-Xcontext-receivers"
+}
+
+application {
+    mainClass.set("dk.sdu.cloud.MainKt")
+}
+
+graalvmNative {
+    // See this section for how to run the agent to detect reflection:
+    // https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html#agent-support
+
+    binaries {
+        named("main") {
+            fallback.set(false)
+            verbose.set(true)
+
+            buildArgs.add("--initialize-at-build-time=io.ktor,kotlin,kotlinx.coroutines")
+
+            buildArgs.add("-H:+InstallExitHandlers")
+            buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
+            buildArgs.add("-H:+ReportExceptionStackTraces")
+            buildArgs.add("-H:MaxDuplicationFactor=2.0")
         }
     }
 }
 
-kotlin.targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
-    binaries.all {
-        @Suppress("SuspiciousCollectionReassignment")
-        freeCompilerArgs += "-Xdisable-phases=EscapeAnalysis"
-    }
+tasks.create("buildDebug") {
+    dependsOn(tasks.named("installDist"))
 }
 
-task("buildDebug") {
-    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkDebugExecutableNative" } })
-}
-
-task("buildRelease") {
-    dependsOn(allprojects.flatMap { project -> project.tasks.matching { it.name == "linkReleaseExecutableNative" } })
+tasks.create("linkDebugExecutableNative") {
+    dependsOn(tasks.named("buildDebug"))
 }

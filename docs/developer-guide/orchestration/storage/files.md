@@ -1171,7 +1171,6 @@ Files.browse.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
-            includeSyncStatus = null, 
             includeTimestamps = true, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -1213,7 +1212,6 @@ PageV2(
             resolvedSupport = null, 
             sizeInBytes = null, 
             sizeIncludingChildrenInBytes = null, 
-            synced = null, 
             type = FileType.FILE, 
             unixGroup = null, 
             unixMode = null, 
@@ -1250,7 +1248,6 @@ await callAPI(FilesApi.browse(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": null,
-            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -1302,7 +1299,6 @@ await callAPI(FilesApi.browse(
                 "unixOwner": null,
                 "unixGroup": null,
                 "metadata": null,
-                "synced": null,
                 "resolvedSupport": null,
                 "resolvedProduct": null
             },
@@ -1362,7 +1358,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/browse?inclu
 #                 "unixOwner": null,
 #                 "unixGroup": null,
 #                 "metadata": null,
-#                 "synced": null,
 #                 "resolvedSupport": null,
 #                 "resolvedProduct": null
 #             },
@@ -1437,7 +1432,6 @@ Files.retrieve.call(
             includeProduct = false, 
             includeSizes = null, 
             includeSupport = false, 
-            includeSyncStatus = null, 
             includeTimestamps = true, 
             includeUnixInfo = null, 
             includeUpdates = false, 
@@ -1474,7 +1468,6 @@ UFile(
         resolvedSupport = null, 
         sizeInBytes = null, 
         sizeIncludingChildrenInBytes = null, 
-        synced = null, 
         type = FileType.DIRECTORY, 
         unixGroup = null, 
         unixMode = null, 
@@ -1508,7 +1501,6 @@ await callAPI(FilesApi.retrieve(
             "includeSizes": null,
             "includeUnixInfo": null,
             "includeMetadata": null,
-            "includeSyncStatus": null,
             "filterCreatedBy": null,
             "filterCreatedAfter": null,
             "filterCreatedBefore": null,
@@ -1552,7 +1544,6 @@ await callAPI(FilesApi.retrieve(
         "unixOwner": null,
         "unixGroup": null,
         "metadata": null,
-        "synced": null,
         "resolvedSupport": null,
         "resolvedProduct": null
     },
@@ -1606,7 +1597,6 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieve?inc
 #         "unixOwner": null,
 #         "unixGroup": null,
 #         "metadata": null,
-#         "synced": null,
 #         "resolvedSupport": null,
 #         "resolvedProduct": null
 #     },
@@ -2612,7 +2602,6 @@ data class UFileStatus(
     val unixOwner: Int?,
     val unixGroup: Int?,
     val metadata: FileMetadataHistory?,
-    val synced: Boolean?,
     val resolvedSupport: ResolvedSupport<Product.Storage, FSSupport>?,
     val resolvedProduct: Product.Storage?,
 )
@@ -2725,17 +2714,6 @@ data class UFileStatus(
 <details>
 <summary>
 <code>metadata</code>: <code><code><a href='#filemetadatahistory'>FileMetadataHistory</a>?</code></code> User-defined metadata for this file. See `FileMetadataTemplate` for details.
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>synced</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> If the file is added to synchronization or not
 </summary>
 
 
@@ -3347,7 +3325,6 @@ data class UFileIncludeFlags(
     val includeSizes: Boolean?,
     val includeUnixInfo: Boolean?,
     val includeMetadata: Boolean?,
-    val includeSyncStatus: Boolean?,
     val filterCreatedBy: String?,
     val filterCreatedAfter: Long?,
     val filterCreatedBefore: Long?,
@@ -3462,17 +3439,6 @@ data class UFileIncludeFlags(
 <details>
 <summary>
 <code>includeMetadata</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
-</summary>
-
-
-
-
-
-</details>
-
-<details>
-<summary>
-<code>includeSyncStatus</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

@@ -1,21 +1,23 @@
 import * as React from "react";
 import {useCallback, useEffect, useMemo, useState} from "react";
 import {
+    CREATE_TAG,
+    PERMISSIONS_TAG,
     ProductSupport,
+    PROPERTIES_TAG,
     Resource,
     ResourceApi,
+    ResourceBrowseCallbacks,
     ResourceIncludeFlags,
     ResourceSpecification,
     ResourceStatus,
-    ResourceUpdate
+    ResourceUpdate,
 } from "@/UCloud/ResourceApi";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {Box, Button, Icon, List, TextArea} from "@/ui-components";
 import {ItemRenderer, ItemRow} from "@/ui-components/Browse";
 import * as Types from "@/Accounting";
 import {
-    explainPrice,
-    normalizeBalanceForFrontend,
     Product,
     productTypeToIcon, rootDeposit, WalletOwner
 } from "@/Accounting";
@@ -25,15 +27,17 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {doNothing} from "@/UtilityFunctions";
 import {ListV2} from "@/Pagination";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
-import {InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiUpdate, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import * as UCloud from "@/UCloud/index";
-import {PageV2} from "@/UCloud/index";
+import {BulkRequest, PageV2} from "@/UCloud/index";
 import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
 import {ProductCreationForm} from "@/Admin/Providers/View";
 import {BrowseType} from "@/Resource/BrowseType";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {Operation, Operations} from "@/ui-components/Operation";
 import {Client} from "@/Authentication/HttpClientInstance";
+import {ResourcePermissionEditor} from "@/Resource/PermissionEditor";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export interface ProviderSpecification extends ResourceSpecification {
     id: string;
@@ -66,6 +70,10 @@ interface ProductCallbacks {
     invokeCommand: InvokeCommand;
 }
 
+interface ProviderCallbacks {
+    editProvider: (product: Provider) => void;
+}
+
 class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, ProviderUpdate,
     ProviderFlags, ProviderStatus, ProviderSupport> {
     routingNamespace = "providers";
@@ -75,7 +83,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
 
     renderer: ItemRenderer<Provider> = {
         Icon({resource, size}) {
-            return <Icon name={"cubeSolid"} size={size}/>
+            return <Icon name={"cubeSolid"} size={size} />
         },
         MainTitle({resource}) {
             return <>{resource?.specification?.id ?? ""}</>
@@ -92,13 +100,68 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
         }
     };
 
+    public retrieveOperations(): Operation<Provider, ResourceBrowseCallbacks<Provider> & ProviderCallbacks>[] {
+        return [
+            {
+                text: "Create " + this.title.toLowerCase(),
+                icon: "upload",
+                color: "blue",
+                primary: true,
+                canAppearInLocation: loc => loc !== "IN_ROW",
+                enabled: (selected, cb) => {
+                    if (Client.userIsAdmin && (selected.length !== 0 || cb.startCreation == null || cb.isCreating)) return false;
+                    return true;
+                },
+                onClick: (selected, cb) => cb.startCreation!(),
+                tag: CREATE_TAG
+            },
+            {
+                text: "Edit",
+                icon: "edit",
+                enabled: (selected, cb) =>
+                    selected.length === 1 && (selected[0].permissions.myself.some(it => it === "EDIT") || Client.userIsAdmin),
+                onClick: (selected, cb) => cb.history.push("/providers/edit/" + selected[0].id)
+            },
+            {
+                text: "Permissions",
+                icon: "share",
+                enabled: (selected, cb) => {
+                    return selected.length === 1 &&
+                        selected[0].owner.project != null &&
+                        cb.viewProperties != null &&
+                        selected[0].permissions.myself.some(it => it === "ADMIN");
+                },
+                onClick: (selected, cb) => {
+                    if (!cb.embedded) {
+                        dialogStore.addDialog(
+                            <ResourcePermissionEditor reload={cb.reload} entity={selected[0]} api={cb.api} />,
+                            doNothing,
+                            true
+                        );
+                    } else {
+                        cb.viewProperties!(selected[0]);
+                    }
+                },
+                tag: PERMISSIONS_TAG
+            },
+            {
+                text: "Properties",
+                icon: "properties",
+                enabled: (selected, cb) => selected.length === 1 && cb.viewProperties != null,
+                onClick: (selected, cb) => {
+                    cb.viewProperties!(selected[0]);
+                },
+                tag: PROPERTIES_TAG
+            }
+        ];
+    }
+
     Properties = (props) => {
         return <ResourceProperties
             {...props} api={this}
             showMessages={false} showPermissions={true} showProperties={false}
             noPermissionsWarning={"Only administrators of this project can manage this provider. Note: the provider can still be used by normal users."}
             InfoChildren={props => {
-                console.log(props);
                 if (props.resource == null) return null;
                 const provider = props.resource as Provider;
                 return <>
@@ -112,12 +175,12 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                         <Box mb={"8px"}>
                             <label htmlFor={"refresh"}><b>Refresh Token:</b></label>
                             <TextArea id={"refresh"} width="100%" value={provider.refreshToken} rows={1}
-                                      onChange={doNothing}/>
+                                onChange={doNothing} />
                         </Box>
                         <Box mb={"8px"}>
                             <label htmlFor={"cert"}><b>Certificate: </b></label>
                             <TextArea id={"cert"} width="100%" value={provider.publicKey} rows={3}
-                                      onChange={doNothing}/>
+                                onChange={doNothing} />
                         </Box>
                     </HighlightedCard>
                 </>
@@ -196,7 +259,7 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
                             />
                         </List>
                         {!isCreatingProduct ? null :
-                            <ProductCreationForm provider={provider} onComplete={stopProductCreation}/>
+                            <ProductCreationForm provider={provider} onComplete={stopProductCreation} />
                         }
                     </HighlightedCard>
                 </>;
@@ -204,22 +267,19 @@ class ProviderApi extends ResourceApi<Provider, Product, ProviderSpecification, 
         />;
     };
 
+    update(
+        request: BulkRequest<ProviderSpecification>
+    ): APICallParameters<BulkRequest<ProviderSpecification>, any /* unknown */> {
+        return apiUpdate(request, "/api/providers", "update");
+    }
+
     private ProductRenderer: ItemRenderer<Product, ProductCallbacks> = {
         Icon: ({resource, size}) =>
-            <Icon name={resource == null ? "cubeSolid" : productTypeToIcon(resource.productType)}/>,
+            <Icon name={resource == null ? "cubeSolid" : productTypeToIcon(resource.productType)} />,
         MainTitle: ({resource}) => {
             if (resource == null) return null;
             return <>{resource.name} / {resource.category.name}</>;
         },
-        Stats: ({resource}) => {
-            if (resource == null) return null;
-            return <>
-                <ListRowStat icon={"grant"}>
-                    {normalizeBalanceForFrontend(resource.pricePerUnit, resource.productType, resource.chargeType, resource.unitOfPrice, true)}
-                    {explainPrice(resource.productType, resource.chargeType, resource.unitOfPrice)}
-                </ListRowStat>
-            </>;
-        }
     };
 
     private productOperations: Operation<Product, ProductCallbacks>[] = [

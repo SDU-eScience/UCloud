@@ -1,0 +1,242 @@
+package dk.sdu.cloud.app.store.services
+
+import com.github.jasync.sql.db.RowData
+import dk.sdu.cloud.*
+import dk.sdu.cloud.app.store.api.ApplicationAccessRight
+import dk.sdu.cloud.app.store.api.ApplicationWithFavoriteAndTags
+import dk.sdu.cloud.app.store.api.ToolBackend
+import dk.sdu.cloud.app.store.services.acl.AclAsyncDao
+import dk.sdu.cloud.auth.api.AuthProviders
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
+import dk.sdu.cloud.project.api.ProjectMembers
+import dk.sdu.cloud.project.api.UserStatusRequest
+import dk.sdu.cloud.service.NormalizedPaginationRequest
+import dk.sdu.cloud.service.Page
+import dk.sdu.cloud.service.db.async.*
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.serializer
+
+/*
+* Avoid using if possible, especially in loops
+*/
+internal suspend fun internalHasPermission(
+    ctx: DBContext,
+    user: SecurityPrincipal,
+    project: String?,
+    memberGroups: List<String>,
+    appName: String,
+    appVersion: String,
+    permission: ApplicationAccessRight,
+    publicDao: ApplicationPublicAsyncDao,
+    aclDao: AclAsyncDao
+): Boolean {
+    if (user.role in Roles.PRIVILEGED) return true
+    if (ctx.withSession { session -> publicDao.isPublic(session, user, appName, appVersion)}) return true
+    return ctx.withSession { session ->
+        aclDao.hasPermission(
+            session,
+            user,
+            project,
+            memberGroups,
+            appName,
+            setOf(permission)
+        )
+    }
+}
+
+internal suspend fun internalFindAllByName(
+    ctx: DBContext,
+    user: SecurityPrincipal?,
+    currentProject: String?,
+    projectGroups: List<String>,
+    appName: String,
+    paging: NormalizedPaginationRequest,
+    appStoreAsyncDao: AppStoreAsyncDao
+): Page<ApplicationWithFavoriteAndTags> {
+    val groups = if (projectGroups.isEmpty()) {
+        listOf("")
+    } else {
+        projectGroups
+    }
+
+    return ctx.withSession { session ->
+        appStoreAsyncDao.preparePageForUser(
+            session,
+            user?.username,
+            session.sendPreparedStatement(
+                {
+                    setParameter("name", appName)
+                    setParameter("project", currentProject)
+                    setParameter("groups", groups)
+                    setParameter("role", (user?.role ?: Role.UNKNOWN).toString())
+                    setParameter("privileged", Roles.PRIVILEGED.toList())
+                    setParameter("user", user?.username ?: "")
+                },
+                """
+                    SELECT * FROM applications AS A
+                    WHERE A.name = :name AND (
+                        (
+                            A.is_public = TRUE
+                        ) OR (
+                            cast(:project as text) is null AND :user IN (
+                                SELECT P1.username FROM permissions AS P1 WHERE P1.application_name = A.name
+                            )
+                        ) OR (
+                            cast(:project as text) is not null and exists (
+                                SELECT P2.project_group FROM permissions AS P2 WHERE
+                                    P2.application_name = A.name AND
+                                    P2.project = cast(:project as text) AND
+                                    P2.project_group in (select unnest(:groups::text[]))
+                            )
+                        ) OR (
+                            :role in (select unnest(:privileged::text[]))
+                        ) 
+                    )
+                    ORDER BY A.created_at DESC
+                """
+            ).rows.paginate(paging).mapItems { it.toApplicationWithInvocation() }
+        )
+    }
+}
+
+internal suspend fun internalByNameAndVersion(
+    ctx: DBContext,
+    appName: String,
+    appVersion: String
+): RowData? {
+    return ctx.withSession { session ->
+        session.sendPreparedStatement(
+            {
+                setParameter("name", appName)
+                setParameter("version", appVersion)
+            },
+            """
+                    SELECT *
+                    FROM applications
+                    WHERE (name = ?name) AND (version = ?version)
+                """.trimIndent()
+        ).rows.singleOrNull()
+    }
+}
+
+internal suspend fun retrieveUserProjectGroups(
+    user: SecurityPrincipal,
+    project: String,
+    authenticatedClient: AuthenticatedClient
+): List<String> =
+    ProjectMembers.userStatus.call(
+        UserStatusRequest(user.username),
+        authenticatedClient
+    ).orRethrowAs {
+        throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
+    }.groups.filter { it.project == project }.map { it.group }
+
+
+internal suspend fun findOwnerOfApplication(ctx: DBContext, applicationName: String): String? {
+    return ctx.withSession { session ->
+        session.sendPreparedStatement(
+            {
+                setParameter("appname", applicationName)
+            },
+            """
+                SELECT *
+                FROM app_store.applications
+                WHERE name = :appname
+                LIMIT 1
+            """.trimIndent()
+        ).rows.singleOrNull()?.getField(ApplicationTable.owner)
+    }
+}
+
+internal fun normalizeQuery(query: String): String {
+    return query.toLowerCase()
+}
+
+suspend fun verifyToolUpdatePermission(
+    actorAndProject: ActorAndProject,
+    session: AsyncDBConnection,
+    toolName: String,
+) {
+    val username = actorAndProject.actor.safeUsername()
+    val isProvider = username.startsWith(AuthProviders.PROVIDER_PREFIX)
+    val providerName = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+    if (isProvider) {
+        val rows = session
+            .sendPreparedStatement(
+                {
+                    setParameter("name", toolName)
+                },
+                """
+                    select tool.tool->>'backend', tool.tool->'supportedProviders'
+                    from
+                        app_store.tools tool
+                    where
+                        tool.name = :name
+                """
+            )
+            .rows
+
+        if (rows.isEmpty()) throw ApplicationException.NotFound()
+
+        for (row in rows) {
+            val backend = ToolBackend.valueOf(row.getString(0)!!)
+            val supportedProviders = row.getString(1)
+                // NOTE(Dan): Normalize JSONB null to normal null (both are possible here)
+                .takeIf { it != "null" }
+                ?.let { defaultMapper.decodeFromString(ListSerializer(String.serializer()), it) }
+                ?: throw ApplicationException.NotFound()
+
+            if (backend != ToolBackend.NATIVE) throw ApplicationException.NotFound()
+            if (supportedProviders != listOf(providerName)) throw ApplicationException.NotFound()
+        }
+    }
+}
+
+suspend fun verifyAppUpdatePermission(
+    actorAndProject: ActorAndProject,
+    session: AsyncDBConnection,
+    appName: String,
+    appVersion: String? = null,
+) {
+    val username = actorAndProject.actor.safeUsername()
+    val isProvider = username.startsWith(AuthProviders.PROVIDER_PREFIX)
+    val providerName = username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+    if (isProvider) {
+        val rows = session
+            .sendPreparedStatement(
+                {
+                    setParameter("name", appName)
+                    setParameter("version", appVersion)
+                },
+                """
+                    select tool.tool->>'backend', tool.tool->'supportedProviders'
+                    from
+                        app_store.applications app join
+                        app_store.tools tool on
+                            app.tool_name = tool.name and app.tool_version = tool.version
+                    where
+                        app.name = :name and
+                        (:version::text is null or app.version = :version)
+                """
+            )
+            .rows
+
+        if (rows.isEmpty()) throw ApplicationException.NotFound()
+
+        for (row in rows) {
+            val backend = ToolBackend.valueOf(row.getString(0)!!)
+            val supportedProviders = row.getString(1)
+                // NOTE(Dan): Normalize JSONB null to normal null (both are possible here)
+                .takeIf { it != "null" }
+                ?.let { defaultMapper.decodeFromString(ListSerializer(String.serializer()), it) }
+                ?: throw ApplicationException.NotFound()
+
+            if (backend != ToolBackend.NATIVE) throw ApplicationException.NotFound()
+            if (supportedProviders != listOf(providerName)) throw ApplicationException.NotFound()
+        }
+    }
+}

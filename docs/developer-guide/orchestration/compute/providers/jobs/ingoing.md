@@ -154,6 +154,10 @@ fit.
 <td>Request job cancellation and destruction</td>
 </tr>
 <tr>
+<td><a href='#unsuspend'><code>unsuspend</code></a></td>
+<td>Unsuspends a job</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Callback received by the Provider when permissions are updated</td>
 </tr>
@@ -195,6 +199,14 @@ fit.
 <tr>
 <td><a href='#jobsprovideropeninteractivesessionrequestitem'><code>JobsProviderOpenInteractiveSessionRequestItem</code></a></td>
 <td>A request for opening a new interactive session (e.g. terminal)</td>
+</tr>
+<tr>
+<td><a href='#jobsprovidersuspendrequestitem'><code>JobsProviderSuspendRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#jobsproviderunsuspendrequestitem'><code>JobsProviderUnsuspendRequestItem</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#jobsproviderfollowresponse'><code>JobsProviderFollowResponse</code></a></td>
@@ -879,6 +891,7 @@ JobsProvider.create.call(
             ), 
             replicas = 1, 
             resources = null, 
+            restartOnExit = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -886,6 +899,7 @@ JobsProvider.create.call(
             ), 
         ), 
         status = JobStatus(
+            allowRestart = false, 
             expiresAt = null, 
             jobParametersJson = null, 
             resolvedApplication = Application(
@@ -1082,8 +1096,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.RUNNING, 
@@ -1107,8 +1123,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
@@ -1216,7 +1234,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "minutes": 0,
                         "seconds": 0
                     },
-                    "openedFile": null
+                    "openedFile": null,
+                    "restartOnExit": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -1405,7 +1424,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "chargeType": "ABSOLUTE",
                         "hiddenInGrantApplications": false,
                         "productType": "COMPUTE"
-                    }
+                    },
+                    "allowRestart": false
                 },
                 "createdAt": 1633329776235,
                 "output": null,
@@ -1446,6 +1466,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -1475,6 +1497,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -1582,7 +1606,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -1771,7 +1796,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "chargeType": "ABSOLUTE",
                     "hiddenInGrantApplications": false,
                     "productType": "COMPUTE"
-                }
+                },
+                "allowRestart": false
             },
             "createdAt": 1633329776235,
             "output": null,
@@ -1808,6 +1834,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }
@@ -1833,6 +1861,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }
@@ -1971,8 +2001,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "63489", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.SUCCESS, 
@@ -2112,6 +2144,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -2241,6 +2275,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }
@@ -2325,6 +2361,7 @@ JobsProvider.verify.call(
             ), 
             replicas = 1, 
             resources = null, 
+            restartOnExit = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -2332,6 +2369,7 @@ JobsProvider.verify.call(
             ), 
         ), 
         status = JobStatus(
+            allowRestart = false, 
             expiresAt = null, 
             jobParametersJson = null, 
             resolvedApplication = null, 
@@ -2356,8 +2394,10 @@ JobsControl.update.call(
     bulkRequestOf(ResourceUpdateAndId(
         id = "54112", 
         update = JobUpdate(
+            allowRestart = null, 
             expectedDifferentState = null, 
             expectedState = null, 
+            newMounts = null, 
             newTimeAllocation = null, 
             outputFolder = null, 
             state = JobState.FAILURE, 
@@ -2432,7 +2472,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "minutes": 0,
                         "seconds": 0
                     },
-                    "openedFile": null
+                    "openedFile": null,
+                    "restartOnExit": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -2441,7 +2482,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                     "expiresAt": null,
                     "resolvedApplication": null,
                     "resolvedSupport": null,
-                    "resolvedProduct": null
+                    "resolvedProduct": null,
+                    "allowRestart": false
                 },
                 "createdAt": 1633329776235,
                 "output": null,
@@ -2471,6 +2513,8 @@ await callAPI(JobsControlApi.update(
                     "expectedState": null,
                     "expectedDifferentState": null,
                     "newTimeAllocation": null,
+                    "allowRestart": null,
+                    "newMounts": null,
                     "timestamp": 0
                 }
             }
@@ -2545,7 +2589,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "minutes": 0,
                     "seconds": 0
                 },
-                "openedFile": null
+                "openedFile": null,
+                "restartOnExit": null
             },
             "status": {
                 "state": "RUNNING",
@@ -2554,7 +2599,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expiresAt": null,
                 "resolvedApplication": null,
                 "resolvedSupport": null,
-                "resolvedProduct": null
+                "resolvedProduct": null,
+                "allowRestart": false
             },
             "createdAt": 1633329776235,
             "output": null,
@@ -2581,6 +2627,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "expectedState": null,
                 "expectedDifferentState": null,
                 "newTimeAllocation": null,
+                "allowRestart": null,
+                "newMounts": null,
                 "timestamp": 0
             }
         }
@@ -2753,7 +2801,7 @@ _Suspend a job_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a>&gt;</code>|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsprovidersuspendrequestitem'>JobsProviderSuspendRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 __Implementation requirements:__ 
  - [`virtualMachine.suspension = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine.md)
@@ -2776,6 +2824,24 @@ _Request job cancellation and destruction_
 __Implementation requirements:__ Mandatory
 
 For more information, see the end-user API ([`jobs.terminate`](/docs/reference/jobs.terminate.md))
+
+
+### `unsuspend`
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Unsuspends a job_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#jobsproviderunsuspendrequestitem'>JobsProviderUnsuspendRequestItem</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+__Implementation requirements:__ 
+ - [`virtualMachine.suspension = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.VirtualMachine.md)
+
+For more information, see the end-user API ([`jobs.unsuspend`](/docs/reference/jobs.unsuspend.md))
 
 
 ### `updateAcl`
@@ -3030,6 +3096,78 @@ Valid values range from 0 (inclusive) until [`specification.replicas`](#) (exclu
 <details>
 <summary>
 <code>sessionType</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.InteractiveSessionType.md'>InteractiveSessionType</a></code></code> The type of session
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobsProviderSuspendRequestItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class JobsProviderSuspendRequestItem(
+    val job: Job,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobsProviderUnsuspendRequestItem`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class JobsProviderUnsuspendRequestItem(
+    val job: Job,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
 </summary>
 
 

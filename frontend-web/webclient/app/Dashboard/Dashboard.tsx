@@ -2,8 +2,6 @@ import {bulkRequestOf, emptyPage, emptyPageV2, defaultSearch, useSearch} from "@
 import {MainContainer} from "@/MainContainer/MainContainer";
 import {setRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {setActivePage, updatePageTitle} from "@/Navigation/Redux/StatusActions";
-import {Notification, NotificationEntry} from "@/Notifications";
-import {notificationRead, readAllNotifications} from "@/Notifications/Redux/NotificationsActions";
 import * as React from "react";
 import {connect} from "react-redux";
 import {Dispatch} from "redux";
@@ -13,15 +11,12 @@ import * as Heading from "@/ui-components/Heading";
 import List from "@/ui-components/List";
 import {SidebarPages} from "@/ui-components/Sidebar";
 import {fileName, getParentPath} from "@/Utilities/FileUtilities";
-import * as UF from "@/UtilityFunctions";
-import {DashboardOperations, DashboardProps, DashboardStateProps} from ".";
+import {DashboardOperations, DashboardProps} from ".";
 import {setAllLoading} from "./Redux/DashboardActions";
 import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {GridCardGroup} from "@/ui-components/Grid";
 import {Spacer} from "@/ui-components/Spacer";
-import {getProjectNames} from "@/Utilities/ProjectUtilities";
-import {useProjectStatus} from "@/Project/cache";
 import {dateToString} from "@/Utilities/DateUtilities";
 import {dispatchSetProjectAction} from "@/Project/Redux";
 import Table, {TableCell, TableRow} from "@/ui-components/Table";
@@ -57,6 +52,8 @@ import {useProjectId} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
+// TODO(Jonas): Move
+// 29/8 2022
 interface BrowseApplicationsRequest {
     filter: "SHOW_ALL" | "ACTIVE" | "INACTIVE";
 
@@ -77,11 +74,10 @@ function browseGrantsApplications(request: BrowseApplicationsRequest): APICallPa
         payload: request
     }
 }
+import {NotificationDashboardCard} from "@/Notifications";
 
 function Dashboard(props: DashboardProps): JSX.Element {
-    const history = useHistory();
     useSearch(defaultSearch);
-    const projectNames = getProjectNames(useProjectStatus());
 
     const [news] = useCloudAPI<Page<NewsPost>>(newsRequest({
         itemsPerPage: 10,
@@ -144,13 +140,6 @@ function Dashboard(props: DashboardProps): JSX.Element {
         fetchRuns(JobsApi.browse({itemsPerPage: 10, sortBy: "MODIFIED_AT"}));
     }
 
-    const {
-        notifications,
-    } = props;
-
-    const onNotificationAction = (notification: Notification): void =>
-        UF.onNotificationAction(history, props.setActiveProject, notification, projectNames, props.notificationRead);
-
     const main = (
         <GridCardGroup minmax={435} gridGap={16}>
             <DashboardNews news={news} />
@@ -166,12 +155,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
 
             <DashboardRuns runs={recentRuns} />
 
-            <DashboardNotifications
-                onNotificationAction={onNotificationAction}
-                notifications={notifications}
-                readAll={props.readAll}
-            />
-
+            <NotificationDashboardCard />
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
@@ -260,51 +244,6 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
     }
 }
 
-interface DashboardNotificationProps {
-    onNotificationAction: (notification: Notification) => void;
-    notifications: {items: Notification[]; error?: string};
-    readAll: () => void;
-}
-
-const DashboardNotifications = (props: DashboardNotificationProps): JSX.Element => (
-    <HighlightedCard
-        color="darkGreen"
-        isLoading={false}
-        icon="notification"
-        title="Recent Notifications"
-        subtitle={
-            <Icon
-                name="checkDouble"
-                cursor="pointer"
-                color="iconColor"
-                color2="iconColor2"
-                title="Mark all as read"
-                onClick={props.readAll}
-            />
-        }
-        error={props.notifications.error}
-    >
-        {props.notifications.items.length !== 0 ? null :
-            <NoResultsCardBody title={"No notifications"}>
-                <Text>
-                    As you as use UCloud notifications will appear here.
-
-                    <Link to={"/applications/overview"} mt={8}>
-                        <Button fullWidth mt={8}>Explore UCloud</Button>
-                    </Link>
-                </Text>
-            </NoResultsCardBody>
-        }
-        <List>
-            {props.notifications.items.slice(0, 7).map((n, i) => (
-                <Flex key={i}>
-                    <NotificationEntry notification={n} onAction={props.onNotificationAction} />
-                </Flex>
-            ))}
-        </List>
-    </HighlightedCard>
-);
-
 export interface NewsPost {
     id: number;
     title: string;
@@ -348,7 +287,7 @@ export const NoResultsCardBody: React.FunctionComponent<{title: string}> = props
 function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[]}>}): JSX.Element | null {
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Usage</Heading.h3></Link>}
+            title={<Link to={"/project/resources"}><Heading.h3>Resource Usage</Heading.h3></Link>}
             icon="hourglass"
             color="yellow"
         >
@@ -461,7 +400,7 @@ function DashboardResources({products}: {
 
     return (
         <HighlightedCard
-            title={<Link to={"/project/resources"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
+            title={<Link to={"/project/allocations"}><Heading.h3>Resource Allocations</Heading.h3></Link>}
             color="red"
             isLoading={products.loading}
             icon={"grant"}
@@ -606,13 +545,7 @@ const mapDispatchToProps = (dispatch: Dispatch): DashboardOperations => ({
     },
     setActiveProject: projectId => dispatchSetProjectAction(dispatch, projectId),
     setAllLoading: loading => dispatch(setAllLoading(loading)),
-    notificationRead: async id => dispatch(await notificationRead(id)),
-    readAll: async () => dispatch(await readAllNotifications()),
     setRefresh: refresh => dispatch(setRefreshFunction(refresh))
 });
 
-const mapStateToProps = (state: ReduxObject): DashboardStateProps => ({
-    notifications: state.notifications,
-});
-
-export default connect(mapStateToProps, mapDispatchToProps)(Dashboard);
+export default connect(null, mapDispatchToProps)(Dashboard);

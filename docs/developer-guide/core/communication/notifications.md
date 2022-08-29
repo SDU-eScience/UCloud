@@ -64,6 +64,10 @@ automatically delivered to any connected frontend via websockets.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#createbulk'><code>createBulk</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#delete'><code>delete</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -149,7 +153,7 @@ NotificationDescriptions.create.call(
                 isString = false, 
             )),)), 
             read = false, 
-            ts = 1644846940789, 
+            ts = 1655124950444, 
             type = "MY_NOTIFICATION_TYPE", 
         ), 
         user = "User#1234", 
@@ -184,7 +188,7 @@ await callAPI(NotificationsApi.create(
             "meta": {
                 "myParameter": 42
             },
-            "ts": 1644846940789,
+            "ts": 1655124950444,
             "read": false
         }
     }
@@ -221,7 +225,7 @@ curl -XPUT -H "Authorization: Bearer $accessToken" -H "Content-Type: content-typ
         "meta": {
             "myParameter": 42
         },
-        "ts": 1644846940789,
+        "ts": 1655124950444,
         "read": false
     }
 }'
@@ -277,7 +281,7 @@ Notification(
         isString = false, 
     )),)), 
     read = false, 
-    ts = 1644846940790, 
+    ts = 1655124950444, 
     type = "MY_NOTIFICATION_TYPE", 
 )
 */
@@ -396,7 +400,7 @@ Page(
             isString = false, 
         )),)), 
         read = false, 
-        ts = 1644846940791, 
+        ts = 1655124950445, 
         type = "MY_NOTIFICATION_TYPE", 
     )), 
     itemsInTotal = 1, 
@@ -446,7 +450,7 @@ await callAPI(NotificationsApi.list(
             "meta": {
                 "myParameter": 42
             },
-            "ts": 1644846940791,
+            "ts": 1655124950445,
             "read": false
         }
     ]
@@ -492,7 +496,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/notifications?"
 #             "meta": {
 #                 "myParameter": 42
 #             },
-#             "ts": 1644846940791,
+#             "ts": 1655124950445,
 #             "read": false
 #         }
 #     ]
@@ -571,6 +575,19 @@ _Notifies an instance of this service that it should notify an end-user_
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#createnotification'>CreateNotification</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `createBulk`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#createnotification'>CreateNotification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByLongId.md'>FindByLongId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 

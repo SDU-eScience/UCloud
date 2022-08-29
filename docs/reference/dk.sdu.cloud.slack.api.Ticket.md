@@ -14,6 +14,7 @@ data class Ticket(
     val userAgent: String,
     val subject: String,
     val message: String,
+    val project: String?,
 )
 ```
 
@@ -69,6 +70,17 @@ data class Ticket(
 <details>
 <summary>
 <code>message</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>project</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

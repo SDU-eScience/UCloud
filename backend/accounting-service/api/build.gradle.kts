@@ -1,3 +1,3 @@
 dependencies {
-    commonMainApi(project(":auth-service:api"))
+    api(project(":auth-service:api"))
 }

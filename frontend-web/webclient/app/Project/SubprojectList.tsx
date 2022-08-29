@@ -4,7 +4,7 @@ import {useTitle} from "@/Navigation/Redux/StatusActions";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useHistory, useLocation} from "react-router";
 import {Box, Button, ButtonGroup, Flex, Icon, Input, Text, Tooltip} from "@/ui-components";
-import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, viewProject, UserInProject, emptyUserInProject} from ".";
+import {createProject, setProjectArchiveStatus, listSubprojects, renameProject, MemberInProject, ProjectRole, projectRoleToStringIcon, projectRoleToString, useProjectId, viewProject, UserInProject, emptyUserInProject, useProjectManagementStatus} from ".";
 import List, {ListRow, ListRowStat} from "@/ui-components/List";
 import {errorMessageOrDefault, preventDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Operations, Operation} from "@/ui-components/Operation";
@@ -26,6 +26,7 @@ interface MemberInProjectCallbacks {
     startRename: (id: string) => void;
     history: History;
     setActiveProject: (id: string, title: string) => void;
+    isAdminOrPIForParent: boolean;
 }
 
 type ProjectOperation = Operation<MemberInProject, MemberInProjectCallbacks>;
@@ -107,9 +108,9 @@ const projectOperations: ProjectOperation[] = [
         icon: "tags"
     },
     {
-        enabled: (selected) => {
+        enabled: (selected, extras) => {
             if (selected.length !== 1) return false;
-            if (isAdminOrPI(selected[0].role ?? ProjectRole.USER)) {
+            if (extras.isAdminOrPIForParent || isAdminOrPI(selected[0].role ?? ProjectRole.USER)) {
                 return true;
             } else {
                 return "Only Admins and PIs can rename.";
@@ -128,7 +129,8 @@ export default function SubprojectList(): JSX.Element | null {
     const history = useHistory();
     const [overrideRedirect, setOverride] = React.useState(false);
 
-    const projectId = useProjectId();
+    const project = useProjectManagementStatus({isRootComponent: true});
+    const {projectId, projectRole} = project;
 
     React.useEffect(() => {
         if (!overrideRedirect) {
@@ -236,7 +238,8 @@ export default function SubprojectList(): JSX.Element | null {
         history,
         onSetArchivedStatus,
         startRename: setRenameId,
-        setActiveProject: setProject
+        setActiveProject: setProject,
+        isAdminOrPIForParent: isAdminOrPI(projectRole),
     };
 
     const [subproject, fetchSubproject] = useCloudAPI<UserInProject>({noop: true}, emptyUserInProject(subprojectFromQuery));

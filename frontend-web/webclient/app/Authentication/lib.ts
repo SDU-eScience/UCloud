@@ -2,16 +2,8 @@ import {Store} from "redux";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {inRange, inSuccessRange, is5xxStatusCode, parseJWT} from "@/UtilityFunctions";
 import {setStoredProject} from "@/Project/Redux";
-
-interface CallParameters {
-    method: string;
-    path: string;
-    body?: any;
-    context?: string;
-    withCredentials?: boolean;
-    projectOverride?: string;
-    accessTokenOverride?: string;
-}
+import {CallParameters} from "./CallParameters";
+import {signIntentToCall, clearSigningKey} from "@/Authentication/MessageSigning";
 
 /**
  * Represents an instance of the HTTPClient object used for contacting the backend, implicitly using JWTs.
@@ -112,15 +104,17 @@ export class HttpClient {
      * @param {string} context - the base of the request (e.g. "/api")
      * @return {Promise} promise
      */
-    public async call({
-        method,
-        path,
-        body,
-        context = this.apiContext,
-        withCredentials = false,
-        projectOverride,
-        accessTokenOverride,
-    }: CallParameters): Promise<any> {
+    public async call(params: CallParameters): Promise<any> {
+        let {
+            method,
+            path,
+            body,
+            context = this.apiContext,
+            withCredentials = false,
+            projectOverride,
+            accessTokenOverride,
+        } = params;
+
         await this.waitForCloudReady();
 
         if (path.indexOf("/") !== 0) path = "/" + path;
@@ -147,6 +141,12 @@ export class HttpClient {
                         "Authorization",
                         accessTokenOverride === undefined ? `Bearer ${token}` : `Bearer ${accessTokenOverride}`
                     );
+
+                    const signedIntent = signIntentToCall(params);
+                    if (signedIntent !== null) {
+                        req.setRequestHeader("UCloud-Signed-Intent", signedIntent);
+                    }
+
                     req.setRequestHeader("Content-Type", "application/json; charset=utf-8");
                     const projectId = projectOverride ?? this.projectId;
                     if (projectId) req.setRequestHeader("Project", projectId);
@@ -158,6 +158,10 @@ export class HttpClient {
                     const rejectOrRetry = (parsedResponse?) => {
                         if (req.status === 401) {
                             this.forceRefresh = true;
+                        }
+
+                        if (req.status === 482) {
+                            clearSigningKey();
                         }
 
                         reject({request: req, response: parsedResponse});

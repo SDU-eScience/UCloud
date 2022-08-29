@@ -35,6 +35,10 @@ export function findRelevantMachinesForApplication(
                             return it.support.virtualMachine.enabled &&
                                 (tool.description.supportedProviders ?? [])
                                     .some(p => p === it.product.category.provider);
+                        case "NATIVE":
+                            return it.support.native.enabled &&
+                                (tool.description.supportedProviders ?? [])
+                                    .some(p => p === it.product.category.provider);
                     }
                 })
                 .filter(product =>

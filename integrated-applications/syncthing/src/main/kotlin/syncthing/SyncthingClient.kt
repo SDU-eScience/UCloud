@@ -273,7 +273,7 @@ data class SyncthingOptions(
     val progressUpdateIntervalS: Int = 5,
     val reconnectionIntervalS: Int = 60,
     val relayReconnectIntervalM: Int = 10,
-    val relaysEnabled: Boolean = false,
+    val relaysEnabled: Boolean = true,
     val releasesURL: String = "",
     val restartOnWakeup: Boolean = true,
     val sendFullIndexOnUpgrade: Boolean = false,

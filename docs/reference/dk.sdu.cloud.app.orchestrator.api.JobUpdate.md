@@ -16,6 +16,8 @@ data class JobUpdate(
     val expectedState: JobState?,
     val expectedDifferentState: Boolean?,
     val newTimeAllocation: Long?,
+    val allowRestart: Boolean?,
+    val newMounts: List<String>?,
     val timestamp: Long?,
 )
 ```
@@ -92,6 +94,28 @@ An update will typically contain information similar to the `status` field, for 
 <details>
 <summary>
 <code>newTimeAllocation</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>allowRestart</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>newMounts</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>&gt;?</code></code>
 </summary>
 
 

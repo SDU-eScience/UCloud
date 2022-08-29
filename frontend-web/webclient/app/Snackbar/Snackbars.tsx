@@ -35,7 +35,11 @@ const Snackbars: React.FunctionComponent = () => {
     const [activeSnack, setActiveSnack] = useState<Snack | undefined>(undefined);
 
     useEffect(() => {
-        const subscriber = (snack: Snack): void => setActiveSnack(snack);
+        const subscriber = (snack: Snack): void => {
+            if (snack?.addAsNotification === true) return;
+            setActiveSnack(snack);
+        };
+
         snackbarStore.subscribe(subscriber);
         return () => snackbarStore.unsubscribe(subscriber);
     }, []);

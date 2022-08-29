@@ -32,6 +32,7 @@ Jobs.follow.subscribe(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -48,6 +49,7 @@ JobsFollowResponse(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -57,8 +59,10 @@ JobsFollowResponse(
         state = JobState.RUNNING, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.RUNNING, 
@@ -81,6 +85,7 @@ JobsFollowResponse(
             "There is NO WARRANTY, to the extent permitted by law.", 
     )), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -97,6 +102,7 @@ JobsFollowResponse(
 JobsFollowResponse(
     log = emptyList(), 
     newStatus = JobStatus(
+        allowRestart = false, 
         expiresAt = null, 
         jobParametersJson = null, 
         resolvedApplication = null, 
@@ -106,8 +112,10 @@ JobsFollowResponse(
         state = JobState.SUCCESS, 
     ), 
     updates = listOf(JobUpdate(
+        allowRestart = null, 
         expectedDifferentState = null, 
         expectedState = null, 
+        newMounts = null, 
         newTimeAllocation = null, 
         outputFolder = null, 
         state = JobState.SUCCESS, 

@@ -5,7 +5,7 @@ application {
 }
 
 kotlin.sourceSets {
-    val jvmMain by getting {
+    val main by getting {
         dependencies {
             implementation(project(":auth-service:api"))
             implementation("com.sun.mail:javax.mail:1.5.5")

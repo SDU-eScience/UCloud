@@ -1,10 +1,5 @@
 rootProject.name = "ucloud"
 
-include("service-lib")
-include("service-lib-test")
-include("launcher")
-
-// Automatically pull in sub-projects
 (rootProject.projectDir.listFiles() ?: emptyArray()).forEach { file ->
     val buildGradle = File(file, "build.gradle.kts")
     if (file.isDirectory && buildGradle.exists()) {
