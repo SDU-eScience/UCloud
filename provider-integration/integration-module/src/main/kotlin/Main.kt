@@ -314,6 +314,8 @@ fun main(args: Array<String>) {
                                 )
                         }
 
+                        client.attachFilter(OutgoingProject())
+
                         val authenticator = RefreshingJWTAuthenticator(
                             client,
                             JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),

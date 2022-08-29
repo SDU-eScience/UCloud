@@ -148,7 +148,7 @@ object Projects : CallDescriptionContainer("projects.v2") {
     }
 
     val create = call("create", BulkRequest.serializer(Project.Specification.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
-        httpCreate(baseContext)
+        httpCreate(baseContext, roles = Roles.END_USER + Roles.PROVIDER)
     }
 
     val archive = call("archive", BulkRequest.serializer(FindByStringId.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
@@ -224,6 +224,11 @@ object Projects : CallDescriptionContainer("projects.v2") {
 
     val deleteGroupMember = call("deleteGroupMember", BulkRequest.serializer(GroupMember.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(baseContext, "deleteGroupMember")
+    }
+
+    // Provider specific endpoints
+    val retrieveProviderProject = call("retrieveProviderProject", Unit.serializer(), Project.serializer(), CommonErrorMessage.serializer()) {
+        httpRetrieve(baseContext, "providerProject", roles = Roles.PROVIDER)
     }
 }
 

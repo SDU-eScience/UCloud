@@ -50,7 +50,7 @@ class ProjectService(
     ): Project {
         val username = actorAndProject.actor.safeUsername()
         return ctx.withSession { session ->
-            loadProjects(username, session, request, relevantProjects(username, request.id, includeArchived = true))
+            loadProjects(username, session, request, relevantProjects(actorAndProject, request.id, includeArchived = true))
         }.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
     }
 
@@ -73,7 +73,7 @@ class ProjectService(
                 session,
                 request,
                 relevantProjects(
-                    username,
+                    actorAndProject,
                     includeArchived = request.includeArchived == true,
                     sortBy = request.sortBy ?: ProjectsSortBy.title,
                     sortDirection = request.sortDirection ?: SortDirection.ascending,
@@ -90,7 +90,7 @@ class ProjectService(
     }
 
     private fun relevantProjects(
-        username: String,
+        actorAndProject: ActorAndProject,
         id: String? = null,
         includeArchived: Boolean = false,
         sortBy: ProjectsSortBy? = null,
@@ -98,6 +98,9 @@ class ProjectService(
         offset: Long? = null,
         limit: Long? = null,
     ): PartialQuery {
+        val (actor) = actorAndProject
+        val username = actor.safeUsername()
+
         // NOTE(Dan): This function returns a partial query, which fetches a (optionally paginated) list of relevant
         // projects, without any additional data. The output of this function is then typically passed to
         // `loadProjects` which fetches additional relevant information about the projects. A project is relevant to
@@ -115,7 +118,39 @@ class ProjectService(
             null
         }
 
-        return if (providerId != null) {
+        return  if (actor == Actor.System) {
+            PartialQuery(
+                {
+                    setParameter("id", id)
+                    setParameter("include_archived", includeArchived)
+                },
+                buildString {
+                    // NOTE(Dan): Ordering is ignored for Actor.System
+
+                    append(
+                        """
+                            with the_project as (
+                                select p as project
+                                from project.projects p
+                                where
+                                    :id::text is null or
+                                    p.id = :id::text
+                            )
+                            select distinct p.project, null::text as role, (p.project).title
+                            from the_project p
+                            where
+                                (:include_archived or (p.project).archived = false)
+                            order by p.project
+                        """
+                    )
+
+                    if (offset != null && limit != null) {
+                        appendLine("offset $offset")
+                        appendLine("limit $limit")
+                    }
+                }
+            )
+        } else if (providerId != null) {
             PartialQuery(
                 {
                     setParameter("provider_id", providerId)
@@ -145,8 +180,8 @@ class ProjectService(
                                 accounting.product_categories pc on w.category = pc.id join
                                 accounting.wallet_allocations wa on w.id = wa.associated_wallet
                             where
-                                pc.provider = :provider and
-                                (:include_archived or p.archived = false)
+                                pc.provider = :provider_id and
+                                (:include_archived or (p.project).archived = false)
                             order by p.project
                         """
                     )
@@ -476,19 +511,63 @@ class ProjectService(
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
             // actor is, as always, allowed to create any project. Otherwise, you can create a project if you are an
             // administrator of the parent project. If the requested project is root-level, then you must be a UCloud
-            // administrator.
-            val (actor) = actorAndProject
-            if (actor != Actor.System) {
-                // Check admin status of parent project
-                val parents = request.items.mapNotNull { it.parent }
-                requireAdmin(actor, parents, session)
+            // administrator. Providers are themselves allowed to create a project as long as the project is a
+            // direct child of the project which owns the provider.
 
-                // If we have a root-level project as part of the request, then we must verify that they are a UCloud
-                // administrator.
-                if (parents.size != request.items.size) {
-                    val role = if (actor is Actor.User) actor.principal.role else Role.USER
-                    if (role !in Roles.PRIVILEGED) {
-                        throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+            val (actor) = actorAndProject
+            val username = actor.safeUsername()
+            val providerId = if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+                username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+            } else {
+                null
+            }
+
+            var piUsername = username
+
+            when {
+                providerId != null -> {
+                    // Providers can only create the project if it is a direct child of the owning project.
+                    val parentProject = retrieveProviderProject(session, providerId)
+
+                    for (reqItem in request.items) {
+                        if (reqItem.parent != parentProject) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                    }
+
+                    // NOTE(Dan): The provider is not a real user in the system, as a result, they cannot be listed as
+                    // the PI. Instead, we set the PI to be the PI of the provider project.
+                    piUsername = session.sendPreparedStatement(
+                        {
+                            setParameter("project_id", parentProject)
+                        },
+                        """
+                            select pm.username
+                            from project.project_members pm
+                            where
+                                pm.project_id = :project_id and
+                                pm.role = 'PI'
+                        """
+                    ).rows.singleOrNull()?.getString(0) ?: throw RPCException(
+                        "Could not find appropriate PI",
+                        HttpStatusCode.InternalServerError
+                    )
+                }
+
+                actor == Actor.System -> {
+                    // All good. The system is always allowed to create a project.
+                }
+
+                else -> {
+                    // Check admin status of parent project
+                    val parents = request.items.mapNotNull { it.parent }
+                    requireAdmin(actor, parents, session)
+
+                    // If we have a root-level project as part of the request, then we must verify that they are a UCloud
+                    // administrator.
+                    if (parents.size != request.items.size) {
+                        val role = if (actor is Actor.User) actor.principal.role else Role.USER
+                        if (role !in Roles.PRIVILEGED) {
+                            throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
+                        }
                     }
                 }
             }
@@ -511,7 +590,7 @@ class ProjectService(
             session.sendPreparedStatement(
                 {
                     setParameter("ids", ids)
-                    setParameter("username", actor.safeUsername())
+                    setParameter("username", piUsername)
                 },
                 """
                     insert into project.project_members (created_at, modified_at, role, username, project_id) 
@@ -526,6 +605,57 @@ class ProjectService(
 
             ids
         }.let { ids -> BulkResponse(ids.map { FindByStringId(it) }) }
+    }
+
+    suspend fun retrieveProviderProject(
+        actorAndProject: ActorAndProject,
+        ctx: DBContext = db,
+    ): Project {
+        val (actor) = actorAndProject
+        val username = actor.safeUsername()
+        val providerId = if (username.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+            username.removePrefix(AuthProviders.PROVIDER_PREFIX)
+        } else {
+            null
+        } ?: throw RPCException("Unable to find provider project", HttpStatusCode.InternalServerError)
+
+        return ctx.withSession { session ->
+            val id = retrieveProviderProject(session, providerId)
+                ?: throw RPCException("Unable to find provider project", HttpStatusCode.InternalServerError)
+
+            retrieve(
+                ActorAndProject(Actor.System, null),
+                ProjectsRetrieveRequest(
+                    id,
+                    includeMembers = true,
+                    includeGroups = true,
+                    includeFavorite = false,
+                    includeArchived = true,
+                    includeSettings = true,
+                    includePath = true
+                )
+            )
+        }
+    }
+
+    private suspend fun retrieveProviderProject(
+        session: AsyncDBConnection,
+        providerId: String
+    ): String? {
+        return session.sendPreparedStatement(
+            {
+                setParameter("provider_id", providerId)
+            },
+            """
+                select r.project
+                from
+                    provider.providers p join
+                    provider.resource r on
+                        p.resource = r.id
+                where
+                    p.unique_name = :provider_id
+            """
+        ).rows.singleOrNull()?.getString(0)
     }
 
     suspend fun archive(

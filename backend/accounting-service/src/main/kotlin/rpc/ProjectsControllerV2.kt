@@ -93,5 +93,9 @@ class ProjectsControllerV2(
         implement(ProjectNotifications.markAsRead) {
             ok(notifications.markAsRead(actorAndProject, request))
         }
+
+        implement(Projects.retrieveProviderProject) {
+            ok(projects.retrieveProviderProject(actorAndProject))
+        }
     }
 }
