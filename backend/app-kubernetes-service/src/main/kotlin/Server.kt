@@ -81,7 +81,7 @@ class Server(
 
         val logService = K8LogService(k8Dependencies)
         val maintenance = MaintenanceService(db, k8Dependencies)
-        val utilizationService = UtilizationService(k8Dependencies)
+        val utilizationService = UtilizationService(k8Dependencies, configuration.categoryToNodeSelector)
         val resourceCache = ResourceCache(k8Dependencies)
         val sessions = SessionDao()
         val ingressService =
@@ -133,6 +133,7 @@ class Server(
             resourceCache,
             db,
             sessions,
+            configuration.categoryToNodeSelector,
             micro.developmentModeEnabled,
         ).apply {
             register(TaskPlugin(

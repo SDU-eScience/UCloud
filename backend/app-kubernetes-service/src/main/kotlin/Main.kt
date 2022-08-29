@@ -32,7 +32,8 @@ data class Configuration(
     val useMachineSelector: Boolean? = null,
     val nodes: NodeConfiguration? = null,
     val ingress: Ingress = Ingress(),
-    val networkIp: NetworkIP = NetworkIP()
+    val networkIp: NetworkIP = NetworkIP(),
+    val categoryToNodeSelector: Map<String, String> = emptyMap()
 ) {
     data class Ingress(
         val enabled: Boolean = true,
