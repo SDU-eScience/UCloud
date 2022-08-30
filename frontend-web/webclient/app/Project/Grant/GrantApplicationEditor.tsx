@@ -97,12 +97,12 @@ export enum RequestTarget {
     TODO List:
         - Improve allocation selection UI.
         - Find out of an approval can be rescinded. (Same for rejection.)
-        - Handle case that:
-            - Source Allocations have been added, but user can edit them.
+            - Let say 'yes'.
+            - Ensure that user can't edit allocations after accept or rescinded.
         - Ensure that you can't request resources from yourself.
         - Reload when changing context.
         - Templates aren't being used, I think.
-        - reload doesn't handle everything correctly.
+        - Reload doesn't handle everything correctly.
         - Other: How to get to outgoing application list?
 
 */
@@ -243,6 +243,8 @@ const GenericRequestCard: React.FunctionComponent<{
         .find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name);
 
     const canEdit = isApprover || props.isRecipient;
+    const [projectId] = useState(Client.projectId);
+    console.log(projectId);
 
     React.useEffect(() => {
         // TODO(Jonas): This might be wrong, I'm not sure the first allocationRequest is the right one.:
@@ -610,7 +612,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantGivers.data]);
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
-        const isApprover = grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId) != null;
+        const activeStateBreakDown = grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId);
+        const isApprover = activeStateBreakDown != null;
+
 
         React.useEffect(() => {
             if (documentRef.current) {
@@ -1021,7 +1025,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 onClick={approveRequest}
                                                                                 disabled={!isLocked}
                                                                             >
-                                                                                Approve for {grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId)?.projectTitle}
+                                                                                Approve for {activeStateBreakDown?.projectTitle}
                                                                             </Button>
                                                                             <ClickableDropdown
                                                                                 top="-73px"
@@ -1032,7 +1036,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                         disabled={!isLocked}
                                                                                         onClick={() => undefined}
                                                                                     >
-                                                                                        Reject for {grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId)?.projectTitle}
+                                                                                        Reject for {activeStateBreakDown?.projectTitle}
                                                                                     </Button>
                                                                                 )}
                                                                             >
@@ -1245,6 +1249,13 @@ function recipientTypeToText(recipient: Recipient): string {
         case "personalWorkspace":
             return "Personal Workspace";
     }
+}
+
+function ellipsedProjectTitle(name: string, maxLength: number): string {
+    if (name.length < maxLength) {
+        return name;
+    }
+    return `${name.slice(0, maxLength - 3)}...`
 }
 
 function useRecipientName(recipient: Recipient): string {
