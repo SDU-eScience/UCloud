@@ -598,7 +598,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantGivers.data]);
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
-        const isApprover = grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId) !== null;
+        const isApprover = grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId) != null;
 
         React.useEffect(() => {
             if (documentRef.current) {
@@ -933,7 +933,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                         Project Type
                                                     </TableCell>
                                                     <TableCell>
-                                                        <td>{recipientTypeToText(recipient)}</td>
+                                                        {recipientTypeToText(recipient)}
                                                     </TableCell>
                                                 </TableRow>
                                                 <TableRow>
@@ -983,13 +983,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                         </table>
                                                     </TableCell>
                                                 </TableRow>
-                                                {!isApprover ? null : <TableRow>
-                                                    <TableCell>
-                                                        Approving for
-                                                    </TableCell>
-                                                    <TableCell>
-                                                    </TableCell>
-                                                </TableRow>}
                                                 <TableRow>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
