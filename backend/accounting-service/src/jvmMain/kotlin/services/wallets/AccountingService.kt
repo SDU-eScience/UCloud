@@ -34,17 +34,17 @@ class AccountingService(
         }
     }
 
-    suspend fun retrieveAllocations(owner: WalletOwner, categoryId: ProductCategoryId): List<WalletAllocation> {
+    suspend fun retrieveAllocations(actorAndProject: ActorAndProject, owner: WalletOwner, categoryId: ProductCategoryId): List<WalletAllocation> {
         return processor.retrieveAllocations(AccountingRequest.RetrieveAllocations(
-            Actor.System,
+            actorAndProject.actor,
             owner.toProcessorOwner(),
             categoryId
         )).allocations
     }
 
-    suspend fun retrieveWallets(walletOwner: WalletOwner): List<Wallet> {
+    suspend fun retrieveWallets(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
         return processor.retrieveWallets((AccountingRequest.RetrieveWallets(
-            Actor.System,
+            actorAndProject.actor,
             walletOwner.toProcessorOwner()
         ))).wallets
     }

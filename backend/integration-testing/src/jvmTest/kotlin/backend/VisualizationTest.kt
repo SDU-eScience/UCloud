@@ -8,6 +8,7 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.db
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
@@ -36,7 +37,8 @@ class VisualizationTest : IntegrationTest() {
                     val leaves = prepareProjectChain(
                         1_000_000.DKK, input.allocations, categories.first(),
                         breadth = input.breadth,
-                        moreProducts = categories.drop(1)
+                        moreProducts = categories.drop(1),
+                        serviceClient = UCloudLauncher.serviceClient
                     )
 
                     for (round in input.charges) {

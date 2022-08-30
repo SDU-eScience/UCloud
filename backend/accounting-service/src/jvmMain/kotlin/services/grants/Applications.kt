@@ -829,7 +829,7 @@ class GrantApplicationService(
                         if (row.category == null) return@mapNotNull null
 
                         val allocations = accountingService
-                            .retrieveAllocations(WalletOwner.Project(source), row.category)
+                            .retrieveAllocations(ActorAndProject(Actor.System, null), WalletOwner.Project(source), row.category)
                             .minByOrNull { it.endDate ?: Long.MAX_VALUE }
                             ?: return@mapNotNull null
 

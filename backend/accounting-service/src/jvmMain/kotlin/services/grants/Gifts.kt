@@ -89,7 +89,11 @@ class GiftService(
             val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
             val sourceProject = row.getString(3)!!
 
-            val allocations = accountingService.retrieveAllocations(WalletOwner.Project(sourceProject), category)
+            val allocations = accountingService.retrieveAllocations(
+                ActorAndProject(Actor.System, null),
+                WalletOwner.Project(sourceProject),
+                category
+            )
             val sourceAllocation = allocations.find { it.balance >= balance } ?: allocations.firstOrNull() ?:
                 throw RPCException("Unable to claim this gift", HttpStatusCode.BadRequest)
 

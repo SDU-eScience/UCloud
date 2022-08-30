@@ -65,31 +65,14 @@ class AccountingController(
         }
 
         implement(Wallets.retrieveWalletsInternal) {
-            val walletOwner = if (setOf(Role.ADMIN, Role.SERVICE).contains(ctx.securityPrincipal.role) && request.owner != null) {
-                request.owner!!
-            } else {
-                if (ctx.project != null) {
-                    val projectId = ctx.project!!
-                    WalletOwner.Project(projectId)
-                } else {
-                    WalletOwner.User(ctx.securityPrincipal.username)
-                }
-            }
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWallets(walletOwner)))
+            val walletOwner = request.owner
+
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWallets(actorAndProject, walletOwner)))
         }
 
         implement(Wallets.retrieveAllocationsInternal) {
-            val walletOwner = if (setOf(Role.ADMIN, Role.SERVICE).contains(ctx.securityPrincipal.role) && request.owner != null) {
-                request.owner!!
-            } else {
-                if (ctx.project != null) {
-                    val projectId = ctx.project!!
-                    WalletOwner.Project(projectId)
-                } else {
-                    WalletOwner.User(ctx.securityPrincipal.username)
-                }
-            }
-            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocations(walletOwner, request.categoryId)))
+            val walletOwner = request.owner
+            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocations(actorAndProject, walletOwner, request.categoryId)))
         }
 
         implement(Wallets.searchSubAllocations) {

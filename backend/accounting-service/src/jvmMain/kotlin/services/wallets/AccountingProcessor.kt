@@ -4,6 +4,8 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
+import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
@@ -234,7 +236,7 @@ sealed class AccountingResponse {
 
     data class Error(
         val message: String,
-        val code: String = "GENERIC_ERROR",
+        val code: Int = 500,
         override var id: Long = -1,
     ) : AccountingResponse()
 
@@ -251,7 +253,7 @@ sealed class AccountingResponse {
 
 inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
     if (this is AccountingResponse.Error) {
-        throw IllegalStateException("$message $code")
+        throw RPCException(message, HttpStatusCode.parse(code))
     } else {
         return this as? T ?: error("$this is not a ${T::class}")
     }
@@ -780,7 +782,7 @@ class AccountingProcessor(
             val role = projects.retrieveProjectRole(request.actor.safeUsername(), wallet.owner)
 
             if (role?.isAdmin() != true) {
-                return AccountingResponse.Error("You are not allowed to manage this allocation.")
+                return AccountingResponse.Error("You are not allowed to manage this allocation.", HttpStatusCode.Forbidden.value)
             }
         }
 
@@ -828,6 +830,7 @@ class AccountingProcessor(
     // Charge
     // =================================================================================================================
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
+        println(request)
         val charge = describeCharge(request.actor, request)
             ?: return AccountingResponse.Error("Could not find product information in charge request.")
         if (charge.amount < 0) return AccountingResponse.Error("Cannot charge a negative amount")
@@ -1128,6 +1131,7 @@ class AccountingProcessor(
     // Update
     // =================================================================================================================
     private suspend fun update(request: AccountingRequest.Update): AccountingResponse {
+        println("Updating: $request")
         if (request.amount < 0) return AccountingResponse.Error("Cannot update to a negative balance")
         val allocation = allocations.getOrNull(request.allocationId)
             ?: return AccountingResponse.Error("Invalid allocation id supplied")
@@ -1160,6 +1164,7 @@ class AccountingProcessor(
             if (error != null) return error
         }
 
+        println("BEGIN")
         allocation.begin()
         val currentUse = allocation.initialBalance - allocation.localBalance
 
@@ -1193,6 +1198,8 @@ class AccountingProcessor(
             )
         )
 
+        println("COMMIT")
+        println(allocation)
         allocation.commit()
         clampDescendantsOverlap(allocation)
         return AccountingResponse.Update(true)

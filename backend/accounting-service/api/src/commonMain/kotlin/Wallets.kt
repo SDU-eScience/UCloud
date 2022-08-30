@@ -214,7 +214,7 @@ data class WalletBrowseRequest(
 
 @Serializable
 data class WalletsInternalRetrieveRequest(
-    val owner: WalletOwner? = null
+    val owner: WalletOwner
 )
 @Serializable
 data class WalletsInternalRetrieveResponse(
@@ -222,7 +222,7 @@ data class WalletsInternalRetrieveResponse(
 )
 @Serializable
 data class WalletAllocationsInternalRetrieveRequest (
-    val owner: WalletOwner? = null,
+    val owner: WalletOwner,
     val categoryId: ProductCategoryId
 )
 @Serializable
@@ -412,7 +412,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         WalletsInternalRetrieveResponse.serializer(),
         CommonErrorMessage.serializer()
     ) {
-        httpRetrieve(baseContext)
+        httpUpdate(baseContext, "retrieveWalletsInternal")
+
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
 
         documentation {
             summary = "Retrieves a list of up-to-date wallets from the in-memory DB"
@@ -429,7 +434,12 @@ object Wallets : CallDescriptionContainer("accounting.wallets") {
         WalletAllocationsInternalRetrieveResponse.serializer(),
         CommonErrorMessage.serializer()
     ) {
-        httpRetrieve(baseContext)
+        httpUpdate(baseContext, "retrieveAllocationsInternal")
+
+        auth {
+            access = AccessRight.READ
+            roles = Roles.PRIVILEGED
+        }
 
         documentation {
             summary = "Retrieves a list of product specific up-to-date allocation from the in-memory DB"

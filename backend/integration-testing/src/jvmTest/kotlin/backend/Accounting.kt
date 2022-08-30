@@ -28,6 +28,7 @@ import dk.sdu.cloud.calls.client.withProject
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.DKK
 import dk.sdu.cloud.integration.IntegrationTest
+import dk.sdu.cloud.integration.UCloudLauncher
 import dk.sdu.cloud.integration.UCloudLauncher.db
 import dk.sdu.cloud.integration.UCloudLauncher.serviceClient
 import dk.sdu.cloud.project.api.AcceptInviteRequest
@@ -101,85 +102,6 @@ data class AllocationResult(
     }
 }
 
-suspend fun prepareProjectChain(
-    rootBalance: Long,
-    chainFromRoot: List<Allocation>,
-    productCategory: ProductCategoryId,
-    skipCreationOfLeaf: Boolean = false,
-    breadth: Int = 1,
-    moreProducts: List<ProductCategoryId> = emptyList(),
-): List<AllocationResult> {
-    val irrelevantUser = createUser()
-    val allProducts = listOf(productCategory) + moreProducts
-
-    val leaves = ArrayList<AllocationResult>()
-
-    for ((index, allocOwner) in chainFromRoot.withIndex()) {
-        if (allocOwner.isProject) {
-            val user = createUser()
-            val project = Projects.create.call(
-                CreateProjectRequest("P$index", principalInvestigator = user.username),
-                serviceClient
-            ).orThrow()
-
-            leaves.add(
-                AllocationResult(
-                    user.username,
-                    project.id,
-                    user.client.withProject(project.id),
-                    allocOwner.amount * breadth
-                )
-            )
-        } else {
-            val user = createUser()
-            leaves.add(AllocationResult(user.username, null, user.client, allocOwner.amount * breadth))
-        }
-    }
-
-    for (category in allProducts) {
-        repeat(breadth) {
-            val rootPi = createUser()
-            val rootProject = initializeRootProject(rootPi.username, amount = rootBalance)
-            var previousAllocation: String =
-                findProjectWallet(rootProject, rootPi.client, category)!!.allocations.single().id
-            var previousPi: AuthenticatedClient = rootPi.client
-            val expectedAllocationPath = arrayListOf(previousAllocation)
-            for ((index, leaf) in leaves.withIndex()) {
-                if (index == leaves.lastIndex && skipCreationOfLeaf) break
-
-                val request = bulkRequestOf(
-                    DepositToWalletRequestItem(
-                        leaf.owner,
-                        previousAllocation,
-                        leaf.balance / breadth,
-                        "Deposit",
-                        chainFromRoot[index].startDate,
-                        chainFromRoot[index].endDate,
-                        transactionId = UUID.randomUUID().toString()
-                    )
-                )
-                Accounting.deposit.call(request, previousPi).orThrow()
-
-                assertThatInstance(
-                    Accounting.deposit.call(request, irrelevantUser.client),
-                    "Should fail because they are not a part of the project"
-                ) { it.statusCode.value in 400..499 }
-
-                val alloc =
-                    findWallet(leaf.client, category)!!.allocations.last()
-                previousAllocation = alloc.id
-                previousPi = leaf.client
-
-                expectedAllocationPath.add(alloc.id)
-                assertEquals(alloc.allocationPath, expectedAllocationPath)
-                assertEquals(alloc.balance, leaf.balance / breadth)
-                assertEquals(alloc.initialBalance, leaf.balance / breadth)
-            }
-        }
-    }
-    return leaves
-}
-
 class AccountingTest : IntegrationTest() {
     override fun defineTests() {
 
@@ -212,7 +134,8 @@ class AccountingTest : IntegrationTest() {
                                 Allocation(true, 2000.DKK),
                                 Allocation(true, 1000.DKK)
                             ),
-                            sampleCompute.category
+                            sampleCompute.category,
+                            serviceClient = UCloudLauncher.serviceClient
                         )
 
                         val walletOwner = projectAllocations.last().owner
@@ -744,7 +667,8 @@ class AccountingTest : IntegrationTest() {
                     val leaves = prepareProjectChain(
                         input.rootWalletAllocationAmount,
                         (0 until 3).map { Allocation(true, 1000.DKK) },
-                        sampleCompute.category
+                        sampleCompute.category,
+                        serviceClient = UCloudLauncher.serviceClient
                     )
 
                     val projectIds = leaves.map { it.projectId }
@@ -1392,7 +1316,8 @@ class AccountingTest : IntegrationTest() {
             suspend fun prepare(input: In): List<AllocationResult> {
                 return prepareProjectChain(
                     input.rootBalance, input.chainFromRoot, input.product.category,
-                    input.skipCreationOfLeaf
+                    input.skipCreationOfLeaf,
+                    serviceClient = UCloudLauncher.serviceClient
                 )
             }
 
@@ -1746,7 +1671,7 @@ class AccountingTest : IntegrationTest() {
 
             test<In, Out>("Update allocations") {
                 execute {
-                    val leaves = prepareProjectChain(10_000.DKK, input.chainFromRoot, input.product.category)
+                    val leaves = prepareProjectChain(10_000.DKK, input.chainFromRoot, input.product.category, serviceClient = UCloudLauncher.serviceClient)
                     val alloc =
                         findWallet(leaves[input.updateIndex].client, input.product.category)!!.allocations.single()
 
@@ -1964,7 +1889,8 @@ class AccountingTest : IntegrationTest() {
                 execute {
                     val leaves = prepareProjectChain(
                         input.rootBalance, input.chainFromRoot,
-                        sampleStorageDifferential.category, breadth = input.breadth
+                        sampleStorageDifferential.category, breadth = input.breadth,
+                        serviceClient = UCloudLauncher.serviceClient
                     )
 
                     for (iteration in input.chargesFromRoot) {
@@ -2112,7 +2038,8 @@ class AccountingTest : IntegrationTest() {
                 execute {
                     val leaves = prepareProjectChain(
                         input.rootBalance, input.chainFromRoot,
-                        sampleStorageDifferential.category, breadth = input.breadth
+                        sampleStorageDifferential.category, breadth = input.breadth,
+                        serviceClient = UCloudLauncher.serviceClient
                     )
 
                     val subproject = leaves.first()
