@@ -73,7 +73,6 @@ import {
     editReferenceId,
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
-    fetchProducts,
     GrantApplication,
     GrantProductCategory,
     Recipient,
@@ -99,6 +98,11 @@ export enum RequestTarget {
         - Find out of an approval can be rescinded. (Same for rejection.)
         - Handle case that:
             - Source Allocations have been added, but user can edit them.
+        - Ensure that you can't request resources from yourself.
+        - Reload when changing context.
+        - Templates aren't being used, I think.
+        - Other: How to get to outgoing application list?
+
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -683,7 +687,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                 await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
                 dispatch({type: UPDATE_DOCUMENT, payload: document});
-                setIsLocked(false);
+                setIsLocked(true);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
             }
@@ -1734,6 +1738,7 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
             if (creditsRequested === undefined || creditsRequested <= 0) {
                 return null;
             }
+
 
             return {
                 category: wb.metadata.category.name,
