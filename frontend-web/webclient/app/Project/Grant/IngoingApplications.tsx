@@ -5,9 +5,6 @@ import {useCloudAPI} from "@/Authentication/DataHook";
 import {
     GrantApplicationFilter,
     grantApplicationFilterPrettify,
-    GrantApplicationStatus,
-    ingoingGrantApplications,
-    IngoingGrantApplicationsResponse
 } from "@/Project/Grant/index";
 import {emptyPage} from "@/DefaultObjects";
 import {useProjectManagementStatus} from "@/Project";
@@ -27,12 +24,13 @@ import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
 import {useLoading, useTitle} from "@/Navigation/Redux/StatusActions";
 import {EnumFilter, ResourceFilter} from "@/Resource/Filter";
 import {BrowseType} from "@/Resource/BrowseType";
-import {GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
+import {browseGrantApplications, GrantApplication, State} from "@/Project/Grant/GrantApplicationTypes";
+import {PageV2} from "@/UCloud";
 
 export const IngoingApplications: React.FunctionComponent = () => {
     const {projectId} = useProjectManagementStatus({isRootComponent: true});
     const [scrollGeneration, setScrollGeneration] = useState(0);
-    const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<IngoingGrantApplicationsResponse>(
+    const [ingoingApplications, fetchIngoingApplications] = useCloudAPI<PageV2<GrantApplication>>(
         {noop: true},
         emptyPage
     );
@@ -41,8 +39,10 @@ export const IngoingApplications: React.FunctionComponent = () => {
 
     useRefreshFunction(() => {
         fetchIngoingApplications(
-            ingoingGrantApplications({
+            browseGrantApplications({
                 itemsPerPage: 50,
+                includeIngoingApplications: true,
+                includeOutgoingApplications: false,
                 filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
             })
         );
@@ -53,13 +53,17 @@ export const IngoingApplications: React.FunctionComponent = () => {
 
     useEffect(() => {
         setScrollGeneration(prev => prev + 1);
-        fetchIngoingApplications(ingoingGrantApplications({
+        fetchIngoingApplications(browseGrantApplications({
+            includeIngoingApplications: true,
+            includeOutgoingApplications: false,
             itemsPerPage: 50, filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
         }));
     }, [projectId, filters]);
 
     const loadMore = useCallback(() => {
-        fetchIngoingApplications(ingoingGrantApplications({
+        fetchIngoingApplications(browseGrantApplications({
+            includeIngoingApplications: true,
+            includeOutgoingApplications: false,
             itemsPerPage: 50, next: ingoingApplications.data.next,
             filter: (filters.filterType as GrantApplicationFilter | undefined) ?? GrantApplicationFilter.SHOW_ALL
         }));

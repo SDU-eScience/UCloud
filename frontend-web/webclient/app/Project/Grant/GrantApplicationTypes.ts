@@ -6,6 +6,7 @@ import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {apiBrowse, apiCreate, apiDelete, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
+import {GrantApplicationFilter} from ".";
 
 const grantBaseContext = "/api/grant/";
 
@@ -314,4 +315,16 @@ export async function fetchProducts(
 
 export function closeApplication(request: UCloud.BulkRequest<{applicationId: string}>): APICallParameters<UCloud.BulkRequest<{applicationId: string}>> {
    return apiUpdate(request, grantBaseContext, "close")
+}
+
+interface BrowseApplicationsRequest extends PaginationRequestV2 {
+    filter: GrantApplicationFilter;
+    includeIngoingApplications: boolean;
+    includeOutgoingApplications: boolean;
+}
+
+export function browseGrantApplications(
+    request: BrowseApplicationsRequest
+): APICallParameters<BrowseApplicationsRequest> {
+    return apiBrowse(request, grantBaseContext);
 }
