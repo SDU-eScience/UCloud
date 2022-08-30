@@ -75,6 +75,7 @@ import {
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
     GrantApplication,
+    GrantGiverApprovalState,
     GrantProductCategory,
     Recipient,
     State,
@@ -534,7 +535,7 @@ type PostedComment = PayloadAction<typeof POSTED_COMMENT, Comment>;
 const UPDATE_DOCUMENT = "UPDATE_DOCUMENT";
 type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>;
 const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
-type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, State>;
+type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, {projectId: string, state: State}>;
 
 type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
@@ -561,10 +562,22 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
             return {...state};
         }
         case UPDATE_GRANT_STATE: {
-            state.status.overallState = action.payload;
+            state.status.stateBreakdown.forEach(it => {
+                if (it.projectId === action.payload.projectId) {
+                    it.state = action.payload.state;
+                }
+            });
+            state.status.overallState = findNewOverallState(state.status.stateBreakdown);
             return {...state};
         }
     }
+}
+
+function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
+    if (approvalStates.some(it => it.state === State.CLOSED)) return State.CLOSED;
+    if (approvalStates.some(it => it.state === State.IN_PROGRESS)) return State.IN_PROGRESS;
+    if (approvalStates.some(it => it.state === State.REJECTED)) return State.REJECTED;
+    return State.APPROVED;
 }
 
 
@@ -612,7 +625,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantGivers.data]);
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
-        const activeStateBreakDown = grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId);
+        const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication]);
         const isApprover = activeStateBreakDown != null;
 
 
@@ -799,12 +812,24 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, []);
 
         const approveRequest = useCallback(async () => {
-            await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})));
-        }, [grantApplication.id]);
+            try {
+                if (!activeStateBreakDown) return;
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})));
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to reject application.")
+            }
+        }, [grantApplication.id, activeStateBreakDown]);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
-            await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: notify})));
-        }, [grantApplication.id]);
+            try {
+                if (!activeStateBreakDown) return;
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: notify})));
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to reject application.")
+            }
+        }, [grantApplication.id, activeStateBreakDown]);
 
         const transferRequest = useCallback(async (toProjectId: string) => {
             await runWork(transferApplication({
@@ -814,18 +839,29 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication]);
 
         const closeRequest = useCallback(async () => {
-            if (!appId) return;
+            if (!appId || !activeStateBreakDown) return;
             try {
                 await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
-                dispatch({type: UPDATE_GRANT_STATE, payload: State.CLOSED});
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.CLOSED}});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to withdraw application.")
             }
-        }, [appId]);
+        }, [appId, activeStateBreakDown]);
+
+        const setRequestPending = useCallback(async () => {
+            if (!appId || !activeStateBreakDown) return;
+            try {
+                await runWork(updateState(bulkRequestOf({applicationId: appId, newState: State.IN_PROGRESS, notify: false})), {defaultErrorHandler: false});
+                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.IN_PROGRESS}});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to withdraw application.")
+            }
+        }, [appId, activeStateBreakDown]);
 
         const reload = useCallback(() => {
             fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
             if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
+            // TODO(Jonas):
             // fetchWallets(browseWallets({itemsPerPage: 250}));
         }, [appId]);
 
@@ -1018,46 +1054,53 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             - Transfer application
                                                                             - Close Request (from the view of the recipient, so only if creator of it.)
                                                                     */}
-                                                                    {isApprover && !grantFinalized ?
+                                                                    {grantFinalized ? null : isApprover ?
                                                                         <>
-                                                                            <Button
-                                                                                color="green"
-                                                                                onClick={approveRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Approve for {activeStateBreakDown?.projectTitle}
-                                                                            </Button>
-                                                                            <ClickableDropdown
-                                                                                top="-73px"
-                                                                                fullWidth={true}
-                                                                                trigger={(
-                                                                                    <Button
-                                                                                        color="red"
-                                                                                        disabled={!isLocked}
-                                                                                        onClick={() => undefined}
-                                                                                    >
-                                                                                        Reject for {activeStateBreakDown?.projectTitle}
-                                                                                    </Button>
-                                                                                )}
-                                                                            >
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(true)}
-                                                                                    text={"Reject"}
-                                                                                />
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(false)}
-                                                                                    text={"Reject without notify"}
-                                                                                />
-                                                                            </ClickableDropdown>
-                                                                            {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                            {activeStateBreakDown.state === State.IN_PROGRESS ? <>
                                                                                 <Button
-                                                                                    color="blue"
-                                                                                    onClick={() => setTransferringApplication(true)}
+                                                                                    color="green"
+                                                                                    onClick={approveRequest}
                                                                                     disabled={!isLocked}
                                                                                 >
-                                                                                    Transfer to other project
-                                                                                </Button> : null
-                                                                            }
+                                                                                    Approve for {activeStateBreakDown?.projectTitle}
+                                                                                </Button>
+                                                                                {/* Note(Jonas): This breaks the ButtonGroup styling. */}
+                                                                                <ClickableDropdown
+                                                                                    top="-73px"
+                                                                                    fullWidth={true}
+                                                                                    trigger={(
+                                                                                        <Button
+                                                                                            color="red"
+                                                                                            disabled={!isLocked}
+                                                                                            onClick={() => undefined}
+                                                                                        >
+                                                                                            Reject for {activeStateBreakDown?.projectTitle}
+                                                                                        </Button>
+                                                                                    )}
+                                                                                >
+                                                                                    <OptionItem
+                                                                                        onClick={() => rejectRequest(true)}
+                                                                                        text={"Reject"}
+                                                                                    />
+                                                                                    <OptionItem
+                                                                                        onClick={() => rejectRequest(false)}
+                                                                                        text={"Reject without notify"}
+                                                                                    />
+                                                                                </ClickableDropdown>
+                                                                                {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                                    <Button
+                                                                                        color="blue"
+                                                                                        onClick={() => setTransferringApplication(true)}
+                                                                                        disabled={!isLocked}
+                                                                                    >
+                                                                                        Transfer to other project
+                                                                                    </Button> : null
+                                                                                }
+                                                                            </> : <>
+                                                                                <Button onClick={setRequestPending}>
+                                                                                    Rescind {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
+                                                                                </Button>
+                                                                            </>}
                                                                         </> : null
                                                                     }
                                                                     {isRecipient && !grantFinalized ?

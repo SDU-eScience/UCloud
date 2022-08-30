@@ -768,10 +768,8 @@ class GrantApplicationService(
         //require(request.items.all { update -> update.newState != GrantApplication.State.IN_PROGRESS }) {
         //    "New status can only be APPROVED, REJECTED or CLOSED!"
         //}
+        // TODO(Jonas): This change might be important.
 
-        request.items.forEach { update ->
-            require(update.newState != GrantApplication.State.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
-        }
         db.withSession(remapExceptions = true) { session ->
             request.items.forEach { update ->
                 val id = update.applicationId
@@ -793,12 +791,12 @@ class GrantApplicationService(
                             setParameter("state", newState.name)
                             setParameter("project_id", approvingProject)
                         },
+                        // TODO(Jonas): This change might be important.
                         """
                             update "grant".grant_giver_approvals
                             set state = :state, updated_by = :username, last_update = now() 
                             where project_id = :project_id and
-                                application_id = :app_id and 
-                                state = 'IN_PROGRESS';
+                                application_id = :app_id;
                         """,
                     ).rowsAffected > 0L
 
