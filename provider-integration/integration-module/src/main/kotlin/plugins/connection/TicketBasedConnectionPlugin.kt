@@ -1,12 +1,12 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.callBlocking
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.cli.CliHandler
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
@@ -132,7 +132,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         )
     }
 
-    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse {
         val ticket = secureToken(64)
         dbConnection.withSession { connection ->
             connection.prepareStatement(
@@ -151,7 +151,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
 
     override suspend fun PluginContext.requireMessageSigning(): Boolean = false
 
-    override suspend fun PluginContext.showInstructions(query: Map<String, List<String>>): HTML {
+    override suspend fun RequestContext.showInstructions(query: Map<String, List<String>>): HTML {
         val ticket = query["ticket"]?.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         var ucloudUsername: String? = null
         dbConnection.withSession { connection ->

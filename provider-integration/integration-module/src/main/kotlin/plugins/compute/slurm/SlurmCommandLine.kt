@@ -106,6 +106,7 @@ class SlurmCommandLine(
             addArg("--parsable2")
             addArg("--allusers")
             addArg("--allocations")
+            addArg("--noheader")
         }
 
         return expandNodeList(stdout)

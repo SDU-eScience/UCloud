@@ -1,6 +1,5 @@
 package dk.sdu.cloud.controllers
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.ProductSupport
@@ -9,9 +8,9 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.ipc.IpcServer
-import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ResourcePlugin
 import dk.sdu.cloud.provider.api.Resource
 import dk.sdu.cloud.service.Controller
@@ -39,17 +38,17 @@ abstract class BaseResourceController<
         return lookupPluginOrNull(product) ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
     }
 
-    protected fun <Request : Any, Response> dispatchToPlugin(
+    protected fun <Request : Any, Response> CallHandler<*, *, *>.dispatchToPlugin(
         plugins: Collection<Plugin>,
         items: List<Request>,
         selector: (Request) -> Res,
-        dispatcher: suspend PluginContext.(plugin: Plugin, request: BulkRequest<Request>) -> BulkResponse<Response>
+        dispatcher: suspend RequestContext.(plugin: Plugin, request: BulkRequest<Request>) -> BulkResponse<Response>
     ): BulkResponse<Response> {
         val response = ArrayList<Response?>()
         repeat(items.size) { response.add(null) }
 
         groupResources(plugins, items, selector).forEach { (plugin, group) ->
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 val pluginResponse = runBlocking { dispatcher(plugin, BulkRequest(group.map { it.item })) }
                 pluginResponse.responses.forEachIndexed { index, resp ->
                     response[group[index].originalIndex] = resp
@@ -110,7 +109,7 @@ abstract class BaseResourceController<
                         plugins
                             .flatMap { plugin ->
                                 val products = plugin.productAllocation
-                                with(controllerContext.pluginContext) {
+                                with(requestContext(controllerContext)) {
                                     with(plugin) {
                                         val providerId = controllerContext.configuration.core.providerId
                                         retrieveProducts(
@@ -159,7 +158,7 @@ abstract class BaseResourceController<
             if (!config.shouldRunUserCode()) throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
 
             plugins.forEach { plugin ->
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         init(request.principal)
                     }

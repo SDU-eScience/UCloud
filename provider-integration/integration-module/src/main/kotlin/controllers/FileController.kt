@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.causedBy
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -120,8 +119,12 @@ class FileController(
         })
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
-            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
-                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+                UserMapping.localIdToUCloudId(user.uid) ?:
+                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            } else {
+                null
+            }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -138,19 +141,17 @@ class FileController(
                 )
             }
 
-
             envoyConfig.requestConfiguration(
                 EnvoyRoute.DownloadSession(
                     request.session,
                     controllerContext.configuration.core.providerId,
-                    ucloudIdentity
+                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
                 ),
                 null,
             )
         })
 
         server.addHandler(FilesDownloadIpc.retrieve.handler { _, request ->
-            println("Looking for token with ID ${request.id}")
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -176,8 +177,12 @@ class FileController(
         })
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
-            val ucloudIdentity = UserMapping.localIdToUCloudId(user.uid.toInt())
-                ?: throw RPCException("Unknown user", HttpStatusCode.Forbidden)
+            val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
+                UserMapping.localIdToUCloudId(user.uid) ?:
+                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+            } else {
+                null
+            }
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
@@ -199,7 +204,7 @@ class FileController(
                 EnvoyRoute.UploadSession(
                     request.session,
                     controllerContext.configuration.core.providerId,
-                    ucloudIdentity
+                    ucloudIdentity ?: EnvoyConfigurationService.IM_SERVER_CLUSTER
                 ),
                 null,
             )
@@ -271,7 +276,7 @@ class FileController(
                 ?: throw RPCException("Bad request from UCloud (no  path)", HttpStatusCode.BadRequest)
 
             val plugin = lookupPlugin(request.resolvedCollection.specification.product)
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     ok(browse(UCloudFile.create(path), request))
                 }
@@ -280,7 +285,7 @@ class FileController(
 
         implement(api.retrieve) {
             val plugin = lookupPlugin(request.resolvedCollection.specification.product)
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     ok(retrieve(request))
                 }
@@ -294,7 +299,7 @@ class FileController(
                 ) ?: return@map null
 
                 val plugin = lookupPlugin(collection.specification.product)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createFolder(bulkRequestOf(createFolderRequest)).single()
                     }
@@ -308,7 +313,7 @@ class FileController(
                 val collection = moveRequest.resolvedNewCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         move(bulkRequestOf(moveRequest)).single()
                     }
@@ -321,7 +326,7 @@ class FileController(
             val result = request.items.map { copyRequest ->
                 val collection = copyRequest.resolvedNewCollection.specification.product
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         copy(bulkRequestOf(copyRequest)).single()
                     }
@@ -335,7 +340,7 @@ class FileController(
                 val collection = request.resolvedCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         moveToTrash(bulkRequestOf(request)).single()
                     }
@@ -349,7 +354,7 @@ class FileController(
                 val collection = request.resolvedCollection.specification.product
 
                 val plugin = lookupPlugin(collection)
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         emptyTrash(bulkRequestOf(request)).single()
                     }
@@ -365,7 +370,7 @@ class FileController(
                 val plugin = lookupPlugin(downloadRequest.resolvedCollection.specification.product)
                 val name = plugin.pluginName
 
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createDownload(bulkRequestOf(downloadRequest)).forEach {
                             sessions.add(
@@ -388,7 +393,8 @@ class FileController(
         }
 
         implement(downloadApi.download) {
-            if (controllerContext.configuration.shouldRunServerCode()) {
+            val config = controllerContext.configuration
+            if (config.shouldRunServerCode() && !config.shouldRunUserCode()) {
                 // NOTE(Dan): For some reason, it would appear that the configuration in Envoy is not yet active.
                 // Delay for a small while and ask the client to retry at almost the same address.
                 val sctx = (ctx as? HttpCall)
@@ -407,7 +413,7 @@ class FileController(
             }
 
             val token = request.token
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesDownloadIpc.retrieve, FindByStringId(token))
 
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
@@ -428,7 +434,7 @@ class FileController(
                 val plugin = lookupPlugin(uploadRequest.resolvedCollection.specification.product)
                 val name = plugin.pluginName
 
-                with(controllerContext.pluginContext) {
+                with(requestContext(controllerContext)) {
                     with(plugin) {
                         createUpload(bulkRequestOf(uploadRequest)).forEach {
                             sessions.add(
@@ -459,7 +465,7 @@ class FileController(
             val token = sctx.ktor.call.request.header("Chunked-Upload-Token")
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
 
-            with(controllerContext.pluginContext) {
+            with(requestContext(controllerContext)) {
                 val handler = ipcClient.sendRequest(FilesUploadIpc.retrieve, FindByStringId(token))
                 val plugin = controllerContext.configuration.plugins.files[handler.pluginName]
                     ?: throw RPCException("Download is no longer valid", HttpStatusCode.NotFound)

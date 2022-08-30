@@ -1,5 +1,7 @@
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
+
 plugins {
-    kotlin("multiplatform")
+    kotlin("jvm")
     kotlin("plugin.serialization")
     application
     id("maven-publish")
@@ -14,29 +16,22 @@ application {
     mainClass.set("dk.sdu.cloud.MainKt")
 }
 
-kotlin {
-    jvm {
-        withJava()
-        val main by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
-
-        val test by compilations.getting {
-            kotlinOptions {
-                jvmTarget = "11"
-            }
-        }
+tasks.withType<KotlinCompile> {
+    kotlinOptions {
+        jvmTarget = "11"
     }
+}
 
+kotlin {
     sourceSets {
-        val jvmMain by getting {
+        val main by getting {
             dependencies {
                 implementation(project(":service-lib"))
                 implementation(project(":service-lib-server"))
-                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.31")
-                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
+                implementation(kotlin("compiler-embeddable"))
+                implementation(kotlin("reflect"))
+//                implementation("org.jetbrains.kotlin:kotlin-compiler-embeddable:1.5.31")
+//                implementation("org.jetbrains.kotlin:kotlin-reflect:1.5.31")
 
                 rootProject.childProjects.values
                     .filter { it.name.endsWith("-service") }

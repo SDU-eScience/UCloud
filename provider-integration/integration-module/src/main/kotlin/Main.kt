@@ -84,7 +84,7 @@ fun main(args: Array<String>) {
         //
         // 1. Process configuration and signal handlers:
         // -----------------------------------------------------------------------------------------------------------
-        // In the first phase we perform simple configuration of the process itself. Currently this involves querying
+        // In the first phase we perform simple configuration of the process itself. Currently, this involves querying
         // some information about the process and its environment, along with installing signal handlers.
         //
         // 2. Configuration:
@@ -104,7 +104,7 @@ fun main(args: Array<String>) {
         //
         // 4. Transferring control to services:
         // -----------------------------------------------------------------------------------------------------------
-        // In this phase we transfer control fully to all of the services which were constructed in the previous
+        // In this phase we transfer control fully to all the services which were constructed in the previous
         // phase. Almost all services are powered by some kind of loop running in a background coroutine/thread.
 
 
@@ -155,31 +155,30 @@ fun main(args: Array<String>) {
                 verifyConfiguration(serverMode, configSchema)
             }
 
+            val logDir = config.core.logs.directory
+
+            // NOTE(Dan): This is passed directly to the config file, which doesn't escape anything. Be careful with
+            // potential XML injection here.
+            val logModule = when (serverMode) {
+                ServerMode.FrontendProxy -> "frontend-proxy"
+                is ServerMode.Plugin -> "plugin-${Time.now()}"
+                ServerMode.Server -> "server"
+                ServerMode.User -> "user-${clib.getuid()}"
+            }
+
             run {
                 // Tell logback information about the log output. We need to do this as early as possible since we
                 // cannot do any real logging before these calls have been made.
                 //
-                // We have named the configuration in such a way that it is not auto-loaded by logback. If it were, then
+                // We have named the configuration in such a way that it is not autoloaded by logback. If it were, then
                 // it would complain heavily about the fact that a bunch of loggers were loaded doing companion object
                 // initialization before these properties were set. Instead, we use the default config, which is to
                 // output to stdout until these properties are ready to be set.
-                System.setProperty("log.dir", config.core.logs.directory)
-                System.setProperty(
-                    "log.module", when (serverMode) {
-                        ServerMode.FrontendProxy -> "frontend-proxy"
-                        is ServerMode.Plugin -> "plugin-${serverMode.name}"
-                        ServerMode.Server -> "server"
-                        ServerMode.User -> "user-${clib.getuid()}"
-                    }
-                )
-
                 val ctx = LoggerFactory.getILoggerFactory() as LoggerContext
                 val configurator = JoranConfigurator()
                 configurator.context = ctx
                 ctx.reset()
-                // NOTE(Dan): For some reason this is not working with GraalVM AOT native images when using a resource
-                // stream.
-                configurator.doConfigure(logbackConfiguration.encodeToByteArray().inputStream())
+                configurator.doConfigure(logbackConfiguration(logDir, logModule).encodeToByteArray().inputStream())
             }
 
             run {
@@ -196,11 +195,13 @@ fun main(args: Array<String>) {
                     }
 
                     ServerMode.Server -> {
-                        if (uid == 0) throw IllegalStateException("Refusing the start the server as root")
+                        if (uid == 0 && !config.core.allowRootMode) {
+                            throw IllegalStateException("Refusing to start the server as root")
+                        }
                     }
 
                     ServerMode.User -> {
-                        if (uid == 0) throw IllegalStateException("Refusing the start a user instance as root")
+                        if (uid == 0) throw IllegalStateException("Refusing to start a user instance as root")
                     }
                 }
             }
@@ -234,9 +235,10 @@ fun main(args: Array<String>) {
             // Inter Process Communication Client (IPC)
             // -------------------------------------------------------------------------------------------------------
             val ipcSocketDirectory = config.core.ipc.directory
-            val ipcClient = when (serverMode) {
-                ServerMode.Server, ServerMode.FrontendProxy -> null
-                else -> IpcClient(ipcSocketDirectory)
+            val ipcClient: IpcClient? = when (serverMode) {
+                ServerMode.FrontendProxy -> null
+                ServerMode.Server -> EmbeddedIpcClient()
+                else -> RealIpcClient(ipcSocketDirectory)
             }
 
             // IpcServer comes later, since it requires knowledge of the RpcServer. TODO(Dan): Change this?
@@ -256,10 +258,7 @@ fun main(args: Array<String>) {
             // -------------------------------------------------------------------------------------------------------
             val rpcServerPort = when (serverMode) {
                 is ServerMode.Plugin, ServerMode.FrontendProxy -> null
-                ServerMode.Server -> {
-                    if (config.core.launchRealUserInstances) UCLOUD_IM_PORT
-                    else config.server.network.listenPort
-                }
+                ServerMode.Server -> UCLOUD_IM_PORT
                 ServerMode.User -> args.getOrNull(1)?.toInt() ?: error("Missing port argument for user server")
             }
 
@@ -267,17 +266,21 @@ fun main(args: Array<String>) {
                 ServerMode.Server, ServerMode.User -> RpcServer()
                 else -> null
             }
+            var ktorEngine: ApplicationEngine? = null
 
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
 
                 val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
+                ktorEngine = engine
                 engine.application.install(CORS) {
                     // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
                     // with local backend.
                     allowHost("frontend:9000")
                     allowHost("localhost:9000")
+                    val ucloudHost = config.core.hosts.ucloud.toStringOmitDefaultPort()
+                    allowHost(ucloudHost.substringAfter("://"), listOf(ucloudHost.substringBefore("://")))
                     allowMethod(HttpMethod.Get)
                     allowMethod(HttpMethod.Post)
                     allowMethod(HttpMethod.Put)
@@ -315,6 +318,8 @@ fun main(args: Array<String>) {
                                     )
                                 )
                         }
+
+                        client.attachFilter(OutgoingProject())
 
                         val authenticator = RefreshingJWTAuthenticator(
                             client,
@@ -372,10 +377,12 @@ fun main(args: Array<String>) {
                 else -> null
             }
 
+            if (ipcClient is EmbeddedIpcClient && ipcServer != null) ipcClient.server = ipcServer
+
             // L7 router (Envoy)
             // -------------------------------------------------------------------------------------------------------
-            val envoyConfig = if (serverMode == ServerMode.Server && config.core.launchRealUserInstances) {
-                EnvoyConfigurationService(ENVOY_CONFIG_PATH)
+            val envoyConfig = if (serverMode == ServerMode.Server) {
+                EnvoyConfigurationService(config)
             } else {
                 null
             }
@@ -403,6 +410,9 @@ fun main(args: Array<String>) {
                 allResourcePlugins.addAll(config.plugins.fileCollections.values)
                 allResourcePlugins.addAll(config.plugins.files.values)
                 allResourcePlugins.addAll(config.plugins.jobs.values)
+                allResourcePlugins.addAll(config.plugins.ingresses.values)
+                allResourcePlugins.addAll(config.plugins.publicIps.values)
+                allResourcePlugins.addAll(config.plugins.licenses.values)
             }
 
             // Resolving products for plugins
@@ -415,7 +425,10 @@ fun main(args: Array<String>) {
                 for (plugin in allResourcePlugins) {
                     val allConfiguredProducts: List<Product> =
                         (config.products.compute ?: emptyMap()).values.flatten() +
-                            (config.products.storage ?: emptyMap()).values.flatten()
+                            (config.products.storage ?: emptyMap()).values.flatten() +
+                                (config.products.ingress ?: emptyMap()).values.flatten() +
+                                (config.products.publicIp ?: emptyMap()).values.flatten() +
+                                (config.products.license ?: emptyMap()).values.flatten()
 
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {
@@ -533,7 +546,11 @@ fun main(args: Array<String>) {
                     for ((_, plugin) in plugins.allocations) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.fileCollections) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.files) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.shares) plugin.apply { initialize() }
                     for ((_, plugin) in plugins.jobs) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.ingresses) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.publicIps) plugin.apply { initialize() }
+                    for ((_, plugin) in plugins.licenses) plugin.apply { initialize() }
                 }
             }
 
@@ -583,12 +600,14 @@ fun main(args: Array<String>) {
                     controllerContext,
                     FileController(controllerContext, envoyConfig),
                     FileCollectionController(controllerContext),
-                    ComputeController(controllerContext),
+                    ComputeController(controllerContext, envoyConfig, ktorEngine!!.application),
+                    IngressController(controllerContext),
+                    PublicIPController(controllerContext),
+                    LicenseController(controllerContext),
+                    ShareController(controllerContext),
                     ConnectionController(controllerContext, envoyConfig),
                     NotificationController(controllerContext),
                 )
-
-                rpcServer.start()
             }
 
             sendTerminalMessage {
@@ -604,10 +623,11 @@ fun main(args: Array<String>) {
 
                 val empty = "" to ""
                 val stats = ArrayList<Pair<String, String>>()
+                stats.add("Provider ID" to config.core.providerId)
                 stats.add("Mode" to serverMode.toString())
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
-                stats.add("My logs" to "${config.core.logs.directory}/${System.getProperty("log.module")}.log")
+                stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")
                 }
@@ -618,10 +638,18 @@ fun main(args: Array<String>) {
                     val connection = config.plugins.connection?.pluginTitle
                     val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
                     val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
 
-                    stats.add("Jobs" to (jobs ?: "No plugins"))
                     stats.add("Files" to (files ?: "No plugins"))
                     stats.add("Drives" to (fileCollections ?: "No plugins"))
+
+                    stats.add("Jobs" to (jobs ?: "No plugins"))
+                    stats.add("Public links" to (ingresses ?: "No plugins"))
+                    stats.add("Public IPs" to (publicIps ?: "No plugins"))
+                    stats.add("Licenses" to (licenses ?: "No plugins"))
+
                     stats.add("Projects" to (projects ?: "No plugins"))
                     stats.add("Connection" to (connection ?: "No plugins"))
                 }
@@ -648,9 +676,6 @@ fun main(args: Array<String>) {
     }
 }
 
-// NOTE(Dan): Used to access the class loader from the main function
-private object __ClassLoaderDummy
-
 // TODO(Dan): We have a number of utilities which should probably be moved out of this file.
 
 private fun RpcServer.configureControllers(ctx: ControllerContext, vararg controllers: Controller) {
@@ -662,6 +687,10 @@ private fun RpcServer.configureControllers(ctx: ControllerContext, vararg contro
             if (it is IpcController) it.configureIpc(ipcServer)
         }
     }
+
+    start()
+
+    controllers.forEach { it.onServerReady(this) }
 }
 
 fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
@@ -691,5 +720,4 @@ private fun readSelfExecutablePath(): String {
     return File("/proc/self/exe").toPath().readSymbolicLink().toFile().absolutePath
 }
 
-const val ENVOY_CONFIG_PATH = "/var/run/ucloud/envoy"
 const val UCLOUD_IM_PORT = 42000

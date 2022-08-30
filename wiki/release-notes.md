@@ -7,6 +7,31 @@ use.
 Note that each service may have more than one deployment associated with it.
 For details look in the `k8.kts` folders of each microservice.
 
+## 29-08-22
+
+```
+✅  Deployment(app-kubernetes, 2022.2.8) (UP-TO-DATE)
+```
+
+## 25-08-22
+
+Fixes an overflow in file sorting also deploys latest version of the frontend.
+
+```
+✅  Deployment(file-ucloud, 2022.2.7) (UP-TO-DATE)
+✅  Deployment(webclient, 2022.2.7) (UP-TO-DATE)
+
+```
+
+
+## 18-08-22
+
+Fix to storage scan
+```
+✅  Deployment(file-ucloud, 2022.2.4-StorageScanFix) (UP-TO-DATE)
+
+```
+
 ## 16-08-22
 
 Fix to missing home files

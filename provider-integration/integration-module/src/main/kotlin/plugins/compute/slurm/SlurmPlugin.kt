@@ -15,6 +15,7 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -29,7 +30,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
-import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.builtins.serializer
 import java.io.File
 import kotlin.math.max
@@ -154,7 +154,7 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
-    override suspend fun PluginContext.create(resource: Job): FindByStringId? {
+    override suspend fun RequestContext.create(resource: Job): FindByStringId? {
         val jobFolder = findJobFolder(resource.id)
 
         val account = ipcClient.sendRequest(
@@ -176,17 +176,17 @@ class SlurmPlugin : ComputePlugin {
         return null
     }
 
-    override suspend fun PluginContext.terminate(resource: Job) {
+    override suspend fun RequestContext.terminate(resource: Job) {
         // NOTE(Dan): Everything else should be handled by the monitoring loop
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(resource.id))
         cli.cancelJob(slurmJob.partition, slurmJob.slurmId)
     }
 
-    override suspend fun PluginContext.extend(request: JobsProviderExtendRequestItem) {
+    override suspend fun RequestContext.extend(request: JobsProviderExtendRequestItem) {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
-    override suspend fun PluginContext.suspendJob(request: JobsProviderSuspendRequestItem) {
+    override suspend fun RequestContext.suspendJob(request: JobsProviderSuspendRequestItem) {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
@@ -277,27 +277,25 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
-    override suspend fun PluginContext.openInteractiveSession(
+    override suspend fun RequestContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
-    ): OpenSession {
-        val sessionId = secureToken(16)
-        ipcClient.sendRequest(SlurmSessionIpc.create, InteractiveSession(sessionId, job.rank, job.job.id))
+    ): ComputeSession {
+        if (job.sessionType != InteractiveSessionType.SHELL) {
+            throw RPCException("Not supported", HttpStatusCode.BadRequest)
+        }
 
-        return OpenSession.Shell(job.job.id, job.rank, sessionId)
-    }
-
-    override suspend fun PluginContext.canHandleShellSession(request: ShellRequest.Initialize): Boolean {
-        val session: InteractiveSession =
-            ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
-        return request.sessionIdentifier == session.token
+        return ComputeSession()
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
+        val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
+        val nodeToUse = nodes[jobRank]
+
         /*
         val session: InteractiveSession =
             ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
-        val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
 
         val process = startProcess(
             args = listOf(
@@ -382,7 +380,7 @@ class SlurmPlugin : ComputePlugin {
 
     // Server Mode
     // =================================================================================================================
-    override suspend fun PluginContext.retrieveClusterUtilization(): JobsProviderUtilizationResponse {
+    override suspend fun RequestContext.retrieveClusterUtilization(categoryId: String): JobsProviderUtilizationResponse {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
@@ -656,7 +654,7 @@ class SlurmPlugin : ComputePlugin {
         )
     }
 
-    override suspend fun PluginContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {
+    override suspend fun RequestContext.retrieveProducts(knownProducts: List<ProductReference>): BulkResponse<ComputeSupport> {
         return BulkResponse(knownProducts.map { ref ->
             ComputeSupport(
                 ref,
@@ -678,7 +676,6 @@ class SlurmPlugin : ComputePlugin {
         })
     }
 
-    @Suppress("VARIABLE_IN_SINGLETON_WITHOUT_THREAD_LOCAL")
     companion object {
         private val log = Logger("SlurmPlugin")
 

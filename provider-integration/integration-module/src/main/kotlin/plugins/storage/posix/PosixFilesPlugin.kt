@@ -14,9 +14,10 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.FileDownloadSession
 import dk.sdu.cloud.plugins.FilePlugin
 import dk.sdu.cloud.plugins.FileUploadSession
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.plugins.UCloudFile
-import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
@@ -40,7 +41,6 @@ import java.nio.file.*
 import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
-import kotlin.io.path.absolute
 import kotlin.io.path.absolutePathString
 import kotlin.math.min
 import java.nio.file.Files as NioFiles
@@ -143,7 +143,7 @@ class PosixFilesPlugin : FilePlugin {
         throw RPCException.fromStatusCode(HttpStatusCode.Conflict)
     }
 
-    override suspend fun PluginContext.move(
+    override suspend fun RequestContext.move(
         req: BulkRequest<FilesProviderMoveRequestItem>
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
@@ -167,7 +167,7 @@ class PosixFilesPlugin : FilePlugin {
         )
     }
 
-    override suspend fun PluginContext.copy(
+    override suspend fun RequestContext.copy(
         req: BulkRequest<FilesProviderCopyRequestItem>
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
@@ -213,13 +213,13 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
+    override suspend fun RequestContext.retrieve(request: FilesProviderRetrieveRequest): PartialUFile {
         return nativeStat(pathConverter.ucloudToInternal(UCloudFile.create(request.retrieve.id)))
     }
 
     private val browseCache = SimpleCache<String, List<PartialUFile>>(lookup = { null })
 
-    override suspend fun PluginContext.browse(
+    override suspend fun RequestContext.browse(
         path: UCloudFile,
         request: FilesProviderBrowseRequest
     ): PageV2<PartialUFile> {
@@ -312,7 +312,7 @@ class PosixFilesPlugin : FilePlugin {
         )
     }
 
-    override suspend fun PluginContext.moveToTrash(
+    override suspend fun RequestContext.moveToTrash(
         request: BulkRequest<FilesProviderTrashRequestItem>
     ): List<LongRunningTask?> {
         return request.items.map { reqItem ->
@@ -348,7 +348,7 @@ class PosixFilesPlugin : FilePlugin {
         ).process()
     }
 
-    override suspend fun PluginContext.emptyTrash(
+    override suspend fun RequestContext.emptyTrash(
         request: BulkRequest<FilesProviderEmptyTrashRequestItem>
     ): List<LongRunningTask?> {
         return request.items.map { reqItem ->
@@ -366,7 +366,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.delete(resource: UFile) {
+    override suspend fun RequestContext.delete(resource: UFile) {
         delete(pathConverter.ucloudToInternal(UCloudFile.create(resource.id)))
     }
 
@@ -386,7 +386,7 @@ class PosixFilesPlugin : FilePlugin {
         })
     }
 
-    override suspend fun PluginContext.createFolder(
+    override suspend fun RequestContext.createFolder(
         req: BulkRequest<FilesProviderCreateFolderRequestItem>
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
@@ -397,7 +397,7 @@ class PosixFilesPlugin : FilePlugin {
         return result
     }
 
-    override suspend fun PluginContext.createUpload(
+    override suspend fun RequestContext.createUpload(
         request: BulkRequest<FilesProviderCreateUploadRequestItem>
     ): List<FileUploadSession> {
         return request.items.map {
@@ -410,7 +410,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.handleUpload(
+    override suspend fun RequestContext.handleUpload(
         session: String,
         pluginData: String,
         offset: Long,
@@ -427,7 +427,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.createDownload(
+    override suspend fun RequestContext.createDownload(
         request: BulkRequest<FilesProviderCreateDownloadRequestItem>
     ): List<FileDownloadSession> {
         return request.items.map {
@@ -443,7 +443,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) {
+    override suspend fun RequestContext.handleDownload(ctx: HttpCall, session: String, pluginData: String) {
         val file = InternalFile(pluginData).toNioPath()
         if (!NioFiles.isRegularFile(file)) {
             throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
@@ -469,7 +469,7 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-    override suspend fun PluginContext.retrieveProducts(
+    override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
         return BulkResponse(knownProducts.map {

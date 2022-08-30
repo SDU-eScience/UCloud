@@ -3,14 +3,13 @@ package dk.sdu.cloud.config
 import com.charleskorn.kaml.PolymorphismStyle
 import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
-import com.charleskorn.kaml.YamlNode
-import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import java.io.File
 import kotlin.system.exitProcess
 
 // NOTE(Dan): The ConfigSchema contains the raw schema which is parsed directly from several configuration files
@@ -39,6 +38,7 @@ data class ConfigSchema(
         val ipc: Ipc? = null,
         val logs: Logs? = null,
         val launchRealUserInstances: Boolean = true,
+        val allowRootMode: Boolean = false,
     ) {
         @Serializable
         data class Hosts(
@@ -62,6 +62,8 @@ data class ConfigSchema(
         val refreshToken: String,
         val network: Network? = null,
         val developmentMode: DevelopmentMode? = null,
+        val database: Database? = null,
+        val envoy: Envoy? = null,
     ) {
         @Serializable
         data class Network(
@@ -80,6 +82,17 @@ data class ConfigSchema(
                 val port: Int,
             )
         }
+
+        @Serializable
+        data class Database(
+            val file: String,
+        )
+
+        @Serializable
+        data class Envoy(
+            val executable: String? = null,
+            val directory: String,
+        )
     }
 
     @Serializable
@@ -89,6 +102,10 @@ data class ConfigSchema(
         val jobs: Map<String, Jobs>? = null,
         val files: Map<String, Files>? = null,
         val fileCollections: Map<String, FileCollections>? = null,
+        val ingresses: Map<String, Ingresses>? = null,
+        val publicIps: Map<String, PublicIPs>? = null,
+        val licenses: Map<String, Licenses>? = null,
+        val shares: Map<String, Shares>? = null,
         val allocations: Map<AllocationsProductType, Allocations>? = null,
     ) {
         enum class AllocationsProductType(val type: ProductType?) {
@@ -106,7 +123,7 @@ data class ConfigSchema(
             @SerialName("UCloud")
             data class UCloud(
                 val redirectTo: String,
-                val extensions: Extensions,
+                val extensions: Extensions = Extensions(),
 
                 // NOTE(Dan): The message signing protocol directly requires safe authentication between end-user and provider
                 // directly. The UCloud connection plugin provides no such thing and implicitly trusts UCloud. This trust makes
@@ -116,14 +133,13 @@ data class ConfigSchema(
             ): Connection() {
                 @Serializable
                 data class Extensions(
-                    val onConnectionComplete: String
+                    val onConnectionComplete: String? = null
                 )
             }
 
             @Serializable
             @SerialName("Ticket")
             class Ticket : Connection()
-
 
             @Serializable
             @SerialName("OpenIdConnect")
@@ -202,14 +218,7 @@ data class ConfigSchema(
                 val customerId: String,
                 val offeringId: String,
                 val planId: String,
-            ) : Projects() {
-                /*
-                    endpoint = "https://puhuri-core-beta.neic.no/api/"
-                    customerId = "579f3e4d309a4b208026e784bf0775a3"
-                    offeringId = "5c93748e796b47eaaec0805153e66fb4"
-                    planId = "a274fc378464423390bf596991e10328"
-                 */
-            }
+            ) : Projects()
         }
 
         @Serializable
@@ -259,6 +268,29 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : Jobs()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val kubeConfig: String? = null,
+                val kubeSvcOverride: String? = null,
+                val useMachineSelector: Boolean = false,
+                val systemReservedCpuMillis: Int = 0,
+                val systemReservedMemMegabytes: Int = 0,
+                val forceMinimumReservation: Boolean = false,
+                val nodeToleration: TolerationKeyAndValue? = null,
+                val namespace: String = "app-kubernetes",
+                val scheduler: Scheduler = Scheduler.Volcano,
+            ) : Jobs() {
+                @Serializable
+                data class TolerationKeyAndValue(val key: String, val value: String)
+
+                enum class Scheduler {
+                    Volcano,
+                    Pods
+                }
+            }
         }
 
         @Serializable
@@ -272,6 +304,16 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : Files()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val mountLocation: String,
+                val useCephStats: Boolean = false,
+                val accountingEnabled: Boolean = false,
+                val indexingEnabled: Boolean = false,
+            ) : Files()
         }
 
         @Serializable
@@ -299,6 +341,50 @@ data class ConfigSchema(
             @Serializable
             @SerialName("Puhuri")
             class Puhuri(override val matches: String) : FileCollections()
+
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(override val matches: String) : FileCollections()
+        }
+
+        @Serializable
+        sealed class Ingresses : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val domainPrefix: String,
+                val domainSuffix: String,
+            ) : Ingresses()
+        }
+
+        @Serializable
+        sealed class PublicIPs : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String,
+                val iface: String,
+                val gatewayCidr: String?
+            ) : PublicIPs()
+        }
+
+        @Serializable
+        sealed class Licenses : ProductBased {
+            @Serializable
+            @SerialName("Generic")
+            class Generic(
+                override val matches: String,
+            ) : Licenses()
+        }
+
+        @Serializable
+        sealed class Shares : ProductBased {
+            @Serializable
+            @SerialName("UCloud")
+            class UCloud(
+                override val matches: String
+            ) : Shares()
         }
 
         interface ProductBased {
@@ -310,6 +396,9 @@ data class ConfigSchema(
     data class Products(
         val compute: Map<String, List<ConfigProduct.Compute>>? = null,
         val storage: Map<String, List<ConfigProduct.Storage>>? = null,
+        val ingress: Map<String, List<ConfigProduct.Ingress>>? = null,
+        val publicIps: Map<String, List<ConfigProduct.NetworkIP>>? = null,
+        val licenses: Map<String, List<ConfigProduct.License>>? = null,
     )
 
     @Serializable
@@ -350,7 +439,8 @@ data class Host(val host: String, val scheme: String, val port: Int) {
 }
 
 fun loadConfiguration(): ConfigSchema {
-    val configDir = "/etc/ucloud"
+    val potentialAltConfigDir = runCatching { File("/etc/ucloud/configdir.txt").readText().trim() }.getOrNull()
+    val configDir = potentialAltConfigDir ?: "/etc/ucloud"
     val yaml = Yaml(
         configuration = YamlConfiguration(
             polymorphismStyle = PolymorphismStyle.Property,

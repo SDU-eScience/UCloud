@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.client.withFixedHost
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
@@ -283,7 +284,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
         }
     }
 
-    override suspend fun PluginContext.initiateConnection(username: String): ConnectionResponse {
+    override suspend fun RequestContext.initiateConnection(username: String): ConnectionResponse {
         val token = OidcState(secureToken(32))
         runBlocking {
             stateTableMutex.withLock {

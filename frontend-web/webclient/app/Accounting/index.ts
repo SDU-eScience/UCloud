@@ -382,20 +382,20 @@ export function explainUsage(type: ProductType, chargeType: ChargeType, unit: Pr
     return explainAllocation(type, chargeType, unit);
 }
 
-export function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): string {
+function explainPrice(type: ProductType, chargeType: ChargeType, unit: ProductPriceUnit): { readableUnit: string, durationInMinutes: number } {
     switch (unit) {
         case "PER_UNIT": {
             switch (type) {
                 case "INGRESS":
-                    return "Public link(s)";
+                    return { readableUnit: "Public link(s)", durationInMinutes: 1 };
                 case "NETWORK_IP":
-                    return "Public IP(s)";
+                    return { readableUnit: "Public IP(s)", durationInMinutes: 1 };
                 case "LICENSE":
-                    return "License(s)";
+                    return { readableUnit: "License(s)", durationInMinutes: 1 };
                 case "STORAGE":
-                    return "GB";
+                    return { readableUnit: "GB", durationInMinutes: 1 };
                 case "COMPUTE":
-                    return "Job(s)";
+                    return { readableUnit: "Job(s)", durationInMinutes: 1 };
             }
         }
 
@@ -405,15 +405,15 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
         case "CREDITS_PER_DAY": {
             switch (type) {
                 case "INGRESS":
-                    return "DKK/day";
+                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
                 case "NETWORK_IP":
-                    return "DKK/day";
+                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
                 case "LICENSE":
-                    return "DKK/day";
+                    return { readableUnit: "DKK/day", durationInMinutes: DAY };
                 case "STORAGE":
-                    return "DKK/day of one GB";
+                    return { readableUnit: "DKK/GB-day", durationInMinutes: DAY };
                 case "COMPUTE":
-                    return "DKK/hour";
+                    return { readableUnit: "DKK/hour", durationInMinutes: HOUR };
             }
         }
 
@@ -423,17 +423,17 @@ export function explainPrice(type: ProductType, chargeType: ChargeType, unit: Pr
         case "UNITS_PER_DAY": {
             switch (type) {
                 case "INGRESS":
-                    return "Days of public link";
+                    return { readableUnit: "Days of public link", durationInMinutes: DAY };
                 case "NETWORK_IP":
-                    return "Days of public IP";
+                    return { readableUnit: "Days of public IP", durationInMinutes: DAY };
                 case "LICENSE":
-                    return "Days of license";
+                    return { readableUnit: "Days of license", durationInMinutes: DAY };
                 case "STORAGE":
                     // TODO Someone should come up with a better name for this. I don't see _why_ you would want to
                     //  bill like this, but I also don't know what to call it.
-                    return "Days of GB";
+                    return { readableUnit: "Days of GB", durationInMinutes: DAY };
                 case "COMPUTE":
-                    return "Core hour(s)";
+                    return { readableUnit: "Core hour(s)", durationInMinutes: HOUR };
             }
         }
     }
@@ -498,14 +498,12 @@ export function normalizeBalanceForFrontendOpts(
     chargeType: ChargeType,
     unit: ProductPriceUnit,
     opts: {
-        isPrice?: boolean,
         precisionOverride?: number,
-        multiplier?: number,
         forceInteger?: boolean
     }
 ): string {
     return normalizeBalanceForFrontend(balance, type, chargeType, unit,
-        opts.isPrice ?? true, opts.precisionOverride, opts.multiplier, opts.forceInteger);
+        opts.precisionOverride, opts.forceInteger);
 }
 
 export function normalizeBalanceForFrontend(
@@ -513,9 +511,7 @@ export function normalizeBalanceForFrontend(
     type: ProductType,
     chargeType: ChargeType,
     unit: ProductPriceUnit,
-    isPrice: boolean,
     precisionOverride?: number,
-    multiplier?: number,
     forceInteger?: boolean
 ): string {
     switch (unit) {
@@ -527,34 +523,7 @@ export function normalizeBalanceForFrontend(
         case "CREDITS_PER_MINUTE":
         case "CREDITS_PER_HOUR":
         case "CREDITS_PER_DAY": {
-            if (!isPrice) {
-                return currencyFormatter(balance, precisionOverride ?? 2, forceInteger ?? false);
-            }
-
-            const inputIs = unit === "CREDITS_PER_MINUTE" ? MINUTE : unit === "CREDITS_PER_HOUR" ? HOUR : DAY;
-
-            switch (type) {
-                case "INGRESS": {
-                    const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
-                }
-                case "NETWORK_IP": {
-                    const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
-                }
-                case "LICENSE": {
-                    const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
-                }
-                case "STORAGE": {
-                    const factor = (DAY / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 2, forceInteger ?? false);
-                }
-                case "COMPUTE": {
-                    const factor = (HOUR / inputIs) * (multiplier ?? 1);
-                    return currencyFormatter(balance * factor, precisionOverride ?? 4, forceInteger ?? false);
-                }
-            }
+            return currencyFormatter(balance, precisionOverride ?? 2, forceInteger ?? false);
         }
 
         // eslint-disable-next-line no-fallthrough
@@ -612,12 +581,12 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
     // Group into before and after decimal separator
     const stringified = credits.toString().padStart(6, "0");
 
-    let before = stringified.substr(0, stringified.length - 6);
-    let after = stringified.substr(stringified.length - 6);
+    let before = stringified.substring(0, stringified.length - 6);
+    let after = stringified.substring(stringified.length - 6);
     if (before === "") before = "0";
     if (after === "") after = "0";
     after = after.padStart(precision, "0");
-    after = after.substr(0, precision);
+    after = after.substring(0, precision);
 
     // Truncate trailing zeroes (but keep at least two)
     if (precision > 2) {
@@ -631,7 +600,7 @@ function currencyFormatter(credits: number, precision = 2, forceInteger: boolean
         }
 
         if (firstZeroAt !== -1) { // We have trailing zeroes
-            after = after.substr(0, firstZeroAt);
+            after = after.substring(0, firstZeroAt);
         }
     }
 
@@ -662,11 +631,18 @@ function addThousandSeparators(numberOrString: string | number): string {
     return result;
 }
 
+// TODO(Dan): This interface is completely insane. Re-do this at some point.
 export function priceExplainer(product: Product): string {
-    const amount = normalizeBalanceForFrontend(product.pricePerUnit, product.productType, product.chargeType,
-        product.unitOfPrice, true, undefined, product.productType === "COMPUTE" ? (product["cpu"] ?? 1) : undefined);
-    const suffix = explainPrice(product.productType, product.chargeType, product.unitOfPrice);
-    return `${amount} ${suffix}`
+    const { readableUnit, durationInMinutes } = explainPrice(product.productType, product.chargeType,
+        product.unitOfPrice);
+
+    const amount = normalizeBalanceForFrontend(
+        costOfDuration(durationInMinutes, 1, product),
+        product.productType,
+        product.chargeType,
+        product.unitOfPrice,
+    );
+    return `${amount} ${readableUnit}`
 }
 
 export function costOfDuration(minutes: number, numberOfProducts: number, product: Product): number {
@@ -699,7 +675,8 @@ export function usageExplainer(
     chargeType: ChargeType,
     unitOfPrice: ProductPriceUnit
 ): string {
-    const amount = normalizeBalanceForFrontend(usage, productType, chargeType, unitOfPrice, false);
+    const amount = normalizeBalanceForFrontend(usage, productType, chargeType, unitOfPrice);
     const suffix = explainUsage(productType, chargeType, unitOfPrice);
     return `${amount} ${suffix}`;
 }
+

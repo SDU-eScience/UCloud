@@ -205,9 +205,9 @@ function ResourceBarsByChargeType(props: {chargeType: ChargeType; wallets: Recor
         const asPercent = resultAsPercent(total);
         const doTruncate = total.initialBalance > 1_000_000;
         const usedBalance = doTruncate ? (total.initialBalance - total.balance) / 1_000 : (total.initialBalance - total.balance);
-        const initialBalance = doTruncate ? (total.initialBalance) / 1000 : total.initialBalance;
-        const used = normalizeBalanceForFrontend(usedBalance, productType, chargeType, unit, false);
-        const initial = normalizeBalanceForFrontend(initialBalance, productType, chargeType, unit, false);
+        const initialBalance = doTruncate ? (total.initialBalance) / 1_000 : total.initialBalance;
+        const used = normalizeBalanceForFrontend(Math.floor(usedBalance), productType, chargeType, unit);
+        const initial = normalizeBalanceForFrontend(Math.floor(initialBalance), productType, chargeType, unit);
         const allocationExplanation = allocationText(unit, productType, props.chargeType, doTruncate);
         const resourceProgress = `${used} / ${initial} ${allocationExplanation} (${Math.round(asPercent)}%)`;
         return <ResourceProgressWrapper key={unit + productType}>
@@ -237,8 +237,8 @@ function SimpleWalletView(props: {wallets: Wallet[];}): JSX.Element {
             const expiration = wallet.allocations.reduce((lowest, wallet) =>
                 wallet.endDate && wallet.endDate < lowest ? wallet.endDate! : lowest, VERY_HIGH_DATE_VALUE
             );
-            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit, false);
-            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit, false);
+            const used = normalizeBalanceForFrontend(total.initialBalance - total.balance, wallet.productType, wallet.chargeType, wallet.unit);
+            const initial = normalizeBalanceForFrontend(total.initialBalance, wallet.productType, wallet.chargeType, wallet.unit);
             const resourceProgress = `${used} / ${initial} ${explainAllocation(wallet.productType, wallet.chargeType, wallet.unit)} (${Math.round(asPercent)}%)`;
             const expirationText = expiration === VERY_HIGH_DATE_VALUE ? "" : `Earliest expiration: ${format(expiration, FORMAT)}`;
             return (
@@ -320,7 +320,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <div><b>{wallet.paysFor.name} @ {wallet.paysFor.provider} [{allocation.id}]</b></div>
                     <Box flexGrow={1} />
                 </Flex>}
-                <div>{usageExplainer(allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} remaining</div>
+                <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>

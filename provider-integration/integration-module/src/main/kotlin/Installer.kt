@@ -85,7 +85,12 @@ fun runInstaller(
             bold { blue { line("Awaiting response from UCloud/Core. Please keep UCloud/IM running!") } }
         }
 
-        val envoy = EnvoyConfigurationService(ENVOY_CONFIG_PATH)
+        val envoy = EnvoyConfigurationService(
+            executable = null,
+            configDir = "/var/run/ucloud/envoy",
+            useUCloudUsernameHeader = false,
+            logDirectory = "/tmp",
+        )
         val server = RpcServer()
         val engine = embeddedServer(CIO, port = UCLOUD_IM_PORT) {}
         server.attachRequestInterceptor(IngoingHttpInterceptor(engine, server))

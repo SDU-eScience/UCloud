@@ -5,6 +5,7 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.debug.DebugSystem
 import dk.sdu.cloud.ipc.IpcClient
+import dk.sdu.cloud.ipc.RealIpcClient
 import dk.sdu.cloud.ipc.IpcServer
 
 interface PluginContext {

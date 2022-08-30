@@ -145,7 +145,7 @@ async function findSensitivityWithFallback(file: UFile): Promise<SensitivityLeve
     return (await findSensitivity(file)) ?? "PRIVATE";
 }
 
-async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
+export async function findSensitivity(file: UFile): Promise<SensitivityLevel | undefined> {
     if (!sensitivityTemplateId) {
         sensitivityTemplateId = await findTemplateId(file, FileSensitivityNamespace, FileSensitivityVersion);
         if (!sensitivityTemplateId) {
@@ -844,10 +844,29 @@ function synchronizationOpEnabled(isDir: boolean, files: UFile[], cb: ResourceBr
     return true;
 }
 
-function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
+async function synchronizationOpOnClick(files: UFile[], cb: ResourceBrowseCallbacks<UFile> & ExtraCallbacks) {
     const synchronized: SyncthingFolder[] = cb.syncthingConfig?.folders ?? [];
     const resolvedFiles = files.length === 0 ? (cb.directory ? [cb.directory] : []) : files;
     const allSynchronized = resolvedFiles.every(selected => synchronized.some(it => it.ucloudPath === selected.id));
+
+    if (!allSynchronized) {
+        const synchronizedFolderNames = synchronized.map(it => it.ucloudPath.split("/").pop());
+
+        for (const folder of resolvedFiles) {
+            if (synchronizedFolderNames.includes(folder.id.split("/").pop())) {
+                snackbarStore.addFailure("Folder with same name already exist in Syncthing", false)
+                return;
+            }
+        }
+
+        for (const folder of resolvedFiles) {
+            const sensitivity = await findSensitivity(folder);
+            if (sensitivity == "SENSITIVE") {
+                snackbarStore.addFailure("Folder marked as sensitive cannot be added to Syncthing", false)
+                return;
+            }
+        }
+    }
 
     const devices: SyncthingDevice[] = cb.syncthingConfig?.devices ?? [];
     if (devices.length === 0) {

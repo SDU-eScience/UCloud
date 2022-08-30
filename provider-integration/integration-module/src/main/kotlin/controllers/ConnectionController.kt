@@ -162,7 +162,7 @@ class ConnectionController(
             val server = (ctx as? HttpCall)
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
 
-            with(pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     val html = showInstructions(mapOf("ticket" to listOf(request.ticket))).html
 
@@ -196,7 +196,7 @@ class ConnectionController(
         }
 
         implement(im.connect) {
-            with(pluginContext) {
+            with(requestContext(controllerContext)) {
                 with(plugin) {
                     val requireSigning = requireMessageSigning()
                     when (val result = initiateConnection(request.username)) {

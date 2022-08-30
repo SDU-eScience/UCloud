@@ -11,7 +11,6 @@ import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.decodeFromJsonElement
 
 class IpcToUCloudProxyServer {
     fun init(server: IpcServer, client: AuthenticatedClient) {

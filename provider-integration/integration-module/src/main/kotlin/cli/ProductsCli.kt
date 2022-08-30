@@ -61,7 +61,9 @@ fun ProductsCli(controllerContext: ControllerContext) {
                                     run {
                                         // NOTE(Dan): Cost explanation is somewhat complicated
 
-                                        if (p.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
+                                        if (p.freeToUse) {
+                                            line("This product will be free and usable by everybody.")
+                                        } else if (p.chargeType == ChargeType.DIFFERENTIAL_QUOTA) {
                                             inline("This product will be allocated on a ")
                                             bold { inline("QUOTA") }
                                             line(" basis.")

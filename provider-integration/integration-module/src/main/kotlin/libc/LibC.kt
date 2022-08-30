@@ -6,6 +6,15 @@ import java.io.File
 import java.nio.ByteBuffer
 import kotlin.system.exitProcess
 
+class NativeStat(
+    val valid: Boolean,
+    val size: Long,
+    val modifiedAt: Long,
+    val ownerUid: Int,
+    val ownerGid: Int,
+    val mode: Int,
+)
+
 class LibC {
     external fun open(path: String?, flags: Int, mode: Int): Int
     external fun openat(fd: Int, path: String?, flags: Int, mode: Int): Int
@@ -37,6 +46,13 @@ class LibC {
 
     external fun retrieveUserIdFromName(name: String): Int
     external fun retrieveGroupIdFromName(name: String): Int
+
+    // Required by file-ucloud TODO implement them
+    external fun getErrno(): Int
+    external fun mkdirat(dirfd: Int, pathName: String, mode: Int): Int
+    external fun closedir(dirp: Long): Int
+    external fun fstat(fd: Int): NativeStat
+
 
     external fun getuid(): Int
 
@@ -73,7 +89,7 @@ class LibC {
                     }
 
                     line()
-                    line("Remember to ensure that the service user has the appropiate permissions for loading this library!")
+                    bold { line("Remember to ensure that the service user has the appropriate permissions for loading this library!") }
                 }
                 exitProcess(1)
             }

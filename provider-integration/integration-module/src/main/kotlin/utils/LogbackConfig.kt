@@ -1,16 +1,16 @@
 package dk.sdu.cloud.utils
 
-val logbackConfiguration = """
+fun logbackConfiguration(dir: String, module: String) = """
 <configuration>
     <appender name="generic-error-appender" class="ch.qos.logback.core.FileAppender">
-        <file>${"$"}{log.dir}/${"$"}{log.module}-error.log</file>
+        <file>$dir/$module-error.log</file>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
     </appender>
 
     <appender name="im-appender" class="ch.qos.logback.core.FileAppender">
-        <file>${"$"}{log.dir}/${"$"}{log.module}-ucloud.log</file>
+        <file>$dir/$module-ucloud.log</file>
         <encoder>
             <pattern>%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{35} - %msg%n</pattern>
         </encoder>

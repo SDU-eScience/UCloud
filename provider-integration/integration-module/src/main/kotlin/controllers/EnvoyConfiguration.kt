@@ -3,6 +3,7 @@ package dk.sdu.cloud.controllers
 import dk.sdu.cloud.ProcessingScope
 import dk.sdu.cloud.UCLOUD_IM_PORT
 import dk.sdu.cloud.base64Encode
+import dk.sdu.cloud.config.VerifiedConfig
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.utils.*
@@ -13,8 +14,20 @@ import kotlinx.serialization.json.*
 import kotlin.random.*
 
 class EnvoyConfigurationService(
+    private val executable: String?,
     private val configDir: String,
+    private val useUCloudUsernameHeader: Boolean,
+    private val logDirectory: String,
+    private val providerId: String? = null,
 ) {
+    constructor(config: VerifiedConfig) : this(
+        config.server.envoy.executable,
+        config.server.envoy.directory,
+        config.core.launchRealUserInstances,
+        config.core.logs.directory,
+        config.core.providerId,
+    )
+
     private sealed class ConfigurationMessage {
         data class NewCluster(
             val route: EnvoyRoute,
@@ -32,25 +45,25 @@ class EnvoyConfigurationService(
         if (!fileExists("$configDir/$rdsFile") || !fileExists("$configDir/$clustersFile")) {
             NativeFile.open("$configDir/$rdsFile", readOnly = false).writeText("{}")
             NativeFile.open("$configDir/$clustersFile", readOnly = false).writeText("{}")
-            configure(configDir, emptyList(), emptyList())
+            configure(emptyList(), emptyList())
         }
     }
 
     fun start(port: Int?) {
         writeConfigurationFile(port ?: 8889)
 
-        val logFile = "/tmp/envoy.log"
+        val logFile = "/${logDirectory}/envoy.log"
 
         // TODO We probably cannot depend on this being allowed to download envoy for us. We need an alternative for
         //  people who don't what this.
         val envoyProcess = startProcess(
             args = listOf(
-                "/usr/local/bin/getenvoy",
+                executable ?: "/usr/local/bin/getenvoy",
                 "run",
                 "--config-path",
                 "$configDir/$configFile"
             ),
-            envs = listOf("ENVOY_VERSION=1.19.0"),
+            envs = listOf("ENVOY_VERSION=1.23.0"),
             attachStdout = false,
             attachStderr = false,
             attachStdin = false,
@@ -61,15 +74,24 @@ class EnvoyConfigurationService(
             val wsRoutes = ArrayList<EnvoyRoute.ShellSession>()
 
             run {
-                val id = "_UCloud"
-                entries[id] = Pair(
-                    EnvoyRoute.Standard(null, id),
-                    EnvoyCluster.create(id, "127.0.0.1", UCLOUD_IM_PORT)
+                entries[IM_SERVER_CLUSTER] = Pair(
+                    EnvoyRoute.Standard(null, IM_SERVER_CLUSTER),
+                    EnvoyCluster.create(IM_SERVER_CLUSTER, "127.0.0.1", UCLOUD_IM_PORT)
                 )
+
+                if (providerId != null) {
+                    entries["_AUTHORIZE"] = Pair(
+                        EnvoyRoute.WebAuthorizeSession(
+                            providerId,
+                            IM_SERVER_CLUSTER
+                        ),
+                        null
+                    )
+                }
 
                 val routes = entries.values.map { it.first }
                 val clusters = entries.values.mapNotNull { it.second }
-                configure(configDir, routes, clusters)
+                configure(routes, clusters)
             }
 
             while (isActive) {
@@ -90,7 +112,7 @@ class EnvoyConfigurationService(
                 allRoutes.addAll(routes)
                 allRoutes.addAll(wsRoutes)
 
-                configure(configDir, allRoutes, clusters)
+                configure(allRoutes, clusters)
             }
         }
 
@@ -143,21 +165,79 @@ static_resources:
                 "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
                 codec_type: HTTP1
                 http_filters:
+                - name: envoy.filters.http.ext_authz 
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthz
+                    failure_mode_allow: false
+                    http_service:
+                      path_prefix: /app-authorize-request
+                      server_uri:
+                        uri: http://0.0.0.0/
+                        cluster: ext-authz
+                        timeout: 0.25s
+                      authorization_request:
+                        allowed_headers:
+                          patterns:
+                            - exact: Cookie
+                              ignore_case: true
+                      authorization_response:
+                        allowed_upstream_headers:
+                          patterns:
+                            - exact: Cookie
+                              ignore_case: true
                 - name: envoy.filters.http.router
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
                 stat_prefix: ingress_http
                 rds:
                   route_config_name: local_route
                   config_source:
                     path: $configDir/$rdsFile
-  clusters: []
+  clusters:
+  - name: ext-authz
+    connect_timeout: 0.25s
+    type: STATIC
+    lb_policy: ROUND_ROBIN
+    upstream_connection_options:
+      tcp_keepalive: {}
+    load_assignment:
+      cluster_name: ext-authz
+      endpoints:
+      - lb_endpoints:
+        - endpoint:
+            address:
+              socket_address:
+                address: 127.0.0.1
+                port_value: 42000
           """
         )
     }
 
-    fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster?) {
+    fun requestConfiguration(route: EnvoyRoute, cluster: EnvoyCluster? = null) {
         runBlocking {
             channel.send(ConfigurationMessage.NewCluster(route, cluster))
         }
+    }
+
+    private fun configure(routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
+        val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
+        NativeFile.open(tempRouteFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
+                EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes, useUCloudUsernameHeader)))
+            )
+        )
+
+        val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
+        NativeFile.open(tempClusterFile, readOnly = false).writeText(
+            defaultMapper.encodeToString(
+                EnvoyResources.serializer(EnvoyCluster.serializer()),
+                EnvoyResources(clusters)
+            )
+        )
+
+        renameFile(tempRouteFile, "$configDir/$rdsFile")
+        renameFile(tempClusterFile, "$configDir/$clustersFile")
     }
 
     companion object : Loggable {
@@ -167,26 +247,7 @@ static_resources:
         private const val clustersFile = "clusters.yaml"
         private const val configFile = "config.yaml"
 
-        private fun configure(configDir: String, routes: List<EnvoyRoute>, clusters: List<EnvoyCluster>) {
-            val tempRouteFile = "$configDir/$tempPrefix$rdsFile"
-            NativeFile.open(tempRouteFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(
-                    EnvoyResources.serializer(EnvoyRouteConfiguration.serializer()),
-                    EnvoyResources(listOf(EnvoyRouteConfiguration.create(routes)))
-                )
-            )
-
-            val tempClusterFile = "$configDir/$tempPrefix$clustersFile"
-            NativeFile.open(tempClusterFile, readOnly = false).writeText(
-                defaultMapper.encodeToString(
-                    EnvoyResources.serializer(EnvoyCluster.serializer()),
-                    EnvoyResources(clusters)
-                )
-            )
-
-            renameFile(tempRouteFile, "$configDir/$rdsFile")
-            renameFile(tempClusterFile, "$configDir/$clustersFile")
-        }
+        const val IM_SERVER_CLUSTER = "_UCloud"
     }
 }
 
@@ -228,30 +289,63 @@ sealed class EnvoyRoute {
         val providerId: String,
         override val cluster: String
     ) : EnvoyRoute()
+
+    data class WebIngressSession(
+        val identifier: String,
+        val domain: String,
+        val isAuthorizationEnabled: Boolean,
+        override val cluster: String,
+    ) : EnvoyRoute()
+
+    data class WebAuthorizeSession(
+        val providerId: String,
+        override val cluster: String,
+    ) : EnvoyRoute()
+
+    data class VncSession(
+        val identifier: String,
+        val providerId: String,
+        override val cluster: String,
+    ) : EnvoyRoute()
 }
 
 
 @Serializable
 class EnvoyRouteConfiguration(
     @SerialName("@type")
+    @Suppress("unused")
     val resourceType: String = "type.googleapis.com/envoy.config.route.v3.RouteConfiguration",
     val name: String = "local_route",
     @SerialName("virtual_hosts")
+    @Suppress("unused")
     val virtualHosts: List<JsonObject>,
 ) {
     companion object {
-        fun create(routes: List<EnvoyRoute>): EnvoyRouteConfiguration {
-
+        fun create(routes: List<EnvoyRoute>, useUCloudUsernameHeader: Boolean): EnvoyRouteConfiguration {
             val sortedRoutes = routes.sortedBy {
                 // NOTE(Dan): We must ensure that the sessions are routed with a higher priority, otherwise the
                 // traffic will always go to the wrong route.
                 when (it) {
-                    is EnvoyRoute.UploadSession -> 1
-                    is EnvoyRoute.DownloadSession -> 1
-                    is EnvoyRoute.ShellSession -> 1
-                    is EnvoyRoute.Standard -> 2
+                    is EnvoyRoute.DownloadSession -> 5
+                    is EnvoyRoute.ShellSession -> 5
+                    is EnvoyRoute.UploadSession -> 5
+                    is EnvoyRoute.VncSession -> 5
+
+                    is EnvoyRoute.WebAuthorizeSession -> 5
+                    is EnvoyRoute.WebIngressSession -> 6
+
+                    is EnvoyRoute.Standard -> 10
                 }
             }
+
+            // NOTE(Dan): Annoyingly we cannot enable it per route, we have to disable it for all
+            // other routes.
+            val disableAppAuthorization = "typed_per_filter_config" to JsonObject(
+                "envoy.filters.http.ext_authz" to JsonObject(
+                    "@type" to JsonPrimitive("type.googleapis.com/envoy.extensions.filters.http.ext_authz.v3.ExtAuthzPerRoute"),
+                    "disabled" to JsonPrimitive(true)
+                )
+            )
 
             return EnvoyRouteConfiguration(
                 virtualHosts = listOf(
@@ -276,29 +370,33 @@ class EnvoyRouteConfiguration(
                                 when (route) {
                                     is EnvoyRoute.Standard -> {
                                         val ucloudIdentity = route.ucloudIdentity
-                                        val cluster = route.cluster
                                         JsonObject(
                                             "match" to JsonObject(
-                                                "prefix" to JsonPrimitive("/"),
-                                                "headers" to JsonArray(
-                                                    JsonObject(
-                                                        buildMap {
-                                                            put("name", JsonPrimitive("UCloud-Username"))
-                                                            if (ucloudIdentity == null) {
-                                                                put("invert_match", JsonPrimitive(true))
-                                                                put("present_match", JsonPrimitive(true))
-                                                            } else {
-                                                                put(
-                                                                    "exact_match", JsonPrimitive(
-                                                                        base64Encode(ucloudIdentity.encodeToByteArray())
-                                                                    )
-                                                                )
-                                                            }
-                                                        }
-                                                    )
-                                                )
+                                                buildMap {
+                                                    put("prefix", JsonPrimitive("/"))
+                                                    if (useUCloudUsernameHeader) {
+                                                        put("headers", JsonArray(
+                                                            JsonObject(
+                                                                buildMap {
+                                                                    put("name", JsonPrimitive("UCloud-Username"))
+                                                                    if (ucloudIdentity == null) {
+                                                                        put("invert_match", JsonPrimitive(true))
+                                                                        put("present_match", JsonPrimitive(true))
+                                                                    } else {
+                                                                        put(
+                                                                            "exact_match", JsonPrimitive(
+                                                                                base64Encode(ucloudIdentity.encodeToByteArray())
+                                                                            )
+                                                                        )
+                                                                    }
+                                                                }
+                                                            )
+                                                        ))
+                                                    }
+                                                }
                                             ),
-                                            "route" to standardRouteConfig
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
 
@@ -316,6 +414,60 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.VncSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "path" to JsonPrimitive("/ucloud/${route.providerId}/vnc"),
+                                                "query_parameters" to JsonArray(
+                                                    JsonObject(
+                                                        "name" to JsonPrimitive("token"),
+                                                        "string_match" to JsonObject(
+                                                            "exact" to JsonPrimitive(route.identifier)
+                                                        )
+                                                    )
+                                                )
+                                            ),
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.WebAuthorizeSession -> {
+                                        JsonObject(
+                                            "match" to JsonObject(
+                                                "prefix" to JsonPrimitive("/ucloud/${route.providerId}/authorize-app"),
+                                            ),
+                                            "route" to standardRouteConfig,
+                                            disableAppAuthorization
+                                        )
+                                    }
+
+                                    is EnvoyRoute.WebIngressSession -> {
+                                        JsonObject(
+                                            buildMap {
+                                                put(
+                                                    "match", JsonObject(
+                                                        "prefix" to JsonPrimitive("/"),
+                                                        "headers" to JsonArray(
+                                                            JsonObject(
+                                                                "name" to JsonPrimitive(":authority"),
+                                                                "exact_match" to JsonPrimitive(route.domain)
+                                                            )
+                                                        )
+                                                    )
+                                                )
+                                                put("route", standardRouteConfig)
+
+                                                if (!route.isAuthorizationEnabled) {
+                                                    put(disableAppAuthorization.first, disableAppAuthorization.second)
+                                                } else {
+                                                    // app authorization enabled by not disabling it
+                                                }
+                                            }
                                         )
                                     }
 
@@ -333,6 +485,7 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
 
@@ -350,6 +503,7 @@ class EnvoyRouteConfiguration(
                                                 )
                                             ),
                                             "route" to standardRouteConfig,
+                                            disableAppAuthorization
                                         )
                                     }
                                 }
@@ -359,7 +513,8 @@ class EnvoyRouteConfiguration(
                                 ),
                                 "direct_response" to JsonObject(
                                     "status" to JsonPrimitive(449)
-                                )
+                                ),
+                                disableAppAuthorization
                             )
                         )
                     )

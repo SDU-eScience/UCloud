@@ -12,10 +12,9 @@ import dk.sdu.cloud.calls.server.IngoingCallFilter
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.controllers.MessageSigningIpc
-import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.detailD
-import dk.sdu.cloud.debug.everythingD
 import dk.sdu.cloud.ipc.IpcClient
+import dk.sdu.cloud.ipc.RealIpcClient
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient

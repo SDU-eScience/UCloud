@@ -654,10 +654,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     creditsInput.value = normalizeBalanceForFrontendOpts(
                                         credits,
                                         meta.productType, meta.chargeType, meta.unitOfPrice,
-                                        {
-                                            isPrice: false,
-                                            forceInteger: true
-                                        }
+                                        { forceInteger: true }
                                     );
                                 }
                             } else {

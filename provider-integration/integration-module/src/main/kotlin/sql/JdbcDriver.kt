@@ -1,5 +1,10 @@
 package dk.sdu.cloud.sql
 
+import dk.sdu.cloud.debug.DebugContext
+import dk.sdu.cloud.debug.DebugMessage
+import dk.sdu.cloud.debug.MessageImportance
+import dk.sdu.cloud.debugSystem
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.forEachIndexedGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -7,6 +12,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.sqlite.SQLiteConfig
 import org.sqlite.SQLiteException
 import org.sqlite.SQLiteOpenMode
@@ -42,7 +51,9 @@ class SimpleConnectionPool(val size: Int, private val constructor: (pool: Simple
 
         if (firstFree == -1) error("Could not find a free connection")
 
-        return connections[firstFree]
+        return connections[firstFree].also {
+            it.debugContext = DebugContext.create()
+        }
     }
 
     suspend fun recycle(instance: JdbcConnection) {
@@ -80,6 +91,9 @@ class JdbcConnection(
     private val pool: SimpleConnectionPool
 ) : DBContext.Connection() {
     var _connectionTicket = -1
+    lateinit var debugContext: DebugContext
+    private lateinit var currentTransactionContext: DebugContext
+
     init {
         connection.autoCommit = false
     }
@@ -90,30 +104,50 @@ class JdbcConnection(
 
     override suspend fun openTransaction() {
         // Already open
+        currentTransactionContext = DebugContext.createWithParent(debugContext.id)
+        debugSystem?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                currentTransactionContext,
+                DebugMessage.DBTransactionEvent.OPEN
+            )
+        )
     }
 
     override suspend fun commit() {
         connection.commit()
+        debugSystem?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                DebugContext.createWithParent(currentTransactionContext.id),
+                DebugMessage.DBTransactionEvent.COMMIT
+            )
+        )
     }
 
     override suspend fun rollback() {
         connection.rollback()
+        debugSystem?.sendMessage(
+            DebugMessage.DatabaseTransaction(
+                DebugContext.createWithParent(currentTransactionContext.id),
+                DebugMessage.DBTransactionEvent.ROLLBACK
+            )
+        )
     }
 
     override fun prepareStatement(statement: String): PreparedStatement =
-        JdbcPreparedStatement(statement, connection)
+        JdbcPreparedStatement(statement, connection, currentTransactionContext)
 }
 
 class JdbcPreparedStatement(
     private val rawStatement: String,
     private val conn: JavaSqlConnection,
+    private val context: DebugContext,
 ) : PreparedStatement {
     private val parameterNamesToIndex: Map<String, List<Int>>
-    private val boundValues = HashSet<String>()
     private val preparedStatement: String
     private val parameters: Array<Any?>
-    private val rawParameters = HashMap<String, Any?>()
+    private val debugParameters = HashMap<String, JsonElement>()
     private val statement: JavaSqlPreparedStatement
+    private var executeStart: Long = 0
 
     init {
         val parameterNamesToIndex = HashMap<String, List<Int>>()
@@ -151,36 +185,48 @@ class JdbcPreparedStatement(
     private fun indices(name: String): List<Int> = parameterNamesToIndex[name] ?: error("Unknown parameter $name")
 
     override suspend fun bindNull(param: String) {
+        debugParameters[param] = JsonNull
+
         for (idx in indices(param)) {
             statement.setNull(idx + 1, 0)
         }
     }
 
     override suspend fun bindInt(param: String, value: Int) {
+        debugParameters[param] = JsonPrimitive(value)
+
         for (idx in indices(param)) {
             statement.setInt(idx + 1, value)
         }
     }
 
     override suspend fun bindLong(param: String, value: Long) {
+        debugParameters[param] = JsonPrimitive(value)
+
         for (idx in indices(param)) {
             statement.setLong(idx + 1, value)
         }
     }
 
     override suspend fun bindString(param: String, value: String) {
+        debugParameters[param] = JsonPrimitive(value)
+
         for (idx in indices(param)) {
             statement.setString(idx + 1, value)
         }
     }
 
     override suspend fun bindBoolean(param: String, value: Boolean) {
+        debugParameters[param] = JsonPrimitive(value)
+
         for (idx in indices(param)) {
             statement.setBoolean(idx + 1, value)
         }
     }
 
     override suspend fun bindDouble(param: String, value: Double) {
+        debugParameters[param] = JsonPrimitive(value)
+
         for (idx in indices(param)) {
             statement.setDouble(idx + 1, value)
         }
@@ -197,6 +243,15 @@ class JdbcPreparedStatement(
     override suspend fun execute(isUpdateHint: Boolean?): ResultCursor {
         val isUpdate = if (isUpdateHint == true) true else if (isUpdateHint == false) false else !willReturnResults()
 
+        debugSystem?.sendMessage(
+            DebugMessage.DatabaseQuery(
+                DebugContext.createWithParent(context.id),
+                rawStatement,
+                JsonObject(debugParameters)
+            )
+        )
+
+        executeStart = Time.now()
         return if (isUpdate) {
             JdbcUpdateCursor(statement.executeUpdate())
         } else {
@@ -210,6 +265,19 @@ class JdbcPreparedStatement(
 
     override suspend fun close() {
         statement.close()
+
+        val responseTime = Time.now() - executeStart
+        debugSystem?.sendMessage(
+            DebugMessage.DatabaseResponse(
+                DebugContext.createWithParent(context.id),
+                responseTime,
+                when {
+                    responseTime >= 300 -> MessageImportance.THIS_IS_WRONG
+                    responseTime >= 150 -> MessageImportance.THIS_IS_ODD
+                    else -> MessageImportance.THIS_IS_NORMAL
+                }
+            )
+        )
     }
 
     companion object {

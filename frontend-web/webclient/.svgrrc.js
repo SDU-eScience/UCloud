@@ -6,10 +6,10 @@ module.exports = {
         {imports, componentName, props, jsx, exports}
     ) {
         const typeScriptTpl = template.smart({plugins: ['typescript']})
+        const replacedName = componentName.name.replace("Svg", "");
+        const name = replacedName[0].toLowerCase() + replacedName.substring(1);
         return typeScriptTpl.ast`
-    import * as React from 'react';
-    const ${componentName} = (props: any) => ${jsx};
-    export default ${componentName};
+    export const ${name} = (props: any) => ${jsx};
   `
     },
     jsx: {

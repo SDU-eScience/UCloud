@@ -6,10 +6,10 @@ import dk.sdu.cloud.controllers.TaskSpecification
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.sendRequest
+import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.ipcClient
-import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.*

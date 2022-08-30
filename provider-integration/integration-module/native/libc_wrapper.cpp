@@ -12,6 +12,7 @@
 #include <sys/un.h>
 #include <pwd.h>
 #include <grp.h>
+#include <errno.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -135,6 +136,52 @@ JNIEXPORT jobject JNICALL Java_libc_LibC_readdir(JNIEnv *env, jobject thisRef, j
     return result;
 }
 
+JNIEXPORT jobject JNICALL Java_libc_LibC_fstat(JNIEnv *env, jobject thisRef, jint fd) {
+    struct stat st;
+    int status = fstat(fd, &st);
+
+    jclass direntClass = env->FindClass("libc/NativeStat");
+    jobject result = env->AllocObject(direntClass);
+
+    env->SetBooleanField(
+        result,
+        env->GetFieldID(direntClass , "valid", "Z"),
+        status == 0
+    );
+
+    env->SetLongField(
+        result,
+        env->GetFieldID(direntClass , "size", "J"),
+        st.st_size
+    );
+
+    env->SetLongField(
+        result,
+        env->GetFieldID(direntClass , "modifiedAt", "J"),
+        (st.st_mtim.tv_sec * 1000) + (st.st_mtim.tv_nsec / 1000000)
+    );
+
+    env->SetIntField(
+        result,
+        env->GetFieldID(direntClass, "mode", "I"),
+        st.st_mode
+    );
+
+    env->SetIntField(
+        result,
+        env->GetFieldID(direntClass, "ownerUid", "I"),
+        st.st_uid
+    );
+
+    env->SetIntField(
+        result,
+        env->GetFieldID(direntClass, "ownerGid", "I"),
+        st.st_gid
+    );
+
+    return result;
+}
+
 
 JNIEXPORT jint JNICALL Java_libc_LibC_socket(JNIEnv *env, jobject thisRef, jint domain, jint type, jint protocol) {
     return socket(domain, type, protocol);
@@ -238,6 +285,19 @@ JNIEXPORT jint JNICALL Java_libc_LibC_retrieveGroupIdFromName(JNIEnv *env, jobje
     if (result == NULL) return -1;
 
     return result->gr_gid;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_getErrno(JNIEnv *env, jobject thisRef) {
+    return errno;
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_mkdirat(JNIEnv *env, jobject thisRef, jint dirfd, jstring pathName, jint mode) {
+    const char *path = env->GetStringUTFChars(pathName, NULL);
+    return mkdirat(dirfd, path, mode);
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_closedir(JNIEnv *env, jobject thisRef, jlong dirp) {
+    return closedir((DIR *) dirp);
 }
 
 #ifdef __cplusplus

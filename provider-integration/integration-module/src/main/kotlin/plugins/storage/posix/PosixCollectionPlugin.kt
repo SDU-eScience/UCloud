@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins.storage.posix
 
-import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.providers.ResourceChargeCredits
 import dk.sdu.cloud.calls.BulkRequest
@@ -9,13 +8,13 @@ import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.*
-import dk.sdu.cloud.plugins.storage.InternalFile
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
@@ -119,7 +118,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         return collections
     }
 
-    override suspend fun PluginContext.retrieveProducts(
+    override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
         return BulkResponse(productAllocation.map { ref ->

@@ -25,6 +25,11 @@ sealed class ConfigProduct<T : Product> {
             return 1
         }
 
+        if (cost.currency == ConfigProductCost.Currency.FREE) {
+            if (cost.price != null) throw IllegalArgumentException("Price not supported when cost.currency = FREE for $name")
+            return 1
+        }
+
         if (cost.currency == ConfigProductCost.Currency.UNITS) {
             if (cost.price != null) throw IllegalArgumentException("Price not supported when cost.currency = UNITS for $name")
             return 1
@@ -51,6 +56,10 @@ sealed class ConfigProduct<T : Product> {
     protected fun unitOfPrice(): ProductPriceUnit {
         if (cost.quota) return ProductPriceUnit.PER_UNIT
         return when (cost.currency) {
+            ConfigProductCost.Currency.FREE -> {
+                ProductPriceUnit.PER_UNIT
+            }
+
             ConfigProductCost.Currency.DKK -> {
                 when (cost.frequency) {
                     ConfigProductCost.Frequency.ONE_TIME -> ProductPriceUnit.CREDITS_PER_UNIT
@@ -75,6 +84,8 @@ sealed class ConfigProduct<T : Product> {
         }
     }
 
+    protected fun isFree() = cost.currency == ConfigProductCost.Currency.FREE
+
     @Serializable
     @SerialName("storage")
     data class Storage(
@@ -90,6 +101,69 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("ingress")
+    data class Ingress(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+    ) : ConfigProduct<Product.Ingress>() {
+        override fun toProduct(category: String, provider: String): Product.Ingress {
+            return Product.Ingress(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+                freeToUse = isFree(),
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("networkip")
+    data class NetworkIP(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+    ) : ConfigProduct<Product.NetworkIP>() {
+        override fun toProduct(category: String, provider: String): Product.NetworkIP {
+            return Product.NetworkIP(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+                freeToUse = isFree(),
+            )
+        }
+    }
+
+    @Serializable
+    @SerialName("license")
+    data class License(
+        override val name: String,
+        override val description: String,
+        override val cost: ConfigProductCost,
+        val tags: List<String>
+    ) : ConfigProduct<Product.License>() {
+        override fun toProduct(category: String, provider: String): Product.License {
+            return Product.License(
+                name = name,
+                pricePerUnit = pricePerUnit(),
+                category = category(category, provider),
+                description = description,
+                unitOfPrice = unitOfPrice(),
+                chargeType = chargeType(),
+                freeToUse = isFree(),
+                tags = tags,
             )
         }
     }
@@ -112,6 +186,7 @@ sealed class ConfigProduct<T : Product> {
                 description = description,
                 unitOfPrice = unitOfPrice(),
                 chargeType = chargeType(),
+                freeToUse = isFree(),
 
                 cpu = cpu,
                 memoryInGigs = memoryInGigs,
@@ -133,6 +208,7 @@ data class ConfigProductCost(
     enum class Currency {
         DKK,
         UNITS,
+        FREE,
     }
 
     enum class Frequency {

@@ -3,7 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 plugins {
     kotlin("jvm") version "1.7.0"
     application
-    id("org.graalvm.buildtools.native") version "0.9.12"
+    id("org.graalvm.buildtools.native") version "0.9.13"
     kotlin("plugin.serialization") version "1.7.0"
 }
 
@@ -16,10 +16,20 @@ repositories {
 }
 
 dependencies {
-    implementation("dk.sdu.cloud:integration-module-support:2022.1.54-devel-hippo")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    run {
+        val version = "2022.2.7"
+        fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
+
+        ucloud("file-orchestrator-service-api")
+        ucloud("app-orchestrator-service-api")
+        ucloud("service-lib-lib")
+    }
+
+    run {
+        implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.1")
+        implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
+        implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.4.0")
+    }
 
     run {
         val ktorVersion = "2.0.2"
@@ -54,6 +64,7 @@ tasks.test {
 
 tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "11"
+    kotlinOptions.freeCompilerArgs += "-Xcontext-receivers"
 }
 
 application {
@@ -61,6 +72,9 @@ application {
 }
 
 graalvmNative {
+    // See this section for how to run the agent to detect reflection:
+    // https://graalvm.github.io/native-build-tools/latest/gradle-plugin.html#agent-support
+
     binaries {
         named("main") {
             fallback.set(false)

@@ -2,7 +2,6 @@ package dk.sdu.cloud.config
 
 import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
-import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
@@ -11,6 +10,7 @@ import kotlin.system.exitProcess
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
 
 data class VerifiedConfig(
+    val configurationDirectory: String,
     private val serverMode: ServerMode,
     val coreOrNull: Core?,
     val serverOrNull: Server?,
@@ -31,6 +31,7 @@ data class VerifiedConfig(
         val ipc: Ipc,
         val logs: Logs,
         val launchRealUserInstances: Boolean,
+        val allowRootMode: Boolean,
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -51,6 +52,7 @@ data class VerifiedConfig(
         val network: Network,
         val developmentMode: DevelopmentMode,
         val database: Database,
+        val envoy: Envoy,
     ) {
         data class Network(
             val listenAddress: String,
@@ -70,6 +72,11 @@ data class VerifiedConfig(
         data class Database(
             val file: String,
         )
+
+        data class Envoy(
+            val executable: String?,
+            val directory: String,
+        )
     }
 
 
@@ -79,6 +86,10 @@ data class VerifiedConfig(
         val jobs: Map<String, ComputePlugin>,
         val files: Map<String, FilePlugin>,
         val fileCollections: Map<String, FileCollectionPlugin>,
+        val ingresses: Map<String, IngressPlugin>,
+        val publicIps: Map<String, PublicIPPlugin>,
+        val licenses: Map<String, LicensePlugin>,
+        val shares: Map<String, SharePlugin>,
         val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
@@ -95,6 +106,10 @@ data class VerifiedConfig(
                 jobs.values.iterator(),
                 files.values.iterator(),
                 fileCollections.values.iterator(),
+                ingresses.values.iterator(),
+                publicIps.values.iterator(),
+                licenses.values.iterator(),
+                shares.values.iterator(),
             )
             var idx = 0
 
@@ -171,6 +186,9 @@ data class VerifiedConfig(
     data class Products(
         val compute: Map<String, List<Product.Compute>>? = null,
         val storage: Map<String, List<Product.Storage>>? = null,
+        val ingress: Map<String, List<Product.Ingress>>? = null,
+        val publicIp: Map<String, List<Product.NetworkIP>>? = null,
+        val license: Map<String, List<Product.License>>? = null,
     ) {
         var productsUnknownToUCloud: Set<Product> = emptySet()
     }
@@ -330,7 +348,11 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Core.Logs(directory)
         }
 
-        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances)
+        if (core.launchRealUserInstances && core.allowRootMode) {
+            emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
+        }
+
+        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances, core.allowRootMode)
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {
@@ -433,10 +455,18 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
 
         val database: VerifiedConfig.Server.Database = run {
-            VerifiedConfig.Server.Database(config.configurationDirectory + "/ucloud.sqlite3")
+            VerifiedConfig.Server.Database(
+                config.server.database?.file ?: (config.configurationDirectory + "/ucloud.sqlite3")
+            )
         }
 
-        VerifiedConfig.Server(refreshToken, network, developmentMode, database)
+        val envoy: VerifiedConfig.Server.Envoy = run {
+            val executable = config.server.envoy?.executable
+            val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
+            VerifiedConfig.Server.Envoy(executable, directory)
+        }
+
+        VerifiedConfig.Server(refreshToken, network, developmentMode, database, envoy)
     }
 
     val products: VerifiedConfig.Products? = run {
@@ -447,6 +477,9 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             VerifiedConfig.Products(
                 mapProducts(config.products.compute),
                 mapProducts(config.products.storage),
+                mapProducts(config.products.ingress),
+                mapProducts(config.products.publicIps),
+                mapProducts(config.products.licenses),
             )
         }
     }
@@ -548,11 +581,49 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 core.launchRealUserInstances
             ) as Map<String, FileCollectionPlugin>
 
-            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, allocations)
+            @Suppress("unchecked_cast")
+            val ingresses: Map<String, IngressPlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.ingress),
+                config.plugins.ingresses ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, IngressPlugin>
+
+            @Suppress("unchecked_cast")
+            val publicIps: Map<String, PublicIPPlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.publicIps),
+                config.plugins.publicIps ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, PublicIPPlugin>
+
+            @Suppress("unchecked_cast")
+            val licenses: Map<String, LicensePlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.licenses),
+                config.plugins.licenses ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances
+            ) as Map<String, LicensePlugin>
+
+            @Suppress("unchecked_cast")
+            val shares: Map<String, SharePlugin> = loadProductBasedPlugins(
+                mapProducts(config.products?.storage),
+                config.plugins.shares ?: emptyMap(),
+                productReference,
+                pluginReference,
+                core.launchRealUserInstances,
+                requireProductAllocation = false
+            ) as Map<String, SharePlugin>
+
+            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, ingresses, publicIps,
+                licenses, shares, allocations)
         }
     }
 
-    return VerifiedConfig(mode, core, server, plugins, products, frontendProxy)
+    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, products, frontendProxy)
 }
 
 // Plugin loading
@@ -576,6 +647,7 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
     productRef: ConfigurationReference,
     pluginRef: ConfigurationReference,
     realUserMode: Boolean,
+    requireProductAllocation: Boolean = true,
 ): Map<String, Plugin<Cfg>> {
     val result = HashMap<String, Plugin<Cfg>>()
     val relevantProducts = products.entries.flatMap { (category, products) ->
@@ -608,11 +680,13 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
         }
 
         if (bestMatch == null) {
-            emitWarning(
-                "Could not allocate product '$product' to a plugin. No plugins match it, " +
-                    "the integration module will ignore all requests for this product!",
-                productRef
-            )
+            if (requireProductAllocation) {
+                emitWarning(
+                    "Could not allocate product '$product' to a plugin. No plugins match it, " +
+                            "the integration module will ignore all requests for this product!",
+                    productRef
+                )
+            }
         } else {
             partitionedProducts[bestMatch] = (partitionedProducts[bestMatch] ?: emptyList()) + product
         }

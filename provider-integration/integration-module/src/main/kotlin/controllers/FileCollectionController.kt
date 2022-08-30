@@ -1,6 +1,8 @@
 package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.calls.BulkResponse
+import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.FSSupport
 import dk.sdu.cloud.file.orchestrator.api.FileCollection
@@ -19,6 +21,6 @@ class FileCollectionController(
         plugins: Collection<FileCollectionPlugin>,
         api: FileCollectionsProvider
     ) {
-        // TODO Add rename here
+
     }
 }

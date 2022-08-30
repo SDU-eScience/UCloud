@@ -32,11 +32,14 @@ fun template(head: HEAD.() -> Unit = {}, body: BODY.() -> Unit = {}): String {
             // When developmentBuild = true, then you can just run the frontend with
             // `gradle jsBrowserDistribution --continuous`. This should work, but you will need to add
             // any new packages here.
-            script(src = "/static/js/packages_imported/kotlin/1.6.21/kotlin.js") {}
+            script(src = "/static/js/packages_imported/kotlin/1.7.10/kotlin.js") {}
+            script(src = "/static/js/packages/debugger/kotlin/kotlin-kotlin-stdlib-js-ir.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin_kotlin.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin_org_jetbrains_kotlinx_kotlinx_html.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin_org_jetbrains_kotlinx_kotlinx_serialization_core.js") {}
             script(src = "/static/js/packages/debugger/kotlin/kotlin_org_jetbrains_kotlinx_kotlinx_serialization_json.js") {}
+            script(src = "/static/js/packages/debugger/kotlin/kotlinx-serialization-kotlinx-serialization-core-js-ir.js") {}
+            script(src = "/static/js/packages/debugger/kotlin/kotlinx-serialization-kotlinx-serialization-json-js-ir.js") {}
 
             body()
         }

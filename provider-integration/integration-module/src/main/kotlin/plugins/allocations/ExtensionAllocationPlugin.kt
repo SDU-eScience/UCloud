@@ -1,6 +1,7 @@
 package dk.sdu.cloud.plugins.allocations
 
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.plugins.*
 import kotlinx.serialization.builtins.serializer
 

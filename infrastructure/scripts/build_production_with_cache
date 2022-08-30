@@ -2,14 +2,14 @@
 set -e
 set -x
 
-gradle generateBuildConfig
+../gradlew generateBuildConfig
 name=`cat src/generated/resources/name.txt`
 version=`cat src/generated/resources/version.txt`
 echo "Tagging as ${name}:${version}"
 
 rm -rf build/distributions
 rm -rf build/service
-gradle distTar
+../gradlew distTar
 (mkdir -p build/service || true)
 cp build/distributions/*.tar build/service.tar
 cd build/service
