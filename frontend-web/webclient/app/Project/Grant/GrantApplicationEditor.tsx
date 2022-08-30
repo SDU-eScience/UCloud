@@ -66,6 +66,7 @@ import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
     browseAffiliations,
+    closeApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
@@ -101,6 +102,7 @@ export enum RequestTarget {
         - Ensure that you can't request resources from yourself.
         - Reload when changing context.
         - Templates aren't being used, I think.
+        - reload doesn't handle everything correctly.
         - Other: How to get to outgoing application list?
 
 */
@@ -528,9 +530,11 @@ type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {pa
 const POSTED_COMMENT = "POSTED_COMMENT";
 type PostedComment = PayloadAction<typeof POSTED_COMMENT, Comment>;
 const UPDATE_DOCUMENT = "UPDATE_DOCUMENT";
-type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>
+type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>;
+const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
+type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, State>;
 
-type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument;
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
     switch (action.type) {
         case FETCHED_GRANT_APPLICATION: {
@@ -552,6 +556,10 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
         }
         case POSTED_COMMENT: {
             state.status.comments.push(action.payload);
+            return {...state};
+        }
+        case UPDATE_GRANT_STATE: {
+            state.status.overallState = action.payload;
             return {...state};
         }
     }
@@ -802,8 +810,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication]);
 
         const closeRequest = useCallback(async () => {
-            // TODO(Jonas): Still exists in the backend. Request wants 
-            //await runWork(UCloud.grant.grant.closeApplication({requestId: appId}));
+            if (!appId) return;
+            try {
+                await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
+                dispatch({type: UPDATE_GRANT_STATE, payload: State.CLOSED});
+            } catch (e) {
+                displayErrorMessageOrDefault(e, "Failed to withdraw application.")
+            }
         }, [appId]);
 
         const reload = useCallback(() => {

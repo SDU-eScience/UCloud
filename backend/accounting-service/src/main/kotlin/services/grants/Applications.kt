@@ -759,10 +759,16 @@ class GrantApplicationService(
         }
     }
 
+    // TODO(Jonas): Only allow approving a grant application if #source-allocations > 0 for the approver
     suspend fun updateStatus(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateApplicationState>
     ) {
+        // Note(Jonas): I think this works as well:
+        //require(request.items.all { update -> update.newState != GrantApplication.State.IN_PROGRESS }) {
+        //    "New status can only be APPROVED, REJECTED or CLOSED!"
+        //}
+
         request.items.forEach { update ->
             require(update.newState != GrantApplication.State.IN_PROGRESS) { "New status can only be APPROVED, REJECTED or CLOSED!" }
         }

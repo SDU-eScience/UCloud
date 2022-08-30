@@ -311,3 +311,7 @@ export async function fetchProducts(
 ): Promise<{availableProducts: Product[];}> {
     return callAPI(apiBrowse(request, "/api/grant", "products"));
 }
+
+export function closeApplication(request: UCloud.BulkRequest<{applicationId: string}>): APICallParameters<UCloud.BulkRequest<{applicationId: string}>> {
+   return apiUpdate(request, grantBaseContext, "close")
+}

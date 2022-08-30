@@ -35,7 +35,7 @@ class GrantController(
         }
 
         implement(Grants.closeApplication) {
-            val updates = bulkRequestOf(request.items.map { UpdateApplicationState(it.applicationId, GrantApplication.State.CLOSED, false) })
+            val updates = bulkRequestOf(request.items.map { UpdateApplicationState(it.applicationId.toLong(), GrantApplication.State.CLOSED, false) })
             applications.closeApplication(actorAndProject, updates)
             ok(Unit)
         }

@@ -18,7 +18,7 @@ typealias UpdateApplicationStateResponse = Unit
 
 
 @Serializable
-data class CloseApplicationRequest(val applicationId: Long)
+data class CloseApplicationRequest(val applicationId: String)
 typealias CloseApplicationResponse = Unit
 
 @Serializable
@@ -359,7 +359,7 @@ ${ApiConventions.nonConformingApiWarning}
         }
 
 
-    val updateApplicationState = call("updateApplicationState", BulkRequest.serializer(UpdateApplicationState.serializer()), Unit.serializer(), CommonErrorMessage.serializer()) {
+    val updateApplicationState = call("updateApplicationState", BulkRequest.serializer(UpdateApplicationState.serializer()), UpdateApplicationStateResponse.serializer(), CommonErrorMessage.serializer()) {
         httpUpdate(
             baseContext,
             "update-state"
@@ -394,7 +394,7 @@ ${ApiConventions.nonConformingApiWarning}
     val closeApplication = call(
         "closeApplication",
         BulkRequest.serializer(CloseApplicationRequest.serializer()),
-        Unit.serializer(),
+        CloseApplicationResponse.serializer(),
         CommonErrorMessage.serializer()
     ) {
         httpUpdate(
