@@ -97,15 +97,16 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
-        - Find out of an approval can be rescinded. (Same for rejection.)
-            - Let say 'yes'.
-            - Ensure that user can't edit allocations after accept or rescinded.
         - Ensure that you can't request resources from yourself.
         - Reload when changing context.
         - Templates aren't being used, I think.
         - Reload doesn't handle everything correctly.
         - Other: How to get to outgoing application list?
+        - Discarding changes does not revert to old values
 
+        BACKEND:
+            - Rejecting a request will reject the entire application.
+            - User of Project A can modify allocations by Project B, even if they have no roles in the project. (Inspect and edit input field.)
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -167,20 +168,20 @@ const RequestFormContainer = styled.div`
     }
 `;
 
-function productCategoryId(pid: ProductCategoryId): string {
-    return `${pid.name}/${pid.provider}`;
+function productCategoryId(pid: ProductCategoryId, projectId: string): string {
+    return `${pid.name}/${pid.provider}/${projectId}`;
 }
 
-function productCategoryStartDate(pid: ProductCategoryId): string {
-    return `${productCategoryId(pid)}/start_date`;
+function productCategoryStartDate(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/start_date`;
 }
 
-function productCategoryEndDate(pid: ProductCategoryId): string {
-    return `${productCategoryId(pid)}/end_date`;
+function productCategoryEndDate(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/end_date`;
 }
 
-function productCategoryAllocation(pid: ProductCategoryId): string {
-    return `${productCategoryId(pid)}/allocation_id`;
+function productCategoryAllocation(pid: ProductCategoryId, projectId: string): string {
+    return `${productCategoryId(pid, projectId)}/allocation_id`;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -231,26 +232,22 @@ function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApp
 const GenericRequestCard: React.FunctionComponent<{
     wb: GrantProductCategory;
     isApprover: boolean;
+    projectId: string;
     grantFinalized: boolean;
     isLocked: boolean;
     isRecipient: boolean;
     wallets: Wallet[];
-    allocationRequests: AllocationRequest[];
-}> = ({wb, grantFinalized, isLocked, wallets, isApprover, ...props}) => {
+    allocationRequest?: AllocationRequest;
+}> = ({wb, grantFinalized, isLocked, wallets, isApprover, allocationRequest, projectId, ...props}) => {
     const [startDate, setStartDate] = useState<Date>(getStartOfDay(new Date()));
     const [endDate, setEndDate] = useState<Date | null>(null);
 
-    const allocRequest = props.allocationRequests
-        .find(it => it.provider === wb.metadata.category.provider && it.category === wb.metadata.category.name);
-
     const canEdit = isApprover || props.isRecipient;
-    const [projectId] = useState(Client.projectId);
-    console.log(projectId);
 
     React.useEffect(() => {
-        // TODO(Jonas): This might be wrong, I'm not sure the first allocationRequest is the right one.:
-        if (allocRequest && allocRequest.period.start) {
-            setStartDate(getStartOfDay(new Date(allocRequest.period.start)));
+        // TODO(Jonas): This might be wrong, I'm not sure the first allocationRequest is the right one, but it should be b:
+        if (allocationRequest && allocationRequest.period.start) {
+            setStartDate(getStartOfDay(new Date(allocationRequest.period.start)));
         }
     }, []);
 
@@ -271,11 +268,11 @@ const GenericRequestCard: React.FunctionComponent<{
                                 size={32}
                                 defaultChecked={wb.requestedBalance !== undefined && wb.requestedBalance > 0}
                                 disabled={grantFinalized || isLocked || !canEdit}
-                                data-target={"checkbox-" + productCategoryId(wb.metadata.category)}
+                                data-target={"checkbox-" + productCategoryId(wb.metadata.category, projectId)}
                                 onChange={e => {
                                     const checkbox = e.target as HTMLInputElement;
                                     const input = document.querySelector(
-                                        `input[data-target="${productCategoryId(wb.metadata.category)}"]`
+                                        `input[data-target="${productCategoryId(wb.metadata.category, projectId)}"]`
                                     ) as HTMLInputElement;
 
                                     if (input) {
@@ -293,7 +290,7 @@ const GenericRequestCard: React.FunctionComponent<{
 
                 <Input
                     disabled={grantFinalized || isLocked || !isApprover}
-                    data-target={productCategoryId(wb.metadata.category)}
+                    data-target={productCategoryId(wb.metadata.category, projectId)}
                     autoComplete="off"
                     type="hidden"
                     min={0}
@@ -301,8 +298,10 @@ const GenericRequestCard: React.FunctionComponent<{
             </HighlightedCard>
         </RequestForSingleResourceWrapper>;
     } else {
-        const defaultValue = allocRequest?.balanceRequested;
-        const normalizedValue = defaultValue != null ? normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice) : undefined;
+        const defaultValue = allocationRequest?.balanceRequested;
+        const normalizedValue = defaultValue != null ?
+            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice) :
+            undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
                 <table>
@@ -335,7 +334,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                     <Input
                                         placeholder={"0"}
                                         disabled={grantFinalized || isLocked || !canEdit}
-                                        data-target={productCategoryId(wb.metadata.category)}
+                                        data-target={productCategoryId(wb.metadata.category, projectId)}
                                         autoComplete="off"
                                         defaultValue={normalizedValue}
                                         type="number"
@@ -360,7 +359,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         value={format(startDate, "dd/MM/yy")}
                                         disabled={grantFinalized || isLocked || !canEdit}
                                         onChange={(date: Date) => setStartDate(date)}
-                                        className={productCategoryStartDate(wb.metadata.category)}
+                                        className={productCategoryStartDate(wb.metadata.category, projectId)}
                                     />
                                     <DatePicker
                                         selectsEnd
@@ -375,7 +374,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         value={endDate ? format(endDate, "dd/MM/yy") : undefined}
                                         disabled={grantFinalized || isLocked || !canEdit}
                                         onChange={(date: Date | null) => setEndDate(date)}
-                                        className={productCategoryEndDate(wb.metadata.category)}
+                                        className={productCategoryEndDate(wb.metadata.category, projectId)}
                                     />
                                 </Flex>
                             </td>
@@ -383,8 +382,9 @@ const GenericRequestCard: React.FunctionComponent<{
                     </tbody>
                 </table>
                 <AllocationSelection
+                    projectId={projectId}
                     showAllocationSelection={isApprover}
-                    allocationRequest={allocRequest}
+                    allocationRequest={allocationRequest}
                     wallets={wallets}
                     wb={wb}
                     isLocked={isLocked}
@@ -404,11 +404,12 @@ const AllocationBox = styled.div`
     border: 2px solid var(--borderGray); 
 `;
 
-function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllocationSelection}: {
+function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllocationSelection, projectId}: {
     wallets: Wallet[];
     showAllocationSelection: boolean;
     wb: GrantProductCategory;
     isLocked: boolean;
+    projectId: string;
     allocationRequest?: AllocationRequest;
 }): JSX.Element {
     const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
@@ -430,7 +431,7 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
     }, [wallets, allocationRequest]);
 
     return <Box mb="8px" ml="6px">
-        <HiddenInputField value={allocationId} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category)} />
+        <HiddenInputField value={allocationId} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category, projectId)} />
         {!showAllocationSelection ? null : !isLocked ?
             <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={<AllocationBox>
                 {!allocation ?
@@ -1098,7 +1099,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                 }
                                                                             </> : <>
                                                                                 <Button onClick={setRequestPending}>
-                                                                                    Rescind {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
+                                                                                    Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
                                                                                 </Button>
                                                                             </>}
                                                                         </> : null
@@ -1294,13 +1295,6 @@ function recipientTypeToText(recipient: Recipient): string {
     }
 }
 
-function ellipsedProjectTitle(name: string, maxLength: number): string {
-    if (name.length < maxLength) {
-        return name;
-    }
-    return `${name.slice(0, maxLength - 3)}...`
-}
-
 function useRecipientName(recipient: Recipient): string {
     const [recipientName, setName] = useState("");
     const [, invokeCommand] = useCloudCommand();
@@ -1434,6 +1428,7 @@ function GrantGiver(props: {
             {productTypes.map(type => <AsProductType
                 key={type}
                 type={type}
+                projectId={props.project.projectId}
                 isApprover={props.isApprover}
                 grantApplication={props.grantApplication}
                 wallets={props.wallets}
@@ -1449,6 +1444,7 @@ function AsProductType(props: {
     productCategories: GrantProductCategory[];
     wallets: Wallet[];
     isRecipient: boolean;
+    projectId: string;
     isLocked: boolean;
     isApprover: boolean;
     grantApplication: GrantApplication;
@@ -1468,10 +1464,12 @@ function AsProductType(props: {
                     isApprover={props.isApprover}
                     grantFinalized={grantFinalized}
                     isLocked={props.isLocked}
-                    allocationRequests={allocationRequests.filter(it =>
+                    allocationRequest={allocationRequests.find(it =>
                         it.category === pc.metadata.category.name &&
-                        it.provider === pc.metadata.category.provider
+                        it.provider === pc.metadata.category.provider &&
+                        it.grantGiver === props.projectId
                     )}
+                    projectId={props.projectId}
                     isRecipient={props.isRecipient}
                     wallets={filteredWallets}
                 />
@@ -1772,26 +1770,26 @@ function formTextFromGrantApplication(grantApplication: GrantApplication): strin
 }
 
 function findRequestedResources(grantProductCategories: Record<string, GrantProductCategory[]>): AllocationRequest[] {
-    return Object.keys(grantProductCategories).flatMap(entry =>
-        grantProductCategories[entry].map(wb => {
+    return Object.keys(grantProductCategories).flatMap(grantGiver =>
+        grantProductCategories[grantGiver].map(wb => {
             let creditsRequested = parseIntegerFromInput(
                 document.querySelector<HTMLInputElement>(
-                    `input[data-target="${productCategoryId(wb.metadata.category)}"]`
+                    `input[data-target="${productCategoryId(wb.metadata.category, grantGiver)}"]`
                 )
             );
 
             const first = document.getElementsByClassName(
-                productCategoryStartDate(wb.metadata.category)
+                productCategoryStartDate(wb.metadata.category, grantGiver)
             )?.[0] as HTMLInputElement;
             const start = parseDateFromInput(first);
 
             const second = document.getElementsByClassName(
-                productCategoryEndDate(wb.metadata.category)
+                productCategoryEndDate(wb.metadata.category, grantGiver)
             )?.[0] as HTMLInputElement;
             const end = parseDateFromInput(second);
 
             const allocation = document.querySelector<HTMLInputElement>(
-                `input[data-target="${productCategoryAllocation(wb.metadata.category)}"]`
+                `input[data-target="${productCategoryAllocation(wb.metadata.category, grantGiver)}"]`
             )?.value ?? null;
             const sourceAllocation = allocation === "" ? null : allocation;
 
@@ -1806,12 +1804,11 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
                 return null;
             }
 
-
             return {
                 category: wb.metadata.category.name,
                 provider: wb.metadata.category.provider,
                 balanceRequested: creditsRequested,
-                grantGiver: entry,
+                grantGiver,
                 sourceAllocation, // TODO(Jonas): null on initial request, required on the following.
                 period: {
                     start,

@@ -343,7 +343,12 @@ ${ApiConventions.nonConformingApiWarning}
      */
 
     val submitApplication =
-        call("submitApplication", BulkRequest.serializer(SubmitApplicationRequest.serializer()), ListSerializer(FindByLongId.serializer()), CommonErrorMessage.serializer()) {
+        call(
+            "submitApplication",
+            BulkRequest.serializer(SubmitApplicationRequest.serializer()),
+            ListSerializer(FindByLongId.serializer()),
+            CommonErrorMessage.serializer()
+        ) {
             httpCreate(
                 baseContext,
                 "submit-application"

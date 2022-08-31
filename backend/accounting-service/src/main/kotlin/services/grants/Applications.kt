@@ -663,7 +663,7 @@ class GrantApplicationService(
                 val currentRevision = getCurrentRevision(session, request.applicationId)
                 session.sendPreparedStatement(
                     {
-                        setParameter("revision", currentRevision+1)
+                        setParameter("revision", currentRevision + 1)
                         setParameter("app_id", request.applicationId)
                         setParameter("comment", request.document.revisionComment)
                         setParameter("username", actorAndProject.actor.safeUsername())
