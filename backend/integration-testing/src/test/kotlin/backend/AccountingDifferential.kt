@@ -44,6 +44,16 @@ class AccountingDifferentialTest : IntegrationTest() {
                     var midAllocations = retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
                     var leafAllocations = retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
 
+                    require(
+                        leafAllocations.single().maxUsableBalance == leafAllocations.single().initialBalance
+                    ) { "MaxBalance in leaf is not correct initially" }
+                    require(
+                        midAllocations.single().maxUsableBalance == midAllocations.single().initialBalance
+                    ) { "MaxBalance in mid is not correct initially" }
+                    require(
+                        rootAllocations.single().maxUsableBalance == rootAllocations.single().initialBalance
+                    ) { "MaxBalance in root is not correct initially" }
+
                     run {
                         val response = Accounting.charge.call(
                             bulkRequestOf(
@@ -77,6 +87,7 @@ class AccountingDifferentialTest : IntegrationTest() {
                         require(
                             leafAllocations.single().balance == leafAllocations.single().initialBalance - input.chargeAmount
                         ) { "Balance in leaf is not correct after charge" }
+
                     }
                     run {
                         Accounting.updateAllocation.call(
@@ -143,6 +154,11 @@ class AccountingDifferentialTest : IntegrationTest() {
                         require(
                             leafAllocations.single().balance == leafAllocations.single().initialBalance
                         ) { "Balance in leaf is not correct after update" }
+
+                        require(
+                            leafAllocations.single().maxUsableBalance == midAllocations.single().balance
+                        ) { "maxBalance in leaf is not correct after update" }
+
                     }
                     run {
                         val response = Accounting.charge.call(

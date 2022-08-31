@@ -75,6 +75,7 @@ private data class WalletAllocation(
     var isDirty: Boolean = false,
 
     var grantedIn: Long?,
+    val maxUsableBalance: Long?
 ) {
     var inProgress: Boolean = false
         private set
@@ -516,7 +517,8 @@ class AccountingProcessor(
                             initialBalance,
                             currentBalance,
                             localBalance,
-                            grantedIn = grantedIn
+                            grantedIn = grantedIn,
+                            maxUsableBalance = null
                         ).also { it.verifyIntegrity() }
                     )
                 }
@@ -581,6 +583,43 @@ class AccountingProcessor(
 
     // Utilities for managing state
     // =================================================================================================================
+
+    private fun calculateMaxUsableBalance(
+        wallet: Wallet
+    ): Long {
+        var maxUsableBalance = 0L
+        val now = System.currentTimeMillis()
+        val allocations = allocations.filter { it?.associatedWallet == wallet.id && it.isValid(now)}
+            .mapNotNull {it}
+        allocations.forEach {
+            maxUsableBalance = min(maxUsableBalance, calculateMaxUsableBalance(it))
+        }
+        return maxUsableBalance
+    }
+
+    //Goes through entire allocation tree to find the lowest possible amount that can be charge without problems
+    private fun calculateMaxUsableBalance(
+        allocation: WalletAllocation
+    ): Long {
+        var current: WalletAllocation? = allocation
+        var maxUsableBalance = min(current!!.currentBalance, current.localBalance)
+        while (current != null) {
+            val parentOfCurrent = current.parentAllocation
+            current = if (parentOfCurrent == null) {
+                null
+            } else {
+                val parentAllocation = allocations[parentOfCurrent]
+                if (parentAllocation == null) {
+                    return maxUsableBalance
+                } else {
+                    maxUsableBalance = min(maxUsableBalance, parentAllocation.currentBalance)
+                }
+                parentAllocation
+            }
+        }
+        return maxUsableBalance
+    }
+
     private fun findWallet(owner: String, category: ProductCategoryId): Wallet? {
         return wallets.find { it?.owner == owner && it.paysFor == category }
     }
@@ -623,7 +662,8 @@ class AccountingProcessor(
             balance,
             balance,
             isDirty = true,
-            grantedIn = grantedIn
+            grantedIn = grantedIn,
+            maxUsableBalance = null
         )
 
         allocations.add(alloc)
@@ -665,7 +705,8 @@ class AccountingProcessor(
             localBalance,
             notBefore,
             notAfter,
-            grantedIn
+            grantedIn,
+            maxUsableBalance = calculateMaxUsableBalance(this)
         )
     }
 

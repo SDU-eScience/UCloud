@@ -185,7 +185,8 @@ data class WalletAllocation(
     @UCloudApiDoc(
         "ID reference to which grant application this allocation was granted in"
     )
-    val grantedIn: Long?
+    val grantedIn: Long?,
+    val maxUsableBalance: Long? = null
 )
 
 @Serializable
@@ -728,7 +729,8 @@ object Accounting : CallDescriptionContainer("accounting") {
                 balance, initialBalance, localBalance,
                 1633941615074L,
                 null,
-                1
+                1,
+                maxUsableBalance = null
             )
         }
 
