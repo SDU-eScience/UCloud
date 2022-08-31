@@ -36,6 +36,7 @@ class ProjectService(
     private val db: DBContext,
     private val serviceClient: AuthenticatedClient,
     private val projectCache: ProjectCache,
+    private val developmentMode: Boolean,
 ) {
     private val updateHandlers = ArrayList<OnProjectUpdatedHandler>()
 
@@ -49,9 +50,10 @@ class ProjectService(
         ctx: DBContext = db,
     ): Project {
         val username = actorAndProject.actor.safeUsername()
-        return ctx.withSession { session ->
+        val result = ctx.withSession { session ->
             loadProjects(username, session, request, relevantProjects(actorAndProject, request.id, includeArchived = true))
         }.firstOrNull() ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+        return result.postProcess(username.startsWith(AuthProviders.PROVIDER_PREFIX))
     }
 
     suspend fun browse(
@@ -83,7 +85,7 @@ class ProjectService(
                 sortBy = request.sortBy ?: ProjectsSortBy.title,
                 sortDirection = request.sortDirection ?: SortDirection.ascending,
             )
-        }
+        }.postProcess(username.startsWith(AuthProviders.PROVIDER_PREFIX))
 
         val nextToken = if (items.size < limit) null else (offset + limit).toString()
         return PageV2(limit.toInt(), items, nextToken)
@@ -1628,6 +1630,47 @@ class ProjectService(
 
             updateHandlers.forEach { it(affectedProjects) }
         }
+    }
+
+    private suspend fun Project.postProcess(isProvider: Boolean): Project {
+        return listOf(this).postProcess(isProvider).single()
+    }
+
+    private suspend fun List<Project>.postProcess(isProvider: Boolean): List<Project> {
+        // TODO(Dan): Check if we are allowed to do the following:
+        if (!developmentMode) return this
+
+        val list = this
+        if (!isProvider) return list
+        val usernames = list.flatMap { it.status.members?.map { it.username } ?: emptyList() }.toSet()
+        if (usernames.isNotEmpty()) {
+            val emails = db.withSession { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("usernames", usernames.toList())
+                    },
+                    """
+                        select id, email
+                        from auth.principals
+                        where
+                            id = some(:usernames::text[]) and
+                            (role = 'USER' or role = 'ADMIN')
+                    """
+                ).rows.mapNotNull {
+                    val username = it.getString(0)!!
+                    val mail = it.getString(1) ?: return@mapNotNull null
+                    username to mail
+                }.toMap()
+            }
+
+            for (project in list) {
+                val members = project.status.members ?: continue
+                for (member in members) {
+                    member.email = emails[member.username]
+                }
+            }
+        }
+        return list
     }
 
     companion object : Loggable {

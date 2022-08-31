@@ -12,6 +12,7 @@ typealias ProjectRole = dk.sdu.cloud.project.api.ProjectRole
 data class ProjectMember(
     val username: String,
     val role: ProjectRole,
+    var email: String? = null,
 )
 
 @Serializable

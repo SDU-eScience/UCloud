@@ -22,6 +22,7 @@ import dk.sdu.cloud.project.api.v2.ProjectsBrowseRequest
 import dk.sdu.cloud.project.api.v2.ProjectsChangeRoleRequestItem
 import dk.sdu.cloud.project.api.v2.ProjectsRetrieveRequest
 import dk.sdu.cloud.utils.sendTerminalFrame
+import dk.sdu.cloud.utils.sendTerminalSeparator
 import dk.sdu.cloud.utils.sendTerminalTable
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
@@ -52,15 +53,17 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
 
                     sendTerminalTable {
                         header("ID", 40)
-                        header("Path", 30)
-                        header("Title", 30)
-                        header("PI", 20)
+                        header("Path", 20)
+                        header("Title", 20)
+                        header("PI username", 20)
+                        header("PI email", 20)
 
                         for (row in projects.items) {
                             nextRow()
                             cell(row.id)
                             cell(row.path)
                             cell(row.title)
+                            cell(row.pi?.username)
                             cell(row.pi?.email)
                         }
                     }
@@ -75,17 +78,22 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                         field("ID", projectInfo.id)
                         field("Path", projectInfo.path)
                         field("Title", projectInfo.title)
-                        field("PI", projectInfo.pi?.email)
+                        field("PI username", projectInfo.pi?.username)
+                        field("PI email", projectInfo.pi?.email)
                     }
+
+                    sendTerminalSeparator()
 
                     sendTerminalTable {
                         header("Role", 20)
-                        header("Member", 100)
+                        header("Username", 50)
+                        header("Email", 50)
 
                         for (member in members.items) {
                             nextRow()
                             cell(member.role)
-                            cell(member.email ?: member.username)
+                            cell(member.username)
+                            cell(member.email)
                         }
                     }
                 }
@@ -119,7 +127,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                         itemsPerPage = 250,
                         next = next,
 
-                        includeMembers = false,
+                        includeMembers = true,
                         includePath = true,
                         includeArchived = false,
                         includeGroups = false,
@@ -130,7 +138,13 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                 ).orThrow()
 
                 for (respItem in response.items) {
-                    projects.add(UCloudProject(respItem.id, respItem.status.path!!, respItem.specification.title))
+                    val piMember = respItem.status.members!!.find { it.role == ProjectRole.PI }!!
+                    val pi = UCloudProjectUser(
+                        piMember.username,
+                        piMember.email,
+                        ProjectRole.PI
+                    )
+                    projects.add(UCloudProject(respItem.id, respItem.status.path!!, respItem.specification.title, pi))
                 }
 
                 next = response.next ?: break
@@ -166,7 +180,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                 pi?.let {
                     UCloudProjectUser(
                         it.username,
-                        null,
+                        it.email,
                         it.role
                     )
                 }
@@ -190,7 +204,7 @@ fun UCloudProjectCli(controllerContext: ControllerContext) {
                 rpcClient
             ).orThrow()
 
-            val members = retrievedProject.status.members!!.map { UCloudProjectUser(it.username, null, it.role) }
+            val members = retrievedProject.status.members!!.map { UCloudProjectUser(it.username, it.email, it.role) }
             PageV2(members.size, members, null)
         })
 

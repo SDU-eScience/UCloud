@@ -225,7 +225,12 @@ fun main(args: Array<String>) {
 
             // Command Line Interface (CLI)
             // -------------------------------------------------------------------------------------------------------
-            val cli = if (serverMode !is ServerMode.Plugin) null else CommandLineInterface(args.drop(1))
+            val cli = if (serverMode !is ServerMode.Plugin) {
+                null
+            } else {
+                val isParsable = args.contains("--parsable")
+                CommandLineInterface(isParsable, args.drop(1).filter { it != "--parsable" })
+            }
 
             // Inter Process Communication Client (IPC)
             // -------------------------------------------------------------------------------------------------------
@@ -418,12 +423,7 @@ fun main(args: Array<String>) {
                 val unknownProducts = HashSet<Product>()
 
                 for (plugin in allResourcePlugins) {
-                    val allConfiguredProducts: List<Product> =
-                        (config.products.compute ?: emptyMap()).values.flatten() +
-                            (config.products.storage ?: emptyMap()).values.flatten() +
-                                (config.products.ingress ?: emptyMap()).values.flatten() +
-                                (config.products.publicIp ?: emptyMap()).values.flatten() +
-                                (config.products.license ?: emptyMap()).values.flatten()
+                    val allConfiguredProducts: List<Product> = config.products.allProducts
 
                     val resolvedProducts = ArrayList<Product>()
                     for (product in plugin.productAllocation) {

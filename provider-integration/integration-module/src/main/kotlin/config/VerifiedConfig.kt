@@ -191,6 +191,14 @@ data class VerifiedConfig(
         val license: Map<String, List<Product.License>>? = null,
     ) {
         var productsUnknownToUCloud: Set<Product> = emptySet()
+
+        val allProducts: List<Product>
+            get() =
+                (compute?.values?.toList()?.flatten() ?: emptyList()) +
+                        (storage?.values?.toList()?.flatten() ?: emptyList()) +
+                        (ingress?.values?.toList()?.flatten() ?: emptyList()) +
+                        (publicIp?.values?.toList()?.flatten() ?: emptyList()) +
+                        (license?.values?.toList()?.flatten() ?: emptyList())
     }
 
     data class FrontendProxy(
@@ -291,7 +299,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
                     line(
                         "The ceritificate is issued by UCloud during the registration process. " +
-                            "You can try downloading a new certificate from UCloud at: "
+                                "You can try downloading a new certificate from UCloud at: "
                     )
                     code { line("${core.hosts.ucloud}/app/providers") }
                 }
@@ -389,8 +397,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 emitWarning(
                     VerifyResult.Warning<Unit>(
                         "The listen address specified for the server '${network.listenAddress}' does not look " +
-                            "like a valid IPv4 address. The integration module will attempt to use this address " +
-                            "regardless.",
+                                "like a valid IPv4 address. The integration module will attempt to use this address " +
+                                "regardless.",
                         baseReference
                     )
                 )
@@ -429,7 +437,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     if (userId < 0) emitError("Invalid unix user id (UID)", ref)
                     if (userId == 0) emitError(
                         "Invalid unix user id (UID). It is not possible " +
-                            "to run the integration module as root.", ref
+                                "to run the integration module as root.", ref
                     )
 
                     if (port in portsInUse) {
@@ -544,15 +552,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 loadPlugin(config.plugins.projects, core.launchRealUserInstances) as ProjectPlugin
             }
 
-            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> = if (config.plugins.allocations == null) {
-                emptyMap()
-            } else {
-                val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
-                for ((productType, cfg) in config.plugins.allocations) {
-                    result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
+            val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin> =
+                if (config.plugins.allocations == null) {
+                    emptyMap()
+                } else {
+                    val result = HashMap<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>()
+                    for ((productType, cfg) in config.plugins.allocations) {
+                        result[productType] = loadPlugin(cfg, core.launchRealUserInstances) as AllocationPlugin
+                    }
+                    result
                 }
-                result
-            }
 
             @Suppress("unchecked_cast")
             val jobs: Map<String, ComputePlugin> = loadProductBasedPlugins(
@@ -618,8 +627,10 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 requireProductAllocation = false
             ) as Map<String, SharePlugin>
 
-            VerifiedConfig.Plugins(connection, projects, jobs, files, fileCollections, ingresses, publicIps,
-                licenses, shares, allocations)
+            VerifiedConfig.Plugins(
+                connection, projects, jobs, files, fileCollections, ingresses, publicIps,
+                licenses, shares, allocations
+            )
         }
     }
 
@@ -632,10 +643,16 @@ class PluginLoadingException(val pluginTitle: String, message: String) : Runtime
 private fun <Cfg : Any> loadPlugin(config: Cfg, realUserMode: Boolean): Plugin<Cfg> {
     val result = instantiatePlugin(config)
     if (!result.supportsRealUserMode() && realUserMode) {
-        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${result.pluginTitle}")
+        throw PluginLoadingException(
+            result.pluginTitle,
+            "launchRealUserInstances is true but not supported for this plugin: ${result.pluginTitle}"
+        )
     }
     if (!result.supportsServiceUserMode() && !realUserMode) {
-        throw PluginLoadingException(result.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${result.pluginTitle}")
+        throw PluginLoadingException(
+            result.pluginTitle,
+            "launchRealUserInstances is false but not supported for this plugin: ${result.pluginTitle}"
+        )
     }
     result.configure(config)
     return result
@@ -667,8 +684,8 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
             if (score == bestScore && score >= 0 && bestMatch != null) {
                 emitError(
                     "Could not allocate product '$product' to a plugin. Both '$id' and '$bestMatch' " +
-                        "target the product with identical specificity. Resolve this conflict by " +
-                        "creating a more specific matcher.",
+                            "target the product with identical specificity. Resolve this conflict by " +
+                            "creating a more specific matcher.",
                     pluginRef
                 )
             }
@@ -706,10 +723,16 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
             }
         }
         if (!plugin.supportsRealUserMode() && realUserMode) {
-            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle}")
+            throw PluginLoadingException(
+                plugin.pluginTitle,
+                "launchRealUserInstances is true but not supported for this plugin: ${plugin.pluginTitle}"
+            )
         }
         if (!plugin.supportsServiceUserMode() && !realUserMode) {
-            throw PluginLoadingException(plugin.pluginTitle, "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}")
+            throw PluginLoadingException(
+                plugin.pluginTitle,
+                "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}"
+            )
         }
         plugin.configure(pluginConfig)
         result[id] = plugin
@@ -735,7 +758,7 @@ private fun missingFile(config: ConfigSchema, file: String): Nothing {
         bold { inline("NOTE: ") }
         line(
             "The integration module requires precise file names and extensions. Make sure the file exists exactly " +
-                "as specified above"
+                    "as specified above"
         )
 
     }

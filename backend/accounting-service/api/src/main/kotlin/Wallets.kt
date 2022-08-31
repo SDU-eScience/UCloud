@@ -315,6 +315,12 @@ data class ProviderWalletSummary(
         in the tree.
     """)
     val maxPromisedBalance: Long,
+
+    @UCloudApiDoc("The earliest timestamp which allows for the balance to be consumed")
+    val notBefore: Long,
+
+    @UCloudApiDoc("The earliest timestamp at which the reported balance is no longer fully usable")
+    val notAfter: Long?,
 )
 
 object Wallets : CallDescriptionContainer("accounting.wallets") {

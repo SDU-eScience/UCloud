@@ -1,6 +1,8 @@
 package dk.sdu.cloud.utils
 
-class TableDsl {
+import dk.sdu.cloud.cli.CommandLineInterface
+
+class TableDsl(private val isParsable: Boolean) {
     private var didSendHeaders = false
     private val headers = ArrayList<Pair<String, Int>>()
     private var currentRow = ArrayList<String>()
@@ -12,30 +14,40 @@ class TableDsl {
     }
 
     fun nextRow() {
-        if (!didSendHeaders) {
-            with(message) {
-                bold {
-                    for ((header, size) in headers) {
-                        inline(header.padEnd(size))
+        if (!isParsable) {
+            if (!didSendHeaders) {
+                with(message) {
+                    bold {
+                        for ((header, size) in headers) {
+                            inline(header.padEnd(size))
+                        }
                     }
+                    line()
+                    line(CharArray(120) { '-' }.concatToString())
                 }
-                line()
-                line(CharArray(120) { '-' }.concatToString())
+                didSendHeaders = true
             }
-            didSendHeaders = true
-        }
 
-        if (currentRow.isNotEmpty()) {
-            rowCount++
-            with(message) {
-                for ((index, cell) in currentRow.withIndex()) {
-                    val size = headers.getOrNull(index)?.second ?: 0
-                    inline(cell.padEnd(size))
+            if (currentRow.isNotEmpty()) {
+                rowCount++
+                with(message) {
+                    for ((index, cell) in currentRow.withIndex()) {
+                        val size = headers.getOrNull(index)?.second ?: 0
+                        inline(cell.padEnd(size))
+                    }
+                    line()
                 }
-                line()
             }
+            currentRow.clear()
+        } else {
+            if (currentRow.isNotEmpty()) {
+                rowCount++
+
+                message.line(CommaSeparatedValues.produce(currentRow))
+            }
+
+            currentRow.clear()
         }
-        currentRow.clear()
     }
 
     fun cell(contents: Any?) {
@@ -51,6 +63,15 @@ class TableDsl {
     }
 }
 
-fun sendTerminalTable(builder: TableDsl.() -> Unit) {
-    TableDsl().also(builder).end()
+fun CommandLineInterface.sendTerminalTable(builder: TableDsl.() -> Unit) {
+    sendTerminalTable(isParsable, builder)
+}
+
+fun sendTerminalTable(parsable: Boolean = false, builder: TableDsl.() -> Unit) {
+    TableDsl(parsable).also(builder).end()
+}
+
+fun CommandLineInterface.sendTerminalSeparator(size: Int = 1) {
+    if (isParsable) return
+    repeat(size) { println() }
 }
