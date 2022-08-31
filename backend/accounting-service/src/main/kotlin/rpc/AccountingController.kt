@@ -45,7 +45,6 @@ class AccountingController(
         implement(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
-                req.startDate = (req.startDate + 60000) //adds a single minute to handle that we divide with 1000 before entering it to the DB (millisecs are cut)
                 req.transactionId = "${user}-${req.transactionId}"
             }
             ok(accounting.updateAllocation(actorAndProject, request))

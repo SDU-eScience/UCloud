@@ -1,5 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
+import com.google.common.math.LongMath
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
@@ -698,10 +699,15 @@ class AccountingProcessor(
         // allocations to get all results.
         for (i in (parent.id + 1) until allocations.size) {
             val alloc = allocations[i]!!
+            val newNotAfter = if (min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)  == Long.MAX_VALUE) {
+                null
+            } else {
+                min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+            }
             if (alloc.parentAllocation in watchSet) {
                 alloc.begin()
                 alloc.notBefore = max(alloc.notBefore, parent.notBefore)
-                alloc.notAfter = min(alloc.notAfter ?: Long.MAX_VALUE, parent.notAfter ?: Long.MAX_VALUE)
+                alloc.notAfter = newNotAfter
                 alloc.commit()
                 watchSet.add(alloc.id)
             }
@@ -830,7 +836,6 @@ class AccountingProcessor(
     // Charge
     // =================================================================================================================
     private suspend fun charge(request: AccountingRequest.Charge): AccountingResponse {
-        println(request)
         val charge = describeCharge(request.actor, request)
             ?: return AccountingResponse.Error("Could not find product information in charge request.")
         if (charge.amount < 0) return AccountingResponse.Error("Cannot charge a negative amount")
@@ -1131,7 +1136,6 @@ class AccountingProcessor(
     // Update
     // =================================================================================================================
     private suspend fun update(request: AccountingRequest.Update): AccountingResponse {
-        println("Updating: $request")
         if (request.amount < 0) return AccountingResponse.Error("Cannot update to a negative balance")
         val allocation = allocations.getOrNull(request.allocationId)
             ?: return AccountingResponse.Error("Invalid allocation id supplied")
@@ -1164,10 +1168,9 @@ class AccountingProcessor(
             if (error != null) return error
         }
 
-        println("BEGIN")
         allocation.begin()
-        val currentUse = allocation.initialBalance - allocation.localBalance
-
+        val currentUse = allocation.initialBalance - allocation.currentBalance
+        val currentLocal = allocation.initialBalance - allocation.localBalance
         allocation.initialBalance = request.amount
         allocation.currentBalance = request.amount
         allocation.localBalance = request.amount
@@ -1179,7 +1182,7 @@ class AccountingProcessor(
             // won't be returned on next charge. This is not true for ABSOLUTE, which doesn't have this property
             // and as a result it is correct not to set the localBalance in that case.
             allocation.currentBalance -= currentUse
-            allocation.localBalance -= currentUse
+            allocation.localBalance -= currentLocal
         }
 
         val transactionId = transactionId()
@@ -1198,8 +1201,6 @@ class AccountingProcessor(
             )
         )
 
-        println("COMMIT")
-        println(allocation)
         allocation.commit()
         clampDescendantsOverlap(allocation)
         return AccountingResponse.Update(true)
@@ -1208,7 +1209,7 @@ class AccountingProcessor(
     // Retrieve Allocations
     // =================================================================================================================
     private suspend fun retrieveAllocations(request: AccountingRequest.RetrieveAllocations): AccountingResponse {
-        val now = Time.now()
+        val now = System.currentTimeMillis()
         val wallet = findWallet(request.owner, request.category)
             ?: return AccountingResponse.Error("Unknown wallet requested")
 

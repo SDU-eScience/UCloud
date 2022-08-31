@@ -21,7 +21,7 @@ class AccountingDifferentialTest : IntegrationTest() {
 
             class Out(
             )
-            test<In, Out>("Differential root update tests") {
+            test<In, Out>("Differential root update test") {
                 execute {
                     createSampleProducts()
                     val serviceClient = UCloudLauncher.serviceClient
@@ -44,78 +44,130 @@ class AccountingDifferentialTest : IntegrationTest() {
                     var midAllocations = retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
                     var leafAllocations = retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
 
-                    println(rootAllocations)
-                    println(midAllocations)
-                    println(leafAllocations)
+                    run {
+                        val response = Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    leaf.owner,
+                                    input.chargeAmount,
+                                    1,
+                                    sampleStorageDifferential.toReference(),
+                                    "SYSTEM",
+                                    "daily charge",
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
 
-                    Accounting.charge.call(
-                        bulkRequestOf(
-                            ChargeWalletRequestItem(
-                                leaf.owner,
-                                input.chargeAmount,
-                                1,
-                                sampleStorageDifferential.toReference(),
-                                "SYSTEM",
-                                "daily charge",
-                            )
-                        ),
-                        serviceClient
-                    ).orThrow()
+                        require(response.responses.first())
 
-                    rootAllocations = retrieveAllocationsInternal(root.owner, sampleStorageDifferential.category, serviceClient)
-                    midAllocations = retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
-                    leafAllocations = retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
+                        rootAllocations =
+                            retrieveAllocationsInternal(root.owner, sampleStorageDifferential.category, serviceClient)
+                        midAllocations =
+                            retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
+                        leafAllocations =
+                            retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
 
-                    require(
-                        rootAllocations.single().balance == rootAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in root is not correct after charge"}
-                    require(
-                        midAllocations.single().balance == midAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in mid is not correct after charge"}
-                    require(
-                        leafAllocations.single().balance == leafAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in leaf is not correct after charge"}
+                        require(
+                            rootAllocations.single().balance == rootAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in root is not correct after charge" }
+                        require(
+                            midAllocations.single().balance == midAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in mid is not correct after charge" }
+                        require(
+                            leafAllocations.single().balance == leafAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in leaf is not correct after charge" }
+                    }
+                    run {
+                        Accounting.updateAllocation.call(
+                            bulkRequestOf(
+                                UpdateAllocationRequestItem(
+                                    midAllocations.single().id,
+                                    10,
+                                    midAllocations.single().startDate,
+                                    reason = "Gave to many"
+                                )
+                            ),
+                            root.client
+                        ).orThrow()
 
-                    println("UPDATING")
+                        rootAllocations =
+                            retrieveAllocationsInternal(root.owner, sampleStorageDifferential.category, serviceClient)
+                        midAllocations =
+                            retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
+                        leafAllocations =
+                            retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
 
-                    Accounting.updateAllocation.call(
-                        bulkRequestOf(
-                            UpdateAllocationRequestItem(
-                                midAllocations.single().id,
-                                10,
-                                midAllocations.single().startDate,
-                                reason = "Gave to many"
-                            )
-                        ),
-                        root.client
-                    ).orThrow()
+                        require(
+                            rootAllocations.single().balance == rootAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in root is not correct after update" }
+                        require(
+                            midAllocations.single().balance == midAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in mid is not correct after charge" }
+                        require(
+                            leafAllocations.single().balance == leafAllocations.single().initialBalance - input.chargeAmount
+                        ) { "Balance in leaf is not correct after update" }
 
-                    rootAllocations = retrieveAllocationsInternal(root.owner, sampleStorageDifferential.category, serviceClient)
-                    midAllocations = retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
-                    leafAllocations = retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
+                        require(midAllocations.single().balance < 0) { "Balance is not negative. It is: ${midAllocations.single().balance}" }
+                    }
+                    run {
+                        val response = Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    leaf.owner,
+                                    0,
+                                    1,
+                                    sampleStorageDifferential.toReference(),
+                                    "SYSTEM",
+                                    "daily charge",
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
 
-                    println(rootAllocations)
-                    println(midAllocations)
-                    println(leafAllocations)
+                        require(response.responses.first())
 
-                    require(
-                        rootAllocations.single().balance == rootAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in root is not correct after update"}
-                    require(
-                        midAllocations.single().balance == midAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in mid is not correct after charge"}
-                    require(
-                        leafAllocations.single().balance == leafAllocations.single().initialBalance - input.chargeAmount
-                    ) { "Balance in leaf is not correct after update"}
+                        rootAllocations =
+                            retrieveAllocationsInternal(root.owner, sampleStorageDifferential.category, serviceClient)
+                        midAllocations =
+                            retrieveAllocationsInternal(mid.owner, sampleStorageDifferential.category, serviceClient)
+                        leafAllocations =
+                            retrieveAllocationsInternal(leaf.owner, sampleStorageDifferential.category, serviceClient)
 
-                    require(midAllocations.single().balance < 0) {"Balance is not negative. It is: ${midAllocations.single().balance}" }
+                        require(
+                            rootAllocations.single().balance == rootAllocations.single().initialBalance
+                        ) { "Balance in root is not correct after update" }
+                        require(
+                            midAllocations.single().balance == midAllocations.single().initialBalance
+                        ) { "Balance in mid is not correct after charge" }
+                        require(
+                            leafAllocations.single().balance == leafAllocations.single().initialBalance
+                        ) { "Balance in leaf is not correct after update" }
+                    }
+                    run {
+                        val response = Accounting.charge.call(
+                            bulkRequestOf(
+                                ChargeWalletRequestItem(
+                                    leaf.owner,
+                                    40,
+                                    1,
+                                    sampleStorageDifferential.toReference(),
+                                    "SYSTEM",
+                                    "daily charge",
+                                )
+                            ),
+                            serviceClient
+                        ).orThrow()
 
+                        require(!response.responses.first())
+
+                    }
 
                     Out()
 
                 }
 
-                case("one") {
+                case("initial test") {
                     input(
                         In(
                             chargeAmount = 50L
