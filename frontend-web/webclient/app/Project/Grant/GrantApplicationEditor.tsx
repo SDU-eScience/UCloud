@@ -101,7 +101,6 @@ export enum RequestTarget {
         - Reload when changing context.
         - Templates aren't being used, I think.
         - Reload doesn't handle everything correctly.
-        - Discarding changes does not revert to old values (Fixed by reloading for now.)
 
         BACKEND:
             - Rejecting a request will reject the entire application.
@@ -883,6 +882,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const projectId = useProjectId();
         React.useEffect(() => {
+            if (target === RequestTarget.PERSONAL_PROJECT && projectId != null) {
+                history.push("/");
+                return;
+            }
             setGrantGiversInUse([]);
             reload();
         }, [projectId, appId]);
