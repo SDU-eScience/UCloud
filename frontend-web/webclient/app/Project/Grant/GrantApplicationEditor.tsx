@@ -82,7 +82,7 @@ import {
     transferApplication,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {viewProject} from "..";
+import {useProjectId, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
@@ -101,8 +101,7 @@ export enum RequestTarget {
         - Reload when changing context.
         - Templates aren't being used, I think.
         - Reload doesn't handle everything correctly.
-        - Other: How to get to outgoing application list?
-        - Discarding changes does not revert to old values
+        - Discarding changes does not revert to old values (Fixed by reloading for now.)
 
         BACKEND:
             - Rejecting a request will reject the entire application.
@@ -577,6 +576,7 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
 function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
     if (approvalStates.some(it => it.state === State.CLOSED)) return State.CLOSED;
     if (approvalStates.some(it => it.state === State.IN_PROGRESS)) return State.IN_PROGRESS;
+    // Note(Jonas): This is how it's currently handled in the backend.
     if (approvalStates.some(it => it.state === State.REJECTED)) return State.REJECTED;
     return State.APPROVED;
 }
@@ -855,19 +855,19 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 await runWork(updateState(bulkRequestOf({applicationId: appId, newState: State.IN_PROGRESS, notify: false})), {defaultErrorHandler: false});
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.IN_PROGRESS}});
             } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to withdraw application.")
+                displayErrorMessageOrDefault(e, "Failed to undo.")
             }
         }, [appId, activeStateBreakDown]);
 
         const reload = useCallback(() => {
             fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
             if (appId) {fetchGrantApplication({id: appId}).then(g => dispatch({type: FETCHED_GRANT_APPLICATION, payload: g}));};
-            // TODO(Jonas):
-            // fetchWallets(browseWallets({itemsPerPage: 250}));
         }, [appId]);
+
 
         const discardChanges = useCallback(() => {
             setIsLocked(true);
+            reload();
         }, [reload]);
 
         React.useEffect(() => {
@@ -881,8 +881,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
 
-        const grantGiverDropdown = React.useMemo(() =>
-            target === RequestTarget.VIEW_APPLICATION || (grantGivers.data.items.length - grantGiversInUse.length) === 0 ? null :
+        const projectId = useProjectId();
+        React.useEffect(() => {
+            setGrantGiversInUse([]);
+            reload();
+        }, [projectId, appId]);
+
+        const grantGiverDropdown = React.useMemo(() => {
+            const filteredGrantGivers = grantGivers.data.items.filter(grantGiver => grantGiver.projectId !== projectId && !grantGiversInUse.includes(grantGiver.projectId));
+            return target === RequestTarget.VIEW_APPLICATION || filteredGrantGivers.length === 0 ? null :
                 <ClickableDropdown
                     fullWidth
                     colorOnHover={false}
@@ -897,7 +904,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </TableRow>
                             </TableHeader>
                             <tbody>
-                                {grantGivers.data.items.filter(grantGiver => !grantGiversInUse.includes(grantGiver.projectId)).map(grantGiver =>
+                                {filteredGrantGivers.map(grantGiver =>
                                     <TableRow cursor="pointer" key={grantGiver.projectId} onClick={() => setGrantGiversInUse(inUse => [...inUse, grantGiver.projectId])}>
                                         <TableCell pl="6px"><Flex><Logo projectId={grantGiver.projectId} size="32px" /><Text mt="3px" ml="8px">{grantGiver.title}</Text></Flex></TableCell>
                                         <TableCell pl="6px"><GrantGiverDescription key={grantGiver.projectId} projectId={grantGiver.projectId} /></TableCell>
@@ -906,8 +913,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </tbody>
                         </Table>
                     </Wrapper>
-                </ClickableDropdown>,
-            [grantGivers, grantGiversInUse]);
+                </ClickableDropdown>
+        }, [grantGivers, grantGiversInUse]);
 
         const grantGiverEntries = React.useMemo(() =>
             grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
