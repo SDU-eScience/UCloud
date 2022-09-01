@@ -328,3 +328,10 @@ export function browseGrantApplications(
 ): APICallParameters<BrowseApplicationsRequest> {
     return apiBrowse(request, grantBaseContext);
 }
+
+export interface Templates {
+    type: "plain_text";
+    personalProject: string;
+    newProject: string;
+    existingProject: string;
+}

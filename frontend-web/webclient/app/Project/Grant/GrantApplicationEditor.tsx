@@ -79,6 +79,7 @@ import {
     GrantProductCategory,
     Recipient,
     State,
+    Templates,
     transferApplication,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
@@ -97,10 +98,6 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
-        - Ensure that you can't request resources from yourself.
-        - Reload when changing context.
-        - Templates aren't being used, I think.
-        - Reload doesn't handle everything correctly.
 
         BACKEND:
             - Rejecting a request will reject the entire application.
@@ -628,6 +625,28 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication]);
         const isApprover = activeStateBreakDown != null;
 
+        const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
+        React.useEffect(() => {
+            if (grantApplication.currentRevision.document.parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
+                fetchTemplates(apiRetrieve({projectId: grantApplication.currentRevision.document.parentProjectId}, "/api/grant/templates"))
+            }
+        }, [grantApplication.currentRevision.document.parentProjectId]);
+        React.useEffect(() => {
+            if (target === RequestTarget.VIEW_APPLICATION) return;
+            if (!documentRef.current) return;
+            if (templates.data != null && templates.loading === false) {
+                switch (target) {
+                    case RequestTarget.EXISTING_PROJECT:
+                        documentRef.current.value = templates.data.existingProject;
+                        return;
+                    case RequestTarget.NEW_PROJECT:
+                        documentRef.current.value = templates.data.newProject;
+                        return;
+                    case RequestTarget.PERSONAL_PROJECT:
+                        documentRef.current.value = templates.data.personalProject;
+                }
+            }
+        }, [templates.data]);
 
         React.useEffect(() => {
             if (documentRef.current) {
