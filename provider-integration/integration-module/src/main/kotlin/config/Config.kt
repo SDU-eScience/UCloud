@@ -282,6 +282,7 @@ data class ConfigSchema(
                 val nodeToleration: TolerationKeyAndValue? = null,
                 val namespace: String = "app-kubernetes",
                 val scheduler: Scheduler = Scheduler.Volcano,
+                val categoryToSelector: Map<String, String> = emptyMap(),
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)

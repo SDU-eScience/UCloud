@@ -13,9 +13,11 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 
-class KubernetesNode(private val node: Node) : ComputeNode {
-    override suspend fun productCategory(): String? =
-        (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
+class KubernetesNode(private val node: Node, val categoryToSelector: Map<String, String>) : ComputeNode {
+    override suspend fun productCategory(): String? {
+        val name = (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
+        return categoryToSelector.entries.find { it.value == name }?.key ?: name
+    }
 
     override suspend fun retrieveCapacity(): CpuAndMemory {
         val vCpu = node.status?.allocatable?.cpu?.toDouble() ?: 0.0
@@ -65,13 +67,14 @@ class KubernetesNode(private val node: Node) : ComputeNode {
 
 class VolcanoRuntime(
     private val k8: K8DependenciesImpl,
+    private val categoryToSelector: Map<String, String>,
 ) : ContainerRuntime {
     override fun builder(
         jobId: String,
         replicas: Int,
         block: ContainerBuilder.() -> Unit
     ): ContainerBuilder {
-        return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8).also(block)
+        return VolcanoContainerBuilder(jobId, replicas, k8.nameAllocator, k8, categoryToSelector).also(block)
     }
 
     override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
@@ -124,7 +127,7 @@ class VolcanoRuntime(
                 )
             )
 
-            return VolcanoContainer(jobId, rank, job, pod, k8)
+            return VolcanoContainer(jobId, rank, job, pod, k8, categoryToSelector)
         } catch (ex: Throwable) {
             return null
         }
@@ -155,7 +158,8 @@ class VolcanoRuntime(
                         k8.nameAllocator.rankFromPodName(child.metadata?.name ?: ""),
                         job,
                         child,
-                        k8
+                        k8,
+                        categoryToSelector
                     )
                 )
             }
@@ -179,7 +183,7 @@ class VolcanoRuntime(
                     (node.metadata?.labels?.get(NameAllocator.nodeLabel) as? JsonPrimitive)?.content == "true"
             }
 
-        return allNodes.map { KubernetesNode(it) }
+        return allNodes.map { KubernetesNode(it, categoryToSelector) }
     }
 }
 
@@ -189,6 +193,7 @@ class VolcanoContainer(
     val volcanoJob: VolcanoJob,
     override val pod: Pod,
     private val k8: K8DependenciesImpl,
+    private val categoryToSelector: Map<String, String>,
 ) : PodBasedContainer() {
     override val k8Client: KubernetesClient get() = k8.client
     override val annotations: Map<String, String>
@@ -334,8 +339,10 @@ class VolcanoContainer(
     }
 
     override suspend fun productCategory(): String? {
-        return (volcanoJob.spec?.tasks?.get(0)?.template?.spec
-            ?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content
+        val name = (volcanoJob.spec?.tasks?.get(0)?.template?.spec
+            ?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
+
+        return categoryToSelector.entries.find { it.value == name }?.key ?: name
     }
 }
 
@@ -344,6 +351,7 @@ class VolcanoContainerBuilder(
     override val replicas: Int,
     private val nameAllocator: NameAllocator,
     private val k8: K8DependenciesImpl,
+    private val categoryToSelector: Map<String, String>,
     override val isSidecar: Boolean = false
 ) : PodBasedBuilder() {
     override var productCategoryRequired: String?
@@ -351,7 +359,7 @@ class VolcanoContainerBuilder(
         set(value) {
             podSpec.nodeSelector = JsonObject(
                 mapOf(
-                    "ucloud.dk/machine" to JsonPrimitive(value)
+                    "ucloud.dk/machine" to JsonPrimitive(categoryToSelector.getOrDefault(value, value))
                 )
             )
         }
@@ -474,7 +482,7 @@ class VolcanoContainerBuilder(
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        val sidecarContainer = VolcanoContainerBuilder(jobId, 1, nameAllocator, k8).also(builder).container
+        val sidecarContainer = VolcanoContainerBuilder(jobId, 1, nameAllocator, k8, categoryToSelector).also(builder).container
         sidecarContainer.name = name
         initContainers.add(sidecarContainer)
     }

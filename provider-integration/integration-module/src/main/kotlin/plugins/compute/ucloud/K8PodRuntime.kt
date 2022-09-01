@@ -11,12 +11,14 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 
 class K8Pod(
     override val k8Client: KubernetesClient,
     override val pod: Pod,
     override val jobId: String,
     override val rank: Int,
+    private val categoryToSelector: Map<String, String>,
 ) : PodBasedContainer() {
     private val namespace = pod.metadata!!.namespace!!
 
@@ -107,13 +109,15 @@ class K8Pod(
     }
 
     override suspend fun productCategory(): String? {
-        return (pod.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content
+        val name = (pod.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.contentOrNull
+        return categoryToSelector.entries.find { it.value == name }?.key ?: name
     }
 }
 
 class K8PodRuntime(
     private val k8Client: KubernetesClient,
     private val namespace: String,
+    private val categoryToSelector: Map<String, String>,
 ) : ContainerRuntime {
     private val canReadNodes = SimpleCache<Unit, Boolean>(SimpleCache.DONT_EXPIRE) {
         try {
@@ -128,7 +132,7 @@ class K8PodRuntime(
     }
 
     override fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit): ContainerBuilder {
-        return K8PodContainerBuilder(jobId, replicas, k8Client, namespace).also(block)
+        return K8PodContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector).also(block)
     }
 
     override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
@@ -188,7 +192,7 @@ class K8PodRuntime(
                 )
             )
 
-            return K8Pod(k8Client, pod, jobId, rank)
+            return K8Pod(k8Client, pod, jobId, rank, categoryToSelector)
         } catch (ex: KubernetesException) {
             if (ex.statusCode == HttpStatusCode.NotFound) {
                 return null
@@ -209,7 +213,7 @@ class K8PodRuntime(
             .mapNotNull {
                 runCatching {
                     val (jobId, rank) = podNameToIdAndRank(it.metadata!!.name!!)
-                    K8Pod(k8Client, it, jobId, rank)
+                    K8Pod(k8Client, it, jobId, rank, categoryToSelector)
                 }.getOrNull()
             }
             .toList()
@@ -233,7 +237,7 @@ class K8PodRuntime(
                     (node.metadata?.labels?.get(NameAllocator.nodeLabel) as? JsonPrimitive)?.content == "true"
             }
 
-        return allNodes.map { KubernetesNode(it) }
+        return allNodes.map { KubernetesNode(it, categoryToSelector) }
     }
 
     companion object {
@@ -254,6 +258,7 @@ class K8PodContainerBuilder(
     override val replicas: Int,
     private val k8Client: KubernetesClient,
     private val namespace: String,
+    private val categoryToSelector: Map<String, String>,
 ) : PodBasedBuilder() {
     val myPolicy: NetworkPolicy
 
@@ -289,7 +294,7 @@ class K8PodContainerBuilder(
         set(value) {
             podSpec.nodeSelector = JsonObject(
                 mapOf(
-                    "ucloud.dk/machine" to JsonPrimitive(value)
+                    "ucloud.dk/machine" to JsonPrimitive(categoryToSelector.getOrDefault(value, value))
                 )
             )
         }
@@ -300,7 +305,7 @@ class K8PodContainerBuilder(
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        val sidecarContainer = K8PodContainerBuilder(jobId, 1, k8Client, namespace).also(builder).container
+        val sidecarContainer = K8PodContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector).also(builder).container
         sidecarContainer.name = name
         initContainers.add(sidecarContainer)
     }
