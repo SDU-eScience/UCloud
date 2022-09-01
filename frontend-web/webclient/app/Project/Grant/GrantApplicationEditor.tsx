@@ -571,9 +571,9 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
 
 function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
     if (approvalStates.some(it => it.state === State.CLOSED)) return State.CLOSED;
-    if (approvalStates.some(it => it.state === State.IN_PROGRESS)) return State.IN_PROGRESS;
     // Note(Jonas): This is how it's currently handled in the backend.
     if (approvalStates.some(it => it.state === State.REJECTED)) return State.REJECTED;
+    if (approvalStates.some(it => it.state === State.IN_PROGRESS)) return State.IN_PROGRESS;
     return State.APPROVED;
 }
 
@@ -1126,11 +1126,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                         Transfer to other project
                                                                                     </Button> : null
                                                                                 }
-                                                                            </> : <>
+                                                                            </> : activeStateBreakDown.state === State.APPROVED ? <>
                                                                                 <Button onClick={setRequestPending}>
-                                                                                    Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
+                                                                                    Undo approval
                                                                                 </Button>
-                                                                            </>}
+                                                                            </> : null}
                                                                         </> : null
                                                                     }
                                                                     {isRecipient && !grantFinalized ?
