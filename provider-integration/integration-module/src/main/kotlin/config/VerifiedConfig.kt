@@ -5,6 +5,7 @@ import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
+import java.io.File
 import kotlin.system.exitProcess
 
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
@@ -277,7 +278,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         val certificate = run {
             val certPath = "${config.configurationDirectory}/ucloud_crt.pem"
             try {
-                val certText = NativeFile.open(certPath, readOnly = true).readText()
+                val certText = File(certPath).readText().trim()
 
                 val lineRegex = Regex("[a-zA-Z0-9+/=,-_]+")
                 certText.lines().drop(1).dropLast(1).forEach { line ->

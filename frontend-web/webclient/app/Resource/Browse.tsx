@@ -477,7 +477,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     <ItemRowMemo
                         key={it.id}
                         browseType={props.browseType}
-                        navigate={/*() => {
+                        navigate={() => {
                             //
                             //  Can we use callback here? I think it should improve performance so it doesn't create
                             //  a new lambda on each iteration
@@ -490,7 +490,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             } else {
                                 viewProperties(it);
                             }
-                        }*/doNothing}
+                        }}
                         renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}

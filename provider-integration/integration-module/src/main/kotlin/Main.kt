@@ -41,6 +41,7 @@ import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
+import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
@@ -249,7 +250,39 @@ fun main(args: Array<String>) {
             // UCloud/Core. This service is constructed fairly early, since both the RPC client and RPC server
             // requires this.
             val validation = if (serverMode == ServerMode.Server || serverMode == ServerMode.User) {
-                InternalTokenValidationJWT.withPublicCertificate(config.core.certificate)
+                try {
+                    InternalTokenValidationJWT.withPublicCertificate(config.core.certificate)
+                } catch (ex: Throwable) {
+                    sendTerminalMessage {
+                        bold { red { line("Error while parsing certificate of UCloud/Core") } }
+
+                        line()
+                        line("We read the following certificate:")
+                        code { line(config.core.certificate) }
+
+                        line()
+                        line("Formatted version:")
+                        code { line(InternalTokenValidationJWT.formatCert(config.core.certificate, true)) }
+
+                        line()
+                        inline("Certificate hash (SHA1):")
+                        code { line(hex(sha1(config.core.certificate.encodeToByteArray()))) }
+                        line("Note: The hash might be different from the file since we trim new-lines.")
+
+                        line()
+                        line("Please double check that this matches the certificate you received during the connection procedure with UCloud/Core.")
+
+                        line()
+                        line("The error was:")
+                        val stack = ex.toReadableStacktrace()
+                        line("${stack.type}: ${stack.message}")
+                        for (frame in stack.frames) {
+                            line(frame.prependIndent("    "))
+                        }
+                    }
+
+                    exitProcess(0)
+                }
             } else {
                 null
             }

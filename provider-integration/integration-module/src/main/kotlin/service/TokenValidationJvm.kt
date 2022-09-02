@@ -70,7 +70,7 @@ class InternalTokenValidationJWT(
             }
         }
 
-        private fun formatCert(cert: String, heads: Boolean): String {
+        fun formatCert(cert: String, heads: Boolean): String {
             var x509cert: String = cert.replace("\\x0D", "").replace("\r", "").replace("\n", "").replace(" ", "")
 
             if (!x509cert.isEmpty()) {
