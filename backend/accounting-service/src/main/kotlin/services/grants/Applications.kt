@@ -14,7 +14,6 @@ import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.api.Mail
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.JsonObject
@@ -449,12 +448,38 @@ class GrantApplicationService(
         revisionNumber: Int
     ) {
         runBlocking {
+            // TODO(Jonas):
+            // Fetch existing allocation requests, ONLY update these allocations requests based on actorAndProject
+            // project where grantGiver == actorAndProject.project. UNLESS request is from recipient.
+            val recipient = document.recipient
+            val application = retrieveGrantApplication(applicationId, actorAndProject)
+            val canChangeAll = when (recipient) {
+                is GrantApplication.Recipient.NewProject ->
+                    application.createdBy == actorAndProject.actor.safeUsername()
+                is GrantApplication.Recipient.ExistingProject ->
+                    recipient.id == actorAndProject.project
+                is GrantApplication.Recipient.PersonalWorkspace ->
+                    application.createdBy == actorAndProject.actor.safeUsername()
+            }
 
+            val updatedAllocationRequests = if (canChangeAll) document.allocationRequests else {
+                val newRequests = document.allocationRequests
+                val oldRequests = application.currentRevision.document.allocationRequests
+                oldRequests.mapNotNull { oldReq ->
+                    if (oldReq.grantGiver != actorAndProject.project) oldReq
+                    else {
+                        newRequests.find { newReq ->
+                            newReq.category == oldReq.category && newReq.provider == oldReq.provider
+                        }
+                    }
+                }
+            }
+            
             checkReferenceID(document.referenceId)
             val allocationsApproved = session.sendPreparedStatement(
                 {
                     setParameter("id", applicationId)
-                    document.allocationRequests.split {
+                    updatedAllocationRequests.split {
                         into("source_allocations") { it.sourceAllocation }
                         into("categories") { it.category }
                         into("providers") { it.provider }
@@ -1111,15 +1136,15 @@ class GrantApplicationService(
                                 apps.created_at, apps.id, r.revision_number
                         ),
                         all_applications as (
-                            select *
+                            select distinct(id), created_at
                             from ingoing
                             union
-                            select *
+                            select distinct(id), created_at
                             from outgoing
                         )
                         select "grant".application_to_json(id) 
                         from all_applications 
-                        order by created_at desc, id, revision_number;
+                        order by created_at desc, id;
                     """
                 )
             },

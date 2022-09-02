@@ -55,7 +55,7 @@ import * as UCloud from "@/UCloud";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {default as ReactModal} from "react-modal";
 import {defaultModalStyle} from "@/Utilities/ModalUtilities";
-import {bulkRequestOf, emptyPage} from "@/DefaultObjects";
+import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {Truncate} from "@/ui-components";
@@ -98,6 +98,8 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
+        - Not all allocation requests are correctly updated in the backend. (Might be backend issue.)
+        - Move stateBreakdown to left
 
         BACKEND:
             - Rejecting a request will reject the entire application.
@@ -331,6 +333,7 @@ const GenericRequestCard: React.FunctionComponent<{
                                         disabled={grantFinalized || isLocked || !canEdit}
                                         data-target={productCategoryId(wb.metadata.category, projectId)}
                                         autoComplete="off"
+                                        // TODO(Jonas): What the heck??
                                         defaultValue={normalizedValue}
                                         type="number"
                                         min={0}
@@ -607,19 +610,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
         const [transferringApplication, setTransferringApplication] = useState(false);
 
-        const [walletsByOwner, setWallets] = useState<Record<string, UCloud.PageV2<Wallet>>>({});
-        React.useEffect(() => {
-            const requests = grantGivers.data.items.map(it => ({...browseWallets({itemsPerPage: 250}), projectOverride: it.projectId}));
-            Promise.allSettled(requests.map(r => runWork<UCloud.PageV2<Wallet>>(r))).then(resolvedPromises => {
-                const result: Record<string, UCloud.PageV2<Wallet>> = {};
-                for (const [index, promise] of resolvedPromises.entries()) {
-                    if (promise.status === "fulfilled" && promise.value != null) {
-                        result[requests[index].projectOverride] = promise.value;
-                    }
-                };
-                setWallets(result);
-            });
-        }, [grantGivers.data]);
+        const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>({noop: true}, emptyPageV2)
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
         const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication]);
@@ -906,6 +897,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
             setGrantGiversInUse([]);
+            fetchWallets(browseWallets({itemsPerPage: 250}));
             reload();
         }, [projectId, appId]);
 
@@ -946,14 +938,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     grantApplication={grantApplication}
                     remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
                     setGrantProductCategories={setGrantProductCategories}
-                    wallets={walletsByOwner[it.projectId]?.items ?? []}
+                    wallets={wallets.data.items}
                     project={it}
                     isParentProject={getDocument(grantApplication).parentProjectId === it.projectId}
                     setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
                     isLocked={isLocked}
                     isRecipient={isRecipient}
                 />
-            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, walletsByOwner, grantApplication, isRecipient]);
+            ), [grantGivers, isRecipient, grantGiversInUse, isLocked, wallets, grantApplication, isRecipient]);
 
         const recipient = getDocument(grantApplication).recipient;
         const recipientName = useRecipientName(getDocument(grantApplication).recipient);
@@ -1181,7 +1173,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
                                             grantApplication={grantApplication}
                                             setGrantProductCategories={setGrantProductCategories}
-                                            wallets={walletsByOwner[grantGiver.projectId]?.items ?? []}
+                                            wallets={wallets.data.items}
                                             isRecipient={isRecipient}
                                         />
                                     </>))
