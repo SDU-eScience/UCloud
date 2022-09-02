@@ -993,7 +993,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell>
                                                         <Box>
                                                             {grantApplication.status.stateBreakdown.map(state => <Flex key={state.projectId}>
-                                                                <Text>{state.projectTitle}</Text><StateIcon state={state.state} />
+                                                                <StateIcon state={state.state} /><Text>{state.projectTitle}</Text>
                                                             </Flex>)}
                                                         </Box>
                                                     </TableCell>
@@ -1274,7 +1274,7 @@ function StateIcon({state}: {state: State;}) {
             color = "blue";
             break;
     }
-    return <Icon ml="8px" name={icon} color={color} />;
+    return <Icon mr="8px" name={icon} color={color} />;
 }
 
 const projectDescriptionCache: {[projectId: string]: string | undefined;} = {};
