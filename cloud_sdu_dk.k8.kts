@@ -162,6 +162,11 @@ config("app-kubernetes") { ctx ->
                 """
                     app:
                         kubernetes:
+                            categoryToNodeSelector:
+                                u1-fat-h: u1-fat
+                                u1-standard-h: u1-standard
+                                u1-gpu-h: u1-gpu
+                                u2-gpu-h: u2-gpu
                             nodes:
                                 systemReservedCpuMillis: 1000
                                 systemReservedMemMegabytes: 4096
@@ -179,6 +184,20 @@ config("app-kubernetes") { ctx ->
                                     u1-fat:
                                         cpuMillis: 80000
                                         memMegabytes: 772656
+                                    u1-standard-h:
+                                        cpuMillis: 64000
+                                        memMegabytes: 385584
+                                        gpus: 0
+                                    u1-gpu-h:
+                                        cpuMillis: 80000
+                                        memMegabytes: 1920429
+                                    u1-fat-h:
+                                        cpuMillis: 80000
+                                        memMegabytes: 772656
+                                    u2-gpu-h:
+                                        cpuMillis: 96000
+                                        memMegabytes: 2064007
+
                 """.trimIndent()
             )
         }
