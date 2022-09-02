@@ -8,6 +8,8 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.WSCall
+import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
@@ -19,9 +21,13 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlin.coroutines.coroutineContext
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -120,8 +126,7 @@ class FileController(
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
             val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
-                UserMapping.localIdToUCloudId(user.uid) ?:
-                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
             } else {
                 null
             }
@@ -178,8 +183,7 @@ class FileController(
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
             val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
-                UserMapping.localIdToUCloudId(user.uid) ?:
-                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
             } else {
                 null
             }
@@ -241,7 +245,12 @@ class FileController(
         val providerId = controllerContext.configuration.core.providerId
 
         val downloadApi = object : CallDescriptionContainer("file.${providerId}.download") {
-            val download = call("download", IMFileDownloadRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+            val download = call(
+                "download",
+                IMFileDownloadRequest.serializer(),
+                Unit.serializer(),
+                CommonErrorMessage.serializer()
+            ) {
                 audit(Unit.serializer())
                 auth {
                     access = AccessRight.READ
@@ -405,7 +414,7 @@ class FileController(
 
                 sctx.ktor.call.respondRedirect(
                     downloadPath(controllerContext.configuration.core.providerId, request.token) +
-                        "&attempt=${attempt + 1}"
+                            "&attempt=${attempt + 1}"
                 )
 
                 okContentAlreadyDelivered()
@@ -481,6 +490,40 @@ class FileController(
             }
 
             ok(Unit)
+        }
+
+        implement(api.streamingSearch) {
+            println("We are now inside of the provider")
+            with(requestContext(controllerContext)) {
+                val channels = retrievePlugins().mapNotNull { plugin ->
+                    println("We are now asking $plugin for help")
+                    with(plugin) {
+                        runCatching { streamingSearch(request) }.getOrNull()
+                    }
+                }
+
+                while (coroutineContext.isActive) {
+                    println("We are now looking for results")
+                    var isAllClosed = true
+                    val result = select<FilesProviderStreamingSearchResult?> {
+                        for (channel in channels) {
+                            if (channel.isClosedForReceive) continue
+
+                            isAllClosed = false
+                            channel.onReceiveCatching { message ->
+                                message.getOrNull()
+                            }
+                        }
+                    }
+
+                    println("Got a result: $result")
+
+                    if (result != null) sendWSMessage(result)
+                    if (isAllClosed) break
+                }
+            }
+
+            ok(FilesProviderStreamingSearchResult.EndOfResults())
         }
     }
 

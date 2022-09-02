@@ -4,6 +4,7 @@ import dk.sdu.cloud.accounting.util.asController
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.file.orchestrator.api.Files
 import dk.sdu.cloud.file.orchestrator.api.FilesControl
+import dk.sdu.cloud.file.orchestrator.api.FilesStreamingSearchResult
 import dk.sdu.cloud.file.orchestrator.service.FilesService
 import dk.sdu.cloud.service.Controller
 import dk.sdu.cloud.service.actorAndProject
@@ -42,6 +43,11 @@ class FileController(private val files: FilesService) : Controller {
 
         implement(Files.updateAcl) {
             ok(files.updateAcl(actorAndProject, request))
+        }
+
+        implement(Files.streamingSearch) {
+            files.streamingSearch(this)
+            ok(FilesStreamingSearchResult.EndOfResults())
         }
 
         implement(FilesControl.addUpdate) {

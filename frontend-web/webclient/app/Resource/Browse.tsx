@@ -34,7 +34,7 @@ import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
 import * as H from "history";
-import {ItemRenderer, ItemRow, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
+import {ItemRenderer, ItemRow, ItemRowMemo, StandardBrowse, useRenamingState} from "@/ui-components/Browse";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
@@ -44,10 +44,12 @@ import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {useCallbackWithLogging, useMemoWithLogging} from "@/Utilities/ReactUtilities";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
 
+    // Inline creation
     onInlineCreation?: (text: string, product: Product, cb: ResourceBrowseCallbacks<Res> & CB) => Res["specification"] | APICallParameters;
     inlinePrefix?: (productWithSupport: ResolvedSupport) => string;
     inlineSuffix?: (productWithSupport: ResolvedSupport) => string;
@@ -55,27 +57,39 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     inlineProduct?: Product;
     productFilterForCreate?: (product: ResolvedSupport) => boolean;
 
-    additionalFilters?: Record<string, string>;
+    // Headers
     header?: JSX.Element;
     headerSize?: number;
+
+    // Rename
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
+    // Properties and navigation
     navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
-    emptyPage?: JSX.Element;
     propsForInlineResources?: Record<string, any>;
-    extraCallbacks?: any;
-
     viewPropertiesInline?: (res: Res) => boolean;
 
+    // Empty page
+    emptyPage?: JSX.Element;
+
+    // Tweaks to row information
+    // TODO(Dan): This should probably live inside of ResourceApi?
     withDefaultStats?: boolean;
     showCreatedAt?: boolean;
     showCreatedBy?: boolean;
     showProduct?: boolean;
     showGroups?: boolean;
 
+    // Callback information which needs to be passed to the operations
+    extraCallbacks?: any;
+
+    // Hooks and tweaks to how resources are loaded
     onResourcesLoaded?: (newItems: Res[]) => void;
     shouldFetch?: () => boolean;
+    resources?: Res[]; // NOTE(Dan): if resources != null then no normal fetches will occur
 
+    // Sidebar and filters
+    additionalFilters?: Record<string, string>;
     extraSidebar?: JSX.Element;
 }
 
@@ -194,7 +208,9 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     }, [selectedProduct, productsWithSupport]);
 
     const generateFetch = useCallback((next?: string): APICallParameters => {
-        if (props.shouldFetch && !props.shouldFetch()) {
+        if (props.resources != null) {
+            return {noop: true};
+        } else if (props.shouldFetch && !props.shouldFetch()) {
             return {noop: true};
         }
 
@@ -209,7 +225,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                 ...filters, sortBy: sortColumn, sortDirection, ...props.additionalFilters
             });
         }
-    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters, props.shouldFetch]);
+    }, [filters, query, props.isSearch, sortColumn, sortDirection, props.additionalFilters, props.shouldFetch, props.resources]);
 
     useEffectSkipMount(() => {
         setSelectedProduct(props.inlineProduct ?? null);
@@ -223,7 +239,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
 
-    const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
+    const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemoWithLogging(() => ({
         api,
         isCreating,
         invokeCommand,
@@ -315,7 +331,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         setStoredSortDirection(api.title, dir);
     }, []);
 
-    const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
+    const modifiedRenderer = useMemoWithLogging((): ItemRenderer<Res> => {
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
@@ -458,14 +474,14 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     </>
                 }
                 {items.map(it =>
-                    <ItemRow
+                    <ItemRowMemo
                         key={it.id}
                         browseType={props.browseType}
-                        navigate={() => {
-                            /* 
-                                Can we use callback here? I think it should improve performance so it doesn't create
-                                a new lambda on each iteration                            
-                            */
+                        navigate={/*() => {
+                            //
+                            //  Can we use callback here? I think it should improve performance so it doesn't create
+                            //  a new lambda on each iteration
+                            //
                             if (props.navigateToChildren) {
                                 const result = props.navigateToChildren?.(history, it)
                                 if (result === "properties") {
@@ -474,7 +490,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                             } else {
                                 viewProperties(it);
                             }
-                        }}
+                        }*/doNothing}
                         renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}
@@ -495,7 +511,8 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     const main = !inlineInspecting ? <>
         <StandardBrowse isSearch={props.isSearch} browseType={props.browseType} pageSizeRef={pageSize}
             generateCall={generateFetch} pageRenderer={pageRenderer} reloadRef={reloadRef}
-            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded} />
+            setRefreshFunction={isEmbedded != true} onLoad={props.onResourcesLoaded}
+            preloadedResources={props.resources} />
     </> : <>
         <api.Properties api={api} resource={inlineInspecting} reload={reloadRef.current} embedded={true}
             closeProperties={closeProperties} {...props.propsForInlineResources} />

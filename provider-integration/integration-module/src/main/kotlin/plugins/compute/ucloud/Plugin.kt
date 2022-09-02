@@ -89,7 +89,8 @@ class UCloudComputePlugin : ComputePlugin {
 
         runtime = when (pluginConfig.scheduler) {
             ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.categoryToSelector)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace, pluginConfig.categoryToSelector)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace,
+                pluginConfig.categoryToSelector)
         }
 
         jobManagement = JobManagement(

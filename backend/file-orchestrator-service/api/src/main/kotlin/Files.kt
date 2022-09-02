@@ -1,8 +1,10 @@
 package dk.sdu.cloud.file.orchestrator.api
 
+import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.api.ChargeType
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.ProductCategoryId
@@ -12,9 +14,12 @@ import dk.sdu.cloud.accounting.api.providers.ResolvedSupport
 import dk.sdu.cloud.accounting.api.providers.ResourceApi
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
+import dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.project.api.SearchRequest
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdate
@@ -136,6 +141,22 @@ data class FilesCreateDownloadResponseItem(var endpoint: String)
 
 @Serializable
 data class UFileUpdate(override val timestamp: Long, override val status: String?) : ResourceUpdate
+
+@Serializable
+data class FilesStreamingSearchRequest(
+    val flags: UFileIncludeFlags,
+    val query: String,
+)
+
+@Serializable
+sealed class FilesStreamingSearchResult {
+    @Serializable
+    @SerialName("result")
+    data class Result(val batch: List<UFile>) : FilesStreamingSearchResult()
+    @Serializable
+    @SerialName("end_of_results")
+    class EndOfResults : FilesStreamingSearchResult()
+}
 
 // ---
 
@@ -833,6 +854,26 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
             )
 
             useCaseReference(emptyingTrash, "Moving files to trash")
+        }
+    }
+
+    val streamingSearch = call("streamingSearch", FilesStreamingSearchRequest.serializer(), FilesStreamingSearchResult.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.END_USER
+        }
+
+        websocket(baseContext)
+
+        documentation {
+            summary = "Searches through the files of a user in all accessible files"
+            description = """
+                This endpoint uses a specialized API for returning search results in a streaming fashion. In all other
+                ways, this endpoint is identical to the normal search API.
+                
+                Clients should expect that this endpoint stops returning results after a given timeout. After which,
+                it is no longer possible to request additional results. 
+            """.trimIndent()
         }
     }
 

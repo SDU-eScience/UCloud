@@ -36,9 +36,15 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonObject
 
 class UCloudFilePlugin : FilePlugin {
@@ -255,7 +261,8 @@ class UCloudFilePlugin : FilePlugin {
             FSFileSupport(
                 aclModifiable = false,
                 trashSupported = true,
-                isReadOnly = false
+                isReadOnly = false,
+                streamingSearchSupported = true,
             )
         )
 
@@ -288,6 +295,33 @@ class UCloudFilePlugin : FilePlugin {
                 bulkRequestOf(resource)
             ) as JsonObject
         )
+    }
+
+    override suspend fun RequestContext.streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = GlobalScope.produce {
+        println("We are now inside of the file plugin, looking for stuff")
+        var counter = 0
+        while (isActive) {
+            println("Sending $counter")
+            send(FilesProviderStreamingSearchResult.Result(listOf(
+                PartialUFile(
+                    "/220/${counter++}.txt",
+                    UFileStatus(
+                        FileType.FILE,
+                        sizeInBytes = 100,
+                        modifiedAt = Time.now(),
+                        accessedAt = Time.now(),
+                        unixMode = "777".toInt(8),
+                        unixOwner = 1337,
+                        unixGroup = 1337,
+                    ),
+                    Time.now(),
+                )
+            )))
+
+            delay(250)
+        }
     }
 
     override suspend fun PluginContext.runMonitoringLoop() {

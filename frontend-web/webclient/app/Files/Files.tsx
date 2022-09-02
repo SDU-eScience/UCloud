@@ -10,13 +10,11 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {
-    defaultErrorHandler,
+    defaultErrorHandler, doNothing,
     isLightThemeStored,
     joinToString,
     randomUUID,
     removeTrailingSlash,
-    onDevSite,
-    inDevEnvironment
 } from "@/UtilityFunctions";
 import {api as FileCollectionsApi, FileCollection} from "@/UCloud/FileCollectionsApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -31,13 +29,11 @@ import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {getCssVar} from "@/Utilities/StyledComponentsUtilities";
 import {FilesSearchTabs} from "@/Files/FilesSearchTabs";
 import {UserInProject, ListProjectsRequest, listProjects} from "@/Project";
-import {Client} from "@/Authentication/HttpClientInstance";
+import {Client, WSFactory} from "@/Authentication/HttpClientInstance";
 import {SyncthingConfig} from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
-import {getCookie} from "@/Login/Wayf";
-import {TextSpan} from "@/ui-components/Text";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -69,6 +65,8 @@ export const FilesBrowse: React.FunctionComponent<{
         listProjects({page: 0, itemsPerPage: 25, archived: false}),
         emptyPage
     );
+
+    const [searchResults, setSearchResults] = useState<UFile[] | undefined>(undefined);
 
     const [localActiveProject, setLocalActiveProject] = useState(Client.projectId ?? "");
     const [pathFromState, setPathFromState] = useState(browseType !== BrowseType.Embedded ?
@@ -233,6 +231,43 @@ export const FilesBrowse: React.FunctionComponent<{
         }
     }, [path, localActiveProject]);
 
+    useEffect(() => {
+        if (props.isSearch === true) {
+            const connection = WSFactory.open(
+                "/files",
+                {
+                    reconnect: false,
+                    init: (conn) => {
+                        conn.subscribe({
+                            call: "files.streamingSearch",
+                            payload: {
+                                query: "Testing 1 2 3",
+                                flags: {}
+                            },
+                            handler: (message) => {
+                                console.log("Received a message", message);
+                                if (message.payload["type"] === "result") {
+                                    const files = message.payload["batch"] as UFile[];
+                                    setSearchResults(prev => {
+                                        const previous = prev ?? [];
+                                        return [...previous, ...files];
+                                    });
+                                }
+                            }
+                        });
+                    },
+                }
+            );
+
+            return () => {
+                connection.close();
+            }
+        } else {
+            setSearchResults(undefined);
+            return doNothing;
+        }
+    }, [props.isSearch]);
+
     const headerComponent = useMemo((): JSX.Element => {
         const components = pathComponents(path);
         let breadcrumbs: string[] = [];
@@ -354,6 +389,7 @@ export const FilesBrowse: React.FunctionComponent<{
         showCreatedBy={false}
         showProduct={false}
         shouldFetch={shouldFetch}
+        resources={searchResults}
         extraSidebar={
             <>
                 <Box flexGrow={1} />

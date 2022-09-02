@@ -6,9 +6,11 @@ import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
@@ -115,6 +117,24 @@ data class FilesProviderSearchRequest(
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
 
+@Serializable
+data class FilesProviderStreamingSearchRequest(
+    val query: String,
+    val owner: ResourceOwner,
+    val flags: UFileIncludeFlags,
+)
+
+@Serializable
+sealed class FilesProviderStreamingSearchResult {
+    @Serializable
+    @SerialName("result")
+    data class Result(val batch: List<PartialUFile>) : FilesProviderStreamingSearchResult()
+
+    @Serializable
+    @SerialName("end_of_results")
+    class EndOfResults : FilesProviderStreamingSearchResult()
+}
+
 open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
     @OptIn(ExperimentalStdlibApi::class)
@@ -173,6 +193,15 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
 
     val search = call("search", FilesProviderSearchRequest.serializer(), PageV2.serializer(PartialUFile.serializer()), CommonErrorMessage.serializer()) {
         httpSearch(baseContext, roles = Roles.SERVICE)
+    }
+
+    val streamingSearch = call("streamingSearch", FilesProviderStreamingSearchRequest.serializer(), FilesProviderStreamingSearchResult.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.SERVICE
+        }
+
+        websocket(baseContext)
     }
 
     override val delete get() = super.delete!!

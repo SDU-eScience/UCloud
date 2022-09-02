@@ -544,3 +544,56 @@ suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeCa
 
     throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
 }
+
+// TODO(Dan): Too much copy&pasting going on in this file
+suspend fun <R : Any, S : Any, E : Any, C : ProviderComms> Providers<C>.invokeSubscription(
+    provider: String,
+    actorAndProject: ActorAndProject,
+    call: (comms: C) -> CallDescription<R, S, E>,
+
+    requestForProvider: R,
+
+    // NOTE(Dan): See ctx.signedIntent from the end-user request. This should only be passed if `isUserRequest = true`.
+    signedIntentFromEndUser: String?,
+    isUserRequest: Boolean = true,
+
+    handler: suspend (result: S) -> Unit
+): S {
+    val comms = prepareCommunication(provider)
+    val im = IntegrationProvider(provider)
+    val actualCall = call(comms)
+
+    val baseClient = comms.wsClient
+
+    for (attempt in 0 until 5) {
+        val response = actualCall.subscribe(
+            requestForProvider,
+            if (isUserRequest) {
+                baseClient.withProxyInfo(actorAndProject.actor.safeUsername(), signedIntentFromEndUser)
+            } else {
+                baseClient
+            },
+            handler
+        )
+
+        if (response.statusCode == HttpStatusCode.RetryWith ||
+            response.statusCode == HttpStatusCode.ServiceUnavailable
+        ) {
+            if (isUserRequest) {
+                im.init.call(
+                    IntegrationProviderInitRequest(actorAndProject.actor.safeUsername()),
+                    comms.client
+                ).orThrow()
+
+                delay(200L + (attempt * 500))
+                continue
+            } else {
+                response.throwError()
+            }
+        }
+
+        return response.orThrow()
+    }
+
+    throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+}

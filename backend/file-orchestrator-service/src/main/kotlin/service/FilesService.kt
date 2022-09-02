@@ -7,17 +7,24 @@ import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.CallHandler
+import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.SimpleCache
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.actorAndProject
 import dk.sdu.cloud.service.db.async.*
 import dk.sdu.cloud.task.api.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
@@ -53,7 +60,8 @@ class FilesService(
     private var ucloudShareReference: ProductReference? = null
 
     init {
-        ucloudShareReference =  runBlocking {
+        // TODO(Dan): This is extremely fragile as it will only work for one specific provider
+        ucloudShareReference = runBlocking {
             db.withSession { session ->
                 session
                     .sendPreparedStatement(
@@ -199,7 +207,7 @@ class FilesService(
     /*
      * ReplaceString should begin with / and end with /
      */
-    suspend fun replaceFileCollectionIdWhenShare(path: String) : String {
+    suspend fun replaceFileCollectionIdWhenShare(path: String): String {
         if (path.startsWith("/")) {
             val id = "/" + path.components().first()
             val replaceString = db.withSession { session ->
@@ -233,11 +241,12 @@ class FilesService(
         metadata: MetadataService.RetrieveWithHistory?,
     ): UFile {
         val metadataHistory = if (metadata != null) {
-            val resolvedIdIfShare = if (ucloudShareReference != null && resolvedCollection.specification.product == ucloudShareReference) {
-                replaceFileCollectionIdWhenShare(id)
-            } else {
-                id
-            }
+            val resolvedIdIfShare =
+                if (ucloudShareReference != null && resolvedCollection.specification.product == ucloudShareReference) {
+                    replaceFileCollectionIdWhenShare(id)
+                } else {
+                    id
+                }
             val inheritedMetadata = resolvedIdIfShare.parents().asReversed().mapNotNull { parent ->
                 metadata.metadataByFile[parent.removeSuffix("/")]?.mapNotNull { (template, docs) ->
                     // Pick only the latest version and only if it is not a deletion
@@ -246,7 +255,8 @@ class FilesService(
                     val validDoc = docs[0]
                     if (validDoc is FileMetadataDocument &&
                         (validDoc.status.approval == FileMetadataDocument.ApprovalStatus.NotRequired ||
-                        validDoc.status.approval is FileMetadataDocument.ApprovalStatus.Approved)) {
+                                validDoc.status.approval is FileMetadataDocument.ApprovalStatus.Approved)
+                    ) {
                         template to validDoc
                     } else {
                         null
@@ -281,9 +291,11 @@ class FilesService(
                             FileMetadataDocument.Spec(
                                 template.namespaceId,
                                 template.version,
-                                JsonObject(mapOf(
-                                    "sensitivity" to JsonPrimitive(legacySensitivity)
-                                )),
+                                JsonObject(
+                                    mapOf(
+                                        "sensitivity" to JsonPrimitive(legacySensitivity)
+                                    )
+                                ),
                                 ""
                             ),
                             Time.now(),
@@ -504,11 +516,17 @@ class FilesService(
             }
 
             // Verify that users are allowed to read results produced by provider
-            val collections = fileCollections.retrieveBulk(actorAndProject, collectionIds, listOf(Permission.READ), requireAll = false, ctx = session)
+            val collections = fileCollections.retrieveBulk(
+                actorAndProject,
+                collectionIds,
+                listOf(Permission.READ),
+                requireAll = false,
+                ctx = session
+            )
 
             val results = partialsByParent.flatMap { (parent, files) ->
                 val collection = collections.find { it.id == parent.components()[0] }
-                if (collection != null ) {
+                if (collection != null) {
                     val metadata = if (request.flags.includeMetadata == true) {
                         metadataCache.get(Pair(actorAndProject, parent))
                     } else {
@@ -528,6 +546,139 @@ class FilesService(
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    suspend fun streamingSearch(
+        handler: CallHandler<FilesStreamingSearchRequest, FilesStreamingSearchResult, CommonErrorMessage>
+    ): Unit = with(handler) {
+        return db.withSession { session ->
+            val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
+
+            val isMemberOfProject = if (actorAndProject.project == null) {
+                true
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                    },
+                    """
+                        select true
+                        from project.project_members pm
+                        where pm.username = :username and pm.project_id = :project
+                    """
+                ).rows.isNotEmpty()
+            }
+
+            if (!isMemberOfProject) {
+                throw RPCException("Bad project supplied", HttpStatusCode.Forbidden)
+            }
+
+            val relevantProviders = session.sendPreparedStatement(
+                {
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                    setParameter("project", actorAndProject.project)
+                },
+                """
+                    select distinct pc.provider
+                    from
+                        accounting.product_categories pc join
+                        accounting.wallets w on pc.id = w.category join
+                        accounting.wallet_owner wo on w.owned_by = wo.id join
+                        accounting.wallet_allocations wa on w.id = wa.associated_wallet
+                    where
+                        pc.product_type = 'STORAGE' and
+                        (:project::text is not null or wo.username = :username) and
+                        (:project::text is null or wo.project_id = :project)
+                """
+            ).rows.map { it.getString(0)!! }
+
+            coroutineScope {
+                val jobs = relevantProviders.map { provider ->
+                    launch {
+                        runCatching {
+                            providers.invokeSubscription(
+                                provider,
+                                actorAndProject,
+                                { it.filesApi.streamingSearch },
+                                FilesProviderStreamingSearchRequest(
+                                    request.query,
+                                    owner,
+                                    request.flags
+                                ),
+                                signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
+                                handler = { message ->
+                                    if (message !is FilesProviderStreamingSearchResult.Result) return@invokeSubscription
+
+                                    val collectionIds = HashSet<String>()
+                                    val partialsByParent = HashMap<String, List<PartialUFile>>()
+
+                                    val files = message.batch
+
+                                    for (file in files) {
+                                        val normalizedPath = file.id.normalize()
+                                        val components = normalizedPath.components()
+                                        if (components.size < 2) continue
+
+                                        collectionIds.add(components[0])
+                                        val parent = normalizedPath.parent()
+                                        partialsByParent[parent] = (partialsByParent[parent] ?: emptyList()) + file
+                                    }
+
+                                    // Verify that users are allowed to read results produced by provider
+                                    val collections = fileCollections.retrieveBulk(
+                                        actorAndProject,
+                                        collectionIds,
+                                        listOf(Permission.READ),
+                                        requireAll = false,
+                                        ctx = session
+                                    )
+
+                                    val results = partialsByParent.flatMap { (parent, files) ->
+                                        val collection = collections.find { it.id == parent.components()[0] }
+                                        if (collection != null) {
+                                            val metadata = if (request.flags.includeMetadata == true) {
+                                                metadataCache.get(Pair(actorAndProject, parent))
+                                            } else {
+                                                null
+                                            }
+
+                                            files.map { it.toUFile(collection, metadata) }
+                                        } else emptyList()
+                                    }
+
+                                    sendWSMessage(FilesStreamingSearchResult.Result(results))
+                                }
+                            )
+                        }
+                    }
+                }
+
+                val deadline = Time.now() + 60_000
+                while (isActive) {
+                    select {
+                        for (job in jobs) {
+                            job.onJoin {}
+                        }
+
+                        onTimeout(1000) {}
+                    }
+
+                    var allInactive = true
+                    for (job in jobs) {
+                        allInactive = allInactive && !job.isActive
+                    }
+
+                    if (allInactive) break
+
+                    if (Time.now() > deadline) {
+                        for (job in jobs) if (job.isActive) job.cancel()
+                        break
+                    }
+                }
+            }
+        }
+    }
+
     suspend fun move(
         actorAndProject: ActorAndProject,
         request: FilesMoveRequest
@@ -536,7 +687,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesMoveRequestItem,
-                BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderMoveRequestItem>, LongRunningTask>() {
                 val newCollectionsByRequest =
                     HashMap<FilesMoveRequestItem, RequestWithRefOrResource<FilesMoveRequestItem, FileCollection>>()
                 override val isUserRequest = true
@@ -635,7 +786,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, FilesCopyRequestItem,
-                BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
+                    BulkRequest<FilesProviderCopyRequestItem>, LongRunningTask>() {
                 val newCollectionsByRequest =
                     HashMap<FilesCopyRequestItem, RequestWithRefOrResource<FilesCopyRequestItem, FileCollection>>()
                 override val isUserRequest = true
@@ -823,6 +974,7 @@ class FilesService(
             }
         )
     }
+
     suspend fun emptyTrash(
         actorAndProject: ActorAndProject,
         request: FilesEmptyTrashRequest
@@ -892,7 +1044,7 @@ class FilesService(
             actorAndProject,
             request,
             object : BulkProxyInstructions<StorageCommunication, FSSupport, FileCollection, Req,
-                BulkRequest<ReqProvider>, Res>() {
+                    BulkRequest<ReqProvider>, Res>() {
                 override val isUserRequest = isUserRequest
                 override fun retrieveCall(comms: StorageCommunication) = call(comms)
 

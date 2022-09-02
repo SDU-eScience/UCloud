@@ -23,6 +23,7 @@ import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SmallScreenSearchField} from "@/Navigation/Header";
+import {defaultMemoCompareWithLogging} from "@/Utilities/ReactUtilities";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -146,6 +147,8 @@ interface ItemRowProps<T, CB> {
 export const ItemRow = <T, CB>(
     props: React.PropsWithChildren<ItemRowProps<T, CB>>
 ): JSX.Element | null => {
+    console.log("Rendering item", (props.item as any)["id"]);
+
     const renderer = props.renderer;
     const renameInputRef = useRef<HTMLInputElement>(null);
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
@@ -209,6 +212,8 @@ export const ItemRow = <T, CB>(
         }
     />;
 }
+
+export const ItemRowMemo = React.memo(ItemRow, defaultMemoCompareWithLogging) as typeof ItemRow;
 
 interface RenamingState<T> {
     setRenaming: (item: T) => void;
