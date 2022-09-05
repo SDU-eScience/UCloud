@@ -98,12 +98,9 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Improve allocation selection UI.
-        - Not all allocation requests are correctly updated in the backend. (Might be backend issue.)
-        - Move stateBreakdown to left
 
         BACKEND:
             - Rejecting a request will reject the entire application.
-            - User of Project A can modify allocations by Project B, even if they have no roles in the project. (Inspect and edit input field.)
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -296,8 +293,8 @@ const GenericRequestCard: React.FunctionComponent<{
         </RequestForSingleResourceWrapper>;
     } else {
         const defaultValue = allocationRequest?.balanceRequested;
-        const normalizedValue = defaultValue != null ?
-            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice) :
+        var normalizedValue = defaultValue != null ?
+            normalizeBalanceForFrontend(defaultValue, wb.metadata.productType, wb.metadata.chargeType, wb.metadata.unitOfPrice, 2, true) :
             undefined;
         return <RequestForSingleResourceWrapper>
             <HighlightedCard color="blue" isLoading={false}>
