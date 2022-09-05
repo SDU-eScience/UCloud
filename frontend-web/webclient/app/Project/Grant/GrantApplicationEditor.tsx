@@ -97,10 +97,18 @@ export enum RequestTarget {
 
 /* 
     TODO List:
-        - Improve allocation selection UI.
+        - Find new In Progress Icon (General)
+        - if Recipient, show all requested products, otherwise, show active project at the top,
+            - put others in accordion (if it is not ugly.)
+        - Disallow approval if source allocations aren't filled out for every product as approver.
+            - Auto-select if only one?
+        - Attempt to move edit to sidebar
+        // - Always allow editing source allocation from the right active project. Show "Update allocation" button if not equal to previous source allocation selection
+
 
         BACKEND:
             - Rejecting a request will reject the entire application.
+                - Correct that entire application is rejected, but rejecter should be able to undo.
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -931,6 +939,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             grantGivers.data.items.filter(it => grantGiversInUse.includes(it.projectId)).map(it =>
                 <GrantGiver
                     key={it.projectId}
+                    target={target}
                     isApprover={Client.projectId === it.projectId}
                     grantApplication={grantApplication}
                     remove={() => setGrantGiversInUse(inUse => [...inUse.filter(entry => entry !== it.projectId)])}
@@ -1150,10 +1159,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     </HighlightedCard>
                                 </>
                             )}
-
-                            <Heading.h1 mt={32} mb={12}>
-                                {target === RequestTarget.VIEW_APPLICATION ? "Requested Resources" : "Resources"}
-                            </Heading.h1>
+                            
+                            <Box my="32px" />
 
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
@@ -1163,6 +1170,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.projectId).includes(it.projectId)).map(grantGiver => <>
                                         <GrantGiver
                                             key={grantGiver.projectId}
+                                            target={target}
                                             isLocked={isLocked}
                                             isApprover={Client.projectId === grantGiver.projectId}
                                             project={grantGiver}
@@ -1355,6 +1363,7 @@ function overallStateText(grantApplication: GrantApplication): string {
 function GrantGiver(props: {
     grantApplication: GrantApplication;
     project: ProjectWithTitle;
+    target: RequestTarget;
     isLocked: boolean;
     isApprover: boolean;
     isRecipient: boolean;
@@ -1445,6 +1454,7 @@ function GrantGiver(props: {
             />
             {productTypes.map(type => <AsProductType
                 key={type}
+                target={props.target}
                 type={type}
                 projectId={props.project.projectId}
                 isApprover={props.isApprover}
@@ -1458,6 +1468,7 @@ function GrantGiver(props: {
 }
 
 function AsProductType(props: {
+    target: RequestTarget,
     type: ProductType;
     productCategories: GrantProductCategory[];
     wallets: Wallet[];
@@ -1466,12 +1477,13 @@ function AsProductType(props: {
     isLocked: boolean;
     isApprover: boolean;
     grantApplication: GrantApplication;
-}): JSX.Element {
+}): JSX.Element | null {
     const grantFinalized = isGrantFinalized(props.grantApplication.status.overallState);
     const filteredProductCategories = props.productCategories.filter(pc => pc.metadata.productType === props.type);
     const noEntries = filteredProductCategories.length === 0;
     const {allocationRequests} = props.grantApplication.currentRevision.document;
     const filteredWallets = props.wallets.filter(it => it.productType === props.type);
+    if (props.target === RequestTarget.VIEW_APPLICATION && noEntries) return null;
     return <>
         <Heading.h4 mt={32}><Flex>{productTypeToTitle(props.type)} <ProductLink /></Flex></Heading.h4>
         {noEntries ? <Heading.h4 mt="12px">No products for type available.</Heading.h4> : <ResourceContainer>
