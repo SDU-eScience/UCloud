@@ -30,6 +30,11 @@ export function defaultMemoCompareWithLogging(prev, next): boolean {
         const previousValue = prev[key];
         if (previousValue !== value) {
             console.log(key, "has changed ", previousValue, value);
+            if (typeof value === "object" && typeof previousValue === "object") {
+                console.log("Now trying to determine why ", key, "has changed...")
+                defaultMemoCompareWithLogging(value, previousValue);
+                console.log("---")
+            }
             return false
         }
     }
@@ -49,7 +54,10 @@ export function useMemoWithLogging<T>(fn: () => T, dependencies): T {
     const previousDependencies = useRef(undefined);
     useEffect(() => {
         if (previousDependencies.current != null) {
-            defaultMemoCompareWithLogging(convertDependencyListToObject(previousDependencies.current), convertDependencyListToObject(dependencies));
+            const didChange = defaultMemoCompareWithLogging(
+                convertDependencyListToObject(previousDependencies.current),
+                convertDependencyListToObject(dependencies)
+            );
         }
         previousDependencies.current = dependencies;
     }, [dependencies]);

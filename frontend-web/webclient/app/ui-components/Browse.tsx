@@ -23,7 +23,6 @@ import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SmallScreenSearchField} from "@/Navigation/Header";
-import {defaultMemoCompareWithLogging} from "@/Utilities/ReactUtilities";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -212,7 +211,7 @@ export const ItemRow = <T, CB>(
     />;
 }
 
-export const ItemRowMemo = React.memo(ItemRow, defaultMemoCompareWithLogging) as typeof ItemRow;
+export const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
 
 interface RenamingState<T> {
     setRenaming: (item: T) => void;
@@ -247,7 +246,7 @@ export function useRenamingState<T>(
         renameValue: memoNameExtractor,
         onRename: memoOnRename,
         onRenameCancel
-    }), [onRename, isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
+    }), [isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
 }
 
 export interface StandardCallbacks<T> {

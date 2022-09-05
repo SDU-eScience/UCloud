@@ -44,7 +44,6 @@ import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
-import {useCallbackWithLogging, useMemoWithLogging} from "@/Utilities/ReactUtilities";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -239,7 +238,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [setInlineInspecting, isEmbedded, history, api, props.viewPropertiesInline]);
 
-    const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemoWithLogging(() => ({
+    const callbacks: ResourceBrowseCallbacks<Res> & CB = useMemo(() => ({
         api,
         isCreating,
         invokeCommand,
@@ -331,7 +330,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         setStoredSortDirection(api.title, dir);
     }, []);
 
-    const modifiedRenderer = useMemoWithLogging((): ItemRenderer<Res> => {
+    const modifiedRenderer = useMemo((): ItemRenderer<Res> => {
         const renderer: ItemRenderer<Res> = {...api.renderer};
         const RemainingStats = renderer.Stats;
         const NormalMainTitle = renderer.MainTitle;
@@ -412,6 +411,17 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
 
     const pageSize = useRef(0);
 
+    const navigateCallback = useCallback((item: Res) => {
+        if (props.navigateToChildren) {
+            const result = props.navigateToChildren?.(history, item)
+            if (result === "properties") {
+                viewProperties(item);
+            }
+        } else {
+            viewProperties(item);
+        }
+    }, [props.navigateToChildren, viewProperties]);
+
     const pageRenderer = useCallback<PageRenderer<Res>>(items => {
         /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
         toggleSet.allItems.current = items;
@@ -477,20 +487,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                     <ItemRowMemo
                         key={it.id}
                         browseType={props.browseType}
-                        navigate={() => {
-                            //
-                            //  Can we use callback here? I think it should improve performance so it doesn't create
-                            //  a new lambda on each iteration
-                            //
-                            if (props.navigateToChildren) {
-                                const result = props.navigateToChildren?.(history, it)
-                                if (result === "properties") {
-                                    viewProperties(it);
-                                }
-                            } else {
-                                viewProperties(it);
-                            }
-                        }}
+                        navigate={navigateCallback}
                         renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
                         item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
                         renaming={renaming}

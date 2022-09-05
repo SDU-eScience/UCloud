@@ -1,7 +1,6 @@
 import equal from "fast-deep-equal";
 import {useCallback, useMemo, useRef, useState} from "react";
 import * as React from "react";
-import {useMemoWithLogging} from "@/Utilities/ReactUtilities";
 
 export class ToggleSet<T> {
     private privateItems: T[] = [];
