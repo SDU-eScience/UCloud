@@ -299,30 +299,7 @@ class UCloudFilePlugin : FilePlugin {
 
     override suspend fun RequestContext.streamingSearch(
         req: FilesProviderStreamingSearchRequest
-    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = GlobalScope.produce {
-        println("We are now inside of the file plugin, looking for stuff")
-        var counter = 0
-        while (isActive) {
-            println("Sending $counter")
-            send(FilesProviderStreamingSearchResult.Result(listOf(
-                PartialUFile(
-                    "/220/${counter++}.txt",
-                    UFileStatus(
-                        FileType.FILE,
-                        sizeInBytes = 100,
-                        modifiedAt = Time.now(),
-                        accessedAt = Time.now(),
-                        unixMode = "777".toInt(8),
-                        unixOwner = 1337,
-                        unixGroup = 1337,
-                    ),
-                    Time.now(),
-                )
-            )))
-
-            delay(250)
-        }
-    }
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = queries.streamingSearch(req)
 
     override suspend fun PluginContext.runMonitoringLoop() {
 

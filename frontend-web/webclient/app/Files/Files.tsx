@@ -5,7 +5,7 @@ import {ResourceBrowse} from "@/Resource/Browse";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ResourceRouter} from "@/Resource/Router";
 import {useHistory, useLocation} from "react-router";
-import {buildQueryString, getQueryParamOrElse} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParam, getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
@@ -34,6 +34,8 @@ import {SyncthingConfig} from "@/Syncthing/api";
 import * as Sync from "@/Syncthing/api";
 import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
+import {setLoading, useLoading} from "@/Navigation/Redux/StatusActions";
+import {useDispatch} from "react-redux";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -50,10 +52,14 @@ export const FilesBrowse: React.FunctionComponent<{
 
     const location = useLocation();
     const history = useHistory();
+    const dispatch = useDispatch();
 
     const browseType = props.browseType ?? BrowseType.MainContent;
-    const [, setUploadPath] = useGlobal("uploadPath", "/");
+    const [uploadPath, setUploadPath] = useGlobal("uploadPath", "/");
     const pathFromQuery = getQueryParamOrElse(location.search, "path", "/");
+    // TODO(Dan): This should probably be passed down as a search parameter instead.
+    const searchQuery = props.isSearch ? getQueryParamOrElse(location.search, "q", "") : null;
+    const searchContext = getQueryParam(location.search, "searchContext");
 
     // UI state
     const didUnmount = useDidUnmount();
@@ -199,9 +205,9 @@ export const FilesBrowse: React.FunctionComponent<{
     useEffect(() => {
         // NOTE(Dan): The uploader component, triggered by one of the operations, need to know about the current folder.
         // We store this in global application state and set it if we are rendering a main UI.
-        if (browseType !== BrowseType.Embedded) setUploadPath(path);
+        if (browseType !== BrowseType.Embedded && !props.isSearch) setUploadPath(path);
         if (props.pathRef) props.pathRef.current = path;
-    }, [path, browseType, props.pathRef]);
+    }, [path, browseType, props.pathRef, props.isSearch]);
 
     useEffect(() => {
         // NOTE(Dan): Trigger a redirect to an appropriate drive, if no path was supplied to us. This typically happens
@@ -232,43 +238,72 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [path, localActiveProject]);
 
     useEffect(() => {
+        // NOTE(Dan): The search context is currently derived from the uploadPath global. After a refresh on the
+        // search page we have the searchContext but uploadPath is not set. This effect sets the upload path such that
+        // subsequent searches will still have the correct context.
+        if (!props.isSearch) return;
+        if (!searchContext) return;
+        if (uploadPath === "/") setUploadPath(searchContext);
+    }, [uploadPath, searchContext, props.isSearch])
+
+    useEffect(() => {
+        if (!props.isSearch) return;
+        if (!searchContext && uploadPath) {
+            history.replace(`${location.pathname}${location.search}&searchContext=${encodeURIComponent(uploadPath)}`);
+        }
+    }, [props.isSearch, location.search, location.pathname]);
+
+    useEffect(() => {
+        // NOTE(Dan): Reset search results between different queries.
+        if (!props.isSearch) return;
+        setSearchResults(undefined);
+    }, [searchQuery]);
+
+    useEffect(() => {
         if (props.isSearch === true) {
             const connection = WSFactory.open(
                 "/files",
                 {
                     reconnect: false,
-                    init: (conn) => {
-                        conn.subscribe({
-                            call: "files.streamingSearch",
-                            payload: {
-                                query: "Testing 1 2 3",
-                                flags: {}
-                            },
-                            handler: (message) => {
-                                console.log("Received a message", message);
-                                if (message.payload["type"] === "result") {
-                                    const files = message.payload["batch"] as UFile[];
-                                    setSearchResults(prev => {
-                                        const previous = prev ?? [];
-                                        return [...previous, ...files];
-                                    });
+                    init: async (conn) => {
+                        dispatch(setLoading(true));
+                        try {
+                            await conn.subscribe({
+                                call: "files.streamingSearch",
+                                payload: {
+                                    query: searchQuery,
+                                    flags: {},
+                                    currentFolder: searchContext ?? uploadPath
+                                },
+                                handler: (message) => {
+                                    if (message.payload["type"] === "result") {
+                                        const files = message.payload["batch"] as UFile[];
+                                        setSearchResults(prev => {
+                                            const previous = prev ?? [];
+                                            return [...previous, ...files];
+                                        });
+                                    }
                                 }
-                            }
-                        });
+                            });
+                        } finally {
+                            dispatch(setLoading(false));
+                        }
                     },
                 }
             );
 
             return () => {
                 connection.close();
-            }
+                dispatch(setLoading(false));
+            };
         } else {
             setSearchResults(undefined);
             return doNothing;
         }
-    }, [props.isSearch]);
+    }, [props.isSearch, searchQuery]);
 
     const headerComponent = useMemo((): JSX.Element => {
+        if (props.isSearch) return <FilesSearchTabs active={"FILES"} />;
         const components = pathComponents(path);
         let breadcrumbs: string[] = [];
         if (components.length >= 1) {
@@ -283,8 +318,6 @@ export const FilesBrowse: React.FunctionComponent<{
         }
 
         return <Box backgroundColor={getCssVar("white")}>
-            {props.isSearch !== true || browseType != BrowseType.MainContent ? null :
-                <FilesSearchTabs active={"FILES"} />}
             {browseType !== BrowseType.Embedded ? null : <Flex>
                 <DriveDropdown iconName="projects">
                     <ListV1
@@ -364,7 +397,7 @@ export const FilesBrowse: React.FunctionComponent<{
                 </BreadCrumbsBase>
             </Flex>
         </Box>;
-    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject]);
+    }, [path, browseType, collection.data, drives.items, projects.data.items, lightTheme, localActiveProject, props.isSearch]);
 
     const hasSyncCookie = true;
 
@@ -377,12 +410,23 @@ export const FilesBrowse: React.FunctionComponent<{
         onInlineCreation={onInlineCreation}
         onRename={onRename}
         emptyPage={
-            <>No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.</>
+            <>
+                {props.isSearch ?
+                    <>
+                        UCloud is currently searching for files. This search may use your current folder as a starting
+                        point. If you do not get any results, try to select a different folder before starting your
+                        search.
+                    </> :
+                    <>
+                        No files found. Click &quot;Create folder&quot; or &quot;Upload files&quot;.
+                    </>
+                }
+            </>
         }
         isSearch={props.isSearch}
         additionalFilters={additionalFilters}
         header={headerComponent}
-        headerSize={75}
+        headerSize={props.isSearch ? 48 : 75}
         navigateToChildren={navigateToFile}
         extraCallbacks={callbacks}
         viewPropertiesInline={viewPropertiesInline}

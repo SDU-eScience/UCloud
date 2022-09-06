@@ -573,24 +573,43 @@ class FilesService(
                 throw RPCException("Bad project supplied", HttpStatusCode.Forbidden)
             }
 
-            val relevantProviders = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
-                },
-                """
-                    select distinct pc.provider
-                    from
-                        accounting.product_categories pc join
-                        accounting.wallets w on pc.id = w.category join
-                        accounting.wallet_owner wo on w.owned_by = wo.id join
-                        accounting.wallet_allocations wa on w.id = wa.associated_wallet
-                    where
-                        pc.product_type = 'STORAGE' and
-                        (:project::text is not null or wo.username = :username) and
-                        (:project::text is null or wo.project_id = :project)
-                """
-            ).rows.map { it.getString(0)!! }
+            val currentFolder = request.currentFolder
+            val relevantProviders = if (currentFolder != null) {
+                val collection = try {
+                    fileCollections.retrieve(
+                        actorAndProject,
+                        currentFolder.components().getOrNull(0)
+                            ?: throw RPCException("Current folder is unknown", HttpStatusCode.NotFound),
+                        FileCollectionIncludeFlags(),
+                    )
+                } catch (ex: RPCException) {
+                    if (ex.httpStatusCode == HttpStatusCode.NotFound) {
+                        throw RPCException("Current folder is unknown", HttpStatusCode.NotFound)
+                    }
+                    throw ex
+                }
+
+                listOf(collection.specification.product.provider)
+            } else {
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
+                    },
+                    """
+                        select distinct pc.provider
+                        from
+                            accounting.product_categories pc join
+                            accounting.wallets w on pc.id = w.category join
+                            accounting.wallet_owner wo on w.owned_by = wo.id join
+                            accounting.wallet_allocations wa on w.id = wa.associated_wallet
+                        where
+                            pc.product_type = 'STORAGE' and
+                            (:project::text is not null or wo.username = :username) and
+                            (:project::text is null or wo.project_id = :project)
+                    """
+                ).rows.map { it.getString(0)!! }
+            }
 
             coroutineScope {
                 val jobs = relevantProviders.map { provider ->
@@ -603,7 +622,8 @@ class FilesService(
                                 FilesProviderStreamingSearchRequest(
                                     request.query,
                                     owner,
-                                    request.flags
+                                    request.flags,
+                                    request.currentFolder
                                 ),
                                 signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
                                 handler = { message ->

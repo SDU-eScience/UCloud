@@ -5,10 +5,10 @@ import {
     Resource,
     ResourceApi,
     ResourceBrowseCallbacks,
+    ResourceSpecification,
     ResourceStatus,
     ResourceUpdate,
     SupportByProvider,
-    ResourceSpecification,
     UCLOUD_CORE
 } from "@/UCloud/ResourceApi";
 import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
@@ -29,7 +29,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import {useSidebarPage} from "@/ui-components/Sidebar";
 import * as Heading from "@/ui-components/Heading";
 import {useHistory, useLocation} from "react-router";
-import {EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
+import {EnumFilterWidget, EnumOption, ResourceFilter, StaticPill} from "@/Resource/Filter";
 import {useResourceSearch} from "@/Resource/Search";
 import {getQueryParamOrElse} from "@/Utilities/URIUtilities";
 import {useDispatch} from "react-redux";
@@ -39,11 +39,13 @@ import {useAvatars} from "@/AvataaarLib/hook";
 import {Avatar} from "@/AvataaarLib";
 import {defaultAvatar} from "@/UserSettings/Avataaar";
 import {Product, ProductType, productTypeToIcon} from "@/Accounting";
-import {EnumFilterWidget} from "@/Resource/Filter";
 import {BrowseType} from "./BrowseType";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {FixedSizeList} from "react-window";
+import {default as AutoSizer} from "react-virtualized-auto-sizer";
+import {useGlobal} from "@/Utilities/ReduxHooks";
 
 export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResourceBrowseProps<Res> {
     api: ResourceApi<Res, never>;
@@ -123,6 +125,7 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         {productsByProvider: {}}
     );
 
+    const [headerSize] = useGlobal("mainContainerHeaderSize", 0);
     const isEmbedded = props.browseType === BrowseType.Embedded;
     const includeOthers = props.browseType !== BrowseType.Embedded;
     const [selectedProduct, setSelectedProduct] = useState<Product | null>(props.inlineProduct ?? null);
@@ -422,10 +425,29 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
         }
     }, [props.navigateToChildren, viewProperties]);
 
-    const pageRenderer = useCallback<PageRenderer<Res>>(items => {
+    const listItem = useCallback<(p: { style, index, data: Res[], isScrolling?: boolean }) => JSX.Element>(
+        ({ style, index, data }) => {
+            const it = data[index];
+            return <div style={style} className={"list-item"}>
+                <ItemRowMemo
+                    key={it.id}
+                    browseType={props.browseType}
+                    navigate={navigateCallback}
+                    renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
+                    item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural}
+                    toggleSet={toggleSet} renaming={renaming}
+                />
+            </div>
+        },
+        [navigateCallback, modifiedRenderer, callbacks, operations, api.title, api.titlePlural, toggleSet, renaming]
+    );
+
+    const pageRenderer = useCallback<PageRenderer<Res>>((items, opts) => {
+        console.log("opts are", opts);
         /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
         toggleSet.allItems.current = items;
         const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;
+        const sizeAllocationForEmbeddedAndCard = Math.min(500, items.length * 56);
         return <>
             {pageSize.current > 0 ? (
                 <Spacer mr="8px" left={
@@ -483,16 +505,33 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
                         Click &quot;Create {api.title.toLowerCase()}&quot; to create a new one.
                     </>
                 }
-                {items.map(it =>
-                    <ItemRowMemo
-                        key={it.id}
-                        browseType={props.browseType}
-                        navigate={navigateCallback}
-                        renderer={modifiedRenderer} callbacks={callbacks} operations={operations}
-                        item={it} itemTitle={api.title} itemTitlePlural={api.titlePlural} toggleSet={toggleSet}
-                        renaming={renaming}
-                    />
-                )}
+
+                {/*
+                    TODO(Dan): This height is extremely fragile!
+
+                    NOTE(Dan):
+                    - 48px corresponds to the top nav-header
+                    - 45px to deal with header of the browse component
+                    - 48px to deal with load more button
+                    - the rest depends entirely on the headerSize of the <MainContainer /> which we load from a
+                      global value.
+                */}
+                <div style={props.browseType == BrowseType.MainContent ?
+                    {height: `calc(100vh - 48px - 45px - ${opts.hasNext ? 48 : 0}px - ${headerSize}px)`} :
+                    {height: `${sizeAllocationForEmbeddedAndCard}px`}}
+                >
+                    <AutoSizer children={({width, height}) => (
+                        <FixedSizeList
+                            itemData={items}
+                            itemCount={items.length}
+                            itemSize={56}
+                            width={width}
+                            height={height}
+                            children={listItem}
+                            overscanCount={32}
+                        />
+                    )}/>
+                </div>
             </List>
         </>
     }, [toggleSet, isCreating, selectedProduct, props.withDefaultStats, selectedProductWithSupport, renaming,

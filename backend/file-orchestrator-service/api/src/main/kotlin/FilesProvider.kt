@@ -122,6 +122,7 @@ data class FilesProviderStreamingSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val currentFolder: String? = null,
 )
 
 @Serializable

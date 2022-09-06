@@ -23,6 +23,8 @@ import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SmallScreenSearchField} from "@/Navigation/Header";
+import {FixedSizeList} from "react-window";
+import {default as AutoSizer} from "react-virtualized-auto-sizer";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -113,7 +115,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     return <>
         {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={error?.why}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], { hasNext: false })} error={error?.why}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
     </>
 }
@@ -319,22 +321,34 @@ export function StandardList<T, CB = EmptyObject>(
     }, [props.operations]);
 
     const pageRenderer = useCallback<PageRenderer<T>>(items => {
-        return <List childPadding={"8px"} bordered={false}>
-            {items.length > 0 ? null : props.emptyPage ? props.emptyPage :
-                <>
-                    No {titlePlural.toLowerCase()} available.
-                </>
-            }
-            {items.map((it, idx) =>
-                <ItemRow
-                    key={idx}
-                    browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}
-                    renderer={props.renderer} callbacks={callbacks} operations={allOperations}
-                    item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}
-                    navigate={props.navigate}
+        return <>
+            <AutoSizer children={({width, height}) => (
+                <FixedSizeList
+                    itemCount={10000}
+                    itemSize={35}
+                    width={width}
+                    height={height}
+                    children={({index, style}) => <div style={style}>Hi {index}</div>}
                 />
-            )}
-        </List>
+            )}/>
+
+            {/*<List childPadding={"8px"} bordered={false}>*/}
+            {/*    {items.length > 0 ? null : props.emptyPage ? props.emptyPage :*/}
+            {/*        <>*/}
+            {/*            No {titlePlural.toLowerCase()} available.*/}
+            {/*        </>*/}
+            {/*    }*/}
+            {/*    {items.map((it, idx) =>*/}
+            {/*        <ItemRow*/}
+            {/*            key={idx}*/}
+            {/*            browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}*/}
+            {/*            renderer={props.renderer} callbacks={callbacks} operations={allOperations}*/}
+            {/*            item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}*/}
+            {/*            navigate={props.navigate}*/}
+            {/*        />*/}
+            {/*    )}*/}
+            {/*</List>*/}
+        </>
     }, [toggleSet, props.renderer, callbacks, allOperations, props.title, titlePlural]);
 
     const main = useMemo(() =>

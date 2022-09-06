@@ -146,6 +146,7 @@ data class UFileUpdate(override val timestamp: Long, override val status: String
 data class FilesStreamingSearchRequest(
     val flags: UFileIncludeFlags,
     val query: String,
+    val currentFolder: String? = null,
 )
 
 @Serializable

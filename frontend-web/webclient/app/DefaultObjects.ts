@@ -133,6 +133,8 @@ export interface HookStore {
     storageProducts?: APICallStateWithParams<Page<Product>>;
     frameHidden?: boolean;
     cloudApiCache?: Record<string, { expiresAt: number, cached: any }>;
+
+    mainContainerHeaderSize?: number;
 }
 
 interface LegacyReduxObject {

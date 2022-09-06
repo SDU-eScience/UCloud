@@ -14,6 +14,7 @@ import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -21,6 +22,7 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -241,6 +243,7 @@ class FileController(
         })
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun RpcServer.configureCustomEndpoints(plugins: Collection<FilePlugin>, api: FilesProvider) {
         val providerId = controllerContext.configuration.core.providerId
 
@@ -493,17 +496,40 @@ class FileController(
         }
 
         implement(api.streamingSearch) {
-            println("We are now inside of the provider")
+            val currentFolder = request.currentFolder
+            val relevantPlugins = if (currentFolder != null) {
+                val collection = currentFolder.components().getOrNull(0)?.let { id ->
+                    collectionCache.get(id)
+                } ?: run {
+                    ok(FilesProviderStreamingSearchResult.EndOfResults())
+                    return@implement
+                }
+
+                val plugin = lookupPluginOrNull(collection.specification.product) ?: run {
+                    ok(FilesProviderStreamingSearchResult.EndOfResults())
+                    return@implement
+                }
+
+                listOf(plugin)
+            } else {
+                retrievePlugins()
+            }
+
+            // NOTE(Dan): We throttle the number of batches we send out to aid clients a bit with the rendering
+            // process. We attempt to not send more than 4 batches per second but the first batch will go out as soon
+            // as it is ready. This variable controls when we are allowed to send the next batch. An onTimeout in the
+            // select call below ensures that we send out all batches in a timely manner.
+            var nextAllowedSend = 0L
+
             with(requestContext(controllerContext)) {
-                val channels = retrievePlugins().mapNotNull { plugin ->
-                    println("We are now asking $plugin for help")
+                val channels = relevantPlugins.mapNotNull { plugin ->
                     with(plugin) {
                         runCatching { streamingSearch(request) }.getOrNull()
                     }
                 }
 
+                val batch = ArrayList<PartialUFile>()
                 while (coroutineContext.isActive) {
-                    println("We are now looking for results")
                     var isAllClosed = true
                     val result = select<FilesProviderStreamingSearchResult?> {
                         for (channel in channels) {
@@ -514,12 +540,28 @@ class FileController(
                                 message.getOrNull()
                             }
                         }
+
+                        onTimeout(50) { null }
                     }
 
-                    println("Got a result: $result")
+                    if (result != null) {
+                        if (result is FilesProviderStreamingSearchResult.Result) {
+                            batch.addAll(result.batch)
+                        }
+                    }
 
-                    if (result != null) sendWSMessage(result)
+                    val now = Time.now()
+                    if (batch.isNotEmpty() && now > nextAllowedSend) {
+                        sendWSMessage(FilesProviderStreamingSearchResult.Result(batch))
+                        batch.clear()
+                        nextAllowedSend = now + 250
+                    }
+
                     if (isAllClosed) break
+                }
+
+                if (batch.isNotEmpty()) {
+                    sendWSMessage(FilesProviderStreamingSearchResult.Result(batch))
                 }
             }
 
