@@ -1195,24 +1195,25 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverEntries}
                             {/* Note(Jonas): This is for the grant givers that are part of an existing grant application */}
-                            {
-                                target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                    grantGivers.data.items.filter(it => grantApplication.status.stateBreakdown.map(it => it.projectId).includes(it.projectId)).map(grantGiver => <>
-                                        <GrantGiver
-                                            key={grantGiver.projectId}
-                                            target={target}
-                                            isLocked={isLocked}
-                                            isApprover={Client.projectId === grantGiver.projectId}
-                                            project={grantGiver}
-                                            setParentProject={parentProjectId => dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})}
-                                            isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
-                                            grantApplication={grantApplication}
-                                            setGrantProductCategories={setGrantProductCategories}
-                                            wallets={wallets.data.items}
-                                            isRecipient={isRecipient}
-                                        />
-                                    </>))
-                            }
+                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                grantGivers.data.items.sort(grantGiverSortFn)
+                                    .filter(it => grantApplication.status.stateBreakdown
+                                        .map(it => it.projectId).includes(it.projectId)).map(grantGiver =>
+                                            <GrantGiver
+                                                key={grantGiver.projectId}
+                                                target={target}
+                                                isLocked={isLocked}
+                                                isApprover={Client.projectId === grantGiver.projectId}
+                                                project={grantGiver}
+                                                setParentProject={parentProjectId =>
+                                                    dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId}})
+                                                }
+                                                isParentProject={grantGiver.projectId === getDocument(grantApplication).parentProjectId}
+                                                grantApplication={grantApplication}
+                                                setGrantProductCategories={setGrantProductCategories}
+                                                wallets={wallets.data.items}
+                                                isRecipient={isRecipient}
+                                            />))}
 
                             <CommentApplicationWrapper>
                                 <RequestFormContainer>
@@ -1287,6 +1288,12 @@ function StateIcon({state}: {state: State;}) {
     return <Icon mr="8px" name={icon} color={color} />;
 }
 
+function grantGiverSortFn(grantGiverA: ProjectWithTitle, grantGiverB: ProjectWithTitle): number {
+    if (grantGiverA.projectId === Client.projectId) return -1;
+    if (grantGiverB.projectId === Client.projectId) return 1;
+    return grantGiverA.title.localeCompare(grantGiverB.title);
+}
+
 const projectDescriptionCache: {[projectId: string]: string | undefined;} = {};
 
 function getReferenceId(grantApplication: GrantApplication): string | null {
@@ -1353,15 +1360,16 @@ function getAllocationRequests(grantApplication: GrantApplication): AllocationRe
 }
 
 function overallStateText(grantApplication: GrantApplication): string {
+    const {updatedBy} = grantApplication.currentRevision;
     switch (grantApplication.status.overallState) {
         case State.APPROVED:
-            return grantApplication.currentRevision.updatedBy === null ? "Approved" : "Approved by " + grantApplication.currentRevision.updatedBy;
+            return updatedBy === null ? "Approved" : "Approved by " + updatedBy;
         case State.REJECTED:
-            return grantApplication.currentRevision.updatedBy === null ? "Rejected" : "Rejected  by " + grantApplication.currentRevision.updatedBy;
+            return updatedBy === null ? "Rejected" : "Rejected  by " + updatedBy;
         case State.IN_PROGRESS:
             return "In progress";
         case State.CLOSED:
-            return grantApplication.currentRevision.updatedBy === null ? "Closed" : "Withdrawn by " + grantApplication.currentRevision.updatedBy;
+            return updatedBy === null ? "Closed" : "Withdrawn by " + updatedBy;
     }
 }
 
