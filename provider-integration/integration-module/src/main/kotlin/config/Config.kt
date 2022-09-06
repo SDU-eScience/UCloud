@@ -313,7 +313,6 @@ data class ConfigSchema(
                 val mountLocation: String,
                 val useCephStats: Boolean = false,
                 val accountingEnabled: Boolean = false,
-                val indexingEnabled: Boolean = false,
             ) : Files()
         }
 

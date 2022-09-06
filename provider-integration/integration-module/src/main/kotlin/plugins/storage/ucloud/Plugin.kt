@@ -21,6 +21,7 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.SharePlugin
@@ -46,6 +47,7 @@ import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonObject
+import kotlin.coroutines.coroutineContext
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -65,6 +67,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var uploads: ChunkedUploadService
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
+    lateinit var usageScan: UsageScan
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
@@ -94,6 +97,7 @@ class UCloudFilePlugin : FilePlugin {
         memberFiles = MemberFiles(fs, pathConverter, rpcClient)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(pathConverter, fs)
+        usageScan = UsageScan(pluginName, pathConverter, fs, cephStats, rpcClient, dbConnection)
 
         with (tasks) {
             install(CopyTask())
@@ -302,7 +306,19 @@ class UCloudFilePlugin : FilePlugin {
     ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = queries.streamingSearch(req)
 
     override suspend fun PluginContext.runMonitoringLoop() {
+        if (config.shouldRunServerCode()) return
 
+        while (coroutineContext.isActive) {
+            try {
+                if (pluginConfig.accountingEnabled) {
+                    usageScan.startScanIfNeeded()
+                }
+            } catch (ex: Throwable) {
+                debugSystem.logThrowable("Caught exception during monitoring loop", ex)
+            }
+
+            delay(60_000)
+        }
     }
 }
 

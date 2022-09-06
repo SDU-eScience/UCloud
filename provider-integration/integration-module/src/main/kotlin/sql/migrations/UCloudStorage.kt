@@ -38,3 +38,14 @@ fun V1__UCloudStorage() = MigrationScript("V1__UCloudStorage") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__UCloudStorage() = MigrationScript("V2__UCloudStorage") { session ->
+    session.prepareStatement(
+        """
+            create table ucloud_storage_timestamps(
+                name text primary key,
+                last_run bigint
+            );
+        """
+    )
+}
