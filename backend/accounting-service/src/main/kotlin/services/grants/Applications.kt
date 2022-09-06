@@ -82,8 +82,8 @@ class GrantApplicationService(
         }.rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
     }
 
-    suspend fun retrieveGrantApplication(applicationId: Long, actorAndProject: ActorAndProject):GrantApplication {
-        val application = db.withSession{ session ->
+    suspend fun retrieveGrantApplication(applicationId: Long, actorAndProject: ActorAndProject): GrantApplication {
+        val application = db.withSession { session ->
             println(actorAndProject.actor.username)
             println(applicationId)
             permissionCheck(session, actorAndProject, applicationId)
@@ -102,6 +102,7 @@ class GrantApplicationService(
         println(application)
         return defaultMapper.decodeFromString(application)
     }
+
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
@@ -256,25 +257,30 @@ class GrantApplicationService(
                         }
                     }
                     val responseNotification =
-                    missingApprovals.map {
-                        GrantNotification(
-                            applicationId,
-                            adminMessage = AdminGrantNotificationMessage(
-                                { "New grant application to ${it.projectTitle}" },
-                                "NEW_GRANT_APPLICATION",
-                                { Mail.NewGrantApplicationMail(actorAndProject.actor.safeUsername(), it.projectTitle) },
-                                meta = {
-                                    JsonObject(
-                                        mapOf(
-                                            "grantRecipient" to defaultMapper.encodeToJsonElement(createRequest.document.recipient),
-                                            "appId" to JsonPrimitive(applicationId),
+                        missingApprovals.map {
+                            GrantNotification(
+                                applicationId,
+                                adminMessage = AdminGrantNotificationMessage(
+                                    { "New grant application to ${it.projectTitle}" },
+                                    "NEW_GRANT_APPLICATION",
+                                    {
+                                        Mail.NewGrantApplicationMail(
+                                            actorAndProject.actor.safeUsername(),
+                                            it.projectTitle
                                         )
-                                    )
-                                }
-                            ),
-                            userMessage = null
-                        )
-                    }
+                                    },
+                                    meta = {
+                                        JsonObject(
+                                            mapOf(
+                                                "grantRecipient" to defaultMapper.encodeToJsonElement(createRequest.document.recipient),
+                                                "appId" to JsonPrimitive(applicationId),
+                                            )
+                                        )
+                                    }
+                                ),
+                                userMessage = null
+                            )
+                        }
                     responseNotification.forEach {
                         results.add(applicationId to it)
                     }
@@ -291,7 +297,10 @@ class GrantApplicationService(
         return results.map { FindByLongId(it.first) }.toSet().toList()
     }
 
-    private suspend fun retrieveGrantGiversStates(session: AsyncDBConnection, applicationId: Long): Pair<Boolean, List<GrantApplication.GrantGiverApprovalState>> {
+    private suspend fun retrieveGrantGiversStates(
+        session: AsyncDBConnection,
+        applicationId: Long
+    ): Pair<Boolean, List<GrantApplication.GrantGiverApprovalState>> {
         var allApproved = true
         val grantGiverApprovalStates = runBlocking {
             session.sendPreparedStatement(
@@ -456,8 +465,10 @@ class GrantApplicationService(
             val canChangeAll = when (recipient) {
                 is GrantApplication.Recipient.NewProject ->
                     application.createdBy == actorAndProject.actor.safeUsername()
+
                 is GrantApplication.Recipient.ExistingProject ->
                     recipient.id == actorAndProject.project
+
                 is GrantApplication.Recipient.PersonalWorkspace ->
                     application.createdBy == actorAndProject.actor.safeUsername()
             }
@@ -474,7 +485,7 @@ class GrantApplicationService(
                     }
                 }
             }
-            
+
             checkReferenceID(document.referenceId)
             val allocationsApproved = session.sendPreparedStatement(
                 {
@@ -483,7 +494,7 @@ class GrantApplicationService(
                         into("source_allocations") { it.sourceAllocation }
                         into("categories") { it.category }
                         into("providers") { it.provider }
-                        into("grant_givers") {it.grantGiver}
+                        into("grant_givers") { it.grantGiver }
                     }
                 },
                 """
@@ -526,10 +537,10 @@ class GrantApplicationService(
                         into("credits_requested") { it.balanceRequested }
                         into("categories") { it.category }
                         into("providers") { it.provider }
-                        into("source_allocations") { it.sourceAllocation}
-                        into("start_dates") {it.period.start}
-                        into("end_dates") {it.period.end}
-                        into("grant_givers") {it.grantGiver}
+                        into("source_allocations") { it.sourceAllocation }
+                        into("start_dates") { it.period.start }
+                        into("end_dates") { it.period.end }
+                        into("grant_givers") { it.grantGiver }
                     }
                 },
                 """
@@ -597,37 +608,42 @@ class GrantApplicationService(
         if (newReferenceId != null) {
             if (newReferenceId.lowercase().startsWith("deic")) {
                 val splitId = newReferenceId.split("-")
-                when  {
+                when {
                     splitId.size != 4 -> {
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
                             "$errorMessage It seems like you are not following request format. DeiC-XX-YY-NUMBER"
                         )
                     }
+
                     splitId.first() != "DeiC" -> {
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
                             "$errorMessage First part should be DeiC."
                         )
                     }
+
                     !deicUniList.contains(splitId[1]) -> {
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
                             "$errorMessage Uni value is not listed in DeiC. If you think this is a mistake, please contact UCloud"
                         )
                     }
+
                     splitId[2].length != 2 -> {
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
                             errorMessage + " Allocation category wrong fornat"
                         )
                     }
+
                     !splitId[2].contains(Regex("""[LNSI][1-5]$""")) -> {
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
                             errorMessage + " Allocation category has wrong format."
                         )
                     }
+
                     !splitId[3].contains(Regex("""^\d+$""")) ->
                         throw RPCException.fromStatusCode(
                             HttpStatusCode.BadRequest,
@@ -667,7 +683,7 @@ class GrantApplicationService(
                         app.requested_by = :username or
                         pm.username = :username
                     )  
-            """, debug =  true
+            """, debug = true
         ).rows.size > 0L
 
         if (!permission) {
@@ -677,6 +693,7 @@ class GrantApplicationService(
             )
         }
     }
+
     suspend fun editApplication(
         actorAndProject: ActorAndProject,
         requests: BulkRequest<EditApplicationRequest>
@@ -789,13 +806,25 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateApplicationState>
     ) {
-        // Note(Jonas): I think this works as well:
-        //require(request.items.all { update -> update.newState != GrantApplication.State.IN_PROGRESS }) {
-        //    "New status can only be APPROVED, REJECTED or CLOSED!"
-        //}
-        // TODO(Jonas): This change might be important.
-
         db.withSession(remapExceptions = true) { session ->
+            for (reqItem in request.items) {
+                if (reqItem.newState != GrantApplication.State.APPROVED) continue
+                val applicationId = reqItem.applicationId
+                val application = retrieveGrantApplication(applicationId, actorAndProject)
+                val allocations = application.currentRevision.document.allocationRequests
+                    .filter { it.grantGiver == actorAndProject.project }
+
+                val hasAllAllocationsSet = allocations.all { it.sourceAllocation != null }
+                if (!hasAllAllocationsSet) {
+                    throw RPCException(
+                        "Not all requested resources have a source allocation assigned. " +
+                            "You must select one for each resource.",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+            }
+
+            // TODO: Should be one db-access, not one for each request.
             request.items.forEach { update ->
                 val id = update.applicationId
                 val newState = update.newState
@@ -897,7 +926,10 @@ class GrantApplicationService(
                                 from "grant".applications 
                                 where id = :app_id
                             """
-                        ).rows.singleOrNull()?.getString(0) ?: throw RPCException("Could not find application", HttpStatusCode.NotFound)
+                        ).rows.singleOrNull()?.getString(0) ?: throw RPCException(
+                            "Could not find application",
+                            HttpStatusCode.NotFound
+                        )
                         when (overall) {
                             "APPROVED" -> GrantApplication.State.APPROVED
                             "CLOSED" -> GrantApplication.State.CLOSED
@@ -914,7 +946,9 @@ class GrantApplicationService(
                         GrantApplication.State.APPROVED -> "Approved"
                         GrantApplication.State.REJECTED -> "Rejected"
                         GrantApplication.State.CLOSED -> "Closed"
-                        else -> {return@forEach}
+                        else -> {
+                            return@forEach
+                        }
                     }
                     notifications.notify(
                         actorAndProject.actor.safeUsername(),
@@ -948,11 +982,15 @@ class GrantApplicationService(
                                 {
                                     when (newOverallState) {
                                         GrantApplication.State.APPROVED -> Mail.GrantApplicationApproveMail(projectTitle)
-                                        GrantApplication.State.REJECTED -> Mail.GrantApplicationRejectedMail(projectTitle)
+                                        GrantApplication.State.REJECTED -> Mail.GrantApplicationRejectedMail(
+                                            projectTitle
+                                        )
+
                                         GrantApplication.State.CLOSED -> Mail.GrantApplicationWithdrawnMail(
                                             projectTitle,
                                             actorAndProject.actor.safeUsername()
                                         )
+
                                         else -> throw IllegalStateException()
                                     }
                                 },
@@ -989,6 +1027,7 @@ class GrantApplicationService(
             ).rows
             .singleOrNull()?.getInt(0) ?: throw RPCException("No Revision found", HttpStatusCode.NotFound)
     }
+
     suspend fun transferApplication(
         actorAndProject: ActorAndProject,
         request: BulkRequest<TransferApplicationRequest>
@@ -1148,9 +1187,11 @@ class GrantApplicationService(
                     """
                 )
             },
-            mapper = { _, rows -> rows.map {
-                defaultMapper.decodeFromString(it.getString(0)!!)
-            } }
+            mapper = { _, rows ->
+                rows.map {
+                    defaultMapper.decodeFromString(it.getString(0)!!)
+                }
+            }
         )
     }
 
@@ -1164,7 +1205,7 @@ class GrantApplicationService(
                 setParameter("id", applicationId)
                 setParameter("parent", parentId)
             },
-            """select "grant".approve_application(:id, :parent::text)""",debug = true
+            """select "grant".approve_application(:id, :parent::text)""", debug = true
         )
         val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
             .map { it.getString(0)!! }.singleOrNull()

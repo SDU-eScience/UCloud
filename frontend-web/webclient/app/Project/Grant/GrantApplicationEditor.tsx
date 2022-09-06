@@ -102,7 +102,7 @@ export enum RequestTarget {
             - put others in accordion (if it is not ugly.)
         - Disallow approval if source allocations aren't filled out for every product as approver.
             - Auto-select if only one?
-        - Attempt to move edit to sidebar
+            - Handle in backend
         // - Always allow editing source allocation from the right active project. Show "Update allocation" button if not equal to previous source allocation selection
 
 
@@ -829,12 +829,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const approveRequest = useCallback(async () => {
             try {
                 if (!activeStateBreakDown) return;
+                if (!canApproveApplication(grantProductCategories)) {
+                    snackbarStore.addFailure("Not all requested resources have a source allocation assigned. " +
+                        "You must select one for each resource.", false);
+                    return;
+                }
                 await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})));
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to reject application.")
             }
-        }, [grantApplication.id, activeStateBreakDown]);
+        }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
 
         const rejectRequest = useCallback(async (notify: boolean) => {
             try {
@@ -961,7 +966,112 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 header={target === RequestTarget.EXISTING_PROJECT ?
                     <ProjectBreadcrumbs crumbs={[{title: "Request for Resources"}]} /> : null
                 }
-                sidebar={null}
+                sidebar={<>
+                    {target !== RequestTarget.VIEW_APPLICATION ? (
+                        <Button disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                            Submit Application
+                        </Button>
+                    ) : null}
+                    {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
+                        isLocked ? (
+                            <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
+                                Edit this request
+                            </Button>
+                        ) : (
+                            <>
+                                <Button
+                                    color={"green"}
+                                    fullWidth
+                                    disabled={loading}
+                                    onClick={editApplication}
+                                >
+                                    Save Changes
+                                </Button>
+                                <Button fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
+                            </>
+                        )
+                    )}
+                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                        <Box mt="18px">
+
+                            {/* We have the following buttons that we need:
+                                - Approve (Should be per grant giver, not for every one.)
+                                - Reject (Does notify still make sense? Again, for each).
+                                - Transfer application
+                                - Close Request (from the view of the recipient, so only if creator of it.)
+                            */}
+                            {grantFinalized ? null : isApprover ?
+                                <>
+                                    {activeStateBreakDown.state === State.IN_PROGRESS ? <>
+                                        <Button
+                                            mb="4px"
+                                            color="green"
+                                            onClick={approveRequest}
+                                            disabled={!isLocked}
+                                            fullWidth
+                                        >
+                                            <Truncate title={`Approve for ${activeStateBreakDown?.projectTitle}`}>
+                                                Approve for {activeStateBreakDown?.projectTitle}
+                                            </Truncate>
+                                        </Button>
+                                        {/* Note(Jonas): This breaks the ButtonGroup styling. */}
+                                        <ClickableDropdown
+                                            top="-73px"
+                                            fullWidth
+                                            trigger={(
+                                                <Button
+                                                    color="red"
+                                                    disabled={!isLocked}
+                                                    fullWidth
+                                                    onClick={() => undefined}
+                                                >
+                                                    <Truncate title={`Reject for ${activeStateBreakDown?.projectTitle}`}>
+                                                        Reject for {activeStateBreakDown?.projectTitle}
+                                                    </Truncate>
+                                                </Button>
+                                            )}
+                                        >
+                                            <OptionItem
+                                                onClick={() => rejectRequest(true)}
+                                                text={"Reject"}
+                                            />
+                                            <OptionItem
+                                                onClick={() => rejectRequest(false)}
+                                                text={"Reject without notify"}
+                                            />
+                                        </ClickableDropdown>
+                                        {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
+                                            <Button
+                                                color="blue"
+                                                onClick={() => setTransferringApplication(true)}
+                                                disabled={!isLocked}
+                                            >
+                                                Transfer to other project
+                                            </Button> : null
+                                        }
+                                    </> : activeStateBreakDown.state === State.APPROVED ? <>
+                                        <Button fullWidth onClick={setRequestPending}>
+                                            Undo approval
+                                        </Button>
+                                    </> : null}
+                                </> : null
+                            }
+                            {isRecipient && !grantFinalized ?
+                                <>
+                                    <Button
+                                        mt="16px"
+                                        color="red"
+                                        fullWidth
+                                        onClick={closeRequest}
+                                        disabled={!isLocked}
+                                    >
+                                        Withdraw
+                                    </Button>
+                                </> : null
+                            }
+                        </Box>
+                    )}
+                </>}
                 main={<>
                     <Flex justifyContent="center">
                         <Box maxWidth={1400} width="100%">
@@ -1072,86 +1182,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
                                                         {overallStateText(grantApplication)}
-                                                        <ButtonGroup>
-                                                            {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                                                                <>
-
-                                                                    {/* We have the following buttons that we need:
-                                                                            - Approve (Should be per grant giver, not for every one.)
-                                                                            - Reject (Does notify still make sense? Again, for each).
-                                                                            - Transfer application
-                                                                            - Close Request (from the view of the recipient, so only if creator of it.)
-                                                                    */}
-                                                                    {grantFinalized ? null : isApprover ?
-                                                                        <>
-                                                                            {activeStateBreakDown.state === State.IN_PROGRESS ? <>
-                                                                                <Button
-                                                                                    color="green"
-                                                                                    onClick={approveRequest}
-                                                                                    disabled={!isLocked}
-                                                                                >
-                                                                                    Approve for {activeStateBreakDown?.projectTitle}
-                                                                                </Button>
-                                                                                {/* Note(Jonas): This breaks the ButtonGroup styling. */}
-                                                                                <ClickableDropdown
-                                                                                    top="-73px"
-                                                                                    fullWidth={true}
-                                                                                    trigger={(
-                                                                                        <Button
-                                                                                            color="red"
-                                                                                            disabled={!isLocked}
-                                                                                            onClick={() => undefined}
-                                                                                        >
-                                                                                            Reject for {activeStateBreakDown?.projectTitle}
-                                                                                        </Button>
-                                                                                    )}
-                                                                                >
-                                                                                    <OptionItem
-                                                                                        onClick={() => rejectRequest(true)}
-                                                                                        text={"Reject"}
-                                                                                    />
-                                                                                    <OptionItem
-                                                                                        onClick={() => rejectRequest(false)}
-                                                                                        text={"Reject without notify"}
-                                                                                    />
-                                                                                </ClickableDropdown>
-                                                                                {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
-                                                                                    <Button
-                                                                                        color="blue"
-                                                                                        onClick={() => setTransferringApplication(true)}
-                                                                                        disabled={!isLocked}
-                                                                                    >
-                                                                                        Transfer to other project
-                                                                                    </Button> : null
-                                                                                }
-                                                                            </> : activeStateBreakDown.state === State.APPROVED ? <>
-                                                                                <Button onClick={setRequestPending}>
-                                                                                    Undo approval
-                                                                                </Button>
-                                                                            </> : null}
-                                                                        </> : null
-                                                                    }
-                                                                    {isRecipient && !grantFinalized ?
-                                                                        <>
-                                                                            <Button
-                                                                                color="red"
-                                                                                onClick={closeRequest}
-                                                                                disabled={!isLocked}
-                                                                            >
-                                                                                Withdraw
-                                                                            </Button>
-                                                                        </> : null
-                                                                    }
-                                                                </>
-                                                            )}
-                                                        </ButtonGroup>
-                                                        {target !== RequestTarget.VIEW_APPLICATION || isLocked ||
-                                                            grantFinalized ? null :
-                                                            <Text>
-                                                                You must finish making changes before you can
-                                                                change the status of this application
-                                                            </Text>
-                                                        }
                                                     </TableCell>
                                                 </TableRow>
                                             </tbody>
@@ -1159,7 +1189,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     </HighlightedCard>
                                 </>
                             )}
-                            
+
                             <Box my="32px" />
 
                             {target === RequestTarget.VIEW_APPLICATION ? null : grantGiverDropdown}
@@ -1221,34 +1251,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     }
                                 </Box>
                             </CommentApplicationWrapper>
-                            <Box p={32} pb={16}>
-                                {target !== RequestTarget.VIEW_APPLICATION ? (
-                                    <Button disabled={grantFinalized || submitLoading} fullWidth onClick={submitRequest}>
-                                        Submit Application
-                                    </Button>
-                                ) : null}
-                                {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
-                                    isLocked ? (
-                                        <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
-                                            Edit this request
-                                        </Button>
-                                    ) : (
-                                        <ButtonGroup>
-                                            <Button
-                                                color={"green"}
-                                                fullWidth
-                                                disabled={loading}
-                                                onClick={editApplication}
-                                            >
-                                                Save Changes
-                                            </Button>
-                                            <Button color={"red"} onClick={discardChanges}>Discard changes</Button>
-                                        </ButtonGroup>
-                                    )
-                                )}
-                            </Box>
-                        </Box >
-                    </Flex >
+
+                        </Box>
+                    </Flex>
                 </>}
                 additional={
                     <TransferApplicationPrompt
@@ -1847,6 +1852,13 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
             } as AllocationRequest;
         }).filter(it => it != null)
     ) as AllocationRequest[];
+}
+
+function canApproveApplication(grantProductCategories: Record<string, GrantProductCategory[]>): boolean {
+    const projectId = Client.projectId;
+    if (!projectId) return false;
+    const resources = findRequestedResources(grantProductCategories);
+    return resources.filter(it => it.grantGiver === projectId).every(it => it.sourceAllocation != null);
 }
 
 export default GrantApplicationEditor;
