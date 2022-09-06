@@ -10,9 +10,9 @@ import {useGlobal} from "@/Utilities/ReduxHooks";
 import {BreadCrumbsBase} from "@/ui-components/Breadcrumbs";
 import {getParentPath, pathComponents} from "@/Utilities/FileUtilities";
 import {
-    defaultErrorHandler, doNothing,
+    defaultErrorHandler, doNothing, inDevEnvironment,
     isLightThemeStored,
-    joinToString,
+    joinToString, onDevSite,
     randomUUID,
     removeTrailingSlash,
 } from "@/UtilityFunctions";
@@ -47,6 +47,8 @@ export const FilesBrowse: React.FunctionComponent<{
     forceNavigationToPage?: boolean;
     allowMoveCopyOverride?: boolean;
 }> = props => {
+    const shouldUseStreamingSearch = onDevSite() || inDevEnvironment();
+
     // Input parameters and configuration
     const lightTheme = isLightThemeStored();
 
@@ -260,6 +262,8 @@ export const FilesBrowse: React.FunctionComponent<{
     }, [searchQuery]);
 
     useEffect(() => {
+        if (!shouldUseStreamingSearch) return;
+
         if (props.isSearch === true) {
             const connection = WSFactory.open(
                 "/files",

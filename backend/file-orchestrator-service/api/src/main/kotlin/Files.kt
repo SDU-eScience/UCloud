@@ -872,6 +872,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
                 This endpoint uses a specialized API for returning search results in a streaming fashion. In all other
                 ways, this endpoint is identical to the normal search API.
                 
+                This endpoint can be used instead of the normal search API as it will contact providers using the
+                non-streaming version if they do not support it. In such a case, the core will retrieve multiple pages
+                in order to stream in more content.
+                
                 Clients should expect that this endpoint stops returning results after a given timeout. After which,
                 it is no longer possible to request additional results. 
             """.trimIndent()

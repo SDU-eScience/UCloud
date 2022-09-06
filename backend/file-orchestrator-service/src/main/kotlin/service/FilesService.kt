@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.service
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.ProductReference
 import dk.sdu.cloud.accounting.api.providers.*
 import dk.sdu.cloud.accounting.util.*
@@ -38,7 +39,7 @@ typealias TrashHandler = suspend (batch: List<FindByPath>) -> Unit
 class FilesService(
     private val fileCollections: FileCollectionService,
     private val providers: StorageProviders,
-    providerSupport: StorageProviderSupport,
+    private val providerSupport: StorageProviderSupport,
     private val metadataService: MetadataService,
     private val templates: MetadataTemplateNamespaces,
     private val serviceClient: AuthenticatedClient,
@@ -489,6 +490,7 @@ class FilesService(
                             request.query,
                             owner,
                             request.flags,
+                            null,
                             request.itemsPerPage,
                             nextByProvider[provider],
                             request.consistency,
@@ -546,11 +548,8 @@ class FilesService(
         }
     }
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    suspend fun streamingSearch(
-        handler: CallHandler<FilesStreamingSearchRequest, FilesStreamingSearchResult, CommonErrorMessage>
-    ): Unit = with(handler) {
-        return db.withSession { session ->
+    private suspend fun loadResourceOwner(actorAndProject: ActorAndProject, ctx: DBContext = db): ResourceOwner {
+        return ctx.withSession { session ->
             val owner = ResourceOwner(actorAndProject.actor.safeUsername(), actorAndProject.project)
 
             val isMemberOfProject = if (actorAndProject.project == null) {
@@ -573,9 +572,63 @@ class FilesService(
                 throw RPCException("Bad project supplied", HttpStatusCode.Forbidden)
             }
 
+            owner
+        }
+    }
+
+    private suspend fun remapSearchResults(
+        actorAndProject: ActorAndProject,
+        files: List<PartialUFile>,
+        includeMetadata: Boolean = true,
+        ctx: DBContext = db
+    ): List<UFile> {
+        val collectionIds = HashSet<String>()
+        val partialsByParent = HashMap<String, List<PartialUFile>>()
+
+        for (file in files) {
+            val normalizedPath = file.id.normalize()
+            val components = normalizedPath.components()
+            if (components.size < 2) continue
+
+            collectionIds.add(components[0])
+            val parent = normalizedPath.parent()
+            partialsByParent[parent] =
+                (partialsByParent[parent] ?: emptyList()) + file
+        }
+
+        // Verify that users are allowed to read results produced by provider
+        val collections = fileCollections.retrieveBulk(
+            actorAndProject,
+            collectionIds,
+            listOf(Permission.READ),
+            requireAll = false,
+            ctx = ctx
+        )
+
+        return partialsByParent.flatMap { (parent, files) ->
+            val collection = collections.find { it.id == parent.components()[0] }
+            if (collection != null) {
+                val metadata = if (includeMetadata) {
+                    metadataCache.get(Pair(actorAndProject, parent))
+                } else {
+                    null
+                }
+
+                files.map { it.toUFile(collection, metadata) }
+            } else emptyList()
+        }
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    suspend fun streamingSearch(
+        handler: CallHandler<FilesStreamingSearchRequest, FilesStreamingSearchResult, CommonErrorMessage>
+    ): Unit = with(handler) {
+        return db.withSession { session ->
+            val owner = loadResourceOwner(actorAndProject, session)
+
             val currentFolder = request.currentFolder
-            val relevantProviders = if (currentFolder != null) {
-                val collection = try {
+            val collection = if (currentFolder != null) {
+                try {
                     fileCollections.retrieve(
                         actorAndProject,
                         currentFolder.components().getOrNull(0)
@@ -588,7 +641,11 @@ class FilesService(
                     }
                     throw ex
                 }
+            } else {
+                null
+            }
 
+            val relevantProviders = if (collection != null) {
                 listOf(collection.specification.product.provider)
             } else {
                 session.sendPreparedStatement(
@@ -611,64 +668,96 @@ class FilesService(
                 ).rows.map { it.getString(0)!! }
             }
 
+            data class SearchSummary(
+                val category: ProductCategoryId,
+                val streaming: Boolean,
+                val nonStreaming: Boolean
+            )
+
+            val searchSupportByProviders = HashMap<String, ArrayList<SearchSummary>>()
+            run {
+                val supportByProviders = relevantProviders.associateWith {
+                    providerSupport.retrieveProviderSupport(it)
+                }
+
+                for ((provider, supportList) in supportByProviders) {
+                    supportList.groupBy { it.product.category }.map { (category, entries) ->
+                        val supportInCategory = entries.map { it.support }
+                        val supportsNonStreaming = supportInCategory.any { it.files.searchSupported }
+                        val supportsStreaming = supportInCategory.any { it.files.streamingSearchSupported }
+
+                        searchSupportByProviders.getOrPut(provider) { ArrayList() }
+                            .add(SearchSummary(category, supportsStreaming, supportsNonStreaming))
+                    }
+                }
+            }
+
             coroutineScope {
-                val jobs = relevantProviders.map { provider ->
-                    launch {
-                        runCatching {
-                            providers.invokeSubscription(
-                                provider,
-                                actorAndProject,
-                                { it.filesApi.streamingSearch },
-                                FilesProviderStreamingSearchRequest(
-                                    request.query,
-                                    owner,
-                                    request.flags,
-                                    request.currentFolder
-                                ),
-                                signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
-                                handler = { message ->
-                                    if (message !is FilesProviderStreamingSearchResult.Result) return@invokeSubscription
-
-                                    val collectionIds = HashSet<String>()
-                                    val partialsByParent = HashMap<String, List<PartialUFile>>()
-
-                                    val files = message.batch
-
-                                    for (file in files) {
-                                        val normalizedPath = file.id.normalize()
-                                        val components = normalizedPath.components()
-                                        if (components.size < 2) continue
-
-                                        collectionIds.add(components[0])
-                                        val parent = normalizedPath.parent()
-                                        partialsByParent[parent] = (partialsByParent[parent] ?: emptyList()) + file
-                                    }
-
-                                    // Verify that users are allowed to read results produced by provider
-                                    val collections = fileCollections.retrieveBulk(
+                val jobs = searchSupportByProviders.flatMap { (provider, supportList) ->
+                    supportList.mapNotNull { support ->
+                        if (support.streaming) {
+                            launch {
+                                runCatching {
+                                    providers.invokeSubscription(
+                                        provider,
                                         actorAndProject,
-                                        collectionIds,
-                                        listOf(Permission.READ),
-                                        requireAll = false,
-                                        ctx = session
+                                        { it.filesApi.streamingSearch },
+                                        FilesProviderStreamingSearchRequest(
+                                            request.query,
+                                            owner,
+                                            request.flags,
+                                            support.category,
+                                            request.currentFolder
+                                        ),
+                                        signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
+                                        handler = { message ->
+                                            if (message !is FilesProviderStreamingSearchResult.Result) return@invokeSubscription
+                                            val results = remapSearchResults(
+                                                actorAndProject,
+                                                message.batch,
+                                                includeMetadata = request.flags.includeMetadata == true
+                                            )
+                                            sendWSMessage(FilesStreamingSearchResult.Result(results))
+                                        }
                                     )
-
-                                    val results = partialsByParent.flatMap { (parent, files) ->
-                                        val collection = collections.find { it.id == parent.components()[0] }
-                                        if (collection != null) {
-                                            val metadata = if (request.flags.includeMetadata == true) {
-                                                metadataCache.get(Pair(actorAndProject, parent))
-                                            } else {
-                                                null
-                                            }
-
-                                            files.map { it.toUFile(collection, metadata) }
-                                        } else emptyList()
-                                    }
-
-                                    sendWSMessage(FilesStreamingSearchResult.Result(results))
                                 }
-                            )
+                            }
+                        } else if (support.nonStreaming) {
+                            launch {
+                                runCatching {
+                                    var next: String? = null
+                                    while (isActive) {
+                                        val page = providers.invokeCall(
+                                            provider,
+                                            actorAndProject,
+                                            { it.filesApi.search },
+                                            FilesProviderSearchRequest(
+                                                request.query,
+                                                owner,
+                                                request.flags,
+                                                support.category,
+                                                itemsPerPage = 250,
+                                                next = next,
+                                            ),
+                                            signedIntentFromEndUser = actorAndProject.signedIntentFromUser
+                                        )
+
+                                        sendWSMessage(
+                                            FilesStreamingSearchResult.Result(
+                                                remapSearchResults(
+                                                    actorAndProject,
+                                                    page.items,
+                                                    request.flags.includeMetadata == true
+                                                )
+                                            )
+                                        )
+
+                                        next = page.next ?: break
+                                    }
+                                }
+                            }
+                        } else {
+                            null
                         }
                     }
                 }

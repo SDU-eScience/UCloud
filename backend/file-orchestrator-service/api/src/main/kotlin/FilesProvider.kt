@@ -2,6 +2,7 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
@@ -111,6 +112,7 @@ data class FilesProviderSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val category: ProductCategoryId? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
@@ -122,6 +124,7 @@ data class FilesProviderStreamingSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val category: ProductCategoryId,
     val currentFolder: String? = null,
 )
 
