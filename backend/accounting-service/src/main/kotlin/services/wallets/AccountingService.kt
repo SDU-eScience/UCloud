@@ -1,9 +1,6 @@
 package dk.sdu.cloud.accounting.services.wallets
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.Role
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
@@ -12,8 +9,7 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
-import dk.sdu.cloud.safeUsername
+import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -34,16 +30,20 @@ class AccountingService(
         }
     }
 
-    suspend fun retrieveAllocations(actorAndProject: ActorAndProject, owner: WalletOwner, categoryId: ProductCategoryId): List<WalletAllocation> {
-        return processor.retrieveAllocations(AccountingRequest.RetrieveAllocations(
+    suspend fun retrieveAllocationsInternal(
+        actorAndProject: ActorAndProject,
+        owner: WalletOwner,
+        categoryId: ProductCategoryId
+    ): List<WalletAllocation> {
+        return processor.retrieveAllocationsInternal(AccountingRequest.RetrieveAllocationsInternal(
             actorAndProject.actor,
             owner.toProcessorOwner(),
             categoryId
         )).allocations
     }
 
-    suspend fun retrieveWallets(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
-        return processor.retrieveWallets((AccountingRequest.RetrieveWallets(
+    suspend fun retrieveWalletsInternal(actorAndProject: ActorAndProject, walletOwner: WalletOwner): List<Wallet> {
+        return processor.retrieveWalletsInternal((AccountingRequest.RetrieveWalletsInternal(
             actorAndProject.actor,
             walletOwner.toProcessorOwner()
         ))).wallets
@@ -163,6 +163,7 @@ class AccountingService(
                         setParameter("user", actorAndProject.actor.safeUsername())
                         setParameter("project", actorAndProject.project)
                         setParameter("filter_type", request.filterType?.name)
+                        setParameter("filter_empty", request.filterEmptyAllocations)
                     },
                     """
                         declare c cursor for
@@ -181,6 +182,10 @@ class AccountingService(
                             (
                                 :filter_type::accounting.product_type is null or
                                 pc.product_type = :filter_type::accounting.product_type
+                            ) and 
+                            (
+                                :filter_empty is null or
+                                alloc.balance > 0 
                             )
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
@@ -190,7 +195,13 @@ class AccountingService(
                 )
             },
             mapper = { _, rows ->
-                rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
+                rows.map {
+                    var wallet = defaultMapper.decodeFromString<Wallet>(it.getString(0)!!)
+                    if (request.includeMaxUsableBalance == true) {
+                        wallet = processor.includeMaxUsableBalance(wallet)
+                    }
+                    wallet
+                }
             }
         )
     }

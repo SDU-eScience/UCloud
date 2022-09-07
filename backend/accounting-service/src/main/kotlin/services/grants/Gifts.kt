@@ -89,7 +89,7 @@ class GiftService(
             val category = ProductCategoryId(row.getString(1)!!, row.getString(2)!!)
             val sourceProject = row.getString(3)!!
 
-            val allocations = accountingService.retrieveAllocations(
+            val allocations = accountingService.retrieveAllocationsInternal(
                 ActorAndProject(Actor.System, null),
                 WalletOwner.Project(sourceProject),
                 category

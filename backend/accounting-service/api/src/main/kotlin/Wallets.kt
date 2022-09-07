@@ -210,8 +210,15 @@ data class WalletBrowseRequest(
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
+    override val filterEmptyAllocations: Boolean? = null,
+    override val includeMaxUsableBalance: Boolean? = null,
     val filterType: ProductType? = null
-) : WithPaginationRequestV2
+) : WithPaginationRequestV2, BrowseAllocationsFlags
+
+interface BrowseAllocationsFlags{
+    val includeMaxUsableBalance: Boolean?
+    val filterEmptyAllocations: Boolean?
+}
 
 @Serializable
 data class WalletsInternalRetrieveRequest(
@@ -586,6 +593,9 @@ data class DepositToWalletRequestItem(
 )
 
 typealias DepositToWalletResponse = Unit
+
+typealias ForceInMemoryDBSyncRequest = Unit
+typealias ForceInMemoryDBSyncResponse = Unit
 
 @Serializable
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)

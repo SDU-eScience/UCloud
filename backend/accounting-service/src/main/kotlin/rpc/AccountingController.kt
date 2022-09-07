@@ -66,12 +66,12 @@ class AccountingController(
         implement(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
 
-            ok(WalletsInternalRetrieveResponse(accounting.retrieveWallets(actorAndProject, walletOwner)))
+            ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(actorAndProject, walletOwner)))
         }
 
         implement(Wallets.retrieveAllocationsInternal) {
             val walletOwner = request.owner
-            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocations(actorAndProject, walletOwner, request.categoryId)))
+            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocationsInternal(actorAndProject, walletOwner, request.categoryId)))
         }
 
         implement(Wallets.searchSubAllocations) {

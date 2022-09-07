@@ -2,11 +2,13 @@ package dk.sdu.cloud.accounting.services.wallets
 
 import com.google.common.math.LongMath
 import dk.sdu.cloud.Actor
+import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
+import dk.sdu.cloud.calls.client.AuthenticatedClient
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
@@ -199,14 +201,14 @@ sealed class AccountingRequest {
         override var id: Long = -1,
     ) : AccountingRequest()
 
-    data class RetrieveAllocations(
+    data class RetrieveAllocationsInternal(
         override val actor: Actor,
         val owner: String,
         val category: ProductCategoryId,
         override var id: Long = -1,
     ) : AccountingRequest()
 
-    data class RetrieveWallets(
+    data class RetrieveWalletsInternal(
         override val actor: Actor,
         val owner: String,
         override var id: Long = -1,
@@ -242,12 +244,12 @@ sealed class AccountingResponse {
         override var id: Long = -1,
     ) : AccountingResponse()
 
-    data class RetrieveAllocations(
+    data class RetrieveAllocationsInternal(
         val allocations: List<ApiWalletAllocation>,
         override var id: Long = -1,
     ) : AccountingResponse()
 
-    data class RetrieveWallets(
+    data class RetrieveWalletsInternal(
         val wallets: List<ApiWallet>,
         override var id: Long = -1
     ): AccountingResponse()
@@ -277,11 +279,15 @@ suspend fun AccountingProcessor.update(request: AccountingRequest.Update): Accou
     return sendRequest(request).orThrow()
 }
 
-suspend fun AccountingProcessor.retrieveAllocations(request: AccountingRequest.RetrieveAllocations): AccountingResponse.RetrieveAllocations {
+suspend fun AccountingProcessor.retrieveAllocationsInternal(
+    request: AccountingRequest.RetrieveAllocationsInternal
+): AccountingResponse.RetrieveAllocationsInternal {
     return sendRequest(request).orThrow()
 }
 
-suspend fun AccountingProcessor.retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse.RetrieveWallets {
+suspend fun AccountingProcessor.retrieveWalletsInternal(
+    request: AccountingRequest.RetrieveWalletsInternal
+): AccountingResponse.RetrieveWalletsInternal {
     return sendRequest(request).orThrow()
 }
 
@@ -312,6 +318,8 @@ class AccountingProcessor(
     private val projects = ProjectCache(db)
     private val products = ProductCache(db)
 
+    private val processorLock = Mutex()
+
     // Primary interface
     // =================================================================================================================
     // The accounting processors is fairly simple to use. It must first be started by call start(). After this you can
@@ -324,6 +332,17 @@ class AccountingProcessor(
                 loadDatabase()
                 logExit("Success")
             }
+
+            Runtime.getRuntime().addShutdownHook(
+                Thread {
+                    runBlocking {
+                        processorLock.lock()
+                        attemptSynchronize(true)
+                        println("SHUTTING DOWN")
+                        processorLock.unlock()
+                    }
+                }
+            )
 
             nextSynchronization = System.currentTimeMillis() + 0
             while (isActive) {
@@ -361,19 +380,23 @@ class AccountingProcessor(
     suspend fun sendRequest(request: AccountingRequest): AccountingResponse {
         val id = requestIdGenerator.getAndIncrement()
         request.id = id
+        println(processorLock.isLocked)
+        return if(!processorLock.isLocked) {
+             coroutineScope {
+                val collector = async {
+                    var result: AccountingResponse? = null
+                    responses.takeWhile {
+                        if (it.id == id) result = it
+                        it.id != id
+                    }.collect()
+                    result ?: error("No response was ever received")
+                }
 
-        return coroutineScope {
-            val collector = async {
-                var result: AccountingResponse? = null
-                responses.takeWhile {
-                    if (it.id == id) result = it
-                    it.id != id
-                }.collect()
-                result ?: error("No response was ever received")
+                requests.send(request)
+                collector.await()
             }
-
-            requests.send(request)
-            collector.await()
+        } else {
+           AccountingResponse.Error("System is locked. Syncing to DB before process shutdown", 423)
         }
     }
 
@@ -383,8 +406,8 @@ class AccountingProcessor(
             is AccountingRequest.Deposit -> deposit(request)
             is AccountingRequest.Update -> update(request)
             is AccountingRequest.Charge -> charge(request)
-            is AccountingRequest.RetrieveAllocations -> retrieveAllocations(request)
-            is AccountingRequest.RetrieveWallets -> retrieveWallets(request)
+            is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
+            is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
         }
 
         if (doDebug) {
@@ -584,17 +607,23 @@ class AccountingProcessor(
     // Utilities for managing state
     // =================================================================================================================
 
-    private fun calculateMaxUsableBalance(
-        wallet: Wallet
-    ): Long {
-        var maxUsableBalance = 0L
-        val now = System.currentTimeMillis()
-        val allocations = allocations.filter { it?.associatedWallet == wallet.id && it.isValid(now)}
-            .mapNotNull {it}
-        allocations.forEach {
-            maxUsableBalance = min(maxUsableBalance, calculateMaxUsableBalance(it))
+    fun includeMaxUsableBalance(
+        wallet: ApiWallet
+    ): ApiWallet {
+        val internalWallet = when (val owner = wallet.owner) {
+            is ApiWalletOwner.Project -> findWallet(owner.projectId, wallet.paysFor)
+            is ApiWalletOwner.User -> findWallet(owner.username, wallet.paysFor)
         }
-        return maxUsableBalance
+        return if (internalWallet == null) {
+            wallet
+        } else {
+            val allocationsWithMaxUsableBalance =
+                allocations
+                    .filter { it != null && it.associatedWallet == internalWallet.id }
+                    .mapNotNull { it!!.copy(maxUsableBalance = calculateMaxUsableBalance(it)) }
+                    .map { it.toApiAllocation() }
+            wallet.copy(allocations = allocationsWithMaxUsableBalance)
+        }
     }
 
     //Goes through entire allocation tree to find the lowest possible amount that can be charge without problems
@@ -779,6 +808,7 @@ class AccountingProcessor(
     // Deposits
     // =================================================================================================================
     private suspend fun rootDeposit(request: AccountingRequest.RootDeposit): AccountingResponse {
+        println("ROOT DEPOSUIT")
         if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance")
         if (request.actor != Actor.System) {
             return AccountingResponse.Error("Only UCloud administrators can perform a root deposit")
@@ -1249,12 +1279,12 @@ class AccountingProcessor(
 
     // Retrieve Allocations
     // =================================================================================================================
-    private suspend fun retrieveAllocations(request: AccountingRequest.RetrieveAllocations): AccountingResponse {
+    private suspend fun retrieveAllocationsInternal(request: AccountingRequest.RetrieveAllocationsInternal): AccountingResponse {
         val now = System.currentTimeMillis()
         val wallet = findWallet(request.owner, request.category)
             ?: return AccountingResponse.Error("Unknown wallet requested")
 
-        return AccountingResponse.RetrieveAllocations(
+        return AccountingResponse.RetrieveAllocationsInternal(
             allocations
                 .asSequence()
                 .filterNotNull()
@@ -1264,10 +1294,9 @@ class AccountingProcessor(
         )
     }
 
-    private suspend fun retrieveWallets(request: AccountingRequest.RetrieveWallets): AccountingResponse {
-        val now = Time.now()
+    private suspend fun retrieveWalletsInternal(request: AccountingRequest.RetrieveWalletsInternal): AccountingResponse {
         val wallets = wallets.filter { it?.owner == request.owner }
-        return AccountingResponse.RetrieveWallets(
+        return AccountingResponse.RetrieveWalletsInternal(
             wallets
                 .asSequence()
                 .filterNotNull()
@@ -1280,9 +1309,9 @@ class AccountingProcessor(
     // =================================================================================================================
     // We attempt to synchronize the dirty changes with the database at least once every 30 seconds. This is not a super
     // precise measurement, and we allow this to be off by ~1 second.
-    private suspend fun attemptSynchronize() {
+    private suspend fun attemptSynchronize(forced: Boolean = false) {
         val now = System.currentTimeMillis()
-        if (now < nextSynchronization) return
+        if (now < nextSynchronization && !forced) return
 
         debug.enterContext("Synchronizing accounting data") {
             debug.detailD("Filling products", Unit.serializer(), Unit)
@@ -1296,7 +1325,6 @@ class AccountingProcessor(
                 wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
                     val filtered = chunk
                         .filter { it.isDirty }
-                        .onEach { it.isDirty = false } // TODO(Dan): Should probably only happen when we have done a commit
                         .takeIfNotEmpty()
                         ?.toList()
                         ?: return@forEach
@@ -1353,6 +1381,7 @@ class AccountingProcessor(
                                 accounting.product_categories pc on
                                     t.category = pc.category and
                                     t.provider = pc.provider
+                            on conflict do nothing 
                         """
                     )
                 }
@@ -1536,14 +1565,11 @@ class AccountingProcessor(
             }
 
             //Clear dirty checks
-            wallets.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
-                chunk.filter { it.isDirty }.onEach { it.isDirty = false }
-            }
-            allocations.asSequence().filterNotNull().chunkedSequence(500).forEach { chunk ->
-                chunk.filter { it.isDirty }.onEach { it.isDirty = false }
-            }
-            dirtyTransactions.clear()
+            wallets.asSequence().filterNotNull().filter { it.isDirty }.forEach {  it.isDirty = false }
 
+            allocations.asSequence().filterNotNull().filter { it.isDirty }.forEach {  it.isDirty = false }
+
+            dirtyTransactions.clear()
             logExit("Done!")
             nextSynchronization = now + 30_000
         }
