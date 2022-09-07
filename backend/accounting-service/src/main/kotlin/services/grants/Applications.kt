@@ -84,8 +84,6 @@ class GrantApplicationService(
 
     suspend fun retrieveGrantApplication(applicationId: Long, actorAndProject: ActorAndProject): GrantApplication {
         val application = db.withSession { session ->
-            println(actorAndProject.actor.username)
-            println(applicationId)
             permissionCheck(session, actorAndProject, applicationId)
             session.sendPreparedStatement(
                 {
@@ -99,7 +97,6 @@ class GrantApplicationService(
                 ?.getString(0)
                 ?: throw RPCException("Did not find a single application", HttpStatusCode.NotFound)
         }
-        println(application)
         return defaultMapper.decodeFromString(application)
     }
 
@@ -107,9 +104,6 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
     ): List<FindByLongId> {
-        // TODO(Jonas): Debugging? Remember to remove, @hschu12
-        println(request)
-        // TODO(Jonas): End
         request.items.forEach { createRequest ->
             val recipient = createRequest.document.recipient
             if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
@@ -189,7 +183,7 @@ class GrantApplicationService(
                     """.trimIndent()
                 )
 
-                insertDocument(session, actorAndProject, applicationId, createRequest.document, 0)
+                insertDocument(session, actorAndProject, applicationId, createRequest.document, 0, true)
                 autoApprove(session, actorAndProject, createRequest, applicationId)
 
                 val (allApproved, grantGivers) = retrieveGrantGiversStates(session, applicationId)
@@ -454,43 +448,50 @@ class GrantApplicationService(
         actorAndProject: ActorAndProject,
         applicationId: Long,
         document: GrantApplication.Document,
-        revisionNumber: Int
+        revisionNumber: Int,
+        isSubmit: Boolean = false
     ) {
         runBlocking {
             // TODO(Jonas):
             // Fetch existing allocation requests, ONLY update these allocations requests based on actorAndProject
             // project where grantGiver == actorAndProject.project. UNLESS request is from recipient.
             val recipient = document.recipient
-            val application = retrieveGrantApplication(applicationId, actorAndProject)
-            val canChangeAll = when (recipient) {
-                is GrantApplication.Recipient.NewProject ->
-                    application.createdBy == actorAndProject.actor.safeUsername()
+            val allocationRequests = if (!isSubmit) {
+                // Note(Jonas): Only if an application with resources already exists, retrieveGrantApplication can be called
+                // For a new submission, this is only added later in this function.
+                val application = retrieveGrantApplication(applicationId, actorAndProject)
+                val canChangeAll = when (recipient) {
+                    is GrantApplication.Recipient.NewProject ->
+                        application.createdBy == actorAndProject.actor.safeUsername()
 
-                is GrantApplication.Recipient.ExistingProject ->
-                    recipient.id == actorAndProject.project
+                    is GrantApplication.Recipient.ExistingProject ->
+                        recipient.id == actorAndProject.project
 
-                is GrantApplication.Recipient.PersonalWorkspace ->
-                    application.createdBy == actorAndProject.actor.safeUsername()
-            }
+                    is GrantApplication.Recipient.PersonalWorkspace ->
+                        application.createdBy == actorAndProject.actor.safeUsername()
+                }
 
-            val updatedAllocationRequests = if (canChangeAll) document.allocationRequests else {
-                val newRequests = document.allocationRequests
-                val oldRequests = application.currentRevision.document.allocationRequests
-                oldRequests.mapNotNull { oldReq ->
-                    if (oldReq.grantGiver != actorAndProject.project) oldReq
-                    else {
-                        newRequests.find { newReq ->
-                            newReq.category == oldReq.category && newReq.provider == oldReq.provider
+                if (canChangeAll) document.allocationRequests else {
+                    val newRequests = document.allocationRequests
+                    val oldRequests = application.currentRevision.document.allocationRequests
+                    oldRequests.mapNotNull { oldReq ->
+                        if (oldReq.grantGiver != actorAndProject.project) oldReq
+                        else {
+                            newRequests.find { newReq ->
+                                newReq.category == oldReq.category && newReq.provider == oldReq.provider
+                            }
                         }
                     }
                 }
+            } else {
+                document.allocationRequests
             }
 
             checkReferenceID(document.referenceId)
             val allocationsApproved = session.sendPreparedStatement(
                 {
                     setParameter("id", applicationId)
-                    updatedAllocationRequests.split {
+                    allocationRequests.split {
                         into("source_allocations") { it.sourceAllocation }
                         into("categories") { it.category }
                         into("providers") { it.provider }
@@ -863,6 +864,7 @@ class GrantApplicationService(
 
                 }
 
+                // Note(Jonas): This would be called for each request, potentially setting reject multiple times, right?
                 val newOverallState = if (update.newState == GrantApplication.State.REJECTED) {
                     session.sendPreparedStatement(
                         {
@@ -915,7 +917,7 @@ class GrantApplicationService(
                             .singleOrNull()
                             ?.getString(0)
                         onApplicationApprove(session, update.applicationId, parentId)
-                        GrantApplication.State.APPROVED
+                        GrantApplication.State.APPROVED // Note(Jonas): Unused expression?
                     } else {
                         val overall = session.sendPreparedStatement(
                             {
