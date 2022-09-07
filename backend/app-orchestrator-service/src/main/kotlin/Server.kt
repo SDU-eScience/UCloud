@@ -118,6 +118,7 @@ class Server(override val micro: Micro) : CommonServer {
 
         val syncthingService = SyncthingService(storageProviders, serviceClient, fileCollections)
 
+        val sshService = SshKeyService(db, jobOrchestrator)
 
         val jobMonitoring = JobMonitoringService(
             micro.backgroundScope,
@@ -142,14 +143,11 @@ class Server(override val micro: Micro) : CommonServer {
         with(micro.server) {
             configureControllers(
                 JobController(jobOrchestrator),
-
                 ingressService.asController(),
-
                 licenseService.asController(),
-
                 NetworkIPController(networkService),
-
-                SyncthingController(syncthingService)
+                SyncthingController(syncthingService),
+                SshKeyController(sshService),
             )
         }
 

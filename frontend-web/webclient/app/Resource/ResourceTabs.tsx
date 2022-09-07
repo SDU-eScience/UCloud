@@ -8,6 +8,7 @@ export enum ResourceTabOptions {
     PUBLIC_IP = "Public IPs",
     PUBLIC_LINKS = "Public Links",
     LICENSES = "Licenses",
+    SSH_KEYS = "SSH Keys",
 }
 
 export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element | null {
@@ -24,6 +25,9 @@ export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element |
                 break;
             case ResourceTabOptions.LICENSES:
                 history.push("/licenses");
+                break;
+            case ResourceTabOptions.SSH_KEYS:
+                history.push("/ssh-keys");
                 break;
         }
     }, []);

@@ -443,7 +443,6 @@ export function ResourceBrowse<Res extends Resource, CB = undefined>({
     );
 
     const pageRenderer = useCallback<PageRenderer<Res>>((items, opts) => {
-        console.log("opts are", opts);
         /* HACK(Jonas): to ensure the toggleSet knows of the page contents when checking all. */
         toggleSet.allItems.current = items;
         const allChecked = toggleSet.checked.items.length === items.length && items.length > 0;

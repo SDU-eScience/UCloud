@@ -1,9 +1,23 @@
 package dk.sdu.cloud.app.orchestrator.api
 
+import dk.sdu.cloud.CommonErrorMessage
+import dk.sdu.cloud.PageV2
+import dk.sdu.cloud.PaginationRequestV2Consistency
+import dk.sdu.cloud.WithPaginationRequestV2
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.calls.*
+import kotlinx.serialization.Serializable
+
+@Serializable
+data class JobsControlBrowseSshKeys(
+    val jobId: String,
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+) : WithPaginationRequestV2
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobIncludeFlags, JobStatus,
@@ -33,4 +47,13 @@ object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobInc
         Product.Compute.serializer(),
         typeOfIfPossible<Product.Compute>(),
     )
+
+    val browseSshKeys = call(
+        "browseSshKeys",
+        JobsControlBrowseSshKeys.serializer(),
+        PageV2.serializer(SSHKey.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
+        httpUpdate(baseContext, "browseSshKeys")
+    }
 }

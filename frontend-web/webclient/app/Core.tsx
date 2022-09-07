@@ -56,6 +56,8 @@ const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Route
 const SubprojectList = React.lazy(() => import("@/Project/SubprojectList"));
 const ManualTestingOverview = React.lazy(() => import("@/Playground/ManualTesting"));
 const SyncthingOverview = React.lazy(() => import("@/Syncthing/Overview"));
+const SshKeyBrowse = React.lazy(() => import("@/Applications/SshKeys/Browse"));
+const SshKeyCreate = React.lazy(() => import("@/Applications/SshKeys/Create"));
 
 import {GrantApplicationEditor, RequestTarget} from "@/Project/Grant/GrantApplicationEditor";
 import Sidebar from "@/ui-components/Sidebar";
@@ -125,6 +127,8 @@ const Core = (): JSX.Element => (
                     <Route path="/jobs" component={requireAuth(JobRouter)} />
                     <Route path="/licenses" component={requireAuth(LicenseRouter)} />
                     <Route path="/public-ips" component={requireAuth(NetworkIPsRouter)} />
+                    <Route path={"/ssh-keys"} exact component={requireAuth(SshKeyBrowse)} />
+                    <Route path={"/ssh-keys/create"} exact component={requireAuth(SshKeyCreate)} />
 
                     <Route exact path="/applications/studio" component={requireAuth(Studio)} />
                     <Route exact path="/applications/studio/t/:name" component={requireAuth(Tool)} />

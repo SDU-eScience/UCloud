@@ -276,6 +276,8 @@ interface StandardListBrowse<T, CB> {
     extraCallbacks?: CB;
     hide?: boolean;
     navigate?: (item: T) => void;
+    header?: React.ReactNode;
+    headerSize?: number;
 }
 
 export function StandardList<T, CB = EmptyObject>(
@@ -322,32 +324,23 @@ export function StandardList<T, CB = EmptyObject>(
 
     const pageRenderer = useCallback<PageRenderer<T>>(items => {
         return <>
-            <AutoSizer children={({width, height}) => (
-                <FixedSizeList
-                    itemCount={10000}
-                    itemSize={35}
-                    width={width}
-                    height={height}
-                    children={({index, style}) => <div style={style}>Hi {index}</div>}
-                />
-            )}/>
+            <List childPadding={"8px"} bordered={false}>
+                {items.length > 0 ? null : props.emptyPage ? props.emptyPage :
+                    <>
+                        No {titlePlural.toLowerCase()} available.
+                    </>
+                }
 
-            {/*<List childPadding={"8px"} bordered={false}>*/}
-            {/*    {items.length > 0 ? null : props.emptyPage ? props.emptyPage :*/}
-            {/*        <>*/}
-            {/*            No {titlePlural.toLowerCase()} available.*/}
-            {/*        </>*/}
-            {/*    }*/}
-            {/*    {items.map((it, idx) =>*/}
-            {/*        <ItemRow*/}
-            {/*            key={idx}*/}
-            {/*            browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}*/}
-            {/*            renderer={props.renderer} callbacks={callbacks} operations={allOperations}*/}
-            {/*            item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}*/}
-            {/*            navigate={props.navigate}*/}
-            {/*        />*/}
-            {/*    )}*/}
-            {/*</List>*/}
+                {items.map((it, idx) =>
+                    <ItemRow
+                        key={idx}
+                        browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}
+                        renderer={props.renderer} callbacks={callbacks} operations={allOperations}
+                        item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}
+                        navigate={props.navigate}
+                    />
+                )}
+            </List>
         </>
     }, [toggleSet, props.renderer, callbacks, allOperations, props.title, titlePlural]);
 
@@ -384,6 +377,8 @@ export function StandardList<T, CB = EmptyObject>(
         </>;
     } else {
         return <MainContainer
+            header={props.header}
+            headerSize={props.headerSize}
             main={main}
             sidebar={
                 <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
