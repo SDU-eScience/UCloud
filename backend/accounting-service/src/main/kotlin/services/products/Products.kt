@@ -2,7 +2,9 @@ package dk.sdu.cloud.accounting.services.products
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.util.PartialQuery
+import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -14,6 +16,7 @@ import kotlinx.serialization.encodeToString
 
 class ProductService(
     private val db: DBContext,
+    private val processor: AccountingProcessor
 ) {
     suspend fun create(
         actorAndProject: ActorAndProject,
@@ -132,7 +135,16 @@ class ProductService(
                 query,
             ).rows
                 .singleOrNull()
-                ?.let { defaultMapper.decodeFromString<Product>(it.getString(0)!!) }
+                ?.let {
+                    val product = defaultMapper.decodeFromString<Product>(it.getString(0)!!)
+                    if (request.includeMaxBalance == true) {
+                        product.maxUsableBalance = processor.maxUsableBalanceForProduct(
+                            actorAndProject.project ?: actorAndProject.actor.safeUsername(),
+                            product.category
+                        )
+                    }
+                    product
+                }
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
     }
@@ -155,7 +167,16 @@ class ProductService(
                 )
             },
             mapper = {_, rows ->
-                rows.map { defaultMapper.decodeFromString(it.getString(0)!!)}
+                rows.map {
+                    val product = defaultMapper.decodeFromString<Product>(it.getString(0)!!)
+                    if (request.includeMaxBalance == true) {
+                        product.maxUsableBalance = processor.maxUsableBalanceForProduct(
+                            actorAndProject.project ?: actorAndProject.actor.safeUsername(),
+                            product.category
+                        )
+                    }
+                    product
+                }
             }
         )
     }

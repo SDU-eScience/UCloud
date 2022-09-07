@@ -268,6 +268,7 @@ export interface ProductBase extends ProductMetadata {
     priority: number;
     version?: number;
     balance?: number | null;
+    maxBalance?: number | null;
 }
 
 export interface ProductStorage extends ProductBase {

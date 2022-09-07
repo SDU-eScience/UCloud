@@ -44,7 +44,8 @@ export const ReservationParameter: React.FunctionComponent<{
             filterUsable: true,
             filterArea: "COMPUTE",
             itemsPerPage: 250,
-            includeBalance: true
+            includeBalance: true,
+            includeMaxBalance: true
         }));
     }, [projectId]);
     useEffect(() => {

@@ -73,7 +73,8 @@ export const OpenWith: React.FunctionComponent<OpenWithProps> = ({file, collecti
             filterUsable: true,
             filterArea: "COMPUTE",
             itemsPerPage: 250,
-            includeBalance: true
+            includeBalance: true,
+            includeMaxBalance: true
         }));
     }, []);
 

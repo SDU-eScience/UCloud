@@ -43,12 +43,14 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
-        val productService = ProductService(db)
-        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
         val accountingProcessor = AccountingProcessor(db, micro.featureOrNull(DebugSystemFeature), simpleProviders)
         val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
+
+        val productService = ProductService(db, accountingProcessor)
+        val projectCache = ProjectCache(DistributedStateFactory(micro), db)
+
         val depositNotifications = DepositNotificationService(db)
         accountingProcessor.start()
 

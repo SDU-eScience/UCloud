@@ -4,6 +4,7 @@ import com.google.common.math.LongMath
 import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -1303,6 +1304,12 @@ class AccountingProcessor(
                 .map { it.toApiWallet() }
                 .toList()
         )
+    }
+
+    suspend fun maxUsableBalanceForProduct(owner: String, categoryId: ProductCategoryId): Long {
+        val wallet = findWallet(owner, categoryId) ?: return 0L
+        val maxUsableBalances = allocations.mapNotNull { it }.filter { it.associatedWallet == wallet.id }.map { calculateMaxUsableBalance(it) }
+        return maxUsableBalances.sum()
     }
 
     // Database synchronization

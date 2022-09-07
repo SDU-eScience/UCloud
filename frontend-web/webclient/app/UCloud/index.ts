@@ -6964,6 +6964,7 @@ export interface ProductsBrowseRequest {
     filterUsable?: boolean,
     filterCategory?: string,
     includeBalance?: boolean,
+    includeMaxBalance?: boolean,
 }
 export interface UsageResponse {
     charts: UsageChart[],
@@ -7080,7 +7081,7 @@ export function browse(
     return {
         context: "",
         method: "GET",
-        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance}),
+        path: buildQueryString("/api/products" + "/browse", {itemsPerPage: request.itemsPerPage, next: request.next, consistency: request.consistency, itemsToSkip: request.itemsToSkip, filterProvider: request.filterProvider, filterArea: request.filterArea, filterUsable: request.filterUsable, filterCategory: request.filterCategory, includeBalance: request.includeBalance, includeMaxBalance: request.includeMaxBalance}),
         parameters: request,
         reloadId: Math.random(),
     };

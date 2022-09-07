@@ -165,6 +165,9 @@ sealed class Product : DocVisualizable {
     @UCloudApiDoc("Included only with certain endpoints which support `includeBalance`")
     var balance: Long? = null
 
+    @UCloudApiDoc("Included only with certain endpoints which support `includeMaxBalance`")
+    var maxUsableBalance: Long? = null
+
     @OptIn(ExperimentalStdlibApi::class)
     override fun visualize(): DocVisualization {
         return DocVisualization.Card(
@@ -466,6 +469,7 @@ interface ProductFlags {
     val filterCategory: String?
     val filterVersion: Int?
     val includeBalance: Boolean?
+    val includeMaxBalance: Boolean?
 }
 
 @Serializable
@@ -483,7 +487,8 @@ data class ProductsBrowseRequest(
 
     val showAllVersions: Boolean? = null,
 
-    override val includeBalance: Boolean? = null
+    override val includeBalance: Boolean? = null,
+    override val includeMaxBalance: Boolean? = null
 ) : WithPaginationRequestV2, ProductFlags
 typealias ProductsBrowseResponse = PageV2<Product>
 
@@ -497,6 +502,7 @@ data class ProductsRetrieveRequest(
     override val filterVersion: Int? = null,
 
     override val includeBalance: Boolean? = null,
+    override val includeMaxBalance: Boolean? = null,
 ) : ProductFlags
 
 @OptIn(ExperimentalStdlibApi::class)
