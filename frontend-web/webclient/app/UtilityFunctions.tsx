@@ -281,12 +281,13 @@ export function extractErrorCode(e: unknown): number {
     return 500;
 }
 
-export function defaultErrorHandler(
+export function extractErrorMessage(
     error: {request: XMLHttpRequest; response: any}
-): number {
+): string {
     const {request} = error;
     // FIXME must be solvable more elegantly
     let why: string | null = error.response?.why;
+    const defaultErrorMessage = "An error occurred. Please reload the page.";
 
     if (request) {
         if (!why) {
@@ -297,11 +298,22 @@ export function defaultErrorHandler(
                 // 400 is 'Bad Request', but this is meaningless for the end user.
                 case 400:
                 default:
-                    why = "An error occurred. Please reload the page.";
+                    why = defaultErrorMessage;
                     break;
             }
         }
+    }
 
+    return why ?? defaultErrorMessage;
+}
+
+export function defaultErrorHandler(
+    error: {request: XMLHttpRequest; response: any}
+): number {
+    const {request} = error;
+
+    if (request) {
+        const why = extractErrorMessage(error)
         snackbarStore.addFailure(why, false);
         return request.status;
     }
