@@ -5,6 +5,7 @@ import dk.sdu.cloud.app.orchestrator.api.JobSpecification
 import dk.sdu.cloud.app.store.api.AppParameterValue
 import dk.sdu.cloud.app.store.api.Application
 import dk.sdu.cloud.app.store.api.ApplicationParameter
+import dk.sdu.cloud.app.store.api.SshDescription
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.extractPathMetadata
@@ -38,6 +39,11 @@ class JobVerificationService(
             if (specification.timeAllocation!!.toMillis() <= 0) {
                 throw JobException.VerificationError("Time allocated for job is too short.")
             }
+        }
+
+        val sshMode = application.invocation.ssh?.mode ?: SshDescription.Mode.DISABLED
+        if (specification.sshEnabled == true && sshMode == SshDescription.Mode.DISABLED) {
+            throw JobException.VerificationError("This application does not support SSH but sshEnabled was true")
         }
 
         val verifiedParameters = verifyParameters(application, specification)

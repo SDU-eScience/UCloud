@@ -4,6 +4,7 @@ import * as React from "react";
 import {SelectableText, SelectableTextWrapper} from "@/ui-components";
 import {useHistory} from "react-router";
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
+import {Feature, hasFeature} from "@/Features";
 
 export enum ResourceTabOptions {
     PUBLIC_IP = "Public IPs",
@@ -52,7 +53,7 @@ export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element |
 function isEnabled(tab: ResourceTabOptions): boolean {
     switch (tab) {
         case ResourceTabOptions.SSH_KEYS:
-            return onDevSite() || inDevEnvironment();
+            return hasFeature(Feature.SSH);
         default:
             return true;
     }

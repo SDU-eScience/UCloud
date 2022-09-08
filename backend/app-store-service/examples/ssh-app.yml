@@ -1,0 +1,40 @@
+application: v1
+
+title: SSH
+name: ssh
+version: optional
+
+applicationType: BATCH
+
+allowMultiNode: true
+
+tool:
+  name: ssh
+  version: 1
+
+authors:
+- Dan
+
+container:
+  runAsRoot: true
+ 
+description: A sample application exposing SSH (except not really)
+
+ssh:
+  mode: OPTIONAL
+ 
+invocation:
+- sh
+- -c
+- >
+  echo "Hello, World!";
+  sleep 2;
+  echo "How are you doing?";
+  sleep 1;
+  echo "This is just me writing some stuff for testing purposes!";
+  sleep 1;
+  seq 0 7200 | xargs -n 1 -I _ sh -c 'echo _; sleep 1';
+
+outputFileGlobs:
+  - "*"
+

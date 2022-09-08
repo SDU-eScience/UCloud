@@ -36,6 +36,7 @@ data class ExportedParametersRequest(
     @Contextual
     val resolvedSupport: JsonObject? = null,
     val allowDuplicateJob: Boolean = true,
+    val sshEnabled: Boolean = false,
 )
 
 @Serializable
@@ -400,6 +401,17 @@ data class JobSpecification(
         """
     )
     val restartOnExit: Boolean? = null,
+
+    @UCloudApiExperimental(ExperimentalLevel.ALPHA)
+    @UCloudApiDoc(
+        """
+            A flag which indicates that this job should use the built-in SSH functionality of the application/provider
+            
+            This flag can only be true of the application itself is marked as SSH enabled. When this flag is true, 
+            an SSH server will be started which allows the end-user direct access to the associated compute workload.
+        """
+    )
+    val sshEnabled: Boolean? = null,
 ) : ResourceSpecification {
     init {
         if (name != null && !name.matches(nameRegex)) {

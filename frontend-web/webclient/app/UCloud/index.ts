@@ -1580,6 +1580,7 @@ export interface ApplicationInvocationDescription {
     applicationType: ("BATCH" | "VNC" | "WEB"),
     vnc?: VncDescription,
     web?: WebDescription,
+    ssh?: SshDescription,
     container?: ContainerDescription,
     environment?: Record<string, InvocationParameter>,
     allowAdditionalMounts?: boolean,
@@ -1649,6 +1650,11 @@ export interface VncDescription {
 export interface WebDescription {
     port: number /* int32 */,
 }
+
+export interface SshDescription {
+    mode: "DISABLED" | "OPTIONAL" | "MANDATORY";
+}
+
 export interface ContainerDescription {
     changeWorkingDirectory: boolean,
     runAsRoot: boolean,
