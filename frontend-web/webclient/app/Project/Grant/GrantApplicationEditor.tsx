@@ -5,7 +5,6 @@ import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
 import * as Heading from "@/ui-components/Heading";
 import Box from "@/ui-components/Box";
 import Button from "@/ui-components/Button";
-import ButtonGroup from "@/ui-components/ButtonGroup";
 import Card from "@/ui-components/Card";
 import ExternalLink from "@/ui-components/ExternalLink";
 import Flex from "@/ui-components/Flex";
@@ -87,6 +86,7 @@ import {useProjectId, viewProject} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
+import {Accordion} from "@/ui-components/Accordion";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -968,7 +968,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 }
                 sidebar={<>
                     {target !== RequestTarget.VIEW_APPLICATION ? (
-                        <Button disabled={grantFinalized || submitLoading} onClick={submitRequest}>
+                        <Button fullWidth disabled={grantFinalized || submitLoading} onClick={submitRequest}>
                             Submit Application
                         </Button>
                     ) : null}
@@ -1440,44 +1440,56 @@ function GrantGiver(props: {
         };
     }, [productCategories]);
 
-    return React.useMemo(() =>
-        <Box mt="12px">
-            <Spacer
-                left={
-                    <>
-                        <Heading.h2>{props.project.title}</Heading.h2>
-                        {!props.isParentProject && props.isLocked ? null :
-                            <Tooltip trigger={
-                                <ParentProjectIcon
-                                    onClick={() => props.isLocked ? null : props.setParentProject(props.project.projectId)}
-                                    cursor={props.isLocked ? undefined : "pointer"}
-                                    isSelected={props.isParentProject} name="check"
-                                />
-                            }>
-                                {props.isParentProject ? "Selected as parent project." : (
-                                    !props.isLocked ? "Click to select as parent project" :
-                                        "Not selected as parent project.")}
-                            </Tooltip>
-                        }
-                    </>
-                }
-                right={props.remove ? <Flex cursor="pointer" onClick={props.remove}>
-                    <Icon name="close" color="red" mr="8px" />Remove
-                </Flex> : null}
-            />
-            {productTypes.map(type => <AsProductType
-                key={type}
-                target={props.target}
-                type={type}
-                projectId={props.project.projectId}
-                isApprover={props.isApprover}
-                grantApplication={props.grantApplication}
-                wallets={props.wallets}
-                productCategories={productCategories}
-                isLocked={props.isLocked}
-                isRecipient={props.isRecipient}
-            />)}
-        </Box>, [productCategories, props.wallets, props.isRecipient, props.grantApplication, props.isParentProject, props.isLocked]);
+    return React.useMemo(() => {
+
+        const products = productTypes.map(type => <AsProductType
+            key={type}
+            target={props.target}
+            type={type}
+            projectId={props.project.projectId}
+            isApprover={props.isApprover}
+            grantApplication={props.grantApplication}
+            wallets={props.wallets}
+            productCategories={productCategories}
+            isLocked={props.isLocked}
+            isRecipient={props.isRecipient}
+        />);
+
+        const left = <Flex>
+            <Heading.h2>{props.project.title}</Heading.h2>
+            {!props.isParentProject && props.isLocked ? null :
+                <Tooltip trigger={
+                    <ParentProjectIcon
+                        onClick={() => props.isLocked ? null : props.setParentProject(props.project.projectId)}
+                        cursor={props.isLocked ? undefined : "pointer"}
+                        isSelected={props.isParentProject} name="check"
+                    />
+                }>
+                    {props.isParentProject ? "Selected as parent project." : (
+                        !props.isLocked ? "Click to select as parent project" :
+                            "Not selected as parent project.")}
+                </Tooltip>
+            }
+        </Flex>;
+
+        const right = props.remove ? <Flex cursor="pointer" onClick={props.remove}>
+            <Icon name="close" color="red" mr="8px" />Remove
+        </Flex> : null
+
+        const creatingOrApproverOrRecipient = props.target !== RequestTarget.VIEW_APPLICATION || props.isApprover || props.isRecipient;
+
+        return <Box mt="12px">
+            {creatingOrApproverOrRecipient ? <Spacer
+                left={left}
+                right={right}
+            /> : null}
+            {creatingOrApproverOrRecipient ? products :
+                <Accordion noBorder title={<Flex mt="-12px">{left}</Flex>} titleContent={right} panelProps={{mx: "-8px", pl: "8px"}}>
+                    {products}
+                </Accordion>
+            }
+        </Box>
+    }, [productCategories, props.wallets, props.isRecipient, props.grantApplication, props.isParentProject, props.isLocked]);
 }
 
 function AsProductType(props: {

@@ -1,6 +1,8 @@
-import {stopPropagation, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
+import {stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import * as React from "react";
 import styled from "styled-components";
+import {margin, MarginProps, padding, PaddingProps} from "styled-system";
+import Box, {BoxProps} from "./Box";
 import Flex from "./Flex";
 import Icon, {IconName} from "./Icon";
 import {Spacer} from "./Spacer";
@@ -17,7 +19,8 @@ export function Accordion(props: React.PropsWithChildren<{
     titleContentOnOpened?: React.ReactNode;
     forceOpen?: boolean;
     noBorder?: boolean;
-    omitChevron?: boolean
+    omitChevron?: boolean;
+    panelProps?: MarginProps & PaddingProps;
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
     const [open, setOpen] = React.useState(false);
@@ -35,7 +38,7 @@ export function Accordion(props: React.PropsWithChildren<{
                     right={<Flex onClick={stopPropagationAndPreventDefault} width="auto">{props.titleContent}{isOpen ? props.titleContentOnOpened : null}</Flex>}
                 />
             </AccordionStyle>
-            <Panel active={isOpen} noBorder={props.noBorder ?? false}>
+            <Panel active={isOpen} noBorder={props.noBorder ?? false} {...props.panelProps}>
                 {props.children}
             </Panel>
         </>
@@ -57,12 +60,14 @@ const AccordionStyle = styled.div<{active: boolean; noBorder: boolean}>`
 `;
 
 /* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
-const Panel = styled.div<{active: boolean; noBorder: boolean;}>`
-    display: ${props => props.active ? "block" : "none"};
+const Panel = styled.div<{active: boolean; noBorder: boolean;} & MarginProps & PaddingProps>`
+    display: ${props => props.active ? "block" : "hidden"};
     ${props => props.active && !props.noBorder ? "border-bottom: 1px solid lightGray;" : null}
     max-height: ${props => props.active ? "auto" : 0};
     overflow: hidden;
     transition: all 0.2s ease-out;
+    ${margin}
+    ${padding}
 `;
 
 const RotatingIcon = styled(Icon)`
