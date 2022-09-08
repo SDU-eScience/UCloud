@@ -3,6 +3,7 @@ import {useCallback, useMemo} from "react";
 import {ResourceTab, ResourceTabOptions} from "@/Resource/ResourceTabs";
 import {StandardList} from "@/ui-components/Browse";
 import SshKeyApi from "@/UCloud/SshKeyApi";
+import {SidebarPages} from "@/ui-components/Sidebar";
 
 export const SshKeyBrowse: React.FunctionComponent = () => {
     const operations = useMemo(() => SshKeyApi.retrieveOperations(), []);
@@ -20,6 +21,7 @@ export const SshKeyBrowse: React.FunctionComponent = () => {
         titlePlural={SshKeyApi.titlePlural}
         header={<ResourceTab active={ResourceTabOptions.SSH_KEYS} />}
         headerSize={48}
+        sidebarPage={SidebarPages.Resources}
     />
 };
 
