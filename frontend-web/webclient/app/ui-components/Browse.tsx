@@ -251,7 +251,7 @@ export function useRenamingState<T>(
     }), [isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
 }
 
-export interface StandardCallbacks<T> {
+export interface StandardCallbacks<T = any> {
     commandLoading: boolean;
     invokeCommand: InvokeCommand;
     reload: () => void;
@@ -344,10 +344,14 @@ export function StandardList<T, CB = EmptyObject>(
         </>
     }, [toggleSet, props.renderer, callbacks, allOperations, props.title, titlePlural]);
 
+    const onReload = useCallback(() => {
+        toggleSet.uncheckAll();
+    }, []);
+
     const main = useMemo(() =>
         <StandardBrowse generateCall={props.generateCall} pageRenderer={pageRenderer}
             reloadRef={reloadRef} loadingRef={loadingRef}
-            hide={props.hide} setRefreshFunction={isMainContainer}
+            hide={props.hide} setRefreshFunction={isMainContainer} onReload={onReload}
             preloadedResources={props.preloadedResources} />,
         [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]
     );

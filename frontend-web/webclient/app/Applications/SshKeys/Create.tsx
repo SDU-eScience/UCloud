@@ -4,7 +4,7 @@ import { ResourceTab, ResourceTabOptions } from "@/Resource/ResourceTabs";
 import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
 import { useTitle } from "@/Navigation/Redux/StatusActions";
 import SshKeyApi from "@/UCloud/SshKeyApi";
-import { Box, Button, ContainerForText, Flex, Icon, Input, Label, Markdown, Text, TextArea } from "@/ui-components";
+import { Box, Button, Flex, Icon, Input, Label, Markdown, Text, TextArea } from "@/ui-components";
 import { TextP } from "@/ui-components/Text";
 import { MandatoryField } from "@/Applications/Jobs/Widgets";
 import { useCallback, useMemo, useState } from "react";
@@ -69,6 +69,8 @@ export const SshKeysCreate: React.FunctionComponent = () => {
     const [titleError, setTitleError] = useState<string | undefined>(undefined)
     const [contentError, setContentError] = useState<string | undefined>(undefined)
 
+    // NOTE(Dan): We really don't want people sending us their private key, ever. As a result, we do enough checks that
+    // we can be pretty confident that their request doesn't contain their private key.
     const validPrefixes = [
         "ecdsa-sha2-nistp256",
         "ecdsa-sha2-nistp384",
@@ -82,7 +84,9 @@ export const SshKeysCreate: React.FunctionComponent = () => {
     ];
 
     const keyHelp = useMemo(() => {
-        return "Must begin with one of " + validPrefixes.map(it => "`" + it + "`").join(", ") + ".";
+        return `Must begin with one of the ${validPrefixes.map(it => "`" + it + "`").join(", ")}.
+        
+You can learn how to generate an SSH key [here](https://docs.hpc-type3.sdu.dk/intro/ssh-login.html#generate-a-new-ssh-key).`
     }, []);
 
     const titleKey = "key-title";

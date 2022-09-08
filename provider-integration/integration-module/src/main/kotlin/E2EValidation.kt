@@ -14,13 +14,12 @@ import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.controllers.MessageSigningIpc
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.ipc.IpcClient
-import dk.sdu.cloud.ipc.RealIpcClient
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.provider.api.IntegrationProvider
-import dk.sdu.cloud.utils.CALL_DOES_NOT_REQUIRE_SIGNED_INTENT
-import dk.sdu.cloud.utils.mapProviderApiToUserApi
+import dk.sdu.cloud.utils.doesCallRequireSignature
+import dk.sdu.cloud.utils.doesIntentMatchCall
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import kotlinx.serialization.builtins.serializer
@@ -45,8 +44,8 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
 
         override fun canUseContext(ctx: IngoingCall): Boolean = true
         override suspend fun run(context: IngoingCall, call: CallDescription<*, *, *>, request: Any) {
-            val mappedCall = mapProviderApiToUserApi(pluginContext.config.core.providerId, call.fullName)
-            if (mappedCall == CALL_DOES_NOT_REQUIRE_SIGNED_INTENT) return
+            val providerId = pluginContext.config.core.providerId
+            if (!doesCallRequireSignature(providerId, call.fullName)) return
 
             val signedIntent: String = when (val sctx = context) {
                 is HttpCall -> {
@@ -67,7 +66,7 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
                 debugSystem.detailD("Invalid signature: Metadata did not validate", Unit.serializer(), Unit)
                 throw RPCException.fromStatusCode(invalidSignature)
             }
-            if (validIntent.call != mappedCall) {
+            if (!doesIntentMatchCall(providerId, validIntent, call)) {
                 debugSystem.detailD(
                     "Invalid signature: Call does not match intention",
                     JsonObject.serializer(),
@@ -75,7 +74,6 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
                         mapOf(
                             "intendedCall" to JsonPrimitive(validIntent.call),
                             "rawCall" to JsonPrimitive(call.fullName),
-                            "mappedCall" to JsonPrimitive(mappedCall)
                         )
                     )
                 )
@@ -88,7 +86,7 @@ suspend fun loadE2EValidation(rpcServer: RpcServer, pluginContext: PluginContext
     })
 }
 
-private data class IntentToCall(
+data class IntentToCall(
     val call: String,
     val user: String,
     val project: String?,

@@ -3,7 +3,6 @@ package dk.sdu.cloud.app.orchestrator.api
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
@@ -12,11 +11,24 @@ import kotlinx.serialization.builtins.serializer
 data class SSHKey(
     @UCloudApiDoc("An opaque and unique identifier representing this SSH key")
     val id: String,
+
     @UCloudApiDoc("The UCloud username of the user who owns this key")
     val owner: String,
+
     @UCloudApiDoc("Timestamp for when this key was created in UCloud")
     val createdAt: Long,
-    val specification: Spec
+
+    @UCloudApiDoc("""
+        A fingerprint of the key
+        
+        This is used to aid end-users identify the key more easily. The fingerprint will, in most cases, contain a
+        cryptographic hash along with any additional comments the key might have associated with it. The format of this
+        property is not stable.
+    """)
+    val fingerprint: String,
+
+    @UCloudApiDoc("Contains the user-specified part of the key")
+    val specification: Spec,
 ) {
     @Serializable
     data class Spec(

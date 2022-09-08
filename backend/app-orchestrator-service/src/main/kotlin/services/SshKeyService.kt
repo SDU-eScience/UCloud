@@ -8,9 +8,12 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.provider.api.AclEntity
 import dk.sdu.cloud.provider.api.Permission
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 
 class SshKeyService(
     private val db: DBContext,
@@ -21,7 +24,13 @@ class SshKeyService(
         keys: List<SSHKey.Spec>,
         ctx: DBContext? = null,
     ): List<FindByStringId> {
-        // TODO(Dan): Validate the key in some way
+        for (key in keys) {
+            if (validPrefixes.none { prefix -> key.key.startsWith(prefix) }) {
+                throw RPCException(invalidKeyError, HttpStatusCode.BadRequest)
+            }
+        }
+
+        val fingerprints = keys.map { key -> calculateFingerprint(key.key) }
 
         return (ctx ?: db).withSession { session ->
             session.sendPreparedStatement(
@@ -31,10 +40,11 @@ class SshKeyService(
                         into("title") { it.title }
                         into("keys") { it.key }
                     }
+                    setParameter("fingerprints", fingerprints)
                 },
                 """
-                    insert into app_orchestrator.ssh_keys(owner, title, key)
-                    select :owner, unnest(:title::text[]), unnest(:keys::text[])
+                    insert into app_orchestrator.ssh_keys(owner, title, key, fingerprint)
+                    select :owner, unnest(:title::text[]), unnest(:keys::text[]), unnest(:fingerprints::text[])
                     returning id
                 """
             ).rows.map { FindByStringId(it.getLong(0)!!.toString()) }
@@ -53,7 +63,7 @@ class SshKeyService(
                     setParameter("owner", actorAndProject.actor.safeUsername())
                 },
                 """
-                    select id, owner, provider.timestamp_to_unix(created_at), title, key
+                    select id, owner, provider.timestamp_to_unix(created_at), title, key, fingerprint
                     from app_orchestrator.ssh_keys
                     where
                         id = :id and
@@ -79,7 +89,7 @@ class SshKeyService(
                     setParameter("owner", actorAndProject.actor.safeUsername())
                 },
                 """
-                    select id, owner, provider.timestamp_to_unix(created_at), title, key
+                    select id, owner, provider.timestamp_to_unix(created_at), title, key, fingerprint
                     from app_orchestrator.ssh_keys
                     where
                         owner = :owner and
@@ -187,7 +197,7 @@ class SshKeyService(
                     setParameter("next", pagination.next?.toLongOrNull())
                 },
                 """
-                    select id, owner, provider.timestamp_to_unix(created_at), title, key
+                    select id, owner, provider.timestamp_to_unix(created_at), title, key, fingerprint
                     from app_orchestrator.ssh_keys
                     where
                         owner = some(:owners::text[]) and
@@ -233,7 +243,7 @@ class SshKeyService(
                     setParameter("next", pagination.next?.toLongOrNull())
                 },
                 """
-                    select id, owner, provider.timestamp_to_unix(created_at), title, key
+                    select id, owner, provider.timestamp_to_unix(created_at), title, key, fingerprint
                     from app_orchestrator.ssh_keys
                     where
                         owner = some(:owners::text[]) and
@@ -252,14 +262,113 @@ class SshKeyService(
     }
 
     private fun mapRow(row: RowData): SSHKey {
-         return SSHKey(
+        return SSHKey(
             row.getLong(0)!!.toString(),
             row.getString(1)!!,
             row.getDouble(2)!!.toLong(),
+            row.getString(5)!!,
             SSHKey.Spec(
                 row.getString(3)!!,
                 row.getString(4)!!
             )
         )
+    }
+
+    private fun calculateFingerprint(key: String): String {
+        if (!checkIfSshKeyGenIsAvailable()) return unableToCalculateFingerprint
+
+        val temporaryFile = java.nio.file.Files.createTempFile("key", ".pub").toFile()
+        temporaryFile.writeText(key)
+        try {
+            val process = ProcessBuilder().apply {
+                command(
+                    buildList {
+                        add("ssh-keygen")
+                        add("-l")
+                        add("-E")
+                        add("sha256")
+                        add("-f")
+                        add(temporaryFile.absolutePath)
+                    }
+                )
+
+                redirectError(ProcessBuilder.Redirect.DISCARD)
+            }.start()
+
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                runCatching { process.destroy() }
+                throw RPCException(invalidKeyError, HttpStatusCode.BadRequest)
+            }
+
+            if (process.exitValue() != 0) {
+                throw RPCException(invalidKeyError, HttpStatusCode.BadRequest)
+            }
+
+            return process.inputStream.use { ins ->
+                val output = process.inputStream.readNBytes(4096)
+                output.decodeToString().trim()
+            }
+        } finally {
+            temporaryFile.delete()
+        }
+    }
+
+    // 0: Unknown - No one is checking
+    // 1: Unknown - Someone is checking
+    // 2: Yes     - ssh-keygen is available
+    // 3: No      - ssh-keygen is not available
+    private val sshKeyGenAvailableState = AtomicInteger(0)
+    private fun checkIfSshKeyGenIsAvailable(): Boolean {
+        val currentValue = sshKeyGenAvailableState.get()
+        if (currentValue == 2) return true
+        if (currentValue == 3) return false
+        require(currentValue in 0..1)
+
+        if (sshKeyGenAvailableState.compareAndSet(0, 1)) {
+            val process = ProcessBuilder().apply {
+                command("which", "ssh-keygen")
+                redirectOutput(ProcessBuilder.Redirect.DISCARD)
+                redirectError(ProcessBuilder.Redirect.DISCARD)
+            }.start()
+
+            if (!process.waitFor(5, TimeUnit.SECONDS)) {
+                runCatching { process.destroy() }
+                sshKeyGenAvailableState.set(3)
+                return false
+            } else {
+                val exists = process.exitValue() == 0
+                sshKeyGenAvailableState.set(if (exists) 2 else 3)
+                return exists
+            }
+        } else {
+            // Someone is checking and it is not our thread. Keep spinning until we know if it is available.
+            val deadline = Time.now() + 15_000
+            while (Time.now() < deadline) {
+                val newValue = sshKeyGenAvailableState.get()
+                if (newValue == 2) return true
+                if (newValue == 3) return false
+
+                Thread.sleep(15)
+            }
+
+            error("ssh-keygen check did not complete within deadline!")
+        }
+    }
+
+    companion object {
+        val validPrefixes = listOf(
+            "ecdsa-sha2-nistp256",
+            "ecdsa-sha2-nistp384",
+            "ecdsa-sha2-nistp521",
+
+            "sk-ecdsa-sha2-nistp256@openssh.com",
+            "sk-ssh-ed25519@openssh.com",
+
+            "ssh-ed25519",
+            "ssh-rsa",
+        )
+
+        const val invalidKeyError = "Invalid key specified. Please check that your key is valid."
+        const val unableToCalculateFingerprint = "Key fingerprint is unavailable"
     }
 }

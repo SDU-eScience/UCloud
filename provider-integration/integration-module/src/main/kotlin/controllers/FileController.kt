@@ -8,7 +8,6 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
-import dk.sdu.cloud.calls.server.WSCall
 import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
@@ -23,7 +22,6 @@ import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.selects.select
@@ -72,7 +70,7 @@ class FileController(
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid.toInt())
+            UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             dbConnection.withSession { session ->
@@ -96,7 +94,7 @@ class FileController(
         })
 
         server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid.toInt())
+            UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             var doesExist = false
@@ -204,7 +202,6 @@ class FileController(
                     }
                 )
             }
-
 
             envoyConfig.requestConfiguration(
                 EnvoyRoute.UploadSession(
@@ -512,7 +509,9 @@ class FileController(
 
                 listOf(plugin)
             } else {
-                retrievePlugins()
+                retrievePlugins().filter { plugin ->
+                    plugin.productAllocationResolved.any { it.category == request.category }
+                }
             }
 
             // NOTE(Dan): We throttle the number of batches we send out to aid clients a bit with the rendering

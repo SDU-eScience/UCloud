@@ -3,6 +3,7 @@ import * as React from "react";
 
 import {SelectableText, SelectableTextWrapper} from "@/ui-components";
 import {useHistory} from "react-router";
+import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum ResourceTabOptions {
     PUBLIC_IP = "Public IPs",
@@ -35,14 +36,24 @@ export function ResourceTab(props: {active: ResourceTabOptions;}): JSX.Element |
     return (
         <SelectableTextWrapper>
             {Object.keys(ResourceTabOptions).map(rt =>
-                <SelectableText
-                    key={rt}
-                    onClick={() => onSelect(ResourceTabOptions[rt])}
-                    selected={ResourceTabOptions[rt] === props.active}
-                >
-                    {ResourceTabOptions[rt]}                    
-                </SelectableText>
+                !isEnabled(ResourceTabOptions[rt]) ? null :
+                    <SelectableText
+                        key={rt}
+                        onClick={() => onSelect(ResourceTabOptions[rt])}
+                        selected={ResourceTabOptions[rt] === props.active}
+                    >
+                        {ResourceTabOptions[rt]}
+                    </SelectableText>
             )}
         </SelectableTextWrapper>
     );
+}
+
+function isEnabled(tab: ResourceTabOptions): boolean {
+    switch (tab) {
+        case ResourceTabOptions.SSH_KEYS:
+            return onDevSite() || inDevEnvironment();
+        default:
+            return true;
+    }
 }
