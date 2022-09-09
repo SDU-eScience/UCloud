@@ -823,6 +823,14 @@ class GrantApplicationService(
                         HttpStatusCode.BadRequest
                     )
                 }
+
+                val invalidNewStates = listOf(GrantApplication.State.APPROVED, GrantApplication.State.CLOSED)
+                if (application.status.overallState in invalidNewStates) {
+                    throw RPCException(
+                        "An approved or withdrawn application cannot be changed.",
+                        HttpStatusCode.BadRequest
+                    )
+                }
             }
 
             // TODO: Should be one db-access, not one for each request.
@@ -888,7 +896,7 @@ class GrantApplicationService(
                     )
                     update.newState
                 } else {
-                    val (approved, _) = retrieveGrantGiversStates(session, update.applicationId)
+                    val (approved, states) = retrieveGrantGiversStates(session, update.applicationId)
 
                     if (approved) {
                         session.sendPreparedStatement(
@@ -917,7 +925,7 @@ class GrantApplicationService(
                             .singleOrNull()
                             ?.getString(0)
                         onApplicationApprove(session, update.applicationId, parentId)
-                        GrantApplication.State.APPROVED // Note(Jonas): Unused expression?
+                        GrantApplication.State.APPROVED
                     } else {
                         val overall = session.sendPreparedStatement(
                             {
@@ -932,7 +940,26 @@ class GrantApplicationService(
                             "Could not find application",
                             HttpStatusCode.NotFound
                         )
-                        when (overall) {
+
+                        val stateAsEnum = GrantApplication.State.valueOf(overall)
+                        if (stateAsEnum != GrantApplication.State.CLOSED) {
+                            // Note(Jonas): Not rejected, not all approved, not closed
+                            val reversibleStates =
+                                listOf(GrantApplication.State.IN_PROGRESS, GrantApplication.State.APPROVED)
+                            if (states.all { s -> s.state in reversibleStates }) {
+                                session.sendPreparedStatement(
+                                    {
+                                        setParameter("app_id", update.applicationId)
+                                    },
+                                    """
+                                    update "grant".applications
+                                    set overall_state = 'IN_PROGRESS', updated_at = now()
+                                    where id = :app_id
+                                """, debug = true
+                                )
+                            }
+                            GrantApplication.State.IN_PROGRESS
+                        } else when (overall) {
                             "APPROVED" -> GrantApplication.State.APPROVED
                             "CLOSED" -> GrantApplication.State.CLOSED
                             "REJECTED" -> GrantApplication.State.REJECTED

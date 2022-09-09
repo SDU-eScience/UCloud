@@ -98,8 +98,6 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Find new In Progress Icon (General)
-        - if Recipient, show all requested products, otherwise, show active project at the top,
-            - put others in accordion (if it is not ugly.)
         - Disallow approval if source allocations aren't filled out for every product as approver.
             - Auto-select if only one?
             - Handle in backend
@@ -839,6 +837,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to reject application.")
+                reload();
             }
         }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
 
@@ -848,7 +847,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: notify})));
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
             } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to reject application.")
+                displayErrorMessageOrDefault(e, "Failed to reject application.");
+                reload();
             }
         }, [grantApplication.id, activeStateBreakDown]);
 
@@ -865,7 +865,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.CLOSED}});
             } catch (e) {
-                displayErrorMessageOrDefault(e, "Failed to withdraw application.")
+                displayErrorMessageOrDefault(e, "Failed to withdraw application.");
+                reload();
             }
         }, [appId, activeStateBreakDown]);
 
@@ -912,7 +913,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [projectId, appId]);
 
         const grantGiverDropdown = React.useMemo(() => {
-            const filteredGrantGivers = grantGivers.data.items.filter(grantGiver => grantGiver.projectId !== projectId && !grantGiversInUse.includes(grantGiver.projectId));
+            const filteredGrantGivers = grantGivers.data.items.filter(grantGiver =>
+                (target === RequestTarget.NEW_PROJECT || grantGiver.projectId !== projectId) &&
+                !grantGiversInUse.includes(grantGiver.projectId)
+            );
             return target === RequestTarget.VIEW_APPLICATION || filteredGrantGivers.length === 0 ? null :
                 <ClickableDropdown
                     fullWidth
@@ -1000,7 +1004,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 - Transfer application
                                 - Close Request (from the view of the recipient, so only if creator of it.)
                             */}
-                            {grantFinalized ? null : isApprover ?
+                            {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
                                 <>
                                     {activeStateBreakDown.state === State.IN_PROGRESS ? <>
                                         <Button
@@ -1049,9 +1053,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 Transfer to other project
                                             </Button> : null
                                         }
-                                    </> : activeStateBreakDown.state === State.APPROVED ? <>
+                                    </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
                                         <Button fullWidth onClick={setRequestPending}>
-                                            Undo approval
+                                            Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
                                         </Button>
                                     </> : null}
                                 </> : null
@@ -1365,7 +1369,7 @@ function overallStateText(grantApplication: GrantApplication): string {
         case State.APPROVED:
             return updatedBy === null ? "Approved" : "Approved by " + updatedBy;
         case State.REJECTED:
-            return updatedBy === null ? "Rejected" : "Rejected  by " + updatedBy;
+            return updatedBy === null ? "Rejected" : "Rejected by " + updatedBy;
         case State.IN_PROGRESS:
             return "In progress";
         case State.CLOSED:

@@ -601,7 +601,7 @@ begin
         ) then
             return null;
     end if;
-    if old.overall_state = 'APPROVED' or old.overall_state = 'REJECTED' or old.overall_state = 'CLOSED' then
+    if old.overall_state = 'APPROVED' or old.overall_state = 'CLOSED' then
         raise exception 'Cannot update a closed application';
     end if;
     return null;
