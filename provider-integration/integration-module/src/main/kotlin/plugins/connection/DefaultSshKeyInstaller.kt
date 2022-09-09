@@ -104,6 +104,7 @@ suspend fun PluginContext.installSshKeyWithDefaults(
     }
 
     try {
+        @Suppress("BlockingMethodInNonBlockingContext")
         NioFiles.setPosixFilePermissions(
             temporaryFile.toPath(),
             setOf(

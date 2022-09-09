@@ -177,6 +177,7 @@ class JobOrchestrator(
                 val openedFiles = ArrayList<String?>().also { setParameter("opened_file", it) }
                 val replicas = ArrayList<Int>().also { setParameter("replicas", it) }
                 val restartOnExit = ArrayList<Boolean>().also { setParameter("restart_on_exit", it) }
+                val sshEnabled = ArrayList<Boolean>().also { setParameter("ssh_enabled", it) }
                 setParameter("exports", exports.map { defaultMapper.encodeToString(it) })
 
                 for ((id, spec) in idWithSpec) {
@@ -188,6 +189,7 @@ class JobOrchestrator(
                     openedFiles.add(spec.openedFile)
                     replicas.add(spec.replicas)
                     restartOnExit.add(spec.restartOnExit ?: false)
+                    sshEnabled.add(spec.sshEnabled ?: false)
                 }
             },
             """
@@ -196,14 +198,15 @@ class JobOrchestrator(
                            unnest(:time_allocation::bigint[]) time_alloc, unnest(:names::text[]) n, 
                            unnest(:resources::bigint[]) resource, unnest(:exports::jsonb[]) export, 
                            unnest(:opened_file::text[]) opened_file, unnest(:replicas::int[]) replicas,
-                           unnest(:restart_on_exit::bool[]) restart_on_exit
+                           unnest(:restart_on_exit::bool[]) restart_on_exit,
+                           unnest(:ssh_enabled::bool[]) ssh_enabled
                 )
                 insert into app_orchestrator.jobs
                     (application_name, application_version, time_allocation_millis, name, 
                      output_folder, current_state, started_at, resource, job_parameters, opened_file, replicas,
-                     restart_on_exit) 
+                     restart_on_exit, ssh_enabled) 
                 select app_name, app_ver, time_alloc, n, null, 'IN_QUEUE', null, resource, export, opened_file,
-                       replicas, restart_on_exit
+                       replicas, restart_on_exit, ssh_enabled
                 from bulk_data
             """,
             "job spec create"

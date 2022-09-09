@@ -1,9 +1,6 @@
 package dk.sdu.cloud.app.orchestrator.api
 
-import dk.sdu.cloud.CommonErrorMessage
-import dk.sdu.cloud.PageV2
-import dk.sdu.cloud.PaginationRequestV2Consistency
-import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.providers.ResourceControlApi
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
@@ -54,6 +51,6 @@ object JobsControl : ResourceControlApi<Job, JobSpecification, JobUpdate, JobInc
         PageV2.serializer(SSHKey.serializer()),
         CommonErrorMessage.serializer()
     ) {
-        httpUpdate(baseContext, "browseSshKeys")
+        httpUpdate(baseContext, "browseSshKeys", roles = Roles.PROVIDER)
     }
 }

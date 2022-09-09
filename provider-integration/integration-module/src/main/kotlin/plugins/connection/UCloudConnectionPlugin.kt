@@ -1,6 +1,5 @@
 package dk.sdu.cloud.plugins.connection
 
-import dk.sdu.cloud.app.orchestrator.api.SSHKey
 import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext

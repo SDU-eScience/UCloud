@@ -150,6 +150,7 @@ class UCloudComputePlugin : ComputePlugin {
             register(FeatureFairShare)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.pathConverter, files.fs))
+            register(FeatureSshKeys)
         }
     }
 
