@@ -604,8 +604,8 @@ data class TransferToWalletRequestItem(
     val categoryId: ProductCategoryId,
     @UCloudApiDoc("The target wallet to insert the credits into")
     val target: WalletOwner,
-    @UCloudApiDoc("The source wallet from where the credits is transferred from")
-    val source: WalletOwner,
+    @UCloudApiDoc("The source allocation from where the credits is transferred from")
+    val sourceAllocationId: String,
     @UCloudApiDoc("The amount of credits to transfer")
     val amount: Long,
     @UCloudApiDoc(
@@ -1648,107 +1648,6 @@ object Accounting : CallDescriptionContainer("accounting") {
                 )
             }
         )
-
-        useCase(
-            transferUseCase,
-            "Creating a new root allocation (transfer operation)",
-            flow = {
-                val piRoot = actor("piRoot", "The PI of the root project")
-                val piSecondRoot = actor("piSecondRoot", "The PI of the new root project")
-
-                val rootOwner = WalletOwner.Project("root-project")
-                val secondRootOwner = WalletOwner.Project("second-root-project")
-
-                comment(
-                    """
-                    In this example, we will show how a workspace can transfer money to another workspace. This is not 
-                    the recommended way of creating granting resources. This approach immediately removes all resources 
-                    from the parent. The parent cannot observe usage from the child. In addition, the workspace is not 
-                    allowed to over-allocate resources. We recommend using deposit for almost all cases. Workspace PIs 
-                    should only use transfers if they wish to give away resources that they otherwise will not be able 
-                    to consume. 
-                """.trimIndent()
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("42"), 500, 500, 500),
-                        owner = rootOwner,
-                    ),
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        owner = secondRootOwner,
-                    ),
-                    piSecondRoot
-                )
-
-                comment(
-                    """
-                    Our initial state shows that the root project has 500 core hours. The leaf doesn't have any 
-                    resources at the moment.
-                """.trimIndent()
-                )
-
-                comment(
-                    """
-                    We now perform a transfer operation with the leaf workspace as the target.
-                """.trimIndent()
-                )
-
-                success(
-                    transfer,
-                    bulkRequestOf(
-                        TransferToWalletRequestItem(
-                            ProductCategoryId(absoluteProductReference.category, absoluteProductReference.provider),
-                            secondRootOwner,
-                            rootOwner,
-                            100,
-                        )
-                    ),
-                    Unit,
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("42"), 400, 400, 500),
-                        owner = rootOwner,
-                    ),
-                    piRoot
-                )
-
-                success(
-                    Wallets.browse,
-                    WalletBrowseRequest(),
-                    walletPage(
-                        ChargeType.ABSOLUTE,
-                        allocation(listOf("52"), 100, 100, 100),
-                        owner = secondRootOwner,
-                    ),
-                    piSecondRoot
-                )
-
-                comment(
-                    """
-                    After inspecting the allocations, we see that the original (root) allocation has changed. The 
-                    system has immediately removed all the resources. The leaf workspace now have a new allocation. 
-                    The new allocation does not have a parent.
-                """.trimIndent()
-                )
-            }
-        )
     }
 
     val charge = call("charge", BulkRequest.serializer(ChargeWalletRequestItem.serializer()), BulkResponse.serializer(Boolean.serializer()), CommonErrorMessage.serializer()) {
@@ -1839,20 +1738,6 @@ object Accounting : CallDescriptionContainer("accounting") {
             """.trimIndent()
 
             useCaseReference(depositUseCase, "Creating a sub-allocation")
-        }
-    }
-
-    val transfer = call("transfer", BulkRequest.serializer(TransferToWalletRequestItem.serializer()), TransferToWalletResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "transfer")
-
-        documentation {
-            summary = "Creates a new root allocation from a parent allocation"
-            description = """
-                The new allocation will have no parents. The balance of the parent allocation is immediately removed, 
-                in full.
-            """.trimIndent()
-
-            useCaseReference(transferUseCase, "Creating a new root allocation")
         }
     }
 

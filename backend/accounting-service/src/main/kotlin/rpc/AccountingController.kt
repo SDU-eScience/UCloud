@@ -34,14 +34,6 @@ class AccountingController(
             ok(accounting.check(actorAndProject, request))
         }
 
-        implement(Accounting.transfer) {
-            val user = ctx.securityPrincipal.username
-            request.items.forEach { req ->
-                req.transactionId = "${user}-${req.transactionId}"
-            }
-            ok(accounting.transfer(actorAndProject, request))
-        }
-
         implement(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
@@ -84,10 +76,6 @@ class AccountingController(
 
         implement(Wallets.retrieveRecipient) {
             ok(accounting.retrieveRecipient(actorAndProject, request))
-        }
-
-        implement(Wallets.push) {
-            ok(accounting.pushWallets(actorAndProject, request))
         }
 
         implement(Wallets.register) {

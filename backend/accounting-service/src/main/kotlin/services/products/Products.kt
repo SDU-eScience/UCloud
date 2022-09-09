@@ -124,6 +124,23 @@ class ProductService(
         }
     }
 
+    private suspend fun decodeProduct(actorAndProject: ActorAndProject, json: String, flags: ProductFlags): Product {
+        val product = defaultMapper.decodeFromString<Product>(json)
+        if (flags.includeBalance == true) {
+            product.balance = processor.retrieveBalanceFromProduct(
+                actorAndProject.project ?: actorAndProject.actor.safeUsername(),
+                product.category
+            )
+        }
+        if (flags.includeMaxBalance == true) {
+            product.maxUsableBalance = processor.maxUsableBalanceForProduct(
+                actorAndProject.project ?: actorAndProject.actor.safeUsername(),
+                product.category
+            )
+        }
+        return product
+    }
+
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProductsRetrieveRequest
@@ -136,14 +153,7 @@ class ProductService(
             ).rows
                 .singleOrNull()
                 ?.let {
-                    val product = defaultMapper.decodeFromString<Product>(it.getString(0)!!)
-                    if (request.includeMaxBalance == true) {
-                        product.maxUsableBalance = processor.maxUsableBalanceForProduct(
-                            actorAndProject.project ?: actorAndProject.actor.safeUsername(),
-                            product.category
-                        )
-                    }
-                    product
+                    decodeProduct(actorAndProject, it.getString(0)!!, request)
                 }
                 ?: throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
         }
@@ -168,14 +178,7 @@ class ProductService(
             },
             mapper = {_, rows ->
                 rows.map {
-                    val product = defaultMapper.decodeFromString<Product>(it.getString(0)!!)
-                    if (request.includeMaxBalance == true) {
-                        product.maxUsableBalance = processor.maxUsableBalanceForProduct(
-                            actorAndProject.project ?: actorAndProject.actor.safeUsername(),
-                            product.category
-                        )
-                    }
-                    product
+                    decodeProduct(actorAndProject, it.getString(0)!!, request)
                 }
             }
         )

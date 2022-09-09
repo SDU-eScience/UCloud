@@ -608,26 +608,58 @@ class AccountingProcessor(
     // Utilities for managing state
     // =================================================================================================================
 
-    fun includeMaxUsableBalance(
+    fun retrieveBalanceFromProduct(owner: String, productCategory: ProductCategoryId): Long {
+        val wallet = findWallet(owner, productCategory)
+        return if (wallet != null) {
+            retrieveBalanceOfWallet(wallet.toApiWallet())
+        } else {
+            0L
+        }
+    }
+    fun retrieveBalanceOfWallet(
         wallet: ApiWallet
-    ): ApiWallet {
+    ): Long {
         val internalWallet = when (val owner = wallet.owner) {
             is ApiWalletOwner.Project -> findWallet(owner.projectId, wallet.paysFor)
             is ApiWalletOwner.User -> findWallet(owner.username, wallet.paysFor)
         }
         return if (internalWallet == null) {
-            wallet
+            0L
+        } else {
+            allocations.filter { it != null && it.associatedWallet == internalWallet.id }
+                .mapNotNull { retrieveBalanceOfAllocation(it!!.toApiAllocation()) }
+                .sum()
+        }
+    }
+    fun retrieveBalanceOfAllocation(
+        allocation: ApiWalletAllocation
+    ): Long {
+        return allocations[allocation.id.toInt()]?.currentBalance ?: 0L
+    }
+
+    // Adds maxUsableBalance to walletAllocations in a wallet
+    fun includeMaxUsableBalance(
+        wallet: ApiWallet
+    ): ApiWallet {
+        var returnWallet = wallet
+        val internalWallet = when (val owner = wallet.owner) {
+            is ApiWalletOwner.Project -> findWallet(owner.projectId, wallet.paysFor)
+            is ApiWalletOwner.User -> findWallet(owner.username, wallet.paysFor)
+        }
+        return if (internalWallet == null) {
+            returnWallet
         } else {
             val allocationsWithMaxUsableBalance =
                 allocations
                     .filter { it != null && it.associatedWallet == internalWallet.id }
                     .mapNotNull { it!!.copy(maxUsableBalance = calculateMaxUsableBalance(it)) }
                     .map { it.toApiAllocation() }
-            wallet.copy(allocations = allocationsWithMaxUsableBalance)
+            returnWallet = wallet.copy(allocations = allocationsWithMaxUsableBalance)
+            returnWallet
         }
     }
 
-    //Goes through entire allocation tree to find the lowest possible amount that can be charge without problems
+    //Goes through entire allocation tree to find the lowest possible amount that can be charged without problems
     private fun calculateMaxUsableBalance(
         allocation: WalletAllocation
     ): Long {

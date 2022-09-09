@@ -21,6 +21,9 @@ import {VisualizationSection} from "./Resources";
 import formatDistance from "date-fns/formatDistance";
 import {Spacer} from "@/ui-components/Spacer";
 import {ProjectBreadcrumbs} from "@/Project/Breadcrumbs";
+import icon from "@/ui-components/Icon";
+import * as ui from "@/ui-components";
+import Tooltip from "@/ui-components/Tooltip";
 
 const FORMAT = "dd/MM/yyyy";
 
@@ -29,7 +32,7 @@ function Allocations(): JSX.Element {
 
     useTitle("Allocations");
 
-    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true"});
+    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true", includeMaxUsableBalance: "true"});
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
@@ -302,6 +305,27 @@ const WalletViewer: React.FunctionComponent<{wallet: Wallet}> = ({wallet}) => {
     </>
 }
 
+function availableBalance(allocation: WalletAllocation, wallet: Wallet) :JSX.Element {
+    let maxBalance = allocation.maxUsableBalance ?? allocation.balance
+    if ((maxBalance - allocation.initialBalance) == (allocation.balance - allocation.initialBalance)) {
+        return <div>
+            {usageExplainer(maxBalance, wallet.productType, wallet.chargeType, wallet.unit)} available
+        </div>
+    } else {
+        return <Flex>
+            {usageExplainer(maxBalance, wallet.productType, wallet.chargeType, wallet.unit)} available <Tooltip
+                right="0"
+                bottom="1"
+                tooltipContentWidth="115px"
+                wrapperOffsetLeft="10px"
+                trigger={<ui.Icon color="black" name="warning" />}
+            >
+                Allocation giver does not have enough resources to fulfil allocation
+            </Tooltip>
+        </Flex>
+    }
+}
+
 export const AllocationViewer: React.FunctionComponent<{
     wallet: Wallet;
     allocation: WalletAllocation;
@@ -321,6 +345,7 @@ export const AllocationViewer: React.FunctionComponent<{
                     <Box flexGrow={1} />
                 </Flex>}
                 <div>{usageExplainer(allocation.initialBalance - allocation.balance, wallet.productType, wallet.chargeType, wallet.unit)} used</div>
+                {availableBalance(allocation, wallet)}
                 <div>{usageExplainer(allocation.initialBalance, wallet.productType, wallet.chargeType, wallet.unit)} allocated</div>
                 <Box flexGrow={1} mt={"8px"} />
                 <div><ExpiresIn startDate={allocation.startDate} endDate={allocation.endDate} /></div>

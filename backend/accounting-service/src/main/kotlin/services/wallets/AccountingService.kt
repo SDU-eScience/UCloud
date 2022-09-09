@@ -128,13 +128,6 @@ class AccountingService(
         TODO()
     }
 
-    suspend fun transfer(
-        actorAndProject: ActorAndProject,
-        request: BulkRequest<TransferToWalletRequestItem>,
-    ) {
-        TODO()
-    }
-
     suspend fun updateAllocation(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateAllocationRequestItem>,
@@ -182,11 +175,7 @@ class AccountingService(
                             (
                                 :filter_type::accounting.product_type is null or
                                 pc.product_type = :filter_type::accounting.product_type
-                            ) and 
-                            (
-                                :filter_empty is null or
-                                alloc.balance > 0 
-                            )
+                            ) 
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
@@ -196,6 +185,7 @@ class AccountingService(
             },
             mapper = { _, rows ->
                 rows.map {
+                    println("walleting")
                     var wallet = defaultMapper.decodeFromString<Wallet>(it.getString(0)!!)
                     if (request.includeMaxUsableBalance == true) {
                         wallet = processor.includeMaxUsableBalance(wallet)
@@ -788,18 +778,6 @@ class AccountingService(
             ).rows.singleOrNull()?.let { defaultMapper.decodeFromString(it.getString(0)!!) }
                 ?: throw RPCException("Unknown user or project", HttpStatusCode.NotFound)
         }
-    }
-
-    suspend fun pushWallets(
-        actorAndProject: ActorAndProject,
-        changes: BulkRequest<PushWalletChangeRequestItem>
-    ) {
-        val actor = actorAndProject.actor
-        if (actor !is Actor.User) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        if (actor.principal.role != Role.PROVIDER) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-        val providerId = actor.safeUsername().removePrefix(AuthProviders.PROVIDER_PREFIX)
-
-        TODO()
     }
 
     suspend fun retrieveProviderSummary(
