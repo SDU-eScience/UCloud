@@ -2,6 +2,9 @@ package dk.sdu.cloud.app.orchestrator.services
 
 import com.github.jasync.sql.db.RowData
 import dk.sdu.cloud.*
+import dk.sdu.cloud.accounting.util.ProviderComms
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.invokeCall
 import dk.sdu.cloud.app.orchestrator.api.*
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -18,6 +21,7 @@ import java.util.concurrent.atomic.AtomicInteger
 class SshKeyService(
     private val db: DBContext,
     private val jobs: JobOrchestrator,
+    private val providers: Providers<*>,
 ) {
     suspend fun create(
         actorAndProject: ActorAndProject,
@@ -33,7 +37,7 @@ class SshKeyService(
         val fingerprints = keys.map { key -> calculateFingerprint(key.key) }
 
         return (ctx ?: db).withSession { session ->
-            session.sendPreparedStatement(
+            val ids = session.sendPreparedStatement(
                 {
                     setParameter("owner", actorAndProject.actor.safeUsername())
                     keys.split {
@@ -48,6 +52,39 @@ class SshKeyService(
                     returning id
                 """
             ).rows.map { FindByStringId(it.getLong(0)!!.toString()) }
+
+            notifyProviders(actorAndProject, session)
+            return@withSession ids
+        }
+    }
+
+    private suspend fun notifyProviders(
+        actorAndProject: ActorAndProject,
+        ctx: DBContext,
+    ) {
+        ctx.withSession { session ->
+            val relevantProviders = jobs.findRelevantProviders(
+                actorAndProject,
+                useProject = false,
+                ctx = session
+            )
+
+            if (relevantProviders.isEmpty()) return@withSession
+
+            val allKeys = browse(actorAndProject, null, session)
+
+            for (provider in relevantProviders) {
+                runCatching {
+                    providers.invokeCall(
+                        provider,
+                        actorAndProject,
+                        { SSHKeysProvider(provider).onKeyUploaded },
+                        SSHKeysProviderKeyUploaded(actorAndProject.actor.safeUsername(), allKeys.items),
+                        signedIntentFromEndUser = actorAndProject.signedIntentFromUser,
+                        isUserRequest = true
+                    )
+                }
+            }
         }
     }
 
@@ -78,14 +115,14 @@ class SshKeyService(
 
     suspend fun browse(
         actorAndProject: ActorAndProject,
-        pagination: NormalizedPaginationRequestV2,
-        ctx: DBContext? = null
+        pagination: NormalizedPaginationRequestV2?,
+        ctx: DBContext? = null,
     ): PageV2<SSHKey> {
-        val itemsPerPage = pagination.itemsPerPage
+        val itemsPerPage = pagination?.itemsPerPage ?: Int.MAX_VALUE
         val items = (ctx ?: db).withSession { session ->
             session.sendPreparedStatement(
                 {
-                    setParameter("next", pagination.next?.toLongOrNull())
+                    setParameter("next", pagination?.next?.toLongOrNull())
                     setParameter("owner", actorAndProject.actor.safeUsername())
                 },
                 """
@@ -125,6 +162,8 @@ class SshKeyService(
                         owner = :owner
                 """
             )
+
+            notifyProviders(actorAndProject, session)
         }
     }
 

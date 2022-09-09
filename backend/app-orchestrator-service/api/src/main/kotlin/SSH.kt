@@ -115,3 +115,14 @@ object SSHKeysControl : CallDescriptionContainer("ssh_keys.control") {
         httpUpdate(baseContext, "browse", roles = Roles.PROVIDER)
     }
 }
+
+@Serializable
+data class SSHKeysProviderKeyUploaded(val username: String, val allKeys: List<SSHKey>)
+
+open class SSHKeysProvider(providerId: String) : CallDescriptionContainer("ssh_keys.provider.$providerId") {
+    val baseContext = "/ucloud/$providerId/ssh"
+
+    val onKeyUploaded = call("onKeyUploaded", SSHKeysProviderKeyUploaded.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "keyUploaded", roles = Roles.SERVICE)
+    }
+}

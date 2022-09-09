@@ -94,8 +94,8 @@ data class VerifiedConfig(
         val allocations: Map<ConfigSchema.Plugins.AllocationsProductType, AllocationPlugin>,
 
         // TODO(Dan): This is a hack to make the NotificationController correctly receive events from the
-        // ConnectionController. I don't have a good solution right now, so we will have to live with this weird
-        // thing.
+        //   ConnectionController. I don't have a good solution right now, so we will have to live with this weird
+        //   thing.
         val temporary: Temporary = Temporary(),
     ) {
         data class Temporary(

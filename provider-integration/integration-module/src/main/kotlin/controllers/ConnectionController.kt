@@ -2,6 +2,7 @@ package dk.sdu.cloud.controllers
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.app.orchestrator.api.OpenSession
+import dk.sdu.cloud.app.orchestrator.api.SSHKeysProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -124,221 +125,243 @@ class ConnectionController(
     }
 
     override fun configure(rpcServer: RpcServer): Unit = with(rpcServer) {
-        if (!controllerContext.configuration.shouldRunServerCode()) return
         val config = controllerContext.configuration
 
         val providerId = config.core.providerId
         val plugin = config.plugins.connection ?: return
         val pluginContext = controllerContext.pluginContext
 
-        with(pluginContext) {
-            with(plugin) {
-                initializeRpcServer(rpcServer)
-            }
-        }
-
-        val im = IntegrationProvider(providerId)
-        val baseContext = "/ucloud/$providerId/integration/instructions"
-        val instructions = object : CallDescriptionContainer(im.namespace + ".instructions") {
-            val retrieveInstructions = call("retrieveInstructions", TicketRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
-                auth {
-                    access = AccessRight.READ
-                    roles = Roles.PUBLIC
-                }
-
-                http {
-                    method = HttpMethod.Get
-                    path {
-                        using(baseContext)
-                    }
-                    params {
-                        +boundTo(TicketRequest::ticket)
+        if (config.shouldRunUserCode()) {
+            val sshApi = SSHKeysProvider(providerId)
+            implement(sshApi.onKeyUploaded) {
+                with(pluginContext) {
+                    with(plugin) {
+                        onSshKeySynchronized(request.username, request.allKeys)
                     }
                 }
             }
         }
 
-        implement(instructions.retrieveInstructions) {
-            val server = (ctx as? HttpCall)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-
-            with(requestContext(controllerContext)) {
+        if (config.shouldRunServerCode()) {
+            with(pluginContext) {
                 with(plugin) {
-                    val html = showInstructions(mapOf("ticket" to listOf(request.ticket))).html
-
-                    server.ktor.call.respondText(html, ContentType.Text.Html)
+                    initializeRpcServer(rpcServer)
                 }
             }
 
-            okContentAlreadyDelivered()
-        }
+            val im = IntegrationProvider(providerId)
+            val baseContext = "/ucloud/$providerId/integration/instructions"
+            val instructions = object : CallDescriptionContainer(im.namespace + ".instructions") {
+                val retrieveInstructions = call(
+                    "retrieveInstructions",
+                    TicketRequest.serializer(),
+                    Unit.serializer(),
+                    CommonErrorMessage.serializer()
+                ) {
+                    auth {
+                        access = AccessRight.READ
+                        roles = Roles.PUBLIC
+                    }
 
-        val redirectProxy = object : CallDescriptionContainer("${im.namespace}.redirector") {
-            val redirect = call("redirect", SigningKeyRequest.serializer(), SigningKeyResponse.serializer(), CommonErrorMessage.serializer()) {
-                httpUpdate("/ucloud/$providerId/integration", "redirect", Roles.PUBLIC)
+                    http {
+                        method = HttpMethod.Get
+                        path {
+                            using(baseContext)
+                        }
+                        params {
+                            +boundTo(TicketRequest::ticket)
+                        }
+                    }
+                }
             }
-        }
 
-        implement(redirectProxy.redirect) {
-            val httpContext = ctx as HttpCall
+            implement(instructions.retrieveInstructions) {
+                val server = (ctx as? HttpCall)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
 
-            val sessionId = httpContext.ktor.call.request.queryParameters["session"]
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        val html = showInstructions(mapOf("ticket" to listOf(request.ticket))).html
 
-            val session = MessageSigningKeyStore._redirectCache.get(sessionId)
-                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                        server.ktor.call.respondText(html, ContentType.Text.Html)
+                    }
+                }
 
-            val keyId = MessageSigningKeyStore.createKey(session.ucloudUser, request.publicKey)
-            session.keyId = keyId
+                okContentAlreadyDelivered()
+            }
 
-            session.beforeRedirect()
-            ok(SigningKeyResponse(session.redirectTo))
-        }
+            val redirectProxy = object : CallDescriptionContainer("${im.namespace}.redirector") {
+                val redirect = call(
+                    "redirect",
+                    SigningKeyRequest.serializer(),
+                    SigningKeyResponse.serializer(),
+                    CommonErrorMessage.serializer()
+                ) {
+                    httpUpdate("/ucloud/$providerId/integration", "redirect", Roles.PUBLIC)
+                }
+            }
 
-        implement(im.connect) {
-            with(requestContext(controllerContext)) {
-                with(plugin) {
-                    val requireSigning = requireMessageSigning()
-                    when (val result = initiateConnection(request.username)) {
-                        is ConnectionResponse.Redirect -> {
-                            if (requireSigning) {
-                                val redirectToken = secureToken(32)
+            implement(redirectProxy.redirect) {
+                val httpContext = ctx as HttpCall
 
-                                MessageSigningKeyStore._redirectCache.insert(
-                                    redirectToken,
-                                    RedirectEntry(
-                                        request.username,
-                                        result.redirectTo,
-                                        result.globallyUniqueConnectionId,
-                                        result.beforeRedirect
+                val sessionId = httpContext.ktor.call.request.queryParameters["session"]
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                val session = MessageSigningKeyStore._redirectCache.get(sessionId)
+                    ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+                val keyId = MessageSigningKeyStore.createKey(session.ucloudUser, request.publicKey)
+                session.keyId = keyId
+
+                session.beforeRedirect()
+                ok(SigningKeyResponse(session.redirectTo))
+            }
+
+            implement(im.connect) {
+                with(requestContext(controllerContext)) {
+                    with(plugin) {
+                        val requireSigning = requireMessageSigning()
+                        when (val result = initiateConnection(request.username)) {
+                            is ConnectionResponse.Redirect -> {
+                                if (requireSigning) {
+                                    val redirectToken = secureToken(32)
+
+                                    MessageSigningKeyStore._redirectCache.insert(
+                                        redirectToken,
+                                        RedirectEntry(
+                                            request.username,
+                                            result.redirectTo,
+                                            result.globallyUniqueConnectionId,
+                                            result.beforeRedirect
+                                        )
                                     )
-                                )
 
-                                // NOTE(Dan): This gives UCloud/Core a valid session for uploading a public key, thus
-                                // it is a direct requirement that UCloud/Core isn't able to authenticate itself with
-                                // the redirect which follows the key upload!
+                                    // NOTE(Dan): This gives UCloud/Core a valid session for uploading a public key, thus
+                                    // it is a direct requirement that UCloud/Core isn't able to authenticate itself with
+                                    // the redirect which follows the key upload!
+                                    ok(
+                                        IntegrationProviderConnectResponse(
+                                            "/ucloud/$providerId/integration/redirect?session=${redirectToken}"
+                                        )
+                                    )
+                                } else {
+                                    result.beforeRedirect()
+                                    ok(IntegrationProviderConnectResponse(result.redirectTo))
+                                }
+                            }
+
+                            is ConnectionResponse.ShowInstructions -> {
+                                if (requireSigning) {
+                                    error(
+                                        "Plugin has returned ShowInstructions but signing is required. " +
+                                            "This is not supported! Only redirect is supported when signing is required."
+                                    )
+                                }
+
                                 ok(
                                     IntegrationProviderConnectResponse(
-                                        "/ucloud/$providerId/integration/redirect?session=${redirectToken}"
+                                        baseContext + encodeQueryParamsToString(result.query)
                                     )
                                 )
-                            } else {
-                                result.beforeRedirect()
-                                ok(IntegrationProviderConnectResponse(result.redirectTo))
                             }
-                        }
-
-                        is ConnectionResponse.ShowInstructions -> {
-                            if (requireSigning) {
-                                error(
-                                    "Plugin has returned ShowInstructions but signing is required. " +
-                                        "This is not supported! Only redirect is supported when signing is required."
-                                )
-                            }
-
-                            ok(
-                                IntegrationProviderConnectResponse(
-                                    baseContext + encodeQueryParamsToString(result.query)
-                                )
-                            )
                         }
                     }
                 }
             }
-        }
 
-        implement(im.retrieveManifest) {
-            val expiration = with(plugin) {
-                with(pluginContext) {
-                    mappingExpiration()
-                }
-            }
-
-            val requiresMessageSigning = with(plugin) {
-                with(pluginContext) {
-                    requireMessageSigning()
-                }
-            }
-
-            ok(
-                IntegrationProviderRetrieveManifestResponse(
-                    enabled = true,
-                    expireAfterMs = expiration,
-                    requiresMessageSigning = requiresMessageSigning,
-                )
-            )
-        }
-
-        implement(im.init) {
-            if (!config.core.launchRealUserInstances) {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
-            }
-
-            // NOTE(Dan): This code is responsible for launching new instances of IM/User.
-
-            // First we map the UCloud username to a local UID.
-            // If no such user exists, notify UCloud/Core that the user is not known to this provider
-            val envoyConfig = envoyConfig ?: error("No envoy")
-            val uid = UserMapping.ucloudIdToLocalId(request.username)
-                ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
-
-            // Obtain the global lock for IM/User configuration
-            uimMutex.withLock {
-                // Check if we were not the first to acquire the lock
-                if (request.username in uimLaunched) return@withLock
-                uimLaunched.add(request.username)
-
-                // Allocate a port, if the IM/User does not have a static port allocated.
-                // Static ports are used only for development purposes.
-                val devInstances = config.server.developmentMode.predefinedUserInstances
-                val devInstance = devInstances.find { it.username == request.username }
-                val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
-
-                // Launch the IM/User instance
-                if (devInstance == null) {
-                    val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
-                    val ownExecutable =
-                        if (controllerContext.ownExecutable.endsWith("/java")) "/usr/bin/ucloud"
-                        else controllerContext.ownExecutable
-                    val uimPid = ProcessBuilder()
-                        .command(
-                            "/usr/bin/sudo",
-                            "-u",
-                            "#${uid}",
-                            ownExecutable,
-                            "user",
-                            allocatedPort.toString()
-                        )
-                        .redirectOutput(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
-                        .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
-                        .start()
-
-                    uimPid.inputStream.close()
-
-                    // NOTE(Dan): We do not wish to kill this process on exit, since we do not have permissions to
-                    // kill it. This is instead handled by the ping+pong protocol.
-                    ProcessWatcher.addWatch(uimPid, killOnExit = false) { statusCode ->
-                        log.warn("IM/User for uid=$uid terminated unexpectedly with statusCode=$statusCode")
-                        log.warn("You might be able to find more information in the log file: $logFilePath")
-                        log.warn("The instance will be automatically restarted when the user makes another request")
-                        uimMutex.withLock {
-                            uimLaunched.remove(request.username)
-                        }
+            implement(im.retrieveManifest) {
+                val expiration = with(plugin) {
+                    with(pluginContext) {
+                        mappingExpiration()
                     }
                 }
 
-                // Configure Envoy to route the relevant IM/User traffic to the newly launched instance
-                envoyConfig.requestConfiguration(
-                    EnvoyRoute.Standard(request.username, request.username),
-                    EnvoyCluster.create(
-                        request.username,
-                        "127.0.0.1",
-                        allocatedPort
+                val requiresMessageSigning = with(plugin) {
+                    with(pluginContext) {
+                        requireMessageSigning()
+                    }
+                }
+
+                ok(
+                    IntegrationProviderRetrieveManifestResponse(
+                        enabled = true,
+                        expireAfterMs = expiration,
+                        requiresMessageSigning = requiresMessageSigning,
                     )
                 )
             }
 
-            ok(Unit)
+            implement(im.init) {
+                if (!config.core.launchRealUserInstances) {
+                    throw RPCException.fromStatusCode(HttpStatusCode.NotFound)
+                }
+
+                // NOTE(Dan): This code is responsible for launching new instances of IM/User.
+
+                // First we map the UCloud username to a local UID.
+                // If no such user exists, notify UCloud/Core that the user is not known to this provider
+                val envoyConfig = envoyConfig ?: error("No envoy")
+                val uid = UserMapping.ucloudIdToLocalId(request.username)
+                    ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+
+                // Obtain the global lock for IM/User configuration
+                uimMutex.withLock {
+                    // Check if we were not the first to acquire the lock
+                    if (request.username in uimLaunched) return@withLock
+                    uimLaunched.add(request.username)
+
+                    // Allocate a port, if the IM/User does not have a static port allocated.
+                    // Static ports are used only for development purposes.
+                    val devInstances = config.server.developmentMode.predefinedUserInstances
+                    val devInstance = devInstances.find { it.username == request.username }
+                    val allocatedPort = devInstance?.port ?: portAllocator.getAndIncrement()
+
+                    // Launch the IM/User instance
+                    if (devInstance == null) {
+                        val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
+                        val ownExecutable =
+                            if (controllerContext.ownExecutable.endsWith("/java")) "/usr/bin/ucloud"
+                            else controllerContext.ownExecutable
+                        val uimPid = ProcessBuilder()
+                            .command(
+                                "/usr/bin/sudo",
+                                "-u",
+                                "#${uid}",
+                                ownExecutable,
+                                "user",
+                                allocatedPort.toString()
+                            )
+                            .redirectOutput(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
+                            .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
+                            .start()
+
+                        uimPid.inputStream.close()
+
+                        // NOTE(Dan): We do not wish to kill this process on exit, since we do not have permissions to
+                        // kill it. This is instead handled by the ping+pong protocol.
+                        ProcessWatcher.addWatch(uimPid, killOnExit = false) { statusCode ->
+                            log.warn("IM/User for uid=$uid terminated unexpectedly with statusCode=$statusCode")
+                            log.warn("You might be able to find more information in the log file: $logFilePath")
+                            log.warn("The instance will be automatically restarted when the user makes another request")
+                            uimMutex.withLock {
+                                uimLaunched.remove(request.username)
+                            }
+                        }
+                    }
+
+                    // Configure Envoy to route the relevant IM/User traffic to the newly launched instance
+                    envoyConfig.requestConfiguration(
+                        EnvoyRoute.Standard(request.username, request.username),
+                        EnvoyCluster.create(
+                            request.username,
+                            "127.0.0.1",
+                            allocatedPort
+                        )
+                    )
+                }
+
+                ok(Unit)
+            }
         }
     }
 

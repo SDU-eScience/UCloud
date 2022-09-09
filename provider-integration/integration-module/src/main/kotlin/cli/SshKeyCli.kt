@@ -33,7 +33,6 @@ fun SshKeyCli(controllerContext: ControllerContext) {
                 arg("users") {
                     description = "One or more users separated by a comma (,)"
                 }
-
             }
         }
 

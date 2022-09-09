@@ -1,5 +1,6 @@
 package dk.sdu.cloud.plugins
 
+import dk.sdu.cloud.app.orchestrator.api.SSHKey
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
@@ -79,4 +80,8 @@ interface ConnectionPlugin : Plugin<ConfigSchema.Plugins.Connection> {
     }
 
     suspend fun PluginContext.requireMessageSigning(): Boolean
+
+    suspend fun PluginContext.onSshKeySynchronized(username: String, keys: List<SSHKey>) {
+
+    }
 }
