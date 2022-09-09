@@ -17,6 +17,7 @@ data class ApplicationInvocationDescription(
     val applicationType: ApplicationType?,
     val vnc: VncDescription?,
     val web: WebDescription?,
+    val ssh: SshDescription?,
     val container: ContainerDescription?,
     val environment: JsonObject?,
     val allowAdditionalMounts: Boolean?,
@@ -128,6 +129,17 @@ IP addresses and files. The [`Application`](/docs/reference/dk.sdu.cloud.app.sto
 <details>
 <summary>
 <code>web</code>: <code><code><a href='#webdescription'>WebDescription</a>?</code></code> Information about how to reach the web service
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>ssh</code>: <code><code><a href='#sshdescription'>SshDescription</a>?</code></code> Information about how the SSH capabilities of this application
 </summary>
 
 

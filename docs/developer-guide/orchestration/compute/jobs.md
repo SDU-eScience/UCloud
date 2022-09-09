@@ -188,6 +188,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#computesupport.native'><code>ComputeSupport.Native</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#computesupport.virtualmachine'><code>ComputeSupport.VirtualMachine</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -408,6 +412,7 @@ application = ApplicationWithFavoriteAndTags(
         )), 
         shouldAllowAdditionalMounts = false, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "batch-tool", 
             tool = Tool(
@@ -525,6 +530,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -679,6 +685,7 @@ application = {
         "applicationType": "BATCH",
         "vnc": null,
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -773,7 +780,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -922,6 +930,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "applicationType": "BATCH",
 #         "vnc": null,
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -999,7 +1008,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -1256,6 +1266,15 @@ SupportByProvider(
                 vnc = null, 
                 web = null, 
             ), 
+            native = ComputeSupport.Native(
+                enabled = null, 
+                logs = null, 
+                terminal = null, 
+                timeExtension = null, 
+                utilization = null, 
+                vnc = null, 
+                web = null, 
+            ), 
             product = ProductReference(
                 category = "compute-example", 
                 id = "compute-example", 
@@ -1412,6 +1431,15 @@ await callAPI(JobsApi.retrieveProducts(
                         "timeExtension": null,
                         "suspension": null,
                         "utilization": null
+                    },
+                    "native": {
+                        "enabled": null,
+                        "logs": null,
+                        "vnc": null,
+                        "terminal": null,
+                        "timeExtension": null,
+                        "utilization": null,
+                        "web": null
                     }
                 }
             }
@@ -1520,6 +1548,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieveProdu
 #                         "timeExtension": null,
 #                         "suspension": null,
 #                         "utilization": null
+#                     },
+#                     "native": {
+#                         "enabled": null,
+#                         "logs": null,
+#                         "vnc": null,
+#                         "terminal": null,
+#                         "timeExtension": null,
+#                         "utilization": null,
+#                         "web": null
 #                     }
 #                 }
 #             }
@@ -1616,6 +1653,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -1660,6 +1698,7 @@ Jobs.create.call(
             jobId = "4101", 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -1720,7 +1759,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -1772,7 +1812,8 @@ await callAPI(JobsApi.create(
                 ],
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -1837,7 +1878,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -1884,7 +1926,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             ],
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -1981,6 +2024,7 @@ Jobs.create.call(
             id = "41231", 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -2123,7 +2167,8 @@ await callAPI(JobsApi.create(
                 ],
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -2268,7 +2313,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             ],
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -2398,6 +2444,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -2479,7 +2526,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -2562,7 +2610,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -2628,6 +2677,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -2707,7 +2757,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -2798,7 +2849,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -2898,6 +2950,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -2970,7 +3023,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -3054,7 +3108,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -3155,6 +3210,7 @@ Jobs.create.call(
             readOnly = false, 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -3232,6 +3288,7 @@ Job(
             readOnly = false, 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     ), 
     status = JobStatus(
@@ -3323,7 +3380,8 @@ await callAPI(JobsApi.create(
                 ],
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -3437,7 +3495,8 @@ await callAPI(JobsApi.retrieve(
         ],
         "timeAllocation": null,
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "SUCCESS",
@@ -3501,7 +3560,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             ],
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -3586,7 +3646,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         ],
 #         "timeAllocation": null,
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -3703,6 +3764,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -3776,6 +3838,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     ), 
     status = JobStatus(
@@ -3910,7 +3973,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -4017,7 +4081,8 @@ await callAPI(JobsApi.retrieve(
         "resources": null,
         "timeAllocation": null,
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "SUCCESS",
@@ -4114,7 +4179,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -4192,7 +4258,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         "resources": null,
 #         "timeAllocation": null,
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -4265,6 +4332,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4339,6 +4407,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4457,6 +4526,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4570,6 +4640,7 @@ Job(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = SimpleDuration(
             hours = 5, 
             minutes = 0, 
@@ -4660,7 +4731,8 @@ await callAPI(JobsApi.create(
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -4757,7 +4829,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "RUNNING",
@@ -4882,7 +4955,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "RUNNING",
@@ -5013,7 +5087,8 @@ await callAPI(JobsApi.retrieve(
             "seconds": 0
         },
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "SUCCESS",
@@ -5073,7 +5148,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "seconds": 0
             },
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -5142,7 +5218,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -5237,7 +5314,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "RUNNING",
@@ -5338,7 +5416,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #             "seconds": 0
 #         },
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
@@ -5807,6 +5886,7 @@ data class JobSpecification(
     val timeAllocation: SimpleDuration?,
     val openedFile: String?,
     val restartOnExit: Boolean?,
+    val sshEnabled: Boolean?,
 )
 ```
 
@@ -5948,6 +6028,20 @@ about restarts. If the restarts are triggered by the provider, then the provider
 orchestrator about the termination. The orchestrator will trigger a new `create` request in a timely manner.
 The orchestrator decides when to trigger a new `create`. For example, if a process is terminating often,
 then the orchestrator might decide to wait before issuing a new `create`.
+
+
+</details>
+
+<details>
+<summary>
+<code>sshEnabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A flag which indicates that this job should use the built-in SSH functionality of the application/provider
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+This flag can only be true of the application itself is marked as SSH enabled. When this flag is true, 
+an SSH server will be started which allows the end-user direct access to the associated compute workload.
 
 
 </details>
@@ -6430,6 +6524,7 @@ data class ComputeSupport(
     val product: ProductReference,
     val docker: ComputeSupport.Docker?,
     val virtualMachine: ComputeSupport.VirtualMachine?,
+    val native: ComputeSupport.Native?,
 )
 ```
 
@@ -6463,6 +6558,17 @@ data class ComputeSupport(
 <details>
 <summary>
 <code>virtualMachine</code>: <code><code><a href='#computesupport.virtualmachine'>ComputeSupport.VirtualMachine</a>?</code></code> Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>native</code>: <code><code><a href='#computesupport.native'>ComputeSupport.Native</a>?</code></code> Support for `Tool`s using the `NATIVE` backend
 </summary>
 
 
@@ -6584,6 +6690,115 @@ All other flags are ignored if this is `false`.
 <details>
 <summary>
 <code>utilization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the retrieveUtilization of jobs
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `ComputeSupport.Native`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Native(
+    val enabled: Boolean?,
+    val logs: Boolean?,
+    val vnc: Boolean?,
+    val terminal: Boolean?,
+    val timeExtension: Boolean?,
+    val utilization: Boolean?,
+    val web: Boolean?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>enabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable this feature
+</summary>
+
+
+
+All other flags are ignored if this is `false`.
+
+
+</details>
+
+<details>
+<summary>
+<code>logs</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the log API
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>vnc</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the VNC API
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>terminal</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the interactive terminal API
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>timeExtension</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable extension of jobs
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>utilization</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the retrieveUtilization of jobs
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>web</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> Flag to enable/disable the interactive interface of `WEB` `Application`s
 </summary>
 
 
@@ -7785,8 +8000,8 @@ sealed class OpenSession {
     abstract val rank: Int
 
     class Shell : OpenSession()
-    class Web : OpenSession()
     class Vnc : OpenSession()
+    class Web : OpenSession()
 }
 ```
 
@@ -8183,6 +8398,7 @@ data class ExportedParametersRequest(
     val resolvedApplication: JsonObject?,
     val resolvedSupport: JsonObject?,
     val allowDuplicateJob: Boolean?,
+    val sshEnabled: Boolean?,
 )
 ```
 
@@ -8304,6 +8520,17 @@ data class ExportedParametersRequest(
 <details>
 <summary>
 <code>allowDuplicateJob</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>sshEnabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

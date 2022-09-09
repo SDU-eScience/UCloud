@@ -10,10 +10,10 @@ _InvocationParameters supply values to either the command-line or environment va
 
 ```kotlin
 sealed class InvocationParameter {
-    class EnvironmentVariableParameter : InvocationParameter()
-    class WordInvocationParameter : InvocationParameter()
-    class VariableInvocationParameter : InvocationParameter()
     class BooleanFlagParameter : InvocationParameter()
+    class EnvironmentVariableParameter : InvocationParameter()
+    class VariableInvocationParameter : InvocationParameter()
+    class WordInvocationParameter : InvocationParameter()
 }
 ```
 Every parameter can run in one of two contexts. They produce a value when combined with a [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  

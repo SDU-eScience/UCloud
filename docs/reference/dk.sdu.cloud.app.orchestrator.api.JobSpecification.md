@@ -20,6 +20,7 @@ data class JobSpecification(
     val timeAllocation: SimpleDuration?,
     val openedFile: String?,
     val restartOnExit: Boolean?,
+    val sshEnabled: Boolean?,
 )
 ```
 
@@ -161,6 +162,20 @@ about restarts. If the restarts are triggered by the provider, then the provider
 orchestrator about the termination. The orchestrator will trigger a new `create` request in a timely manner.
 The orchestrator decides when to trigger a new `create`. For example, if a process is terminating often,
 then the orchestrator might decide to wait before issuing a new `create`.
+
+
+</details>
+
+<details>
+<summary>
+<code>sshEnabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code> A flag which indicates that this job should use the built-in SSH functionality of the application/provider
+</summary>
+
+[![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+This flag can only be true of the application itself is marked as SSH enabled. When this flag is true, 
+an SSH server will be started which allows the end-user direct access to the associated compute workload.
 
 
 </details>

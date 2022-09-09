@@ -11,9 +11,9 @@ _The approval status of a metadata document_
 ```kotlin
 sealed class ApprovalStatus {
     class Approved : ApprovalStatus()
+    class NotRequired : ApprovalStatus()
     class Pending : ApprovalStatus()
     class Rejected : ApprovalStatus()
-    class NotRequired : ApprovalStatus()
 }
 ```
 

@@ -10,8 +10,8 @@ _Response type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalResponse {
-    class RequiresSignature : ProvidersRequestApprovalResponse()
     class AwaitingAdministratorApproval : ProvidersRequestApprovalResponse()
+    class RequiresSignature : ProvidersRequestApprovalResponse()
 }
 ```
 

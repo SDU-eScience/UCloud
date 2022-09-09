@@ -370,6 +370,14 @@ changes are expected:
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#sshdescription'><code>SshDescription</code></a></td>
+<td>Information to the provider about the SSH capabilities of this application</td>
+</tr>
+<tr>
+<td><a href='#sshdescription.mode'><code>SshDescription.Mode</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#toolreference'><code>ToolReference</code></a></td>
 <td>A reference to a Tool</td>
 </tr>
@@ -524,6 +532,7 @@ ApplicationWithFavoriteAndTags(
         )), 
         shouldAllowAdditionalMounts = false, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-batch", 
             tool = Tool(
@@ -707,6 +716,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "applicationType": "BATCH",
         "vnc": null,
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -859,6 +869,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "applicationType": "BATCH",
 #         "vnc": null,
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -938,6 +949,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = false, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-os", 
             tool = Tool(
@@ -1064,6 +1076,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "applicationType": "BATCH",
         "vnc": null,
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -1159,6 +1172,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "applicationType": "BATCH",
 #         "vnc": null,
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -1240,6 +1254,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-web", 
             tool = Tool(
@@ -1374,6 +1389,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "web": {
             "port": 8080
         },
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -1475,6 +1491,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "web": {
 #             "port": 8080
 #         },
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -1556,6 +1573,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-remote-desktop", 
             tool = Tool(
@@ -1692,6 +1710,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
             "port": 5900
         },
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -1794,6 +1813,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #             "port": 5900
 #         },
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -1880,6 +1900,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-web", 
             tool = Tool(
@@ -2019,6 +2040,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "web": {
             "port": 8080
         },
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -2125,6 +2147,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "web": {
 #             "port": 8080
 #         },
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -2228,6 +2251,7 @@ ApplicationWithFavoriteAndTags(
         )), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-web", 
             tool = Tool(
@@ -2386,6 +2410,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "web": {
             "port": 8080
         },
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -2511,6 +2536,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "web": {
 #             "port": 8080
 #         },
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -2563,7 +2589,7 @@ _Searches in the Application catalog using more advanced parameters_
 ### `create`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Creates a new Application and inserts it into the catalog_
@@ -2802,7 +2828,7 @@ _Removes a set of tags from an Application_
 ### `setPublic`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Changes the 'publicly accessible' status of an Application_
@@ -2830,7 +2856,7 @@ _Toggles the favorite status of an Application for the current user_
 ### `updateAcl`
 
 [![API: Experimental/Alpha](https://img.shields.io/static/v1?label=API&message=Experimental/Alpha&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
-[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+[![Auth: ADMIN, SERVICE, PROVIDER](https://img.shields.io/static/v1?label=Auth&message=ADMIN,+SERVICE,+PROVIDER&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
 
 
 _Updates the permissions associated with an Application_
@@ -3047,6 +3073,7 @@ data class ApplicationInvocationDescription(
     val applicationType: ApplicationType?,
     val vnc: VncDescription?,
     val web: WebDescription?,
+    val ssh: SshDescription?,
     val container: ContainerDescription?,
     val environment: JsonObject?,
     val allowAdditionalMounts: Boolean?,
@@ -3158,6 +3185,17 @@ IP addresses and files. The [`Application`](/docs/reference/dk.sdu.cloud.app.sto
 <details>
 <summary>
 <code>web</code>: <code><code><a href='#webdescription'>WebDescription</a>?</code></code> Information about how to reach the web service
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>ssh</code>: <code><code><a href='#sshdescription'>SshDescription</a>?</code></code> Information about how the SSH capabilities of this application
 </summary>
 
 
@@ -3526,18 +3564,18 @@ sealed class ApplicationParameter {
     abstract val optional: Boolean
     abstract val title: String?
 
-    class InputFile : ApplicationParameter()
-    class InputDirectory : ApplicationParameter()
-    class Text : ApplicationParameter()
-    class TextArea : ApplicationParameter()
-    class Integer : ApplicationParameter()
-    class FloatingPoint : ApplicationParameter()
     class Bool : ApplicationParameter()
     class Enumeration : ApplicationParameter()
-    class Peer : ApplicationParameter()
+    class FloatingPoint : ApplicationParameter()
     class Ingress : ApplicationParameter()
+    class InputDirectory : ApplicationParameter()
+    class InputFile : ApplicationParameter()
+    class Integer : ApplicationParameter()
     class LicenseServer : ApplicationParameter()
     class NetworkIP : ApplicationParameter()
+    class Peer : ApplicationParameter()
+    class Text : ApplicationParameter()
+    class TextArea : ApplicationParameter()
 }
 ```
 All [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)s contain metadata used for the presentation in the frontend. This metadata 
@@ -4984,17 +5022,17 @@ _An `AppParameterValue` is value which is supplied to a parameter of an `Applica
 
 ```kotlin
 sealed class AppParameterValue {
-    class File : AppParameterValue()
-    class Bool : AppParameterValue()
-    class TextArea : AppParameterValue()
-    class Text : AppParameterValue()
-    class Integer : AppParameterValue()
-    class FloatingPoint : AppParameterValue()
-    class Peer : AppParameterValue()
-    class License : AppParameterValue()
     class BlockStorage : AppParameterValue()
-    class Network : AppParameterValue()
+    class Bool : AppParameterValue()
+    class File : AppParameterValue()
+    class FloatingPoint : AppParameterValue()
     class Ingress : AppParameterValue()
+    class Integer : AppParameterValue()
+    class License : AppParameterValue()
+    class Network : AppParameterValue()
+    class Peer : AppParameterValue()
+    class Text : AppParameterValue()
+    class TextArea : AppParameterValue()
 }
 ```
 Each value type can is type-compatible with one or more `ApplicationParameter`s. The effect of a specific value depends
@@ -5588,10 +5626,10 @@ _InvocationParameters supply values to either the command-line or environment va
 
 ```kotlin
 sealed class InvocationParameter {
-    class EnvironmentVariableParameter : InvocationParameter()
-    class WordInvocationParameter : InvocationParameter()
-    class VariableInvocationParameter : InvocationParameter()
     class BooleanFlagParameter : InvocationParameter()
+    class EnvironmentVariableParameter : InvocationParameter()
+    class VariableInvocationParameter : InvocationParameter()
+    class WordInvocationParameter : InvocationParameter()
 }
 ```
 Every parameter can run in one of two contexts. They produce a value when combined with a [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)  
@@ -6804,6 +6842,105 @@ data class Project(
 <details>
 <summary>
 <code>title</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `SshDescription`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+_Information to the provider about the SSH capabilities of this application_
+
+```kotlin
+data class SshDescription(
+    val mode: SshDescription.Mode?,
+)
+```
+Providers must use this information, if SSH is supported, to correctly configure applications with the appropriate
+keys. See /docs/reference/jobs.control.browseSshKeys.md  for more information.
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>mode</code>: <code><code><a href='#sshdescription.mode'>SshDescription.Mode</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `SshDescription.Mode`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+enum class Mode {
+    DISABLED,
+    OPTIONAL,
+    MANDATORY,
+}
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>DISABLED</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>OPTIONAL</code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>MANDATORY</code>
 </summary>
 
 

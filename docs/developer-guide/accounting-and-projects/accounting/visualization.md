@@ -9,11 +9,9 @@
 
 [![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
-_Visualization gives the user the possibility to get an easy overview of their usage during a set period or _
+_Visualization gives the user the possibility to get an easy overview of their usage during a set period or for a given product category. _
 
 ## Rationale
-
-for a given product category. 
 
 There are currently two variations of usage visualization:
 

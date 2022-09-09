@@ -9,9 +9,9 @@
 
 ```kotlin
 sealed class ShellResponse {
-    class Initialized : ShellResponse()
-    class Data : ShellResponse()
     class Acknowledged : ShellResponse()
+    class Data : ShellResponse()
+    class Initialized : ShellResponse()
 }
 ```
 

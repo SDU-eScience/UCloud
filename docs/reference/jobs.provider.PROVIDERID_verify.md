@@ -61,6 +61,7 @@ JobsProvider.verify.call(
             replicas = 1, 
             resources = null, 
             restartOnExit = null, 
+            sshEnabled = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -172,7 +173,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "seconds": 0
                     },
                     "openedFile": null,
-                    "restartOnExit": null
+                    "restartOnExit": null,
+                    "sshEnabled": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -289,7 +291,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             },
             "status": {
                 "state": "RUNNING",

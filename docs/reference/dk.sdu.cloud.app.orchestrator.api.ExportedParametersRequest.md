@@ -20,6 +20,7 @@ data class ExportedParametersRequest(
     val resolvedApplication: JsonObject?,
     val resolvedSupport: JsonObject?,
     val allowDuplicateJob: Boolean?,
+    val sshEnabled: Boolean?,
 )
 ```
 
@@ -141,6 +142,17 @@ data class ExportedParametersRequest(
 <details>
 <summary>
 <code>allowDuplicateJob</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>sshEnabled</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-boolean/'>Boolean</a>?</code></code>
 </summary>
 
 

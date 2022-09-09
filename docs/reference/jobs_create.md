@@ -105,6 +105,7 @@ application = ApplicationWithFavoriteAndTags(
         )), 
         shouldAllowAdditionalMounts = false, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "batch-tool", 
             tool = Tool(
@@ -222,6 +223,7 @@ Jobs.create.call(
         replicas = 1, 
         resources = null, 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -376,6 +378,7 @@ application = {
         "applicationType": "BATCH",
         "vnc": null,
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -470,7 +473,8 @@ await callAPI(JobsApi.create(
                 "resources": null,
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -619,6 +623,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "applicationType": "BATCH",
 #         "vnc": null,
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,
@@ -696,7 +701,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             "resources": null,
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'

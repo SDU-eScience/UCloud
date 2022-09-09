@@ -12,6 +12,7 @@ data class ComputeSupport(
     val product: ProductReference,
     val docker: ComputeSupport.Docker?,
     val virtualMachine: ComputeSupport.VirtualMachine?,
+    val native: ComputeSupport.Native?,
 )
 ```
 
@@ -45,6 +46,17 @@ data class ComputeSupport(
 <details>
 <summary>
 <code>virtualMachine</code>: <code><code><a href='#computesupport.virtualmachine'>ComputeSupport.VirtualMachine</a>?</code></code> Support for `Tool`s using the `VIRTUAL_MACHINE` backend
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>native</code>: <code><code><a href='#computesupport.native'>ComputeSupport.Native</a>?</code></code> Support for `Tool`s using the `NATIVE` backend
 </summary>
 
 

@@ -96,6 +96,7 @@ JobsProvider.create.call(
             replicas = 1, 
             resources = null, 
             restartOnExit = null, 
+            sshEnabled = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -155,6 +156,7 @@ JobsProvider.create.call(
                     )), 
                     shouldAllowAdditionalMounts = false, 
                     shouldAllowAdditionalPeers = true, 
+                    ssh = null, 
                     tool = ToolReference(
                         name = "acme-batch", 
                         tool = Tool(
@@ -249,6 +251,15 @@ JobsProvider.create.call(
                         enabled = true, 
                         logs = null, 
                         peers = null, 
+                        terminal = null, 
+                        timeExtension = null, 
+                        utilization = null, 
+                        vnc = null, 
+                        web = null, 
+                    ), 
+                    native = ComputeSupport.Native(
+                        enabled = null, 
+                        logs = null, 
                         terminal = null, 
                         timeExtension = null, 
                         utilization = null, 
@@ -439,7 +450,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "seconds": 0
                     },
                     "openedFile": null,
-                    "restartOnExit": null
+                    "restartOnExit": null,
+                    "sshEnabled": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -548,6 +560,7 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                             "applicationType": "BATCH",
                             "vnc": null,
                             "web": null,
+                            "ssh": null,
                             "container": null,
                             "environment": null,
                             "allowAdditionalMounts": null,
@@ -606,6 +619,15 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                                 "timeExtension": null,
                                 "suspension": null,
                                 "utilization": null
+                            },
+                            "native": {
+                                "enabled": null,
+                                "logs": null,
+                                "vnc": null,
+                                "terminal": null,
+                                "timeExtension": null,
+                                "utilization": null,
+                                "web": null
                             }
                         }
                     },
@@ -811,7 +833,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -920,6 +943,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "applicationType": "BATCH",
                         "vnc": null,
                         "web": null,
+                        "ssh": null,
                         "container": null,
                         "environment": null,
                         "allowAdditionalMounts": null,
@@ -978,6 +1002,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                             "timeExtension": null,
                             "suspension": null,
                             "utilization": null
+                        },
+                        "native": {
+                            "enabled": null,
+                            "logs": null,
+                            "vnc": null,
+                            "terminal": null,
+                            "timeExtension": null,
+                            "utilization": null,
+                            "web": null
                         }
                     }
                 },

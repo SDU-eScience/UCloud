@@ -16,18 +16,18 @@ sealed class ApplicationParameter {
     abstract val optional: Boolean
     abstract val title: String?
 
-    class InputFile : ApplicationParameter()
-    class InputDirectory : ApplicationParameter()
-    class Text : ApplicationParameter()
-    class TextArea : ApplicationParameter()
-    class Integer : ApplicationParameter()
-    class FloatingPoint : ApplicationParameter()
     class Bool : ApplicationParameter()
     class Enumeration : ApplicationParameter()
-    class Peer : ApplicationParameter()
+    class FloatingPoint : ApplicationParameter()
     class Ingress : ApplicationParameter()
+    class InputDirectory : ApplicationParameter()
+    class InputFile : ApplicationParameter()
+    class Integer : ApplicationParameter()
     class LicenseServer : ApplicationParameter()
     class NetworkIP : ApplicationParameter()
+    class Peer : ApplicationParameter()
+    class Text : ApplicationParameter()
+    class TextArea : ApplicationParameter()
 }
 ```
 All [`ApplicationParameter`](/docs/reference/dk.sdu.cloud.app.store.api.ApplicationParameter.md)s contain metadata used for the presentation in the frontend. This metadata 

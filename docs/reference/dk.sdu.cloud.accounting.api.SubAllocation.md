@@ -21,7 +21,9 @@ data class SubAllocation(
     val workspaceId: String,
     val workspaceTitle: String,
     val workspaceIsProject: Boolean,
+    val projectPI: String?,
     val remaining: Long,
+    val initialBalance: Long,
 )
 ```
 
@@ -153,7 +155,29 @@ data class SubAllocation(
 
 <details>
 <summary>
+<code>projectPI</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>remaining</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>initialBalance</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code>
 </summary>
 
 

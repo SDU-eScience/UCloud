@@ -15,6 +15,8 @@ import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.plugins.ipcClient
 import dk.sdu.cloud.plugins.ipcServer
 import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.utils.sendTerminalFrame
+import dk.sdu.cloud.utils.sendTerminalMessage
 import kotlinx.serialization.Serializable
 import java.io.File
 
@@ -24,13 +26,14 @@ fun SshKeyCli(controllerContext: ControllerContext) {
     pluginContext.commandLineInterface?.addHandler(CliHandler("ssh") { args ->
         fun sendHelp(): Nothing = sendCommandLineUsage("ssh", "View information about relevant SSH keys of users") {
             subcommand("retrieve", "Retrieves the SSH keys of one or more users") {
+                arg("outputDirectory") {
+                    description = "Specifies the output directory to use"
+                }
+
                 arg("users") {
                     description = "One or more users separated by a comma (,)"
                 }
 
-                arg("outputDirectory=directory") {
-                    description = "Specifies the output directory to use"
-                }
             }
         }
 
@@ -38,10 +41,10 @@ fun SshKeyCli(controllerContext: ControllerContext) {
         genericCommandLineHandler {
             when (args.getOrNull(0)) {
                 "retrieve" -> {
-                    val users = args.getOrNull(1)?.split(",")?.map { it.trim() }?.takeIf { it.isNotEmpty() }
+                    val users = args.getOrNull(2)?.split(",")?.map { it.trim() }?.takeIf { it.isNotEmpty() }
                         ?: sendHelp()
 
-                    val outputDir = args.getOrNull(2)?.let { File(it) }?.also { it.mkdirs() }
+                    val outputDir = args.getOrNull(1)?.let { File(it) }?.also { it.mkdirs() }
                         ?.takeIf { it.isDirectory } ?: sendHelp()
 
                     val result = ipcClient.sendRequest(
@@ -49,12 +52,30 @@ fun SshKeyCli(controllerContext: ControllerContext) {
                         SshKeyIpcRetrieveRequest(users)
                     )
 
+                    var userCount = 0
+                    var keyCount = 0
                     result.responses
                         .groupBy { it.owner }
                         .forEach { (user, keys) ->
+                            userCount += 1
+                            keyCount += keys.size
                             File(outputDir, user).writeText(keys.map { it.specification.key }.joinToString("\n"))
                         }
+
+                    sendTerminalMessage {
+                        green {
+                            inline("Successfully wrote ")
+                            bold { inline(keyCount.toString()) }
+                            inline(" key(s) for ")
+                            bold { inline(userCount.toString()) }
+                            inline(" user(s) at ")
+                            bold { inline(outputDir.absolutePath) }
+                            line()
+                        }
+                    }
                 }
+
+                else -> sendHelp()
             }
         }
     })
