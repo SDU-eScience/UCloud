@@ -639,7 +639,8 @@ class AccountingProcessor(
 
     // Adds maxUsableBalance to walletAllocations in a wallet
     fun includeMaxUsableBalance(
-        wallet: ApiWallet
+        wallet: ApiWallet,
+        filterEmptyAllocations: Boolean? = true
     ): ApiWallet {
         var returnWallet = wallet
         val internalWallet = when (val owner = wallet.owner) {
@@ -649,11 +650,18 @@ class AccountingProcessor(
         return if (internalWallet == null) {
             returnWallet
         } else {
-            val allocationsWithMaxUsableBalance =
+            val allocationsWithMaxUsableBalance = if ( filterEmptyAllocations != null && filterEmptyAllocations) {
+                allocations
+                    .filter { it != null && it.associatedWallet == internalWallet.id}
+                    .mapNotNull { it!!.copy(maxUsableBalance = calculateMaxUsableBalance(it)) }
+                    .map { it.toApiAllocation() }
+                    .filter { it.balance > 0 }
+            } else {
                 allocations
                     .filter { it != null && it.associatedWallet == internalWallet.id }
                     .mapNotNull { it!!.copy(maxUsableBalance = calculateMaxUsableBalance(it)) }
                     .map { it.toApiAllocation() }
+            }
             returnWallet = wallet.copy(allocations = allocationsWithMaxUsableBalance)
             returnWallet
         }
@@ -1292,16 +1300,16 @@ class AccountingProcessor(
         val transactionId = transactionId()
         dirtyTransactions.add(
             Transaction.AllocationUpdate(
-                allocation.notBefore,
-                allocation.notAfter,
-                allocation.currentBalance - allocation.beginCurrentBalance,
-                request.actor.safeUsername(),
-                "Allocation update",
-                allocation.id.toString(),
-                System.currentTimeMillis(),
-                wallet.paysFor,
-                transactionId,
-                transactionId,
+                startDate = allocation.notBefore,
+                endDate = allocation.notAfter,
+                change =allocation.currentBalance - allocation.beginCurrentBalance,
+                actionPerformedBy = request.actor.safeUsername(),
+                description = "Allocation update",
+                affectedAllocationId = allocation.id.toString(),
+                timestamp = System.currentTimeMillis(),
+                resolvedCategory = wallet.paysFor,
+                initialTransactionId = transactionId,
+                transactionId = transactionId,
             )
         )
 
@@ -1484,6 +1492,7 @@ class AccountingProcessor(
                 }
 
                 debug.detailD("Dealing with transactions", Unit.serializer(), Unit)
+                dirtyTransactions.forEach { println(it) }
                 dirtyTransactions.chunkedSequence(500).forEach { chunk ->
                     session.sendPreparedStatement(
                         {
@@ -1493,7 +1502,6 @@ class AccountingProcessor(
                                         is Transaction.AllocationUpdate -> "allocation_update"
                                         is Transaction.Charge -> "charge"
                                         is Transaction.Deposit -> "deposit"
-                                        is Transaction.Transfer -> "transfer"
                                     }
                                 }
 
@@ -1503,10 +1511,9 @@ class AccountingProcessor(
                                 into("descriptions") { it.description }
                                 into("source_allocations") {
                                     when (it) {
-                                        is Transaction.Transfer -> it.sourceAllocationId
                                         is Transaction.Deposit -> it.sourceAllocationId
                                         is Transaction.Charge -> it.sourceAllocationId
-                                        else -> null
+                                        is Transaction.AllocationUpdate -> null
                                     }
                                 }
                                 into("product_ids") {
@@ -1518,8 +1525,20 @@ class AccountingProcessor(
                                 into("units") {
                                     if (it is Transaction.Charge) it.periods else null
                                 }
-                                into("start_dates") { (it as? Transaction.Deposit)?.startDate }
-                                into("end_dates") { (it as? Transaction.Deposit)?.endDate }
+                                into("start_dates") {
+                                    when (it) {
+                                        is Transaction.Deposit -> it.startDate
+                                        is Transaction.Charge -> null
+                                        is Transaction.AllocationUpdate -> it.startDate
+                                    }
+                                }
+                                into("end_dates") {
+                                    when (it) {
+                                        is Transaction.Deposit -> it.endDate
+                                        is Transaction.Charge -> null
+                                        is Transaction.AllocationUpdate -> it.endDate
+                                    }
+                                }
                                 into("transaction_ids") { it.transactionId }
                                 into("initial_transaction_ids") { it.initialTransactionId }
                             }

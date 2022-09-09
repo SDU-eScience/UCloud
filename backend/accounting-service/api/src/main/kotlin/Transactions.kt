@@ -112,26 +112,6 @@ sealed class Transaction {
     ) : Transaction()
 
     @Serializable
-    @SerialName("transfer")
-    data class Transfer(
-        @UCloudApiDoc("The source allocation which the affected allocation is created from")
-        val sourceAllocationId: String,
-        @UCloudApiDoc("Timestamp for when the affected allocation becomes valid (`null` indicates none)")
-        val startDate: Long?,
-        @UCloudApiDoc("Timestamp for when the affected allocation no longer is valid (`null` indicates none)")
-        val endDate: Long?,
-
-        override val change: Long,
-        override val actionPerformedBy: String,
-        override val description: String,
-        override val affectedAllocationId: String,
-        override val timestamp: Long,
-        override val resolvedCategory: ProductCategoryId,
-        override val initialTransactionId: String,
-        override val transactionId: String
-    ) : Transaction()
-
-    @Serializable
     @SerialName("allocation_update")
     data class AllocationUpdate(
         @UCloudApiDoc("Timestamp for when the affected allocation becomes valid (`null` indicates none)")
@@ -167,7 +147,6 @@ object Transactions : CallDescriptionContainer("accounting.transactions") {
         serializerLookupTable = mapOf(
             serializerEntry(Transaction.Deposit.serializer()),
             serializerEntry(Transaction.AllocationUpdate.serializer()),
-            serializerEntry(Transaction.Transfer.serializer()),
             serializerEntry(Transaction.Charge.serializer()),
         )
     }

@@ -175,7 +175,15 @@ class AccountingService(
                             (
                                 :filter_type::accounting.product_type is null or
                                 pc.product_type = :filter_type::accounting.product_type
-                            ) 
+                            ) and (
+                                :filter_empty::bool is null or 
+                                (
+                                    :filter_empty = true and
+                                    alloc.balance > 0
+                                ) or (
+                                    :filter_empty = false
+                                )
+                            )
                         group by w.*, wo.*, pc.*, pc.provider, pc.category
                         order by
                             pc.provider, pc.category
@@ -185,10 +193,10 @@ class AccountingService(
             },
             mapper = { _, rows ->
                 rows.map {
-                    println("walleting")
                     var wallet = defaultMapper.decodeFromString<Wallet>(it.getString(0)!!)
+                    println(wallet)
                     if (request.includeMaxUsableBalance == true) {
-                        wallet = processor.includeMaxUsableBalance(wallet)
+                        wallet = processor.includeMaxUsableBalance(wallet, request.filterEmptyAllocations)
                     }
                     wallet
                 }
