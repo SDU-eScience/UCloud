@@ -16,12 +16,14 @@ data class VerifiedConfig(
     val coreOrNull: Core?,
     val serverOrNull: Server?,
     val pluginsOrNull: Plugins?,
+    val rawPluginConfigOrNull: ConfigSchema.Plugins?,
     val productsOrNull: Products?,
     val frontendProxyOrNull: FrontendProxy?
 ) {
     val core: Core get() = coreOrNull!!
     val server: Server get() = serverOrNull!!
     val plugins: Plugins get() = pluginsOrNull!!
+    val rawPluginConfig: ConfigSchema.Plugins get() = rawPluginConfigOrNull!!
     val products: Products get() = productsOrNull!!
     val frontendProxy: FrontendProxy get() = frontendProxyOrNull!!
 
@@ -635,7 +637,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, products, frontendProxy)
+    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, config.plugins, products, frontendProxy)
 }
 
 // Plugin loading

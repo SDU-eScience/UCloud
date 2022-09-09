@@ -117,6 +117,10 @@ data class ConfigSchema(
             ALL(null)
         }
 
+        interface WithAutoInstallSshKey {
+            val installSshKeys: Boolean
+        }
+
         @Serializable
         sealed class Connection {
             @Serializable
@@ -130,7 +134,8 @@ data class ConfigSchema(
                 // message signing completely useless. As a result, message signing should only be turned on for the purposes of
                 // testing the implementation in development.
                 val insecureMessageSigningForDevelopmentPurposesOnly: Boolean = false,
-            ): Connection() {
+                override val installSshKeys: Boolean = true,
+            ): Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Extensions(
                     val onConnectionComplete: String? = null
@@ -139,7 +144,9 @@ data class ConfigSchema(
 
             @Serializable
             @SerialName("Ticket")
-            class Ticket : Connection()
+            data class Ticket(
+                override val installSshKeys: Boolean = true,
+            ) : Connection(), WithAutoInstallSshKey
 
             @Serializable
             @SerialName("OpenIdConnect")
@@ -151,7 +158,8 @@ data class ConfigSchema(
                 val extensions: Extensions,
                 val redirectUrl: String? = null,
                 val requireSigning: Boolean = false,
-            ) : Connection() {
+                override val installSshKeys: Boolean = true,
+            ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Ttl(
                     val days: Int = 0,
