@@ -606,6 +606,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         );
 
         const {appId} = useParams<{appId?: string;}>();
+        const projectId = useProjectId();
         const documentRef = useRef<HTMLTextAreaElement>(null);
 
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
@@ -618,7 +619,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const [wallets, fetchWallets] = useCloudAPI<UCloud.PageV2<Wallet>>({noop: true}, emptyPageV2)
 
         const [grantApplication, dispatch] = React.useReducer(grantApplicationReducer, defaultGrantApplication, () => defaultGrantApplication);
-        const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication]);
+        const activeStateBreakDown = React.useMemo(() => grantApplication.status.stateBreakdown.find(it => it.projectId === Client.projectId), [grantApplication, projectId]);
         const isApprover = activeStateBreakDown != null;
 
         const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
@@ -900,7 +901,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
 
-        const projectId = useProjectId();
         React.useEffect(() => {
             if (target === RequestTarget.PERSONAL_PROJECT && projectId != null) {
                 history.push("/");
