@@ -26,6 +26,8 @@ const thresholds: {maxValue: number, color: ThemeColor}[] = [
     }
 ];
 
+const ANIMATION_LENGTH = "1s";
+
 function getColorFromValue(value: number): string {
     return thresholds.find(it => it.maxValue >= value)?.color ?? "red";
 }
@@ -51,7 +53,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
         background: var(--${props => getColorFromValue(props.value)});
         left: 0;
         width: ${props => Math.min(props.value, 100)}%;
-        animation: ${animatePositive} 4s;
+        animation: ${animatePositive} ${ANIMATION_LENGTH};
     }
 
     &.positive > span {
@@ -63,7 +65,7 @@ const Bar = styled.div<{value: number; width: number | string; fontWeight?: Font
         background: var(--appCard);
         right: 0;
         width: ${props => 100 - Math.min(props.value, 100)}%;
-        animation: ${animateNegative} 4s;
+        animation: ${animateNegative} ${ANIMATION_LENGTH};
     }
 
     &.negative > span {
