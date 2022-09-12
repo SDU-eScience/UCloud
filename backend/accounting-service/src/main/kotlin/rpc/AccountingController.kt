@@ -71,6 +71,7 @@ class AccountingController(
         }
 
         implement(Wallets.browseSubAllocations) {
+            //TODO() Fix update 30 sek delay?
             ok(accounting.browseSubAllocations(actorAndProject, request))
         }
 
