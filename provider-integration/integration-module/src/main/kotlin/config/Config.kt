@@ -291,9 +291,25 @@ data class ConfigSchema(
                 val namespace: String = "app-kubernetes",
                 val scheduler: Scheduler = Scheduler.Volcano,
                 val categoryToSelector: Map<String, String> = emptyMap(),
+                val fakeIpMount: Boolean = false,
+                val ssh: Ssh? = null,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
+
+                @Serializable
+                data class SshSubnet(
+                    val iface: String,
+                    val privateCidr: String,
+                    val publicHostname: String,
+                    val portMin: Int,
+                    val portMax: Int,
+                )
+
+                @Serializable
+                data class Ssh(
+                    val subnets: List<SshSubnet>,
+                )
 
                 enum class Scheduler {
                     Volcano,

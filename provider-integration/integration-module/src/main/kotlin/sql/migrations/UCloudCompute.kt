@@ -98,3 +98,17 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__UCloudCompute() = MigrationScript("V2__UCloudCompute") { session ->
+    session.prepareStatement(
+        """
+            create table ucloud_compute_bound_ssh_ports(
+                name text not null,
+                subnet text not null,
+                port int not null,
+                job_id text not null,
+                primary key(name, subnet, port)
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}

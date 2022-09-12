@@ -209,6 +209,8 @@ abstract class PodBasedBuilder : ContainerBuilder {
     protected val volumes: ArrayList<Volume> get() = podSpec.volumes as ArrayList
     protected val ucloudVolume: Volume get() = volumes[0]
 
+    protected abstract val fakeIpMount: Boolean
+
     protected fun initPodSpec() {
         val spec = podSpec
         spec.containers = listOf(
@@ -303,6 +305,7 @@ abstract class PodBasedBuilder : ContainerBuilder {
 
     private var ipCounter = 0
     override fun mountIpAddress(ipAddress: String, networkInterface: String, ports: List<Pair<Int, IPProtocol>>) {
+        if (fakeIpMount) return
         val ipIdx = ipCounter++
         volumes.add(
             Volume(

@@ -118,6 +118,7 @@ class K8PodRuntime(
     private val k8Client: KubernetesClient,
     private val namespace: String,
     private val categoryToSelector: Map<String, String>,
+    private val fakeIpMount: Boolean,
 ) : ContainerRuntime {
     private val canReadNodes = SimpleCache<Unit, Boolean>(SimpleCache.DONT_EXPIRE) {
         try {
@@ -132,7 +133,7 @@ class K8PodRuntime(
     }
 
     override fun builder(jobId: String, replicas: Int, block: ContainerBuilder.() -> Unit): ContainerBuilder {
-        return K8PodContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector).also(block)
+        return K8PodContainerBuilder(jobId, replicas, k8Client, namespace, categoryToSelector, fakeIpMount).also(block)
     }
 
     override suspend fun scheduleGroup(group: List<ContainerBuilder>) {
@@ -259,6 +260,7 @@ class K8PodContainerBuilder(
     private val k8Client: KubernetesClient,
     private val namespace: String,
     private val categoryToSelector: Map<String, String>,
+    override val fakeIpMount: Boolean,
 ) : PodBasedBuilder() {
     val myPolicy: NetworkPolicy
 
@@ -305,7 +307,7 @@ class K8PodContainerBuilder(
         if (!supportsSidecar()) error("Cannot call sidecar {} in a sidecar container")
         podSpec.initContainers = podSpec.initContainers ?: ArrayList()
         val initContainers = podSpec.initContainers as ArrayList
-        val sidecarContainer = K8PodContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector).also(builder).container
+        val sidecarContainer = K8PodContainerBuilder(jobId, 1, k8Client, namespace, categoryToSelector, fakeIpMount).also(builder).container
         sidecarContainer.name = name
         initContainers.add(sidecarContainer)
     }
