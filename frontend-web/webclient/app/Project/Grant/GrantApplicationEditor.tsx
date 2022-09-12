@@ -184,6 +184,24 @@ function productCategoryAllocation(pid: ProductCategoryId, projectId: string): s
     return `${productCategoryId(pid, projectId)}/allocation_id`;
 }
 
+function anyAutoAssigned(grantProductCategories: Record<string, GrantProductCategory[]>): boolean {
+    var anyAssigned = false;
+    Object.keys(grantProductCategories).forEach(grantGiver => {
+        grantProductCategories[grantGiver].forEach(wb => {
+            const element = document.querySelector<HTMLInputElement>(
+                `input[data-target="${productCategoryAllocation(wb.metadata.category, grantGiver)}"]`
+            );
+            if (element) {
+                if (element.getAttribute("data-auto-assigned") === "true") {
+                    anyAssigned = true;
+                    return;
+                }
+            }
+        });
+    });
+    return anyAssigned;
+}
+
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
     if (!input) return undefined;
     const rawValue = input.value;
@@ -336,7 +354,6 @@ const GenericRequestCard: React.FunctionComponent<{
                                         disabled={grantFinalized || isLocked || !canEdit}
                                         data-target={productCategoryId(wb.metadata.category, projectId)}
                                         autoComplete="off"
-                                        // TODO(Jonas): What the heck??
                                         defaultValue={normalizedValue}
                                         type="number"
                                         min={0}
@@ -413,32 +430,47 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
     projectId: string;
     allocationRequest?: AllocationRequest;
 }): JSX.Element {
-    const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation;} | undefined>(undefined);
+    const [allocation, setAllocation] = useState<{wallet: Wallet; allocation: WalletAllocation; autoAssigned: boolean} | undefined>(undefined);
     // Note(Jonas): Allocation ID can be provided by an allocation request, where wallets can be empty,
     // so we can always look it up. That's why it's divided into two 'useState's, but any friction-less solution
     // that removes one is very welcome.
     const [allocationId, setAllocationId] = useState<string | undefined>(allocationRequest?.sourceAllocation ?? "");
-    const allocationText = allocation ? `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+
+    const allocationCount = React.useMemo(() => {
+        return wallets.reduce((acc, w) => w.allocations.length + acc, 0);
+    }, [wallets]);
+
+    const allocationText = allocation ?
+        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` :
+        "";
     React.useEffect(() => {
-        if (!allocationRequest) return;
-        for (const w of wallets) {
+        if (!allocationRequest || allocation != null || !showAllocationSelection) return;
+        if (
+            allocationRequest.sourceAllocation == null &&
+            allocationCount === 1
+        ) {
+            const [wallet] = wallets;
+            setAllocation({wallet: wallet, allocation: wallet.allocations[0], autoAssigned: true});
+            setAllocationId(wallet.allocations[0].id);
+        } else for (const w of wallets) {
             for (const a of w.allocations) {
                 if (allocationRequest.sourceAllocation == a.id) {
-                    setAllocation({wallet: w, allocation: a});
+                    setAllocation({wallet: w, allocation: a, autoAssigned: false});
                     return;
                 }
             }
         }
-    }, [wallets, allocationRequest]);
+    }, [wallets, allocationRequest, allocation]);
 
     return <Box mb="8px" ml="6px">
-        <HiddenInputField value={allocationId} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category, projectId)} />
+        <HiddenInputField value={allocationId} data-auto-assigned={allocation?.autoAssigned ?? "false"} onChange={() => undefined} data-target={productCategoryAllocation(wb.metadata.category, projectId)} />
         {!showAllocationSelection ? null : !isLocked ?
-            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={<AllocationBox>
-                {!allocation ?
-                    <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
-                    <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}
-            </AllocationBox>
+            <ClickableDropdown colorOnHover={false} width="677px" useMousePositioning trigger={
+                <AllocationBox>
+                    {!allocation ?
+                        <>No allocation selected <Icon name="chevronDownLight" size="1em" mt="4px" /></> :
+                        <>{allocationText}<Icon name="chevronDownLight" size="1em" mt="4px" /></>}
+                </AllocationBox>
             }>
                 <Table>
                     <TableHeader>
@@ -456,13 +488,20 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
                                 wallet={w}
                                 onClick={(wallet, allocation) => {
                                     setAllocationId(allocation.id);
-                                    setAllocation({wallet, allocation});
+                                    setAllocation({wallet, allocation, autoAssigned: false});
                                 }}
                             />
                         )}
                     </tbody>
                 </Table>
-            </ClickableDropdown> : allocation ? allocationText : "No allocation selected"
+            </ClickableDropdown> : allocation ?
+                <Flex>{allocationText} {allocation.autoAssigned ?
+                    <Tooltip trigger={<Text ml="4px" color="gray"> (Auto-assigned)</Text>}>
+                        As only one allocation was available, it was auto-assigned.
+                    </Tooltip>
+                    : null}
+                </Flex> :
+                "No allocation selected"
         }
     </Box>
 }
@@ -622,7 +661,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const [templates, fetchTemplates] = useCloudAPI<Templates | undefined>({noop: true}, undefined);
         React.useEffect(() => {
-            if (grantApplication.currentRevision.document.parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
+            const {parentProjectId} = getDocument(grantApplication);
+            if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
                 fetchTemplates(apiRetrieve({projectId: grantApplication.currentRevision.document.parentProjectId}, "/api/grant/templates"))
             }
         }, [grantApplication.currentRevision.document.parentProjectId]);
@@ -661,7 +701,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const isRecipient = checkIsGrantRecipient(target, grantApplication);
 
-        const editApplication = useCallback(async () => {
+        const editApplication = useCallback(async (autoMessage: boolean = false) => {
             setSubmissionsLoading(true);
 
             const requestedResourcesByAffiliate = findRequestedResources(grantProductCategories);
@@ -704,7 +744,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     return;
                 }
 
-                const revisionComment = await promptRevisionComment();
+                const revisionComment = await (autoMessage ? "Auto inserted allocations." : promptRevisionComment());
                 if (revisionComment == null) {
                     setSubmissionsLoading(false);
                     return;
@@ -801,7 +841,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             const payload = bulkRequestOf({document: documentToSubmit});
 
             try {
-                const [{id}] = await runWork(apiCreate(payload, "/api/grant", "submit-application"));
+                const [{id}] = await runWork(apiCreate(payload, "/api/grant", "submit-application"), {defaultErrorHandler: false});
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -833,7 +873,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         "You must select one for each resource.", false);
                     return;
                 }
-                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})));
+                if (anyAutoAssigned(grantProductCategories)) {
+                    await editApplication(true);
+                }
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.APPROVED, notify: true})), {defaultErrorHandler: false});
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.APPROVED}});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to reject application.")
@@ -987,7 +1030,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     color={"green"}
                                     fullWidth
                                     disabled={loading}
-                                    onClick={editApplication}
+                                    onClick={() => editApplication()}
                                 >
                                     Save Changes
                                 </Button>
