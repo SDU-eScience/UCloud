@@ -271,6 +271,8 @@ class JdbcPreparedStatement(
             DebugMessage.DatabaseResponse(
                 DebugContext.createWithParent(context.id),
                 responseTime,
+                rawStatement,
+                JsonObject(debugParameters),
                 when {
                     responseTime >= 300 -> MessageImportance.THIS_IS_WRONG
                     responseTime >= 150 -> MessageImportance.THIS_IS_ODD

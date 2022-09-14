@@ -10,6 +10,7 @@ import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.app.store.api.*
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.debug.DebugSensitive
 import dk.sdu.cloud.provider.api.*
 import dk.sdu.cloud.service.Time
 import kotlinx.serialization.Contextual
@@ -17,6 +18,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 
 @Serializable
@@ -564,12 +567,16 @@ data class OpenSessionWithProvider(
     val providerDomain: String,
     val providerId: String,
     val session: OpenSession,
-)
+) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 @Serializable
-sealed class OpenSession {
+sealed class OpenSession : DebugSensitive {
     abstract val jobId: String
     abstract val rank: Int
+
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
 
     @Serializable
     @SerialName("shell")

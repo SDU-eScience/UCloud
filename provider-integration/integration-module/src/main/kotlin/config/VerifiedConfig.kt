@@ -35,6 +35,7 @@ data class VerifiedConfig(
         val logs: Logs,
         val launchRealUserInstances: Boolean,
         val allowRootMode: Boolean,
+        val developmentMode: Boolean
     ) {
         data class Hosts(
             val ucloud: Host,
@@ -363,7 +364,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             emitError("core.allowRootMode is only allowed if core.launchRealUserInstances = false")
         }
 
-        VerifiedConfig.Core(certificate, providerId, hosts, ipc, logs, core.launchRealUserInstances, core.allowRootMode)
+        VerifiedConfig.Core(
+            certificate,
+            providerId,
+            hosts,
+            ipc,
+            logs,
+            core.launchRealUserInstances,
+            core.allowRootMode,
+            core.developmentMode ?: (core.hosts.ucloud.host == "backend")
+        )
     }
 
     val server: VerifiedConfig.Server? = if (config.server == null) {
@@ -428,7 +438,6 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     val userId = instance.userId
                     val port = instance.port
 
-                    val path = "server/developmentMode/predefinedUserInstances[$idx]"
                     val ref = baseReference
 
                     if (username.isBlank()) emitError("Username cannot be blank", ref)

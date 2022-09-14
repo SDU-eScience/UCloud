@@ -2,8 +2,11 @@ package dk.sdu.cloud.auth.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.debug.DebugSensitive
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 
 @Serializable
 data class LoginRequest(
@@ -12,7 +15,9 @@ data class LoginRequest(
 )
 
 @Serializable
-data class OneTimeAccessToken(val accessToken: String, val jti: String)
+data class OneTimeAccessToken(val accessToken: String, val jti: String) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 @Serializable
 data class RequestOneTimeToken(val audience: String)
@@ -25,7 +30,9 @@ data class Session(
     val ipAddress: String,
     val userAgent: String,
     val createdAt: Long
-)
+) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 @Serializable
 data class ListUserSessionsRequest(
@@ -62,7 +69,9 @@ data class TokenExtensionRequest(
      * This will happen through a refresh token passed via [OptionalAuthenticationTokens.refreshToken].
      */
     val allowRefreshes: Boolean = false
-) {
+)  : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+
     override fun toString(): String =
         "TokenExtensionRequest(" +
                 "requestedScopes = $requestedScopes, " +
@@ -84,7 +93,9 @@ data class TokenExtensionAudit(
 )
 
 @Serializable
-data class BulkInvalidateRequest(val tokens: List<String>)
+data class BulkInvalidateRequest(val tokens: List<String>) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 typealias BulkInvalidateResponse = Unit
 

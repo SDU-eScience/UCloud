@@ -19,6 +19,7 @@ import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
 import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.accounting.api.providers.SupportByProvider
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.debug.DebugSensitive
 import dk.sdu.cloud.project.api.SearchRequest
 import dk.sdu.cloud.provider.api.ResourceAclEntry
 import dk.sdu.cloud.provider.api.ResourceOwner
@@ -27,6 +28,8 @@ import dk.sdu.cloud.provider.api.Resources
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 
 interface WithConflictPolicy {
     val conflictPolicy: WriteConflictPolicy
@@ -124,7 +127,9 @@ data class FilesCreateUploadResponseItem(
     var endpoint: String,
     val protocol: UploadProtocol,
     val token: String,
-)
+) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 enum class UploadProtocol {
     CHUNKED
@@ -137,7 +142,9 @@ data class FilesCreateDownloadRequestItem(override val id: String) : WithPath
 typealias FilesCreateDownloadResponse = BulkResponse<FilesCreateDownloadResponseItem?>
 
 @Serializable
-data class FilesCreateDownloadResponseItem(var endpoint: String)
+data class FilesCreateDownloadResponseItem(var endpoint: String) : DebugSensitive {
+    override fun removeSensitiveInformation(): JsonElement = JsonNull
+}
 
 @Serializable
 data class UFileUpdate(override val timestamp: Long, override val status: String?) : ResourceUpdate

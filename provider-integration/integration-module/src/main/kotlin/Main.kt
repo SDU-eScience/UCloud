@@ -137,10 +137,10 @@ fun main(args: Array<String>) {
             val config = run {
                 val runInstaller = with(configSchema) {
                     core == null &&
-                        server == null &&
-                        plugins == null &&
-                        products == null &&
-                        frontendProxy == null
+                            server == null &&
+                            plugins == null &&
+                            products == null &&
+                            frontendProxy == null
                 }
 
                 if (runInstaller) {
@@ -335,67 +335,65 @@ fun main(args: Array<String>) {
                 rpcServer.attachRequestInterceptor(IngoingHttpInterceptor(engine, rpcServer))
             }
 
-            val rpcClient: AuthenticatedClient? = run {
-                when (serverMode) {
-                    ServerMode.Server -> {
-                        val client = RpcClient().also { client ->
-                            OutgoingHttpRequestInterceptor()
-                                .install(
-                                    client,
-                                    FixedOutgoingHostResolver(
-                                        HostInfo(
-                                            config.core.hosts.ucloud.host,
-                                            config.core.hosts.ucloud.scheme,
-                                            config.core.hosts.ucloud.port
-                                        )
+            val rpcClient: AuthenticatedClient? = when (serverMode) {
+                ServerMode.Server -> {
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        config.core.hosts.ucloud.host,
+                                        config.core.hosts.ucloud.scheme,
+                                        config.core.hosts.ucloud.port
                                     )
                                 )
-                        }
+                            )
+                    }
 
-                        client.attachFilter(OutgoingProject())
+                    client.attachFilter(OutgoingProject())
 
-                        val authenticator = RefreshingJWTAuthenticator(
-                            client,
-                            JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
-                            becomesInvalidSoon = { accessToken ->
-                                val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
-                                (expiresAt ?: return@RefreshingJWTAuthenticator true) +
+                    val authenticator = RefreshingJWTAuthenticator(
+                        client,
+                        JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
+                        becomesInvalidSoon = { accessToken ->
+                            val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
+                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
                                     (1000 * 120) >= Time.now()
-                            }
-                        )
+                        }
+                    )
 
-                        authenticator.authenticateClient(OutgoingHttpCall)
-                    }
+                    authenticator.authenticateClient(OutgoingHttpCall)
+                }
 
-                    ServerMode.User -> {
-                        val client = RpcClient()
-                        client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
-                        AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
-                    }
+                ServerMode.User -> {
+                    val client = RpcClient()
+                    client.attachRequestInterceptor(IpcProxyRequestInterceptor(ipcClient!!))
+                    AuthenticatedClient(client, IpcProxyCall, afterHook = null, authenticator = {})
+                }
 
-                    ServerMode.FrontendProxy -> {
-                        val cfg = config.frontendProxy
-                        val client = RpcClient().also { client ->
-                            OutgoingHttpRequestInterceptor()
-                                .install(
-                                    client,
-                                    FixedOutgoingHostResolver(
-                                        HostInfo(
-                                            cfg.remote.host,
-                                            cfg.remote.scheme,
-                                            cfg.remote.port
-                                        )
+                ServerMode.FrontendProxy -> {
+                    val cfg = config.frontendProxy
+                    val client = RpcClient().also { client ->
+                        OutgoingHttpRequestInterceptor()
+                            .install(
+                                client,
+                                FixedOutgoingHostResolver(
+                                    HostInfo(
+                                        cfg.remote.host,
+                                        cfg.remote.scheme,
+                                        cfg.remote.port
                                     )
                                 )
-                        }
-
-                        AuthenticatedClient(client, OutgoingHttpCall) {
-                            it.attributes.outgoingAuthToken = cfg.sharedSecret
-                        }
+                            )
                     }
 
-                    is ServerMode.Plugin -> null
+                    AuthenticatedClient(client, OutgoingHttpCall) {
+                        it.attributes.outgoingAuthToken = cfg.sharedSecret
+                    }
                 }
+
+                is ServerMode.Plugin -> null
             }
 
             // IPC Server
@@ -407,6 +405,7 @@ fun main(args: Array<String>) {
                     rpcClient!!,
                     rpcServer
                 )
+
                 else -> null
             }
 
@@ -422,7 +421,7 @@ fun main(args: Array<String>) {
 
             // Process Watcher
             // -------------------------------------------------------------------------------------------------------
-            val processWatcher = when(serverMode) {
+            val processWatcher = when (serverMode) {
                 ServerMode.Server, ServerMode.User -> ProcessWatcher
                 else -> null
             }
@@ -483,8 +482,9 @@ fun main(args: Array<String>) {
                                 val areInternalEqual = when (a) {
                                     is Product.Compute -> {
                                         b is Product.Compute && a.cpu == b.cpu && a.gpu == b.gpu
-                                            && a.memoryInGigs == b.memoryInGigs
+                                                && a.memoryInGigs == b.memoryInGigs
                                     }
+
                                     is Product.Ingress -> b is Product.Ingress
                                     is Product.License -> b is Product.License
                                     is Product.NetworkIP -> b is Product.NetworkIP
@@ -534,9 +534,22 @@ fun main(args: Array<String>) {
 
             // Debug services
             // -------------------------------------------------------------------------------------------------------
+            val debugTransformer = if (config.core.developmentMode) {
+                DebugMessageTransformer.Development
+            } else {
+                DebugMessageTransformer.Production
+            }
             val debugSystem = when (serverMode) {
-                ServerMode.Server -> CommonDebugSystem("IM/Server", CommonFile(config.core.logs.directory))
-                ServerMode.User -> CommonDebugSystem("IM/User/${clib.getuid()}", CommonFile(config.core.logs.directory))
+                ServerMode.Server -> CommonDebugSystem(
+                    "IM/Server",
+                    CommonFile(config.core.logs.directory), debugTransformer
+                )
+
+                ServerMode.User -> CommonDebugSystem(
+                    "IM/User/${clib.getuid()}",
+                    CommonFile(config.core.logs.directory), debugTransformer
+                )
+
                 else -> null
             }
             debugSystemAtomic.getAndSet(debugSystem)
@@ -547,17 +560,21 @@ fun main(args: Array<String>) {
 
             // Configuration debug (before initializing any plugins, which might crash because of config)
             // -------------------------------------------------------------------------------------------------------
-            debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
-            debugSystem.detailD(
-                "Compute products loaded",
-                ListSerializer(Product.serializer()),
-                config.products.compute?.values?.flatten() ?: emptyList()
-            )
-            debugSystem.detailD(
-                "Storage products loaded",
-                ListSerializer(Product.serializer()),
-                config.products.storage?.values?.flatten() ?: emptyList()
-            )
+            if (config.core.developmentMode) {
+                // NOTE(Dan): Do NOT remove the check as this will cause refresh tokens to be logged which we
+                // shouldn't do.
+                debugSystem.normalD("Configuration has been loaded!", ConfigSchema.serializer(), configSchema)
+                debugSystem.detailD(
+                    "Compute products loaded",
+                    ListSerializer(Product.serializer()),
+                    config.products.compute?.values?.flatten() ?: emptyList()
+                )
+                debugSystem.detailD(
+                    "Storage products loaded",
+                    ListSerializer(Product.serializer()),
+                    config.products.storage?.values?.flatten() ?: emptyList()
+                )
+            }
 
             // Initialization of plugins (Final initialization step)
             // -------------------------------------------------------------------------------------------------------
@@ -661,14 +678,21 @@ fun main(args: Array<String>) {
                 }
                 stats.add(empty)
                 if (config.pluginsOrNull != null) {
-                    val jobs = config.plugins.jobs.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val jobs = config.plugins.jobs.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
                     val projects = config.plugins.projects?.pluginTitle
                     val connection = config.plugins.connection?.pluginTitle
-                    val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val fileCollections = config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
-                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ").takeIf { it.isNotEmpty() }
+                    val files = config.plugins.files.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val fileCollections =
+                        config.plugins.fileCollections.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                            .takeIf { it.isNotEmpty() }
+                    val ingresses = config.plugins.ingresses.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val publicIps = config.plugins.publicIps.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
+                    val licenses = config.plugins.licenses.values.map { it.pluginTitle }.toSet().joinToString(", ")
+                        .takeIf { it.isNotEmpty() }
 
                     stats.add("Files" to (files ?: "No plugins"))
                     stats.add("Drives" to (fileCollections ?: "No plugins"))
