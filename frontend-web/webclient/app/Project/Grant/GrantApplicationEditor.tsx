@@ -82,7 +82,7 @@ import {
     transferApplication,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {useProjectId, viewProject} from "..";
+import {useProjectId} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
@@ -98,15 +98,12 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Find new In Progress Icon (General)
-        - Disallow approval if source allocations aren't filled out for every product as approver.
-            - Auto-select if only one?
-            - Handle in backend
-        // - Always allow editing source allocation from the right active project. Show "Update allocation" button if not equal to previous source allocation selection
+        - checkIsGrantRecipient is missing admins and PIs for active project if target === RequestTarget.EXISTING_PROJECT;
 
+        - Remember to update documentation
 
-        BACKEND:
-            - Rejecting a request will reject the entire application.
-                - Correct that entire application is rejected, but rejecter should be able to undo.
+        Backend:
+            - Fix Transfer Application
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -226,7 +223,6 @@ function parseDateFromInput(input?: HTMLInputElement | null): number | undefined
     return time;
 }
 
-/* FIXME(Jonas): Copy + pasted from elsewhere (MachineType dropdown) */
 const Wrapper = styled.div`
     & > table {
         margin-left: -9px;
@@ -242,6 +238,11 @@ const Wrapper = styled.div`
 // TODO(Jonas): Find better name for function. 
 function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
+    const {recipient} = getDocument(grantApplication);
+    if (recipient.type === "existingProject") {
+        // Should we even do fallthrough here if not true? 
+        if (recipient.id === Client.projectId) return true;
+    }
     // TODO(Jonas): So checking if active user is "createdBy" could work, but shouldn't admins and PIs also work for a grantApplication?
     // I believe so. But they don't necessarily exist yet as the project could be created with this form.
     return grantApplication.createdBy === Client.username;
@@ -440,9 +441,17 @@ function AllocationSelection({wallets, wb, isLocked, allocationRequest, showAllo
         return wallets.reduce((acc, w) => w.allocations.length + acc, 0);
     }, [wallets]);
 
+    React.useEffect(() => {
+        if (allocationRequest != null && allocationRequest.sourceAllocation != null) {
+            if (allocation?.autoAssigned) {
+                setAllocation({...allocation, autoAssigned: false});
+            }
+        }
+    }, [allocation, allocationRequest])
+
     const allocationText = allocation ?
-        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` :
-        "";
+        `${allocation.wallet.paysFor.provider} @ ${allocation.wallet.paysFor.name} [${allocation.allocation.id}]` : "";
+
     React.useEffect(() => {
         if (!allocationRequest || allocation != null || !showAllocationSelection) return;
         if (
@@ -693,7 +702,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             if (appId) {
                 fetchGrantApplication({id: appId}).then(g =>
                     dispatch({
-                        type: "FETCHED_GRANT_APPLICATION", payload: g
+                        type: FETCHED_GRANT_APPLICATION, payload: g
                     })
                 );
             };
@@ -1006,7 +1015,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             ), [grantGivers, isRecipient, grantGiversInUse, isLocked, wallets, grantApplication, isRecipient]);
 
         const recipient = getDocument(grantApplication).recipient;
-        const recipientName = useRecipientName(getDocument(grantApplication).recipient);
+        const recipientName = getRecipientName(grantApplication);
+        const isProject = recipient.type !== "personalWorkspace";
 
         return (
             <MainContainer
@@ -1037,86 +1047,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 <Button fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
                             </>
                         )
-                    )}
-                    {target !== RequestTarget.VIEW_APPLICATION ? null : (
-                        <Box mt="18px">
-
-                            {/* We have the following buttons that we need:
-                                - Approve (Should be per grant giver, not for every one.)
-                                - Reject (Does notify still make sense? Again, for each).
-                                - Transfer application
-                                - Close Request (from the view of the recipient, so only if creator of it.)
-                            */}
-                            {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
-                                <>
-                                    {activeStateBreakDown.state === State.IN_PROGRESS ? <>
-                                        <Button
-                                            mb="4px"
-                                            color="green"
-                                            onClick={approveRequest}
-                                            disabled={!isLocked}
-                                            fullWidth
-                                        >
-                                            <Truncate title={`Approve for ${activeStateBreakDown?.projectTitle}`}>
-                                                Approve for {activeStateBreakDown?.projectTitle}
-                                            </Truncate>
-                                        </Button>
-                                        {/* Note(Jonas): This breaks the ButtonGroup styling. */}
-                                        <ClickableDropdown
-                                            top="-73px"
-                                            fullWidth
-                                            trigger={(
-                                                <Button
-                                                    color="red"
-                                                    disabled={!isLocked}
-                                                    fullWidth
-                                                    onClick={() => undefined}
-                                                >
-                                                    <Truncate title={`Reject for ${activeStateBreakDown?.projectTitle}`}>
-                                                        Reject for {activeStateBreakDown?.projectTitle}
-                                                    </Truncate>
-                                                </Button>
-                                            )}
-                                        >
-                                            <OptionItem
-                                                onClick={() => rejectRequest(true)}
-                                                text={"Reject"}
-                                            />
-                                            <OptionItem
-                                                onClick={() => rejectRequest(false)}
-                                                text={"Reject without notify"}
-                                            />
-                                        </ClickableDropdown>
-                                        {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
-                                            <Button
-                                                color="blue"
-                                                onClick={() => setTransferringApplication(true)}
-                                                disabled={!isLocked}
-                                            >
-                                                Transfer to other project
-                                            </Button> : null
-                                        }
-                                    </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
-                                        <Button fullWidth onClick={setRequestPending}>
-                                            Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
-                                        </Button>
-                                    </> : null}
-                                </> : null
-                            }
-                            {isRecipient && !grantFinalized ?
-                                <>
-                                    <Button
-                                        mt="16px"
-                                        color="red"
-                                        fullWidth
-                                        onClick={closeRequest}
-                                        disabled={!isLocked}
-                                    >
-                                        Withdraw
-                                    </Button>
-                                </> : null
-                            }
-                        </Box>
                     )}
                 </>}
                 main={<>
@@ -1162,17 +1092,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     </TableCell>
                                                 </TableRow>
                                                 <TableRow>
-                                                    <TableCell>Project Title</TableCell>
+                                                    <TableCell>{
+                                                        !isProject ? "Recipient Username" : "Project Title"}
+                                                    </TableCell>
                                                     <TableCell>{recipientName}</TableCell>
                                                 </TableRow>
-                                                <TableRow>
+                                                {isProject ? <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
+                                                    {/* TODO(Jonas): This is wrong. This could be created by an admin. */}
                                                     <TableCell>{grantApplication.createdBy}</TableCell>
-                                                </TableRow>
+                                                </TableRow> : null}
 
                                                 <TableRow>
                                                     <TableCell verticalAlign="top">
-                                                        Project Type
+                                                        Recipient Type
                                                     </TableCell>
                                                     <TableCell>
                                                         {recipientTypeToText(recipient)}
@@ -1182,7 +1115,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {/* TODO(Jonas): When should this be shown? Aprrover? */}
+                                                    {/* TODO(Jonas): When should this be shown? Approver? */}
                                                     <TableCell>
                                                         <table>
                                                             <tbody>
@@ -1229,6 +1162,79 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top" mt={32}>Current Status</TableCell>
                                                     <TableCell>
                                                         {overallStateText(grantApplication)}
+                                                        {target !== RequestTarget.VIEW_APPLICATION ? null : (
+                                                            <Box mt="18px">
+                                                                {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
+                                                                    <>
+                                                                        {activeStateBreakDown.state === State.IN_PROGRESS ? <>
+                                                                            <Button
+                                                                                mb="4px"
+                                                                                color="green"
+                                                                                onClick={approveRequest}
+                                                                                disabled={!isLocked}
+                                                                                fullWidth
+                                                                            >
+                                                                                <Truncate title={`Approve for ${activeStateBreakDown?.projectTitle}`}>
+                                                                                    Approve for {activeStateBreakDown?.projectTitle}
+                                                                                </Truncate>
+                                                                            </Button>
+                                                                            {/* Note(Jonas): This breaks the ButtonGroup styling. */}
+                                                                            <ClickableDropdown
+                                                                                top="-73px"
+                                                                                fullWidth
+                                                                                trigger={(
+                                                                                    <Button
+                                                                                        color="red"
+                                                                                        disabled={!isLocked}
+                                                                                        fullWidth
+                                                                                        onClick={() => undefined}
+                                                                                    >
+                                                                                        <Truncate title={`Reject for ${activeStateBreakDown?.projectTitle}`}>
+                                                                                            Reject for {activeStateBreakDown?.projectTitle}
+                                                                                        </Truncate>
+                                                                                    </Button>
+                                                                                )}
+                                                                            >
+                                                                                <OptionItem
+                                                                                    onClick={() => rejectRequest(true)}
+                                                                                    text={"Reject"}
+                                                                                />
+                                                                                <OptionItem
+                                                                                    onClick={() => rejectRequest(false)}
+                                                                                    text={"Reject without notify"}
+                                                                                />
+                                                                            </ClickableDropdown>
+                                                                            {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
+                                                                                <Button
+                                                                                    color="blue"
+                                                                                    onClick={() => setTransferringApplication(true)}
+                                                                                    disabled={!isLocked}
+                                                                                >
+                                                                                    Transfer to other project
+                                                                                </Button> : null
+                                                                            }
+                                                                        </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
+                                                                            <Button fullWidth onClick={setRequestPending}>
+                                                                                Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
+                                                                            </Button>
+                                                                        </> : null}
+                                                                    </> : null
+                                                                }
+                                                                {isRecipient && !grantFinalized ?
+                                                                    <>
+                                                                        <Button
+                                                                            mt="16px"
+                                                                            color="red"
+                                                                            fullWidth
+                                                                            onClick={closeRequest}
+                                                                            disabled={!isLocked}
+                                                                        >
+                                                                            Withdraw
+                                                                        </Button>
+                                                                    </> : null
+                                                                }
+                                                            </Box>
+                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             </tbody>
@@ -1380,20 +1386,18 @@ function recipientTypeToText(recipient: Recipient): string {
     }
 }
 
-function useRecipientName(recipient: Recipient): string {
-    const [recipientName, setName] = useState("");
-    const [, invokeCommand] = useCloudCommand();
-    useEffect(() => {
-        if (recipient.type === "existingProject") {
-            invokeCommand(viewProject({id: recipient.id})).then(r => {
-                setName(r.title);
-            }).catch(e => console.error(e));
-        } else {
-            setName(recipient.type === "newProject" ? recipient.title :
-                recipient.type === "personalWorkspace" ? recipient.username : "");
+function getRecipientName(grantApplication: GrantApplication): string {
+    switch (grantApplication.currentRevision.document.recipient.type) {
+        case "existingProject": {
+            return grantApplication.status.projectTitle ?? "";
         }
-    }, [recipient]);
-    return recipientName;
+        case "newProject": {
+            return grantApplication.currentRevision.document.recipient.title; 
+        }
+        case "personalWorkspace": {
+            return grantApplication.currentRevision.document.recipient.username;
+        }
+    }
 }
 
 function getRecipientId(recipient: Recipient): string {
@@ -1512,9 +1516,9 @@ function GrantGiver(props: {
                         isSelected={props.isParentProject} name="check"
                     />
                 }>
-                    {props.isParentProject ? "Selected as parent project." : (
-                        !props.isLocked ? "Click to select as parent project" :
-                            "Not selected as parent project.")}
+                    {props.isParentProject ? "Selected as primary affiliation." : (
+                        !props.isLocked ? "Click to select as primary affiliation" :
+                            "Not selected as primary affiliation.")}
                 </Tooltip>
             }
         </Flex>;

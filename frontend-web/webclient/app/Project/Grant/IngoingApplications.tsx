@@ -157,10 +157,10 @@ export const GrantApplicationList: React.FunctionComponent<{
                         <Flex width={1}>
                             <Truncate title={app.currentRevision.document.recipient.type === "personalWorkspace" ? app.currentRevision.document.recipient.username :
                                 app.currentRevision.document.recipient.type === "newProject" ? app.currentRevision.document.recipient.title :
-                                    app.currentRevision.document.recipient.id }>
+                                    app.status.projectTitle}>
                                 {app.currentRevision.document.recipient.type === "personalWorkspace" ? app.currentRevision.document.recipient.username :
                                     app.currentRevision.document.recipient.type === "newProject" ? app.currentRevision.document.recipient.title :
-                                        app.currentRevision.document.recipient.id }
+                                        app.status.projectTitle}
                             </Truncate>
                             {slim ? null : (
                                 <Truncate>

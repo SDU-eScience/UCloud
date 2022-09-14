@@ -243,6 +243,7 @@ data class GrantApplication(
         val stateBreakdown: List<GrantGiverApprovalState>,
         val comments: List<Comment>,
         val revisions: List<Revision>,
+        val projectTitle: String?,
     )
     @Serializable
     @SerialName("grant_giver_approval_state")

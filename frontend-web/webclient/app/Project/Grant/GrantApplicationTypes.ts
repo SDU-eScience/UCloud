@@ -158,6 +158,7 @@ export interface Status {
     stateBreakdown: GrantGiverApprovalState[];
     comments: Comment[];
     revisions: Revision[];
+    projectTitle?: string;
 }
 
 export interface GrantGiverApprovalState {

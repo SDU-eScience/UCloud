@@ -264,7 +264,8 @@ create or replace function "grant".application_to_json(
             'overallState', resolved_application.overall_state,
             'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(approval_status))), null),
             'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
-            'revisions', array_remove(array_agg(distinct revision.results), null)
+            'revisions', array_remove(array_agg(distinct revision.results), null),
+            'projectTitle', p.title
         )
     )
     from
@@ -277,13 +278,15 @@ create or replace function "grant".application_to_json(
             latest_form.application_id = latest_revision.application_id join
         "grant".grant_giver_approvals approval_status on
             resolved_application.id = approval_status.application_id left join
-        "grant".comments posted_comment on resolved_application.id = posted_comment.application_id
+        "grant".comments posted_comment on resolved_application.id = posted_comment.application_id left join
+            project.projects p on p.id = latest_form.recipient
     group by
         resolved_application.id,
         resolved_application.*,
         latest_revision.created_at,
         latest_revision.*,
-        latest_form.*;
+        latest_form.*,
+        p.title;
 $$;
 
 create or replace function "grant".can_submit_application(username_in text, sources text[], grant_recipient text, grant_recipient_type text) returns boolean
