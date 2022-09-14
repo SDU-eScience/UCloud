@@ -36,6 +36,7 @@ import {useDidUnmount} from "@/Utilities/ReactUtilities";
 import {deepCopy} from "@/Utilities/CollectionUtilities";
 import {setLoading, useLoading} from "@/Navigation/Redux/StatusActions";
 import {useDispatch} from "react-redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 
 export const FilesBrowse: React.FunctionComponent<{
     onSelect?: (selection: UFile) => void;
@@ -141,8 +142,16 @@ export const FilesBrowse: React.FunctionComponent<{
                 newConf.folders = folders.filter(it => it.ucloudPath !== file.id);
             }
 
-            invokeCommand(Sync.api.updateConfiguration({providerId: "ucloud", config: newConf}))
-                .catch(e => {
+            if (!collection.data) {
+                snackbarStore.addFailure("Unable to add to Syncthing: Unknown product", false);
+                return conf;
+            }
+
+            invokeCommand(Sync.api.updateConfiguration({
+                providerId: collection.data?.specification.product.provider,
+                category: collection.data?.specification.product.category,
+                config: newConf
+            })).catch(e => {
                     if (didUnmount.current) return;
                     defaultErrorHandler(e);
                     setSyncthingConfig(conf);
@@ -442,7 +451,7 @@ export const FilesBrowse: React.FunctionComponent<{
             <>
                 <Box flexGrow={1} />
                 {!hasSyncCookie ? null :
-                    <Link to={"/syncthing"}>
+                    <Link to={`/syncthing?provider=${collection.data?.specification.product.provider}&category=${collection.data?.specification.product.category}`}>
                         <Button>Manage synchronization (BETA)</Button>
                     </Link>
                 }

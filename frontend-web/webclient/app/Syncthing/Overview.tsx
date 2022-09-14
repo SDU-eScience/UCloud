@@ -32,7 +32,7 @@ import {FilesBrowse} from "@/Files/Files";
 import {api as FilesApi, findSensitivity} from "@/UCloud/FilesApi";
 import {randomUUID, doNothing, removeTrailingSlash, useEffectSkipMount, copyToClipboard} from "@/UtilityFunctions";
 import Spinner from "@/LoadingIcon/LoadingIcon";
-import {buildQueryString} from "@/Utilities/URIUtilities";
+import {buildQueryString, getQueryParam} from "@/Utilities/URIUtilities";
 import {callAPI, callAPIWithErrorHandler} from "@/Authentication/DataHook";
 
 import syncthingScreen1 from "@/Assets/Images/syncthing/syncthing-1.png";
@@ -206,7 +206,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
         }
 
         case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud", category: "u1-storage"}));
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: cb.provider, category: cb.productCategory}));
             break;
         }
     }
@@ -217,6 +217,8 @@ interface ActionCallbacks {
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
+    provider: string;
+    productCategory: string;
 }
 
 interface OperationCallbacks {
@@ -224,6 +226,8 @@ interface OperationCallbacks {
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
     permissionProblems: string[];
+    provider: string;
+    productCategory: string;
 }
 
 // Primary user interface
@@ -243,6 +247,16 @@ export const Overview: React.FunctionComponent = () => {
     const devices = uiState?.devices ?? [];
     const folders = uiState?.folders ?? [];
     const servers = uiState?.servers ?? [];
+
+    const provider = getQueryParam(location.search, "provider");
+    const productCategory = getQueryParam(location.search, "category");
+
+    if (!provider || !productCategory) {
+        history.push("/drives");
+        return null;
+    }
+
+    // TODO(Brian): Check if provider and productCategory exist
 
     // UI callbacks and state manipulation
     const reload = useCallback(() => {
@@ -305,6 +319,8 @@ export const Overview: React.FunctionComponent = () => {
         pureDispatch,
         requestReload: reload,
         requestJobReloader,
+        provider,
+        productCategory
     }), [history, pureDispatch, reload]);
 
     const dispatch = useCallback((action: UIAction) => {
@@ -317,6 +333,8 @@ export const Overview: React.FunctionComponent = () => {
         dispatch,
         requestReload: reload,
         permissionProblems,
+        provider,
+        productCategory
     }), [history, dispatch, reload, permissionProblems]);
 
     const openWizard = useCallback(() => {
@@ -372,8 +390,8 @@ export const Overview: React.FunctionComponent = () => {
 
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
-            providerId: "ucloud",
-            category: "u1-storage",
+            providerId: provider,
+            category: productCategory,
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length]);
@@ -695,7 +713,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud", category: "u1-storage"}));
+            callAPIWithErrorHandler(Sync.api.restart({providerId: cb.provider, category: cb.productCategory}));
         }
     },
     {

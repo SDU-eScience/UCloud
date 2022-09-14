@@ -88,7 +88,7 @@ export const Create: React.FunctionComponent = () => {
 
     useEffect(() => {
         if (appName === "syncthing") {
-            history.push("/syncthing");
+            history.push("/drives"); // NOTE(Brian): There might be a better location
         }
         fetchApplication(UCloud.compute.apps.findByNameAndVersion({appName, appVersion}))
         fetchPrevious(UCloud.compute.apps.findByName({appName}));
