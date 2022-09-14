@@ -46,7 +46,7 @@ export function fetchConfigFake(): Promise<SyncthingConfig> {
 }
 
 export async function fetchConfig(): Promise<SyncthingConfig> {
-    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("ucloud"));
+    const resp = await callAPI<SyncthingConfigResponse>(api.retrieveConfiguration("development", "u1-storage"));
     return resp.config;
 }
 
@@ -66,7 +66,7 @@ export function fetchServersFake(): Promise<Job[]> {
             product: {
                 category: "syncthing",
                 id: "syncthing",
-                provider: "ucloud"
+                provider: "development"
             }
         },
         permissions: { myself: ["ADMIN"], others: [] },
@@ -103,8 +103,8 @@ export async function fetchServers(): Promise<Job[]> {
 class Api {
     baseContext = "/api/iapps/syncthing";
 
-    retrieveConfiguration(providerId: string): APICallParameters {
-        return apiRetrieve({ providerId }, this.baseContext);
+    retrieveConfiguration(providerId: string, category: string): APICallParameters {
+        return apiRetrieve({ providerId, category }, this.baseContext);
     }
 
     updateConfiguration(request: UpdateConfigRequest): APICallParameters {
@@ -128,17 +128,20 @@ export interface SyncthingConfigResponse {
 
 export interface UpdateConfigRequest {
     providerId: string;
+    category: string;
     config: SyncthingConfig;
     expectedETag?: string | null;
 }
 
 export interface ResetConfigRequest {
     providerId: string;
+    category: string;
     expectedETag?: string | null;
 }
 
 export interface RestartRequest {
     providerId: string;
+    category: string;
 }
 
 export const api = new Api();

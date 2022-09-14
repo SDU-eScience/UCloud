@@ -206,7 +206,7 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
         }
 
         case "ResetAll": {
-            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud"}));
+            callAPIWithErrorHandler(Sync.api.resetConfiguration({providerId: "ucloud", category: "u1-storage"}));
             break;
         }
     }
@@ -373,6 +373,7 @@ export const Overview: React.FunctionComponent = () => {
     useEffectSkipMount(() => {
         callAPI(Sync.api.updateConfiguration({
             providerId: "ucloud",
+            category: "u1-storage",
             config: {devices, folders}
         })).catch(() => reload());
     }, [folders.length, devices.length]);
@@ -694,7 +695,7 @@ const serverOperations: Operation<Job, OperationCallbacks>[] = [
         enabled: selected => selected.length === 1,
         onClick: (_, cb) => {
             cb.dispatch({type: "ExpectServerUpdate"});
-            callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud"}));
+            callAPIWithErrorHandler(Sync.api.restart({providerId: "ucloud", category: "u1-storage"}));
         }
     },
     {
