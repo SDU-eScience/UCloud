@@ -588,3 +588,7 @@ export function randomUUID(): string {
     }
 }
 
+export function grantsLink(client: {hasActiveProject: boolean}): string {
+    if (client.hasActiveProject) return "/project/grants/existing";
+    return "/project/grants/personal";
+}

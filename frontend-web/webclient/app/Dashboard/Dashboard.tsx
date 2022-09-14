@@ -75,6 +75,7 @@ function browseGrantsApplications(request: BrowseApplicationsRequest): APICallPa
     }
 }
 import {NotificationDashboardCard} from "@/Notifications";
+import {grantsLink} from "@/UtilityFunctions";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -480,7 +481,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={Client.hasActiveProject ? "/project/grants/existing/" : "/project/grants/personal"} width={"100%"}>
+                            <Link to={grantsLink(Client)} width={"100%"}>
                                 <Button fullWidth mt={8}>Apply for resources</Button>
                             </Link>
                         </NoResultsCardBody>
