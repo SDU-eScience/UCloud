@@ -30,6 +30,10 @@ class AccountingService(
         }
     }
 
+    suspend fun retriveActiveProcessorAddress(): String? {
+        return processor.retrieveActiveProcessor()
+    }
+
     suspend fun retrieveAllocationsInternal(
         actorAndProject: ActorAndProject,
         owner: WalletOwner,

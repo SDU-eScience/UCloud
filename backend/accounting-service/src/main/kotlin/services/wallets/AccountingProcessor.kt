@@ -1,29 +1,36 @@
 package dk.sdu.cloud.accounting.services.wallets
 
 import com.google.common.math.LongMath
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.api.WalletOwner
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.calls.client.AuthenticatedClient
-import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.accounting.api.WalletAllocation as ApiWalletAllocation
 import dk.sdu.cloud.accounting.api.Wallet as ApiWallet
 import dk.sdu.cloud.accounting.api.WalletOwner as ApiWalletOwner
 import dk.sdu.cloud.debug.DebugSystem
+import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.debug.enterContext
-import dk.sdu.cloud.defaultMapper
+import dk.sdu.cloud.events.RedisConnectionManager
+import dk.sdu.cloud.micro.MicroAttributeKey
+import dk.sdu.cloud.micro.MicroFeatureFactory
+import dk.sdu.cloud.micro.serviceDescription
 import dk.sdu.cloud.project.api.ProjectRole
-import dk.sdu.cloud.safeUsername
-import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.DBContext
 import dk.sdu.cloud.service.db.async.sendPreparedStatement
 import dk.sdu.cloud.service.db.async.withSession
+import dk.sdu.cloud.service.k8.KubernetesResources
+import dk.sdu.cloud.service.k8.NAMESPACE_ANY
+import dk.sdu.cloud.service.k8.deleteResource
+import dk.sdu.cloud.service.k8.listResources
+import io.lettuce.core.RedisClient
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -32,6 +39,8 @@ import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.selects.select
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -41,6 +50,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.collections.ArrayList
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.random.Random
 import kotlin.system.exitProcess
 
 const val doDebug = false
@@ -296,7 +306,21 @@ class AccountingProcessor(
     private val db: DBContext,
     private val debug: DebugSystem?,
     private val providers: Providers<SimpleProviderCommunication>,
+    private val distributedLocks: DistributedLockFactory,
+    private val disableMasterElection: Boolean = false,
+    private val distributedState: DistributedStateFactory,
+    private val addressToSelf: String,
 ) {
+    // Active processor
+    // =================================================================================================================
+    @Serializable
+    private data class ActiveProcessor(val address: String)
+    private val activeProcessor = distributedState.create(ActiveProcessor.serializer(), "accounting-active-processor", 60_000)
+
+    suspend fun retrieveActiveProcessor(): String? {
+        return activeProcessor.get()?.address
+    }
+
     // State
     // =================================================================================================================
     private val wallets = ArrayList<Wallet?>()
@@ -329,59 +353,89 @@ class AccountingProcessor(
     @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
     fun start(): Job {
         return GlobalScope.launch {
-            debug.enterContext("Loading accounting database") {
-                loadDatabase()
-                logExit("Success")
-            }
-
-            Runtime.getRuntime().addShutdownHook(
-                Thread {
-                    runBlocking {
-                        processorLock.lock()
-                        attemptSynchronize(true)
-                        println("SHUTTING DOWN")
-                        processorLock.unlock()
-                    }
-                }
-            )
-
-            nextSynchronization = System.currentTimeMillis() + 0
+            val lock = distributedLocks.create("accounting_processor", duration = 60_000)
             while (isActive) {
                 try {
-                    select<Unit> {
-                        requests.onReceive { request ->
-                            // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
-                            // timeout is never triggered.
-                            attemptSynchronize()
-
-                            val response = handleRequest(request)
-                            response.id = request.id
-
-                            if (doDebug) {
-                                println("Request: $request")
-                                println("Response: $response")
-                                printState(true)
-                                println(CharArray(120) { '-' }.concatToString())
-                            }
-                            responses.emit(response)
-                        }
-
-                        onTimeout(500) {
-                            attemptSynchronize()
-                        }
-                    }
+                    becomeMasterAndListen(lock)
                 } catch (ex: Throwable) {
-                    ex.printStackTrace()
-                    exitProcess(1)
+                    debug.logThrowable("Error happened when attempting to lock service", ex)
                 }
+
+                delay(15000 + Random.nextLong(5000))
             }
         }
+    }
+
+    private suspend fun becomeMasterAndListen(lock: DistributedLock) {
+        val didAcquire = disableMasterElection || lock.acquire()
+        if (!didAcquire) return
+        log.info("This service has become the master responsible for handling Accounting proccessor events!")
+        activeProcessor.set(ActiveProcessor(addressToSelf))
+
+        // NOTE(Dan): Delay the initial scan to wait for server to be ready (needed for local dev)
+        delay(15_000)
+
+        debug.enterContext("Loading accounting database") {
+            loadDatabase()
+            logExit("Success")
+        }
+
+        Runtime.getRuntime().addShutdownHook(
+            Thread {
+                runBlocking {
+                    processorLock.lock()
+                    attemptSynchronize(true)
+                    processorLock.unlock()
+                }
+            }
+        )
+
+        nextSynchronization = System.currentTimeMillis() + 0
+        var isAlive = true
+        while (currentCoroutineContext().isActive && isAlive) {
+            try {
+                select<Unit> {
+                    requests.onReceive { request ->
+                        // NOTE(Dan): We attempt a synchronization here in case we receive so many requests that the
+                        // timeout is never triggered.
+                        attemptSynchronize()
+
+                        val response = handleRequest(request)
+                        response.id = request.id
+
+                        if (doDebug) {
+                            println("Request: $request")
+                            println("Response: $response")
+                            printState(true)
+                            println(CharArray(120) { '-' }.concatToString())
+                        }
+                        responses.emit(response)
+                    }
+                    onTimeout(500) {
+                        attemptSynchronize()
+                    }
+                }
+                if (!renewLock(lock)) isAlive = false
+            } catch (ex: Throwable) {
+                debug.logThrowable("Error in Accounting processor", ex)
+            }
+        }
+    }
+
+    private suspend fun renewLock(lock: DistributedLock): Boolean {
+        if (!disableMasterElection) {
+            if (!lock.renew(90_000)) {
+                log.warn("Lock was lost")
+                return false
+            }
+            activeProcessor.set(ActiveProcessor(addressToSelf))
+        }
+        return true
     }
 
     suspend fun sendRequest(request: AccountingRequest): AccountingResponse {
         val id = requestIdGenerator.getAndIncrement()
         request.id = id
-        println(processorLock.isLocked)
         return if(!processorLock.isLocked) {
              coroutineScope {
                 val collector = async {
@@ -849,7 +903,6 @@ class AccountingProcessor(
     // Deposits
     // =================================================================================================================
     private suspend fun rootDeposit(request: AccountingRequest.RootDeposit): AccountingResponse {
-        println("ROOT DEPOSUIT")
         if (request.amount < 0) return AccountingResponse.Error("Cannot deposit with a negative balance")
         if (request.actor != Actor.System) {
             return AccountingResponse.Error("Only UCloud administrators can perform a root deposit")
@@ -1697,6 +1750,10 @@ class AccountingProcessor(
     private val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy - HH:mm:ss z")
     private fun dateString(timestamp: Long): String {
         return Date(timestamp).toInstant().atZone(ZoneId.of("Europe/Copenhagen")).format(dateFormatter)
+    }
+
+    companion object : Loggable {
+        override val log = logger()
     }
 }
 

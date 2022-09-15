@@ -43,9 +43,17 @@ class Server(
     override fun start() {
         val db = AsyncDBSessionFactory(micro)
         val client = micro.authenticator.authenticateClient(OutgoingHttpCall)
+        val distributedLocks = DistributedLockFactory(micro)
 
         val simpleProviders = Providers(client) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
-        val accountingProcessor = AccountingProcessor(db, micro.featureOrNull(DebugSystemFeature), simpleProviders)
+        val accountingProcessor = AccountingProcessor(
+            db,
+            micro.featureOrNull(DebugSystemFeature),
+            simpleProviders,
+            distributedLocks,
+            distributedState = DistributedStateFactory(micro),
+            addressToSelf = micro.serviceInstance.ipAddress ?: "127.0.0.1"
+        )
         val accountingService = AccountingService(db, simpleProviders, accountingProcessor)
 
         val productService = ProductService(db, accountingProcessor)
@@ -99,7 +107,7 @@ class Server(
 
         with(micro.server) {
             configureControllers(
-                AccountingController(accountingService, depositNotifications),
+                AccountingController(accountingService, depositNotifications, client),
                 ProductController(productService),
                 FavoritesController(db, favoriteProjects),
                 GiftController(giftService),

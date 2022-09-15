@@ -5,6 +5,9 @@ import dk.sdu.cloud.accounting.api.*
 import dk.sdu.cloud.accounting.services.wallets.AccountingProcessor
 import dk.sdu.cloud.accounting.services.wallets.AccountingService
 import dk.sdu.cloud.accounting.services.wallets.DepositNotificationService
+import dk.sdu.cloud.calls.CallDescription
+import dk.sdu.cloud.calls.client.*
+import dk.sdu.cloud.calls.server.CallHandler
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.calls.server.project
 import dk.sdu.cloud.calls.server.securityPrincipal
@@ -15,13 +18,33 @@ import dk.sdu.cloud.service.actorAndProject
 class AccountingController(
     private val accounting: AccountingService,
     private val notifications: DepositNotificationService,
+    private val client: AuthenticatedClient,
 ) : Controller {
+    private fun <R : Any, S : Any, E : Any> RpcServer.implementOrDispatch(
+        call: CallDescription<R, S, E>,
+        handler: suspend CallHandler<R, S, E>.() -> Unit,
+    ) {
+        implement(call) {
+            val activeProcessor = accounting.retriveActiveProcessorAddress()
+            if (activeProcessor == null) {
+                handler()
+            } else {
+                ok(
+                    call.call(
+                        request,
+                        client.withFixedHost(HostInfo(activeProcessor, "http", 8080))
+                    ).orThrow()
+                )
+            }
+        }
+    }
+
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
-        implement(Accounting.charge) {
+        implementOrDispatch(Accounting.charge) {
             ok(accounting.charge(actorAndProject, request))
         }
 
-        implement(Accounting.deposit) {
+        implementOrDispatch(Accounting.deposit) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
@@ -30,11 +53,11 @@ class AccountingController(
             ok(accounting.deposit(actorAndProject, request))
         }
 
-        implement(Accounting.check) {
+        implementOrDispatch(Accounting.check) {
             ok(accounting.check(actorAndProject, request))
         }
 
-        implement(Accounting.updateAllocation) {
+        implementOrDispatch(Accounting.updateAllocation) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
@@ -42,7 +65,7 @@ class AccountingController(
             ok(accounting.updateAllocation(actorAndProject, request))
         }
 
-        implement(Accounting.rootDeposit) {
+        implementOrDispatch(Accounting.rootDeposit) {
             val user = ctx.securityPrincipal.username
             request.items.forEach { req ->
                 req.transactionId = "${user}-${req.transactionId}"
@@ -55,18 +78,27 @@ class AccountingController(
             ok(accounting.browseWallets(actorAndProject, request))
         }
 
-        implement(Wallets.retrieveWalletsInternal) {
+        implementOrDispatch(Wallets.retrieveWalletsInternal) {
             val walletOwner = request.owner
 
             ok(WalletsInternalRetrieveResponse(accounting.retrieveWalletsInternal(actorAndProject, walletOwner)))
         }
 
-        implement(Wallets.retrieveAllocationsInternal) {
+        implementOrDispatch(Wallets.retrieveAllocationsInternal) {
             val walletOwner = request.owner
-            ok(WalletAllocationsInternalRetrieveResponse(accounting.retrieveAllocationsInternal(actorAndProject, walletOwner, request.categoryId)))
+            ok(
+                WalletAllocationsInternalRetrieveResponse(
+                    accounting.retrieveAllocationsInternal(
+                        actorAndProject,
+                        walletOwner,
+                        request.categoryId
+                    )
+                )
+            )
         }
 
         implement(Wallets.searchSubAllocations) {
+            //TODO()
             ok(accounting.browseSubAllocations(actorAndProject, request, request.query))
         }
 

@@ -32,7 +32,7 @@ function Allocations(): JSX.Element {
 
     useTitle("Allocations");
 
-    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true", includeMaxUsableBalance: "true", filterEmptyAllocations: "true"});
+    const [filters, setFilters] = useState<Record<string, string>>({showSubAllocations: "true", includeMaxUsableBalance: "true"});
     const [allocations, fetchAllocations] = useCloudAPI<PageV2<SubAllocation>>({noop: true}, emptyPageV2);
     const [allocationGeneration, setAllocationGeneration] = useState(0);
     const [wallets, fetchWallets] = useCloudAPI<PageV2<Wallet>>({noop: true}, emptyPageV2);
