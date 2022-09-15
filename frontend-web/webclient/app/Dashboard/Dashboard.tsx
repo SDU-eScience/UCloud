@@ -48,7 +48,7 @@ import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
 import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
-import {useProjectId} from "@/Project";
+import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 
@@ -76,6 +76,7 @@ function browseGrantsApplications(request: BrowseApplicationsRequest): APICallPa
 }
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
 function Dashboard(props: DashboardProps): JSX.Element {
     useSearch(defaultSearch);
@@ -455,6 +456,12 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 <Heading.h3>Grant Applications</Heading.h3>
             </Link>
     );
+
+
+    const project = useProjectManagementStatus({isRootComponent: false, allowPersonalProject: true});
+    const canApply = !Client.hasActiveProject || isAdminOrPI(project.projectDetails.data.whoami.role);
+
+    if (!canApply) return null;
 
     return <HighlightedCard
         title={title}
