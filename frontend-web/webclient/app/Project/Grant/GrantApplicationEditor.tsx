@@ -98,8 +98,6 @@ export enum RequestTarget {
 /* 
     TODO List:
         - Find new In Progress Icon (General)
-        - checkIsGrantRecipient is missing admins and PIs for active project if target === RequestTarget.EXISTING_PROJECT;
-
         - Remember to update documentation
 
         Backend:

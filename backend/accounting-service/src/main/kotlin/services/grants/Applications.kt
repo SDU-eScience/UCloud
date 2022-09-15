@@ -664,26 +664,28 @@ class GrantApplicationService(
             """
                 with max_revision as (
                     select max(revision_number) newest, application_id
-                    from "grant".revisions 
+                    from "grant".revisions
                     where application_id = :id
                     group by application_id
                 )
-                select app.id, pm.username is not null as is_approver
+                select distinct app.id
                 from
                     "grant".applications app join
                     max_revision mr on app.id = mr.application_id join
                     "grant".requested_resources rr on app.id = rr.application_id and mr.newest = rr.revision_number join
-                    "grant".forms f on app.id = f.application_id and mr.newest = f.revision_number left join
+                    "grant".forms f on app.id = f.application_id and mr.newest = f.revision_number join
                     project.project_members pm on
-                        rr.grant_giver = pm.project_id and
+                        (rr.grant_giver = pm.project_id and
                         (pm.role = 'ADMIN' or pm.role = 'PI') and
                         pm.username = :username
-                where 
-                    app.id = :id and
-                    (
-                        app.requested_by = :username or
+                    ) or (
+                        (f.recipient_type = 'existing_project') and
+                        pm.project_id = f.recipient and
+                        (pm.role = 'ADMIN' or pm.role = 'PI') and
                         pm.username = :username
-                    )  
+                    ) or (f.recipient_type = 'personal' and f.recipient = :username)
+                    or (f.recipient_type = 'new_project' and app.requested_by = :username)
+                where f.application_id = :id;
             """, debug = true
         ).rows.size > 0L
 
