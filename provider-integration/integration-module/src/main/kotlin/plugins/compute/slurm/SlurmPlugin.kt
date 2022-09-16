@@ -347,7 +347,7 @@ class SlurmPlugin : ComputePlugin {
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
         val nodeToUse = nodes[jobRank]
 
-        val process = startProcess(
+         val process = startProcess(
              args = listOf(
                  "/usr/bin/ssh",
                  "-tt",
