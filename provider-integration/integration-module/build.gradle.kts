@@ -55,6 +55,9 @@ dependencies {
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("com.charleskorn.kaml:kaml:0.46.0")
 
+    implementation("io.zonky.test:embedded-postgres:2.0.0")
+    implementation("org.postgresql:postgresql:v42.5.0")
+
     testImplementation(kotlin("test"))
 }
 

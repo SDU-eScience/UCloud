@@ -10,4 +10,5 @@ fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     UsageCli(controllerContext)
     GrantCli(controllerContext)
     SshKeyCli(controllerContext)
+    PsqlTestCli(controllerContext)
 }

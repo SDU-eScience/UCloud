@@ -761,10 +761,11 @@ private val databaseFile = AtomicReference("")
 
 val dbConnection: DBContext by lazy {
     val file = databaseFile.get().takeIf { it.isNotBlank() }
+    println("The file is $file")
     if (file == null) {
         error("This plugin does not have access to a database")
     } else {
-        JdbcDriver(file)
+        SqliteJdbcDriver(file)
     }
 }
 
