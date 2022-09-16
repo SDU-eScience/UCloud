@@ -347,90 +347,82 @@ class SlurmPlugin : ComputePlugin {
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
         val nodeToUse = nodes[jobRank]
 
-        /*
-        val session: InteractiveSession =
-            ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
-        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
-
         val process = startProcess(
-            args = listOf(
-                "/usr/bin/ssh",
-                "-tt",
-                "-oStrictHostKeyChecking=accept-new",
-                "${nodes.get(session.rank)}",
-                "([ -x /bin/bash ] && exec /bin/bash) || " +
-                    "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
-                    "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-                    "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
-                    "([ -x /bin/fish ] && exec /bin/fish) || " +
-                    "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                    "exec /bin/sh"
-            ),
-            envs = listOf("TERM=xterm-256color"),
-            attachStdin = true,
-            attachStdout = true,
-            attachStderr = true,
-            nonBlockingStdout = true,
-            nonBlockingStderr = true
-        )
+             args = listOf(
+                 "/usr/bin/ssh",
+                 "-tt",
+                 "-oStrictHostKeyChecking=accept-new",
+                 "${nodeToUse}",
+                 "([ -x /bin/bash ] && exec /bin/bash) || " +
+                     "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
+                     "([ -x /bin/zsh ] && exec /bin/zsh) || " +
+                     "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
+                     "([ -x /bin/fish ] && exec /bin/fish) || " +
+                     "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
+                     "exec /bin/sh"
+             ),
+             envs = listOf("TERM=xterm-256color"),
+             attachStdin = true,
+             attachStdout = true,
+             attachStderr = true,
+             nonBlockingStdout = true,
+             nonBlockingStderr = true
+         )
 
-        val pStatus = process.retrieveStatus(false)
+         readloop@ while (isActive() && process.jvm.isAlive() ) {
+             val userInput = receiveChannel.tryReceive().getOrNull()
+             when (userInput) {
+                 is ShellRequest.Input -> {
+                     // Forward input to SSH session
+                     println("USERINPUT: ${ userInput.data }")
+                     process.stdin!!.write(userInput.data.encodeToByteArray())
+                     process.stdin!!.flush()
+                 }
 
-        val buffer = ByteArray(4096)
-        readloop@ while (isActive() && pStatus.isRunning) {
-            val userInput = receiveChannel.tryReceive().getOrNull()
-            when (userInput) {
-                is ShellRequest.Input -> {
-                    // Forward input to SSH session
-                    //println("USERINPUT: ${ userInput.data }")
-                    process.stdin!!.write(userInput.data.encodeToByteArray())
-                }
+                 is ShellRequest.Resize -> {
+                     /*
+                     // Send resize event to SSH session
+                     println("RESIisEofZE EVENT: ${userInput} ")
+                     //ps -q 5458 -o tty=
+                     val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
+                         addArg("-q", "${process.pid}")
+                         addArg("-o", "tty=")
+                     }
 
-                is ShellRequest.Resize -> {
-                    /*
-                    // Send resize event to SSH session
-                    println("RESIZE EVENT: ${userInput} ")
-                    //ps -q 5458 -o tty=
-                    val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
-                        addArg("-q", "${process.pid}")
-                        addArg("-o", "tty=")
-                    }
+                     println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
 
-                    println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
+                     //stty rows 50 cols 50 --file /dev/pts/0
+                     val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
+                         addArg("rows", "700")
+                         addArg("cols", "700")
+                         addArg("--file", "/dev/${device.trim()}")
+                     }
+                      */
+                 }
 
-                    //stty rows 50 cols 50 --file /dev/pts/0
-                    val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
-                        addArg("rows", "700")
-                        addArg("cols", "700")
-                        addArg("--file", "/dev/${device.trim()}")
-                    }
-                     */
-                }
-
-                else -> {
-                    // Nothing to do right now
-                }
+                 else -> {
+                     // Nothing to do right now
+                 }
             }
 
-            val bytesRead: ReadResult = process.stdout!!.read(buffer)
-            if (bytesRead.isError) {
-                break@readloop
-            }
+             val bytesAvailable: Int = process.stdout!!.available()
+             val buffer = ByteArray(bytesAvailable)
+             val bytesRead: Int = process.stdout!!.read(buffer)
 
-            if (!bytesRead.isEof) {
-                val decodedString = buffer.decodeToString(0, bytesRead.getOrThrow())
+            if (bytesRead != -1 && bytesRead != 0 ) {
+                val decodedString = buffer.decodeToString(0, bytesRead)
                 emitData(decodedString)
-            }
+             }
 
-            delay(15)
-        }
+             // println("TICK ${ isActive() } ${ process.jvm.isAlive() } ${ process.jvm.pid() } ")
+             delay(15)
+         }
 
-        if (!isActive()) process.jvm.destroy()
-        //TODO: investigate
-        // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
-        // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
-        // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
-         */
+         if (!isActive()) process.jvm.destroy()
+        // //TODO: investigate
+        // // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
+        // // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
+        // // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
     }
 
     // Server Mode
