@@ -59,7 +59,7 @@ class TaskPlugin(
 
                     if (useMachineSelector) {
                         pSpec.nodeSelector = JsonObject(mapOf(
-                            "ucloud.dk/machine" to JsonPrimitive(job.specification.product.category)
+                            "ucloud.dk/machine" to JsonPrimitive(mapCategoryToNodeSelector(job.specification.product.category))
                         ))
                     }
 

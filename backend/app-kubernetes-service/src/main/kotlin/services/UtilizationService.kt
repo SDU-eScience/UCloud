@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonPrimitive
  */
 class UtilizationService(
     private val k8: K8Dependencies,
+    private val categoryToNodeSelector: Map<String, String>,
 ) {
     suspend fun retrieveCapacity(productCategoryId: String): CpuAndMemory {
         val namespace = k8.client.getResource(
@@ -33,7 +34,8 @@ class UtilizationService(
             }
 
         val nodes = allNodes.filter { node ->
-            (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+            (node.metadata?.labels?.get("ucloud.dk/machine") as? JsonPrimitive)?.content ==
+                    mapCategoryToNodeSelector(productCategoryId)
         }.ifEmpty { allNodes }
 
         val nodeAllocatableCpu = nodes.sumOf { node ->
@@ -55,7 +57,8 @@ class UtilizationService(
         }
 
         val jobs = allJobs.filter { job ->
-            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content ==
+                    mapCategoryToNodeSelector(productCategoryId)
         }.ifEmpty { allJobs }
 
         val cpuUsage = jobs.sumOf { job ->
@@ -84,7 +87,8 @@ class UtilizationService(
         )
 
         val jobs = allJobs.filter { job ->
-            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content == productCategoryId
+            (job.spec?.tasks?.get(0)?.template?.spec?.nodeSelector?.get("ucloud.dk/machine") as? JsonPrimitive)?.content ==
+                    mapCategoryToNodeSelector(productCategoryId)
         }.ifEmpty { allJobs }
 
         val runningJobs = jobs.filter { job ->
@@ -143,5 +147,9 @@ class UtilizationService(
                 numbersOnly.replace(cpus, "").toDouble()
             }
         })
+    }
+
+    private fun mapCategoryToNodeSelector(category: String): String {
+        return categoryToNodeSelector[category] ?: category
     }
 }

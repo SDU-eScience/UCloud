@@ -99,6 +99,7 @@ class JobManagement(
     val resources: ResourceCache,
     private val db: DBContext,
     private val sessions: SessionDao,
+    val categoryToNodeSelector: Map<String, String>,
     private val disableMasterElection: Boolean = false,
 ) {
     private val plugins = ArrayList<JobManagementPlugin>()
@@ -707,6 +708,10 @@ class JobManagement(
                 )
             )
         } ?: emptyList())
+    }
+
+    fun mapCategoryToNodeSelector(category: String): String {
+        return categoryToNodeSelector[category] ?: category
     }
 
     companion object : Loggable {

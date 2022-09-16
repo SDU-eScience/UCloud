@@ -287,7 +287,7 @@ function NewRecipients({wallets, ...props}: {wallets: Wallet[]; reload(): void;}
                 if (recipient.isProject != result.isProject) {
                     if (recipient.isProject) {
                         snackbarStore.addFailure("Recipient entered as a project, but is a user.", false);
-                    } else { // !recipient.isProject 
+                    } else { // !recipient.isProject
                         snackbarStore.addFailure("Recipient entered as a user, but is a project.", false);
                     }
                     return;
@@ -587,14 +587,12 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
                 productType,
                 "ABSOLUTE",
                 it,
-                false,
                 2
             ) + " / " + normalizeBalanceForFrontend(
                 byUnitAndChargeType.ABSOLUTE[it].initialBalance,
                 productType,
                 "ABSOLUTE",
                 it,
-                false,
                 2
             ) + " " + explainAllocation(productType, "ABSOLUTE", it) + " (" + Math.round(resultAsPercent({
                 balance: byUnitAndChargeType.ABSOLUTE[it].remaining,
@@ -614,14 +612,12 @@ function entriesByUnitAndChargeType(suballocations: SubAllocation[], productType
             productType,
             "DIFFERENTIAL_QUOTA",
             it,
-            false,
             2
         ) + " / " + normalizeBalanceForFrontend(
             byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].initialBalance,
             productType,
             "DIFFERENTIAL_QUOTA",
             it,
-            false,
             2
         ) + " " + explainAllocation(productType, "DIFFERENTIAL_QUOTA", it) + " (" + Math.round(resultAsPercent({
             balance: byUnitAndChargeType.DIFFERENTIAL_QUOTA[it].remaining,
@@ -1028,8 +1024,8 @@ function UsageBar(props: {suballocation: SubAllocation}) {
     const {suballocation} = props;
     const asPercent = resultAsPercent({initialBalance: suballocation.initialBalance, balance: suballocation.remaining});
     const remaining = Math.min(suballocation.remaining, suballocation.initialBalance);
-    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit, false);
-    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit, false);
+    const used = normalizeBalanceForFrontend(suballocation.initialBalance - remaining, productType, chargeType, unit);
+    const initial = normalizeBalanceForFrontend(suballocation.initialBalance, productType, chargeType, unit);
     const resourceProgress = `${used} / ${initial} ${explainAllocation(productType, chargeType, unit)} (${Math.round(asPercent)}%)`;
     return <ResourceProgress value={Math.round(asPercent)} text={resourceProgress} />;
 }
@@ -1040,6 +1036,6 @@ function explainSubAllocation(suballocation: {productType: ProductType; chargeTy
 
 function normalizeSuballocationBalanceForFrontend(suballocation: SubAllocation, balance: number): string {
     return normalizeBalanceForFrontend(
-        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, false, 2
+        balance, suballocation.productType, suballocation.chargeType, suballocation.unit, 2
     );
 }
