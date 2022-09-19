@@ -26,6 +26,7 @@ import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.secureToken
+import dk.sdu.cloud.plugins.SyncthingPlugin
 import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.plugins.*
@@ -319,6 +320,59 @@ class ComputeController(
 
                     sendChannel.send(request)
                     ok(ShellResponse.Acknowledged())
+                }
+            }
+        }
+
+        val syncthingProvider = SyncthingProvider(controllerContext.configuration.core.providerId)
+        implement(syncthingProvider.retrieveConfiguration) {
+            val plugin = lookupPluginByCategory(request.category)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            with(requestContext(controllerContext)) {
+                with(plugin) {
+                    retrieveSyncthingConfiguration()
+                }
+            }
+        }
+
+        implement(syncthingProvider.updateConfiguration) {
+            val plugin = lookupPluginByCategory(request.category)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            with(requestContext(controllerContext)) {
+                with(plugin) {
+                    updateSyncthingConfiguration()
+                }
+            }
+        }
+
+        implement(syncthingProvider.resetConfiguration) {
+            val plugin = lookupPluginByCategory(request.category)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            with(requestContext(controllerContext)) {
+                with(plugin) {
+                    resetSyncthingConfiguration()
+                }
+            }
+        }
+
+        implement(syncthingProvider.restart) {
+            val plugin = lookupPluginByCategory(request.category)
+                ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            if (plugin !is SyncthingPlugin) throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+
+            with(requestContext(controllerContext)) {
+                with(plugin) {
+                    restartSyncthing()
                 }
             }
         }

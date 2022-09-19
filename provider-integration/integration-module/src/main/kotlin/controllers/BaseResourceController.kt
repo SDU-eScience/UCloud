@@ -28,6 +28,12 @@ abstract class BaseResourceController<
     protected abstract fun retrieveApi(providerId: String): Api
     override fun configureIpc(server: IpcServer) {}
 
+    protected fun lookupPluginByCategory(category: String): Plugin? {
+        return retrievePlugins()?.find { plugin ->
+            plugin.productAllocation.any { it.category == category }
+        }
+    }
+
     protected fun lookupPluginOrNull(product: ProductReference): Plugin? {
         return retrievePlugins()?.find { plugin ->
             plugin.productAllocation.any { it.id == product.id && it.category == product.category }

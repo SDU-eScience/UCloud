@@ -291,6 +291,22 @@ class UCloudComputePlugin : ComputePlugin {
             }
         )
     }
+
+    override suspend fun RequestContext.retrieveSyncthingConfiguration() {
+        println("Not yet implemented")
+    }
+
+    override suspend fun RequestContext.updateSyncthingConfiguration() {
+        println("Not yet implemented")
+    }
+
+    override suspend fun RequestContext.resetSyncthingConfiguration() {
+        println("Not yet implemented")
+    }
+
+    override suspend fun RequestContext.restartSyncthing() {
+        println("Not yet implemented")
+    }
 }
 
 class UCloudIngressPlugin : IngressPlugin {

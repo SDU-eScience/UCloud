@@ -91,6 +91,13 @@ interface ComputePlugin : ResourcePlugin<Product.Compute, ComputeSupport, Job, C
     }
 }
 
+interface SyncthingPlugin {
+    suspend fun RequestContext.retrieveSyncthingConfiguration()
+    suspend fun RequestContext.updateSyncthingConfiguration()
+    suspend fun RequestContext.resetSyncthingConfiguration()
+    suspend fun RequestContext.restartSyncthing()
+}
+
 abstract class EmptyComputePlugin : ComputePlugin {
     override var pluginName: String = "Unknown"
     override var productAllocation: List<ProductReferenceWithoutProvider> = emptyList()
