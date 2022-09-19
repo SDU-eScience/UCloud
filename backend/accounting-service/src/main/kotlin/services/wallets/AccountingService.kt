@@ -9,7 +9,6 @@ import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.project.api.ProjectMembers
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.service.db.async.DBContext
@@ -198,7 +197,6 @@ class AccountingService(
             mapper = { _, rows ->
                 rows.map {
                     var wallet = defaultMapper.decodeFromString<Wallet>(it.getString(0)!!)
-                    println(wallet)
                     if (request.includeMaxUsableBalance == true) {
                         wallet = processor.includeMaxUsableBalance(wallet, request.filterEmptyAllocations)
                     }
@@ -266,6 +264,7 @@ class AccountingService(
         request: SubAllocationQuery,
         query: String? = null,
     ): PageV2<SubAllocation> {
+        processor.browseSubAllocations(AccountingRequest.BrowseSubAllocations(actorAndProject.actor, request.filterType, query))
         return db.paginateV2(
             actorAndProject.actor,
             request.normalize(),

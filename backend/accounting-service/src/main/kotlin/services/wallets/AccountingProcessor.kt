@@ -224,6 +224,13 @@ sealed class AccountingRequest {
         val owner: String,
         override var id: Long = -1,
     ): AccountingRequest()
+
+    data class BrowseSubAllocations(
+        override val actor: Actor,
+        val filterType: ProductType?,
+        val query: String?,
+        override var id: Long = -1
+    ): AccountingRequest()
 }
 
 sealed class AccountingResponse {
@@ -264,6 +271,11 @@ sealed class AccountingResponse {
         val wallets: List<ApiWallet>,
         override var id: Long = -1
     ): AccountingResponse()
+
+    data class BrowseSubAllocations(
+        val allocations: List<ApiWalletAllocation>,
+        override var id: Long = -1
+    ): AccountingResponse()
 }
 
 inline fun <reified T : AccountingResponse> AccountingResponse.orThrow(): T {
@@ -299,6 +311,12 @@ suspend fun AccountingProcessor.retrieveAllocationsInternal(
 suspend fun AccountingProcessor.retrieveWalletsInternal(
     request: AccountingRequest.RetrieveWalletsInternal
 ): AccountingResponse.RetrieveWalletsInternal {
+    return sendRequest(request).orThrow()
+}
+
+suspend fun AccountingProcessor.browseSubAllocations(
+    request: AccountingRequest.BrowseSubAllocations
+): AccountingResponse.BrowseSubAllocations {
     return sendRequest(request).orThrow()
 }
 
@@ -463,6 +481,7 @@ class AccountingProcessor(
             is AccountingRequest.Charge -> charge(request)
             is AccountingRequest.RetrieveAllocationsInternal -> retrieveAllocationsInternal(request)
             is AccountingRequest.RetrieveWalletsInternal -> retrieveWalletsInternal(request)
+            is AccountingRequest.BrowseSubAllocations -> browseSubAllocations(request)
         }
 
         if (doDebug) {
@@ -1403,6 +1422,17 @@ class AccountingProcessor(
         val wallet = findWallet(owner, categoryId) ?: return 0L
         val maxUsableBalances = allocations.mapNotNull { it }.filter { it.associatedWallet == wallet.id }.map { calculateMaxUsableBalance(it) }
         return maxUsableBalances.sum()
+    }
+
+
+    private suspend fun browseSubAllocations(
+        request: AccountingRequest.BrowseSubAllocations
+    ): AccountingResponse {
+        val wallet = findWallet()
+        val query = request.query
+        val filterType = request.filterType
+        allocations.mapNotNull { it }.filter { it.parentAllocation }
+        AccountingResponse.BrowseSubAllocations(listOf())
     }
 
     // Database synchronization
