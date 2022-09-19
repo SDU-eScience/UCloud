@@ -4,7 +4,7 @@ USER 0
 RUN apt-get update
 RUN echo "postfix postfix/mailname string sdu.dk" | debconf-set-selections
 RUN echo "postfix postfix/main_mailer_type string 'Internet Site'" | debconf-set-selections
-RUN apt-get install postfix mailutils rsyslog runit bash -y
+RUN apt-get update && apt-get install postfix mailutils rsyslog runit bash -y
 RUN update-rc.d -f postfix remove
 RUN postconf -e syslog_name=postfix-docker-smtp
 RUN postconf -e mynetworks=0.0.0.0/0

@@ -100,6 +100,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td>Searches the catalog of available resources</td>
 </tr>
 <tr>
+<td><a href='#streamingsearch'><code>streamingSearch</code></a></td>
+<td>Searches through the files of a user in all accessible files</td>
+</tr>
+<tr>
 <td><a href='#copy'><code>copy</code></a></td>
 <td>Copies a file from one path to another</td>
 </tr>
@@ -187,6 +191,18 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#filesstreamingsearchresult'><code>FilesStreamingSearchResult</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesstreamingsearchresult.endofresults'><code>FilesStreamingSearchResult.EndOfResults</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesstreamingsearchresult.result'><code>FilesStreamingSearchResult.Result</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#findbypath'><code>FindByPath</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -232,6 +248,10 @@ __📝 Provider Note:__ This is the API exposed to end-users. See the table belo
 </tr>
 <tr>
 <td><a href='#filesmoverequestitem'><code>FilesMoveRequestItem</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesstreamingsearchrequest'><code>FilesStreamingSearchRequest</code></a></td>
 <td><i>No description</i></td>
 </tr>
 <tr>
@@ -1792,6 +1812,8 @@ SupportByProvider(
             files = FSFileSupport(
                 aclModifiable = false, 
                 isReadOnly = false, 
+                searchSupported = true, 
+                streamingSearchSupported = false, 
                 trashSupported = true, 
             ), 
             product = ProductReference(
@@ -1877,7 +1899,9 @@ await callAPI(FilesApi.retrieveProducts(
                     "files": {
                         "aclModifiable": false,
                         "trashSupported": true,
-                        "isReadOnly": false
+                        "isReadOnly": false,
+                        "searchSupported": true,
+                        "streamingSearchSupported": false
                     }
                 }
             }
@@ -1950,7 +1974,9 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/files/retrieveProd
 #                     "files": {
 #                         "aclModifiable": false,
 #                         "trashSupported": true,
-#                         "isReadOnly": false
+#                         "isReadOnly": false,
+#                         "searchSupported": true,
+#                         "streamingSearchSupported": false
 #                     }
 #                 }
 #             }
@@ -2048,6 +2074,29 @@ _Searches the catalog of available resources_
 |---------|----------|-------|
 |<code><a href='/docs/reference/dk.sdu.cloud.accounting.api.providers.ResourceSearchRequest.md'>ResourceSearchRequest</a>&lt;<a href='#ufileincludeflags'>UFileIncludeFlags</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#ufile'>UFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
+
+
+### `streamingSearch`
+
+[![API: Experimental/Beta](https://img.shields.io/static/v1?label=API&message=Experimental/Beta&color=orange&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Searches through the files of a user in all accessible files_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#filesstreamingsearchrequest'>FilesStreamingSearchRequest</a></code>|<code><a href='#filesstreamingsearchresult'>FilesStreamingSearchResult</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint uses a specialized API for returning search results in a streaming fashion. In all other
+ways, this endpoint is identical to the normal search API.
+
+This endpoint can be used instead of the normal search API as it will contact providers using the
+non-streaming version if they do not support it. In such a case, the core will retrieve multiple pages
+in order to stream in more content.
+
+Clients should expect that this endpoint stops returning results after a given timeout. After which,
+it is no longer possible to request additional results.
 
 
 ### `copy`
@@ -3107,8 +3156,8 @@ sealed class FileMetadataOrDeleted {
     abstract val id: String
     abstract val status: FileMetadataDocument.Status
 
-    class Deleted : FileMetadataOrDeleted()
     class FileMetadataDocument : FileMetadataOrDeleted()
+    class Deleted : FileMetadataOrDeleted()
 }
 ```
 
@@ -3155,6 +3204,109 @@ sealed class FileMetadataOrDeleted {
 <code>status</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.FileMetadataDocument.Status.md'>FileMetadataDocument.Status</a></code></code>
 </summary>
 
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesStreamingSearchResult`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+sealed class FilesStreamingSearchResult {
+    class EndOfResults : FilesStreamingSearchResult()
+    class Result : FilesStreamingSearchResult()
+}
+```
+
+
+
+---
+
+### `FilesStreamingSearchResult.EndOfResults`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class EndOfResults(
+    val type: String /* "end_of_results" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "end_of_results" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesStreamingSearchResult.Result`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Result(
+    val batch: List<UFile>,
+    val type: String /* "result" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>batch</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#ufile'>UFile</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "result" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
 
 
 
@@ -3983,6 +4135,66 @@ data class FilesMoveRequestItem(
 <details>
 <summary>
 <code>conflictPolicy</code>: <code><code><a href='#writeconflictpolicy'>WriteConflictPolicy</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesStreamingSearchRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class FilesStreamingSearchRequest(
+    val flags: UFileIncludeFlags,
+    val query: String,
+    val currentFolder: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>flags</code>: <code><code><a href='#ufileincludeflags'>UFileIncludeFlags</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>query</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>currentFolder</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

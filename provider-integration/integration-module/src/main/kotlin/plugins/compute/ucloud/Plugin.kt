@@ -88,11 +88,14 @@ class UCloudComputePlugin : ComputePlugin {
         )
 
         runtime = when (pluginConfig.scheduler) {
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8)
-            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Volcano -> VolcanoRuntime(k8, pluginConfig.categoryToSelector,
+                pluginConfig.fakeIpMount)
+            ConfigSchema.Plugins.Jobs.UCloud.Scheduler.Pods -> K8PodRuntime(k8.client, pluginConfig.namespace,
+                pluginConfig.categoryToSelector, pluginConfig.fakeIpMount)
         }
 
         jobManagement = JobManagement(
+            pluginName,
             k8,
             runtime,
             jobCache,
@@ -149,6 +152,7 @@ class UCloudComputePlugin : ComputePlugin {
             register(FeatureFairShare)
             register(FeatureFirewall)
             register(FeatureFileOutput(files.pathConverter, files.fs))
+            register(FeatureSshKeys(pluginConfig.ssh?.subnets ?: emptyList()))
         }
     }
 
@@ -356,7 +360,7 @@ class UCloudPublicIPPlugin : PublicIPPlugin {
 
         ipMounter = FeaturePublicIP(dbConnection, compute.k8, pluginConfig.iface)
         firewall = compute.jobManagement.featureOrNull() ?: error("No firewall feature detected")
-        firewall.gatewayCidr = pluginConfig.gatewayCidr
+        pluginConfig.gatewayCidr?.let { firewall.gatewayCidr.add(it) }
 
         compute.jobManagement.register(ipMounter)
         compute.jobManagement.register(firewall)

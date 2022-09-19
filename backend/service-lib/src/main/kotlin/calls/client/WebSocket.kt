@@ -150,7 +150,7 @@ class OutgoingWSRequestInterceptor : OutgoingRequestInterceptor<OutgoingWSCall, 
         call: CallDescription<*, *, *>,
         channel: ReceiveChannel<WSRawMessage>,
         streamId: String
-    ): ReceiveChannel<WSMessage<Any?>> = produce {
+    ): ReceiveChannel<WSMessage<Any?>> = produce(capacity = Channel.UNLIMITED) {
         for (message in channel) {
             @Suppress("BlockingMethodInNonBlockingContext")
             val result = when (message.type) {

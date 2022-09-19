@@ -281,12 +281,12 @@ export function extractErrorCode(e: unknown): number {
     return 500;
 }
 
-export function defaultErrorHandler(
+export function extractErrorMessage(
     error: {request: XMLHttpRequest; response: any}
-): number {
+): string {
     const {request} = error;
-    // FIXME must be solvable more elegantly
     let why: string | null = error.response?.why;
+    const defaultErrorMessage = "An error occurred. Please reload the page.";
 
     if (request) {
         if (!why) {
@@ -294,14 +294,28 @@ export function defaultErrorHandler(
                 case 403:
                     why = "Permission denied";
                     break;
-                // 400 is 'Bad Request', but this is meaningless for the end user.
-                case 400:
                 default:
-                    why = "An error occurred. Please reload the page.";
+                    why = defaultErrorMessage;
                     break;
             }
         }
 
+        if (why === "Bad Request") {
+            // 'Bad Request' is meaningless for the end user.
+            why = defaultErrorMessage;
+        }
+    }
+
+    return why ?? defaultErrorMessage;
+}
+
+export function defaultErrorHandler(
+    error: {request: XMLHttpRequest; response: any}
+): number {
+    const {request} = error;
+
+    if (request) {
+        const why = extractErrorMessage(error)
         snackbarStore.addFailure(why, false);
         return request.status;
     }
@@ -573,7 +587,7 @@ export const isLikelySafari: boolean = navigator.vendor === "Apple Computer, Inc
 // extremely likely to be unique. The backend should never trust these for security purposes. This function is also
 // not guaranteed to be cryptographically secure, but given its implementation it might be.
 export function randomUUID(): string {
-    const randomUUID = crypto["randomUUID"] 
+    const randomUUID = crypto["randomUUID"]
     if (typeof randomUUID === "function") {
         // Does not work in IE
         return (crypto as any).randomUUID();
@@ -582,7 +596,7 @@ export function randomUUID(): string {
         // This is a slightly less cryptic version of: https://stackoverflow.com/a/2117523
         return "10000000-1000-4000-8000-100000000000"
             .replace(
-                /[018]/g, 
+                /[018]/g,
                 c => ((Number(c) ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> Number(c) / 4).toString(16))
             );
     }

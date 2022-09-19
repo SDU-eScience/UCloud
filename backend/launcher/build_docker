@@ -8,7 +8,7 @@ set -x
 
 rm -rf build/distributions
 rm -rf build/service
-gradle distTar
+../gradlew distTar
 (mkdir -p build/service || true)
 cp build/distributions/*.tar build/service.tar
 cd build/service

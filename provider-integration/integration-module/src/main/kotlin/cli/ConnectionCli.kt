@@ -1,6 +1,7 @@
 package dk.sdu.cloud.cli
 
 import dk.sdu.cloud.PaginationRequestV2
+import dk.sdu.cloud.app.orchestrator.api.Job
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.controllers.ConnectionEntry
@@ -153,6 +154,7 @@ fun ConnectionCli(controllerContext: ControllerContext) {
             }
         } catch (ex: RPCException) {
             if (ex.httpStatusCode == HttpStatusCode.Forbidden) {
+                Job
                 sendTerminalMessage {
                     red { bold { line("You must run this script as root!") } }
                 }

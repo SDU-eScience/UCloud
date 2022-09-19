@@ -5,6 +5,8 @@ import styled from "styled-components";
 import {Absolute, Box, Hide} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ResponsiveReduxObject} from "@/DefaultObjects";
+import {useGlobal} from "@/Utilities/ReduxHooks";
+import {useEffect} from "react";
 
 export interface MainContainerProps {
     sidebar?: React.ReactNode;
@@ -23,6 +25,7 @@ export const MainContainer = ({
     sidebarSize = 240,
     headerSize = 96
 }: MainContainerProps): JSX.Element => {
+    const [, setHeaderSize] = useGlobal("mainContainerHeaderSize", headerSize);
     const responsiveState = useSelector<ReduxObject, ResponsiveReduxObject>(it => it.responsive!);
     const leftSidebarSize = responsiveState!.greaterThan.xl ? 190 : 68; // main website sidebar H size
     const topMenuSize = 48; // main website top menu V size
@@ -30,6 +33,10 @@ export const MainContainer = ({
 
     const mainYpad = header ? headerSize : pad;
     const mainXpad = sidebar && responsiveState!.greaterThan.md ? sidebarSize : pad;
+
+    useEffect(() => {
+        setHeaderSize(mainYpad);
+    }, [mainYpad]);
 
     return (
         <React.StrictMode>

@@ -10,17 +10,17 @@ _An `AppParameterValue` is value which is supplied to a parameter of an `Applica
 
 ```kotlin
 sealed class AppParameterValue {
-    class File : AppParameterValue()
-    class Bool : AppParameterValue()
-    class TextArea : AppParameterValue()
-    class Text : AppParameterValue()
-    class Integer : AppParameterValue()
-    class FloatingPoint : AppParameterValue()
-    class Peer : AppParameterValue()
-    class License : AppParameterValue()
     class BlockStorage : AppParameterValue()
-    class Network : AppParameterValue()
+    class Bool : AppParameterValue()
+    class File : AppParameterValue()
+    class FloatingPoint : AppParameterValue()
     class Ingress : AppParameterValue()
+    class Integer : AppParameterValue()
+    class License : AppParameterValue()
+    class Network : AppParameterValue()
+    class Peer : AppParameterValue()
+    class Text : AppParameterValue()
+    class TextArea : AppParameterValue()
 }
 ```
 Each value type can is type-compatible with one or more `ApplicationParameter`s. The effect of a specific value depends

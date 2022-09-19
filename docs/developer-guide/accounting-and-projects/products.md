@@ -971,11 +971,11 @@ sealed class Product {
     abstract val unitOfPrice: ProductPriceUnit
     abstract val version: Int
 
-    class Storage : Product()
     class Compute : Product()
     class Ingress : Product()
     class License : Product()
     class NetworkIP : Product()
+    class Storage : Product()
 }
 ```
 For more information see [this](/docs/developer-guide/accounting-and-projects/products.md) page.

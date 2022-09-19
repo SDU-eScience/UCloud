@@ -38,7 +38,7 @@ export const AppHeader: React.FunctionComponent<{
                         <Heading.h3>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h3>
                         <Flex>
                             <ClickableDropdown
-                                trigger={<TextSpan>v{props.application.metadata.version}</TextSpan>}
+                                trigger={<TextSpan>{props.application.metadata.version}</TextSpan>}
                                 chevron
                             >
                                 {props.allVersions.map(it => <div key={it.metadata.version} onClick={() => history.push(Pages.runApplication(it.metadata))}>{it.metadata.version}</div>)}
@@ -62,7 +62,7 @@ export const AppHeader: React.FunctionComponent<{
                 ) : (
                     <>
                         <Heading.h2>{props.application.metadata.title}<FavoriteToggle application={props.application} /></Heading.h2>
-                        <Heading.h3>v{props.application.metadata.version}</Heading.h3>
+                        <Heading.h3>{props.application.metadata.version}</Heading.h3>
                         <EllipsedText>by {props.application.metadata.authors.join(", ")}</EllipsedText>
                         <Tags tags={props.application.tags} />
                     </>
@@ -150,7 +150,7 @@ export const Information: React.FunctionComponent<{application: Application; sim
 
                 <InfoAttribute
                     name="Type"
-                    value={capitalized(backend)}
+                    value={backendTitle(backend)}
                 />
 
                 <InfoAttribute
@@ -160,4 +160,21 @@ export const Information: React.FunctionComponent<{application: Application; sim
             </InfoAttributes>
         </>
     );
+}
+
+function backendTitle(backend: string): string {
+    switch (backend) {
+        case "SINGULARITY":
+        case "DOCKER":
+            return "Container";
+
+        case "VIRTUAL_MACHINE":
+            return "Virtual machine";
+
+        case "NATIVE":
+            return "Generic";
+
+        default:
+            return capitalized(backend);
+    }
 }

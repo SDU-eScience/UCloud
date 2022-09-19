@@ -30,6 +30,10 @@
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#streamingsearch'><code>streamingSearch</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#browse'><code>browse</code></a></td>
 <td><i>No description</i></td>
 </tr>
@@ -101,6 +105,18 @@
 </tr></thread>
 <tbody>
 <tr>
+<td><a href='#filesproviderstreamingsearchresult'><code>FilesProviderStreamingSearchResult</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesproviderstreamingsearchresult.endofresults'><code>FilesProviderStreamingSearchResult.EndOfResults</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
+<td><a href='#filesproviderstreamingsearchresult.result'><code>FilesProviderStreamingSearchResult.Result</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#partialufile'><code>PartialUFile</code></a></td>
 <td>A partial UFile returned by providers and made complete by UCloud/Core</td>
 </tr>
@@ -139,6 +155,10 @@
 <tr>
 <td><a href='#filesprovidersearchrequest'><code>FilesProviderSearchRequest</code></a></td>
 <td>The base type for requesting paginated content.</td>
+</tr>
+<tr>
+<td><a href='#filesproviderstreamingsearchrequest'><code>FilesProviderStreamingSearchRequest</code></a></td>
+<td><i>No description</i></td>
 </tr>
 <tr>
 <td><a href='#filesprovidertrashrequestitem'><code>FilesProviderTrashRequestItem</code></a></td>
@@ -180,6 +200,19 @@ UCloud/Core already.
 | Request | Response | Error |
 |---------|----------|-------|
 |<code><a href='#filesprovidersearchrequest'>FilesProviderSearchRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.PageV2.md'>PageV2</a>&lt;<a href='#partialufile'>PartialUFile</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+
+
+### `streamingSearch`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Services](https://img.shields.io/static/v1?label=Auth&message=Services&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='#filesproviderstreamingsearchrequest'>FilesProviderStreamingSearchRequest</a></code>|<code><a href='#filesproviderstreamingsearchresult'>FilesProviderStreamingSearchResult</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 
 
@@ -382,6 +415,109 @@ an update for each affected resource.
 
 
 ## Data Models
+
+### `FilesProviderStreamingSearchResult`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+sealed class FilesProviderStreamingSearchResult {
+    class EndOfResults : FilesProviderStreamingSearchResult()
+    class Result : FilesProviderStreamingSearchResult()
+}
+```
+
+
+
+---
+
+### `FilesProviderStreamingSearchResult.EndOfResults`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class EndOfResults(
+    val type: String /* "end_of_results" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "end_of_results" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesProviderStreamingSearchResult.Result`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class Result(
+    val batch: List<PartialUFile>,
+    val type: String /* "result" */,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>batch</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin.collections/-list/'>List</a>&lt;<a href='#partialufile'>PartialUFile</a>&gt;</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>type</code>: <code><code>String /* "result" */</code></code> The type discriminator
+</summary>
+
+[![API: Stable](https://img.shields.io/static/v1?label=API&message=Stable&color=green&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
 
 ### `PartialUFile`
 
@@ -984,6 +1120,7 @@ data class FilesProviderSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val category: ProductCategoryId?,
     val itemsPerPage: Int?,
     val next: String?,
     val consistency: PaginationRequestV2Consistency?,
@@ -1060,6 +1197,17 @@ paginate through the results.
 
 <details>
 <summary>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a>?</code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
 <code>itemsPerPage</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-int/'>Int</a>?</code></code> Requested number of items per page. Supported values: 10, 25, 50, 100, 250.
 </summary>
 
@@ -1094,6 +1242,90 @@ paginate through the results.
 <details>
 <summary>
 <code>itemsToSkip</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> Items to skip ahead
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `FilesProviderStreamingSearchRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class FilesProviderStreamingSearchRequest(
+    val query: String,
+    val owner: ResourceOwner,
+    val flags: UFileIncludeFlags,
+    val category: ProductCategoryId,
+    val currentFolder: String?,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>query</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>owner</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.provider.api.ResourceOwner.md'>ResourceOwner</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>flags</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags.md'>UFileIncludeFlags</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>category</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.accounting.api.ProductCategoryId.md'>ProductCategoryId</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>currentFolder</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a>?</code></code>
 </summary>
 
 

@@ -55,6 +55,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-web", 
             tool = Tool(
@@ -194,6 +195,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
         "web": {
             "port": 8080
         },
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -300,6 +302,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #         "web": {
 #             "port": 8080
 #         },
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,

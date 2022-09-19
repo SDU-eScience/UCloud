@@ -12,6 +12,7 @@ import {useProjectId} from "@/Project";
 import BaseLink from "@/ui-components/BaseLink";
 import {sendNotification} from "@/Notifications";
 import {timestampUnixMs} from "@/UtilityFunctions";
+import { FileSearch } from "./FileSearch";
 
 export const Playground: React.FunctionComponent = () => {
     const main = (
@@ -43,13 +44,13 @@ export const Playground: React.FunctionComponent = () => {
                     icon: "key",
                     title: `Connection required`,
                     body: <>
-                        You must <BaseLink href="#">re-connect</BaseLink> with 'Hippo' to continue 
+                        You must <BaseLink href="#">re-connect</BaseLink> with 'Hippo' to continue
                         using it.
                     </>,
                     isPinned: true,
                     // NOTE(Dan): This is static such that we can test the snooze functionality. You will need to
                     // clear local storage for this to start appearing again after dismissing it enough times.
-                    uniqueId: `playground-notification`, 
+                    uniqueId: `playground-notification`,
                 });
             }}>Trigger pinned notification</Button>
 
@@ -73,6 +74,7 @@ export const Playground: React.FunctionComponent = () => {
             </Grid>
             <ConfirmationButton icon={"trash"} actionText={"Delete"} color={"red"} />
             <ProjectPlayground />
+            <FileSearch />
         </>
     );
     return <MainContainer main={main} />;

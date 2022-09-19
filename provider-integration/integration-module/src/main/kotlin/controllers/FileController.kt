@@ -8,10 +8,12 @@ import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
+import dk.sdu.cloud.calls.server.sendWSMessage
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.service.SimpleCache
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -19,9 +21,13 @@ import dk.sdu.cloud.utils.secureToken
 import io.ktor.server.application.*
 import io.ktor.server.request.*
 import io.ktor.server.response.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
+import kotlin.coroutines.coroutineContext
 
 @Serializable
 data class FileSessionWithPlugin(
@@ -64,7 +70,7 @@ class FileController(
         val envoyConfig = envoyConfig ?: return
 
         server.addHandler(TaskIpc.register.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid.toInt())
+            UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             dbConnection.withSession { session ->
@@ -88,7 +94,7 @@ class FileController(
         })
 
         server.addHandler(TaskIpc.markAsComplete.handler { user, request ->
-            UserMapping.localIdToUCloudId(user.uid.toInt())
+            UserMapping.localIdToUCloudId(user.uid)
                 ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
 
             var doesExist = false
@@ -120,8 +126,7 @@ class FileController(
 
         server.addHandler(FilesDownloadIpc.register.handler { user, request ->
             val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
-                UserMapping.localIdToUCloudId(user.uid) ?:
-                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
             } else {
                 null
             }
@@ -178,8 +183,7 @@ class FileController(
 
         server.addHandler(FilesUploadIpc.register.handler { user, request ->
             val ucloudIdentity = if (controllerContext.configuration.core.launchRealUserInstances) {
-                UserMapping.localIdToUCloudId(user.uid) ?:
-                    throw RPCException("Unknown user", HttpStatusCode.BadRequest)
+                UserMapping.localIdToUCloudId(user.uid) ?: throw RPCException("Unknown user", HttpStatusCode.BadRequest)
             } else {
                 null
             }
@@ -198,7 +202,6 @@ class FileController(
                     }
                 )
             }
-
 
             envoyConfig.requestConfiguration(
                 EnvoyRoute.UploadSession(
@@ -237,11 +240,17 @@ class FileController(
         })
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override fun RpcServer.configureCustomEndpoints(plugins: Collection<FilePlugin>, api: FilesProvider) {
         val providerId = controllerContext.configuration.core.providerId
 
         val downloadApi = object : CallDescriptionContainer("file.${providerId}.download") {
-            val download = call("download", IMFileDownloadRequest.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+            val download = call(
+                "download",
+                IMFileDownloadRequest.serializer(),
+                Unit.serializer(),
+                CommonErrorMessage.serializer()
+            ) {
                 audit(Unit.serializer())
                 auth {
                     access = AccessRight.READ
@@ -405,7 +414,7 @@ class FileController(
 
                 sctx.ktor.call.respondRedirect(
                     downloadPath(controllerContext.configuration.core.providerId, request.token) +
-                        "&attempt=${attempt + 1}"
+                            "&attempt=${attempt + 1}"
                 )
 
                 okContentAlreadyDelivered()
@@ -481,6 +490,81 @@ class FileController(
             }
 
             ok(Unit)
+        }
+
+        implement(api.streamingSearch) {
+            val currentFolder = request.currentFolder
+            val relevantPlugins = if (currentFolder != null) {
+                val collection = currentFolder.components().getOrNull(0)?.let { id ->
+                    collectionCache.get(id)
+                } ?: run {
+                    ok(FilesProviderStreamingSearchResult.EndOfResults())
+                    return@implement
+                }
+
+                val plugin = lookupPluginOrNull(collection.specification.product) ?: run {
+                    ok(FilesProviderStreamingSearchResult.EndOfResults())
+                    return@implement
+                }
+
+                listOf(plugin)
+            } else {
+                retrievePlugins().filter { plugin ->
+                    plugin.productAllocationResolved.any { it.category == request.category }
+                }
+            }
+
+            // NOTE(Dan): We throttle the number of batches we send out to aid clients a bit with the rendering
+            // process. We attempt to not send more than 4 batches per second but the first batch will go out as soon
+            // as it is ready. This variable controls when we are allowed to send the next batch. An onTimeout in the
+            // select call below ensures that we send out all batches in a timely manner.
+            var nextAllowedSend = 0L
+
+            with(requestContext(controllerContext)) {
+                val channels = relevantPlugins.mapNotNull { plugin ->
+                    with(plugin) {
+                        runCatching { streamingSearch(request) }.getOrNull()
+                    }
+                }
+
+                val batch = ArrayList<PartialUFile>()
+                while (coroutineContext.isActive) {
+                    var isAllClosed = true
+                    val result = select<FilesProviderStreamingSearchResult?> {
+                        for (channel in channels) {
+                            if (channel.isClosedForReceive) continue
+
+                            isAllClosed = false
+                            channel.onReceiveCatching { message ->
+                                message.getOrNull()
+                            }
+                        }
+
+                        onTimeout(50) { null }
+                    }
+
+                    if (result != null) {
+                        if (result is FilesProviderStreamingSearchResult.Result) {
+                            batch.addAll(result.batch)
+                        }
+                    }
+
+                    val now = Time.now()
+                    if (batch.isNotEmpty() && now > nextAllowedSend) {
+                        sendWSMessage(FilesProviderStreamingSearchResult.Result(batch))
+                        batch.clear()
+                        nextAllowedSend = now + 250
+                    }
+
+                    if (isAllClosed) break
+                }
+
+                if (batch.isNotEmpty()) {
+                    sendWSMessage(FilesProviderStreamingSearchResult.Result(batch))
+                }
+            }
+
+            ok(FilesProviderStreamingSearchResult.EndOfResults())
         }
     }
 

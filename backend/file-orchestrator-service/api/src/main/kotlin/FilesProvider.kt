@@ -2,13 +2,16 @@ package dk.sdu.cloud.file.orchestrator.api
 
 import dk.sdu.cloud.*
 import dk.sdu.cloud.accounting.api.Product
+import dk.sdu.cloud.accounting.api.ProductCategoryId
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceProviderApi
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.accounting.api.providers.ResourceTypeInfo
+import dk.sdu.cloud.accounting.api.providers.SortDirection
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourcePermissions
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.nullable
 import kotlinx.serialization.builtins.serializer
@@ -109,11 +112,32 @@ data class FilesProviderSearchRequest(
     val query: String,
     val owner: ResourceOwner,
     val flags: UFileIncludeFlags,
+    val category: ProductCategoryId? = null,
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
 ) : WithPaginationRequestV2
+
+@Serializable
+data class FilesProviderStreamingSearchRequest(
+    val query: String,
+    val owner: ResourceOwner,
+    val flags: UFileIncludeFlags,
+    val category: ProductCategoryId,
+    val currentFolder: String? = null,
+)
+
+@Serializable
+sealed class FilesProviderStreamingSearchResult {
+    @Serializable
+    @SerialName("result")
+    data class Result(val batch: List<PartialUFile>) : FilesProviderStreamingSearchResult()
+
+    @Serializable
+    @SerialName("end_of_results")
+    class EndOfResults : FilesProviderStreamingSearchResult()
+}
 
 open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpecification, UFileUpdate,
     UFileIncludeFlags, UFileStatus, Product.Storage, FSSupport>("files", provider) {
@@ -173,6 +197,15 @@ open class FilesProvider(provider: String) : ResourceProviderApi<UFile, UFileSpe
 
     val search = call("search", FilesProviderSearchRequest.serializer(), PageV2.serializer(PartialUFile.serializer()), CommonErrorMessage.serializer()) {
         httpSearch(baseContext, roles = Roles.SERVICE)
+    }
+
+    val streamingSearch = call("streamingSearch", FilesProviderStreamingSearchRequest.serializer(), FilesProviderStreamingSearchResult.serializer(), CommonErrorMessage.serializer()) {
+        auth {
+            access = AccessRight.READ
+            roles = Roles.SERVICE
+        }
+
+        websocket(baseContext)
     }
 
     override val delete get() = super.delete!!

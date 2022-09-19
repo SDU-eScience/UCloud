@@ -21,6 +21,7 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.ConfiguredShare
 import dk.sdu.cloud.plugins.FileCollectionPlugin
 import dk.sdu.cloud.plugins.SharePlugin
@@ -36,10 +37,17 @@ import dk.sdu.cloud.plugins.storage.ucloud.tasks.MoveTask
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashRequestItem
 import dk.sdu.cloud.plugins.storage.ucloud.tasks.TrashTask
 import dk.sdu.cloud.provider.api.ResourceOwner
+import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.utils.io.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.serialization.json.JsonObject
+import kotlin.coroutines.coroutineContext
 
 class UCloudFilePlugin : FilePlugin {
     override val pluginTitle: String = "UCloud"
@@ -59,6 +67,7 @@ class UCloudFilePlugin : FilePlugin {
     lateinit var uploads: ChunkedUploadService
     lateinit var downloads: DownloadService
     lateinit var pathConverter: PathConverter
+    lateinit var usageScan: UsageScan
 
     override fun supportsRealUserMode(): Boolean = false
     override fun supportsServiceUserMode(): Boolean = true
@@ -88,6 +97,7 @@ class UCloudFilePlugin : FilePlugin {
         memberFiles = MemberFiles(fs, pathConverter, rpcClient)
         tasks = TaskSystem(dbConnection, pathConverter, fs, Dispatchers.IO, rpcClient, debugSystem)
         uploads = ChunkedUploadService(pathConverter, fs)
+        usageScan = UsageScan(pluginName, pathConverter, fs, cephStats, rpcClient, dbConnection)
 
         with (tasks) {
             install(CopyTask())
@@ -255,7 +265,8 @@ class UCloudFilePlugin : FilePlugin {
             FSFileSupport(
                 aclModifiable = false,
                 trashSupported = true,
-                isReadOnly = false
+                isReadOnly = false,
+                streamingSearchSupported = true,
             )
         )
 
@@ -290,8 +301,24 @@ class UCloudFilePlugin : FilePlugin {
         )
     }
 
-    override suspend fun PluginContext.runMonitoringLoop() {
+    override suspend fun RequestContext.streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = queries.streamingSearch(req)
 
+    override suspend fun PluginContext.runMonitoringLoop() {
+        if (config.shouldRunServerCode()) return
+
+        while (coroutineContext.isActive) {
+            try {
+                if (pluginConfig.accountingEnabled) {
+                    usageScan.startScanIfNeeded()
+                }
+            } catch (ex: Throwable) {
+                debugSystem.logThrowable("Caught exception during monitoring loop", ex)
+            }
+
+            delay(60_000)
+        }
     }
 }
 

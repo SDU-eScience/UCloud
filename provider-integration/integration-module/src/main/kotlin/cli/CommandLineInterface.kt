@@ -6,9 +6,9 @@ import dk.sdu.cloud.utils.TerminalMessageDsl
 import dk.sdu.cloud.utils.sendTerminalMessage
 import kotlin.system.exitProcess
 
-class CliHandler(val plugin: String, val handler: suspend (args: List<String>) -> Unit)
+class CliHandler(val plugin: String, val handler: suspend CommandLineInterface.(args: List<String>) -> Unit)
 
-class CommandLineInterface(private val args: List<String>) {
+class CommandLineInterface(val isParsable: Boolean, private val args: List<String>) {
     private val handlers = ArrayList<CliHandler>()
 
     fun addHandler(cliHandler: CliHandler) {
@@ -19,7 +19,9 @@ class CommandLineInterface(private val args: List<String>) {
         try {
             for (handler in handlers) {
                 if (handler.plugin.equals(plugin, ignoreCase = true)) {
-                    handler.handler(args)
+                    with(handler) {
+                        handler(args)
+                    }
                     exitProcess(0)
                 }
             }
@@ -125,7 +127,7 @@ fun sendCommandLineUsageNoExit(command: String, title: String, builder: CommandL
     CommandLineUsageDsl(command, title).also(builder).send()
 }
 
-inline fun genericCommandLineHandler(block: () -> Unit): Nothing {
+suspend fun genericCommandLineHandler(block: suspend () -> Unit): Nothing {
     try {
         block()
         exitProcess(0)
@@ -138,11 +140,4 @@ inline fun genericCommandLineHandler(block: () -> Unit): Nothing {
 
         exitProcess(1)
     }
-}
-
-fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
-    ConnectionCli(controllerContext)
-    ProductsCli(controllerContext)
-    ApplicationCli(controllerContext)
-    UCloudProjectCli(controllerContext)
 }

@@ -1,18 +1,43 @@
 package dk.sdu.cloud.utils
 
-const val CALL_DOES_NOT_REQUIRE_SIGNED_INTENT = "....NO_SIGNED_INTENT_REQUIRED...."
+import dk.sdu.cloud.IntentToCall
+import dk.sdu.cloud.calls.CallDescription
 
-fun mapProviderApiToUserApi(providerId: String, incomingCall: String): String {
-    // TODO(Dan): Not entirely complete but will probably cover most if not all calls
-    when(incomingCall) {
-        "file.$providerId.download.download" -> return CALL_DOES_NOT_REQUIRE_SIGNED_INTENT
+fun doesCallRequireSignature(providerId: String, incomingCall: String): Boolean {
+    return when (incomingCall) {
+        // TODO(Dan): Not entirely complete but will probably cover most if not all calls
+        "file.$providerId.download.download" -> false
+        else -> true
     }
+}
 
-    if (incomingCall.contains(".provider.")) {
-        val prefix = incomingCall.substringBefore(".provider.")
-        val suffix = incomingCall.substringAfterLast('.')
-        return "$prefix.$suffix"
+fun doesIntentMatchCall(providerId: String, intent: IntentToCall, call: CallDescription<*, *, *>): Boolean {
+    val incomingCall = call.fullName
+    return when  {
+        // NOTE(Dan): Allow streamingSearch to also trigger normal search as these are similar to eachother and gives
+        // the core a bit of flexibility.
+        incomingCall == "files.provider.$providerId.streamingSearch" -> {
+            intent.call == "files.provider.$providerId.streamingSearch" ||
+                    intent.call == "files.provider.$providerId.search"
+        }
+
+        // NOTE(Dan): SSH synchronization can be triggered by multiple user calls, yet they all result in the same
+        // call on our end.
+        incomingCall.startsWith("ssh_keys.") -> {
+            intent.call.startsWith("ssh_keys.")
+        }
+
+        else -> {
+            // TODO(Dan): Not entirely complete but will probably cover most if not all calls
+            val mappedCall = if (incomingCall.contains(".provider.")) {
+                val prefix = incomingCall.substringBefore(".provider.")
+                val suffix = incomingCall.substringAfterLast('.')
+                "$prefix.$suffix"
+            } else {
+                throw IllegalStateException("Could not map '$incomingCall' to a user API equivalent call")
+            }
+
+            intent.call == mappedCall
+        }
     }
-
-    throw IllegalStateException("Could not map '$incomingCall' to a user API equivalent call")
 }

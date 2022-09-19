@@ -43,6 +43,7 @@ export interface JobSpecification extends ResourceSpecification {
     resources: AppParameterValue[];
     timeAllocation?: SimpleDuration;
     openedFile?: string;
+    sshEnabled?: boolean;
 }
 
 export type JobState = "IN_QUEUE" | "RUNNING" | "CANCELING" | "SUCCESS" | "FAILURE" | "EXPIRED" | "SUSPENDED";
@@ -222,7 +223,7 @@ class JobApi extends ResourceApi<Job, ProductCompute, JobSpecification, JobUpdat
                 <ListRowStat>
                     {resource.status.resolvedApplication?.metadata?.title ?? resource.specification.application.name}
                     {" "}
-                    v{resource.specification.application.version}
+                    {resource.specification.application.version}
                 </ListRowStat>
             )
         },

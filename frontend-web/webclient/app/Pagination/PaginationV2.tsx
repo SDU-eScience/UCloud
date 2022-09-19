@@ -6,7 +6,7 @@ import * as Heading from "@/ui-components/Heading";
 import {Box, Button, Error} from "@/ui-components";
 import {useEffectSkipMount} from "@/UtilityFunctions";
 
-export type PageRenderer<T> = (page: T[]) => React.ReactNode;
+export type PageRenderer<T> = (page: T[], opts: { hasNext: boolean }) => React.ReactNode;
 
 interface ListV2Props<T> {
     page: UCloud.PageV2<T>;
@@ -55,7 +55,7 @@ export function ListV2<T>(props: PropsWithChildren<ListV2Props<T>>): JSX.Element
 
     return <Box>
         <Box mt="6px"><Error error={props.error} /></Box>
-        {props.pageRenderer(allItems)}
+        {props.pageRenderer(allItems, { hasNext: props.page.next !== null })}
         {props.page.next || allItems.length > 1 ?
             <Box margin={"0 auto"} maxWidth={"500px"}>
                 {!props.page.next ? null :

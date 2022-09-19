@@ -17,6 +17,8 @@ data class ProviderWalletSummary(
     val unitOfPrice: ProductPriceUnit,
     val maxUsableBalance: Long,
     val maxPromisedBalance: Long,
+    val notBefore: Long,
+    val notAfter: Long?,
 )
 ```
 
@@ -113,6 +115,28 @@ in the tree.
 
 This balance is calculated when the data is requested and thus can immediately become invalid due to changes
 in the tree.
+
+
+</details>
+
+<details>
+<summary>
+<code>notBefore</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a></code></code> The earliest timestamp which allows for the balance to be consumed
+</summary>
+
+
+
+
+
+</details>
+
+<details>
+<summary>
+<code>notAfter</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-long/'>Long</a>?</code></code> The earliest timestamp at which the reported balance is no longer fully usable
+</summary>
+
+
+
 
 
 </details>

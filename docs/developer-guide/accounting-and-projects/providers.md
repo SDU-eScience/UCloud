@@ -109,6 +109,10 @@ only be responsible for facilitating direct communication. A common example of t
 <td>Used for the approval protocol</td>
 </tr>
 <tr>
+<td><a href='#update'><code>update</code></a></td>
+<td>Updates the specification of one or more providers</td>
+</tr>
+<tr>
 <td><a href='#updateacl'><code>updateAcl</code></a></td>
 <td>Updates the ACL attached to a resource</td>
 </tr>
@@ -1065,6 +1069,21 @@ __Examples:__
 | Example |
 |---------|
 | [Registration protocol](/docs/reference/providers_registration.md) |
+
+
+### `update`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+[![Auth: Users](https://img.shields.io/static/v1?label=Auth&message=Users&color=informational&style=flat-square)](/docs/developer-guide/core/types.md#role)
+
+
+_Updates the specification of one or more providers_
+
+| Request | Response | Error |
+|---------|----------|-------|
+|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkRequest.md'>BulkRequest</a>&lt;<a href='#providerspecification'>ProviderSpecification</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.calls.BulkResponse.md'>BulkResponse</a>&lt;<a href='/docs/reference/dk.sdu.cloud.FindByStringId.md'>FindByStringId</a>&gt;</code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+
+This endpoint can only be invoked by a UCloud administrator.
 
 
 ### `updateAcl`
@@ -2030,8 +2049,8 @@ _Response type used as part of the approval process_
 
 ```kotlin
 sealed class ProvidersRequestApprovalResponse {
-    class RequiresSignature : ProvidersRequestApprovalResponse()
     class AwaitingAdministratorApproval : ProvidersRequestApprovalResponse()
+    class RequiresSignature : ProvidersRequestApprovalResponse()
 }
 ```
 

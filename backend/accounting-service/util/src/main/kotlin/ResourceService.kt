@@ -1000,14 +1000,19 @@ abstract class ResourceService<
         return SupportByProvider(support.retrieveProducts(relevantProviders))
     }
 
-    private suspend fun findRelevantProviders(actorAndProject: ActorAndProject): List<String> {
-        val relevantProviders = db.withSession { session ->
+    suspend fun findRelevantProviders(
+        actorAndProject: ActorAndProject,
+        useProject: Boolean = true,
+        ctx: DBContext? = null,
+    ): List<String> {
+        val relevantProviders = (ctx ?: db).withSession { session ->
             session
                 .sendPreparedStatement(
                     {
                         setParameter("area", productArea.name)
                         setParameter("project", actorAndProject.project)
                         setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("use_project", useProject)
                     },
                     """
                             select distinct pc.provider
@@ -1017,9 +1022,17 @@ abstract class ResourceService<
                                 accounting.wallets w on pc.id = w.category left join
                                 accounting.wallet_owner wo on wo.id = w.owned_by left join
                                 project.project_members pm on
-                                    wo.project_id = pm.project_id and
-                                    pm.project_id = :project::text and
-                                    pm.username = :username
+                                    pm.username = :username and
+                                    (
+                                        (
+                                            :use_project and
+                                            wo.project_id = pm.project_id and
+                                            pm.project_id = :project::text
+                                        ) or 
+                                        (
+                                            not :use_project
+                                        )
+                                    )
                             where
                                 pc.product_type = :area::accounting.product_type and
                                 (

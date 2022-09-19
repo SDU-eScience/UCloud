@@ -5,10 +5,15 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
+import dk.sdu.cloud.debug.DebugSensitive
+import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -39,6 +44,7 @@ data class ConfigSchema(
         val logs: Logs? = null,
         val launchRealUserInstances: Boolean = true,
         val allowRootMode: Boolean = false,
+        val developmentMode: Boolean? = null,
     ) {
         @Serializable
         data class Hosts(
@@ -117,6 +123,10 @@ data class ConfigSchema(
             ALL(null)
         }
 
+        interface WithAutoInstallSshKey {
+            val installSshKeys: Boolean
+        }
+
         @Serializable
         sealed class Connection {
             @Serializable
@@ -130,7 +140,8 @@ data class ConfigSchema(
                 // message signing completely useless. As a result, message signing should only be turned on for the purposes of
                 // testing the implementation in development.
                 val insecureMessageSigningForDevelopmentPurposesOnly: Boolean = false,
-            ): Connection() {
+                override val installSshKeys: Boolean = true,
+            ): Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Extensions(
                     val onConnectionComplete: String? = null
@@ -139,7 +150,9 @@ data class ConfigSchema(
 
             @Serializable
             @SerialName("Ticket")
-            class Ticket : Connection()
+            data class Ticket(
+                override val installSshKeys: Boolean = true,
+            ) : Connection(), WithAutoInstallSshKey
 
             @Serializable
             @SerialName("OpenIdConnect")
@@ -151,7 +164,8 @@ data class ConfigSchema(
                 val extensions: Extensions,
                 val redirectUrl: String? = null,
                 val requireSigning: Boolean = false,
-            ) : Connection() {
+                override val installSshKeys: Boolean = true,
+            ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
                 data class Ttl(
                     val days: Int = 0,
@@ -282,9 +296,26 @@ data class ConfigSchema(
                 val nodeToleration: TolerationKeyAndValue? = null,
                 val namespace: String = "app-kubernetes",
                 val scheduler: Scheduler = Scheduler.Volcano,
+                val categoryToSelector: Map<String, String> = emptyMap(),
+                val fakeIpMount: Boolean = false,
+                val ssh: Ssh? = null,
             ) : Jobs() {
                 @Serializable
                 data class TolerationKeyAndValue(val key: String, val value: String)
+
+                @Serializable
+                data class SshSubnet(
+                    val iface: String,
+                    val privateCidr: String,
+                    val publicHostname: String,
+                    val portMin: Int,
+                    val portMax: Int,
+                )
+
+                @Serializable
+                data class Ssh(
+                    val subnets: List<SshSubnet>,
+                )
 
                 enum class Scheduler {
                     Volcano,
@@ -312,7 +343,6 @@ data class ConfigSchema(
                 val mountLocation: String,
                 val useCephStats: Boolean = false,
                 val accountingEnabled: Boolean = false,
-                val indexingEnabled: Boolean = false,
             ) : Files()
         }
 

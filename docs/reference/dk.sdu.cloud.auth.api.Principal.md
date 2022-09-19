@@ -14,8 +14,8 @@ sealed class Principal {
     abstract val uid: Long
 
     class Person : Principal()
-    class ServicePrincipal : Principal()
     class ProviderPrincipal : Principal()
+    class ServicePrincipal : Principal()
 }
 ```
 

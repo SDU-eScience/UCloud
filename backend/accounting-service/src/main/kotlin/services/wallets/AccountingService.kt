@@ -1569,6 +1569,9 @@ class AccountingService(
             val ancestorId: Long?,
             val ancestorBalance: Long?,
             val ancestorInitialBalance: Long?,
+
+            val notBefore: Long,
+            val notAfter: Long?,
         )
 
         return ctx.withSession { session ->
@@ -1636,6 +1639,8 @@ class AccountingService(
                         alloc.balance as alloc_balance,
                         alloc.initial_balance as alloc_initial_balance,
                         alloc.allocation_path::text as alloc_path,
+                        provider.timestamp_to_unix(alloc.start_date)::bigint as not_before,
+                        provider.timestamp_to_unix(alloc.end_date)::bigint as not_after,
                         ancestor_alloc.id as ancestor_id,
                         ancestor_alloc.balance as ancestor_balance,
                         ancestor_alloc.initial_balance as ancestor_initial_balance
@@ -1673,6 +1678,9 @@ class AccountingService(
                     row.getLong("ancestor_id"),
                     row.getLong("ancestor_balance"),
                     row.getLong("ancestor_initial_balance"),
+
+                    row.getLong("not_before") ?: 0L,
+                    row.getLong("not_after"),
                 )
             }
 
@@ -1710,7 +1718,9 @@ class AccountingService(
                     alloc.chargeType,
                     alloc.unitOfPrice,
                     maxUsable,
-                    maxPromised
+                    maxPromised,
+                    alloc.notBefore,
+                    alloc.notAfter
                 )
             }
 

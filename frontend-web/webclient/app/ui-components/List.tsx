@@ -23,7 +23,7 @@ function useChildPadding(
 const List = styled(Box) <{fontSize?: string; childPadding?: string | number; bordered?: boolean}>`
     font-size: ${props => props.fontSize};
 
-    & > * {
+    & > *, .list-item {
         ${props => props.bordered ? "border-bottom: 1px solid lightGrey;" : null}
         ${useChildPadding};
     }

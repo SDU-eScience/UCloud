@@ -33,6 +33,8 @@ import {FilesBrowse} from "@/Files/Files";
 import {BrowseType} from "@/Resource/BrowseType";
 import {prettyFilePath} from "@/Files/FilePath";
 import IngressApi, {Ingress} from "@/UCloud/IngressApi";
+import {SillyParser} from "@/Utilities/SillyParser";
+import Warning from "@/ui-components/Warning";
 
 const enterAnimation = keyframes`
     from {
@@ -774,6 +776,64 @@ function useJobFiles(spec: JobSpecification): string {
     return fileInfo;
 }
 
+interface ParsedSshAccess {
+    success: boolean;
+    command: string | null;
+    message: string | null;
+}
+
+function parseUpdatesForAccess(updates: JobUpdate[]): ParsedSshAccess | null {
+    for (let i = updates.length - 1; i >= 0; i--) {
+        const status = updates[i].status;
+        if (!status) continue;
+
+        // NOTE(Dan): we need to split on the lines to deal with AAU OpenStack provider.
+        const messages = status.split("\n");
+        for (const message of messages) {
+            const aauPrefix = "SSH Access: ";
+            if (message.startsWith(aauPrefix)) {
+                // Legacy SSH access message from AAU OpenStack provider
+                return {
+                    success: true,
+                    command: message.substring(aauPrefix.length),
+                    message: null
+                };
+            } else if (message.startsWith("SSH:")) {
+                // Standardized SSH access update
+                const parser = new SillyParser(message);
+                parser.consumeToken("SSH:");
+
+                let peek: string;
+                let success = false;
+                let command: string | null = null;
+                let sshMessage: string | null = null;
+
+                const status = parser.consumeWord();
+                if (status === "Connected!") {
+                    success = true;
+                } else if (status === "Failure!") {
+                    success = false;
+                } else {
+                    continue;
+                }
+
+                if (success) {
+                    peek = parser.peekWord();
+                    if (peek === "Available") {
+                        parser.consumeToken("Available");
+                        parser.consumeToken("at:");
+                        parser.consumeWhitespace();
+                        command = parser.remaining();
+                    }
+                }
+
+                return {success, command, message: sshMessage};
+            }
+        }
+    }
+    return null;
+}
+
 const RunningContent: React.FunctionComponent<{
     job: Job;
     updateListeners: React.RefObject<JobUpdateListener[]>;
@@ -822,7 +882,7 @@ const RunningContent: React.FunctionComponent<{
 
     const appInvocation = job.status.resolvedApplication!.invocation;
     const backendType = appInvocation.tool.tool!.description.backend;
-    const support = job.status.resolvedSupport ? 
+    const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
     const supportsExtension =
         (backendType === "DOCKER" && support?.docker.timeExtension) ||
@@ -830,6 +890,11 @@ const RunningContent: React.FunctionComponent<{
     const supportsLogs =
         (backendType === "DOCKER" && support?.docker.logs) ||
         (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.logs);
+
+    const sshAccess = useMemo(() => {
+        console.log("Parsing", job.updates);
+        return parseUpdatesForAccess(job.updates);
+    }, [job.updates.length]);
 
     useEffect(() => {
         setTimeout(() => {
@@ -910,11 +975,28 @@ const RunningContent: React.FunctionComponent<{
                 <ProviderUpdates job={job} updateListeners={updateListeners} />
             </HighlightedCard>
 
-            <HighlightedCard color="purple" isLoading={false} title="Public Links" icon="globeEuropeSolid">
-                <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
-                    {ingresses.map(ingress => <IngressEntry id={ingress.id} />)}
-                </Text>
-            </HighlightedCard>
+            {ingresses.length === 0 ? null :
+                <HighlightedCard color="purple" isLoading={false} title="Public links" icon="globeEuropeSolid">
+                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                        {ingresses.map(ingress => <IngressEntry id={ingress.id}/>)}
+                    </Text>
+                </HighlightedCard>
+            }
+
+            {!sshAccess ? null :
+                <HighlightedCard color="purple" isLoading={false} title="SSH access" icon="key">
+                    <Text style={{overflowY: "scroll"}} mt="6px" fontSize={"18px"}>
+                        {sshAccess.success ? null : <Warning>
+                            SSH was not configured successfully!
+                        </Warning>}
+                        {!sshAccess.command ? null : <>
+                            Access the SSH server associated with this job using:
+                            <pre><code>{sshAccess.command}</code></pre>
+                        </>}
+                        {!sshAccess.message ? null : <>{sshAccess.message}</>}
+                    </Text>
+                </HighlightedCard>
+            }
         </RunningInfoWrapper>
 
         {!supportsLogs ? null :
@@ -1214,6 +1296,8 @@ const ProviderUpdates: React.FunctionComponent<{
     const {termRef, terminal} = useXTerm({autofit: true});
 
     const appendUpdate = useCallback((update: JobUpdate) => {
+        if (update.status && update.status.startsWith("SSH:")) return;
+
         if (update.status) {
             appendToXterm(
                 terminal,

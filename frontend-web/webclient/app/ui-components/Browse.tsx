@@ -23,6 +23,8 @@ import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SmallScreenSearchField} from "@/Navigation/Header";
+import {FixedSizeList} from "react-window";
+import {default as AutoSizer} from "react-virtualized-auto-sizer";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -113,7 +115,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     return <>
         {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([])} error={error?.why}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], { hasNext: false })} error={error?.why}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
     </>
 }
@@ -146,6 +148,7 @@ interface ItemRowProps<T, CB> {
 export const ItemRow = <T, CB>(
     props: React.PropsWithChildren<ItemRowProps<T, CB>>
 ): JSX.Element | null => {
+    console.log("Rendering ItemRow", props.item)
     const renderer = props.renderer;
     const renameInputRef = useRef<HTMLInputElement>(null);
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);
@@ -210,6 +213,8 @@ export const ItemRow = <T, CB>(
     />;
 }
 
+export const ItemRowMemo = React.memo(ItemRow) as typeof ItemRow;
+
 interface RenamingState<T> {
     setRenaming: (item: T) => void;
     isRenaming: (item: T) => boolean;
@@ -243,10 +248,10 @@ export function useRenamingState<T>(
         renameValue: memoNameExtractor,
         onRename: memoOnRename,
         onRenameCancel
-    }), [onRename, isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
+    }), [isRenaming, setRenaming, onRenameCancel, memoNameExtractor, memoOnRename]);
 }
 
-export interface StandardCallbacks<T> {
+export interface StandardCallbacks<T = any> {
     commandLoading: boolean;
     invokeCommand: InvokeCommand;
     reload: () => void;
@@ -271,6 +276,8 @@ interface StandardListBrowse<T, CB> {
     extraCallbacks?: CB;
     hide?: boolean;
     navigate?: (item: T) => void;
+    header?: React.ReactNode;
+    headerSize?: number;
 }
 
 export function StandardList<T, CB = EmptyObject>(
@@ -316,28 +323,35 @@ export function StandardList<T, CB = EmptyObject>(
     }, [props.operations]);
 
     const pageRenderer = useCallback<PageRenderer<T>>(items => {
-        return <List childPadding={"8px"} bordered={false}>
-            {items.length > 0 ? null : props.emptyPage ? props.emptyPage :
-                <>
-                    No {titlePlural.toLowerCase()} available.
-                </>
-            }
-            {items.map((it, idx) =>
-                <ItemRow
-                    key={idx}
-                    browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}
-                    renderer={props.renderer} callbacks={callbacks} operations={allOperations}
-                    item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}
-                    navigate={props.navigate}
-                />
-            )}
-        </List>
+        return <>
+            <List childPadding={"8px"} bordered={false}>
+                {items.length > 0 ? null : props.emptyPage ? props.emptyPage :
+                    <>
+                        No {titlePlural.toLowerCase()} available.
+                    </>
+                }
+
+                {items.map((it, idx) =>
+                    <ItemRow
+                        key={idx}
+                        browseType={isMainContainer ? BrowseType.MainContent : BrowseType.Embedded}
+                        renderer={props.renderer} callbacks={callbacks} operations={allOperations}
+                        item={it} itemTitle={props.title} itemTitlePlural={titlePlural} toggleSet={toggleSet}
+                        navigate={props.navigate}
+                    />
+                )}
+            </List>
+        </>
     }, [toggleSet, props.renderer, callbacks, allOperations, props.title, titlePlural]);
+
+    const onReload = useCallback(() => {
+        toggleSet.uncheckAll();
+    }, []);
 
     const main = useMemo(() =>
         <StandardBrowse generateCall={props.generateCall} pageRenderer={pageRenderer}
             reloadRef={reloadRef} loadingRef={loadingRef}
-            hide={props.hide} setRefreshFunction={isMainContainer}
+            hide={props.hide} setRefreshFunction={isMainContainer} onReload={onReload}
             preloadedResources={props.preloadedResources} />,
         [props.generateCall, pageRenderer, reloadRef, loadingRef, props.hide, props.preloadedResources]
     );
@@ -367,6 +381,8 @@ export function StandardList<T, CB = EmptyObject>(
         </>;
     } else {
         return <MainContainer
+            header={props.header}
+            headerSize={props.headerSize}
             main={main}
             sidebar={
                 <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}

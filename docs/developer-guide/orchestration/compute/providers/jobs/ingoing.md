@@ -209,6 +209,10 @@ fit.
 <td><i>No description</i></td>
 </tr>
 <tr>
+<td><a href='#jobsproviderutilizationrequest'><code>JobsProviderUtilizationRequest</code></a></td>
+<td><i>No description</i></td>
+</tr>
+<tr>
 <td><a href='#jobsproviderfollowresponse'><code>JobsProviderFollowResponse</code></a></td>
 <td>A message emitted by the Provider in a follow session</td>
 </tr>
@@ -261,6 +265,15 @@ BulkResponse(
             vnc = true, 
             web = true, 
         ), 
+        native = ComputeSupport.Native(
+            enabled = null, 
+            logs = null, 
+            terminal = null, 
+            timeExtension = null, 
+            utilization = null, 
+            vnc = null, 
+            web = null, 
+        ), 
         product = ProductReference(
             category = "example-compute", 
             id = "example-compute-1", 
@@ -285,6 +298,15 @@ BulkResponse(
             utilization = true, 
             vnc = true, 
             web = true, 
+        ), 
+        native = ComputeSupport.Native(
+            enabled = null, 
+            logs = null, 
+            terminal = null, 
+            timeExtension = null, 
+            utilization = null, 
+            vnc = null, 
+            web = null, 
         ), 
         product = ProductReference(
             category = "example-compute", 
@@ -363,6 +385,15 @@ await callAPI(JobsProviderPROVIDERIDApi.retrieveProducts(
                 "timeExtension": null,
                 "suspension": null,
                 "utilization": null
+            },
+            "native": {
+                "enabled": null,
+                "logs": null,
+                "vnc": null,
+                "terminal": null,
+                "timeExtension": null,
+                "utilization": null,
+                "web": null
             }
         },
         {
@@ -389,6 +420,15 @@ await callAPI(JobsProviderPROVIDERIDApi.retrieveProducts(
                 "timeExtension": null,
                 "suspension": null,
                 "utilization": null
+            },
+            "native": {
+                "enabled": null,
+                "logs": null,
+                "vnc": null,
+                "terminal": null,
+                "timeExtension": null,
+                "utilization": null,
+                "web": null
             }
         }
     ]
@@ -453,6 +493,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "suspension": null,
 #                 "utilization": null
+#             },
+#             "native": {
+#                 "enabled": null,
+#                 "logs": null,
+#                 "vnc": null,
+#                 "terminal": null,
+#                 "timeExtension": null,
+#                 "utilization": null,
+#                 "web": null
 #             }
 #         },
 #         {
@@ -479,6 +528,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "suspension": null,
 #                 "utilization": null
+#             },
+#             "native": {
+#                 "enabled": null,
+#                 "logs": null,
+#                 "vnc": null,
+#                 "terminal": null,
+#                 "timeExtension": null,
+#                 "utilization": null,
+#                 "web": null
 #             }
 #         }
 #     ]
@@ -547,6 +605,15 @@ BulkResponse(
             vnc = null, 
             web = null, 
         ), 
+        native = ComputeSupport.Native(
+            enabled = null, 
+            logs = null, 
+            terminal = null, 
+            timeExtension = null, 
+            utilization = null, 
+            vnc = null, 
+            web = null, 
+        ), 
         product = ProductReference(
             category = "example-compute", 
             id = "example-compute-1", 
@@ -566,6 +633,15 @@ BulkResponse(
             enabled = null, 
             logs = null, 
             peers = null, 
+            terminal = null, 
+            timeExtension = null, 
+            utilization = null, 
+            vnc = null, 
+            web = null, 
+        ), 
+        native = ComputeSupport.Native(
+            enabled = null, 
+            logs = null, 
             terminal = null, 
             timeExtension = null, 
             utilization = null, 
@@ -652,6 +728,15 @@ await callAPI(JobsProviderPROVIDERIDApi.retrieveProducts(
                 "timeExtension": null,
                 "suspension": null,
                 "utilization": null
+            },
+            "native": {
+                "enabled": null,
+                "logs": null,
+                "vnc": null,
+                "terminal": null,
+                "timeExtension": null,
+                "utilization": null,
+                "web": null
             }
         },
         {
@@ -678,6 +763,15 @@ await callAPI(JobsProviderPROVIDERIDApi.retrieveProducts(
                 "timeExtension": null,
                 "suspension": null,
                 "utilization": null
+            },
+            "native": {
+                "enabled": null,
+                "logs": null,
+                "vnc": null,
+                "terminal": null,
+                "timeExtension": null,
+                "utilization": null,
+                "web": null
             }
         }
     ]
@@ -745,6 +839,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "suspension": null,
 #                 "utilization": null
+#             },
+#             "native": {
+#                 "enabled": null,
+#                 "logs": null,
+#                 "vnc": null,
+#                 "terminal": null,
+#                 "timeExtension": null,
+#                 "utilization": null,
+#                 "web": null
 #             }
 #         },
 #         {
@@ -771,6 +874,15 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/ucloud/PROVIDERID/jobs
 #                 "timeExtension": null,
 #                 "suspension": null,
 #                 "utilization": null
+#             },
+#             "native": {
+#                 "enabled": null,
+#                 "logs": null,
+#                 "vnc": null,
+#                 "terminal": null,
+#                 "timeExtension": null,
+#                 "utilization": null,
+#                 "web": null
 #             }
 #         }
 #     ]
@@ -892,6 +1004,7 @@ JobsProvider.create.call(
             replicas = 1, 
             resources = null, 
             restartOnExit = null, 
+            sshEnabled = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -951,6 +1064,7 @@ JobsProvider.create.call(
                     )), 
                     shouldAllowAdditionalMounts = false, 
                     shouldAllowAdditionalPeers = true, 
+                    ssh = null, 
                     tool = ToolReference(
                         name = "acme-batch", 
                         tool = Tool(
@@ -1045,6 +1159,15 @@ JobsProvider.create.call(
                         enabled = true, 
                         logs = null, 
                         peers = null, 
+                        terminal = null, 
+                        timeExtension = null, 
+                        utilization = null, 
+                        vnc = null, 
+                        web = null, 
+                    ), 
+                    native = ComputeSupport.Native(
+                        enabled = null, 
+                        logs = null, 
                         terminal = null, 
                         timeExtension = null, 
                         utilization = null, 
@@ -1235,7 +1358,8 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                         "seconds": 0
                     },
                     "openedFile": null,
-                    "restartOnExit": null
+                    "restartOnExit": null,
+                    "sshEnabled": null
                 },
                 "status": {
                     "state": "IN_QUEUE",
@@ -1344,6 +1468,7 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                             "applicationType": "BATCH",
                             "vnc": null,
                             "web": null,
+                            "ssh": null,
                             "container": null,
                             "environment": null,
                             "allowAdditionalMounts": null,
@@ -1402,6 +1527,15 @@ await callAPI(JobsProviderPROVIDERIDApi.create(
                                 "timeExtension": null,
                                 "suspension": null,
                                 "utilization": null
+                            },
+                            "native": {
+                                "enabled": null,
+                                "logs": null,
+                                "vnc": null,
+                                "terminal": null,
+                                "timeExtension": null,
+                                "utilization": null,
+                                "web": null
                             }
                         }
                     },
@@ -1607,7 +1741,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             },
             "status": {
                 "state": "IN_QUEUE",
@@ -1716,6 +1851,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                         "applicationType": "BATCH",
                         "vnc": null,
                         "web": null,
+                        "ssh": null,
                         "container": null,
                         "environment": null,
                         "allowAdditionalMounts": null,
@@ -1774,6 +1910,15 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                             "timeExtension": null,
                             "suspension": null,
                             "utilization": null
+                        },
+                        "native": {
+                            "enabled": null,
+                            "logs": null,
+                            "vnc": null,
+                            "terminal": null,
+                            "timeExtension": null,
+                            "utilization": null,
+                            "web": null
                         }
                     }
                 },
@@ -2362,6 +2507,7 @@ JobsProvider.verify.call(
             replicas = 1, 
             resources = null, 
             restartOnExit = null, 
+            sshEnabled = null, 
             timeAllocation = SimpleDuration(
                 hours = 1, 
                 minutes = 0, 
@@ -2473,7 +2619,8 @@ await callAPI(JobsProviderPROVIDERIDApi.verify(
                         "seconds": 0
                     },
                     "openedFile": null,
-                    "restartOnExit": null
+                    "restartOnExit": null,
+                    "sshEnabled": null
                 },
                 "status": {
                     "state": "RUNNING",
@@ -2590,7 +2737,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                     "seconds": 0
                 },
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             },
             "status": {
                 "state": "RUNNING",
@@ -2704,7 +2852,7 @@ _Retrieve information about how busy the provider's cluster currently is_
 
 | Request | Response | Error |
 |---------|----------|-------|
-|<code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-unit/'>Unit</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobsRetrieveUtilizationResponse.md'>JobsRetrieveUtilizationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
+|<code><a href='#jobsproviderutilizationrequest'>JobsProviderUtilizationRequest</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.JobsRetrieveUtilizationResponse.md'>JobsRetrieveUtilizationResponse</a></code>|<code><a href='/docs/reference/dk.sdu.cloud.CommonErrorMessage.md'>CommonErrorMessage</a></code>|
 
 __Implementation requirements:__ 
  - [`docker.utilization = true`](/docs/reference/dk.sdu.cloud.app.orchestrator.api.ComputeSupport.Docker.md) or
@@ -2941,8 +3089,8 @@ _A request to start/stop a follow session_
 
 ```kotlin
 sealed class JobsProviderFollowRequest {
-    class Init : JobsProviderFollowRequest()
     class CancelStream : JobsProviderFollowRequest()
+    class Init : JobsProviderFollowRequest()
 }
 ```
 
@@ -3168,6 +3316,42 @@ data class JobsProviderUnsuspendRequestItem(
 <details>
 <summary>
 <code>job</code>: <code><code><a href='/docs/reference/dk.sdu.cloud.app.orchestrator.api.Job.md'>Job</a></code></code>
+</summary>
+
+
+
+
+
+</details>
+
+
+
+</details>
+
+
+
+---
+
+### `JobsProviderUtilizationRequest`
+
+[![API: Internal/Beta](https://img.shields.io/static/v1?label=API&message=Internal/Beta&color=red&style=flat-square)](/docs/developer-guide/core/api-conventions.md)
+
+
+
+```kotlin
+data class JobsProviderUtilizationRequest(
+    val categoryId: String,
+)
+```
+
+<details>
+<summary>
+<b>Properties</b>
+</summary>
+
+<details>
+<summary>
+<code>categoryId</code>: <code><code><a href='https://kotlinlang.org/api/latest/jvm/stdlib/kotlin/-string/'>String</a></code></code>
 </summary>
 
 

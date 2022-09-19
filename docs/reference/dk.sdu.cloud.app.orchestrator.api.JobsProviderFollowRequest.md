@@ -10,8 +10,8 @@ _A request to start/stop a follow session_
 
 ```kotlin
 sealed class JobsProviderFollowRequest {
-    class Init : JobsProviderFollowRequest()
     class CancelStream : JobsProviderFollowRequest()
+    class Init : JobsProviderFollowRequest()
 }
 ```
 

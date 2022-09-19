@@ -192,7 +192,7 @@ Shares.create.call(
         permissions = listOf(Permission.EDIT), 
         product = ProductReference(
             category = "example-ssd", 
-            id = "share", 
+            id = "example-ssd", 
             provider = "example", 
         ), 
         sharedWith = "bob", 
@@ -260,7 +260,7 @@ PageV2(
             permissions = listOf(Permission.EDIT), 
             product = ProductReference(
                 category = "example-ssd", 
-                id = "share", 
+                id = "example-ssd", 
                 provider = "example", 
             ), 
             sharedWith = "bob", 
@@ -344,7 +344,7 @@ PageV2(
             permissions = listOf(Permission.EDIT), 
             product = ProductReference(
                 category = "example-ssd", 
-                id = "share", 
+                id = "example-ssd", 
                 provider = "example", 
             ), 
             sharedWith = "bob", 
@@ -389,7 +389,7 @@ await callAPI(SharesApi.create(
                     "EDIT"
                 ],
                 "product": {
-                    "id": "share",
+                    "id": "example-ssd",
                     "category": "example-ssd",
                     "provider": "example"
                 }
@@ -455,7 +455,7 @@ await callAPI(SharesApi.browse(
                     "EDIT"
                 ],
                 "product": {
-                    "id": "share",
+                    "id": "example-ssd",
                     "category": "example-ssd",
                     "provider": "example"
                 }
@@ -548,7 +548,7 @@ await callAPI(SharesApi.browse(
                     "EDIT"
                 ],
                 "product": {
-                    "id": "share",
+                    "id": "example-ssd",
                     "category": "example-ssd",
                     "provider": "example"
                 }
@@ -606,7 +606,7 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
                 "EDIT"
             ],
             "product": {
-                "id": "share",
+                "id": "example-ssd",
                 "category": "example-ssd",
                 "provider": "example"
             }
@@ -640,7 +640,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "EDIT"
 #                 ],
 #                 "product": {
-#                     "id": "share",
+#                     "id": "example-ssd",
 #                     "category": "example-ssd",
 #                     "provider": "example"
 #                 }
@@ -699,7 +699,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/shares/browse?incl
 #                     "EDIT"
 #                 ],
 #                 "product": {
-#                     "id": "share",
+#                     "id": "example-ssd",
 #                     "category": "example-ssd",
 #                     "provider": "example"
 #                 }

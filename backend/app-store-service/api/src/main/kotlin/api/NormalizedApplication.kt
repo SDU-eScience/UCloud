@@ -62,6 +62,23 @@ data class WebDescription(
 )
 
 @Serializable
+@UCloudApiDoc("""
+    Information to the provider about the SSH capabilities of this application
+    
+    Providers must use this information, if SSH is supported, to correctly configure applications with the appropriate
+    keys. See $CALL_REF_LINK jobs.control.browseSshKeys for more information.
+""")
+data class SshDescription(
+    val mode: Mode = Mode.DISABLED
+) {
+    enum class Mode {
+        DISABLED,
+        OPTIONAL,
+        MANDATORY
+    }
+}
+
+@Serializable
 @UCloudApiDoc("Information to the Provider about how to launch the container", importance = 950)
 data class ContainerDescription(
     val changeWorkingDirectory: Boolean = true,
@@ -127,6 +144,9 @@ data class ApplicationInvocationDescription(
 
     @UCloudApiDoc("Information about how to reach the web service")
     val web: WebDescription? = null,
+
+    @UCloudApiDoc("Information about how the SSH capabilities of this application")
+    val ssh: SshDescription? = null,
 
     @UCloudApiDoc("Hints to the container system about how the Application should be launched")
     val container: ContainerDescription? = null,

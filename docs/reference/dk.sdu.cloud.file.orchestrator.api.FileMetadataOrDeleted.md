@@ -14,8 +14,8 @@ sealed class FileMetadataOrDeleted {
     abstract val id: String
     abstract val status: FileMetadataDocument.Status
 
-    class Deleted : FileMetadataOrDeleted()
     class FileMetadataDocument : FileMetadataOrDeleted()
+    class Deleted : FileMetadataOrDeleted()
 }
 ```
 

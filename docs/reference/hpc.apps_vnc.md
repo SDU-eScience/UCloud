@@ -50,6 +50,7 @@ ApplicationWithFavoriteAndTags(
         parameters = emptyList(), 
         shouldAllowAdditionalMounts = true, 
         shouldAllowAdditionalPeers = true, 
+        ssh = null, 
         tool = ToolReference(
             name = "acme-remote-desktop", 
             tool = Tool(
@@ -186,6 +187,7 @@ await callAPI(HpcAppsApi.findByNameAndVersion(
             "port": 5900
         },
         "web": null,
+        "ssh": null,
         "container": null,
         "environment": null,
         "allowAdditionalMounts": null,
@@ -288,6 +290,7 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/hpc/apps/byNameAnd
 #             "port": 5900
 #         },
 #         "web": null,
+#         "ssh": null,
 #         "container": null,
 #         "environment": null,
 #         "allowAdditionalMounts": null,

@@ -72,7 +72,8 @@ class ParameterExportService(
                 parameters.resources?.map {
                     defaultMapper.encodeToJsonElement(it) as JsonObject
                 } ?: emptyList(),
-                parameters.timeAllocation
+                parameters.timeAllocation,
+                sshEnabled = parameters.sshEnabled ?: false
             ),
             ExportedParameters.Resources(
                 ingress = runCatching {

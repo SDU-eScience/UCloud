@@ -53,8 +53,6 @@ export const PeerResource: React.FunctionComponent<{
                             >
                                 &quot;Connect to job&quot;.
                             </BaseLink>
-                            {" "}
-                            This includes networking.
                         </>
                     )}
                 </Box>

@@ -38,7 +38,11 @@ class DebugSystemFeature : MicroFeature, DebugSystem {
         }
 
         val directory = CommonFile(logLocation)
-        delegate = CommonDebugSystem(serviceDescription.name, directory, disabled = !ctx.developmentModeEnabled)
+        delegate = CommonDebugSystem(
+            serviceDescription.name,
+            directory,
+            if (ctx.developmentModeEnabled) DebugMessageTransformer.Development else DebugMessageTransformer.Disabled
+        )
 
         installCommon(ctx.client)
 

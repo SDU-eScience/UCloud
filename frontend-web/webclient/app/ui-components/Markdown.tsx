@@ -3,7 +3,9 @@ import ReactMarkdown, {Options} from "react-markdown";
 import ExternalLink from "./ExternalLink";
 import SyntaxHighlighter from "react-syntax-highlighter";
 
-function CodeBlock(props: {children: any; lang?: string;}) {
+function CodeBlock(props: {children: any; lang?: string; inline?: boolean}) {
+    if (props.inline === true) return <code>{props.children}</code>;
+
     return (
         <SyntaxHighlighter language={props.lang}>
             {props.children}

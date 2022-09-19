@@ -7,17 +7,29 @@ import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.file.orchestrator.api.FileIconHint
 import dk.sdu.cloud.file.orchestrator.api.FileType
+import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchRequest
+import dk.sdu.cloud.file.orchestrator.api.FilesProviderStreamingSearchResult
 import dk.sdu.cloud.file.orchestrator.api.FilesSortBy
 import dk.sdu.cloud.file.orchestrator.api.PartialUFile
+import dk.sdu.cloud.file.orchestrator.api.UFile
 import dk.sdu.cloud.file.orchestrator.api.UFileIncludeFlags
 import dk.sdu.cloud.file.orchestrator.api.UFileStatus
 import dk.sdu.cloud.file.orchestrator.api.fileName
+import dk.sdu.cloud.file.orchestrator.api.joinPath
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.UCloudFile
 import dk.sdu.cloud.plugins.components
+import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.parent
 import dk.sdu.cloud.plugins.parents
 import dk.sdu.cloud.service.Loggable
+import dk.sdu.cloud.service.Time
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.KSerializer
@@ -26,6 +38,8 @@ import kotlinx.serialization.builtins.serializer
 import libc.NativeStat
 import java.util.*
 import java.util.concurrent.atomic.AtomicInteger
+import kotlin.collections.ArrayDeque
+import kotlin.collections.ArrayList
 
 const val PERSONAL_REPOSITORY = "Members' Files"
 const val MAX_FILE_COUNT_FOR_SORTING = 25_000
@@ -287,6 +301,59 @@ class FileQueries(
         return inheritedSensitivity
     }
 
+    @OptIn(DelicateCoroutinesApi::class, ExperimentalCoroutinesApi::class)
+    suspend fun streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = GlobalScope.produce {
+        val currentFolder = req.currentFolder ?: return@produce
+        val normalizedQuery = req.query.trim().split(" ").map { it.lowercase() }
+        fun fileNameMatchesQuery(name: String): Boolean {
+            val lowercased = name.lowercase()
+            return normalizedQuery.any { lowercased.contains(it) }
+        }
+
+        val deadline = Time.now() + 60_000
+
+        val stack = ArrayDeque<InternalFile>()
+        stack.add(pathConverter.ucloudToInternal(UCloudFile.create(currentFolder)))
+        while (isActive && Time.now() < deadline) {
+            val file = stack.removeFirstOrNull() ?: break
+            val childNames = runCatching { nativeFs.listFiles(file) }.getOrNull() ?: continue
+            val children = childNames.map { InternalFile(joinPath(file.path, it)) }
+
+            // NOTE(Dan): The folderBatch cannot be re-used between folders as the results are consumed asynchronously
+            // and clearing it at the end would result in an empty result in the consumer.
+            val folderBatch = ArrayList<PartialUFile>()
+            for (child in children) {
+                val fileName = child.fileName()
+                val isProbablyFile = run {
+                    // NOTE(Dan): This small snippet tries to determine if the file we are looking at is probably a
+                    // file. We do this to avoid stat-ing files which do not match the query and are probably not
+                    // directories. The end result is that we can search a lot more files in the time we have, since
+                    // most file-systems probably contains mostly files which obviously do not match the query.
+                    //
+                    // We assume an entry is a file if its name has a dot within the last 5 characters of its name.
+                    // Extensions are typically not longer than 4 characters.
+                    val indexOfLastDot = fileName.lastIndexOf('.')
+                    if (indexOfLastDot == -1) return@run false
+                    fileName.length - indexOfLastDot <= 5
+                }
+
+                val matches = fileNameMatchesQuery(child.fileName())
+                if (isProbablyFile && !matches) continue
+
+                val fileInfo = runCatching { nativeFs.stat(child) }.getOrNull() ?: continue
+                if (fileInfo.fileType == FileType.DIRECTORY) stack.add(child)
+                if (!matches) continue
+
+                folderBatch.add(convertNativeStatToUFile(child, fileInfo))
+            }
+
+            if (folderBatch.isNotEmpty()) {
+                send(FilesProviderStreamingSearchResult.Result(folderBatch))
+            }
+        }
+    }
 
     companion object : Loggable {
         override val log = logger()

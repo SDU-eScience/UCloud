@@ -1308,9 +1308,9 @@ enum class GrantApplicationFilter {
 
 ```kotlin
 sealed class GrantRecipient {
-    class PersonalProject : GrantRecipient()
     class ExistingProject : GrantRecipient()
     class NewProject : GrantRecipient()
+    class PersonalProject : GrantRecipient()
 }
 ```
 

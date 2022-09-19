@@ -45,6 +45,7 @@ Jobs.create.call(
             readOnly = false, 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     )),
     user
@@ -122,6 +123,7 @@ Job(
             readOnly = false, 
         )), 
         restartOnExit = null, 
+        sshEnabled = null, 
         timeAllocation = null, 
     ), 
     status = JobStatus(
@@ -213,7 +215,8 @@ await callAPI(JobsApi.create(
                 ],
                 "timeAllocation": null,
                 "openedFile": null,
-                "restartOnExit": null
+                "restartOnExit": null,
+                "sshEnabled": null
             }
         ]
     }
@@ -327,7 +330,8 @@ await callAPI(JobsApi.retrieve(
         ],
         "timeAllocation": null,
         "openedFile": null,
-        "restartOnExit": null
+        "restartOnExit": null,
+        "sshEnabled": null
     },
     "status": {
         "state": "SUCCESS",
@@ -391,7 +395,8 @@ curl -XPOST -H "Authorization: Bearer $accessToken" -H "Content-Type: content-ty
             ],
             "timeAllocation": null,
             "openedFile": null,
-            "restartOnExit": null
+            "restartOnExit": null,
+            "sshEnabled": null
         }
     ]
 }'
@@ -476,7 +481,8 @@ curl -XGET -H "Authorization: Bearer $accessToken" "$host/api/jobs/retrieve?incl
 #         ],
 #         "timeAllocation": null,
 #         "openedFile": null,
-#         "restartOnExit": null
+#         "restartOnExit": null,
+#         "sshEnabled": null
 #     },
 #     "status": {
 #         "state": "SUCCESS",
