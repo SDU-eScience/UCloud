@@ -165,7 +165,7 @@ const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
 // Operations
 interface Callbacks {
     invokeCommand: InvokeCommand;
-    history: History;
+    history: ReturnType<typeof useHistory>;
     reload: () => void;
     rerender: () => void;
 }

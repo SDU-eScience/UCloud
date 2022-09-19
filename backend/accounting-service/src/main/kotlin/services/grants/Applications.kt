@@ -856,7 +856,6 @@ class GrantApplicationService(
                             setParameter("state", newState.name)
                             setParameter("project_id", approvingProject)
                         },
-                        // TODO(Jonas): This change might be important.
                         """
                             update "grant".grant_giver_approvals
                             set state = :state, updated_by = :username, last_update = now() 

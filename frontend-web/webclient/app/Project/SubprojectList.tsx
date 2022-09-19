@@ -24,7 +24,7 @@ interface MemberInProjectCallbacks {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
-    history: History;
+    history: ReturnType<typeof useHistory>;
     setActiveProject: (id: string, title: string) => void;
     isAdminOrPIForParent: boolean;
 }

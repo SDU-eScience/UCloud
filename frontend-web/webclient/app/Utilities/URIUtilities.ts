@@ -1,7 +1,7 @@
-import {History} from "history";
+import {useHistory} from "react-router";
 
 export interface RouterLocationProps {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     location: {
         search: string;
     };

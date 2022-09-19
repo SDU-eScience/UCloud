@@ -258,7 +258,7 @@ export interface StandardCallbacks<T = any> {
     onSelect?: (resource: T) => void;
     embedded: boolean;
     dispatch: Dispatch;
-    history: H.History;
+    history: ReturnType<typeof useHistory>;
 }
 
 interface StandardListBrowse<T, CB> {
