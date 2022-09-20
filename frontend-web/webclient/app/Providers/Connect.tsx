@@ -156,7 +156,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                                             icon: "close",
                                             enabled: () => {
                                                 // TODO(Dan): Generalize this for more providers
-                                                return it.providerTitle !== "ucloud";
+                                                return it.providerTitle !== "ucloud" && it.providerTitle !== "aau";
                                             },
                                             onClick: async () => {
                                                 await invokeCommand(

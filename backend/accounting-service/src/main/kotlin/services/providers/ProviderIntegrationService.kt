@@ -166,6 +166,7 @@ class ProviderIntegrationService(
                         row.getLong(0)!!.toString(),
                         when {
                             providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                            providerTitle == "aau" -> true // NOTE(Dan): Backwards compatible
                             manifest != null && !manifest.manifest.enabled -> true
                             else -> row.getBoolean(1)!!
                         },
