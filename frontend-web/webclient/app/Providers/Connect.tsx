@@ -56,13 +56,13 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                     icon: "key",
                     title: `Connection required`,
                     body: <>
-                        You must <BaseLink href="#">re-connect</BaseLink> with '{p.providerTitle}' to continue
-                        using it.
+                        You must <BaseLink href="#">re-connect</BaseLink> with
+                        '<ProviderTitle providerId={p.providerTitle} />' to continue using it.
                     </>,
                     isPinned: true,
                     uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`,
                     onAction: () => {
-                        history.push("/");
+                        history.push("/providers/connect");
                     }
                 });
             }

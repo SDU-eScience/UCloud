@@ -157,7 +157,7 @@ function renderNotifications() {
     }
 }
 
-// NOTE(Dan): The frontend can generate its own notification thorugh `sendNotification()`. This is generally prefered
+// NOTE(Dan): The frontend can generate its own notification through `sendNotification()`. This is generally preferred
 // over using the `snackbar` functions, as these allow for greater flexibility.
 export function sendNotification(notification: NormalizedNotification) {
     const normalized = normalizeNotification(notification);
