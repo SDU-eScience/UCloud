@@ -391,7 +391,7 @@ export function retrieveDescription(
 ): APICallParameters<RetrieveDescriptionRequest> {
     return {
         method: "GET",
-        path: buildQueryString("/grant/description/", request),
+        path: buildQueryString("/project/description/", request),
         parameters: request,
         reloadId: Math.random()
     };

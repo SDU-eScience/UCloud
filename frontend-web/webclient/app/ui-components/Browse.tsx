@@ -12,7 +12,6 @@ import {NamingField} from "@/UtilityComponents";
 import {ListRow, ListStatContainer} from "@/ui-components/List";
 import {displayErrorMessageOrDefault, doNothing, EmptyObject} from "@/UtilityFunctions";
 import {Dispatch} from "redux";
-import * as H from "history";
 import {useScrollStatus} from "@/Utilities/ScrollStatus";
 import {useDispatch} from "react-redux";
 import {useHistory} from "react-router";
@@ -23,8 +22,6 @@ import {StickyBox} from "@/ui-components/StickyBox";
 import MainContainer from "@/MainContainer/MainContainer";
 import {BrowseType} from "@/Resource/BrowseType";
 import {SmallScreenSearchField} from "@/Navigation/Header";
-import {FixedSizeList} from "react-window";
-import {default as AutoSizer} from "react-virtualized-auto-sizer";
 
 interface BrowseProps<T> {
     preloadedResources?: T[];
@@ -115,7 +112,7 @@ export function StandardBrowse<T>(props: React.PropsWithChildren<BrowseProps<T>>
     return <>
         {props.isSearch && props.browseType === BrowseType.MainContent ? <SmallScreenSearchField /> : null}
         <Pagination.ListV2 page={resources} pageRenderer={props.pageRenderer} loading={isLoading}
-            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], { hasNext: false })} error={error?.why}
+            onLoadMore={loadMore} customEmptyPage={props.pageRenderer([], {hasNext: false})} error={error?.why}
             infiniteScrollGeneration={infScroll} dataIsStatic={hasPreloadedResources} />
     </>
 }
