@@ -6,6 +6,8 @@ import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.utils.*
 import java.io.File
+import java.nio.file.Files
+import java.util.UUID
 import kotlin.system.exitProcess
 
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
@@ -341,7 +343,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 verifyFile(
                     core.ipc?.directory ?: "/var/run/ucloud",
                     FileType.DIRECTORY,
-                    baseReference
+                    baseReference,
+                    requireWriteAccess = true
                 )
             )
 
@@ -353,7 +356,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                 verifyFile(
                     core.logs?.directory ?: "/var/log/ucloud",
                     FileType.DIRECTORY,
-                    baseReference
+                    baseReference,
+                    requireWriteAccess = true
                 )
             )
 
@@ -895,11 +899,14 @@ private fun verifyFile(
     path: String,
     typeRequirement: FileType?,
     ref: ConfigurationReference? = null,
+    requireWriteAccess: Boolean = false,
 ): VerifyResult<String> {
+    val fileExists = fileExists(path)
+    val fileIsDirectory = fileExists && fileIsDirectory(path)
     val isOk = when (typeRequirement) {
-        FileType.FILE -> fileExists(path) && !fileIsDirectory(path)
-        FileType.DIRECTORY -> fileExists(path) && fileIsDirectory(path)
-        else -> fileExists(path)
+        FileType.FILE -> fileExists && !fileIsDirectory
+        FileType.DIRECTORY -> fileExists && fileIsDirectory
+        else -> fileExists
     }
 
     if (!isOk) {
@@ -911,6 +918,13 @@ private fun verifyFile(
             }
         }
     } else {
+        if (requireWriteAccess) {
+            val hasWrite = Files.isWritable(File(path).toPath())
+            if (!hasWrite) {
+                return VerifyResult.Error("Unable to write to '$path'", ref)
+            }
+        }
+
         return VerifyResult.Ok(path)
     }
 }
