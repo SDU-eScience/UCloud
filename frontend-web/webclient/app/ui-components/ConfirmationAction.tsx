@@ -225,6 +225,7 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     align?: "left" | "center",
     onAction?: () => void;
     hoverColor?: ThemeColor;
+    disabled?: boolean;
 }> = props => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);
