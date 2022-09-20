@@ -154,12 +154,17 @@ class ProviderIntegrationService(
             },
             mapper = { _, rows ->
                 rows.mapNotNull { row ->
+                    val providerTitle = row.getString(2)!!
                     val manifest = communicationCache.get(row.getLong(0)!!.toString())
 
                     IntegrationBrowseResponseItem(
                         row.getLong(0)!!.toString(),
-                        if (manifest == null || !manifest.manifest.enabled) true else row.getBoolean(1)!!,
-                        row.getString(2)!!,
+                        when {
+                            providerTitle == "ucloud" -> true // NOTE(Dan): Backwards compatible
+                            manifest != null && !manifest.manifest.enabled -> true
+                            else -> row.getBoolean(1)!!
+                        },
+                        providerTitle,
                         manifest?.manifest?.requiresMessageSigning ?: false
                     )
                 }

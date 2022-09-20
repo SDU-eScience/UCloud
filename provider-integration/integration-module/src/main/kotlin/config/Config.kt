@@ -5,15 +5,10 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.debug.DebugSensitive
-import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -157,13 +152,15 @@ data class ConfigSchema(
             @Serializable
             @SerialName("OpenIdConnect")
             data class OpenIdConnect(
-                val certificate: String,
+                @Deprecated("Replaced with signing block")
+                val certificate: String? = null,
                 val mappingTimeToLive: Ttl,
                 val endpoints: Endpoints,
                 val client: Client,
                 val extensions: Extensions,
                 val redirectUrl: String? = null,
                 val requireSigning: Boolean = false,
+                val signing: Signing? = null,
                 override val installSshKeys: Boolean = true,
             ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
@@ -190,6 +187,18 @@ data class ConfigSchema(
                 data class Extensions(
                     val onConnectionComplete: String,
                 )
+
+                @Serializable
+                data class Signing(
+                    val algorithm: SignatureType,
+                    val key: String,
+                )
+
+                enum class SignatureType {
+                    // NOTE(Dan): This is incomplete
+                    RS256,
+                    ES256
+                }
             }
         }
 

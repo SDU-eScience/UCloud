@@ -258,8 +258,7 @@ class PuhuriPlugin : ProjectPlugin {
 
     private suspend fun onConnectionComplete(subject: OpenIdConnectSubject) {
         val ucloudUser = subject.ucloudIdentity
-        val puhuriUserId =
-            subject.email ?: error("Expected user ID to be present") // TODO(Dan): Change with the correct attribute
+        val puhuriUserId = subject.subject
 
         dbConnection.withSession { session ->
             session.prepareStatement(
@@ -555,8 +554,7 @@ class PuhuriClient(
                 apiRequest()
             ).orThrow()
 
-            val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.body())
-
+            val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.bodyAsText())
 
             if (results.isNotEmpty()) {
                 logExit(
@@ -577,7 +575,7 @@ class PuhuriClient(
             apiPath("remote-eduteams"),
             apiRequestWithBody(PuhuriGetUserIdRequest.serializer(), PuhuriGetUserIdRequest(cuid))
         ).orThrow()
-        return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.body()).uuid
+        return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.bodyAsText()).uuid
     }
 
     suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
@@ -625,7 +623,7 @@ class PuhuriClient(
         if (projectId.isEmpty()) return emptyList()
 
         val resp = httpClient.get(apiPath("project-permissions") + "?project=$projectId", apiRequest()).orThrow()
-        return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.body())
+        return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.bodyAsText())
     }
 
     suspend fun removeUserFromProject(userId: String, projectId: String) {
@@ -652,7 +650,7 @@ class PuhuriClient(
             )
         ).orThrow()
 
-        return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.body())
+        return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.bodyAsText())
     }
 
     private fun apiPath(path: String): String {

@@ -14,6 +14,7 @@ import java.security.KeyFactory
 import java.security.cert.CertificateException
 import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
+import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.X509EncodedKeySpec
 import java.util.*
@@ -109,11 +110,37 @@ class InternalTokenValidationJWT(
             return InternalTokenValidationJWT(Algorithm.HMAC512(sharedSecret), issuer)
         }
 
+        fun withEs256(publicKey: String, issuer: String?): TokenValidationJWT {
+            val normalizedKey = publicKey
+                .replace("-----BEGIN PUBLIC KEY-----", "")
+                .replace("-----END PUBLIC KEY-----", "")
+                .replace("\n", "")
+                .replace("\r", "") // Remove various types of whitespace which might be present because of bad YAML.
+                .replace(" ", "")  // Multi-line strings in YAML are hard to remember after all.
+                .replace("\t", "")
+
+            val decoded = Base64.getDecoder().decode(normalizedKey)
+            val key = KeyFactory.getInstance("EC").generatePublic(X509EncodedKeySpec(decoded)) as ECPublicKey
+
+            return InternalTokenValidationJWT(
+                Algorithm.ECDSA256(key, null),
+                issuer = issuer,
+            )
+        }
+
         fun parsePublicKey(key: String): RSAPublicKey {
             return try {
                 loadCert(key)!!.publicKey as RSAPublicKey
             } catch (ex: Throwable) {
-                val decoded = Base64.getDecoder().decode(key)
+                val normalizedKey = key
+                    .replace("-----BEGIN PUBLIC KEY-----", "")
+                    .replace("-----END PUBLIC KEY-----", "")
+                    .replace("\n", "") // Remove various types of whitespace which might be present because of bad YAML.
+                    .replace(" ", "")  // Multi-line strings in YAML are hard to remember after all.
+                    .replace("\r", "")
+                    .replace("\t", "")
+
+                val decoded = Base64.getDecoder().decode(normalizedKey)
                 val rsa = KeyFactory.getInstance("RSA")
                 rsa.generatePublic(X509EncodedKeySpec(decoded)) as RSAPublicKey
             }
