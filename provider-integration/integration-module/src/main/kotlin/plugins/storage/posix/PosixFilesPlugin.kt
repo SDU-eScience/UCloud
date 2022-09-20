@@ -422,7 +422,9 @@ class PosixFilesPlugin : FilePlugin {
             val buffer = ByteArray(1024 * 16)
             while (!chunk.isClosedForRead) {
                 val read = chunk.readAvailable(buffer)
-                file.write(buffer, 0, read)
+                if (read > 0) {
+                    file.write(buffer, 0, read)
+                }
             }
         }
     }
