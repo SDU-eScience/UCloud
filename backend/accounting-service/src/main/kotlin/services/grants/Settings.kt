@@ -251,6 +251,91 @@ class GrantSettingsService(
         }
     }
 
+    suspend fun browseByResources(
+        actorAndProject: ActorAndProject,
+        request: GrantsBrowseAffiliationsByResourceRequest
+    ): PageV2<ProjectWithTitle> {
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        request.requestedResources.split {
+                            into("providers") {it.provider}
+                            into("category_ids") {it.category}
+                        }
+                        setParameter("resources_size", request.requestedResources.size)
+                    },
+                    """
+                        declare c cursor for
+                        with
+                            resources_requested as (
+                                select 
+                                    unnest(:providers::text[]) provider,
+                                    unnest(:category_ids::text[]) category
+                            ),
+                            projects_with_resources as (
+                                select 
+                                    p.id, count(*) resources_match
+                                from 
+                                    project.projects p join
+                                    accounting.wallet_owner wown on p.id = wown.project_id join
+                                    accounting.wallets wall on wown.id = wall.owned_by join 
+                                    accounting.product_categories pc on wall.category = pc.id join
+                                    resources_requested rr on pc.category = rr.category and pc.provider = rr.provider
+                                group by p.id
+                            ),
+                            preliminary_list as (
+                                select
+                                    allow_entry.project_id,
+                                    requesting_user.id,
+                                    requesting_user.email,
+                                    requesting_user.org_id
+                                from
+                                    auth.principals requesting_user join
+                                    "grant".allow_applications_from allow_entry on
+                                        allow_entry.type = 'anyone' or
+
+                                        (
+                                            allow_entry.type = 'wayf' and
+                                            allow_entry.applicant_id = requesting_user.org_id
+                                        ) or
+
+                                        (
+                                            allow_entry.type = 'email' and
+                                            requesting_user.email like '%@' || allow_entry.applicant_id
+                                        )
+                                where
+                                    requesting_user.id = :username
+                            ),
+                            after_exclusion as (
+                                select
+                                    requesting_user.project_id
+                                from
+                                    preliminary_list requesting_user left join
+                                    "grant".exclude_applications_from exclude_entry on 
+                                        requesting_user.email like '%@' || exclude_entry.email_suffix and
+                                        exclude_entry.project_id = requesting_user.project_id join 
+                                    projects_with_resources pwr on 
+                                        pwr.id = requesting_user.project_id and 
+                                        pwr.resources_match = :resources_size
+                                group by
+                                    requesting_user.project_id
+                                having
+                                    count(email_suffix) = 0
+                            )
+                        select p.id, p.title
+                        from after_exclusion res join project.projects p on res.project_id = p.id
+                        order by p.title
+                    """
+                )
+            },
+            mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
+        )
+    }
+
     suspend fun browse(
         actorAndProject: ActorAndProject,
         request: WithPaginationRequestV2

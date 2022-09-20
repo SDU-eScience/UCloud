@@ -296,6 +296,16 @@ data class GrantsBrowseAffiliationsRequest(
 typealias GrantsBrowseAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
+data class GrantsBrowseAffiliationsByResourceRequest(
+    override val itemsPerPage: Int? = null,
+    override val next: String? = null,
+    override val consistency: PaginationRequestV2Consistency? = null,
+    override val itemsToSkip: Long? = null,
+    val requestedResources: List<GrantApplication.AllocationRequest>
+) : WithPaginationRequestV2
+typealias GrantsBrowseAffiliationsByResourceResponse = PageV2<ProjectWithTitle>
+
+@Serializable
 data class GrantsBrowseProductsRequest(
     val projectId: String,
     val recipientType: String,
@@ -470,6 +480,18 @@ ${ApiConventions.nonConformingApiWarning}
                  [ProjectApplicationSettings.allowRequestsFrom].
             """.trimIndent()
         }
+    }
+
+    val browseAffiliationsByResource = call(
+        "retrieveAffiliationsByResource",
+        GrantsBrowseAffiliationsByResourceRequest.serializer(),
+        GrantsBrowseAffiliationsByResourceResponse.serializer(ProjectWithTitle.serializer()),
+        CommonErrorMessage.serializer()
+    ) {
+        httpBrowse(
+            baseContext,
+            "affiliationsByResource"
+        )
     }
 
     val browseAffiliations = call(
