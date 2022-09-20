@@ -1,7 +1,8 @@
 import {inDevEnvironment, onDevSite} from "@/UtilityFunctions";
 
 export enum Feature {
-    SSH
+    SSH,
+    PROVIDER_CONNECTION
 }
 
 export function hasFeature(feature: Feature): boolean {
