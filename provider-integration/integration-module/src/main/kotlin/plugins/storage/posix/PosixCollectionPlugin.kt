@@ -232,27 +232,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
         return when (val cfg = pluginConfig.accounting) {
-            "DeviceQuota" -> {
-                TODO()
-                /*
-                memScoped {
-                    val buf = alloc<statvfs>()
-                    if (statvfs(coll.localPath, buf.ptr) != 0) {
-                        error("statvfs failed $errno $coll")
-                    }
-
-                    val quota = buf.f_blocks * buf.f_frsize
-                    val available = buf.f_favail * buf.f_bsize
-
-                    // TODO(Dan): These numbers seem correct, but different from the numbers reported by df. Not
-                    //  sure what is going on.
-                    (quota - available).toLong()
-                }
-                 */
-            }
-
             null -> 0
-
             else -> {
                 calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }
