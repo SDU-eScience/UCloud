@@ -3,9 +3,9 @@ import HighlightedCard from "@/ui-components/HighlightedCard";
 import {Text, Button, Icon, List, Link} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import {ListRow} from "@/ui-components/List";
-import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {apiUpdate, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {emptyPageV2} from "@/DefaultObjects";
-import {useCallback, useEffect} from "react";
+import {EventHandler, MouseEvent, useCallback, useEffect} from "react";
 import {PageV2, provider} from "@/UCloud";
 import IntegrationApi = provider.im;
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
@@ -17,13 +17,14 @@ import {
 import {sendNotification} from "@/Notifications";
 import BaseLink from "@/ui-components/BaseLink";
 import {LocalStorageCache} from "@/Utilities/LocalStorageCache";
-import {timestampUnixMs} from "@/UtilityFunctions";
+import {doNothing, timestampUnixMs} from "@/UtilityFunctions";
 import {useHistory} from "react-router";
 import {ProviderLogo} from "@/Providers/ProviderLogo";
 import {ProviderTitle} from "@/Providers/ProviderTitle";
 import {Feature, hasFeature} from "@/Features";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
+import {Operations} from "@/ui-components/Operation";
 
 const lastConnectionAt = new LocalStorageCache<number>("last-connection-at");
 
@@ -57,7 +58,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                     title: `Connection required`,
                     body: <>
                         You must <BaseLink href="#">re-connect</BaseLink> with
-                        '<ProviderTitle providerId={p.providerTitle} />' to continue using it.
+                        '<ProviderTitle providerId={p.providerTitle}/>' to continue using it.
                     </>,
                     isPinned: true,
                     uniqueId: `${p.providerTitle}-${lastConnectionAt.retrieve() ?? 0}`,
@@ -129,13 +130,55 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
                 const canConnect = !it.connected ||
                     (it.requiresMessageSigning === true && !hasUploadedSigningKeyToProvider(it.providerTitle));
 
+                const openFn: React.MutableRefObject<(left: number, top: number) => void> = {current: doNothing};
+                const onContextMenu: EventHandler<MouseEvent<never>> = e => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    openFn.current(e.clientX, e.clientY);
+                };
+
                 return (
                     <ListRow
+                        onContextMenu={onContextMenu}
                         key={it.provider}
-                        icon={<ProviderLogo providerId={it.providerTitle} size={40} />}
-                        left={<ProviderTitle providerId={it.providerTitle} />}
+                        icon={<ProviderLogo providerId={it.providerTitle} size={40}/>}
+                        left={<ProviderTitle providerId={it.providerTitle}/>}
                         right={!canConnect ?
-                            <Icon name={"check"} color={"green"}/> :
+                            <>
+                                <Icon name={"check"} color={"green"}/>
+                                <Operations
+                                    location={"IN_ROW"}
+                                    operations={[
+                                        {
+                                            confirm: true,
+                                            color: "red",
+                                            text: "Unlink",
+                                            icon: "close",
+                                            enabled: () => {
+                                                // TODO(Dan): Generalize this for more providers
+                                                return it.providerTitle !== "ucloud";
+                                            },
+                                            onClick: async () => {
+                                                await invokeCommand(
+                                                    apiUpdate(
+                                                        { provider: it.providerTitle },
+                                                        "/api/providers/integration",
+                                                        "clearConnection"
+                                                    )
+                                                );
+
+                                                reload();
+                                            }
+                                        }
+                                    ]}
+                                    selected={[]}
+                                    extra={null}
+                                    entityNameSingular={"Provider"}
+                                    row={it}
+                                    openFnRef={openFn}
+                                    forceEvaluationOnOpen
+                                />
+                            </> :
                             <Button onClick={() => connectToProvider(it)}>Connect</Button>
                         }
                     />
@@ -156,7 +199,7 @@ export const Connect: React.FunctionComponent<{ embedded?: boolean }> = props =>
         // NOTE(Dan): You are not meant to swap the embedded property on a mounted component. We should be fine even
         // though we are breaking rules of hooks.
         useTitle("Connect to Providers");
-        return <MainContainer main={body} />;
+        return <MainContainer main={body}/>;
     }
 };
 

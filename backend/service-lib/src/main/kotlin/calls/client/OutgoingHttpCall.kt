@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.client
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
@@ -7,6 +8,7 @@ import dk.sdu.cloud.calls.HttpBody
 import dk.sdu.cloud.calls.HttpHeaderParameter
 import dk.sdu.cloud.calls.HttpPathSegment
 import dk.sdu.cloud.calls.HttpRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.defaultMapper
@@ -120,12 +122,9 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 try {
                     httpClient.request(ctx.builder)
                 } catch (ex: Throwable) {
-                    if (ex.stackTraceToString().contains("ConnectException")) {
+                    if (ex.stackTraceToString().contains("ConnectException") || ex is EOFException) {
                         log.debug("[$callId] ConnectException: ${ex.message}")
-                        throw RPCException(
-                            "[$callId] ${call.fullName} Could not connect to backend server",
-                            dk.sdu.cloud.calls.HttpStatusCode.BadGateway
-                        )
+                        return IngoingCallResponse.Error(null as E?, HttpStatusCode.BadGateway, ctx)
                     }
 
                     throw ex

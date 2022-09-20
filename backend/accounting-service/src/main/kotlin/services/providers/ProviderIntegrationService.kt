@@ -4,6 +4,9 @@ import dk.sdu.cloud.Actor
 import dk.sdu.cloud.ActorAndProject
 import dk.sdu.cloud.NormalizedPaginationRequestV2
 import dk.sdu.cloud.accounting.api.providers.ResourceBrowseRequest
+import dk.sdu.cloud.accounting.util.ProviderComms
+import dk.sdu.cloud.accounting.util.Providers
+import dk.sdu.cloud.accounting.util.invokeCall
 import dk.sdu.cloud.auth.api.AuthProviders
 import dk.sdu.cloud.auth.api.JwtRefresher
 import dk.sdu.cloud.auth.api.RefreshingJWTAuthenticator
@@ -25,6 +28,8 @@ class ProviderIntegrationService(
     private val serviceClient: AuthenticatedClient,
     private val devMode: Boolean = false,
 ) {
+    // TODO(Dan): Unify all of this communication stuff. It is getting very confusing.
+    private val providerCommunications = Providers(serviceClient)
     private val communicationCache = SimpleCache<String, Communication>(
         maxAge = 1000 * 60 * 60L,
         lookup = { providerResourceId ->
@@ -173,23 +178,73 @@ class ProviderIntegrationService(
     }
 
     suspend fun clearConnection(
-        username: String,
-        providerId: String,
+        actorAndProject: ActorAndProject,
+        requestedUser: String?,
+        requestedProvider: String?,
     ) {
+        val (actor) = actorAndProject
+
+        val actorUsername = actor.safeUsername()
+        val actorProviderId =
+            if (actorUsername.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+                actorUsername.removePrefix(AuthProviders.PROVIDER_PREFIX)
+            } else {
+                null
+            }
+
+        val username = when {
+            actor is Actor.System -> requestedUser ?: throw RPCException("Missing username", HttpStatusCode.BadRequest)
+            actorProviderId != null -> requestedUser ?: throw RPCException("Missing username", HttpStatusCode.BadRequest)
+            else -> actorUsername
+        }
+
+        val provider = when {
+            actor is Actor.System -> requestedProvider ?: throw RPCException("Missing provider", HttpStatusCode.BadRequest)
+            actorProviderId != null -> actorProviderId
+            else -> requestedProvider ?: throw RPCException("Missing provider", HttpStatusCode.BadRequest)
+        }
+
+        val shouldNotifyProvider = actorProviderId == null && actor !is Actor.System
+
         db.withSession { session ->
-            session
+            val success = session
                 .sendPreparedStatement(
                     {
                         setParameter("username", username)
-                        setParameter("provider_id", providerId)
+                        setParameter("provider_id", provider)
                     },
                     """
-                        delete from provider.connected_with
+                        delete from provider.connected_with cw
+                        using provider.providers p
                         where
-                            username = :username and
-                            provider_id = :provider_id
+                            cw.username = :username and
+                            p.unique_name = :provider_id and
+                            cw.provider_id = p.resource
                     """
                 )
+                .rowsAffected > 0L
+
+            if (shouldNotifyProvider && success) {
+                try {
+                    providerCommunications.invokeCall(
+                        provider,
+                        actorAndProject,
+                        { IntegrationProvider(it.provider.id).unlinked },
+                        IntegrationProviderUnlinkedRequest(username),
+                        actorAndProject.signedIntentFromUser,
+                        isUserRequest = true
+                    )
+                } catch (ex: RPCException) {
+                    if (ex.httpStatusCode.value in 500..599) {
+                        throw RPCException(
+                            "The provider does not appear to be responding at the moment. Try again later.",
+                            HttpStatusCode.BadGateway
+                        )
+                    } else {
+                        // This is OK
+                    }
+                }
+            }
         }
     }
 
