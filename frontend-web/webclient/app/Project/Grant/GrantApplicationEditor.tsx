@@ -100,16 +100,14 @@ export enum RequestTarget {
     TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
-        - Primary affiliation should only be for newProject
-        - Transfer application move to sidebar.
-
-        - Change accept, reject (dialog) and undo to use confirm-buttons to confirm choice.
 
         Backend:
             - Fix Transfer Application
                 - Only allow transferring to another grant giver provided they have all the same requested products.
                 - Confirm transfer with comment
 */
+
+const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
 
 export const RequestForSingleResourceWrapper = styled.div`
     ${Icon} {
@@ -240,17 +238,12 @@ const Wrapper = styled.div`
     }
 `;
 
-// TODO(Jonas): Find better name for function. 
 function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication, adminOrPi: boolean): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
     const {recipient} = getDocument(grantApplication);
     if (recipient.type === "existingProject") {
-        // Should we even do fallthrough here if not true? 
-        // TODO(Jonas): Iterate through recipient project users
         if (recipient.id === Client.projectId && adminOrPi) return true;
     }
-    // TODO(Jonas): So checking if active user is "createdBy" could work, but shouldn't admins and PIs also work for a grantApplication?
-    // I believe so. But they don't necessarily exist yet as the project could be created with this form.
     return grantApplication.createdBy === Client.username;
 }
 
@@ -270,7 +263,6 @@ const GenericRequestCard: React.FunctionComponent<{
     const canEdit = isApprover || props.isRecipient;
 
     React.useEffect(() => {
-        // TODO(Jonas): This might be wrong, I'm not sure the first allocationRequest is the right one, but it should be b:
         if (allocationRequest && allocationRequest.period.start) {
             setStartDate(getStartOfDay(new Date(allocationRequest.period.start)));
         }
@@ -592,8 +584,11 @@ const UPDATE_DOCUMENT = "UPDATE_DOCUMENT";
 type UpdateDocument = PayloadAction<typeof UPDATE_DOCUMENT, Document>;
 const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
 type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, {projectId: string, state: State}>;
+const SET_STATE_WITHDRAWN = "SET_STATE_WITHDRAWN";
+interface SetStateWithdrawn {type: typeof SET_STATE_WITHDRAWN};
 
-type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState;
+
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState | SetStateWithdrawn;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
     switch (action.type) {
         case FETCHED_GRANT_APPLICATION: {
@@ -624,6 +619,10 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
                 }
             });
             state.status.overallState = findNewOverallState(state.status.stateBreakdown);
+            return {...state};
+        }
+        case SET_STATE_WITHDRAWN: {
+            state.status.overallState = State.CLOSED;
             return {...state};
         }
     }
@@ -890,6 +889,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         "You must select one for each resource.", false);
                     return;
                 }
+
                 if (anyAutoAssigned(grantProductCategories)) {
                     await editApplication(true);
                 }
@@ -901,10 +901,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [grantApplication.id, activeStateBreakDown, grantProductCategories]);
 
-        const rejectRequest = useCallback(async (notify: boolean) => {
+        const rejectRequest = useCallback(async () => {
             try {
                 if (!activeStateBreakDown) return;
-                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: notify})));
+                await runWork(updateState(bulkRequestOf({applicationId: grantApplication.id, newState: State.REJECTED, notify: false})));
                 dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.REJECTED}});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to reject application.");
@@ -920,15 +920,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         }, [grantApplication]);
 
         const closeRequest = useCallback(async () => {
-            if (!appId || !activeStateBreakDown) return;
+            if (!appId) return;
             try {
                 await runWork(closeApplication(bulkRequestOf({applicationId: appId})), {defaultErrorHandler: false});
-                dispatch({type: UPDATE_GRANT_STATE, payload: {projectId: activeStateBreakDown.projectId, state: State.CLOSED}});
+                dispatch({type: SET_STATE_WITHDRAWN});
             } catch (e) {
                 displayErrorMessageOrDefault(e, "Failed to withdraw application.");
                 reload();
             }
-        }, [appId, activeStateBreakDown]);
+        }, [appId]);
 
         const setRequestPending = useCallback(async () => {
             if (!appId || !activeStateBreakDown) return;
@@ -939,6 +939,18 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 displayErrorMessageOrDefault(e, "Failed to undo.")
             }
         }, [appId, activeStateBreakDown]);
+
+        const trySetRequestPending = React.useCallback(() => {
+            if (grantApplication.updatedAt < THIRTY_DAYS_AGO) {
+                addStandardDialog({
+                    title: "Set as pending",
+                    message: "The application has not been updated for over 30 days. Do you wish to update it?",
+                    onConfirm: setRequestPending
+                })
+            } else {
+                setRequestPending();
+            }
+        }, [grantApplication, setRequestPending]);
 
         const reload = useCallback(() => {
             fetchGrantGivers(browseAffiliations({itemsPerPage: 250}));
@@ -1052,7 +1064,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 >
                                     Save Changes
                                 </Button>
-                                <Button fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
+                                <Button my="4px" fullWidth color={"red"} onClick={discardChanges}>Discard changes</Button>
                             </>
                         )
                     )}
@@ -1186,62 +1198,43 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                 {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
                                                                     <>
                                                                         {activeStateBreakDown.state === State.IN_PROGRESS ? <>
-                                                                            <Button
+                                                                            <ConfirmationButton
                                                                                 mb="4px"
+                                                                                icon="check"
                                                                                 color="green"
-                                                                                onClick={approveRequest}
+                                                                                onAction={approveRequest}
                                                                                 disabled={!isLocked}
                                                                                 fullWidth
-                                                                            >
-                                                                                <Truncate title={`Approve for ${activeStateBreakDown?.projectTitle}`}>
-                                                                                    Approve for {activeStateBreakDown?.projectTitle}
-                                                                                </Truncate>
-                                                                            </Button>
-                                                                            {/* Note(Jonas): This breaks the ButtonGroup styling. */}
-                                                                            <ClickableDropdown
-                                                                                top="-73px"
+                                                                                actionText={`Approve for ${activeStateBreakDown?.projectTitle}`}
+                                                                            />
+                                                                            <ConfirmationButton
+                                                                                color="red"
+                                                                                disabled={!isLocked}
                                                                                 fullWidth
-                                                                                trigger={(
-                                                                                    <Button
-                                                                                        color="red"
-                                                                                        disabled={!isLocked}
-                                                                                        fullWidth
-                                                                                        onClick={() => undefined}
-                                                                                    >
-                                                                                        <Truncate title={`Reject for ${activeStateBreakDown?.projectTitle}`}>
-                                                                                            Reject for {activeStateBreakDown?.projectTitle}
-                                                                                        </Truncate>
-                                                                                    </Button>
-                                                                                )}
-                                                                            >
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(true)}
-                                                                                    text={"Reject"}
-                                                                                />
-                                                                                <OptionItem
-                                                                                    onClick={() => rejectRequest(false)}
-                                                                                    text={"Reject without notify"}
-                                                                                />
-                                                                            </ClickableDropdown>
+                                                                                icon="close"
+                                                                                onAction={rejectRequest}
+                                                                                actionText={`Reject for ${activeStateBreakDown?.projectTitle}`}
+                                                                            />
                                                                         </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
-                                                                            <Button fullWidth onClick={setRequestPending}>
-                                                                                Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
-                                                                            </Button>
+                                                                            <ConfirmationButton
+                                                                                fullWidth
+                                                                                icon="ellipsis"
+                                                                                onAction={trySetRequestPending}
+                                                                                actionText={`Undo ${activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}`}
+                                                                            />
                                                                         </> : null}
                                                                     </> : null
                                                                 }
                                                                 {isRecipient && !grantFinalized ?
-                                                                    <>
-                                                                        <Button
-                                                                            mt="16px"
-                                                                            color="red"
-                                                                            fullWidth
-                                                                            onClick={closeRequest}
-                                                                            disabled={!isLocked}
-                                                                        >
-                                                                            Withdraw
-                                                                        </Button>
-                                                                    </> : null
+                                                                    <ConfirmationButton
+                                                                        mt="16px"
+                                                                        icon="close"
+                                                                        color="red"
+                                                                        fullWidth
+                                                                        onAction={closeRequest}
+                                                                        disabled={!isLocked}
+                                                                        actionText={"Withdraw"}
+                                                                    /> : null
                                                                 }
                                                             </Box>
                                                         )}
@@ -1307,7 +1300,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     ))}
                                     {!appId ? null :
                                         <PostCommentWidget
-                                            grantId={appId  /* TODO(Jonas): Is this the samme as .id from before? */}
+                                            grantId={appId}
                                             avatar={avatars.cache[Client.username!] ?? defaultAvatar}
                                             onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
                                             disabled={target !== RequestTarget.VIEW_APPLICATION}
@@ -1502,7 +1495,6 @@ function GrantGiver(props: {
     }, [productCategories]);
 
     return React.useMemo(() => {
-
         const products = productTypes.map(type => <AsProductType
             key={type}
             target={props.target}
@@ -1516,9 +1508,14 @@ function GrantGiver(props: {
             isRecipient={props.isRecipient}
         />);
 
+        const canEditAffiliation = canChangePrimaryAffiliation(
+            props.target,
+            props.grantApplication.currentRevision.document.recipient
+        );
+
         const left = <Flex>
             <Heading.h2>{props.project.title}</Heading.h2>
-            {!props.isParentProject && props.isLocked ? null :
+            {!props.isParentProject && props.isLocked || !canEditAffiliation ? null :
                 <Tooltip trigger={
                     <ParentProjectIcon
                         onClick={() => props.isLocked ? null : props.setParentProject(props.project.projectId)}
@@ -1551,6 +1548,25 @@ function GrantGiver(props: {
             }
         </Box>
     }, [productCategories, props.wallets, props.isRecipient, props.grantApplication, props.isParentProject, props.isLocked]);
+}
+
+function canChangePrimaryAffiliation(target: RequestTarget, recipient: Recipient): boolean {
+    switch (target) {
+        case RequestTarget.NEW_PROJECT:
+            return true;
+        case RequestTarget.EXISTING_PROJECT:
+        case RequestTarget.PERSONAL_PROJECT:
+            return false;
+        case RequestTarget.VIEW_APPLICATION: {
+            switch (recipient.type) {
+                case "existingProject":
+                case "personalWorkspace":
+                    return false;
+                case "newProject":
+                    return true;
+            }
+        }
+    }
 }
 
 function AsProductType(props: {
@@ -1925,7 +1941,7 @@ function findRequestedResources(grantProductCategories: Record<string, GrantProd
                 provider: wb.metadata.category.provider,
                 balanceRequested: creditsRequested,
                 grantGiver,
-                sourceAllocation, // TODO(Jonas): null on initial request, required on the following.
+                sourceAllocation,
                 period: {
                     start,
                     end: end ?? null
