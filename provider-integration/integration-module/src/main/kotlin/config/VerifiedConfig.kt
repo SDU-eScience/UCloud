@@ -74,7 +74,20 @@ data class VerifiedConfig(
         }
 
         data class Database(
-            val file: String,
+            val embedded: ConfigSchema.Server.Embedded?,
+            val external: ConfigSchema.Server.External?
+        )
+
+        data class Embedded(
+            val file: String? = null
+        )
+
+        data class External(
+            val host: String,
+            val port: Int,
+            val username: String,
+            val password: String,
+            val database: String
         )
 
         data class Envoy(
@@ -476,7 +489,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
 
         val database: VerifiedConfig.Server.Database = run {
             VerifiedConfig.Server.Database(
-                config.server.database?.file ?: (config.configurationDirectory + "/ucloud.sqlite3")
+                config.server.database?.embedded,
+                config.server.database?.external
             )
         }
 

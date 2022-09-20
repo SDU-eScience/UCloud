@@ -5,15 +5,10 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.debug.DebugSensitive
-import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -91,7 +86,22 @@ data class ConfigSchema(
 
         @Serializable
         data class Database(
-            val file: String,
+            val embedded: Embedded?,
+            val external: External?
+        )
+
+        @Serializable
+        data class Embedded(
+            val file: String? = null
+        )
+
+        @Serializable
+        data class External(
+            val hostname: String,
+            val port: Int,
+            val username: String,
+            val password: String,
+            val database: String
         )
 
         @Serializable

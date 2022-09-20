@@ -12,10 +12,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
-import dk.sdu.cloud.config.ConfigSchema
-import dk.sdu.cloud.config.ProductReferenceWithoutProvider
-import dk.sdu.cloud.config.loadConfiguration
-import dk.sdu.cloud.config.verifyConfiguration
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.IpcController
@@ -42,9 +39,11 @@ import dk.sdu.cloud.controllers.*
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
+import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
+import java.sql.DriverManager
 
 fun main(args: Array<String>) {
     try {
@@ -216,8 +215,8 @@ fun main(args: Array<String>) {
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
-                databaseFile.getAndSet(config.server.database.file)
-
+                //external has first priority in case both are defined in config
+                createDBConnection(config.server.database)
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
                 loadMigrations(handler)
@@ -757,15 +756,85 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
 val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
-private val databaseFile = AtomicReference("")
+
+private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
+data class DatabaseConfig(
+    val jdbcUrl: String?,
+    val username: String?,
+    val password: String?,
+    val defaultSchema: String,
+    val recreateSchema: Boolean,
+    val usePool: Boolean = true,
+    val poolSize: Int? = 50,
+    val validateMigrations: Boolean = true,
+)
 
 val dbConnection: DBContext by lazy {
-    val file = databaseFile.get().takeIf { it.isNotBlank() }
-    println("The file is $file")
-    if (file == null) {
-        error("This plugin does not have access to a database")
+    val config = dbConfig.get().takeIf { it != null }
+    if (config == null) {
+        error("Config not found for DB")
     } else {
-        SqliteJdbcDriver(file)
+        createDBConnection(config)
+    }
+}
+
+private fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
+    return StringBuilder().apply {
+        append("jdbc:postgresql://")
+        append(host)
+        if (port != null) {
+            append(':')
+            append(port)
+        }
+        append('/')
+        append(database)
+    }.toString()
+}
+private fun createDBConnection(database: VerifiedConfig.Server.Database):DBContext {
+    if (database != null) {
+        if (database.external != null) {
+            val dbConfig = DatabaseConfig(
+                postgresJdbcUrl(database.external.hostname, database.external.database, database.external.port),
+                database.external.username,
+                database.external.password,
+                "public",
+                false,
+            )
+            val jdbcUrl = dbConfig.jdbcUrl
+
+            return object : JdbcDriver() {
+                override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+                    JdbcConnection(
+                        DriverManager.getConnection(jdbcUrl, dbConfig.username, dbConfig.password),
+                        pool
+                    )
+                }
+            }
+        } else if (database.embedded != null) {
+            val workDir = File(database.embedded.file)
+            if (!workDir.exists()) {
+                error("Missing file")
+            }
+
+            val embeddedPostgres = EmbeddedPostgres.builder().apply {
+                setCleanDataDirectory(false)
+                setDataDirectory(File(workDir, "data").also { it.mkdirs() })
+                setOverrideWorkingDirectory(workDir)
+            }.start()
+
+            return object : JdbcDriver() {
+                override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+                    JdbcConnection(
+                        DriverManager.getConnection(embeddedPostgres.getJdbcUrl("postgres", "postgres")),
+                        pool
+                    )
+                }
+            }
+        } else {
+            error("No config given for database")
+        }
+    } else {
+        error("No config given for database")
     }
 }
 
