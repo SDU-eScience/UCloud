@@ -437,7 +437,8 @@ begin
         accounting.wallet_owner wo on
             (r.recipient_is_project and wo.project_id = r.recipient) or
             (not r.recipient_is_project and wo.username = r.recipient)
-    where target_wallet is null;
+    where target_wallet is null
+    on conflict do nothing;
 
     -- NOTE(Dan): Update the result such that all target_wallets are not null
     update deposit_result r

@@ -82,11 +82,12 @@ import {
     transferApplication,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
-import {useProjectId} from "..";
+import {useProjectId, useProjectManagementStatus} from "..";
 import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -99,9 +100,15 @@ export enum RequestTarget {
     TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
+        - Primary affiliation should only be for newProject
+        - Transfer application move to sidebar.
+
+        - Change accept, reject (dialog) and undo to use confirm-buttons to confirm choice.
 
         Backend:
             - Fix Transfer Application
+                - Only allow transferring to another grant giver provided they have all the same requested products.
+                - Confirm transfer with comment
 */
 
 export const RequestForSingleResourceWrapper = styled.div`
@@ -234,12 +241,13 @@ const Wrapper = styled.div`
 `;
 
 // TODO(Jonas): Find better name for function. 
-function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication): boolean {
+function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication, adminOrPi: boolean): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
     const {recipient} = getDocument(grantApplication);
     if (recipient.type === "existingProject") {
         // Should we even do fallthrough here if not true? 
-        if (recipient.id === Client.projectId) return true;
+        // TODO(Jonas): Iterate through recipient project users
+        if (recipient.id === Client.projectId && adminOrPi) return true;
     }
     // TODO(Jonas): So checking if active user is "createdBy" could work, but shouldn't admins and PIs also work for a grantApplication?
     // I believe so. But they don't necessarily exist yet as the project could be created with this form.
@@ -706,7 +714,9 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             };
         }, [appId]);
 
-        const isRecipient = checkIsGrantRecipient(target, grantApplication);
+
+        const projectManagement = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
+        const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(projectManagement.projectDetails.data.whoami.role));
 
         const editApplication = useCallback(async (autoMessage: boolean = false) => {
             setSubmissionsLoading(true);
@@ -1046,6 +1056,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </>
                         )
                     )}
+                    {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) && recipient.type !== "existingProject" ?
+                        <Button
+                            mt="4px"
+                            color="blue"
+                            fullWidth
+                            onClick={() => setTransferringApplication(true)}
+                            disabled={!isLocked}
+                        >
+                            Transfer application
+                        </Button> : null
+                    }
                 </>}
                 main={<>
                     <Flex justifyContent="center">
@@ -1202,15 +1223,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                                     text={"Reject without notify"}
                                                                                 />
                                                                             </ClickableDropdown>
-                                                                            {recipient.type !== "existingProject" && localStorage.getItem("enableprojecttransfer") != null ?
-                                                                                <Button
-                                                                                    color="blue"
-                                                                                    onClick={() => setTransferringApplication(true)}
-                                                                                    disabled={!isLocked}
-                                                                                >
-                                                                                    Transfer to other project
-                                                                                </Button> : null
-                                                                            }
                                                                         </> : [State.APPROVED, State.REJECTED].includes(activeStateBreakDown.state) ? <>
                                                                             <Button fullWidth onClick={setRequestPending}>
                                                                                 Undo {activeStateBreakDown.state === State.APPROVED ? "approval" : "rejection"}
@@ -1390,7 +1402,7 @@ function getRecipientName(grantApplication: GrantApplication): string {
             return grantApplication.status.projectTitle ?? "";
         }
         case "newProject": {
-            return grantApplication.currentRevision.document.recipient.title; 
+            return grantApplication.currentRevision.document.recipient.title;
         }
         case "personalWorkspace": {
             return grantApplication.currentRevision.document.recipient.username;
