@@ -332,7 +332,15 @@ class GrantSettingsService(
                     """
                 )
             },
-            mapper = { _, rows -> rows.map { ProjectWithTitle(it.getString(0)!!, it.getString(1)!!) }}
+            mapper = { _, rows ->
+                rows.mapNotNull {
+                    if (actorAndProject.project != null && it.getString(0) == actorAndProject.project) {
+                        null
+                    } else {
+                        ProjectWithTitle(it.getString(0)!!, it.getString(1)!!)
+                    }
+                }
+            }
         )
     }
 
