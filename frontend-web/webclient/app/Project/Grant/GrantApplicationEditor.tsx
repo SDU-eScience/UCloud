@@ -1335,7 +1335,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         isActive={transferringApplication}
                         close={() => setTransferringApplication(false)}
                         transfer={transferRequest}
-                        grantProductCategories={grantProductCategories[Client.projectId ?? ""] ?? []}
                         grantId={appId}
                     />}
             />
@@ -1691,24 +1690,21 @@ interface TransferApplicationPromptProps {
     close(): void;
 
     transfer(toProjectId: string): Promise<void>;
-
-    grantProductCategories: GrantProductCategory[];
 }
 
-function TransferApplicationPrompt({isActive, close, transfer, grantId, grantProductCategories}: TransferApplicationPromptProps) {
+function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
     const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPageV2);
 
     const history = useHistory();
 
     React.useEffect(() => {
-        const {projectId} = Client;
-        if (grantId && projectId) {
+        if (grantId) {
             fetchProjects(browseAffiliationsByResource({
                 itemsPerPage: 100,
-                applicationId: grantId ?? ""
+                applicationId: grantId
             }));
         }
-    }, [grantId, grantProductCategories]);
+    }, [grantId]);
 
     const dispatch = useDispatch();
 
