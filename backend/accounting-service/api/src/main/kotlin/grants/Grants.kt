@@ -296,14 +296,14 @@ data class GrantsBrowseAffiliationsRequest(
 typealias GrantsBrowseAffiliationsResponse = PageV2<ProjectWithTitle>
 
 @Serializable
-data class GrantsSearchAffiliationsByResourceRequest(
+data class GrantsBrowseAffiliationsByResourceRequest(
     override val itemsPerPage: Int? = null,
     override val next: String? = null,
     override val consistency: PaginationRequestV2Consistency? = null,
     override val itemsToSkip: Long? = null,
-    val requestedResources: List<GrantApplication.AllocationRequest>
+    val applicationId: String
 ) : WithPaginationRequestV2
-typealias GrantsSearchAffiliationsByResourceResponse = PageV2<ProjectWithTitle>
+typealias GrantsBrowseAffiliationsByResourceResponse = PageV2<ProjectWithTitle>
 
 @Serializable
 data class GrantsBrowseProductsRequest(
@@ -482,13 +482,13 @@ ${ApiConventions.nonConformingApiWarning}
         }
     }
 
-    val searchAffiliationsByResource = call(
-        "searchAffiliationsByResource",
-        GrantsSearchAffiliationsByResourceRequest.serializer(),
-        GrantsSearchAffiliationsByResourceResponse.serializer(ProjectWithTitle.serializer()),
+    val browseAffiliationsByResource = call(
+        "browseAffiliationsByResource",
+        GrantsBrowseAffiliationsByResourceRequest.serializer(),
+        GrantsBrowseAffiliationsByResourceResponse.serializer(ProjectWithTitle.serializer()),
         CommonErrorMessage.serializer()
     ) {
-        httpSearch(
+        httpBrowse(
             baseContext,
             "affiliationsByResource"
         )

@@ -612,7 +612,7 @@ begin
 end;
 $$;
 
-create or replace function transfer_application(
+create or replace function "grant".transfer_application(
     actor_in text,
     application_id_in bigint,
     source_project_id_in text,

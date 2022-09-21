@@ -251,10 +251,28 @@ class GrantSettingsService(
         }
     }
 
-    suspend fun searchAffilitionByResource(
+    suspend fun browseAffiliationByResource(
         actorAndProject: ActorAndProject,
-        request: GrantsSearchAffiliationsByResourceRequest
+        request: GrantsBrowseAffiliationsByResourceRequest
     ): PageV2<ProjectWithTitle> {
+        if (actorAndProject.project == null) {
+            throw RPCException("Not in a project", HttpStatusCode.Forbidden)
+        }
+        val application = db.withSession {session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appId", request.applicationId)
+                },
+                """
+                    select "grant".application_to_json(:appId) 
+                """.trimIndent()
+            ).rows.map {
+                defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
+            }.singleOrNull() ?: throw RPCException("Did not find application", HttpStatusCode.NotFound)
+        }
+        val requestedResources = application.currentRevision.document.allocationRequests
+        val currentProjectResourceRequests = requestedResources.filter { it.grantGiver == actorAndProject.project }
+        val grantGiversID = requestedResources.map { it.grantGiver }.toSet().toList()
         return db.paginateV2(
             actorAndProject.actor,
             request.normalize(),
@@ -262,11 +280,13 @@ class GrantSettingsService(
                 session.sendPreparedStatement(
                     {
                         setParameter("username", actorAndProject.actor.safeUsername())
-                        request.requestedResources.split {
+
+                        currentProjectResourceRequests.split {
                             into("providers") {it.provider}
                             into("category_ids") {it.category}
                         }
-                        setParameter("resources_size", request.requestedResources.size)
+                        setParameter("resources_size", currentProjectResourceRequests.size)
+                        setParameter("grant_givers", grantGiversID)
                     },
                     """
                         declare c cursor for
@@ -327,18 +347,16 @@ class GrantSettingsService(
                                     count(email_suffix) = 0
                             )
                         select p.id, p.title
-                        from after_exclusion res join project.projects p on res.project_id = p.id
+                        from after_exclusion res join project.projects p on 
+                            res.project_id = p.id and 
+                            p.id not in (select unnest(:grant_givers::text[]))
                         order by p.title
                     """
                 )
             },
             mapper = { _, rows ->
                 rows.mapNotNull {
-                    if (actorAndProject.project != null && it.getString(0) == actorAndProject.project) {
-                        null
-                    } else {
-                        ProjectWithTitle(it.getString(0)!!, it.getString(1)!!)
-                    }
+                    ProjectWithTitle(it.getString(0)!!, it.getString(1)!!)
                 }
             }
         )

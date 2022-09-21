@@ -288,13 +288,13 @@ export interface FetchGrantApplicationRequest {
 }
 
 interface BrowseAffiliationsByResourceRequest extends UCloud.PaginationRequestV2 {
-    requestedResources: AllocationRequest[]
+    applicationId: string
 }
 
 export function browseAffiliationsByResource(request: UCloud.PaginationRequestV2 & {
-    requestedResources: AllocationRequest[]
+    applicationId: string
 }): APICallParameters<BrowseAffiliationsByResourceRequest, UCloud.PageV2<ProjectWithTitle>> {
-    return apiSearch(request, grantBaseContext, "affiliationsByResource");
+    return apiBrowse(request, grantBaseContext, "affiliationsByResource");
 }
 
 export type FetchGrantApplicationResponse = GrantApplication;

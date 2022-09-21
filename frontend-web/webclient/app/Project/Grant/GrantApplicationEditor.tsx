@@ -1703,10 +1703,9 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId, grantPro
     React.useEffect(() => {
         const {projectId} = Client;
         if (grantId && projectId) {
-            const resources = findRequestedResources({[projectId]: grantProductCategories});
             fetchProjects(browseAffiliationsByResource({
                 itemsPerPage: 100,
-                requestedResources: resources
+                applicationId: grantId ?? ""
             }));
         }
     }, [grantId, grantProductCategories]);
