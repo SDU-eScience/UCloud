@@ -262,26 +262,18 @@ export function approveGrantApplication(
 
 
 export interface TransferApplicationRequest {
-    applicationId: string;
+    applicationId: number;
     transferToProjectId: string;
+    revisionComment: string;
 }
 
-export function transferApplication(request: TransferApplicationRequest): APICallParameters<TransferApplicationRequest> {
+export function transferApplication(request: UCloud.BulkRequest<TransferApplicationRequest>): APICallParameters<UCloud.BulkRequest<TransferApplicationRequest>> {
     return {
         method: "POST",
         path: "/grant/transfer",
         parameters: request,
         payload: request,
         reloadId: Math.random()
-    };
-}
-
-function browseProjects(request: PaginationRequestV2): APICallParameters {
-    return {
-        method: "GET",
-        context: "",
-        path: buildQueryString("/api/grant/browse-projects", request),
-        parameters: request
     };
 }
 

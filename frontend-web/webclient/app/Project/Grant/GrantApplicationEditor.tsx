@@ -984,15 +984,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         comment: result
                     }), {defaultErrorHandler: false});
                 }
+
+                runWork(transferApplication(bulkRequestOf({
+                    applicationId: parseInt(appId, 10),
+                    transferToProjectId: toProjectId,
+                    revisionComment: `
+                        ${result}
+    
+                        -- Auto-inserted: transferred from project ${projectId}.
+                    `
+                })));
             } catch (e) {
                 if ("cancelled" in e) {/* expected */}
                 else errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
             }
-
-            runWork(transferApplication({
-                applicationId: appId,
-                transferToProjectId: toProjectId
-            }));
         }, [appId]);
 
         React.useEffect(() => {
@@ -1698,7 +1703,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId, grantPro
     React.useEffect(() => {
         const {projectId} = Client;
         if (grantId && projectId) {
-            const resources = findRequestedResources({[projectId] : grantProductCategories});//.filter(it => it.grantGiver == Client.projectId);
+            const resources = findRequestedResources({[projectId]: grantProductCategories});
             fetchProjects(browseAffiliationsByResource({
                 itemsPerPage: 100,
                 requestedResources: resources
