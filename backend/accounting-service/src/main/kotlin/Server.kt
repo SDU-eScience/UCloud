@@ -27,7 +27,6 @@ import dk.sdu.cloud.calls.client.OutgoingHttpCall
 import dk.sdu.cloud.grant.rpc.GiftController
 import dk.sdu.cloud.grant.rpc.GrantController
 import dk.sdu.cloud.micro.*
-import dk.sdu.cloud.project.api.ProjectEvents
 import dk.sdu.cloud.provider.api.ProviderSupport
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
@@ -49,9 +48,8 @@ class Server(
         val depositNotifications = DepositNotificationService(db)
 
         val favoriteProjects = FavoriteProjectService()
-        val eventProducer = micro.eventStreamService.createProducer(ProjectEvents.events)
-        val projectService = ProjectService(client, eventProducer, projectCache)
-        val projectGroups = ProjectGroupService(projectService, eventProducer, projectCache)
+        val projectService = ProjectService(client, projectCache)
+        val projectGroups = ProjectGroupService(projectService, projectCache)
         val projectQueryService = ProjectQueryService(projectService)
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache, micro.developmentModeEnabled)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2

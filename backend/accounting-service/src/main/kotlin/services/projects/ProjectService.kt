@@ -74,7 +74,6 @@ suspend fun RowData.toProject(): Project {
 
 class ProjectService(
     private val serviceClient: AuthenticatedClient,
-    private val eventProducer: EventProducer<ProjectEvent>,
     private val projectCache: ProjectCache,
 ) {
     suspend fun create(
@@ -127,14 +126,6 @@ class ProjectService(
             throw ex
         }
 
-
-        eventProducer.produce(ProjectEvent.Created(id))
-        eventProducer.produce(
-            ProjectEvent.MemberAdded(
-                id,
-                ProjectMember(piUsername, ProjectRole.PI)
-            )
-        )
         projectCache.invalidate(piUsername)
         return id
     }
@@ -277,8 +268,6 @@ class ProjectService(
                 set(ProjectMemberTable.createdAt, LocalDateTime(Time.now()))
                 set(ProjectMemberTable.modifiedAt, LocalDateTime(Time.now()))
             }
-
-            eventProducer.produce(ProjectEvent.MemberAdded(projectId, ProjectMember(invitedUser, ProjectRole.USER)))
         }
         projectCache.invalidate(invitedUser)
     }
@@ -337,13 +326,6 @@ class ProjectService(
         }
 
         ctx.withSession { session ->
-            eventProducer.produce(
-                ProjectEvent.MemberDeleted(
-                    projectId,
-                    ProjectMember(initiatedBy, existingRole)
-                )
-            )
-
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
             val allAdmins = (admins + pi)
             val projectTitle = getProjectTitle(ctx, projectId)
@@ -420,13 +402,6 @@ class ProjectService(
                         where project_id = :project and username = :username
                     """
                 )
-
-            eventProducer.produce(
-                ProjectEvent.MemberDeleted(
-                    projectId,
-                    ProjectMember(userToDelete, userToDeleteRole)
-                )
-            )
 
 
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
@@ -513,14 +488,6 @@ class ProjectService(
                             project_id = :project
                     """
                 )
-
-            eventProducer.produce(
-                ProjectEvent.MemberRoleUpdated(
-                    projectId,
-                    ProjectMember(memberToUpdate, oldRole),
-                    ProjectMember(memberToUpdate, newRole)
-                )
-            )
 
             val (pi, admins) = getPIAndAdminsOfProject(ctx, projectId)
             val projectTitle = getProjectTitle(ctx, projectId)

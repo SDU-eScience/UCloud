@@ -6,8 +6,6 @@ import dk.sdu.cloud.Roles
 import dk.sdu.cloud.accounting.util.ProjectCache
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.events.EventProducer
-import dk.sdu.cloud.project.api.ProjectEvent
 import dk.sdu.cloud.project.api.ProjectRole
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
@@ -26,7 +24,6 @@ object GroupMembershipTable : SQLTable("project.group_members") {
 
 class ProjectGroupService(
     private val projects: ProjectService,
-    private val eventProducer: EventProducer<ProjectEvent>,
     private val projectCache: ProjectCache,
 ) {
     suspend fun createGroup(
@@ -45,8 +42,6 @@ class ProjectGroupService(
                     set(GroupTable.title, group)
                     set(GroupTable.id, id)
                 }
-
-                eventProducer.produce(ProjectEvent.GroupCreated(projectId, group))
             }
         } catch (ex: GenericDatabaseException) {
             if (ex.errorMessage.fields['C'] == PostgresErrorCodes.UNIQUE_VIOLATION) {
@@ -111,13 +106,6 @@ class ProjectGroupService(
                 """
             )
         }
-
-        eventProducer.produce(groups.map { groupId ->
-            ProjectEvent.GroupDeleted(
-                projectId,
-                groupId
-            )
-        })
     }
 
     suspend fun addMember(
@@ -135,14 +123,6 @@ class ProjectGroupService(
                     set(GroupMembershipTable.group, groupId)
                     set(GroupMembershipTable.username, newMember)
                 }
-
-                eventProducer.produce(
-                    ProjectEvent.MemberAddedToGroup(
-                        projectId,
-                        newMember,
-                        groupId
-                    )
-                )
             }
         } catch (ex: GenericDatabaseException) {
             if (ex.errorMessage.fields['C'] == PostgresErrorCodes.UNIQUE_VIOLATION) {
@@ -179,14 +159,6 @@ class ProjectGroupService(
                             group_id = :group
                     """
                 )
-
-            eventProducer.produce(
-                ProjectEvent.MemberRemovedFromGroup(
-                    projectId,
-                    memberToRemove,
-                    groupId
-                )
-            )
         }
         projectCache.invalidate(memberToRemove)
     }
