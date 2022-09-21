@@ -488,7 +488,7 @@ ${ApiConventions.nonConformingApiWarning}
         GrantsBrowseAffiliationsByResourceResponse.serializer(ProjectWithTitle.serializer()),
         CommonErrorMessage.serializer()
     ) {
-        httpBrowse(
+        httpSearch(
             baseContext,
             "affiliationsByResource"
         )
