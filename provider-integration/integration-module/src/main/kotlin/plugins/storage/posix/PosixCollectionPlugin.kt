@@ -72,23 +72,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 pluginConfig.simpleHomeMapper.forEach { home ->
                     homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
                 }
-
-                /*
-                // TODO
-                if (owner is ResourceOwnerWithId.User && homes.isNotEmpty()) {
-                    val username = run {
-                        val uid = geteuid()
-                        getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
-                    }
-
-                    homes.forEach { (_, coll) ->
-                        val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), coll.title, mappedPath, coll.product)
-                        )
-                    }
-                }
-                 */
             }
 
             run {
@@ -180,7 +163,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 rpcClient
                             ).orThrow()
 
-                            summary.items.forEachGraal inner@{ item ->
+                            summary.items.associateBy { it.id }.values.forEachGraal inner@{ item ->
                                 val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
                                 val colls = locateAndRegisterCollections(resourceOwner)
                                     .filter { it.product.category == category }
