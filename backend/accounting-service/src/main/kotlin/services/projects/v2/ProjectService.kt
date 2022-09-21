@@ -436,7 +436,7 @@ class ProjectService(
 
                 var current = project.specification.parent
                 while (current != null) {
-                    val c = projectToTitle[project.specification.parent] ?: break
+                    val c = projectToTitle[current] ?: break
                     components.add(c.title)
                     current = c.parent
                 }

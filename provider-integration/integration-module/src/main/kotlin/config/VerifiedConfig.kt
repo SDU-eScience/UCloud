@@ -344,7 +344,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
                     core.ipc?.directory ?: "/var/run/ucloud",
                     FileType.DIRECTORY,
                     baseReference,
-                    requireWriteAccess = true
+                    requireWriteAccess = mode == ServerMode.Server
                 )
             )
 

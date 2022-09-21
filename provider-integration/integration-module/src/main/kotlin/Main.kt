@@ -606,7 +606,7 @@ fun main(args: Array<String>) {
             // linear when not counting the null checks.
 
             if (ipcServer != null && rpcClient != null) {
-                IpcToUCloudProxyServer().init(ipcServer, rpcClient)
+                IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)
                 ProcessingScope.launch { ipcServer.runServer() }
             }
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
