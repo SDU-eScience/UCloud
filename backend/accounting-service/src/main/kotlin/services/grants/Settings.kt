@@ -253,7 +253,7 @@ class GrantSettingsService(
 
     suspend fun searchAffilitionByResource(
         actorAndProject: ActorAndProject,
-        request: GrantsBrowseAffiliationsByResourceRequest
+        request: GrantsSearchAffiliationsByResourceRequest
     ): PageV2<ProjectWithTitle> {
         return db.paginateV2(
             actorAndProject.actor,
