@@ -130,11 +130,19 @@ class PosixFilesPlugin : FilePlugin {
             }
 
             val idealName = parent.toNioPath().resolve(buildString {
-                append(desiredFileName)
+                val filenameWithoutExtension = desiredFileName.substringBeforeLast('.')
+                val extension = desiredFileName.substringAfterLast('.')
+                val hasExtension = desiredFileName.length != filenameWithoutExtension.length
+
+                append(filenameWithoutExtension)
                 if (attempt != 0) {
-                    append(" (")
+                    append("(")
                     append(attempt)
                     append(")")
+                }
+                if (hasExtension) {
+                    append('.')
+                    append(extension)
                 }
             })
 
@@ -160,9 +168,16 @@ class PosixFilesPlugin : FilePlugin {
             }
         }
 
+        val desiredDestination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath()
+        val destination = createAccordingToPolicy(
+            desiredDestination.parent.toInternalFile(),
+            desiredDestination.toInternalFile().path.fileName(),
+            request.conflictPolicy
+        ).toNioPath()
+
         NioFiles.move(
             pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toNioPath(),
-            pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath(),
+            destination,
             *copyOptions.toTypedArray()
         )
     }
