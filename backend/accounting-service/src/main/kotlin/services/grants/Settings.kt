@@ -251,7 +251,7 @@ class GrantSettingsService(
         }
     }
 
-    suspend fun browseByResources(
+    suspend fun searchAffilitionByResource(
         actorAndProject: ActorAndProject,
         request: GrantsBrowseAffiliationsByResourceRequest
     ): PageV2<ProjectWithTitle> {

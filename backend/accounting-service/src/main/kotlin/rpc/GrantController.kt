@@ -68,8 +68,8 @@ class GrantController(
             ))
         }
 
-        implement(Grants.browseAffiliationsByResource) {
-            ok(settings.browseByResources(actorAndProject, request))
+        implement(Grants.searchAffiliationsByResource) {
+            ok(settings.searchAffilitionByResource(actorAndProject, request))
         }
 
         implement(Grants.transferApplication) {
