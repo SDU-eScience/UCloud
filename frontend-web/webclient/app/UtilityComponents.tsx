@@ -77,9 +77,12 @@ interface InputDialog {
     validationFailureMessage?: string;
     addToFront?: boolean;
     type?: "input" | "textarea";
+    resize?: "none";
     help?: JSX.Element;
     width?: string;
     rows?: number;
+    confirmButtonColor?: ThemeColor;
+    cancelButtonColor?: ThemeColor;
 }
 
 export async function addStandardInputDialog({
@@ -92,8 +95,11 @@ export async function addStandardInputDialog({
     addToFront = false,
     placeholder = "",
     validationFailureMessage = "error",
+    resize = "none",
     type = "input",
     width = "300px",
+    confirmButtonColor = "green",
+    cancelButtonColor = "red",
 }: InputDialog): Promise<{result: string}> {
     if (type === "input" && rows != undefined) console.warn("Rows has no function if type = input.");
     return new Promise((resolve, reject) => dialogStore.addDialog(
@@ -116,13 +122,14 @@ export async function addStandardInputDialog({
                     as={type}
                     rows={rows}
                     width={width}
+                    style={{resize}}
                     placeholder={placeholder}
                     autoFocus
                 />
             </div>
             <Flex mt="20px">
-                <Button type={"button"} onClick={dialogStore.failure} color="red" mr="5px">{cancelText}</Button>
-                <Button type={"submit"} color="green">
+                <Button type={"button"} onClick={dialogStore.failure} color={cancelButtonColor} mr="5px">{cancelText}</Button>
+                <Button type={"submit"} color={confirmButtonColor}>
                     {confirmText}
                 </Button>
             </Flex>

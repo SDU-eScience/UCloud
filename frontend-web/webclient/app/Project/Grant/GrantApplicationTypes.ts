@@ -4,7 +4,7 @@ import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
-import {apiBrowse, apiCreate, apiDelete, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiDelete, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {GrantApplicationFilter} from ".";
 
@@ -295,6 +295,16 @@ export interface FetchGrantApplicationRequest {
     id: string;
 }
 
+interface BrowseAffiliationsByResourceRequest extends UCloud.PaginationRequestV2 {
+    requestedResources: AllocationRequest[]
+}
+
+export function browseAffiliationsByResource(request: UCloud.PaginationRequestV2 & {
+    requestedResources: AllocationRequest[]
+}): APICallParameters<BrowseAffiliationsByResourceRequest, UCloud.PageV2<ProjectWithTitle>> {
+    return apiSearch(request, grantBaseContext, "affiliationsByResource");
+}
+
 export type FetchGrantApplicationResponse = GrantApplication;
 
 export interface EditReferenceIDRequest {
@@ -315,7 +325,7 @@ export async function fetchProducts(
 }
 
 export function closeApplication(request: UCloud.BulkRequest<{applicationId: string}>): APICallParameters<UCloud.BulkRequest<{applicationId: string}>> {
-   return apiUpdate(request, grantBaseContext, "close")
+    return apiUpdate(request, grantBaseContext, "close")
 }
 
 interface BrowseApplicationsRequest extends PaginationRequestV2 {

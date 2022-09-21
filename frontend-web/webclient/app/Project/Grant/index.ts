@@ -1,6 +1,7 @@
 import {buildQueryString} from "@/Utilities/URIUtilities";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
+import * as UCloud from "@/UCloud";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -429,7 +430,8 @@ export interface GrantsRetrieveAffiliationsRequest {
     itemsPerPage: number,
     page: number
 }
-export type GrantsRetrieveAffiliationsResponse = PageV2<{projectId: string, title: string}>;
+
+export type GrantsRetrieveAffiliationsResponse = PageV2<UCloud.grant.ProjectWithTitle>;
 
 export function findAffiliations(request: GrantsRetrieveAffiliationsRequest): APICallParameters<GrantsRetrieveAffiliationsRequest> {
     return {

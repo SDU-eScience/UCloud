@@ -65,6 +65,7 @@ import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
     browseAffiliations,
+    browseAffiliationsByResource,
     closeApplication,
     Comment,
     commentOnGrantApplication,
@@ -83,11 +84,12 @@ import {
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {useProjectId, useProjectManagementStatus} from "..";
-import {displayErrorMessageOrDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -650,7 +652,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         const projectReferenceIdRef = useRef<HTMLInputElement>(null);
         useTitle(titleFromTarget(target));
         const history = useHistory();
-        const avatars = useAvatars();
 
         const [grantGivers, fetchGrantGivers] = useCloudAPI<GrantsRetrieveAffiliationsResponse>(
             browseAffiliations({itemsPerPage: 250}), emptyPage
@@ -662,7 +663,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const [isLocked, setIsLocked] = useState<boolean>(target === RequestTarget.VIEW_APPLICATION);
         const [isEditingProjectReferenceId, setIsEditingProjectReference] = useState(false);
-        const [grantProductCategories, setGrantProductCategories] = useState<{[key: string]: GrantProductCategory[];}>({});
+        const [grantProductCategories, setGrantProductCategories] = useState<Record<string, GrantProductCategory[]>>({});
         const [submitLoading, setSubmissionsLoading] = React.useState(false);
         const [grantGiversInUse, setGrantGiversInUse] = React.useState<string[]>([]);
         const [transferringApplication, setTransferringApplication] = useState(false);
@@ -912,12 +913,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             }
         }, [grantApplication.id, activeStateBreakDown]);
 
-        const transferRequest = useCallback(async (toProjectId: string) => {
-            await runWork(transferApplication({
-                applicationId: grantApplication.id,
-                transferToProjectId: toProjectId
-            }));
-        }, [grantApplication]);
+
 
         const closeRequest = useCallback(async () => {
             if (!appId) return;
@@ -962,6 +958,42 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             setIsLocked(true);
             reload();
         }, [reload]);
+
+        const transferRequest = useCallback(async (toProjectId: string) => {
+            if (!appId) return;
+            try {
+                const {result} = await addStandardInputDialog({
+                    title: "Post comment before transferring application?",
+                    help: <Box mb="16px">
+                        Note: After transferring the application, the application and comments will  <br />
+                        no longer be available to members of your current active project.
+                    </Box>,
+                    type: "textarea",
+                    rows: 3,
+                    width: "100%",
+                    resize: "none",
+                    cancelText: "Skip",
+                    confirmText: "Post",
+                    cancelButtonColor: "blue",
+                    validator: () => true
+                });
+
+                if (result) {
+                    await runWork<{id: string}[]>(commentOnGrantApplication({
+                        grantId: appId,
+                        comment: result
+                    }), {defaultErrorHandler: false});
+                }
+            } catch (e) {
+                if ("cancelled" in e) {/* expected */}
+                else errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
+            }
+
+            runWork(transferApplication({
+                applicationId: appId,
+                transferToProjectId: toProjectId
+            }));
+        }, [appId]);
 
         React.useEffect(() => {
             if (
@@ -1068,7 +1100,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             </>
                         )
                     )}
-                    {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) && recipient.type !== "existingProject" ?
+                    {isApprover && ![State.APPROVED, State.CLOSED].includes(grantApplication.status.overallState) ?
                         <Button
                             mt="4px"
                             color="blue"
@@ -1281,32 +1313,13 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     />
                                 </RequestFormContainer>
 
-                                <Box width="100%">
-                                    <Heading.h4>Comments</Heading.h4>
-                                    {grantApplication.status.comments.length > 0 ? null : (
-                                        <Box mt={16} mb={16}>
-                                            No comments have been posted yet.
-                                        </Box>
-                                    )}
-
-                                    {grantApplication.status.comments.map(it => (
-                                        <CommentBox
-                                            key={it.id}
-                                            grantId={appId}
-                                            comment={it}
-                                            avatar={avatars.cache[it.username] ?? defaultAvatar}
-                                            reload={reload}
-                                        />
-                                    ))}
-                                    {!appId ? null :
-                                        <PostCommentWidget
-                                            grantId={appId}
-                                            avatar={avatars.cache[Client.username!] ?? defaultAvatar}
-                                            onPostedComment={comment => dispatch({type: "POSTED_COMMENT", payload: comment})}
-                                            disabled={target !== RequestTarget.VIEW_APPLICATION}
-                                        />
-                                    }
-                                </Box>
+                                <Comments
+                                    target={target}
+                                    appId={appId}
+                                    dispatch={dispatch}
+                                    grantApplication={grantApplication}
+                                    reload={reload}
+                                />
                             </CommentApplicationWrapper>
 
                         </Box>
@@ -1317,7 +1330,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         isActive={transferringApplication}
                         close={() => setTransferringApplication(false)}
                         transfer={transferRequest}
-                        grantId={getReferenceId(grantApplication) ?? ""}
+                        grantProductCategories={grantProductCategories[Client.projectId ?? ""] ?? []}
+                        grantId={appId}
                     />}
             />
         );
@@ -1343,6 +1357,48 @@ function StateIcon({state}: {state: State;}) {
     }
     return <Icon mr="8px" name={icon} color={color} />;
 }
+
+interface CommentsProps {
+    grantApplication: GrantApplication;
+    dispatch: any;
+    target: RequestTarget;
+    appId?: string;
+    reload(): void;
+}
+
+function Comments(props: CommentsProps) {
+    const avatars = useAvatars();
+
+    return (
+        <Box width="100%">
+            <Heading.h4>Comments</Heading.h4>
+            {props.grantApplication.status.comments.length > 0 ? null : (
+                <Box mt={16} mb={16}>
+                    No comments have been posted yet.
+                </Box>
+            )}
+
+            {props.grantApplication.status.comments.map(it => (
+                <CommentBox
+                    key={it.id}
+                    grantId={props.appId}
+                    comment={it}
+                    avatar={avatars.cache[it.username] ?? defaultAvatar}
+                    reload={props.reload}
+                />
+            ))}
+            {!props.appId ? null :
+                <PostCommentWidget
+                    grantId={props.appId}
+                    avatar={avatars.cache[Client.username!] ?? defaultAvatar}
+                    onPostedComment={comment => props.dispatch({type: "POSTED_COMMENT", payload: comment})}
+                    disabled={props.target !== RequestTarget.VIEW_APPLICATION}
+                />
+            }
+        </Box>
+    )
+}
+
 
 function grantGiverSortFn(grantGiverA: ProjectWithTitle, grantGiverB: ProjectWithTitle): number {
     if (grantGiverA.projectId === Client.projectId) return -1;
@@ -1625,25 +1681,34 @@ const ParentProjectIcon = styled(Icon) <{isSelected: boolean;}>`
 
 interface TransferApplicationPromptProps {
     isActive: boolean;
-    grantId: string;
+    grantId?: string;
 
     close(): void;
 
     transfer(toProjectId: string): Promise<void>;
+
+    grantProductCategories: GrantProductCategory[];
 }
 
-function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
-    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPage);
+function TransferApplicationPrompt({isActive, close, transfer, grantId, grantProductCategories}: TransferApplicationPromptProps) {
+    const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPageV2);
 
     const history = useHistory();
 
     React.useEffect(() => {
-        if (grantId) {
-            fetchProjects(browseAffiliations({itemsPerPage: 100}));
+        const {projectId} = Client;
+        if (grantId && projectId) {
+            const resources = findRequestedResources({[projectId] : grantProductCategories});//.filter(it => it.grantGiver == Client.projectId);
+            fetchProjects(browseAffiliationsByResource({
+                itemsPerPage: 100,
+                requestedResources: resources
+            }));
         }
-    }, [grantId]);
+    }, [grantId, grantProductCategories]);
 
     const dispatch = useDispatch();
+
+    if (!grantId) return null;
 
     return (
         <ReactModal
@@ -1651,6 +1716,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
             isOpen={isActive}
             onRequestClose={close}
             shouldCloseOnEsc
+            ariaHideApp={false}
             shouldCloseOnOverlayClick
         >
             <List>
@@ -1666,7 +1732,6 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                                 height="40px"
                                 onAction={async () => {
                                     close();
-                                    // Show that we are transferring
                                     dispatch(setLoading(true));
                                     await transfer(it.projectId);
                                     dispatch(setLoading(false));
