@@ -272,7 +272,14 @@ class GrantSettingsService(
         }
         val requestedResources = application.currentRevision.document.allocationRequests
         val currentProjectResourceRequests = requestedResources.filter { it.grantGiver == actorAndProject.project }
-        val grantGiversID = requestedResources.map { it.grantGiver }.toSet().toList()
+        val grantGiversID =
+        if (application.currentRevision.document.recipient is GrantApplication.Recipient.ExistingProject) {
+            val initial = requestedResources.map { it.grantGiver }.toMutableSet()
+            initial.add((application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject).id)
+            initial.toList()
+        } else {
+            requestedResources.map { it.grantGiver }.toSet().toList()
+        }
         return db.paginateV2(
             actorAndProject.actor,
             request.normalize(),
