@@ -16,6 +16,7 @@ import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
+import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.forEachGraal
