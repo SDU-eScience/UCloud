@@ -89,7 +89,6 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
-import {dialogStore} from "@/Dialog/DialogStore";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -812,7 +811,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 case RequestTarget.EXISTING_PROJECT: {
                     recipient = {
                         type: "existingProject",
-                        id: Client.projectId ?? "", // TODO(Jonas): Is this the correct one?
+                        id: Client.projectId ?? ""
                     };
                 } break;
                 case RequestTarget.NEW_PROJECT: {
@@ -830,7 +829,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 case RequestTarget.PERSONAL_PROJECT: {
                     recipient = {
                         type: "personalWorkspace",
-                        // TODO(Jonas): Ensure that this is the correct username.
                         username: Client.username ?? "",
                     };
                 } break;
@@ -872,11 +870,20 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 snackbarStore.addFailure("Project Reference ID can't be empty", false);
                 return;
             }
-            // TODO(Jonas): This is call seems to be "dead". I think submitting the grantApplication with the new ID is the way to go.
-            await runWork(editReferenceId({id: grantApplication.id, newReferenceId: value}));
+
+            const {document} = grantApplication.currentRevision;            
+            document.referenceId = value;
+
+            const toSubmit = {
+                applicationId: appId,
+                document
+            };
+
+            await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
+            dispatch({type: UPDATE_DOCUMENT, payload: document});
             setIsEditingProjectReference(false);
             dispatch({type: "UPDATE_REFERENCE_ID", payload: {referenceId: value}});
-        }, []);
+        }, [grantApplication]);
 
         const cancelEditOfRefId = useCallback(async () => {
             setIsEditingProjectReference(false);
@@ -1724,7 +1731,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                 {projects.data.items.map(it =>
                     <Spacer
                         key={it.projectId}
-                        left={<Box key={it.projectId}>{it.title}</Box>}
+                        left={<Box my="auto" mr="24px" key={it.projectId}>{it.title}</Box>}
                         right={<>
                             <ConfirmationButton
                                 my="3px"
@@ -1748,17 +1755,12 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
     );
 }
 
-const OptionItem: React.FunctionComponent<{onClick: () => void; text: string; color?: string;}> = props => (
-    <Box cursor="pointer" width="auto" onClick={props.onClick}>
-        <TextSpan color={props.color}>{props.text}</TextSpan>
-    </Box>
-);
-
 const CommentApplicationWrapper = styled.div`
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(600px, 1fr));
     grid-gap: 32px;
     max-width: 1400px;
+    margin-top: 32px;
 `;
 
 const CommentBoxWrapper = styled.div`
