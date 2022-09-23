@@ -871,7 +871,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 return;
             }
 
-            const {document} = grantApplication.currentRevision;            
+            const {document} = grantApplication.currentRevision;
             document.referenceId = value;
 
             const toSubmit = {
@@ -968,6 +968,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const transferRequest = useCallback(async (toProjectId: string) => {
             if (!appId) return;
+            let comment = "";
             try {
                 const {result} = await addStandardInputDialog({
                     title: "Post comment before transferring application?",
@@ -984,27 +985,28 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     cancelButtonColor: "blue",
                     validator: () => true
                 });
-
-                if (result) {
+                comment = result;
+                if (comment) {
                     await runWork<{id: string}[]>(commentOnGrantApplication({
                         grantId: appId,
-                        comment: result
+                        comment
                     }), {defaultErrorHandler: false});
                 }
-
-                runWork(transferApplication(bulkRequestOf({
-                    applicationId: parseInt(appId, 10),
-                    transferToProjectId: toProjectId,
-                    revisionComment: `
-                        ${result}
-    
-                        -- Auto-inserted: transferred from project ${projectId}.
-                    `
-                })));
             } catch (e) {
                 if ("cancelled" in e) {/* expected */}
                 else errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
             }
+
+            runWork(transferApplication(bulkRequestOf({
+                applicationId: parseInt(appId, 10),
+                transferToProjectId: toProjectId,
+                revisionComment:
+                    `${comment}
+
+                    -- Auto-inserted: transferred from project ${projectId}.
+                `
+            })));
+
         }, [appId]);
 
         React.useEffect(() => {
