@@ -629,7 +629,7 @@ begin
 
     with resources_affected as (
         select
-            app.id, rr.credits_requested, rr.product_category, rr.start_date, rr.end_date, f.recipient, f.recipient_type, f.parent_project_id, f.form, f.reference_id, requested_by
+            app.id, rr.credits_requested, rr.product_category, rr.start_date, rr.end_date, f.recipient, f.recipient_type, target_project_in as parent_project_id, f.form, f.reference_id, requested_by
         from
             "grant".applications app join
             "grant".revisions rev on
@@ -715,6 +715,20 @@ begin
                 rr.grant_giver != source_project_id_in
         where
             id = application_id_in
+    ),
+    project_title as (
+        select title
+        from project.projects
+        where id = target_project_in
+        limit 1
+    ),
+    update_grant_givers as (
+        update "grant".grant_giver_approvals
+        set project_id = target_project_in, project_title = project_title.title
+        from project_title
+        where
+            project_id = source_project_id_in and
+            application_id = application_id_in
     )
     insert into "grant".forms (
         application_id,
@@ -737,6 +751,7 @@ begin
     limit 1;
 end;
 $$;
+
 
 alter table "grant".automatic_approval_limits add column grant_giver text;
 

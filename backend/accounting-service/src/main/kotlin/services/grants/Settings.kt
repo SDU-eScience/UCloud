@@ -272,7 +272,7 @@ class GrantSettingsService(
         }
         val requestedResources = application.currentRevision.document.allocationRequests
         val currentProjectResourceRequests = requestedResources.filter { it.grantGiver == actorAndProject.project }
-        val grantGiversID =
+        val projectFilter =
         if (application.currentRevision.document.recipient is GrantApplication.Recipient.ExistingProject) {
             val initial = requestedResources.map { it.grantGiver }.toMutableSet()
             initial.add((application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject).id)
@@ -293,7 +293,7 @@ class GrantSettingsService(
                             into("category_ids") {it.category}
                         }
                         setParameter("resources_size", currentProjectResourceRequests.size)
-                        setParameter("grant_givers", grantGiversID)
+                        setParameter("grant_givers", projectFilter)
                     },
                     """
                         declare c cursor for

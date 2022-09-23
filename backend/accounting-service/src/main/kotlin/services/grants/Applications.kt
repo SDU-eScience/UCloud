@@ -187,8 +187,7 @@ class GrantApplicationService(
                 autoApprove(session, actorAndProject, createRequest, applicationId)
 
                 val (allApproved, grantGivers) = retrieveGrantGiversStates(session, applicationId)
-                println(allApproved)
-                println(grantGivers)
+
                 if (allApproved) {
                     session.sendPreparedStatement(
                         {
@@ -1081,8 +1080,8 @@ class GrantApplicationService(
                         setParameter("revision_comment", req.revisionComment)
                     },
                     """
-                    select "grant".transfer_application(:username, :id, :source_id, :target, :newest_revision, :revision_comment)
-                """
+                        select "grant".transfer_application(:username, :id, :source_id, :target, :newest_revision, :revision_comment)
+                    """, debug = true
                 )
             }
         }
@@ -1115,10 +1114,15 @@ class GrantApplicationService(
                     },
                     """
                         declare c cursor for
-                        with outgoing as (
+                        with max_revision as (
+                            select max(revision_number) newest, application_id
+                            from "grant".revisions 
+                            group by application_id
+                        ),
+                        outgoing as (
                             select 
                                 apps.id,
-                                r.revision_number,
+                                r.newest,
                                 apps,
                                 r, 
                                 array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
@@ -1128,10 +1132,12 @@ class GrantApplicationService(
                                 apps.created_at
                             from
                                 "grant".applications apps join
-                                "grant".requested_resources request on apps.id = request.application_id join
-                                "grant".revisions r on apps.id = r.application_id join
+                                max_revision r on apps.id = r.application_id join
+                                "grant".requested_resources request on
+                                    apps.id = request.application_id and
+                                    request.revision_number = r.newest join
                                 accounting.product_categories pc on request.product_category = pc.id join
-                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.revision_number join
+                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.newest join
                                 project.projects owner_project on
                                     request.grant_giver = owner_project.id left join
                                 project.projects existing_project on
@@ -1164,12 +1170,12 @@ class GrantApplicationService(
                                 :outgoing
                             group by
                                 apps.*, r.*, existing_project.*, existing_project_pi.username, owner_project.*,
-                                apps.created_at, apps.id, r.revision_number
+                                apps.created_at, apps.id, r.newest
                         ),
                         ingoing as (
                             select 
                                 apps.id,
-                                r.revision_number,
+                                r.newest,
                                 apps,
                                 r,
                                 array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
@@ -1179,9 +1185,11 @@ class GrantApplicationService(
                                 apps.created_at
                             from
                                 "grant".applications apps join
-                                "grant".revisions r on apps.id = r.application_id join 
-                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.revision_number join
-                                "grant".requested_resources request on apps.id = request.application_id join                               
+                                max_revision r on apps.id = r.application_id join 
+                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.newest join
+                                "grant".requested_resources request on
+                                        apps.id = request.application_id and
+                                        request.revision_number = r.newest join
                                 project.project_members pm on
                                     pm.project_id = request.grant_giver and
                                     pm.username = :username and
@@ -1202,7 +1210,7 @@ class GrantApplicationService(
                                 :ingoing
                             group by
                                 apps.*, r.*, existing_project.*, existing_project_pi.username, owner_project.*,
-                                apps.created_at, apps.id, r.revision_number
+                                apps.created_at, apps.id, r.newest 
                         ),
                         all_applications as (
                             select distinct(id), created_at
