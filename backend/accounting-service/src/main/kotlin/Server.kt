@@ -47,13 +47,13 @@ class Server(
         val accountingService = AccountingService(db, simpleProviders)
         val depositNotifications = DepositNotificationService(db)
 
-        val favoriteProjects = FavoriteProjectService()
-        val projectService = ProjectService(client, projectCache)
-        val projectGroups = ProjectGroupService(projectService, projectCache)
-        val projectQueryService = ProjectQueryService(projectService)
         val projectsV2 = dk.sdu.cloud.accounting.services.projects.v2.ProjectService(db, client, projectCache, micro.developmentModeEnabled)
         val projectNotifications = dk.sdu.cloud.accounting.services.projects.v2
             .ProviderNotificationService(projectsV2, db, simpleProviders, micro.backgroundScope)
+        val projectService = ProjectService(client, projectCache, projectsV2)
+        val projectGroups = ProjectGroupService(projectCache, projectsV2)
+        val projectQueryService = ProjectQueryService(projectService)
+        val favoriteProjects = FavoriteProjectService(projectsV2)
 
         val giftService = GiftService(db)
         val settings = GrantSettingsService(db)

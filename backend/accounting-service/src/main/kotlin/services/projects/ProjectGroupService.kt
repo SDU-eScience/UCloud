@@ -1,15 +1,17 @@
 package dk.sdu.cloud.accounting.services.projects
 
-import com.github.jasync.sql.db.postgresql.exceptions.GenericDatabaseException
 import dk.sdu.cloud.Actor
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.ActorAndProject
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.util.ProjectCache
-import dk.sdu.cloud.calls.HttpStatusCode
-import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.project.api.ProjectRole
+import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.bulkRequestOf
+import dk.sdu.cloud.project.api.v2.Group
+import dk.sdu.cloud.project.api.v2.GroupMember
+import dk.sdu.cloud.project.api.v2.ProjectsRenameGroupRequestItem
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.db.async.*
-import java.util.*
+import dk.sdu.cloud.accounting.services.projects.v2.ProjectService as P2Service
 
 object GroupTable : SQLTable("project.groups") {
     val id = text("id")
@@ -23,8 +25,8 @@ object GroupMembershipTable : SQLTable("project.group_members") {
 }
 
 class ProjectGroupService(
-    private val projects: ProjectService,
     private val projectCache: ProjectCache,
+    private val p2: P2Service,
 ) {
     suspend fun createGroup(
         ctx: DBContext,
@@ -32,26 +34,11 @@ class ProjectGroupService(
         projectId: String,
         group: String
     ): String {
-        val id = UUID.randomUUID().toString()
-        try {
-            ctx.withSession { session ->
-                projects.requireRole(session, createdBy, projectId, ProjectRole.ADMINS)
-
-                session.insert(GroupTable) {
-                    set(GroupTable.project, projectId) // TODO This needs to be a foreign key
-                    set(GroupTable.title, group)
-                    set(GroupTable.id, id)
-                }
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorMessage.fields['C'] == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException("Group already exists", HttpStatusCode.Conflict)
-            }
-
-            log.warn(ex.stackTraceToString())
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
-        return id
+        return p2.createGroup(
+            ActorAndProject(Actor.SystemOnBehalfOfUser(createdBy), projectId),
+            bulkRequestOf(Group.Specification(projectId, group)),
+            ctx = ctx
+        ).responses.first().id
     }
 
     suspend fun deleteGroups(
@@ -60,52 +47,11 @@ class ProjectGroupService(
         projectId: String,
         groups: Set<String>
     ) {
-        ctx.withSession { session ->
-            projects.requireRole(session, deletedBy, projectId, ProjectRole.ADMINS)
-            if (groups.isEmpty()) return@withSession
-            val block: EnhancedPreparedStatement.() -> Unit = {
-                setParameter("project", projectId)
-                setParameter("groups", groups.toList())
-            }
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("groups", groups.toList())
-                },
-                """
-                    delete from provider.resource_acl_entry e
-                    where e.group_id = some(:groups::text[])
-                """
-            )
-
-            session
-                .sendPreparedStatement(
-                    block,
-                    """
-                        with allowed_groups as (
-                            select id 
-                            from project.groups g
-                            where
-                                g.id in (select * from unnest(:groups::text[])) and
-                                g.project = :project
-                        )
-                        
-                        delete from project.group_members
-                        where group_id in (select * from allowed_groups)
-                    """
-                )
-
-            session.sendPreparedStatement(
-                block,
-
-                """
-                    delete from project.groups
-                    where 
-                        id in (select * from unnest(?groups::text[])) and
-                        project = :project
-                """
-            )
-        }
+        p2.deleteGroup(
+            ActorAndProject(Actor.SystemOnBehalfOfUser(deletedBy), projectId),
+            BulkRequest(groups.map { FindByStringId(it) }),
+            ctx = ctx
+        )
     }
 
     suspend fun addMember(
@@ -115,23 +61,16 @@ class ProjectGroupService(
         groupId: String,
         newMember: String
     ) {
-        try {
-            ctx.withSession { session ->
-                projects.requireRole(session, addedBy, projectId, ProjectRole.ADMINS)
-
-                session.insert(GroupMembershipTable) {
-                    set(GroupMembershipTable.group, groupId)
-                    set(GroupMembershipTable.username, newMember)
-                }
-            }
-        } catch (ex: GenericDatabaseException) {
-            if (ex.errorMessage.fields['C'] == PostgresErrorCodes.UNIQUE_VIOLATION) {
-                throw RPCException("Member is already in group", HttpStatusCode.Conflict)
-            }
-
-            log.warn(ex.stackTraceToString())
-            throw RPCException.fromStatusCode(HttpStatusCode.InternalServerError)
-        }
+        p2.createGroupMember(
+            ActorAndProject(Actor.SystemOnBehalfOfUser(addedBy), projectId),
+            bulkRequestOf(
+                GroupMember(
+                    newMember,
+                    groupId
+                )
+            ),
+            ctx = ctx
+        )
 
         projectCache.invalidate(newMember)
     }
@@ -143,23 +82,17 @@ class ProjectGroupService(
         groupId: String,
         memberToRemove: String
     ) {
-        ctx.withSession { session ->
-            projects.requireRole(session, removedBy, projectId, ProjectRole.ADMINS)
-
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("username", memberToRemove)
-                        setParameter("group", groupId)
-                    },
-                    """
-                        delete from project.group_members
-                        where
-                            username = :username and
-                            group_id = :group
-                    """
+        p2.deleteGroupMember(
+            ActorAndProject(Actor.SystemOnBehalfOfUser(removedBy), projectId),
+            bulkRequestOf(
+                GroupMember(
+                    memberToRemove,
+                    groupId
                 )
-        }
+            ),
+            ctx = ctx
+        )
+
         projectCache.invalidate(memberToRemove)
     }
 
@@ -169,44 +102,13 @@ class ProjectGroupService(
         groupId: String,
         newName: String
     ) {
-        ctx.withSession { session ->
-
-            val project = session.sendPreparedStatement(
-                {
-                    setParameter("group", groupId)
-                },
-                """select project from project.groups where id = :group"""
-            ).rows
-
-            val projectId = if (project.isNotEmpty()) {
-                project[0]["project"].toString()
-            } else {
-                throw RPCException.fromStatusCode(HttpStatusCode.NotFound, "Project group not found")
-            }
-
-            val isAdmin = when (actor) {
-                Actor.System -> true
-
-                is Actor.User, is Actor.SystemOnBehalfOfUser -> {
-                    if (actor is Actor.User && actor.principal.role in Roles.PRIVILEGED) {
-                        true
-                    } else {
-                        projects.findRoleOfMember(ctx, projectId, actor.username) in ProjectRole.ADMINS
-                    }
-                }
-                else -> false
-            }
-
-            if (!isAdmin) throw RPCException.fromStatusCode(HttpStatusCode.Unauthorized)
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("group", groupId)
-                    setParameter("newTitle", newName)
-                },
-                """update project.groups set title = :newTitle where id = :group"""
-            )
-        }
+        p2.renameGroup(
+            ActorAndProject(actor, null),
+            bulkRequestOf(
+                ProjectsRenameGroupRequestItem(groupId, newName)
+            ),
+            ctx = ctx
+        )
     }
 
     companion object : Loggable {

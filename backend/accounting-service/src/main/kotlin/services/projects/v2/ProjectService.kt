@@ -508,6 +508,7 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Project.Specification>,
         ctx: DBContext = db,
+        piOverride: String? = null,
     ): BulkResponse<FindByStringId> {
         return ctx.withSession(remapExceptions = true) { session ->
             // NOTE(Dan): First we check if the actor is allowed to create _all_ of the requested projects. The system
@@ -527,6 +528,10 @@ class ProjectService(
             var piUsername = username
 
             when {
+                piOverride != null -> {
+                    piUsername = piOverride
+                }
+
                 providerId != null -> {
                     // Providers can only create the project if it is a direct child of the owning project.
                     val parentProject = retrieveProviderProject(session, providerId)
@@ -1226,7 +1231,7 @@ class ProjectService(
             }
         }
 
-        // NOTE(Dan): We don't allow someone to change their own role. I don't see an obvious use-case for this and
+        // NOTE(Dan): We don't allow someone to change their own role. I don't see an obvious use-case for this, and
         // it simplifies our code a bit (see PI transfer below).
         val requestContainsSelf = requestItems.any { it.username == actor.safeUsername() }
         if (requestContainsSelf) {
