@@ -660,6 +660,7 @@ begin
             actor_in,
             revision_comment_in
         from resources_affected
+        limit(1)
     ),
     insert_resources as (
         insert into "grant".requested_resources (
