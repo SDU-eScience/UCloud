@@ -28,7 +28,7 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      *
      * This method is only invoked for the initial allocation not for re-synchronization.
      */
-    suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {}
+    suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts

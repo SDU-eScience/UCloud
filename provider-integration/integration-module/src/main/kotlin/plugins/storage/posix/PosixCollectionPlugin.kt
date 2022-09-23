@@ -16,7 +16,6 @@ import dk.sdu.cloud.debug.logD
 import dk.sdu.cloud.file.orchestrator.api.*
 import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
-import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.utils.associateByGraal
@@ -38,13 +37,19 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.FileCollections.Posix
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
+    private lateinit var partnerPlugin: PosixFilesPlugin
     private val mutex = Mutex()
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
     }
 
-    override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {
+    override suspend fun PluginContext.initialize() {
+        partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
+            error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
+    }
+
+    override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
         locateAndRegisterCollections(notification.owner)
     }
 
@@ -57,34 +62,18 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             if (cached != null) return cached
         }
 
-        data class CollWithProduct(
-            val title: String,
-            val pathPrefix: String,
-            val product: ProductReferenceWithoutProvider
-        )
-
-        val homes = HashMap<String, CollWithProduct>()
         val collections = ArrayList<PathConverter.Collection>()
 
         run {
             val product = productAllocation.firstOrNull() ?: return@run
 
-            run {
-                // Simple mappers
-                pluginConfig.simpleHomeMapper.forEach { home ->
-                    homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
-                }
-            }
-
-            run {
-                // Extensions
-                val extension = pluginConfig.extensions.additionalCollections
-                if (extension != null) {
-                    retrieveCollections.invoke(extension, owner).forEach {
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
-                        )
-                    }
+            @Suppress("DEPRECATION")
+            val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
+            if (extension != null) {
+                retrieveCollections.invoke(extension, owner).forEach {
+                    collections.add(
+                        PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
+                    )
                 }
             }
         }
@@ -105,14 +94,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
-        return BulkResponse(productAllocation.map { ref ->
-            FSSupport(
-                ProductReference(ref.id, ref.category, config.core.providerId),
-                FSProductStatsSupport(),
-                FSCollectionSupport(),
-                FSFileSupport()
-            )
-        })
+        return with(partnerPlugin) {
+            retrieveProducts(knownProducts)
+        }
     }
 
     private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient) {

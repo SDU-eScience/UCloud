@@ -361,7 +361,6 @@ data class ConfigSchema(
             @SerialName("Posix")
             data class Posix(
                 override val matches: String,
-                val simpleHomeMapper: List<HomeMapper> = emptyList(),
                 val extensions: Extensions = Extensions(),
                 val accounting: String? = null,
             ) : ConfigSchema.Plugins.FileCollections() {
@@ -373,6 +372,8 @@ data class ConfigSchema(
 
                 @Serializable
                 data class Extensions(
+                    val driveLocator: String? = null,
+                    @Deprecated("replace with driveLocator")
                     val additionalCollections: String? = null,
                 )
             }
