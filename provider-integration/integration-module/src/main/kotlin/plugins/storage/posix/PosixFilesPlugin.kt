@@ -281,28 +281,24 @@ class PosixFilesPlugin : FilePlugin {
             val files = items.map { nativeStat(InternalFile(it)) }
             val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
             var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
-                // TODO OVERFLOW
                 FilesSortBy.PATH -> pathComparator
                 FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.sizeInBytes ?: 0L) - (b.status.sizeInBytes ?: 0L)).toInt()
+                    val aSize = a.status.sizeInBytes ?: 0L
+                    val bSize = b.status.sizeInBytes ?: 0L
+                    when {
+                        aSize < bSize -> -1
+                        aSize > bSize ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
                 FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.modifiedAt ?: 0L) - (b.status.modifiedAt ?: 0L)).toInt()
+                    val aModifiedAt = a.status.modifiedAt ?: 0L
+                    val bModifiedAt = b.status.modifiedAt ?: 0L
+                    when {
+                        aModifiedAt < bModifiedAt -> -1
+                        aModifiedAt > bModifiedAt ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
             }
             if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
