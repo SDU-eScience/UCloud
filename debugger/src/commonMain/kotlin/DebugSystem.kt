@@ -12,11 +12,15 @@ data class DebugContext(
 )
 
 @Serializable
-sealed class DebugMessage {
+sealed class DebugMessage : Comparable<DebugMessage> {
     abstract val context: DebugContext
     abstract val timestamp: Long
     abstract val importance: MessageImportance
     abstract val messageType: MessageType
+
+    override fun compareTo(other: DebugMessage): Int {
+        return timestamp.compareTo(other.timestamp)
+    }
 
     interface WithCall {
         val call: String?
@@ -144,6 +148,12 @@ sealed class DebugMessage {
         override val timestamp: Long = Time.now(),
     ) : DebugMessage() {
         override val messageType = MessageType.LOG
+    }
+
+    companion object {
+        fun sortingKey(timestamp: Long): DebugMessage {
+            return Log(DebugContext(""), "", timestamp = timestamp)
+        }
     }
 }
 
