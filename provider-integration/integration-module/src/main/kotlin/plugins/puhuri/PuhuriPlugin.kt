@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins
+package dk.sdu.cloud.plugins.puhuri
 
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -17,6 +17,7 @@ import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
 import dk.sdu.cloud.project.api.ProjectRole

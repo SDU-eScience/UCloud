@@ -130,8 +130,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     private var nextScan = 0L
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (!config.shouldRunServerCode()) return
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         if (pluginConfig.accounting == null) return
 
         val pathConverter = PathConverter(this)

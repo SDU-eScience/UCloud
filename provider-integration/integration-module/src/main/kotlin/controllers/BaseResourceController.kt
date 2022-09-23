@@ -160,7 +160,7 @@ abstract class BaseResourceController<
             plugins.forEach { plugin ->
                 with(requestContext(controllerContext)) {
                     with(plugin) {
-                        init(request.principal)
+                        initInUserMode(request.principal)
                     }
                 }
             }
