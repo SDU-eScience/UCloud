@@ -19,6 +19,7 @@ import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.associateByGraal
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -73,23 +74,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 pluginConfig.simpleHomeMapper.forEach { home ->
                     homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
                 }
-
-                /*
-                // TODO
-                if (owner is ResourceOwnerWithId.User && homes.isNotEmpty()) {
-                    val username = run {
-                        val uid = geteuid()
-                        getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
-                    }
-
-                    homes.forEach { (_, coll) ->
-                        val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), coll.title, mappedPath, coll.product)
-                        )
-                    }
-                }
-                 */
             }
 
             run {
@@ -181,7 +165,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 rpcClient
                             ).orThrow()
 
-                            summary.items.forEachGraal inner@{ item ->
+                            summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
                                 val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
                                 val colls = locateAndRegisterCollections(resourceOwner)
                                     .filter { it.product.category == category }
@@ -233,27 +217,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
         return when (val cfg = pluginConfig.accounting) {
-            "DeviceQuota" -> {
-                TODO()
-                /*
-                memScoped {
-                    val buf = alloc<statvfs>()
-                    if (statvfs(coll.localPath, buf.ptr) != 0) {
-                        error("statvfs failed $errno $coll")
-                    }
-
-                    val quota = buf.f_blocks * buf.f_frsize
-                    val available = buf.f_favail * buf.f_bsize
-
-                    // TODO(Dan): These numbers seem correct, but different from the numbers reported by df. Not
-                    //  sure what is going on.
-                    (quota - available).toLong()
-                }
-                 */
-            }
-
             null -> 0
-
             else -> {
                 calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }
