@@ -110,7 +110,7 @@ class GrantApplicationService(
                 throw RPCException("Cannot request resources for someone else", HttpStatusCode.Forbidden)
             }
             if (recipient is GrantApplication.Recipient.NewProject && createRequest.document.parentProjectId == null) {
-                throw RPCException("Missing parent ID when new project", HttpStatusCode.BadRequest)
+                throw RPCException("Missing parent ID when creating new project", HttpStatusCode.BadRequest)
             }
         }
         val results = mutableListOf<Pair<Long, GrantNotification>>()
@@ -533,7 +533,7 @@ class GrantApplicationService(
                     setParameter("id", applicationId)
                     setParameter("grant_applier", actorAndProject.actor.username)
                     setParameter("revision_number", revisionNumber)
-                    document.allocationRequests.split {
+                    allocationRequests.split {
                         into("credits_requested") { it.balanceRequested }
                         into("categories") { it.category }
                         into("providers") { it.provider }

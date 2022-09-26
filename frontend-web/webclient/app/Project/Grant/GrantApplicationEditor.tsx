@@ -242,10 +242,14 @@ const Wrapper = styled.div`
 function checkIsGrantRecipient(target: RequestTarget, grantApplication: GrantApplication, adminOrPi: boolean): boolean {
     if (target !== RequestTarget.VIEW_APPLICATION) return true;
     const {recipient} = getDocument(grantApplication);
-    if (recipient.type === "existingProject") {
-        if (recipient.id === Client.projectId && adminOrPi) return true;
+    switch (recipient.type) {
+        case "existingProject":
+            return recipient.id === Client.projectId && adminOrPi;
+        case "personalWorkspace":
+            return !Client.hasActiveProject && grantApplication.createdBy === Client.username;
+        case "newProject":
+            return grantApplication.createdBy === Client.username;
     }
-    return grantApplication.createdBy === Client.username;
 }
 
 const GenericRequestCard: React.FunctionComponent<{
