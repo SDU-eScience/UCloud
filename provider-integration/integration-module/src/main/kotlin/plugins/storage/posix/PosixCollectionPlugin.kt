@@ -18,6 +18,7 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.utils.associateByGraal
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -36,13 +37,19 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.FileCollections.Posix
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
+    private lateinit var partnerPlugin: PosixFilesPlugin
     private val mutex = Mutex()
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
     }
 
-    override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {
+    override suspend fun PluginContext.initialize() {
+        partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
+            error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
+    }
+
+    override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
         locateAndRegisterCollections(notification.owner)
     }
 
@@ -55,51 +62,18 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             if (cached != null) return cached
         }
 
-        data class CollWithProduct(
-            val title: String,
-            val pathPrefix: String,
-            val product: ProductReferenceWithoutProvider
-        )
-
-        val homes = HashMap<String, CollWithProduct>()
         val collections = ArrayList<PathConverter.Collection>()
 
         run {
             val product = productAllocation.firstOrNull() ?: return@run
 
-            run {
-                // Simple mappers
-                pluginConfig.simpleHomeMapper.forEach { home ->
-                    homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
-                }
-
-                /*
-                // TODO
-                if (owner is ResourceOwnerWithId.User && homes.isNotEmpty()) {
-                    val username = run {
-                        val uid = geteuid()
-                        getpwuid(uid)?.pointed?.pw_name?.toKStringFromUtf8() ?: "$uid"
-                    }
-
-                    homes.forEach { (_, coll) ->
-                        val mappedPath = coll.pathPrefix.removeSuffix("/") + "/" + username
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), coll.title, mappedPath, coll.product)
-                        )
-                    }
-                }
-                 */
-            }
-
-            run {
-                // Extensions
-                val extension = pluginConfig.extensions.additionalCollections
-                if (extension != null) {
-                    retrieveCollections.invoke(extension, owner).forEach {
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
-                        )
-                    }
+            @Suppress("DEPRECATION")
+            val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
+            if (extension != null) {
+                retrieveCollections.invoke(extension, owner).forEach {
+                    collections.add(
+                        PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
+                    )
                 }
             }
         }
@@ -120,14 +94,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
-        return BulkResponse(productAllocation.map { ref ->
-            FSSupport(
-                ProductReference(ref.id, ref.category, config.core.providerId),
-                FSProductStatsSupport(),
-                FSCollectionSupport(),
-                FSFileSupport()
-            )
-        })
+        return with(partnerPlugin) {
+            retrieveProducts(knownProducts)
+        }
     }
 
     private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient) {
@@ -145,8 +114,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     private var nextScan = 0L
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (!config.shouldRunServerCode()) return
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         if (pluginConfig.accounting == null) return
 
         val pathConverter = PathConverter(this)
@@ -180,7 +148,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 rpcClient
                             ).orThrow()
 
-                            summary.items.forEachGraal inner@{ item ->
+                            summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
                                 val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
                                 val colls = locateAndRegisterCollections(resourceOwner)
                                     .filter { it.product.category == category }
@@ -232,27 +200,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
 
     private suspend fun calculateUsage(coll: PathConverter.Collection): Long {
         return when (val cfg = pluginConfig.accounting) {
-            "DeviceQuota" -> {
-                TODO()
-                /*
-                memScoped {
-                    val buf = alloc<statvfs>()
-                    if (statvfs(coll.localPath, buf.ptr) != 0) {
-                        error("statvfs failed $errno $coll")
-                    }
-
-                    val quota = buf.f_blocks * buf.f_frsize
-                    val available = buf.f_favail * buf.f_bsize
-
-                    // TODO(Dan): These numbers seem correct, but different from the numbers reported by df. Not
-                    //  sure what is going on.
-                    (quota - available).toLong()
-                }
-                 */
-            }
-
             null -> 0
-
             else -> {
                 calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }

@@ -1203,22 +1203,6 @@ class ProjectQueryService(
         }
     }
 
-    suspend fun listAllGroupIdsAndTitles(ctx: DBContext, user: SecurityPrincipal): Map<String, String> {
-        return ctx.withSession { session ->
-            val map = mutableMapOf<String, String>()
-            session.sendPreparedStatement(
-                { setParameter("username", user.username) },
-                """
-                    SELECT g.id, g.title
-                    FROM project.groups g
-                    INNER JOIN group_members gm on g.id = gm.group_id
-                    WHERE gm.username = :username
-                """
-            ).rows.forEach { row -> map[row.getField(GroupTable.id)] = row.getField(GroupTable.title) }
-            map
-        }
-    }
-
     companion object : Loggable {
         override val log = logger()
         const val VERIFICATION_REQUIRED_EVERY_X_DAYS = 30L

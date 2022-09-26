@@ -137,51 +137,58 @@ data class IpcHandler(
     suspend fun invokeHandler(user: IpcUser, request: JsonRpcRequest): JsonObject {
         val context = DebugContext.create()
         return withContext(DebugCoroutineContext(context)) {
+            val shouldDebug = request.method != "ping.ping"
             val start = Time.now()
-            debugSystem?.sendMessage(
-                DebugMessage.ServerRequest(
-                    context,
-                    start,
-                    null,
-                    MessageImportance.IMPLEMENTATION_DETAIL,
-                    request.method,
-                    request.params
+            if (shouldDebug) {
+                debugSystem?.sendMessage(
+                    DebugMessage.ServerRequest(
+                        context,
+                        start,
+                        null,
+                        MessageImportance.IMPLEMENTATION_DETAIL,
+                        request.method,
+                        request.params
+                    )
                 )
-            )
+            }
 
             try {
                 val result = handler(user, request)
                 val end = Time.now()
-                debugSystem?.sendMessage(
-                    DebugMessage.ServerResponse(
-                        DebugContext.createWithParent(context.id),
-                        end,
-                        null,
-                        MessageImportance.THIS_IS_NORMAL,
-                        request.method,
-                        result,
-                        200,
-                        end - start
+                if (shouldDebug) {
+                    debugSystem?.sendMessage(
+                        DebugMessage.ServerResponse(
+                            DebugContext.createWithParent(context.id),
+                            end,
+                            null,
+                            MessageImportance.THIS_IS_NORMAL,
+                            request.method,
+                            result,
+                            200,
+                            end - start
+                        )
                     )
-                )
+                }
 
                 result
             } catch (ex: Throwable) {
                 val end = Time.now()
                 val stack =
                     defaultMapper.encodeToJsonElement(ReadableStackTrace.serializer(), ex.toReadableStacktrace())
-                debugSystem?.sendMessage(
-                    DebugMessage.ServerResponse(
-                        DebugContext.createWithParent(context.id),
-                        end,
-                        null,
-                        MessageImportance.THIS_IS_WRONG,
-                        request.method,
-                        stack,
-                        500,
-                        end - start
+                if (!shouldDebug) {
+                    debugSystem?.sendMessage(
+                        DebugMessage.ServerResponse(
+                            DebugContext.createWithParent(context.id),
+                            end,
+                            null,
+                            MessageImportance.THIS_IS_WRONG,
+                            request.method,
+                            stack,
+                            500,
+                            end - start
+                        )
                     )
-                )
+                }
 
                 throw ex
             }

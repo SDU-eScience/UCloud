@@ -384,9 +384,7 @@ class SlurmPlugin : ComputePlugin {
         throw RPCException("Not supported", HttpStatusCode.BadRequest)
     }
 
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (!config.shouldRunServerCode()) return
-
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         var nextAccountingScan = 0L
 
         while (currentCoroutineContext().isActive) {

@@ -6,6 +6,8 @@ import dk.sdu.cloud.app.orchestrator.api.SSHKeysProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -116,7 +118,7 @@ class ConnectionController(
 
         server.addHandler(ConnectionIpc.removeConnection.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            UserMapping.clearMappingByUCloudId(request.username)
+            UserMapping.clearMappingByUCloudId(request.username, controllerContext.pluginContext)
         })
 
         server.addHandler(MessageSigningIpc.browse.handler { user, request ->
@@ -362,6 +364,15 @@ class ConnectionController(
 
                 ok(Unit)
             }
+
+            implement(im.unlinked) {
+                UserMapping.clearMappingByUCloudId(
+                    request.username,
+                    controllerContext.pluginContext,
+                    clearInUCloud = false
+                )
+                ok(Unit)
+            }
         }
     }
 
@@ -512,7 +523,11 @@ object UserMapping {
 
     }
 
-    suspend fun clearMappingByUCloudId(ucloudId: String) {
+    suspend fun clearMappingByUCloudId(
+        ucloudId: String,
+        pluginContext: PluginContext,
+        clearInUCloud: Boolean = true,
+    ) {
         dbConnection.withSession { session ->
             session.prepareStatement(
                 """
@@ -524,6 +539,18 @@ object UserMapping {
                     bindString("ucloud_id", ucloudId)
                 },
             )
+
+            if (clearInUCloud) {
+                IntegrationControl.clearConnection.call(
+                    IntegrationClearConnectionRequest(ucloudId),
+                    pluginContext.rpcClient,
+                ).orRethrowAs { ex ->
+                    throw RPCException(
+                        "Could not clear connection. UCloud/Core failed with ${ex.statusCode} ${ex.error}",
+                        HttpStatusCode.BadGateway
+                    )
+                }
+            }
         }
     }
 

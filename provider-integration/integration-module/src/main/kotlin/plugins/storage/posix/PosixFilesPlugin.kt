@@ -130,11 +130,19 @@ class PosixFilesPlugin : FilePlugin {
             }
 
             val idealName = parent.toNioPath().resolve(buildString {
-                append(desiredFileName)
+                val filenameWithoutExtension = desiredFileName.substringBeforeLast('.')
+                val extension = desiredFileName.substringAfterLast('.')
+                val hasExtension = desiredFileName.length != filenameWithoutExtension.length
+
+                append(filenameWithoutExtension)
                 if (attempt != 0) {
-                    append(" (")
+                    append("(")
                     append(attempt)
                     append(")")
+                }
+                if (hasExtension) {
+                    append('.')
+                    append(extension)
                 }
             })
 
@@ -160,9 +168,16 @@ class PosixFilesPlugin : FilePlugin {
             }
         }
 
+        val desiredDestination = pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath()
+        val destination = createAccordingToPolicy(
+            desiredDestination.parent.toInternalFile(),
+            desiredDestination.toInternalFile().path.fileName(),
+            request.conflictPolicy
+        ).toNioPath()
+
         NioFiles.move(
             pathConverter.ucloudToInternal(UCloudFile.create(request.oldId)).toNioPath(),
-            pathConverter.ucloudToInternal(UCloudFile.create(request.newId)).toNioPath(),
+            destination,
             *copyOptions.toTypedArray()
         )
     }
@@ -268,10 +283,22 @@ class PosixFilesPlugin : FilePlugin {
             var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
                 FilesSortBy.PATH -> pathComparator
                 FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.sizeInBytes ?: 0L) - (b.status.sizeInBytes ?: 0L)).toInt()
+                    val aSize = a.status.sizeInBytes ?: 0L
+                    val bSize = b.status.sizeInBytes ?: 0L
+                    when {
+                        aSize < bSize -> -1
+                        aSize > bSize ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
                 FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.modifiedAt ?: 0L) - (b.status.modifiedAt ?: 0L)).toInt()
+                    val aModifiedAt = a.status.modifiedAt ?: 0L
+                    val bModifiedAt = b.status.modifiedAt ?: 0L
+                    when {
+                        aModifiedAt < bModifiedAt -> -1
+                        aModifiedAt > bModifiedAt ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
             }
             if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
@@ -422,7 +449,9 @@ class PosixFilesPlugin : FilePlugin {
             val buffer = ByteArray(1024 * 16)
             while (!chunk.isClosedForRead) {
                 val read = chunk.readAvailable(buffer)
-                file.write(buffer, 0, read)
+                if (read > 0) {
+                    file.write(buffer, 0, read)
+                }
             }
         }
     }

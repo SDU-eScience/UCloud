@@ -9,6 +9,8 @@ import dk.sdu.cloud.plugins.compute.ucloud.UCloudComputePlugin
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudIngressPlugin
 import dk.sdu.cloud.plugins.compute.ucloud.UCloudPublicIPPlugin
 import dk.sdu.cloud.plugins.licenses.generic.GenericLicensePlugin
+import dk.sdu.cloud.plugins.puhuri.*
+import dk.sdu.cloud.plugins.projects.SimpleProjectPlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFileCollectionPlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudFilePlugin
 import dk.sdu.cloud.plugins.storage.ucloud.UCloudSharePlugin

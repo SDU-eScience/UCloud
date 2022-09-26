@@ -1,5 +1,6 @@
 package dk.sdu.cloud.calls.client
 
+import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.base64Encode
 import dk.sdu.cloud.calls.AttributeContainer
 import dk.sdu.cloud.calls.CallDescription
@@ -7,12 +8,12 @@ import dk.sdu.cloud.calls.HttpBody
 import dk.sdu.cloud.calls.HttpHeaderParameter
 import dk.sdu.cloud.calls.HttpPathSegment
 import dk.sdu.cloud.calls.HttpRequest
+import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.http
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import io.ktor.client.HttpClient
 import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.client.utils.EmptyContent
@@ -20,10 +21,10 @@ import io.ktor.http.*
 import io.ktor.http.content.OutgoingContent
 import io.ktor.http.content.TextContent
 import io.ktor.util.*
-import io.ktor.utils.io.*
 import io.ktor.utils.io.charsets.*
 import io.ktor.utils.io.core.*
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SerializationException
 import kotlin.random.Random
 import kotlin.reflect.KClass
 
@@ -121,12 +122,9 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
                 try {
                     httpClient.request(ctx.builder)
                 } catch (ex: Throwable) {
-                    if (ex.stackTraceToString().contains("ConnectException")) {
+                    if (ex.stackTraceToString().contains("ConnectException") || ex is EOFException) {
                         log.debug("[$callId] ConnectException: ${ex.message}")
-                        throw RPCException(
-                            "[$callId] ${call.fullName} Could not connect to backend server",
-                            dk.sdu.cloud.calls.HttpStatusCode.BadGateway
-                        )
+                        return IngoingCallResponse.Error(null as E?, HttpStatusCode.BadGateway, ctx)
                     }
 
                     throw ex
@@ -164,7 +162,12 @@ class OutgoingHttpRequestInterceptor : OutgoingRequestInterceptor<OutgoingHttpCa
         type: KSerializer<S>,
     ): S {
         if (type.descriptor.serialName == "kotlin.Unit") return Unit as S
-        return defaultMapper.decodeFromString(type, resp.bodyAsText())
+        val bodyAsString = resp.bodyAsText()
+        return try {
+            defaultMapper.decodeFromString(type, bodyAsString)
+        } catch (ex: SerializationException) {
+            throw RuntimeException("Could not parse response to type!\nRequest:${bodyAsString.prependIndent("  ")}", ex)
+        }
     }
 
     private suspend fun <E : Any, R : Any, S : Any> parseResponse(

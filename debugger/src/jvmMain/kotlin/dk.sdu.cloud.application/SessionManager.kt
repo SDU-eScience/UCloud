@@ -6,11 +6,15 @@ import dk.sdu.cloud.debug.DebugMessage
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.ServerToClient
 import dk.sdu.cloud.debug.ServiceMetadata
+import dk.sdu.cloud.debug.Time
 import dk.sdu.cluod.debug.defaultMapper
 import io.ktor.websocket.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.selects.select
+import java.util.NavigableSet
+import java.util.SortedSet
+import java.util.TreeSet
 import kotlin.math.floor
 
 const val MAX_SERVICE_ID = 1024 * 16
@@ -23,7 +27,7 @@ class SessionManager(watchedFolders: List<String>) {
     private val clientsClosing = Channel<Session>()
 
     private val metadataByService = arrayOfNulls<ServiceMetadata>(MAX_SERVICE_ID)
-    private val messagesByService = arrayOfNulls<CircularList<DebugMessage>>(MAX_SERVICE_ID)
+    private val messagesByService = arrayOfNulls<NavigableSet<DebugMessage>>(MAX_SERVICE_ID)
     private val pathsByService = arrayOfNulls<HashMap<String, List<String>>>(MAX_SERVICE_ID)
     private val clientStatsByService = arrayOfNulls<CircularList<ResponseStat>>(MAX_SERVICE_ID)
     private val serverStatsByService = arrayOfNulls<CircularList<ResponseStat>>(MAX_SERVICE_ID)
@@ -95,7 +99,7 @@ class SessionManager(watchedFolders: List<String>) {
                         run {
                             var buffer = messagesByService[id]
                             if (buffer == null) {
-                                val newBuffer = CircularList<DebugMessage>(SCROLL_BACK_SIZE)
+                                val newBuffer = TreeSet<DebugMessage>()
                                 messagesByService[id] = newBuffer
                                 buffer = newBuffer
                             }
@@ -129,7 +133,7 @@ class SessionManager(watchedFolders: List<String>) {
                             }
 
                             if (previousMessages != null) {
-                                for (prev in previousMessages.reverseIterator()) {
+                                for (prev in previousMessages.descendingIterator()) {
                                     val isRequest =
                                         (prev is DebugMessage.ClientRequest || prev is DebugMessage.ServerRequest) &&
                                                 (prev.context.id == message.context.id ||
@@ -212,10 +216,16 @@ class SessionManager(watchedFolders: List<String>) {
                             val hadScrollbackRequested = session.requestScrollback
                             if (hadScrollbackRequested) {
                                 val messages = messagesByService.getOrNull(session.currentService)
-                                if (messages != null) {
-                                    messages.iterator().asSequence().chunked(500).forEachIndexed { index, chunk ->
+                                messages
+                                    ?.tailSet(DebugMessage.sortingKey(Time.now() - (1000L * 60 * 30)))
+                                    ?.iterator()
+                                    ?.asSequence()
+                                    ?.chunked(500)
+                                    ?.forEachIndexed { index, chunk ->
                                         session.send(ServerToClient.Log(index == 0, chunk))
                                     }
+                                if (messages == null) {
+                                    session.send(ServerToClient.Log(true, emptyList()))
                                 }
                                 session.requestScrollback = false
                             }

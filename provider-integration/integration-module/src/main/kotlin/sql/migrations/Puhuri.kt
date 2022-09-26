@@ -37,3 +37,24 @@ fun V1__Puhuri() = MigrationScript("V1__Puhuri") { session ->
         """
     ).useAndInvokeAndDiscard()
 }
+
+fun V2__Puhuri() = MigrationScript("V2__Puhuri") { session ->
+    session.prepareStatement(
+        """
+            drop table puhuri_project_users;
+        """
+    ).useAndInvokeAndDiscard()
+
+    session.prepareStatement(
+        """
+            create table puhuri_project_users(
+                ucloud_identity text not null,
+                ucloud_project text not null,
+                puhuri_identity text,
+                ucloud_project_role text,
+                synchronized_to_puhuri bool,
+                primary key(ucloud_identity, ucloud_project)
+            );
+        """
+    ).useAndInvokeAndDiscard()
+}

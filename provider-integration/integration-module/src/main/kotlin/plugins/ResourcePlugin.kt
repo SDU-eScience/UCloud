@@ -20,7 +20,7 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.init
      */
-    suspend fun RequestContext.init(owner: ResourceOwner): Unit {}
+    suspend fun RequestContext.initInUserMode(owner: ResourceOwner): Unit {}
 
     /**
      * Invoked by the notification controller _after_ the allocation plugin has run. This method is run in the server
@@ -28,7 +28,7 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      *
      * This method is only invoked for the initial allocation not for re-synchronization.
      */
-    suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {}
+    suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts
@@ -73,6 +73,7 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
         // NOTE(Dan): The default is to do nothing
     }
 
-    suspend fun PluginContext.runMonitoringLoop() {}
+    suspend fun PluginContext.runMonitoringLoopInUserMode() {}
+    suspend fun PluginContext.runMonitoringLoopInServerMode() {}
 }
 

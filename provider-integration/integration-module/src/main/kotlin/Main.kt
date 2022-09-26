@@ -606,7 +606,7 @@ fun main(args: Array<String>) {
             // linear when not counting the null checks.
 
             if (ipcServer != null && rpcClient != null) {
-                IpcToUCloudProxyServer().init(ipcServer, rpcClient)
+                IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)
                 ProcessingScope.launch { ipcServer.runServer() }
             }
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
@@ -615,17 +615,36 @@ fun main(args: Array<String>) {
 
             if (config.pluginsOrNull != null) {
                 for (plugin in allResourcePlugins) {
-                    ProcessingScope.launch {
-                        with(pluginContext) {
-                            with(plugin) {
-                                // Delay execution of monitoring loop until rpcServer is reporting ready
-                                while (isActive) {
-                                    val isReady = rpcServer?.isRunning ?: true
-                                    if (isReady) break
-                                    delay(50)
-                                }
+                    if (config.shouldRunServerCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
 
-                                runMonitoringLoop()
+                                    runMonitoringLoopInServerMode()
+                                }
+                            }
+                        }
+                    }
+
+                    if (config.shouldRunUserCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
+
+                                    runMonitoringLoopInUserMode()
+                                }
                             }
                         }
                     }

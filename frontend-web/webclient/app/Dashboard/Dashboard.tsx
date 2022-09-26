@@ -47,7 +47,6 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
 import {useProjectId, useProjectManagementStatus} from "@/Project";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
@@ -74,6 +73,7 @@ function browseGrantsApplications(request: BrowseApplicationsRequest): APICallPa
         payload: request
     }
 }
+import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 import {grantsLink} from "@/UtilityFunctions";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
@@ -161,7 +161,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-            <ConnectDashboardCard />
+            <Connect embedded />
         </GridCardGroup>
     );
 
