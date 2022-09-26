@@ -13,7 +13,7 @@ import Input, {HiddenInputField} from "@/ui-components/Input";
 import Label from "@/ui-components/Label";
 import List from "@/ui-components/List";
 import Checkbox from "@/ui-components/Checkbox";
-import Text, {TextSpan} from "@/ui-components/Text";
+import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
@@ -84,7 +84,7 @@ import {
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {useProjectId, useProjectManagementStatus} from "..";
-import {displayErrorMessageOrDefault, errorMessageOrDefault} from "@/UtilityFunctions";
+import {displayErrorMessageOrDefault, errorMessageOrDefault, stopPropagationAndPreventDefault} from "@/UtilityFunctions";
 import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
@@ -101,6 +101,10 @@ export enum RequestTarget {
     TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
+        - Ensure Grant Giver description works.
+        - Hold to confirm when commenting or skipping comments on transferring.
+        - Find a way to show revision comments.
+        - 'Enter' doesn't work when updating referenceID
 
         Backend:
             - Fix Transfer Application
@@ -1204,10 +1208,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     {isEditingProjectReferenceId ? (
                                                                         <>
                                                                             <td>
-                                                                                <Input
-                                                                                    placeholder={"e.g. DeiC-SDU-L1-000001"}
-                                                                                    ref={projectReferenceIdRef}
-                                                                                />
+                                                                                <form onSubmit={e => {
+                                                                                    stopPropagationAndPreventDefault(e);
+                                                                                    updateReferenceID();
+                                                                                }}>
+                                                                                    <Input
+                                                                                        placeholder={"e.g. DeiC-SDU-L1-000001"}
+                                                                                        ref={projectReferenceIdRef}
+                                                                                    />
+                                                                                </form>
                                                                             </td>
                                                                             <td>
                                                                                 <Button
