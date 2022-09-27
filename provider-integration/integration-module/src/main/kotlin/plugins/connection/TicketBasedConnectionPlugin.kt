@@ -55,7 +55,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                             //language=postgresql
                             """
                                 update ticket_connections
-                                set completed_at = datetime()
+                                set completed_at = now()
                                 where ticket = :ticket and completed_at is null
                                 returning ucloud_id
                             """
@@ -139,7 +139,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                 //language=postgresql
                 """
                     insert into ticket_connections (ticket, ucloud_id, created_at, completed_at)
-                    values (:ticket, :ucloud_id, datetime(), null)
+                    values (:ticket, :ucloud_id, now(), null)
                 """
             ).useAndInvokeAndDiscard {
                 bindString("ticket", ticket)

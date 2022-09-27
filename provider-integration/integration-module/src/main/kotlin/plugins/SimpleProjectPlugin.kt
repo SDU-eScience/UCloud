@@ -166,9 +166,10 @@ class SimpleProjectPlugin : ProjectPlugin {
                         with changes as (
                             ${safeSqlTableUpload("changes", missingUids)}
                         )
-                        insert or ignore into simple_project_missing_connections(ucloud_id, project_id)
+                        insert into simple_project_missing_connections(ucloud_id, project_id)
                         select c.username, :project_id
                         from changes c
+                        on conflict do nothing
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -216,9 +217,10 @@ class SimpleProjectPlugin : ProjectPlugin {
             session.prepareStatement(
                 """
                     select p.project_as_json
-                    from simple_project_missing_connections m
-                    left join simple_project_project_database p
-                    on m.project_id = p.ucloud_id
+                    from 
+                        simple_project_missing_connections m left join 
+                        simple_project_project_database p
+                            on m.project_id = p.ucloud_id
                     where m.ucloud_id = :user_id
                 """
             ).useAndInvoke(
