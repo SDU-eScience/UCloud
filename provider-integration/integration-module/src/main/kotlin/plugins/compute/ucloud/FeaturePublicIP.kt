@@ -190,7 +190,7 @@ class FeaturePublicIP(
                         where id = :network_id
                     """
                 ).useAndInvoke(
-                    prepare = { bindString("id", network.id) },
+                    prepare = { bindString("network_id", network.id) },
                     readRow = { row -> RetrievedIpAddress(row.getString(0)!!, row.getString(1)!!, row.getString(2)!!) }
                 )
             }

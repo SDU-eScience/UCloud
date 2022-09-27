@@ -52,7 +52,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
                     var ucloudId: String? = null
                     dbConnection.withSession { connection ->
                         connection.prepareStatement(
-                            //language=SQLite
+                            //language=postgresql
                             """
                                 update ticket_connections
                                 set completed_at = datetime()
@@ -136,7 +136,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         val ticket = secureToken(64)
         dbConnection.withSession { connection ->
             connection.prepareStatement(
-                //language=SQLite
+                //language=postgresql
                 """
                     insert into ticket_connections (ticket, ucloud_id, created_at, completed_at)
                     values (:ticket, :ucloud_id, datetime(), null)
@@ -156,7 +156,7 @@ class TicketBasedConnectionPlugin : ConnectionPlugin {
         var ucloudUsername: String? = null
         dbConnection.withSession { connection ->
             connection.prepareStatement(
-                //language=SQLite
+                //language=postgresql
                 """
                     select ucloud_id
                     from ticket_connections

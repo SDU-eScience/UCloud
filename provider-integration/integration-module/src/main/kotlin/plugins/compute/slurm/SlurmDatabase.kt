@@ -208,8 +208,9 @@ object SlurmDatabase {
         ctx.withSession { session ->
             session.prepareStatement(
                 """
-                    insert or ignore into session_mapping (token, rank, ucloud_id) 
+                    insert into session_mapping (token, rank, ucloud_id) 
                     values (:token, :rank, :ucloud_id)
+                    on conflict do nothing
                 """
             ).useAndInvokeAndDiscard {
                 bindString("token", iSession.token)

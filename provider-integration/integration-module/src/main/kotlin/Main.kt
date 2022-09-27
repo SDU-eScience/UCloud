@@ -774,7 +774,9 @@ val dbConnection: DBContext by lazy {
     if (config == null) {
         error("Config not found for DB")
     } else {
-        createDBConnection(config)
+        val connection = createDBConnection(config)
+        runBlocking {  testDB(connection) }
+        connection
     }
 }
 
@@ -790,48 +792,56 @@ private fun postgresJdbcUrl(host: String, database: String, port: Int? = null): 
         append(database)
     }.toString()
 }
+
+private suspend fun testDB(db: DBContext) {
+    db.withSession { session ->
+        session.prepareStatement(
+            """
+                select 1
+            """.trimIndent()
+        ).invokeAndDiscard()
+    }
+}
 private fun createDBConnection(database: VerifiedConfig.Server.Database):DBContext {
-    if (database != null) {
-        if (database.external != null) {
-            val dbConfig = DatabaseConfig(
-                postgresJdbcUrl(database.external.hostname, database.external.database, database.external.port),
-                database.external.username,
-                database.external.password,
-                "public",
-                false,
-            )
-            val jdbcUrl = dbConfig.jdbcUrl
+    if (database.external != null && database.embedded != null) {
+        error("Cannot run with dual databae configuration")
+    } else if (database.external != null) {
+        val dbConfig = DatabaseConfig(
+            postgresJdbcUrl(database.external.hostname, database.external.database, database.external.port),
+            database.external.username,
+            database.external.password,
+            "public",
+            false,
+        )
+        val jdbcUrl = dbConfig.jdbcUrl
 
-            return object : JdbcDriver() {
-                override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
-                    JdbcConnection(
-                        DriverManager.getConnection(jdbcUrl, dbConfig.username, dbConfig.password),
-                        pool
-                    )
-                }
+        return object : JdbcDriver() {
+            override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+                JdbcConnection(
+                    DriverManager.getConnection(jdbcUrl, dbConfig.username, dbConfig.password),
+                    pool
+                )
             }
-        } else if (database.embedded != null) {
-            val workDir = File(database.embedded.file)
-            if (!workDir.exists()) {
-                error("Missing file")
-            }
+        }
+    } else if (database.embedded != null) {
+        val workDir = File(database.embedded.file)
+        if (!workDir.exists()) {
+            error("Missing file")
+        }
 
-            val embeddedPostgres = EmbeddedPostgres.builder().apply {
-                setCleanDataDirectory(false)
-                setDataDirectory(File(workDir, "data").also { it.mkdirs() })
-                setOverrideWorkingDirectory(workDir)
-            }.start()
+        val embeddedPostgres = EmbeddedPostgres.builder().apply {
+            setCleanDataDirectory(false)
+            setDataDirectory(File(workDir, "data").also { it.mkdirs() })
+            setOverrideWorkingDirectory(workDir)
+        }.start()
 
-            return object : JdbcDriver() {
-                override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
-                    JdbcConnection(
-                        DriverManager.getConnection(embeddedPostgres.getJdbcUrl("postgres", "postgres")),
-                        pool
-                    )
-                }
+        return object : JdbcDriver() {
+            override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+                JdbcConnection(
+                    DriverManager.getConnection(embeddedPostgres.getJdbcUrl("postgres", "postgres")),
+                    pool
+                )
             }
-        } else {
-            error("No config given for database")
         }
     } else {
         error("No config given for database")

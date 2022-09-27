@@ -81,6 +81,7 @@ class AccountMapper(
                 prepare = {
                     bindStringNullable("project_id", owner.project)
                     bindString("username", owner.createdBy)
+                    bindString("category", productCategory)
                     bindString("partition", partition)
                 },
                 readRow = { row ->
