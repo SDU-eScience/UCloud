@@ -101,13 +101,6 @@ export enum RequestTarget {
     TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
-        - Ensure Grant Giver description works.
-        - Find a way to show revision comments.
-
-        Backend:
-            - Fix Transfer Application
-                - Only allow transferring to another grant giver provided they have all the same requested products.
-                - Confirm transfer with comment
 */
 
 const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
@@ -188,21 +181,19 @@ function productCategoryAllocation(pid: ProductCategoryId, projectId: string): s
 }
 
 function anyAutoAssigned(grantProductCategories: Record<string, GrantProductCategory[]>): boolean {
-    var anyAssigned = false;
-    Object.keys(grantProductCategories).forEach(grantGiver => {
-        grantProductCategories[grantGiver].forEach(wb => {
+    for (const grantGiver of Object.keys(grantProductCategories)) {
+        for (const wb of grantProductCategories[grantGiver]) {
             const element = document.querySelector<HTMLInputElement>(
                 `input[data-target="${productCategoryAllocation(wb.metadata.category, grantGiver)}"]`
             );
             if (element) {
                 if (element.getAttribute("data-auto-assigned") === "true") {
-                    anyAssigned = true;
-                    return;
+                    return true;
                 }
             }
-        });
-    });
-    return anyAssigned;
+        }
+    }
+    return false;
 }
 
 function parseIntegerFromInput(input?: HTMLInputElement | null): number | undefined {
@@ -972,7 +963,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             reload();
         }, [reload]);
 
-        const transferRequest = useCallback(async (toProjectId: string) => {
+        const transferRequest = useCallback(async (project: ProjectWithTitle) => {
             if (!appId) return;
             dialogStore.addDialog(
                 <>
@@ -996,8 +987,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         <ConfirmationButton onAction={async () => {
                             await runWork(transferApplication(bulkRequestOf({
                                 applicationId: parseInt(appId, 10),
-                                transferToProjectId: toProjectId,
-                                revisionComment: `-- Auto-inserted: transferred from project ID ${projectId}.`
+                                transferToProjectId: project.projectId,
+                                revisionComment: `-- Auto-inserted: transferred from project ${project.title}.`
                             })));
                             dialogStore.success();
                             history.push("/project/grants/ingoing");
@@ -1018,11 +1009,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                             await runWork(transferApplication(bulkRequestOf({
                                 applicationId: parseInt(appId, 10),
-                                transferToProjectId: toProjectId,
+                                transferToProjectId: project.projectId,
                                 revisionComment:
                                     `${comment ?? ""}
 
--- Auto-inserted: transferred from project ID ${projectId}.`
+-- Auto-inserted: transferred from project ${project.title}.`
                             })));
                             dialogStore.success();
                             history.push("/project/grants/ingoing");
@@ -1317,6 +1308,44 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                             </tbody>
                                         </Table>
+                                        {grantApplication.status.revisions.length === 0 ? null : <>
+                                            <Divider borderColor="rgba(34,36,38,.1)"  />
+                                            <Box my="-8px" />
+                                            <Accordion title="Revisions" borderColor="rgba(34,36,38,.1)">
+                                                <Table mt={"18px"}>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHeaderCell textAlign={"left"} width="200px">
+                                                                Updated at
+                                                            </TableHeaderCell>
+                                                            <TableHeaderCell textAlign={"left"} width="270px">
+                                                                Updated by
+                                                            </TableHeaderCell>
+                                                            <TableHeaderCell textAlign={"left"}>
+                                                                Revision comment
+                                                            </TableHeaderCell>
+                                                        </TableRow>
+                                                    </TableHeader>
+                                                    <tbody>
+                                                        {grantApplication.status.revisions.map(rev =>
+                                                            <TableRow key={rev.revisionNumber}>
+                                                                <TableCell>
+                                                                    {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <Truncate>{rev.updatedBy}</Truncate>
+                                                                </TableCell>
+                                                                <TableCell>
+                                                                    <pre style={{overflowX: "scroll"}}>
+                                                                        {rev.document.revisionComment}
+                                                                    </pre>
+                                                                </TableCell>
+                                                            </TableRow>
+                                                        )}
+                                                    </tbody>
+                                                </Table>
+                                            </Accordion>
+                                        </>}
                                     </HighlightedCard>
                                 </>
                             )}
@@ -1364,41 +1393,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                     reload={reload}
                                 />
                             </CommentApplicationWrapper>
-
                         </Box>
                     </Flex>
-                    {grantApplication.status.revisions.length === 0 ? null : <Accordion title="Revisions">
-                        <Table>
-                            <TableHeader>
-                                <TableHeaderCell width="200px">
-                                    Updated at
-                                </TableHeaderCell>
-                                <TableHeaderCell width="150px">
-                                    Updated by
-                                </TableHeaderCell>
-                                <TableHeaderCell>
-                                    Revision comment
-                                </TableHeaderCell>
-                            </TableHeader>
-                            <tbody>
-                                {grantApplication.status.revisions.map(rev =>
-                                    <TableRow key={rev.revisionNumber}>
-                                        <TableCell textAlign="center">
-                                            {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
-                                        </TableCell>
-                                        <TableCell textAlign="center">
-                                            {rev.updatedBy}
-                                        </TableCell>
-                                        <TableCell>
-                                            <pre style={{overflowX: "scroll"}}>
-                                                {rev.document.revisionComment}
-                                            </pre>
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </tbody>
-                        </Table>
-                    </Accordion>}
                 </>}
                 additional={
                     <TransferApplicationPrompt
@@ -1759,13 +1755,11 @@ interface TransferApplicationPromptProps {
 
     close(): void;
 
-    transfer(toProjectId: string): Promise<void>;
+    transfer(project: ProjectWithTitle): Promise<void>;
 }
 
 function TransferApplicationPrompt({isActive, close, transfer, grantId}: TransferApplicationPromptProps) {
     const [projects, fetchProjects] = useCloudAPI<GrantsRetrieveAffiliationsResponse>({noop: true}, emptyPageV2);
-
-    const history = useHistory();
 
     React.useEffect(() => {
         if (grantId) {
@@ -1775,8 +1769,6 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
             }));
         }
     }, [grantId]);
-
-    const dispatch = useDispatch();
 
     if (!grantId) return null;
 
@@ -1802,7 +1794,7 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                                 height="40px"
                                 onClick={async () => {
                                     close();
-                                    transfer(it.projectId);
+                                    transfer(it);
                                 }}
                             >
                                 <Icon name="move" mr="12px" />

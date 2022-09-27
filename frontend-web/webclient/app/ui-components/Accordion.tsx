@@ -20,6 +20,7 @@ export function Accordion(props: React.PropsWithChildren<{
     forceOpen?: boolean;
     noBorder?: boolean;
     omitChevron?: boolean;
+    borderColor?: string;
     panelProps?: MarginProps & PaddingProps;
 }>): JSX.Element {
     const color = props.iconColor ?? "text";
@@ -27,7 +28,7 @@ export function Accordion(props: React.PropsWithChildren<{
     const isOpen = props.forceOpen || open;
     return (
         <>
-            <AccordionStyle active={isOpen} noBorder={props.noBorder ?? false} onClick={() => setOpen(!open)}>
+            <AccordionStyle active={isOpen} borderColor={props.borderColor} noBorder={props.noBorder ?? false} onClick={() => setOpen(!open)}>
                 <Spacer
                     left={<>
                         {props.icon ? <Icon color2={props.iconColor2} mr="12px" color={color} name={props.icon} /> :
@@ -46,7 +47,7 @@ export function Accordion(props: React.PropsWithChildren<{
 }
 
 /* FIXME(Jonas): `noBorder` is a workaround that should be handled purely by CSS. :last-child, for example. */
-const AccordionStyle = styled.div<{active: boolean; noBorder: boolean}>`
+const AccordionStyle = styled.div<{active: boolean; noBorder: boolean; borderColor?: string;}>`
     background-color: var(--white);
     padding: 18px;
     width: 100%;
@@ -55,7 +56,7 @@ const AccordionStyle = styled.div<{active: boolean; noBorder: boolean}>`
     outline: none;
     font-size: 15px;
     cursor: pointer;
-    border-bottom: solid lightGray 1px;
+    border-bottom: solid ${p => p.borderColor ?? "lightGray"} 1px;
     ${p => p.noBorder && !p.active ? "border-bottom: solid lightGray 0px;" : null}
 `;
 
