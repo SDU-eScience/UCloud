@@ -19,7 +19,6 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
-import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
@@ -35,6 +34,8 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.text.SimpleDateFormat
+import java.util.Date
+import kotlin.math.floor
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"
@@ -45,7 +46,19 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
     private val mutex = Mutex()
 
+    private data class CollectionChargeCredits(
+        val lastCharged: Date,
+        val priceUnit: ProductPriceUnit,
+        val resourceChargeCredits: ResourceChargeCredits
+    )
+
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
+        // TODO(Brian)
+        /*if (productAllocationResolved.size > 1) {
+            println("This is bad")
+        }
+         */
+
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
     }
 
@@ -120,24 +133,50 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         })
     }
 
-    private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient, db: DBContext) {
-        val filteredBatch = this.filter { it.periods > 0 }
+    private suspend fun ArrayList<CollectionChargeCredits>.sendBatch(client: AuthenticatedClient) {
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+        val filteredBatch = this.filter { it.resourceChargeCredits.periods > 0 }
         if (filteredBatch.isEmpty()) return
-        FileCollectionsControl.chargeCredits.call(BulkRequest(filteredBatch), client).orThrow()
 
-        // TODO(Brian): Bad code coming up. Can be more easily improved with Postgres.
-        // NOTE(Brian): Add or update date and time of last scan (read: last charge) for each resource.
-        db.withSession { session ->
-            filteredBatch.forEach {
+        FileCollectionsControl.chargeCredits.call(
+            BulkRequest(filteredBatch.map { it.resourceChargeCredits }),
+            client
+        ).orThrow()
+
+        // NOTE(Brian): Add/update the date and time of the end of the calculated period for each resource.
+        // Charging is only for whole periods, but scans might happen at irregular intervals. By saving the time of the
+        // end of the last charged period, the following scans will eventually make up for fraction-periods not included
+        // in the first charge.
+        dbConnection.withSession { session ->
+            // NOTE(Brian): Can possibly be improved significantly with Postgres
+            this.forEach {
+                val periodFraction = calculatePeriods(it.lastCharged, it.priceUnit) - it.resourceChargeCredits.periods
+
+                val periodFractionSeconds: Long = when (it.priceUnit) {
+                    ProductPriceUnit.UNITS_PER_MINUTE, ProductPriceUnit.CREDITS_PER_MINUTE ->
+                        periodFraction * 60
+
+                    ProductPriceUnit.UNITS_PER_HOUR, ProductPriceUnit.CREDITS_PER_HOUR ->
+                        periodFraction * 60 * 60
+
+                    ProductPriceUnit.UNITS_PER_DAY, ProductPriceUnit.CREDITS_PER_DAY ->
+                        periodFraction * 60 * 60 * 24
+
+                    else -> 0
+                }.toLong()
+
+                val lastChargedPeriodEnd = dateFormatter.format(Date(Time.now() - periodFractionSeconds))
+
                 session.prepareStatement(
                 """
                     insert into posix_storage_scan
-                    (id, last_scan) values (:id, datetime())
-                    on conflict (id) do update set last_scan = datetime()
+                    (id, last_charged_period_end) values (:id, :last_charged_period_end)
+                    on conflict (id) do update set last_charged_period_end = :last_charged_period_end
                 """
                 ).useAndInvokeAndDiscard(
                     prepare = {
-                        bindString("id", it.id)
+                        bindString("id", it.resourceChargeCredits.id)
+                        bindString("last_charged_period_end", lastChargedPeriodEnd)
                     }
                 )
             }
@@ -146,12 +185,12 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         clear()
     }
 
-    private suspend fun ArrayList<ResourceChargeCredits>.addToBatch(
+    private suspend fun ArrayList<CollectionChargeCredits>.addToBatch(
         client: AuthenticatedClient,
-        item: ResourceChargeCredits
+        item: CollectionChargeCredits,
     ) {
         add(item)
-        if (size >= 100) sendBatch(client, dbConnection)
+        if (size >= 100) sendBatch(client)
     }
 
     private var nextScan = 0L
@@ -175,22 +214,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             if (now >= nextScan) {
                 debugSystem.enterContext("Posix collection monitoring") {
                     var updates = 0
-                    val batchBuilder = ArrayList<ResourceChargeCredits>()
-
-                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
-
-                    val lastScan: MutableMap<String, Long> = HashMap()
-                    dbConnection.withSession { session ->
-                        session.prepareStatement("""
-                            select id, last_scan from posix_storage_scan
-                        """).useAndInvoke(
-                            readRow = {
-                                val productId = it.getString(0)!!
-                                val lastScanTime = it.getString(1)!!
-                                lastScan[productId] = dateFormatter.parse(lastScanTime).time
-                            }
-                        )
-                    }
+                    val batchBuilder = ArrayList<CollectionChargeCredits>()
+                    val lastCharges = lastChargeTimes()
 
                     productCategories.forEachGraal { category ->
                         var next: String? = null
@@ -217,32 +242,32 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                         pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
                                     )
 
-                                    val periods: Long = if (lastScan.keys.contains(coll.id)) {
-                                        val minutesSinceLastScan = (Time.now() - lastScan[coll.id]!!) / 1000 / 60
-
-                                        when (item.unitOfPrice) {
-                                            ProductPriceUnit.UNITS_PER_MINUTE, ProductPriceUnit.CREDITS_PER_MINUTE ->
-                                                minutesSinceLastScan
-
-                                            ProductPriceUnit.UNITS_PER_HOUR, ProductPriceUnit.CREDITS_PER_HOUR ->
-                                                minutesSinceLastScan / 60
-
-                                            ProductPriceUnit.UNITS_PER_DAY, ProductPriceUnit.CREDITS_PER_DAY ->
-                                                minutesSinceLastScan / 60 / 24
-
-                                            else -> 1
-                                        }
+                                    val periods: Double = if (lastCharges.keys.contains(coll.id)) {
+                                        calculatePeriods(
+                                            lastCharges[coll.id]!!,
+                                            item.unitOfPrice
+                                        )
                                     } else {
-                                        1
+                                        1.0
+                                    }
+
+                                    val lastCharged = if (lastCharges.keys.contains(coll.id)) {
+                                        lastCharges[coll.id]!!
+                                    } else {
+                                        Date(Time.now())
                                     }
 
                                     batchBuilder.addToBatch(
                                         rpcClient,
-                                        ResourceChargeCredits(
-                                            coll.id,
-                                            "$now-${coll.id}",
-                                            unitsUsed,
-                                            periods
+                                        CollectionChargeCredits(
+                                            lastCharged,
+                                            item.unitOfPrice,
+                                            ResourceChargeCredits(
+                                                coll.id,
+                                                 "$now-${coll.id}",
+                                                unitsUsed,
+                                                floor(periods).toLong()
+                                            )
                                         )
                                     )
 
@@ -250,7 +275,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 }
                             }
 
-                            batchBuilder.sendBatch(rpcClient, dbConnection)
+                            batchBuilder.sendBatch(rpcClient)
 
                             next = summary.next
                             if (next == null) shouldBreak = true
@@ -264,7 +289,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                         if (updates == 0) MessageImportance.IMPLEMENTATION_DETAIL
                         else MessageImportance.THIS_IS_NORMAL
                     )
-                    nextScan = now + (1000L * 60 * 60 * 4)
+                    //nextScan = now + (1000L * 60 * 60 * 4)
+                    nextScan = now + (1000L * 60 * 75)
                 }
             }
 
@@ -281,6 +307,45 @@ class PosixCollectionPlugin : FileCollectionPlugin {
             else -> {
                 calculateUsage.invoke(cfg, CalculateUsageRequest(coll.localPath)).bytesUsed
             }
+        }
+    }
+
+    private fun calculatePeriods(lastCharged: Date, priceUnit: ProductPriceUnit): Double {
+        val minutesSinceLastScan = (Time.now() - lastCharged.time) / 1000.0 / 60.0
+
+        return when (priceUnit) {
+            ProductPriceUnit.UNITS_PER_MINUTE, ProductPriceUnit.CREDITS_PER_MINUTE ->
+                minutesSinceLastScan
+
+            ProductPriceUnit.UNITS_PER_HOUR, ProductPriceUnit.CREDITS_PER_HOUR ->
+                minutesSinceLastScan / 60
+
+            ProductPriceUnit.UNITS_PER_DAY, ProductPriceUnit.CREDITS_PER_DAY ->
+                minutesSinceLastScan / 60 / 24
+
+            else -> 1.0
+        }
+    }
+
+    private suspend fun lastChargeTimes(): Map<String, Date> {
+        val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+        return dbConnection.withSession { session ->
+            val lastCharges: MutableMap<String, Date> = HashMap()
+            session.prepareStatement(
+                """
+                    select id, last_charged_period_end from posix_storage_scan
+                """
+            ).useAndInvoke(
+                readRow = {
+                    val productId = it.getString(0)
+                    val lastScanTime = it.getString(1)
+
+                    if (!productId.isNullOrBlank() && !lastScanTime.isNullOrBlank()) {
+                        lastCharges[productId] = dateFormatter.parse(lastScanTime)
+                    }
+                }
+            )
+            lastCharges
         }
     }
 

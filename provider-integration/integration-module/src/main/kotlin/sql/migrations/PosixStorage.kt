@@ -8,7 +8,7 @@ fun V1__PosixStorage() = MigrationScript("V1__PosixStorage") { session ->
         """
             create table posix_storage_scan(
                 id text primary key,
-            	last_scan timestamp not null
+            	last_charged_period_end timestamp not null
             );
         """
     ).useAndInvokeAndDiscard()
