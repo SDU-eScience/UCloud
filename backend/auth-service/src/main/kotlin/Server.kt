@@ -80,13 +80,16 @@ class Server(
             service to lists.flatMap { it.parsedScopes }.toSet()
         }.toMap()
 
-        // TODO This service is accepting way too many dependencies.
         val tokenService = TokenService(
             db,
             personService,
             userDao,
             refreshTokenDao,
-            JWTFactory(jwtAlg, config.serviceLicenseAgreement, disable2faCheck = micro.developmentModeEnabled),
+            JWTFactory(
+                jwtAlg,
+                config.serviceLicenseAgreement,
+                disable2faCheck = micro.developmentModeEnabled || config.disable2faCheck
+            ),
             userCreationService,
             tokenValidation,
             mergedExtensions,

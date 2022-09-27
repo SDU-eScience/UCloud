@@ -161,7 +161,7 @@ fun ProductsCli(controllerContext: ControllerContext) {
                                             line("GB")
 
                                             bold { inline("GPU: ") }
-                                            line((p.gpu ?: 1).toString())
+                                            line((p.gpu ?: 0).toString())
                                         }
                                         is Product.Ingress -> {}
                                         is Product.License -> {}

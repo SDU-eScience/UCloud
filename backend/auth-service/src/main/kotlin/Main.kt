@@ -79,7 +79,8 @@ data class AuthConfiguration(
     val trustedOrigins: List<String> = listOf("localhost"),
     val services: List<Service> = emptyList(),
     val serviceLicenseAgreement: ServiceAgreementText? = null,
-    val unconditionalPasswordResetWhitelist: List<String> = listOf("_password-reset")
+    val unconditionalPasswordResetWhitelist: List<String> = listOf("_password-reset"),
+    val disable2faCheck: Boolean = false,
 )
 
 object AuthService : dk.sdu.cloud.micro.Service {
