@@ -236,25 +236,27 @@ create or replace function "grant".application_to_json(
         group by f.*, r.*
     ),
     all_revisions as (
-        select "grant".revision_to_json(
-            array_remove(array_agg(distinct ("grant".resource_allocation_to_json(rr, pc))), null),
-            f,
-            r
-        ) as results
-        from "grant".applications a join
-        "grant".revisions r on
-            r.application_id = a.id join
-        "grant".forms f on
-            f.revision_number = r.revision_number and
-            f.application_id = r.application_id join
-        "grant".requested_resources rr on
-            r.application_id = rr.application_id and
-            r.revision_number = rr.revision_number join
-        accounting.product_categories pc on
-            rr.product_category = pc.id
-        where a.id = app_id_in
-        group by r.*, f.revision_number, f.*
-        order by f.revision_number
+    select array_agg(revisions.results) as revs, app_id_in as appid from (
+            select "grant".revision_to_json(
+                array_remove(array_agg(distinct ("grant".resource_allocation_to_json(rr, pc))), null),
+                f,
+                r
+            ) as results
+            from "grant".applications a join
+            "grant".revisions r on
+                r.application_id = a.id join
+            "grant".forms f on
+                f.revision_number = r.revision_number and
+                f.application_id = r.application_id join
+            "grant".requested_resources rr on
+                r.application_id = rr.application_id and
+                r.revision_number = rr.revision_number join
+            accounting.product_categories pc on
+                rr.product_category = pc.id
+            where a.id = app_id_in
+            group by r.*, f.revision_number, f.*
+            order by f.revision_number
+        ) as revisions
     )
     select jsonb_build_object(
         'id', resolved_application.id,
@@ -266,13 +268,13 @@ create or replace function "grant".application_to_json(
             'overallState', resolved_application.overall_state,
             'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(approval_status))), null),
             'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
-            'revisions', array_remove(array_agg(distinct revision.results), null),
+            'revisions', revision.revs,
             'projectTitle', p.title
         )
     )
     from
-        all_revisions revision,
-        "grant".applications resolved_application join
+        all_revisions revision join
+        "grant".applications resolved_application on revision.appid = resolved_application.id join
         max_revision latest_revision on
             resolved_application.id = latest_revision.application_id join
         "grant".forms latest_form on
@@ -288,6 +290,7 @@ create or replace function "grant".application_to_json(
         latest_revision.created_at,
         latest_revision.*,
         latest_form.*,
+        revision.revs,
         p.title;
 $$;
 
