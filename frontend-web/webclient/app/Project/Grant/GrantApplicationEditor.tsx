@@ -57,7 +57,7 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {bulkRequestOf, emptyPage, emptyPageV2} from "@/DefaultObjects";
 import {Spacer} from "@/ui-components/Spacer";
 import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
-import {Truncate} from "@/ui-components";
+import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
 import {format} from "date-fns";
@@ -71,7 +71,6 @@ import {
     commentOnGrantApplication,
     deleteGrantApplicationComment,
     Document,
-    editReferenceId,
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
     GrantApplication,
@@ -89,6 +88,7 @@ import {Client} from "@/Authentication/HttpClientInstance";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
 import {Accordion} from "@/ui-components/Accordion";
 import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {dialogStore} from "@/Dialog/DialogStore";
 
 export enum RequestTarget {
     EXISTING_PROJECT = "existing_project",
@@ -102,9 +102,9 @@ export enum RequestTarget {
         - Find new In Progress Icon (General)
         - Remember to update documentation
         - Ensure Grant Giver description works.
+        - Allow cancelling transfer. 
         - Hold to confirm when commenting or skipping comments on transferring.
         - Find a way to show revision comments.
-        - 'Enter' doesn't work when updating referenceID
 
         Backend:
             - Fix Transfer Application
@@ -976,45 +976,63 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
         const transferRequest = useCallback(async (toProjectId: string) => {
             if (!appId) return;
-            let comment = "";
-            try {
-                const {result} = await addStandardInputDialog({
-                    title: "Post comment before transferring application?",
-                    help: <Box mb="16px">
-                        Note: After transferring the application, the application and comments will  <br />
-                        no longer be available to members of your current active project.
-                    </Box>,
-                    type: "textarea",
-                    rows: 3,
-                    width: "100%",
-                    resize: "none",
-                    cancelText: "Skip",
-                    confirmText: "Post",
-                    cancelButtonColor: "blue",
-                    validator: () => true
-                });
-                comment = result;
-                if (comment) {
-                    await runWork<{id: string}[]>(commentOnGrantApplication({
-                        grantId: appId,
-                        comment
-                    }), {defaultErrorHandler: false});
-                }
-            } catch (e) {
-                if ("cancelled" in e) {/* expected */}
-                else errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
-            }
+            dialogStore.addDialog(
+                <>
+                    <div>
+                        <Heading.h3>Post comment before transferring application?</Heading.h3>
+                        <Divider />
+                        <Box mb="16px">
+                            Note: After transferring the application, the application and comments will  <br />
+                            no longer be available to members of your current active project.
+                        </Box>
+                        <Input
+                            id={"dialog-input"}
+                            as={"textarea"}
+                            rows={3}
+                            width={"100%"}
+                            style={{resize: "none"}}
+                            autoFocus
+                        />
+                    </div>
+                    <ButtonGroup mt="20px">
+                        <ConfirmationButton onAction={async () => {
+                            await runWork(transferApplication(bulkRequestOf({
+                                applicationId: parseInt(appId, 10),
+                                transferToProjectId: toProjectId,
+                                revisionComment: `-- Auto-inserted: transferred from project ID ${projectId}.`
+                            })));
+                            dialogStore.success();
+                            history.push("/project/grants/ingoing");
+                        }} width="150px" color="blue" actionText="Skip" />
+                        <ConfirmationButton onAction={async () => {
+                            const elem = document.querySelector("#dialog-input") as HTMLInputElement;
+                            const comment = elem.value;
+                            if (comment) {
+                                try {
+                                    await runWork<{id: string}[]>(commentOnGrantApplication({
+                                        grantId: appId,
+                                        comment
+                                    }), {defaultErrorHandler: false});
+                                } catch (e) {
+                                    errorMessageOrDefault(e, "Failed to post comment. Cancelling transfer");
+                                }
+                            }
 
-            runWork(transferApplication(bulkRequestOf({
-                applicationId: parseInt(appId, 10),
-                transferToProjectId: toProjectId,
-                revisionComment:
-                    `${comment}
-
-                    -- Auto-inserted: transferred from project ${projectId}.
-                `
-            })));
-
+                            await runWork(transferApplication(bulkRequestOf({
+                                applicationId: parseInt(appId, 10),
+                                transferToProjectId: toProjectId,
+                                revisionComment:
+                                    `${comment ?? ""}
+                
+                                    -- Auto-inserted: transferred from project ID ${projectId}.`
+                            })));
+                            dialogStore.success();
+                            history.push("/project/grants/ingoing");
+                        }} width="150px" color="green" actionText="Post" />
+                    </ButtonGroup>
+                    <Button mt="24px" color="red" type="button" onClick={() => (console.log("Cancelled"), dialogStore.failure())}>Cancel</Button>
+                </>, () => undefined, true
+            );
         }, [appId]);
 
         React.useEffect(() => {
@@ -1748,20 +1766,18 @@ function TransferApplicationPrompt({isActive, close, transfer, grantId}: Transfe
                         key={it.projectId}
                         left={<Box my="auto" mr="24px" key={it.projectId}>{it.title}</Box>}
                         right={<>
-                            <ConfirmationButton
+                            <Button
                                 my="3px"
-                                width="115px"
+                                width="165px"
                                 height="40px"
-                                onAction={async () => {
+                                onClick={async () => {
                                     close();
-                                    dispatch(setLoading(true));
-                                    await transfer(it.projectId);
-                                    dispatch(setLoading(false));
-                                    history.push("/project/grants/ingoing");
+                                    transfer(it.projectId);
                                 }}
-                                icon="move"
-                                actionText="Transfer"
-                            />
+                            >
+                                <Icon name="move" mr="12px" />
+                                Transfer
+                            </Button>
                         </>}
                     />
                 )}
