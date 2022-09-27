@@ -38,6 +38,8 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private lateinit var pluginConfig: ConfigSchema.Plugins.FileCollections.Posix
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
     private lateinit var partnerPlugin: PosixFilesPlugin
+    lateinit var pathConverter: PathConverter
+        private set
     private val mutex = Mutex()
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
@@ -47,6 +49,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override suspend fun PluginContext.initialize() {
         partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
             error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
+        pathConverter = PathConverter(this)
     }
 
     override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
@@ -56,7 +59,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     private suspend fun PluginContext.locateAndRegisterCollections(
         owner: ResourceOwnerWithId
     ): List<PathConverter.Collection> {
-        val pathConverter = PathConverter(this)
         mutex.withLock {
             val cached = initializedProjects[owner]
             if (cached != null) return cached
@@ -117,10 +119,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         if (pluginConfig.accounting == null) return
 
-        val pathConverter = PathConverter(this)
         val productCategories = productAllocation.map { it.category }.toSet()
-
-
         while (currentCoroutineContext().isActive) {
             loop(pathConverter, productCategories)
         }

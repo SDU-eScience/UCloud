@@ -69,7 +69,7 @@ suspend fun createSbatchFile(
 
         appendLine("#")
         run {
-            if (jobFolder != null) appendLine("#SBATCH --chdir $jobFolder")
+            if (jobFolder != null) appendLine("#SBATCH --chdir \"$jobFolder\"")
             appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
             appendLine("#SBATCH --mem $memoryAllocation")
             appendLine("#SBATCH --gpus-per-node ${resolvedProduct.gpu ?: 0}")

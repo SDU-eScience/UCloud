@@ -327,7 +327,8 @@ class PosixFilesPlugin : FilePlugin {
 
         val internalToUCloud = pathConverter.internalToUCloud(file)
         val numberOfComponents = internalToUCloud.path.count { it == '/' }
-        val isTrash = numberOfComponents == 2 && internalToUCloud.path.endsWith("/Trash")
+        val isTopLevel = numberOfComponents == 2
+        val fileName = internalToUCloud.path.fileName()
 
         return PartialUFile(
             internalToUCloud.path,
@@ -339,7 +340,11 @@ class PosixFilesPlugin : FilePlugin {
                 unixMode = posixAttributes.permissions().toInt(),
                 unixOwner = clib.retrieveUserIdFromName(posixAttributes.owner().name),
                 unixGroup = clib.retrieveGroupIdFromName(posixAttributes.group().name),
-                icon = if (isTrash) FileIconHint.DIRECTORY_TRASH else null,
+                icon = when {
+                    isTopLevel && fileName == "Trash" -> FileIconHint.DIRECTORY_TRASH
+                    isTopLevel && fileName == "UCloud Jobs" -> FileIconHint.DIRECTORY_JOBS
+                    else -> null
+                }
             ),
             posixAttributes.lastModifiedTime().toMillis(),
         )
