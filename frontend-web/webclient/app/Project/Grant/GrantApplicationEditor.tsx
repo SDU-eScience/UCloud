@@ -60,7 +60,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
-import {format} from "date-fns";
+import {format, formatDistance} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
@@ -102,8 +102,6 @@ export enum RequestTarget {
         - Find new In Progress Icon (General)
         - Remember to update documentation
         - Ensure Grant Giver description works.
-        - Allow cancelling transfer. 
-        - Hold to confirm when commenting or skipping comments on transferring.
         - Find a way to show revision comments.
 
         Backend:
@@ -1023,8 +1021,8 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 transferToProjectId: toProjectId,
                                 revisionComment:
                                     `${comment ?? ""}
-                
-                                    -- Auto-inserted: transferred from project ID ${projectId}.`
+
+-- Auto-inserted: transferred from project ID ${projectId}.`
                             })));
                             dialogStore.success();
                             history.push("/project/grants/ingoing");
@@ -1369,6 +1367,38 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                         </Box>
                     </Flex>
+                    <Accordion title="Revisions">
+                        <Table>
+                            <TableHeader>
+                                <TableHeaderCell>
+                                    Updated by
+                                </TableHeaderCell>
+                                <TableHeaderCell>
+                                    Revision comment
+                                </TableHeaderCell>
+                                <TableHeaderCell>
+                                    Updated at
+                                </TableHeaderCell>
+                            </TableHeader>
+                            <tbody>
+                                {grantApplication.status.revisions.sort((a, b) => a.revisionNumber - b.revisionNumber).map(rev =>
+                                    <TableRow key={rev.revisionNumber}>
+                                        <TableCell>
+                                            {rev.revisionNumber} {rev.updatedBy}
+                                        </TableCell>
+                                        <TableCell>
+                                            <pre style={{overflowX: "scroll"}}>
+                                                {rev.document.revisionComment}
+                                            </pre>
+                                        </TableCell>
+                                        <TableCell>
+                                            {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                            </tbody>
+                        </Table>
+                    </Accordion>
                 </>}
                 additional={
                     <TransferApplicationPrompt
