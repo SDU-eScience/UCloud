@@ -1367,7 +1367,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                         </Box>
                     </Flex>
-                    <Accordion title="Revisions">
+                    {grantApplication.status.revisions.length === 0 ? null : <Accordion title="Revisions">
                         <Table>
                             <TableHeader>
                                 <TableHeaderCell>
@@ -1381,7 +1381,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 </TableHeaderCell>
                             </TableHeader>
                             <tbody>
-                                {grantApplication.status.revisions.sort((a, b) => a.revisionNumber - b.revisionNumber).map(rev =>
+                                {grantApplication.status.revisions.map(rev =>
                                     <TableRow key={rev.revisionNumber}>
                                         <TableCell>
                                             {rev.revisionNumber} {rev.updatedBy}
@@ -1398,7 +1398,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                 )}
                             </tbody>
                         </Table>
-                    </Accordion>
+                    </Accordion>}
                 </>}
                 additional={
                     <TransferApplicationPrompt
@@ -1505,7 +1505,7 @@ function GrantGiverDescription(props: {projectId: string;}): JSX.Element {
         }
     }, [description.data.description, projectDescriptionCache]);
 
-    return <Truncate>{description.data.description}</Truncate>;
+    return <div>{description.data.description}</div>;
 }
 
 function recipientTypeToText(recipient: Recipient): string {
