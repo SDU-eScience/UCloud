@@ -23,6 +23,7 @@ import dk.sdu.cloud.sql.DBContext
 import dk.sdu.cloud.sql.useAndInvoke
 import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 import dk.sdu.cloud.sql.withSession
+import dk.sdu.cloud.utils.associateByGraal
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -204,7 +205,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 rpcClient
                             ).orThrow()
 
-                            summary.items.associateBy { it.id }.values.forEachGraal inner@{ item ->
+                            summary.items.associateByGraal { it.id }.values.forEachGraal inner@{ item ->
                                 val resourceOwner = ResourceOwnerWithId.load(item.owner, this@loop) ?: return@inner
                                 val colls = locateAndRegisterCollections(resourceOwner)
                                     .filter { it.product.category == category }
