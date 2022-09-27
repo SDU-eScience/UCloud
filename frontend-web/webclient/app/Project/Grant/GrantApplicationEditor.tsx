@@ -1370,29 +1370,29 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     {grantApplication.status.revisions.length === 0 ? null : <Accordion title="Revisions">
                         <Table>
                             <TableHeader>
-                                <TableHeaderCell>
+                                <TableHeaderCell width="200px">
+                                    Updated at
+                                </TableHeaderCell>
+                                <TableHeaderCell width="150px">
                                     Updated by
                                 </TableHeaderCell>
                                 <TableHeaderCell>
                                     Revision comment
                                 </TableHeaderCell>
-                                <TableHeaderCell>
-                                    Updated at
-                                </TableHeaderCell>
                             </TableHeader>
                             <tbody>
                                 {grantApplication.status.revisions.map(rev =>
                                     <TableRow key={rev.revisionNumber}>
-                                        <TableCell>
-                                            {rev.revisionNumber} {rev.updatedBy}
+                                        <TableCell textAlign="center">
+                                            {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
+                                        </TableCell>
+                                        <TableCell textAlign="center">
+                                            {rev.updatedBy}
                                         </TableCell>
                                         <TableCell>
                                             <pre style={{overflowX: "scroll"}}>
                                                 {rev.document.revisionComment}
                                             </pre>
-                                        </TableCell>
-                                        <TableCell>
-                                            {format(rev.createdAt, "dd/MM/yyyy HH:mm:ss")}
                                         </TableCell>
                                     </TableRow>
                                 )}
