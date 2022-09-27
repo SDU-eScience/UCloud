@@ -2,6 +2,7 @@ package dk.sdu.cloud
 
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.joran.JoranConfigurator
+import com.auth0.jwt.JWT
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
@@ -356,11 +357,6 @@ fun main(args: Array<String>) {
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
-                        becomesInvalidSoon = { accessToken ->
-                            val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
-                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                                    (1000 * 120) >= Time.now()
-                        }
                     )
 
                     authenticator.authenticateClient(OutgoingHttpCall)
