@@ -90,7 +90,6 @@ suspend fun createSbatchFile(
 
         appendLine("# POSTFIX END")
         appendLine("#")
-        appendLine("env")
         appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
         appendLine("#EOF")
     }

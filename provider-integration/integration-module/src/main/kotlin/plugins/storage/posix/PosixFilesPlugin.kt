@@ -17,7 +17,10 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
@@ -28,10 +31,15 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
 import java.io.IOException
@@ -321,7 +329,6 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-
     private fun nativeStat(file: InternalFile): PartialUFile {
         val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
 
@@ -526,6 +533,62 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override suspend fun RequestContext.streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = ProcessingScope.produce {
+        val currentFolder = req.currentFolder ?: return@produce
+        val normalizedQuery = req.query.trim().split(" ").map { it.lowercase() }
+        fun fileNameMatchesQuery(name: String): Boolean {
+            val lowercased = name.lowercase()
+            return normalizedQuery.any { lowercased.contains(it) }
+        }
+
+        val deadline = Time.now() + 60_000
+
+        val stack = ArrayDeque<InternalFile>()
+        stack.add(pathConverter.ucloudToInternal(UCloudFile.create(currentFolder)))
+        while (isActive && Time.now() < deadline) {
+            val file = stack.removeFirstOrNull() ?: break
+            val childNames = runCatching { listFiles(file.path) }.getOrNull() ?: continue
+            val children = childNames.map { InternalFile(it) }
+
+            // NOTE(Dan): The folderBatch cannot be re-used between folders as the results are consumed asynchronously
+            // and clearing it at the end would result in an empty result in the consumer.
+            val folderBatch = ArrayList<PartialUFile>()
+            for (child in children) {
+                val fileName = child.fileName()
+                val isProbablyFile = run {
+                    // NOTE(Dan): This small snippet tries to determine if the file we are looking at is probably a
+                    // file. We do this to avoid stat-ing files which do not match the query and are probably not
+                    // directories. The end result is that we can search a lot more files in the time we have, since
+                    // most file-systems probably contains mostly files which obviously do not match the query.
+                    //
+                    // We assume an entry is a file if its name has a dot within the last 5 characters of its name.
+                    // Extensions are typically not longer than 4 characters.
+                    val indexOfLastDot = fileName.lastIndexOf('.')
+                    if (indexOfLastDot == -1) return@run false
+                    fileName.length - indexOfLastDot <= 5
+                }
+
+                val matches = fileNameMatchesQuery(child.fileName())
+                if (isProbablyFile && !matches) continue
+
+                val fileInfo = runCatching { nativeStat(child) }.getOrNull() ?: continue
+                if (fileInfo.status.type == FileType.DIRECTORY) {
+                    if (!NioFiles.isSymbolicLink(child.toNioPath())) stack.add(child)
+                }
+                if (!matches) continue
+
+                folderBatch.add(fileInfo)
+            }
+
+            if (folderBatch.isNotEmpty()) {
+                send(FilesProviderStreamingSearchResult.Result(folderBatch))
+            }
+        }
+    }
+
     override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
@@ -552,6 +615,7 @@ class PosixFilesPlugin : FilePlugin {
                     aclModifiable = false,
                     trashSupported = true,
                     isReadOnly = false,
+                    streamingSearchSupported = true
                 )
             )
         })
