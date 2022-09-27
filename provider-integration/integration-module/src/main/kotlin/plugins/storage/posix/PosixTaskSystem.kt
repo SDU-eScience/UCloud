@@ -109,7 +109,8 @@ sealed class PosixTask {
     data class MoveToTrash(
         override val title: String,
         override var collectionId: String,
-        val request: FilesProviderTrashRequestItem,
+        val resolvedCollection: FileCollection,
+        val request: List<FilesProviderTrashRequestItem>,
         override var id: String = "",
         override var timestamp: Long = Time.now(),
     ) : PosixTask()

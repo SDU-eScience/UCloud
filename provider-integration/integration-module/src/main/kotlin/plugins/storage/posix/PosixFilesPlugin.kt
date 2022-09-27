@@ -43,6 +43,8 @@ import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.io.path.absolutePathString
 import kotlin.math.min
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 import java.nio.file.Files as NioFiles
 
 class PosixFilesPlugin : FilePlugin {
@@ -93,6 +95,7 @@ class PosixFilesPlugin : FilePlugin {
 
         // Dispatch task related tasks and run the processor
         if (shouldBackgroundProcess && doCreate) {
+            val now = Time.now()
             taskSystem.registerTask(task)
         }
 
@@ -104,11 +107,14 @@ class PosixFilesPlugin : FilePlugin {
                     // NOTE(Dan): If the task takes less than a second to complete, then it is still possible that
                     // UCloud hasn't even processed our task creation request. Wait for a bit to make sure that it is
                     // ready to mark it as complete.
-                    if (Time.now() - task.timestamp < 1000) {
-                        delay(250)
-                    }
-                    runCatching {
-                        taskSystem.markTaskAsComplete(task.collectionId, task.id)
+                    for (attempt in 0 until 10) {
+                        val success = runCatching {
+                            taskSystem.markTaskAsComplete(task.collectionId, task.id)
+                        }.isSuccess
+
+                        if (success) break
+
+                        delay(1500)
                     }
                 }
             }
@@ -342,37 +348,54 @@ class PosixFilesPlugin : FilePlugin {
     override suspend fun RequestContext.moveToTrash(
         request: BulkRequest<FilesProviderTrashRequestItem>
     ): List<LongRunningTask?> {
-        return request.items.map { reqItem ->
-            processTask(
-                PosixTask.MoveToTrash(
-                    "Moving files to trash...",
-                    reqItem.resolvedCollection.id,
-                    reqItem
+        val allItems = request.items
+            .groupBy { it.resolvedCollection.id }
+            .map { (collId, tasks) ->
+                collId to processTask(
+                    PosixTask.MoveToTrash(
+                        "Moving files to trash...",
+                        collId,
+                        tasks[0].resolvedCollection,
+                        tasks
+                    )
                 )
-            )
+            }
+            .toMap()
+        val didSeeCollection = hashSetOf<String>()
+
+        return request.items.map {
+            if (it.resolvedCollection.id !in didSeeCollection) {
+                didSeeCollection.add(it.resolvedCollection.id)
+                allItems[it.resolvedCollection.id]
+            } else {
+                LongRunningTask.Complete()
+            }
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun PosixTask.MoveToTrash.process() {
         val expectedTrashLocation = pathConverter.ucloudToInternal(
-            UCloudFile.create("/${request.resolvedCollection.id}/Trash")
+            UCloudFile.create("/${collectionId}/Trash")
         )
 
         if (!fileExists(expectedTrashLocation.path)) {
             NioFiles.createDirectories(expectedTrashLocation.toNioPath())
         }
 
-        PosixTask.Move(
-            title,
-            collectionId,
-            FilesProviderMoveRequestItem(
-                request.resolvedCollection,
-                request.resolvedCollection,
-                request.id,
-                "/${request.resolvedCollection.id}/Trash/${request.id.fileName()}",
-                WriteConflictPolicy.RENAME
-            )
-        ).process()
+        for (reqItem in request) {
+            PosixTask.Move(
+                title,
+                collectionId,
+                FilesProviderMoveRequestItem(
+                    resolvedCollection,
+                    resolvedCollection,
+                    reqItem.id,
+                    "/${resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
+                    WriteConflictPolicy.RENAME
+                )
+            ).process()
+        }
     }
 
     override suspend fun RequestContext.emptyTrash(
