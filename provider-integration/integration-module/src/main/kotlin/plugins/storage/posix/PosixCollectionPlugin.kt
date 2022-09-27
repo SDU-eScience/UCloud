@@ -10,6 +10,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.ResourceOwnerWithId
+import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.debug.MessageImportance
 import dk.sdu.cloud.debug.enterContext
 import dk.sdu.cloud.debug.logD
@@ -18,6 +19,10 @@ import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Time
+import dk.sdu.cloud.sql.DBContext
+import dk.sdu.cloud.sql.useAndInvoke
+import dk.sdu.cloud.sql.useAndInvokeAndDiscard
+import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.forEachGraal
 import dk.sdu.cloud.utils.whileGraal
 import kotlinx.coroutines.currentCoroutineContext
@@ -28,6 +33,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import java.text.SimpleDateFormat
 
 class PosixCollectionPlugin : FileCollectionPlugin {
     override val pluginTitle: String = "Posix"
@@ -113,9 +119,29 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         })
     }
 
-    private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient) {
-        if (isEmpty()) return
-        FileCollectionsControl.chargeCredits.call(BulkRequest(this), client).orThrow()
+    private suspend fun ArrayList<ResourceChargeCredits>.sendBatch(client: AuthenticatedClient, db: DBContext) {
+        val filteredBatch = this.filter { it.periods > 0 }
+        if (filteredBatch.isEmpty()) return
+        FileCollectionsControl.chargeCredits.call(BulkRequest(filteredBatch), client).orThrow()
+
+        // TODO(Brian): Bad code coming up. Can be more easily improved with Postgres.
+        // NOTE(Brian): Add or update date and time of last scan (read: last charge) for each resource.
+        db.withSession { session ->
+            filteredBatch.forEach {
+                session.prepareStatement(
+                """
+                    insert into posix_storage_scan
+                    (id, last_scan) values (:id, datetime())
+                    on conflict (id) do update set last_scan = datetime()
+                """
+                ).useAndInvokeAndDiscard(
+                    prepare = {
+                        bindString("id", it.id)
+                    }
+                )
+            }
+        }
+
         clear()
     }
 
@@ -124,7 +150,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         item: ResourceChargeCredits
     ) {
         add(item)
-        if (size >= 100) sendBatch(client)
+        if (size >= 100) sendBatch(client, dbConnection)
     }
 
     private var nextScan = 0L
@@ -149,6 +175,21 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                 debugSystem.enterContext("Posix collection monitoring") {
                     var updates = 0
                     val batchBuilder = ArrayList<ResourceChargeCredits>()
+
+                    val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
+
+                    val lastScan: MutableMap<String, Long> = HashMap()
+                    dbConnection.withSession { session ->
+                        session.prepareStatement("""
+                            select id, last_scan from posix_storage_scan
+                        """).useAndInvoke(
+                            readRow = {
+                                val productId = it.getString(0)!!
+                                val lastScanTime = it.getString(1)!!
+                                lastScan[productId] = dateFormatter.parse(lastScanTime).time
+                            }
+                        )
+                    }
 
                     productCategories.forEachGraal { category ->
                         var next: String? = null
@@ -175,12 +216,32 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                         pathConverter.internalToUCloud(InternalFile(colls.first().localPath))
                                     )
 
+                                    val periods: Long = if (lastScan.keys.contains(coll.id)) {
+                                        val minutesSinceLastScan = (Time.now() - lastScan[coll.id]!!) / 1000 / 60
+
+                                        when (item.unitOfPrice) {
+                                            ProductPriceUnit.UNITS_PER_MINUTE, ProductPriceUnit.CREDITS_PER_MINUTE ->
+                                                minutesSinceLastScan
+
+                                            ProductPriceUnit.UNITS_PER_HOUR, ProductPriceUnit.CREDITS_PER_HOUR ->
+                                                minutesSinceLastScan / 60
+
+                                            ProductPriceUnit.UNITS_PER_DAY, ProductPriceUnit.CREDITS_PER_DAY ->
+                                                minutesSinceLastScan / 60 / 24
+
+                                            else -> 1
+                                        }
+                                    } else {
+                                        1
+                                    }
+
                                     batchBuilder.addToBatch(
                                         rpcClient,
                                         ResourceChargeCredits(
                                             coll.id,
                                             "$now-${coll.id}",
-                                            unitsUsed
+                                            unitsUsed,
+                                            periods
                                         )
                                     )
 
@@ -188,7 +249,7 @@ class PosixCollectionPlugin : FileCollectionPlugin {
                                 }
                             }
 
-                            batchBuilder.sendBatch(rpcClient)
+                            batchBuilder.sendBatch(rpcClient, dbConnection)
 
                             next = summary.next
                             if (next == null) shouldBreak = true
