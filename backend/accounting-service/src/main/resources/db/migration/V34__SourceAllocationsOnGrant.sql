@@ -252,7 +252,9 @@ create or replace function "grant".application_to_json(
             r.revision_number = rr.revision_number join
         accounting.product_categories pc on
             rr.product_category = pc.id
-        group by r.*, f.*
+        where a.id = app_id_in
+        group by r.*, f.revision_number, f.*
+        order by f.revision_number
     )
     select jsonb_build_object(
         'id', resolved_application.id,
