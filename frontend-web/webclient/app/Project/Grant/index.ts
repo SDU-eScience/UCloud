@@ -2,6 +2,7 @@ import {buildQueryString} from "@/Utilities/URIUtilities";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import {GrantApplication} from "@/Project/Grant/GrantApplicationTypes";
 import * as UCloud from "@/UCloud";
+import {apiRetrieve} from "@/Authentication/DataHook";
 
 export interface ReadTemplatesRequest {
     projectId: string;
@@ -390,12 +391,7 @@ export interface RetrieveDescriptionResponse {
 export function retrieveDescription(
     request: RetrieveDescriptionRequest
 ): APICallParameters<RetrieveDescriptionRequest> {
-    return {
-        method: "GET",
-        path: buildQueryString("/project/description/", request),
-        parameters: request,
-        reloadId: Math.random()
-    };
+    return apiRetrieve(request, "/api/projects/description");
 }
 
 export interface UploadDescriptionRequest {
