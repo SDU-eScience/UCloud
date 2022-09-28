@@ -292,7 +292,7 @@ class PosixFilesPlugin : FilePlugin {
 
         val shouldSort = items.size <= 10_000
         if (shouldSort) {
-            val files = items.map { nativeStat(InternalFile(it)) }
+            val files = items.mapNotNull { runCatching { nativeStat(InternalFile(it)) }.getOrNull() }
             val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
             var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
                 FilesSortBy.PATH -> pathComparator
@@ -320,7 +320,9 @@ class PosixFilesPlugin : FilePlugin {
             browseCache.insert(token, sortedFiles)
             return paginateFiles(sortedFiles, offset, token)
         } else {
-            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).map { nativeStat(InternalFile(it)) }
+            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).mapNotNull {
+                runCatching { nativeStat(InternalFile(it)) }.getOrNull()
+            }
             return PageV2(
                 itemsPerPage,
                 files,
