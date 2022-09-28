@@ -48,8 +48,7 @@ import {UserAvatar} from "@/AvataaarLib/UserAvatar";
 import {AvatarType, defaultAvatar} from "@/UserSettings/Avataaar";
 import Table, {TableCell, TableHeader, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {addStandardDialog, addStandardInputDialog} from "@/UtilityComponents";
-import {setLoading, useTitle} from "@/Navigation/Redux/StatusActions";
-import {useDispatch} from "react-redux";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import * as UCloud from "@/UCloud";
 import ClickableDropdown from "@/ui-components/ClickableDropdown";
 import {default as ReactModal} from "react-modal";
@@ -77,6 +76,7 @@ import {
     GrantGiverApprovalState,
     GrantProductCategory,
     Recipient,
+    Revision,
     State,
     Templates,
     transferApplication,
@@ -572,8 +572,6 @@ const defaultGrantApplication: GrantApplication = {
 
 const FETCHED_GRANT_APPLICATION = "FETCHED_GRANT_APPLICATION";
 type FetchedGrantApplication = PayloadAction<typeof FETCHED_GRANT_APPLICATION, GrantApplication>;
-const UPDATED_REFERENCE_ID = "UPDATE_REFERENCE_ID";
-type UpdatedReferenceID = PayloadAction<typeof UPDATED_REFERENCE_ID, {referenceId: string;}>;
 const UPDATE_PARENT_PROJECT_ID = "UPDATE_PARENT_PROJECT_ID";
 type UpdatedParentProjectID = PayloadAction<typeof UPDATE_PARENT_PROJECT_ID, {parentProjectId: string;}>;
 const POSTED_COMMENT = "POSTED_COMMENT";
@@ -584,18 +582,15 @@ const UPDATE_GRANT_STATE = "UPDATE_GRANT_STATE";
 type UpdateGrantState = PayloadAction<typeof UPDATE_GRANT_STATE, {projectId: string, state: State}>;
 const SET_STATE_WITHDRAWN = "SET_STATE_WITHDRAWN";
 interface SetStateWithdrawn {type: typeof SET_STATE_WITHDRAWN};
+const UPDATE_REVISIONS = "UPDATE_REVISIONS";
+type UpdateRevisions = PayloadAction<typeof UPDATE_REVISIONS, Revision[]>;
 
 
-type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedReferenceID | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState | SetStateWithdrawn;
+type GrantApplicationReducerAction = FetchedGrantApplication | UpdatedParentProjectID | PostedComment | UpdateDocument | UpdateGrantState | SetStateWithdrawn | UpdateRevisions;
 function grantApplicationReducer(state: GrantApplication, action: GrantApplicationReducerAction): GrantApplication {
     switch (action.type) {
         case FETCHED_GRANT_APPLICATION: {
             return action.payload;
-        }
-        case UPDATED_REFERENCE_ID: {
-            // TODO: Is this enough? Technically, we now have a new revision.
-            state.currentRevision.document.referenceId = action.payload.referenceId;
-            return {...state};
         }
         case UPDATE_PARENT_PROJECT_ID: {
             // TODO: Is this enough? Technically, we now have a new revision.
@@ -603,7 +598,12 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
             return {...state};
         }
         case UPDATE_DOCUMENT: {
-            state.currentRevision.document = action.payload;
+            state.currentRevision.revisionNumber += 1;
+            state.currentRevision.document = action.payload
+            return {...state};
+        }
+        case UPDATE_REVISIONS: {
+            state.status.revisions = action.payload;
             return {...state};
         }
         case POSTED_COMMENT: {
@@ -779,6 +779,14 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
                 await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
                 dispatch({type: UPDATE_DOCUMENT, payload: document});
+                dispatch({
+                    type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
+                        createdAt: new Date().getTime(),
+                        document,
+                        revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
+                        updatedBy: Client.username ?? ""
+                    }]
+                });
                 setIsLocked(true);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -870,6 +878,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
             const {document} = grantApplication.currentRevision;
             document.referenceId = value;
+            document.revisionComment = "Updated reference ID";
 
             const toSubmit = {
                 applicationId: appId,
@@ -878,8 +887,15 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
 
             await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
             dispatch({type: UPDATE_DOCUMENT, payload: document});
+            dispatch({
+                type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
+                    createdAt: new Date().getTime(),
+                    document,
+                    revisionNumber: grantApplication.currentRevision.revisionNumber + 1,
+                    updatedBy: Client.username ?? ""
+                }]
+            });
             setIsEditingProjectReference(false);
-            dispatch({type: "UPDATE_REFERENCE_ID", payload: {referenceId: value}});
         }, [grantApplication]);
 
         const cancelEditOfRefId = useCallback(async () => {
@@ -1019,7 +1035,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                             history.push("/project/grants/ingoing");
                         }} width="150px" color="green" actionText="Post" />
                     </ButtonGroup>
-                    <Button mt="24px" color="red" type="button" onClick={() => (console.log("Cancelled"), dialogStore.failure())}>Cancel</Button>
+                    <Button mt="24px" color="red" type="button" onClick={dialogStore.failure}>Cancel</Button>
                 </>, () => undefined, true
             );
         }, [appId]);
@@ -1030,7 +1046,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 grantGiversInUse.includes(grantApplication.currentRevision.document.parentProjectId)
             ) return;
             const [firstGrantGiver] = grantGiversInUse;
-            if (firstGrantGiver != null) dispatch({type: "UPDATE_PARENT_PROJECT_ID", payload: {parentProjectId: firstGrantGiver}});
+            if (firstGrantGiver != null) dispatch({type: UPDATE_PARENT_PROJECT_ID, payload: {parentProjectId: firstGrantGiver}});
         }, [grantGiversInUse, grantApplication]);
 
         const grantFinalized = isGrantFinalized(grantApplication.status.overallState);
@@ -1309,7 +1325,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                             </tbody>
                                         </Table>
                                         {grantApplication.status.revisions.length === 0 ? null : <>
-                                            <Divider borderColor="rgba(34,36,38,.1)"  />
+                                            <Divider borderColor="rgba(34,36,38,.1)" />
                                             <Box my="-8px" />
                                             <Accordion title="Revisions" borderColor="rgba(34,36,38,.1)">
                                                 <Table mt={"18px"}>
