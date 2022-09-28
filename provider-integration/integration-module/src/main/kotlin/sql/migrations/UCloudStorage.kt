@@ -5,6 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__UCloudStorage() = MigrationScript("V1__UCloudStorage") { session ->
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_storage_quota_locked(
                 scan_id text,
@@ -16,6 +17,7 @@ fun V1__UCloudStorage() = MigrationScript("V1__UCloudStorage") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_storage_storage_scan(
             	last_system_scan timestamp not null
@@ -24,6 +26,7 @@ fun V1__UCloudStorage() = MigrationScript("V1__UCloudStorage") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_storage_tasks(
             	id text not null primary key,
@@ -41,6 +44,7 @@ fun V1__UCloudStorage() = MigrationScript("V1__UCloudStorage") { session ->
 
 fun V2__UCloudStorage() = MigrationScript("V2__UCloudStorage") { session ->
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_storage_timestamps(
                 name text primary key,
