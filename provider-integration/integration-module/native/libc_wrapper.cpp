@@ -20,12 +20,16 @@ extern "C" {
 
 JNIEXPORT jint JNICALL Java_libc_LibC_open(JNIEnv *env, jobject thisRefect, jstring pathRef, jint flags, jint mode) {
     const char *path = env->GetStringUTFChars(pathRef, NULL);
-    return open(path, flags, (mode_t) mode);
+    jint result = open(path, flags, (mode_t) mode);
+    env->ReleaseStringUTFChars(pathRef, path);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_openat(JNIEnv *env, jobject thisRef, jint fd, jstring pathRef, jint flags, jint mode) {
     const char *path = env->GetStringUTFChars(pathRef, NULL);
-    return openat(fd, path, flags, mode);
+    jint result = openat(fd, path, flags, mode);
+    env->ReleaseStringUTFChars(pathRef, path);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_close(JNIEnv *env , jobject thisRef, jint fd) {
@@ -33,7 +37,12 @@ JNIEXPORT jint JNICALL Java_libc_LibC_close(JNIEnv *env , jobject thisRef, jint 
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_renameat(JNIEnv *env, jobject thisRef, jint oldFd, jstring oldName, jint newFd, jstring newName) {
-    return renameat(oldFd, env->GetStringUTFChars(oldName, 0), newFd, env->GetStringUTFChars(newName, 0));
+    const char *oldPath = env->GetStringUTFChars(oldName, 0);
+    const char *newPath = env->GetStringUTFChars(newName, 0);
+    jint result = renameat(oldFd, oldPath, newFd, newPath);
+    env->ReleaseStringUTFChars(oldName, oldPath);
+    env->ReleaseStringUTFChars(newName, newPath);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_write(JNIEnv *env, jobject thisRef, jint fd, jbyteArray buffer, jlong bufferSize) {
@@ -59,7 +68,10 @@ JNIEXPORT jlong JNICALL Java_libc_LibC_lseek(JNIEnv *env, jobject thisRef, jint 
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_unlinkat(JNIEnv *env, jobject thisRef, jint fd, jstring name, jint flags) {
-    return unlinkat(fd, env->GetStringUTFChars(name, 0), flags);
+    const char *path = env->GetStringUTFChars(name, 0);
+    jint result = unlinkat(fd, path, flags);
+    env->ReleaseStringUTFChars(name, path);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_fchown(JNIEnv *env, jobject thisRef, jint fd, jint uid, jint gid) {
@@ -72,24 +84,31 @@ JNIEXPORT jint JNICALL Java_libc_LibC_fchmod(JNIEnv *env, jobject thisRef, jint 
 
 JNIEXPORT jint JNICALL Java_libc_LibC_fgetxattr(JNIEnv *env, jobject thisRef, jint fd, jstring name, jbyteArray buffer, jint bufferSize) {
     jbyte *nativeBuffer = (jbyte*) malloc(bufferSize);
-     int res = fgetxattr(fd, env->GetStringUTFChars(name, 0), nativeBuffer, bufferSize);
-     if (res > 0) {
-         env->SetByteArrayRegion(buffer, 0, res, nativeBuffer);
-     }
-     free(nativeBuffer);
-     return res;
+    const char *path = env->GetStringUTFChars(name, 0);
+    int res = fgetxattr(fd, path, nativeBuffer, bufferSize);
+    if (res > 0) {
+        env->SetByteArrayRegion(buffer, 0, res, nativeBuffer);
+    }
+    free(nativeBuffer);
+    env->ReleaseStringUTFChars(name, path);
+    return res;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_fsetxattr(JNIEnv *env, jobject thisRef, jint fd, jstring name, jbyteArray buffer, jint bufferSize, jint flags) {
     jbyte *nativeBuffer = (jbyte*) malloc(bufferSize);
     env->GetByteArrayRegion(buffer, 0, (jsize) bufferSize, nativeBuffer);
-    int res = fsetxattr(fd, env->GetStringUTFChars(name, 0), nativeBuffer, bufferSize, flags);
+    const char *path = env->GetStringUTFChars(name, 0);
+    int res = fsetxattr(fd, path, nativeBuffer, bufferSize, flags);
     free(nativeBuffer);
+    env->ReleaseStringUTFChars(name, path);
     return res;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_fremovexattr(JNIEnv *env, jobject thisRef, jint fd, jstring name) {
-    return fremovexattr(fd, env->GetStringUTFChars(name, 0));
+    const char *path = env->GetStringUTFChars(name, 0);
+    jint result = fremovexattr(fd, path);
+    env->ReleaseStringUTFChars(name, path);
+    return result;
 }
 
 JNIEXPORT jlong JNICALL Java_libc_LibC_fdopendir(JNIEnv *env, jobject thisRef, jint fd) {
@@ -197,6 +216,7 @@ JNIEXPORT jlong JNICALL Java_libc_LibC_buildUnixSocketAddress(JNIEnv *env, jobje
     result->sun_family = AF_UNIX;
     const char *pathData = env->GetStringUTFChars(path, 0);
     memcpy(result->sun_path, pathData, strlen(pathData));
+    env->ReleaseStringUTFChars(path, pathData);
     return (jlong) result;
 }
 
@@ -255,7 +275,10 @@ JNIEXPORT jint JNICALL Java_libc_LibC_accept(JNIEnv *env, jobject thisRef, jint 
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_chmod(JNIEnv *env, jobject thisRef, jstring path, jint mode) {
-    return chmod(env->GetStringUTFChars(path, 0), mode);
+    const char *pathString = env->GetStringUTFChars(path, 0);
+    jint result = chmod(pathString, mode);
+    env->ReleaseStringUTFChars(path, pathString);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_getuid(JNIEnv *env, jobject thisRef) {
@@ -268,7 +291,9 @@ JNIEXPORT jint JNICALL Java_libc_LibC_retrieveUserIdFromName(JNIEnv *env, jobjec
     struct passwd *result = NULL;
     char buf[PWNAM_BUFFER_LENGTH];
     memset(&buf, 0, PWNAM_BUFFER_LENGTH);
-    getpwnam_r(env->GetStringUTFChars(username, 0), &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+    const char *nameString = env->GetStringUTFChars(username, 0);
+    getpwnam_r(nameString, &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+    env->ReleaseStringUTFChars(username, nameString);
 
     if (result == NULL) return -1;
 
@@ -280,7 +305,9 @@ JNIEXPORT jint JNICALL Java_libc_LibC_retrieveGroupIdFromName(JNIEnv *env, jobje
     struct group *result = NULL;
     char buf[PWNAM_BUFFER_LENGTH];
     memset(&buf, 0, PWNAM_BUFFER_LENGTH);
-    getgrnam_r(env->GetStringUTFChars(username, 0), &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+    const char *nameString = env->GetStringUTFChars(username, 0);
+    getgrnam_r(nameString, &pwd, buf, PWNAM_BUFFER_LENGTH, &result);
+    env->ReleaseStringUTFChars(username, nameString);
 
     if (result == NULL) return -1;
 
@@ -293,7 +320,9 @@ JNIEXPORT jint JNICALL Java_libc_LibC_getErrno(JNIEnv *env, jobject thisRef) {
 
 JNIEXPORT jint JNICALL Java_libc_LibC_mkdirat(JNIEnv *env, jobject thisRef, jint dirfd, jstring pathName, jint mode) {
     const char *path = env->GetStringUTFChars(pathName, NULL);
-    return mkdirat(dirfd, path, mode);
+    jint result = mkdirat(dirfd, path, mode);
+    env->ReleaseStringUTFChars(pathName, path);
+    return result;
 }
 
 JNIEXPORT jint JNICALL Java_libc_LibC_closedir(JNIEnv *env, jobject thisRef, jlong dirp) {

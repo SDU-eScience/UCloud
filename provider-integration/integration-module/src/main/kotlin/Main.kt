@@ -2,7 +2,6 @@ package dk.sdu.cloud
 
 import ch.qos.logback.classic.LoggerContext
 import ch.qos.logback.classic.joran.JoranConfigurator
-import com.auth0.jwt.JWT
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.accounting.api.Products
 import dk.sdu.cloud.accounting.api.ProductsRetrieveRequest
@@ -305,6 +304,7 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
+                IdleGarbageCollector().register(rpcServer)
 
                 val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
                 ktorEngine = engine

@@ -86,6 +86,10 @@ graalvmNative {
             buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
             buildArgs.add("-H:+ReportExceptionStackTraces")
             buildArgs.add("-H:MaxDuplicationFactor=2.0")
+
+            buildArgs.add("-R:MaxHeapSize=1g")
+            buildArgs.add("-R:MinHeapSize=128m")
+            buildArgs.add("-R:MaxNewSize=64m")
         }
     }
 }
