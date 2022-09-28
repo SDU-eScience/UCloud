@@ -33,13 +33,13 @@ class NativeFile private constructor(
             readOnly: Boolean,
             createIfNeeded: Boolean = true,
             truncateIfNeeded: Boolean = false,
-            mode: Int = "640".toInt(8),
+            mode: Int? = "640".toInt(8),
         ): NativeFile {
             val file = File(path)
             val input = if (readOnly) file.inputStream() else null
             val output = if (!readOnly) FileOutputStream(file, !truncateIfNeeded) else null
 
-            if (!readOnly) {
+            if (!readOnly && mode != null) {
                 if (clib.chmod(path, mode) != 0) throw IOException("chmod failed for $path")
             }
 

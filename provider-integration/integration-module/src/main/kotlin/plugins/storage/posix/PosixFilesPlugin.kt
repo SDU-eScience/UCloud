@@ -466,7 +466,7 @@ class PosixFilesPlugin : FilePlugin {
             val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
 
             // Confirm that we can open the file
-            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
+            NativeFile.open(file.path, readOnly = false, mode = null).close()
 
             FileUploadSession(secureToken(64), file.path)
         }
