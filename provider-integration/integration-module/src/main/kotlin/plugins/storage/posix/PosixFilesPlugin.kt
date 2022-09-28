@@ -330,31 +330,48 @@ class PosixFilesPlugin : FilePlugin {
     }
 
     private fun nativeStat(file: InternalFile): PartialUFile {
-        val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
-
         val internalToUCloud = pathConverter.internalToUCloud(file)
-        val numberOfComponents = internalToUCloud.path.count { it == '/' }
-        val isTopLevel = numberOfComponents == 2
-        val fileName = internalToUCloud.path.fileName()
 
-        return PartialUFile(
-            internalToUCloud.path,
-            UFileStatus(
-                if (posixAttributes.isDirectory) FileType.DIRECTORY else FileType.FILE,
-                sizeInBytes = posixAttributes.size(),
-                modifiedAt = posixAttributes.lastModifiedTime().toMillis(),
-                accessedAt = posixAttributes.lastAccessTime().toMillis(),
-                unixMode = posixAttributes.permissions().toInt(),
-                unixOwner = clib.retrieveUserIdFromName(posixAttributes.owner().name),
-                unixGroup = clib.retrieveGroupIdFromName(posixAttributes.group().name),
-                icon = when {
-                    isTopLevel && fileName == "Trash" -> FileIconHint.DIRECTORY_TRASH
-                    isTopLevel && fileName == "UCloud Jobs" -> FileIconHint.DIRECTORY_JOBS
-                    else -> null
-                }
-            ),
-            posixAttributes.lastModifiedTime().toMillis(),
-        )
+        try {
+            val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
+
+            val numberOfComponents = internalToUCloud.path.count { it == '/' }
+            val isTopLevel = numberOfComponents == 2
+            val fileName = internalToUCloud.path.fileName()
+
+            return PartialUFile(
+                internalToUCloud.path,
+                UFileStatus(
+                    if (posixAttributes.isDirectory) FileType.DIRECTORY else FileType.FILE,
+                    sizeInBytes = posixAttributes.size(),
+                    modifiedAt = posixAttributes.lastModifiedTime().toMillis(),
+                    accessedAt = posixAttributes.lastAccessTime().toMillis(),
+                    unixMode = posixAttributes.permissions().toInt(),
+                    unixOwner = clib.retrieveUserIdFromName(posixAttributes.owner().name),
+                    unixGroup = clib.retrieveGroupIdFromName(posixAttributes.group().name),
+                    icon = when {
+                        isTopLevel && fileName == "Trash" -> FileIconHint.DIRECTORY_TRASH
+                        isTopLevel && fileName == "UCloud Jobs" -> FileIconHint.DIRECTORY_JOBS
+                        else -> null
+                    }
+                ),
+                posixAttributes.lastModifiedTime().toMillis(),
+            )
+        } catch (ex: AccessDeniedException) {
+            return PartialUFile(
+                internalToUCloud.path,
+                UFileStatus(
+                    FileType.FILE,
+                    sizeInBytes = 0L,
+                    modifiedAt = 0L,
+                    accessedAt = 0L,
+                    unixMode = 0,
+                    unixOwner = 0,
+                    unixGroup = 0
+                ),
+                0L
+            )
+        }
     }
 
     override suspend fun RequestContext.moveToTrash(
@@ -453,7 +470,19 @@ class PosixFilesPlugin : FilePlugin {
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
             val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-            NioFiles.createDirectories(internalFile.toNioPath())
+            try {
+                NioFiles.createDirectories(internalFile.toNioPath())
+            } catch (ex: FileAlreadyExistsException) {
+                throw RPCException(
+                    "Unable to create folder. A file with this name already exists!",
+                    HttpStatusCode.Conflict
+                )
+            } catch (ex: AccessDeniedException) {
+                throw RPCException(
+                    "Unable to create folder. It looks like you do not have sufficient permissions!",
+                    HttpStatusCode.Forbidden
+                )
+            }
             LongRunningTask.Complete()
         }
         return result
@@ -501,6 +530,12 @@ class PosixFilesPlugin : FilePlugin {
             val stat = nativeStat(file)
             if (stat.status.type != FileType.FILE) {
                 throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
+            }
+
+            try {
+                NioFiles.newByteChannel(file.toNioPath()).close()
+            } catch (ex: AccessDeniedException) {
+                throw RPCException("You do not have permissions to download this file", HttpStatusCode.NotFound)
             }
 
             FileDownloadSession(secureToken(64), file.path)
