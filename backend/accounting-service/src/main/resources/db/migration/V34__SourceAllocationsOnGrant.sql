@@ -269,7 +269,8 @@ create or replace function "grant".application_to_json(
             'stateBreakdown', array_remove(array_agg(distinct ("grant".grant_giver_approval_to_json(approval_status))), null),
             'comments', array_remove(array_agg(distinct ("grant".comment_to_json(posted_comment))), null),
             'revisions', revision.revs,
-            'projectTitle', p.title
+            'projectTitle', p.title,
+            'projectPI', coalesce(pm.username,resolved_application.requested_by)
         )
     )
     from
@@ -283,7 +284,8 @@ create or replace function "grant".application_to_json(
         "grant".grant_giver_approvals approval_status on
             resolved_application.id = approval_status.application_id left join
         "grant".comments posted_comment on resolved_application.id = posted_comment.application_id left join
-            project.projects p on p.id = latest_form.recipient
+            project.projects p on p.id = latest_form.recipient left join
+        project.project_members pm on p.id = pm.project_id and pm.role = 'PI'
     group by
         resolved_application.id,
         resolved_application.*,
@@ -291,7 +293,8 @@ create or replace function "grant".application_to_json(
         latest_revision.*,
         latest_form.*,
         revision.revs,
-        p.title;
+        p.title,
+        pm.username;
 $$;
 
 create or replace function "grant".can_submit_application(username_in text, sources text[], grant_recipient text, grant_recipient_type text) returns boolean
