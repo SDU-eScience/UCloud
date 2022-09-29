@@ -329,6 +329,39 @@ JNIEXPORT jint JNICALL Java_libc_LibC_closedir(JNIEnv *env, jobject thisRef, jlo
     return closedir((DIR *) dirp);
 }
 
+#include <pty.h>
+#include <sys/ioctl.h>
+
+JNIEXPORT jint JNICALL Java_libc_LibC_createAndForkPty(JNIEnv *env, jobject thisRef) {
+    int masterFd;
+
+    struct winsize winp = {0};
+    winp.ws_col = 80;
+    winp.ws_row = 25;
+
+    pid_t pid = forkpty(&masterFd, 0, 0, &winp);
+    if (pid == 0) {
+        setenv("TERM", "xterm", 0);
+        setenv("LANG", "en_US.UTF-8", 0);
+
+        char *argList[] = {"bash", NULL};
+        execvp(argList[0], argList);
+        printf("Failed to start bash!\n");
+        exit(0);
+        return -1;
+    } else {
+        return masterFd;
+    }
+}
+
+JNIEXPORT jint JNICALL Java_libc_LibC_resizePty(JNIEnv *env, jobject thisRef, jint masterFd, jint cols, jint rows) {
+    struct winsize winp = {0};
+    winp.ws_col = 80;
+    winp.ws_row = 25;
+    ioctl(masterFd, TIOCSWINSZ, &winp);
+    return 0;
+}
+
 #ifdef __cplusplus
 }
 #endif

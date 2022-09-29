@@ -57,6 +57,9 @@ class LibC {
 
     external fun getuid(): Int
 
+    external fun createAndForkPty(): Int
+    external fun resizePty(masterFd: Int, cols: Int, rows: Int): Int
+
     companion object {
         init {
             var didLoad = false
