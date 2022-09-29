@@ -74,12 +74,12 @@ data class VerifiedConfig(
         }
 
         data class Database(
-            val embedded: ConfigSchema.Server.Embedded?,
-            val external: ConfigSchema.Server.External?
+            val embedded: Embedded?,
+            val external: External?
         )
 
         data class Embedded(
-            val file: String? = null
+            val file: String
         )
 
         data class External(
@@ -488,9 +488,25 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
 
         val database: VerifiedConfig.Server.Database = run {
+            val dbconfig = config.server.database ?: error("No DBConfig given")
+            val external = dbconfig.external
+            val embedded = dbconfig.embedded
             VerifiedConfig.Server.Database(
-                config.server.database?.embedded,
-                config.server.database?.external
+                if (embedded != null) {
+                    if (embedded.file != null) {
+                        VerifiedConfig.Server.Embedded(embedded.file)
+                    } else error("Missing path for embedded postgres")
+                } else { null }
+                ,
+                if (external != null) {
+                    VerifiedConfig.Server.External(
+                        external.hostname,
+                        external.port,
+                        external.username,
+                        external.password,
+                        external.database
+                    )
+                } else null
             )
         }
 

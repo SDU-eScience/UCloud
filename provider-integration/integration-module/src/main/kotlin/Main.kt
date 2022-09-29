@@ -215,8 +215,7 @@ fun main(args: Array<String>) {
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
-                //external has first priority in case both are defined in config
-                createDBConnection(config.server.database)
+                dbConfig.set(config.server.database)
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
                 loadMigrations(handler)
@@ -672,6 +671,19 @@ fun main(args: Array<String>) {
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
+                val embeddedConfig = config.server.database.embedded
+                if (config.server.database.embedded != null) {
+                    stats.add("Database" to "Embedded: ${embeddedConfig?.file}")
+                }
+                val externalConfig = config.server.database.external
+                if (externalConfig != null) {
+                    val jdbc = postgresJdbcUrl(
+                        externalConfig.host,
+                        externalConfig.database,
+                        externalConfig.port
+                    )
+                    stats.add("Database" to "External: $jdbc")
+                }
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")
                 }
@@ -804,10 +816,10 @@ private suspend fun testDB(db: DBContext) {
 }
 private fun createDBConnection(database: VerifiedConfig.Server.Database):DBContext {
     if (database.external != null && database.embedded != null) {
-        error("Cannot run with dual databae configuration")
+        error("Cannot run with dual database configuration")
     } else if (database.external != null) {
         val dbConfig = DatabaseConfig(
-            postgresJdbcUrl(database.external.hostname, database.external.database, database.external.port),
+            postgresJdbcUrl(database.external.host, database.external.database, database.external.port),
             database.external.username,
             database.external.password,
             "public",
