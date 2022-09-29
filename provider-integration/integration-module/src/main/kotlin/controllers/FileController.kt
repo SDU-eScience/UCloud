@@ -302,74 +302,72 @@ class FileController(
         }
 
         implement(api.createFolder) {
-            val result = request.items.map { createFolderRequest ->
-                val collection = collectionCache.get(
-                    createFolderRequest.id.components().firstOrNull() ?: return@map null
-                ) ?: return@map null
-
-                val plugin = lookupPlugin(collection.specification.product)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { collectionCache.get(it.id.components().firstOrNull()!!)!! },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        createFolder(bulkRequestOf(createFolderRequest)).single()
+                        BulkResponse(createFolder(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.move) {
-            val result = request.items.map { moveRequest ->
-                val collection = moveRequest.resolvedNewCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedNewCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        move(bulkRequestOf(moveRequest)).single()
+                        BulkResponse(move(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.copy) {
-            val result = request.items.map { copyRequest ->
-                val collection = copyRequest.resolvedNewCollection.specification.product
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedNewCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        copy(bulkRequestOf(copyRequest)).single()
+                        BulkResponse(copy(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.trash) {
-            val result = request.items.map { request ->
-                val collection = request.resolvedCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
-                    with(plugin) {
-                        moveToTrash(bulkRequestOf(request)).single()
-                    }
+            val response = dispatchToPlugin(plugins, request.items, { it.resolvedCollection }) { plugin, request ->
+                with(plugin) {
+                    BulkResponse(moveToTrash(request))
                 }
             }
-            ok(BulkResponse(result))
+            ok(response)
         }
 
         implement(api.emptyTrash) {
-            val result = request.items.map { request ->
-                val collection = request.resolvedCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        emptyTrash(bulkRequestOf(request)).single()
+                        BulkResponse(emptyTrash(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.createDownload) {

@@ -17,7 +17,7 @@ repositories {
 
 dependencies {
     run {
-        val version = "2022.2.13"
+        val version = "2022.2.16"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
@@ -86,6 +86,10 @@ graalvmNative {
             buildArgs.add("-H:+ReportUnsupportedElementsAtRuntime")
             buildArgs.add("-H:+ReportExceptionStackTraces")
             buildArgs.add("-H:MaxDuplicationFactor=2.0")
+
+            buildArgs.add("-R:MaxHeapSize=1g")
+            buildArgs.add("-R:MinHeapSize=128m")
+            buildArgs.add("-R:MaxNewSize=64m")
         }
     }
 }

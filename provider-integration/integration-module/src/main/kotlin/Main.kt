@@ -304,6 +304,7 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
+                IdleGarbageCollector().register(rpcServer)
 
                 val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
                 ktorEngine = engine
@@ -356,11 +357,6 @@ fun main(args: Array<String>) {
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
-                        becomesInvalidSoon = { accessToken ->
-                            val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
-                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                                    (1000 * 120) >= Time.now()
-                        }
                     )
 
                     authenticator.authenticateClient(OutgoingHttpCall)

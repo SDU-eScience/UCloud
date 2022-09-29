@@ -320,7 +320,7 @@ class ConnectionController(
 
                     // Launch the IM/User instance
                     if (devInstance == null) {
-                        val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
+                        val logFilePath = controllerContext.configuration.core.logs.directory + "/startup-${uid}.log"
                         val ownExecutable =
                             if (controllerContext.ownExecutable.endsWith("/java")) "/usr/bin/ucloud"
                             else controllerContext.ownExecutable
@@ -333,8 +333,8 @@ class ConnectionController(
                                 "user",
                                 allocatedPort.toString()
                             )
-                            .redirectOutput(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
-                            .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
+                            .redirectOutput(ProcessBuilder.Redirect.appendTo(File(logFilePath)))
+                            .redirectError(ProcessBuilder.Redirect.appendTo(File(logFilePath)))
                             .start()
 
                         uimPid.inputStream.close()

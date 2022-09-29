@@ -19,6 +19,7 @@ import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
 import dk.sdu.cloud.service.Logger
@@ -45,6 +46,7 @@ class SlurmPlugin : ComputePlugin {
         private set
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
+    private var fileCollectionPlugin: PosixCollectionPlugin? = null
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -59,6 +61,8 @@ class SlurmPlugin : ComputePlugin {
 
             initializeIpcServer()
         }
+
+        fileCollectionPlugin = config.pluginsOrNull?.fileCollections?.get(pluginName) as? PosixCollectionPlugin
     }
 
     // IPC
@@ -136,7 +140,7 @@ class SlurmPlugin : ComputePlugin {
     private fun findJobFolder(jobId: String): String? {
         val homeDirectory = homeDirectory()
         if (!fileExists(homeDirectory)) return null
-        val jobsDir = homeDirectory.removeSuffix("/") + "/.ucloud-jobs"
+        val jobsDir = homeDirectory.removeSuffix("/") + "/UCloud Jobs"
         if (!fileExists(jobsDir)) {
             if (!File(jobsDir).mkdirs()) {
                 return null
@@ -173,6 +177,22 @@ class SlurmPlugin : ComputePlugin {
         val slurmId = cli.submitBatchJob(pathToScript)
 
         ipcClient.sendRequest(SlurmJobsIpc.create, SlurmJob(resource.id, slurmId, pluginConfig.partition))
+
+        if (jobFolder != null) {
+            fileCollectionPlugin?.let { files ->
+                val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
+                JobsControl.update.call(
+                    bulkRequestOf(
+                        ResourceUpdateAndId(
+                            resource.id,
+                            JobUpdate(outputFolder = path)
+                        )
+                    ),
+                    rpcClient,
+                )
+            }
+        }
+
         return null
     }
 
@@ -194,6 +214,7 @@ class SlurmPlugin : ComputePlugin {
         val jobFolder = findJobFolder(job.id)
 
         class OutputFile(val rank: Int, val out: NativeFile?, val err: NativeFile?)
+
         val openFiles = ArrayList<OutputFile>()
 
         try {
@@ -237,7 +258,7 @@ class SlurmPlugin : ComputePlugin {
                     emitStdout(
                         rank,
                         "Unable to read logs. If the job was submitted outside of UCloud, then we might not be " +
-                            "able to read the logs automatically."
+                                "able to read the logs automatically."
                     )
                 }
 
