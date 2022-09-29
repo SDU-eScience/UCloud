@@ -197,7 +197,7 @@ class EnvoyConfigurationService(
                   tls_maximum_protocol_version: "TLSv1_3"
                   cipher_suites: "ECDHE-ECDSA-AES256-GCM-SHA384"
                   # curve X25519 available in openssl builds
-                  ecdh_curves: "P-521"
+                  ecdh_curves: "P-256"
                 tls_certificates:
                 - certificate_chain:
                     filename: $configDir/certs/public.crt
