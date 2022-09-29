@@ -168,6 +168,12 @@ object Projects : CallDescriptionContainer("projects.v2") {
         httpUpdate(baseContext, "updateSettings")
     }
 
+    // Internal API
+    @UCloudApiInternal(InternalLevel.BETA)
+    val retrieveAllUsersGroup = call("retrieveAllUsersGroup", BulkRequest.serializer(FindByProjectId.serializer()), BulkResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
+        httpUpdate(baseContext, "retrieveAllUsersGroup", roles = Roles.SERVICE)
+    }
+
     // TODO Rename
     // TODO verification status
 

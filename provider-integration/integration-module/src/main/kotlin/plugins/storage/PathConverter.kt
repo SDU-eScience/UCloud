@@ -61,7 +61,9 @@ class PathConverter(private val ctx: PluginContext) {
                         ),
                         idPrefix + home.localPath,
                         home.owner.createdBy,
-                        home.owner.project
+                        home.owner.project,
+                        projectAllRead = home.owner.project != null,
+                        projectAllWrite = home.owner.project != null,
                     )
                 }
             ),
