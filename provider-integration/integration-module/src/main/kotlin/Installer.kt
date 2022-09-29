@@ -90,6 +90,7 @@ fun runInstaller(
             configDir = "/var/run/ucloud/envoy",
             useUCloudUsernameHeader = false,
             logDirectory = "/tmp",
+            downstreamTls = {{im.envoy.tls.downstream}}
         )
         val server = RpcServer()
         val engine = embeddedServer(CIO, port = UCLOUD_IM_PORT) {}
@@ -135,6 +136,11 @@ fun runInstaller(
             ).writeText(
                 """
                     refreshToken: ${request.createdProvider.refreshToken}
+                    envoy:
+                      executable: "/usr/local/bin/getenvoy"
+                      directory: "/var/run/ucloud/envoy"
+                      downstreamTls: {{im.envoy.tls.downstream}}
+                      
                 """.trimIndent()
             )
 
