@@ -1208,7 +1208,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 </TableRow>
                                                 {isProject ? <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
-                                                    {/* TODO(Jonas): This is wrong. This could be created by an admin. */}
                                                     <TableCell>{grantApplication.status.projectPI}</TableCell>
                                                 </TableRow> : null}
 
@@ -1224,7 +1223,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                     <TableCell verticalAlign="top">
                                                         Reference ID
                                                     </TableCell>
-                                                    {/* TODO(Jonas): When should this be shown? Approver? */}
                                                     <TableCell>
                                                         <table>
                                                             <tbody>
@@ -1262,9 +1260,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                             <td>
                                                                                 {getReferenceId(grantApplication) ?? "No ID given"}
                                                                             </td>
-                                                                            <td>
-                                                                                <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
-                                                                            </td>
+                                                                            {!isApprover || grantApplication.status.overallState !== "IN_PROGRESS" ? null :
+                                                                                <td>
+                                                                                    <Button ml={"4px"} onClick={() => setIsEditingProjectReference(true)}>Edit</Button>
+                                                                                </td>
+                                                                            }
                                                                         </>)
                                                                     }
                                                                 </tr>
