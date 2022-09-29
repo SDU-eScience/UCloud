@@ -1,14 +1,16 @@
 package dk.sdu.cloud.accounting.rpc
 
+import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.*
 import dk.sdu.cloud.accounting.services.projects.v2.*
+import dk.sdu.cloud.calls.BulkResponse
 
 class ProjectsControllerV2(
     private val projects: ProjectService,
     private val notifications: ProviderNotificationService,
-): Controller {
+) : Controller {
     override fun configure(rpcServer: RpcServer) = with(rpcServer) {
         implement(Projects.retrieve) {
             ok(projects.retrieve(actorAndProject, request))
@@ -96,6 +98,14 @@ class ProjectsControllerV2(
 
         implement(Projects.retrieveProviderProject) {
             ok(projects.retrieveProviderProject(actorAndProject))
+        }
+
+        implement(Projects.retrieveAllUsersGroup) {
+            ok(
+                BulkResponse(request.items.map {
+                    FindByStringId(projects.locateOrCreateAllUsersGroup(it.project))
+                })
+            )
         }
     }
 }

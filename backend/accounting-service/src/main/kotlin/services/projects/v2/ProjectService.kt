@@ -44,6 +44,55 @@ class ProjectService(
         updateHandlers.add(handler)
     }
 
+    suspend fun locateOrCreateAllUsersGroup(
+        projectId: String,
+        ctx: DBContext = db,
+    ): String {
+        return ctx.withSession { session ->
+            val groupId = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("project_id", projectId)
+                        setParameter("all_users", ALL_USERS_GROUP_TITLE)
+                    },
+                    """
+                        select g.id
+                        from project.groups g
+                        where
+                            g.project = :project_id and
+                            g.title = :all_users
+                    """
+                )
+                .rows
+                .singleOrNull()
+                ?.getString(0)
+
+            if (groupId != null) return@withSession groupId
+
+            val createdGroup = createGroup(
+                ActorAndProject(Actor.System, projectId),
+                bulkRequestOf(Group.Specification(projectId, ALL_USERS_GROUP_TITLE)),
+                ctx = session
+            ).responses.single().id
+
+            val projectWithMembers = retrieve(
+                ActorAndProject(Actor.System, projectId),
+                ProjectsRetrieveRequest(projectId, includeMembers = true),
+                ctx = session
+            )
+
+            val members = (projectWithMembers.status.members ?: emptyList())
+            createGroupMember(
+                ActorAndProject(Actor.System, null),
+                BulkRequest(members.map { GroupMember(it.username, createdGroup) }),
+                ctx = session,
+                dispatchUpdate = false
+            )
+
+            createdGroup
+        }
+    }
+
     suspend fun retrieve(
         actorAndProject: ActorAndProject,
         request: ProjectsRetrieveRequest,
@@ -607,6 +656,8 @@ class ProjectService(
 
             projectCache.invalidate(actor.safeUsername())
 
+            ids.forEach { locateOrCreateAllUsersGroup(it, session) }
+
             // NOTE(Dan): We don't trigger an update handler here, since we expect further notifications to be
             // dispatched soon (e.g. grant notifications)
 
@@ -1035,30 +1086,44 @@ class ProjectService(
     ) {
         val projects = request.items.map { it.project }
         ctx.withSession { session ->
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("projects", projects)
-                },
-                """
-                    with accepted_invites as (
-                        delete from project.invites
-                        where
-                            username = :username and
-                            project_id = some(:projects::text[])
-                        returning project_id
-                    )
-                    insert into project.project_members (created_at, modified_at, role, username, project_id) 
-                    select now(), now(), 'USER', :username, project_id
-                    from accepted_invites
-                    on conflict (username, project_id) do nothing
-                """
-            ).rowsAffected > 0
+            val userInProjects = session
+                .sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("projects", projects)
+                    },
+                    """
+                        with accepted_invites as (
+                            delete from project.invites
+                            where
+                                username = :username and
+                                project_id = some(:projects::text[])
+                            returning project_id
+                        )
+                        insert into project.project_members (created_at, modified_at, role, username, project_id) 
+                        select now(), now(), 'USER', :username, project_id
+                        from accepted_invites
+                        on conflict (username, project_id) do nothing
+                        returning username, project_id
+                    """
+                )
+                .rows
+                .map { it.getString(0)!! to it.getString(1)!! }
 
-            if (!success) {
+            if (userInProjects.isEmpty()) {
                 throw RPCException(
                     "Could not accept your project invite. Maybe it is no longer valid? Try refreshing your browser.",
                     HttpStatusCode.BadRequest
+                )
+            }
+
+            for ((project, usersAndProjects) in userInProjects.groupBy { it.second }) {
+                val group = locateOrCreateAllUsersGroup(project, session)
+                createGroupMember(
+                    ActorAndProject(Actor.System, null),
+                    BulkRequest(usersAndProjects.map { GroupMember(it.first, group) }),
+                    ctx = session,
+                    dispatchUpdate = false
                 )
             }
 
@@ -1359,6 +1424,7 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<Group.Specification>,
         ctx: DBContext = db,
+        dispatchUpdate: Boolean = true,
     ): BulkResponse<FindByStringId> {
         val (actor) = actorAndProject
         val projects = request.items.map { it.project }.toSet()
@@ -1392,7 +1458,7 @@ class ProjectService(
                 )
             }
 
-            updateHandlers.forEach { it(projects) }
+            if (dispatchUpdate) updateHandlers.forEach { it(projects) }
             BulkResponse(ids.map { FindByStringId(it) })
         }
     }
@@ -1528,6 +1594,7 @@ class ProjectService(
         actorAndProject: ActorAndProject,
         request: BulkRequest<GroupMember>,
         ctx: DBContext = db,
+        dispatchUpdate: Boolean = true,
     ) {
         val (actor) = actorAndProject
         ctx.withSession { session ->
@@ -1581,7 +1648,7 @@ class ProjectService(
                 """
             ).rows.map { it.getString(0)!! }
 
-            updateHandlers.forEach { it(affectedProjects) }
+            if (dispatchUpdate) updateHandlers.forEach { it(affectedProjects) }
         }
     }
 
@@ -1680,5 +1747,7 @@ class ProjectService(
 
     companion object : Loggable {
         override val log = logger()
+
+        const val ALL_USERS_GROUP_TITLE = "All users"
     }
 }
