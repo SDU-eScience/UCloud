@@ -565,7 +565,8 @@ const defaultGrantApplication: GrantApplication = {
         overallState: State.IN_PROGRESS,
         comments: [],
         revisions: [],
-        stateBreakdown: []
+        stateBreakdown: [],
+        projectPI: ""
     }
 };
 
@@ -593,7 +594,6 @@ function grantApplicationReducer(state: GrantApplication, action: GrantApplicati
             return action.payload;
         }
         case UPDATE_PARENT_PROJECT_ID: {
-            // TODO: Is this enough? Technically, we now have a new revision.
             state.currentRevision.document.parentProjectId = action.payload.parentProjectId;
             return {...state};
         }
@@ -641,6 +641,7 @@ function findNewOverallState(approvalStates: GrantGiverApprovalState[]): State {
 // the target property ensures a remount of the component.
 
 // Note(Jonas): Maybe this can be solved using keys when upgrading to the new React-Router version.
+// Note(Jonas): It can!
 export const GrantApplicationEditor: (target: RequestTarget) =>
     React.FunctionComponent = target => function MemoizedEditor() {
         const [loading, runWork] = useCloudCommand();
@@ -1208,7 +1209,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                 {isProject ? <TableRow>
                                                     <TableCell>Principal Investigator (PI)</TableCell>
                                                     {/* TODO(Jonas): This is wrong. This could be created by an admin. */}
-                                                    <TableCell>{grantApplication.createdBy}</TableCell>
+                                                    <TableCell>{grantApplication.status.projectPI}</TableCell>
                                                 </TableRow> : null}
 
                                                 <TableRow>

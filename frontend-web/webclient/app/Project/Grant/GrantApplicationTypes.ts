@@ -159,6 +159,7 @@ export interface Status {
     comments: Comment[];
     revisions: Revision[];
     projectTitle?: string;
+    projectPI: string;
 }
 
 export interface GrantGiverApprovalState {
