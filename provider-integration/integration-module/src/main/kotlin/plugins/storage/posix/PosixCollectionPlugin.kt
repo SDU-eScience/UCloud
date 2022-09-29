@@ -54,12 +54,6 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     )
 
     override fun configure(config: ConfigSchema.Plugins.FileCollections) {
-        // TODO(Brian)
-        /*if (productAllocationResolved.size > 1) {
-            println("This is bad")
-        }
-         */
-
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
     }
 

@@ -746,6 +746,11 @@ private fun <Cfg : ConfigSchema.Plugins.ProductBased> loadProductBasedPlugins(
                 "launchRealUserInstances is false but not supported for this plugin: ${plugin.pluginTitle}"
             )
         }
+
+        if (plugin.pluginTitle == "Posix" && pluginProducts.size > 1) {
+            emitError("Plugin ${plugin.pluginTitle} supports only 1 product but multiple are specified")
+        }
+
         plugin.configure(pluginConfig)
         result[id] = plugin
     }
