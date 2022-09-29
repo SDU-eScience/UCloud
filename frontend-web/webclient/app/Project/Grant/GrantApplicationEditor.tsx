@@ -59,7 +59,7 @@ import {ConfirmationButton} from "@/ui-components/ConfirmationAction";
 import {ButtonGroup, Divider, Truncate} from "@/ui-components";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {Logo} from "./ProjectBrowser";
-import {format, formatDistance} from "date-fns";
+import {format} from "date-fns";
 import {DatePicker} from "@/ui-components/DatePicker";
 import {
     AllocationRequest,
@@ -101,6 +101,18 @@ export enum RequestTarget {
     TODO List:
         - Find new In Progress Icon (General)
         - Remember to update documentation
+            - New features:
+                - Select multiple grant givers.
+                - Select parent project (automatic, selects first grant giver that user selects, likely not relevant for most users.)
+                - The parent project is the one used as the template for the form.
+                - Rejections can be undone.
+                - Approvals can be undone provided that not all grant givers has approved the grant application yet.
+                - Show revisions
+                - Prompt user for a comment before transferring grant application to other project.
+                - Allow selecting allocations to draw from.
+                - Auto selects allocations if only one.
+                - Shows active project at top, others in accordion.
+                - If recipient, all grant givers are shown in alphabetical order.
 */
 
 const THIRTY_DAYS_AGO = new Date().getTime() - 30 * 24 * 60 * 60 * 1000;
