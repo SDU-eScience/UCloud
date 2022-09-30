@@ -32,6 +32,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import java.io.File
+import kotlin.collections.ArrayList
 import kotlin.math.max
 
 typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
@@ -45,6 +46,7 @@ class SlurmPlugin : ComputePlugin {
         private set
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
+    private var lastAccountingCharge = 0L
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -391,7 +393,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (Time.now() >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
         }
     }
 
@@ -602,6 +604,8 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        lastAccountingCharge = Time.now()
 
         debugSystem.logD(
             "Charged $chargedJobs slurm jobs",
