@@ -10,7 +10,7 @@ fun V1__JobMapping(): MigrationScript = MigrationScript("V1__JobMapping") { conn
                 ucloud_id text primary key,
                 local_id text not null,
                 partition text not null,
-                status int default 1 not null,
+                status boolean default true not null,
                 lastknown text not null,
                 ts timestamp default now() not null
             )

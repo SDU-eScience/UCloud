@@ -162,6 +162,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         if (!missingUids.isEmpty()) {
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         with changes as (
                             ${safeSqlTableUpload("changes", missingUids)}
@@ -169,7 +170,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                         insert into simple_project_missing_connections(ucloud_id, project_id)
                         select c.username, :project_id
                         from changes c
-                        on conflict do nothing
+                        on conflict (ucloud_id, project_id) do nothing
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -189,6 +190,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         var result: Int? = null
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select local_id
                     from simple_project_group_mapper

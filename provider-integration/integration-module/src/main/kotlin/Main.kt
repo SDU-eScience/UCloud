@@ -671,18 +671,20 @@ fun main(args: Array<String>) {
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
-                val embeddedConfig = config.server.database.embedded
-                if (config.server.database.embedded != null) {
-                    stats.add("Database" to "Embedded: ${embeddedConfig?.file}")
-                }
-                val externalConfig = config.server.database.external
-                if (externalConfig != null) {
-                    val jdbc = postgresJdbcUrl(
-                        externalConfig.host,
-                        externalConfig.database,
-                        externalConfig.port
-                    )
-                    stats.add("Database" to "External: $jdbc")
+                if (serverMode == ServerMode.Server) {
+                    val embeddedConfig = config.server.database.embedded
+                    if (config.server.database.embedded != null) {
+                        stats.add("Database" to "Embedded: ${embeddedConfig?.file}")
+                    }
+                    val externalConfig = config.server.database.external
+                    if (externalConfig != null) {
+                        val jdbc = postgresJdbcUrl(
+                            externalConfig.host,
+                            externalConfig.database,
+                            externalConfig.port
+                        )
+                        stats.add("Database" to "External: $jdbc")
+                    }
                 }
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")

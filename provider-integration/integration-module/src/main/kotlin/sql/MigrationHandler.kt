@@ -50,7 +50,7 @@ class MigrationHandler(private val connection: DBContext) {
                     connection.prepareStatement(
                         //language=postgresql
                         """
-                            insert into migrations(id) values (:id) on conflict do nothing
+                            insert into migrations(id) values (:id) on conflict (id) do nothing
                         """
                     ).invokeAndDiscard {
                         bindString("id", script.id)

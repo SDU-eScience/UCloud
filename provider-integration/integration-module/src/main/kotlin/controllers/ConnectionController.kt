@@ -488,7 +488,7 @@ object UserMapping {
                 """
                     insert into user_mapping (ucloud_id, local_identity)
                     values (:ucloud_id, :local_id)
-                    on conflict do update set ucloud_id = :ucloud_id, local_identity = :local_id
+                    on conflict (ucloud_id) do update set ucloud_id = :ucloud_id, local_identity = :local_id
                 """
             ).useAndInvokeAndDiscard(
                 prepare = {
@@ -645,7 +645,7 @@ object MessageSigningKeyStore {
             session.prepareStatement(
                 //language=postgresql
                 """
-                    select extract(epoch from ts) as bigint), id, public_key
+                    select extract(epoch from ts) as bigint, id, public_key
                     from message_signing_key
                     where
                         ucloud_user in (
@@ -656,7 +656,7 @@ object MessageSigningKeyStore {
                 """
             ).useAndInvoke(
                 prepare = {
-                    bindInt("performed_by", performedBy)
+                    bindString("performed_by", performedBy.toString())
                 },
                 readRow = { row ->
                     result.add(

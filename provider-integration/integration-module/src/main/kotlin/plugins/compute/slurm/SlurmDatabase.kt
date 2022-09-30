@@ -31,7 +31,7 @@ object SlurmDatabase {
                 bindString("ucloud_id", job.ucloudId)
                 bindString("local_id", job.slurmId)
                 bindString("partition", job.partition)
-                bindInt("status", job.status)
+                bindBoolean("status", job.status)
                 bindString("last_known", job.lastKnown)
                 bindLong("elapsed", job.elapsed)
             }
@@ -45,13 +45,14 @@ object SlurmDatabase {
         val result = ArrayList<SlurmJob>()
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select ucloud_id, local_id, partition, lastknown, status
                     from job_mapping
                     where
-                        (:filter_slurm_id is null or local_id = :filter_slurm_id) and
-                        (:filter_is_active is null or status = :filter_is_active) and
-                        (:filter_ucloud_id is null or ucloud_id = :filter_ucloud_id)
+                        (:filter_slurm_id::text is null or local_id = :filter_slurm_id::text) and
+                        (:filter_is_active::bool is null or status = :filter_is_active::bool) and
+                        (:filter_ucloud_id::text is null or ucloud_id = :filter_ucloud_id::text)
                 """
             ).useAndInvoke(
                 prepare = {
@@ -63,7 +64,7 @@ object SlurmDatabase {
                     result.add(
                         SlurmJob(
                             row.getString(0)!!, row.getString(1)!!, row.getString(2)!!, row.getString(3)!!,
-                            row.getInt(4)!!
+                            row.getBoolean(4)!!
                         )
                     )
                 }
@@ -207,10 +208,11 @@ object SlurmDatabase {
     ) {
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into session_mapping (token, rank, ucloud_id) 
                     values (:token, :rank, :ucloud_id)
-                    on conflict do nothing
+                    on conflict (token, rank, ucloud_id) do nothing
                 """
             ).useAndInvokeAndDiscard {
                 bindString("token", iSession.token)
