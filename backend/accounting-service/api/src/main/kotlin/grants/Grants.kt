@@ -55,8 +55,7 @@ data class BrowseApplicationsRequest(
 typealias BrowseApplicationsResponse = PageV2<GrantApplication>
 
 typealias SubmitApplicationRequest = CreateApplication
-// TODO(Jonas): Should return a bulk response
-typealias SubmitApplicationResponse = List<FindByLongId>
+typealias SubmitApplicationResponse = BulkResponse<FindByLongId>
 
 @Serializable
 data class EditApplicationRequest(
@@ -358,7 +357,7 @@ ${ApiConventions.nonConformingApiWarning}
         call(
             "submitApplication",
             BulkRequest.serializer(SubmitApplicationRequest.serializer()),
-            ListSerializer(FindByLongId.serializer()),
+            BulkResponse.serializer(FindByLongId.serializer()),
             CommonErrorMessage.serializer()
         ) {
             httpCreate(

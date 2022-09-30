@@ -3,7 +3,7 @@ import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import {PageV2, PaginationRequestV2} from "@/UCloud";
 import * as UCloud from "@/UCloud";
 import ProjectWithTitle = UCloud.grant.ProjectWithTitle;
-import {apiBrowse, apiCreate, apiDelete, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
+import {apiBrowse, apiCreate, apiDelete, apiRetrieve, apiSearch, apiUpdate, callAPI} from "@/Authentication/DataHook";
 import {bulkRequestOf} from "@/DefaultObjects";
 import {GrantApplicationFilter} from ".";
 
@@ -242,7 +242,21 @@ export function rejectGrantApplication(
     };
 }
 
-export type SubmitApplicationRequest = Document;
+export type SubmitApplicationRequest = UCloud.BulkRequest<{document: Document}>;
+export type SubmitApplicationResponse = UCloud.BulkResponse<UCloud.FindByLongId>;
+
+export function submitApplicationRequest(payload: SubmitApplicationRequest) {
+    return apiCreate(payload, "/api/grant", "submit-application")
+}
+
+export type EditApplicationRequest = UCloud.BulkRequest<{
+    applicationId: string;
+    document: Document;
+}>;
+
+export function editApplicationRequest(payload: EditApplicationRequest) {
+    return apiUpdate(payload, "/api/grant", "edit");
+}
 
 export interface ApproveGrantApplicationRequest {
     requestId: string;
@@ -332,9 +346,42 @@ export function browseGrantApplications(
     return apiBrowse(request, grantBaseContext);
 }
 
+interface RetrieveTemplatesRequest {
+    projectId: string;
+}
+
+export function retrieveTemplates(request: RetrieveTemplatesRequest): APICallParameters<RetrieveTemplatesRequest> {
+    return apiRetrieve(request, "/api/grant/templates");
+}
+
 export interface Templates {
     type: "plain_text";
     personalProject: string;
     newProject: string;
     existingProject: string;
+}
+
+interface UpdateStateRequest {
+    applicationId: string;
+    newState: State;
+    notify: boolean;
+}
+
+export function updateState(request: UCloud.BulkRequest<UpdateStateRequest>): APICallParameters<UCloud.BulkRequest<UpdateStateRequest>> {
+    return apiUpdate(request, "/api/grant", "update-state");
+}
+
+export async function fetchGrantApplication(request: FetchGrantApplicationRequest): Promise<FetchGrantApplicationResponse> {
+    return callAPI<FetchGrantApplicationResponse>(apiRetrieve(request, "api/grant"));
+}
+
+interface BrowseProductsRequest {
+    projectId: string;
+    recipientType: "existingProject" | "newProject" | "personalWorkspace";
+    recipientId: string;
+    showHidden: boolean;
+}
+
+export function browseProducts(request: BrowseProductsRequest): APICallParameters<BrowseProductsRequest> {
+    return apiBrowse(request, "/api/grant", "products");
 }

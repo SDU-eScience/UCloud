@@ -6,6 +6,7 @@ import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.accounting.api.grants.CreateCommentRequest
 import dk.sdu.cloud.accounting.api.grants.DeleteCommentRequest
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.safeUsername
@@ -18,8 +19,8 @@ class GrantCommentService(
     suspend fun postComment(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateCommentRequest>
-    ): List<FindByStringId> {
-        return db.withSession(remapExceptions = true) { session ->
+    ): BulkResponse<FindByStringId> {
+        return BulkResponse(db.withSession(remapExceptions = true) { session ->
             request.items.map { req ->
                 val id = session.sendPreparedStatement(
                     {
@@ -64,7 +65,7 @@ class GrantCommentService(
                 FindByStringId(id.toString())
                 // TODO Notify
             }
-        }
+        })
     }
 
     suspend fun deleteComment(

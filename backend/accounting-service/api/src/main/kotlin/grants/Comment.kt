@@ -11,8 +11,7 @@ import kotlinx.serialization.builtins.serializer
 
 @Serializable
 data class CreateCommentRequest(val grantId: String, val comment: String)
-// TODO(Jonas): Should return a bulkresponse, not a list
-typealias CreateCommentResponse = List<FindByStringId>
+typealias CreateCommentResponse = BulkResponse<FindByStringId>
 
 @Serializable
 data class DeleteCommentRequest(val grantId: String, val commentId: String)
@@ -35,7 +34,7 @@ object GrantComments : CallDescriptionContainer("grantComments") {
     }
 
     val createComment =
-        call("createComment", BulkRequest.serializer(CreateCommentRequest.serializer()), ListSerializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
+        call("createComment", BulkRequest.serializer(CreateCommentRequest.serializer()), CreateCommentResponse.serializer(FindByStringId.serializer()), CommonErrorMessage.serializer()) {
             httpCreate(
                 baseContext
             )

@@ -7,6 +7,7 @@ import dk.sdu.cloud.accounting.services.projects.v2.ProviderNotificationService
 import dk.sdu.cloud.accounting.util.Providers
 import dk.sdu.cloud.accounting.util.SimpleProviderCommunication
 import dk.sdu.cloud.calls.BulkRequest
+import dk.sdu.cloud.calls.BulkResponse
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.call
@@ -103,7 +104,7 @@ class GrantApplicationService(
     suspend fun submit(
         actorAndProject: ActorAndProject,
         request: BulkRequest<CreateApplication>
-    ): List<FindByLongId> {
+    ): BulkResponse<FindByLongId> {
         request.items.forEach { createRequest ->
             val recipient = createRequest.document.recipient
             if (recipient is GrantApplication.Recipient.PersonalWorkspace && recipient.username != actorAndProject.actor.safeUsername()) {
@@ -287,7 +288,7 @@ class GrantApplicationService(
             runCatching { notifications.notify(actorAndProject.actor.safeUsername(), notification) }
         }
 
-        return results.map { FindByLongId(it.first) }.toSet().toList()
+        return BulkResponse(results.map { FindByLongId(it.first) }.toSet().toList())
     }
 
     private suspend fun retrieveGrantGiversStates(
@@ -451,9 +452,6 @@ class GrantApplicationService(
         isSubmit: Boolean = false
     ) {
         runBlocking {
-            // TODO(Jonas):
-            // Fetch existing allocation requests, ONLY update these allocations requests based on actorAndProject
-            // project where grantGiver == actorAndProject.project. UNLESS request is from recipient.
             val recipient = document.recipient
             val allocationRequests = if (!isSubmit) {
                 // Note(Jonas): Only if an application with resources already exists, retrieveGrantApplication can be called
@@ -803,7 +801,6 @@ class GrantApplicationService(
         }
     }
 
-    // TODO(Jonas): Only allow approving a grant application if #source-allocations > 0 for the approver
     suspend fun updateStatus(
         actorAndProject: ActorAndProject,
         request: BulkRequest<UpdateApplicationState>
@@ -821,6 +818,13 @@ class GrantApplicationService(
                     throw RPCException(
                         "Not all requested resources have a source allocation assigned. " +
                             "You must select one for each resource.",
+                        HttpStatusCode.BadRequest
+                    )
+                }
+
+                if (allocations.isEmpty()) {
+                    throw RPCException(
+                        "At least one resource must be requested to approve the application.",
                         HttpStatusCode.BadRequest
                     )
                 }

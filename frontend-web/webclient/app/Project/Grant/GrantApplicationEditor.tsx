@@ -17,7 +17,7 @@ import Text from "@/ui-components/Text";
 import TextArea from "@/ui-components/TextArea";
 import {ThemeColor} from "@/ui-components/theme";
 import Tooltip from "@/ui-components/Tooltip";
-import {apiBrowse, apiCreate, apiRetrieve, apiUpdate, callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {callAPI, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     browseWallets,
     explainAllocation,
@@ -65,21 +65,27 @@ import {
     AllocationRequest,
     browseAffiliations,
     browseAffiliationsByResource,
+    browseProducts,
     closeApplication,
     Comment,
     commentOnGrantApplication,
     deleteGrantApplicationComment,
     Document,
+    editApplicationRequest,
+    fetchGrantApplication,
     FetchGrantApplicationRequest,
     FetchGrantApplicationResponse,
     GrantApplication,
     GrantGiverApprovalState,
     GrantProductCategory,
     Recipient,
+    retrieveTemplates,
     Revision,
     State,
+    submitApplicationRequest,
     Templates,
     transferApplication,
+    updateState,
 } from "./GrantApplicationTypes";
 import {useAvatars} from "@/AvataaarLib/hook";
 import {useProjectId, useProjectManagementStatus} from "..";
@@ -421,10 +427,6 @@ const GenericRequestCard: React.FunctionComponent<{
     }
 };
 
-export async function fetchGrantApplication(request: FetchGrantApplicationRequest): Promise<FetchGrantApplicationResponse> {
-    return callAPI<FetchGrantApplicationResponse>(apiRetrieve(request, "api/grant"));
-}
-
 const AllocationBox = styled.div`
     padding: 8px 8px 8px 8px;
     border-radius: 6px;
@@ -687,7 +689,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
         React.useEffect(() => {
             const {parentProjectId} = getDocument(grantApplication);
             if (parentProjectId && target !== RequestTarget.VIEW_APPLICATION) {
-                fetchTemplates(apiRetrieve({projectId: grantApplication.currentRevision.document.parentProjectId}, "/api/grant/templates"))
+                fetchTemplates(retrieveTemplates({projectId: parentProjectId}));
             }
         }, [grantApplication.currentRevision.document.parentProjectId]);
         React.useEffect(() => {
@@ -722,7 +724,6 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 );
             };
         }, [appId]);
-
 
         const projectManagement = useProjectManagementStatus({isRootComponent: true, allowPersonalProject: true});
         const isRecipient = checkIsGrantRecipient(target, grantApplication, isAdminOrPI(projectManagement.projectDetails.data.whoami.role));
@@ -786,11 +787,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                 };
 
                 const toSubmit = {
-                    applicationId: appId,
+                    applicationId: appId!,
                     document
                 };
 
-                await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
+                await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
                 dispatch({type: UPDATE_DOCUMENT, payload: document});
                 dispatch({
                     type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
@@ -874,7 +875,10 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             const payload = bulkRequestOf({document: documentToSubmit});
 
             try {
-                const [{id}] = await runWork(apiCreate(payload, "/api/grant", "submit-application"), {defaultErrorHandler: false});
+                const [{id}] = (await runWork<UCloud.BulkResponse<UCloud.FindByLongId>>(
+                    submitApplicationRequest(payload),
+                    {defaultErrorHandler: false})
+                )!.responses;
                 history.push(`/project/grants/view/${id}`);
             } catch (error) {
                 displayErrorMessageOrDefault(error, "Failed to submit application.");
@@ -894,11 +898,11 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             document.revisionComment = "Updated reference ID";
 
             const toSubmit = {
-                applicationId: appId,
+                applicationId: appId!,
                 document
             };
 
-            await runWork<[id: string]>(apiUpdate(bulkRequestOf(toSubmit), "/api/grant", "edit"));
+            await runWork<[id: string]>(editApplicationRequest(bulkRequestOf(toSubmit)));
             dispatch({type: UPDATE_DOCUMENT, payload: document});
             dispatch({
                 type: UPDATE_REVISIONS, payload: [...grantApplication.status.revisions, {
@@ -1598,12 +1602,12 @@ function GrantGiver(props: {
     const {recipient} = props.grantApplication.currentRevision.document;
     const recipientId = getRecipientId(recipient);
 
-    const [products] = useCloudAPI<{availableProducts: Product[]}>(apiBrowse({
+    const [products] = useCloudAPI<{availableProducts: Product[]}>(browseProducts({
         projectId: props.project.projectId,
         recipientType: recipient.type,
         recipientId,
         showHidden: false
-    }, "/api/grant", "products"), {availableProducts: []});
+    }), {availableProducts: []});
 
     const productCategories: GrantProductCategory[] = useMemo(() => {
         const result: GrantProductCategory[] = [];
@@ -1926,16 +1930,6 @@ const PostCommentWrapper = styled.form`
     }
 `;
 
-interface UpdateStateRequest {
-    applicationId: string;
-    newState: State;
-    notify: boolean;
-}
-
-function updateState(request: UCloud.BulkRequest<UpdateStateRequest>): APICallParameters<UCloud.BulkRequest<UpdateStateRequest>> {
-    return apiUpdate(request, "/api/grant", "update-state");
-}
-
 const PostCommentWidget: React.FunctionComponent<{
     grantId: string,
     avatar: AvatarType,
@@ -1948,12 +1942,12 @@ const PostCommentWidget: React.FunctionComponent<{
         e.preventDefault();
         if (disabled) return;
         try {
-            const result = await runWork<{id: string}[]>(commentOnGrantApplication({
+            const result = await runWork<UCloud.BulkResponse<{id: string}>>(commentOnGrantApplication({
                 grantId,
                 comment: commentBoxRef.current!.value
             }), {defaultErrorHandler: false});
             if (result != null) {
-                const [{id}] = result;
+                const [{id}] = result.responses;
                 onPostedComment({
                     comment: commentBoxRef.current!.value,
                     createdAt: new Date().getTime(),
