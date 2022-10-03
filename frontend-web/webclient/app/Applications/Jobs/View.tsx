@@ -491,11 +491,11 @@ const InQueueText: React.FunctionComponent<{job: Job}> = ({job}) => {
         <Heading.h3>
             {job.specification.name ?
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
+                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
                     {" "}for <i>{job.specification.name}</i> (ID: {shortUUID(job.id)})
                 </>) :
                 (<>
-                    Starting <i>{job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}</i>
+                    Starting {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name} {job.specification.application.version}
                     {" "}(ID: {shortUUID(job.id)})
                 </>)
             }
@@ -696,10 +696,8 @@ const RunningText: React.FunctionComponent<{job: Job}> = ({job}) => {
                     {!job.specification.name ? "Your job" : (<><i>{job.specification.name}</i></>)} is now running
                 </Heading.h2>
                 <Heading.h3>
-                    <i>
-                        {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                        {" "}{job.specification.application.version}
-                    </i>
+                    {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+                    {" "}{job.specification.application.version}
                 </Heading.h3>
             </Box>
             {job.specification.replicas > 1 ? null : (
@@ -1175,10 +1173,8 @@ const CompletedText: React.FunctionComponent<{job: Job, state: JobState}> = ({jo
     return <CompletedTextWrapper>
         <Heading.h2>Your job has {jobStateToText(state)}</Heading.h2>
         <Heading.h3>
-            <i>
-                {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
-                {" "}{job.specification.application.version}
-            </i>
+            {job.status.resolvedApplication?.metadata?.title ?? job.specification.application.name}
+            {" "}{job.specification.application.version}{" "}
             {job.specification.name ? <>for <i>{job.specification.name}</i></> : null}
             {" "}(ID: {shortUUID(job.id)})
         </Heading.h3>

@@ -9,6 +9,7 @@ import dk.sdu.cloud.app.store.api.ArgumentBuilder
 import dk.sdu.cloud.app.store.api.BooleanFlagParameter
 import dk.sdu.cloud.app.store.api.EnvironmentVariableParameter
 import dk.sdu.cloud.app.store.api.InvocationParameterContext
+import dk.sdu.cloud.app.store.api.NameAndVersion
 import dk.sdu.cloud.app.store.api.ToolBackend
 import dk.sdu.cloud.app.store.api.VariableInvocationParameter
 import dk.sdu.cloud.app.store.api.WordInvocationParameter
@@ -24,11 +25,7 @@ private fun escapeBash(value: String): String {
         for (char in value) {
             append(
                 when (char) {
-                    '\\' -> "\\\\"
                     '\'' -> "'\"'\"'"
-                    '\"' -> "\\\""
-                    '`' -> "\\`"
-                    '$' -> "\\$"
                     else -> char
                 }
             )
@@ -78,10 +75,7 @@ suspend fun createSbatchFile(
 
     return buildString {
         appendLine("#!/usr/bin/env bash")
-        appendLine("#")
-        appendLine("# POSTFIX START")
 
-        appendLine("#")
         run {
             if (jobFolder != null) appendLine("#SBATCH --chdir \"$jobFolder\"")
             appendLine("#SBATCH --cpus-per-task ${resolvedProduct.cpu ?: 1}")
@@ -100,10 +94,14 @@ suspend fun createSbatchFile(
             appendLine("#SBATCH --get-user-env")
             if (account != null) appendLine("#SBATCH --account=$account")
         }
-        appendLine("#")
 
-        appendLine("# POSTFIX END")
-        appendLine("#")
+        val appMetadata = job.status.resolvedApplication!!.metadata
+        if (appMetadata.name.startsWith(slurmRawScriptPrefix)) {
+            val script = ((job.specification.parameters ?: emptyMap())["script"] as? AppParameterValue.Text)?.value
+                ?: "echo 'No script found'"
+            appendLine(script)
+            return@buildString
+        }
 
         val allocatedPort = Random.nextInt(10_000, 50_000)
 
@@ -116,7 +114,14 @@ suspend fun createSbatchFile(
             val value = param.buildInvocationList(givenParameters, InvocationParameterContext.ENVIRONMENT, argBuilder)
                 .joinToString(separator = " ") { "'" + escapeBash(it) + "'" }
 
-            appendLine("export $key = $value")
+            appendLine("export $key=$value")
+        }
+
+        if (tool.description.requiredModules.isNotEmpty()) {
+            appendLine("module purge")
+            for (module in tool.description.requiredModules) {
+                appendLine("module load '${module}'")
+            }
         }
 
         val udocker = plugin.udocker
@@ -133,18 +138,20 @@ suspend fun createSbatchFile(
             appendLine("export PATH=\$PATH:$udockerPath")
 
             // TODO(Dan): Only the bash part has been tested, haven't tested if this works in practice.
-            appendLine("""
-                while :
-                do
-                    udocker images | grep "$containerImage" 2> /dev/null
-                    if [ "$?" -eq 0 ]
-                    then
-                        break
-                    fi
+            appendLine(
+                """
+                    while :
+                    do
+                        udocker images | grep "$containerImage" 2> /dev/null
+                        if [ "$?" -eq 0 ]
+                        then
+                            break
+                        fi
 
-                    sleep 1
-                done    
-            """.trimIndent())
+                        sleep 1
+                    done    
+                """.trimIndent()
+            )
 
             appendLine("udocker create --name=${job.id} $containerImage")
             appendLine("udocker setup --execmode=${pluginConfig.udocker.execMode.name} ${job.id}")
@@ -165,7 +172,6 @@ suspend fun createSbatchFile(
         }
 
         appendLine("srun --output='std-%n.out' --error='std-%n.err' $cliInvocation")
-        appendLine("#EOF")
     }
 }
 
@@ -183,3 +189,5 @@ private class OurArgBuilder(
         }
     }
 }
+
+private const val slurmRawScriptPrefix = "slurm-script-"
