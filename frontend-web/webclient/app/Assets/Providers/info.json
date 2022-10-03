@@ -3,22 +3,34 @@
     {
       "id": "ucloud",
       "title": "UCloud",
-      "logo": "ucloud.png"
+      "logo": "ucloud.png",
+      "description": "Some text. This is a todo",
+      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
+      "skus": []
     },
     {
       "id": "hippo",
       "title": "Hippo",
-      "logo": "hippo.png"
+      "logo": "hippo.png",
+      "description": "Some text. This is a todo",
+      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
+      "skus": []
     },
     {
       "id": "sophia",
       "title": "Sophia",
-      "logo": "sophia.png"
+      "logo": "sophia.png",
+      "description": "Some text. This is a todo",
+      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
+      "skus": []
     },
     {
       "id": "puhuri",
       "title": "Puhuri",
-      "logo": "puhuri.png"
+      "logo": "puhuri.png",
+      "description": "Some text. This is a todo",
+      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
+      "skus": []
     }
   ]
 }

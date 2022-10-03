@@ -6,7 +6,7 @@ import SophiaLogo from "@/Assets/Providers/sophia.png";
 import UCloudLogo from "@/Assets/Providers/ucloud.png";
 import styled from "styled-components";
 
-export const ProviderLogo: React.FunctionComponent<{ providerId: string; size: number; }> = ({providerId, size}) => {
+export const ProviderLogo: React.FunctionComponent<{providerId: string; size: number;}> = ({providerId, size}) => {
     let logo: any = null;
     switch (providerId) {
         case "hippo":

@@ -50,6 +50,8 @@ const CreateProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const EditProvider = React.lazy(() => import("@/Admin/Providers/Save"));
 const RegisterProvider = React.lazy(() => import("@/Admin/Providers/Approve"));
 const ProviderConnection = React.lazy(() => import("@/Providers/Connect"));
+const ProviderOverview = React.lazy(() => import("@/Providers/Overview"));
+const ProviderDetailed = React.lazy(() => import("@/Providers/Detailed"));
 const IngressRouter = React.lazy(() => import("@/Applications/Ingresses/Router"));
 const LicenseRouter = React.lazy(() => import("@/Applications/Licenses"));
 const NetworkIPsRouter = React.lazy(() => import("@/Applications/NetworkIP/Router"));
@@ -154,6 +156,8 @@ const Core = (): JSX.Element => (
                     <Route exact path="/providers/create" component={requireAuth(CreateProvider)} />
                     <Route exact path="/providers/edit/:id" component={requireAuth(EditProvider)} />
                     <Route exact path="/providers/register" component={requireAuth(RegisterProvider)} />
+                    <Route exact path="/providers/overview" component={ProviderOverview} />
+                    <Route exact path="/providers/detailed/:id" component={ProviderDetailed} />
                     <Route path={"/providers"} component={requireAuth(ProviderRouter)} />
 
                     <Route exact path="/news/detailed/:id" component={DetailedNews} />
