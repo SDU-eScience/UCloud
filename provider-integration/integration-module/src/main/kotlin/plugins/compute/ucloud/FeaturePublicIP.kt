@@ -53,6 +53,7 @@ class FeaturePublicIP(
             for (network in networks.items) {
                 val ipAddress: Address = findAddressFromPool(session)
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_network_ips (id, external_ip_address, internal_ip_address, owner) 
                         values (:id, :external, :internal, :owner)
@@ -107,6 +108,7 @@ class FeaturePublicIP(
             ownersAndResources.forEachGraal { owner, resourceId ->
                 val rows = ArrayList<Long>()
                 session.prepareStatement(
+                    //language=postgresql
                     "select count(*)::bigint from ucloud_compute_network_ips where owner = :owner"
                 ).useAndInvoke(
                     prepare = { bindString("owner", owner)},
@@ -135,12 +137,14 @@ class FeaturePublicIP(
         db.withSession { session ->
             networks.items.forEach { ingress ->
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_bound_network_ips where network_ip_id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id)}
                 )
 
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_network_ips where id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = { bindString("id", ingress.id) }
@@ -168,6 +172,7 @@ class FeaturePublicIP(
         val idsAndIps = db.withSession { session ->
             for (network in networks) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_network_ips (network_ip_id, job_id) 
                         values (:id, :jobId) 
@@ -184,6 +189,7 @@ class FeaturePublicIP(
             val rows = ArrayList<RetrievedIpAddress>()
             for (network in networks) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select id, internal_ip_address, external_ip_address
                         from ucloud_compute_network_ips 
@@ -225,6 +231,7 @@ class FeaturePublicIP(
     override suspend fun JobManagement.onCleanup(jobId: String) {
         db.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 "delete from ucloud_compute_bound_network_ips where job_id = :jobId"
             ).useAndInvokeAndDiscard(
                 prepare = { bindString("jobId", jobId)}
@@ -243,6 +250,7 @@ class FeaturePublicIP(
             validateCidr(externalCidr)
             validateCidr(internalCidr)
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into ucloud_compute_network_ip_pool (external_cidr, internal_cidr)
                     values (:external_cidr, :internal_cidr)
@@ -264,6 +272,7 @@ class FeaturePublicIP(
         val rows = ArrayList<K8Subnet>()
         db.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select external_cidr, internal_cidr from ucloud_compute_network_ip_pool
                 """
@@ -277,8 +286,10 @@ class FeaturePublicIP(
     private suspend fun retrieveStatus(ctx: DBContext): K8NetworkStatus {
         return ctx.withSession { session ->
             val subnets = ArrayList<UIntRange>()
-            session.prepareStatement("select external_cidr from ucloud_compute_network_ip_pool")
-                .useAndInvoke {
+            session.prepareStatement(
+                //language=postgresql
+                "select external_cidr from ucloud_compute_network_ip_pool"
+            ).useAndInvoke {
                     val external = it.getString(0)!!
                     val validated = runCatching { validateCidr(external) }.getOrNull() ?: return@useAndInvoke
                     subnets.add(validated)
@@ -310,6 +321,7 @@ class FeaturePublicIP(
             val subnets = ArrayList<Pair<UIntRange, UIntRange>>()
             session
                 .prepareStatement(
+                    //language=postgresql
                     "select external_cidr, internal_cidr from network_ip_pool"
                 )
                 .useAndInvoke {
@@ -338,6 +350,7 @@ class FeaturePublicIP(
                 var exists = false
                 session
                     .prepareStatement(
+                        //language=postgresql
                         """
                             select exists(
                                 select 1

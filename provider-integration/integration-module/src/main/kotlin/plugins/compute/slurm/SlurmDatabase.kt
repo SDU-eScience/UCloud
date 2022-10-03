@@ -23,6 +23,7 @@ object SlurmDatabase {
     ) {
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into job_mapping (local_id, ucloud_id, partition, status, lastknown, elapsed)
                     values (:local_id, :ucloud_id, :partition, :status, :last_known, :elapsed)
@@ -179,6 +180,7 @@ object SlurmDatabase {
 
         ctx.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select token, rank, ucloud_id
                     from session_mapping

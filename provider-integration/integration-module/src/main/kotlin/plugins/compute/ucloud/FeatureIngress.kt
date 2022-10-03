@@ -76,6 +76,7 @@ class FeatureIngress(
                 }
 
                 session.prepareStatement(
+                    //language=postgresql
                     "insert into ucloud_compute_ingresses (id, domain) values (:id, :domain)"
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -100,6 +101,7 @@ class FeatureIngress(
         db.withSession { session ->
             ingresses.items.forEach { ingress ->
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_bound_ingress where ingress_id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -108,6 +110,7 @@ class FeatureIngress(
                 )
 
                 session.prepareStatement(
+                    //language=postgresql
                     "delete from ucloud_compute_ingresses where id = :id"
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -132,6 +135,7 @@ class FeatureIngress(
         db.withSession { session ->
             for (ingress in ingressPoints) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_ingress (ingress_id, job_id) 
                         values (:ingressId, :jobId) 
@@ -150,6 +154,7 @@ class FeatureIngress(
     override suspend fun JobManagement.onCleanup(jobId: String) {
         db.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 "delete from ucloud_compute_bound_ingress where job_id = :jobId"
             ).useAndInvokeAndDiscard(
                 prepare = {
@@ -164,6 +169,7 @@ class FeatureIngress(
             val rows = ArrayList<String>()
             session
                 .prepareStatement(
+                    //language=postgresql
                     """
                         select job_id
                         from ucloud_compute_bound_ingress b join ucloud_compute_ingresses i on b.ingress_id = i.id
@@ -184,6 +190,7 @@ class FeatureIngress(
         return db.withSession { session ->
             val rows = ArrayList<String>()
             session.prepareStatement(
+                //language=postgresql
                 """
                     select domain
                     from ucloud_compute_bound_ingress b join ucloud_compute_ingresses i on b.ingress_id = i.id

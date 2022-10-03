@@ -40,6 +40,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             var oldProject: Project? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select project_as_json
                         from simple_project_project_database
@@ -55,6 +56,7 @@ class SimpleProjectPlugin : ProjectPlugin {
                 )
 
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into simple_project_project_database(ucloud_id, project_as_json)
                         values (:ucloud_id, :project_as_json)
@@ -162,7 +164,6 @@ class SimpleProjectPlugin : ProjectPlugin {
         if (!missingUids.isEmpty()) {
             dbConnection.withSession { session ->
                 session.prepareStatement(
-                    //language=postgresql
                     """
                         with changes as (
                             ${safeSqlTableUpload("changes", missingUids)}
@@ -217,6 +218,7 @@ class SimpleProjectPlugin : ProjectPlugin {
 
             // Fetch missing connections
             session.prepareStatement(
+                //language=postgresql
                 """
                     select p.project_as_json
                     from 
@@ -292,6 +294,7 @@ class SimpleProjectPlugin : ProjectPlugin {
 
             // Clean up (the user is no longer missing)
             session.prepareStatement(
+                //language=postgresql
                 """
                     delete from 
                     simple_project_missing_connections
@@ -313,6 +316,7 @@ class SimpleProjectPlugin : ProjectPlugin {
         return dbConnection.withSession { session ->
             var result: Int? = null
             session.prepareStatement(
+                //language=postgresql
                 """
                     select local_id
                     from simple_project_group_mapper
@@ -330,6 +334,7 @@ class SimpleProjectPlugin : ProjectPlugin {
             if (result != null) return@withSession result!! + pluginConfig.unixGroupNamespace
 
             session.prepareStatement(
+                //language=postgres
                 """
                     insert into simple_project_group_mapper (ucloud_id) values (:ucloud_id) returning local_id
                 """

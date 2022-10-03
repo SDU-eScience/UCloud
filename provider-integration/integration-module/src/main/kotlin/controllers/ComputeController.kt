@@ -474,7 +474,7 @@ class ComputeController(
                     """
                         insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data,
                             target)
-                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target)
+                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target::text)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {

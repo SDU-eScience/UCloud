@@ -349,7 +349,7 @@ class UsageScan(
             session.prepareStatement(
                 """
                     insert into ucloud_storage_quota_locked (scan_id, category, username, project_id) 
-                    values (:scan_id, :category, :username, :project_id)
+                    values (:scan_id, :category::text, :username::text, :project_id)
                 """,
             ).useAndInvokeAndDiscard(
                 prepare = {

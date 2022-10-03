@@ -22,13 +22,14 @@ class LimitChecker(
             var isLocked = false
             db.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select true
                         from ucloud_storage_quota_locked
                         where
-                            username is :username and
-                            project_id is :project_id and
-                            category is :category
+                            username = :username::text and
+                            project_id = :project_id::text and
+                            category = :category
                     """,
                 ).useAndInvoke(
                     prepare = {

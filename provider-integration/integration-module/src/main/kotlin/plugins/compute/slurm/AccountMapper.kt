@@ -37,6 +37,7 @@ class AccountMapper(
         if (result != null) {
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into slurm_account_mapper
                             (username, project_id, category, partition, slurm_account)
@@ -146,6 +147,7 @@ class AccountMapper(
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select
                         username, project_id, category
