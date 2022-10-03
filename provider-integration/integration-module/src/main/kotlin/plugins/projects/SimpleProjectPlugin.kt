@@ -1,10 +1,14 @@
-package dk.sdu.cloud.plugins
+package dk.sdu.cloud.plugins.projects
 
 import dk.sdu.cloud.controllers.UserMapping
 import dk.sdu.cloud.dbConnection
 import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.config.*
-import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.plugins.PluginContext
+import dk.sdu.cloud.plugins.ProjectPlugin
+import dk.sdu.cloud.plugins.ipcServer
+import dk.sdu.cloud.plugins.optionalExtension
+import dk.sdu.cloud.plugins.optionalInvoke
 import dk.sdu.cloud.project.api.v2.*
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.sql.*

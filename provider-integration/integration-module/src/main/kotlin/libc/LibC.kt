@@ -4,6 +4,9 @@ import dk.sdu.cloud.utils.sendTerminalMessage
 import io.ktor.util.*
 import java.io.File
 import java.nio.ByteBuffer
+import java.nio.file.Files
+import java.nio.file.attribute.PosixFilePermissions
+import java.util.*
 import kotlin.system.exitProcess
 
 class NativeStat(
@@ -47,24 +50,64 @@ class LibC {
     external fun retrieveUserIdFromName(name: String): Int
     external fun retrieveGroupIdFromName(name: String): Int
 
-    // Required by file-ucloud TODO implement them
     external fun getErrno(): Int
     external fun mkdirat(dirfd: Int, pathName: String, mode: Int): Int
     external fun closedir(dirp: Long): Int
     external fun fstat(fd: Int): NativeStat
 
-
     external fun getuid(): Int
+
+    external fun createAndForkPty(): Int
+    external fun resizePty(masterFd: Int, cols: Int, rows: Int): Int
 
     companion object {
         init {
-            val potentialLocations = listOf(File("./libc_wrapper.so"), File("./native/libc_wrapper.so"), File("/opt/ucloud/native/libc_wrapper.so"))
             var didLoad = false
-            for (file in potentialLocations) {
+
+            val locationsForExtraction = listOfNotNull(
+                Files.createTempDirectory("ucloud-lib").toFile().also { it.deleteOnExit() },
+                System.getenv("UCLOUD_CODE_DIR").takeIf { it.isNullOrBlank() }?.let { File(it) },
+                File("/tmp/")
+            )
+
+            for (file in locationsForExtraction) {
                 if (!file.exists()) continue
-                System.load(file.absolutePath)
-                didLoad = true
-                break
+
+                try {
+                    val randomIdentifier = UUID.randomUUID().toString()
+                    val outputFile = File(file, "libc_wrapper_$randomIdentifier.so")
+                    outputFile.writeBytes(Base64.getDecoder().decode(libcSharedData.replace("\n", "")))
+                    Files.setPosixFilePermissions(
+                        outputFile.toPath(),
+                        PosixFilePermissions.fromString("r-x------")
+                    )
+                    try {
+                        System.load(outputFile.absolutePath)
+                    } catch (ex: Throwable) {
+                        runCatching { outputFile.delete() }
+                        continue
+                    }
+                    outputFile.deleteOnExit()
+                    didLoad = true
+                    break
+                } catch (ex: Throwable) {
+                    continue
+                }
+            }
+
+            val potentialLocations = listOf(
+                File("./libc_wrapper.so"),
+                File("./native/libc_wrapper.so"),
+                File("/opt/ucloud/native/libc_wrapper.so")
+            )
+
+            if (!didLoad) {
+                for (file in potentialLocations) {
+                    if (!file.exists()) continue
+                    runCatching { System.load(file.absolutePath) }.getOrNull() ?: continue
+                    didLoad = true
+                    break
+                }
             }
 
             if (!didLoad) {

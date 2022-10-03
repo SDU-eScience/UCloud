@@ -21,7 +21,12 @@ class IntegrationController(
         }
 
         implement(Integration.clearConnection) {
-            integrationService.clearConnection(request.username, request.provider)
+            integrationService.clearConnection(actorAndProject, request.username, request.provider)
+            ok(Unit)
+        }
+
+        implement(IntegrationControl.clearConnection) {
+            integrationService.clearConnection(actorAndProject, request.username, request.provider)
             ok(Unit)
         }
 

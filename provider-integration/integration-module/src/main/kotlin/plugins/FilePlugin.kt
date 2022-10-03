@@ -77,8 +77,6 @@ interface FilePlugin : ResourcePlugin<Product.Storage, FSSupport, UFile, ConfigS
     override suspend fun RequestContext.create(resource: UFile): FindByStringId? {
         error("Not supported by this plugin")
     }
-
-    override suspend fun PluginContext.runMonitoringLoop() {}
 }
 
 abstract class EmptyFilePlugin : FilePlugin {

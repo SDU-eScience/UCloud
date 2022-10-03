@@ -156,8 +156,7 @@ class UCloudComputePlugin : ComputePlugin {
         }
     }
 
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (!config.shouldRunServerCode()) return
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         jobManagement.runMonitoring()
     }
 

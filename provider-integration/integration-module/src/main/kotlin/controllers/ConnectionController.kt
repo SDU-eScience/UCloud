@@ -6,6 +6,8 @@ import dk.sdu.cloud.app.orchestrator.api.SSHKeysProvider
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.calls.HttpMethod
 import dk.sdu.cloud.calls.HttpStatusCode
+import dk.sdu.cloud.calls.client.call
+import dk.sdu.cloud.calls.client.orRethrowAs
 import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.HttpCall
 import dk.sdu.cloud.calls.server.RpcServer
@@ -116,7 +118,7 @@ class ConnectionController(
 
         server.addHandler(ConnectionIpc.removeConnection.handler { user, request ->
             if (user.uid != 0) throw RPCException.fromStatusCode(HttpStatusCode.Forbidden)
-            UserMapping.clearMappingByUCloudId(request.username)
+            UserMapping.clearMappingByUCloudId(request.username, controllerContext.pluginContext)
         })
 
         server.addHandler(MessageSigningIpc.browse.handler { user, request ->
@@ -318,7 +320,7 @@ class ConnectionController(
 
                     // Launch the IM/User instance
                     if (devInstance == null) {
-                        val logFilePath = controllerContext.configuration.core.logs.directory + "/user_${uid}.log"
+                        val logFilePath = controllerContext.configuration.core.logs.directory + "/startup-${uid}.log"
                         val ownExecutable =
                             if (controllerContext.ownExecutable.endsWith("/java")) "/usr/bin/ucloud"
                             else controllerContext.ownExecutable
@@ -331,8 +333,8 @@ class ConnectionController(
                                 "user",
                                 allocatedPort.toString()
                             )
-                            .redirectOutput(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
-                            .redirectError(ProcessBuilder.Redirect.appendTo(File("/tmp/ucloud_${uid}.log")))
+                            .redirectOutput(ProcessBuilder.Redirect.appendTo(File(logFilePath)))
+                            .redirectError(ProcessBuilder.Redirect.appendTo(File(logFilePath)))
                             .start()
 
                         uimPid.inputStream.close()
@@ -360,6 +362,15 @@ class ConnectionController(
                     )
                 }
 
+                ok(Unit)
+            }
+
+            implement(im.unlinked) {
+                UserMapping.clearMappingByUCloudId(
+                    request.username,
+                    controllerContext.pluginContext,
+                    clearInUCloud = false
+                )
                 ok(Unit)
             }
         }
@@ -517,7 +528,11 @@ object UserMapping {
 
     }
 
-    suspend fun clearMappingByUCloudId(ucloudId: String) {
+    suspend fun clearMappingByUCloudId(
+        ucloudId: String,
+        pluginContext: PluginContext,
+        clearInUCloud: Boolean = true,
+    ) {
         dbConnection.withSession { session ->
             session.prepareStatement(
                 //language=postgresql
@@ -530,6 +545,18 @@ object UserMapping {
                     bindString("ucloud_id", ucloudId)
                 },
             )
+
+            if (clearInUCloud) {
+                IntegrationControl.clearConnection.call(
+                    IntegrationClearConnectionRequest(ucloudId),
+                    pluginContext.rpcClient,
+                ).orRethrowAs { ex ->
+                    throw RPCException(
+                        "Could not clear connection. UCloud/Core failed with ${ex.statusCode} ${ex.error}",
+                        HttpStatusCode.BadGateway
+                    )
+                }
+            }
         }
     }
 

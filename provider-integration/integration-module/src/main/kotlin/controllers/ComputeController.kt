@@ -378,8 +378,7 @@ class ComputeController(
         }
 
         ktor.routing {
-            if (!controllerContext.configuration.shouldRunUserCode()) return@routing
-
+            if (!controllerContext.configuration.shouldRunServerCode()) return@routing
             val ipcClient = controllerContext.pluginContext.ipcClient
 
             get("/ucloud/$providerId/authorize-app") {
@@ -505,7 +504,8 @@ class ComputeController(
                         EnvoyCluster.create(
                             "_$generatedSessionId",
                             target.clusterAddress,
-                            target.clusterPort
+                            target.clusterPort,
+                            useDns = target.useDnsForAddressLookup
                         )
                     )
                 }
@@ -609,6 +609,7 @@ object ComputeSessionIpc : IpcContainer("compute_sessions") {
         val clusterPort: Int,
         // TODO(Dan): Might want to make this a sealed class at this point. It is ignored for anything but web
         val webSessionIsPublic: Boolean = false,
+        val useDnsForAddressLookup: Boolean = false,
     )
 
     val create = createHandler(Session.serializer(), FindByStringId.serializer())

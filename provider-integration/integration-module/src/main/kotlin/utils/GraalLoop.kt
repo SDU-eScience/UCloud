@@ -47,3 +47,7 @@ suspend fun BooleanArray.forEachGraal(consumer: suspend (Boolean) -> Unit) {
 suspend fun BooleanArray.forEachIndexedGraal(consumer: suspend (Int, Boolean) -> Unit) {
     asSequence().forEachIndexed { idx, it -> consumer(idx, it) }
 }
+
+suspend fun <T, K> Collection<T>.associateByGraal(keySelector: suspend (T) -> K): Map<K, T> {
+    return asSequence().associateBy { keySelector(it) }
+}

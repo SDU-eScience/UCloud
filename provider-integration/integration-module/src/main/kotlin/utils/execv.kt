@@ -7,6 +7,7 @@ import dk.sdu.cloud.debugSystem
 import dk.sdu.cloud.service.Loggable
 import java.lang.Process as JvmProcess
 import kotlinx.serialization.json.*
+import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -68,6 +69,7 @@ fun startProcess(
     attachStderr: Boolean = true,
     nonBlockingStdout: Boolean = false,
     nonBlockingStderr: Boolean = false,
+    workingDir: File? = null,
 ): Process {
     val jvmProcess = ProcessBuilder().apply {
         command(args)
@@ -78,6 +80,8 @@ fun startProcess(
                 key to value
             }
         )
+
+        if (workingDir != null) directory(workingDir)
 
         if (!attachStdout) redirectOutput(ProcessBuilder.Redirect.DISCARD)
         if (!attachStderr) redirectOutput(ProcessBuilder.Redirect.DISCARD)

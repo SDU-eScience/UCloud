@@ -281,7 +281,7 @@ class NotificationController(
             .forEach { plugin ->
                 with(controllerContext.pluginContext) {
                     with(plugin) {
-                        onAllocationComplete(notification)
+                        onAllocationCompleteInServerMode(notification)
                     }
                 }
             }

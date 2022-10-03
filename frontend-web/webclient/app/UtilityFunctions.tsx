@@ -118,6 +118,7 @@ export const extensionType = (ext: string): ExtensionType => {
         case "xml":
         case "json":
         case "yml":
+        case "sbatch":
             return "code";
         case "png":
         case "gif":
@@ -134,6 +135,8 @@ export const extensionType = (ext: string): ExtensionType => {
         case "log":
         case "csv":
         case "plist":
+        case "out":
+        case "err":
             return "text";
         case "pdf":
             return "pdf";
@@ -164,76 +167,7 @@ export const extensionType = (ext: string): ExtensionType => {
 };
 
 export function isExtPreviewSupported(ext: string): boolean {
-    switch (ext.toLowerCase()) {
-        case "app":
-        case "md":
-        case "swift":
-        case "kt":
-        case "kts":
-        case "js":
-        case "jsx":
-        case "ts":
-        case "tsx":
-        case "java":
-        case "py":
-        case "python":
-        case "tex":
-        case "r":
-        case "c":
-        case "h":
-        case "cc":
-        case "hh":
-        case "c++":
-        case "h++":
-        case "hpp":
-        case "cpp":
-        case "jai":
-        case "cxx":
-        case "hxx":
-        case "html":
-        case "lhs":
-        case "hs":
-        case "sql":
-        case "sh":
-        case "iol":
-        case "ol":
-        case "col":
-        case "bib":
-        case "toc":
-        case "png":
-        case "gif":
-        case "tiff":
-        case "eps":
-        case "ppm":
-        case "svg":
-        case "jpg":
-        case "txt":
-        case "xml":
-        case "json":
-        case "csv":
-        case "yml":
-        case "yaml":
-        case "plist":
-        case "pdf":
-        case "wav":
-        case "mp3":
-        case "ogg":
-        case "aac":
-        case "pcm":
-        case "mp4":
-        case "mov":
-        case "wmv":
-        case "log":
-        case "f":
-        case "for":
-        case "f90":
-        case "f95":
-        case "ini":
-        case "zig":
-            return true;
-        default:
-            return false;
-    }
+    return extensionType(ext) !== null;
 }
 
 /**

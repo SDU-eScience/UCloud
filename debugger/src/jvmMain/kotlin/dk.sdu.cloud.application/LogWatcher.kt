@@ -16,6 +16,7 @@ import kotlin.time.ExperimentalTime
 data class MessageAndId(val message: DebugMessage, val id: Int)
 
 class LogWatcher(private val folders: List<String>) {
+    private val startTime = Time.now()
     private val isRunning = AtomicBoolean(false)
 
     private val metadataOutputChannel = Channel<ServiceMetadata>(Channel.BUFFERED)
@@ -99,7 +100,9 @@ class LogWatcher(private val folders: List<String>) {
                                             .absoluteFile.normalize()
                                         val serviceId = metaFileToServiceId[metaFile]
                                         if (serviceId != null) {
-                                            watchedFiles.add(WatchedFile(entry, serviceId))
+                                            if (startTime - entry.lastModified() <= (1000L * 60 * 30)) {
+                                                watchedFiles.add(WatchedFile(entry, serviceId))
+                                            }
                                         } else {
                                             println("Failed to add $metaFile to watch")
                                         }

@@ -25,8 +25,6 @@ interface FileCollectionPlugin : ResourcePlugin<
     override suspend fun RequestContext.delete(resource: FileCollection) {
         throw RPCException("Not supported by this provider", HttpStatusCode.BadRequest)
     }
-
-    override suspend fun PluginContext.runMonitoringLoop() {}
 }
 
 abstract class EmptyFileCollectionPlugin : FileCollectionPlugin {
@@ -38,8 +36,7 @@ abstract class EmptyFileCollectionPlugin : FileCollectionPlugin {
         return BulkResponse(knownProducts.map { FSSupport(it) })
     }
 
-    override suspend fun PluginContext.runMonitoringLoop() {}
-    override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {}
+    override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {}
     override suspend fun RequestContext.verify(request: BulkRequest<FileCollection>) {}
 
     override suspend fun RequestContext.create(resource: FileCollection): FindByStringId? = throw RPCException("Not supported", HttpStatusCode.BadRequest)

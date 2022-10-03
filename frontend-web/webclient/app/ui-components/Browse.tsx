@@ -148,7 +148,6 @@ interface ItemRowProps<T, CB> {
 export const ItemRow = <T, CB>(
     props: React.PropsWithChildren<ItemRowProps<T, CB>>
 ): JSX.Element | null => {
-    console.log("Rendering ItemRow", props.item)
     const renderer = props.renderer;
     const renameInputRef = useRef<HTMLInputElement>(null);
     const openOperationsRef = useRef<(left: number, top: number) => void>(doNothing);

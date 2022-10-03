@@ -11,6 +11,8 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import java.nio.file.attribute.PosixFilePermissions
+import java.nio.file.Files as NioFiles
 
 sealed class DebugMessageTransformer {
     abstract fun transform(message: DebugMessage): DebugMessage?
@@ -98,7 +100,8 @@ class ThreadLocalDebugSystem(
 
     init {
         val now = Time.now()
-        directory.child("${id.replace("/", "-")}-${now}-${suffix}.meta.json").writeText(
+        val metaFile = directory.child("${id.replace("/", "-")}-${now}-${suffix}.meta.json")
+        metaFile.writeText(
             """
                 {
                     "path": "$id",
@@ -106,8 +109,18 @@ class ThreadLocalDebugSystem(
                 }
             """.trimIndent()
         )
+        NioFiles.setPosixFilePermissions(
+            metaFile.jvmFile.toPath(),
+            PosixFilePermissions.fromString("rw-------")
+        )
 
-        outputStream = CommonFileOutputStream(directory.child("${id.replace("/", "-")}-${now}-${suffix}.json"))
+        val logFile = directory.child("${id.replace("/", "-")}-${now}-${suffix}.json")
+        logFile.jvmFile.createNewFile()
+        outputStream = CommonFileOutputStream(logFile)
+        NioFiles.setPosixFilePermissions(
+            logFile.jvmFile.toPath(),
+            PosixFilePermissions.fromString("rw-------")
+        )
     }
 
     fun sendMessage(message: DebugMessage) {

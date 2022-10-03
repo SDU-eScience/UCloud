@@ -50,7 +50,7 @@ import {Job, api as JobsApi} from "@/UCloud/JobsApi";
 import {ItemRow} from "@/ui-components/Browse";
 import {useToggleSet} from "@/Utilities/ToggleSet";
 import {BrowseType} from "@/Resource/BrowseType";
-import {ConnectDashboardCard} from "@/Providers/ConnectDashboardCard";
+import {Connect} from "@/Providers/Connect";
 import {NotificationDashboardCard} from "@/Notifications";
 
 function Dashboard(props: DashboardProps): JSX.Element {
@@ -132,7 +132,7 @@ function Dashboard(props: DashboardProps): JSX.Element {
             <DashboardResources products={products} />
             <DashboardProjectUsage charts={usage} />
             <DashboardGrantApplications outgoingApps={outgoingApps} ingoingApps={ingoingApps} />
-            <ConnectDashboardCard/>
+            <Connect embedded />
         </GridCardGroup>
     );
 
