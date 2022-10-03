@@ -50,8 +50,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
 
 fun main(args: Array<String>) {
-    if (true) {
-        /*
+    if (false) {
+/*
 Both web applications and VNC applications appear to be viable
 
 VNC:
@@ -85,6 +85,9 @@ Batch applications:
     - UCloud also doesn't do it very well, if we want to do something like this, we would be better off creating a
       better system for batch apps. The UI just isn't useful enough.
     - Often you need to run a full workflow, not just a single step
+  - For all of this to work, we should implement some way of putting a "pre-init" script into the invocation
+    - This should only work for native
+    - Would help us load the correct modules without knowing about the module system
 
 Terminal integration:
 - Integrated application for terminal

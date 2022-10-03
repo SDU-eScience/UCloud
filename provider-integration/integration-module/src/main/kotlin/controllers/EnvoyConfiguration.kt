@@ -583,9 +583,11 @@ data class EnvoyCluster(
             name: String,
             address: String,
             port: Int,
+            useDns: Boolean = false,
         ): EnvoyCluster {
             return EnvoyCluster(
                 name,
+                type = if (useDns) "LOGICAL_DNS" else "STATIC",
                 loadAssignment = JsonObject(
                     "cluster_name" to JsonPrimitive(name),
                     "endpoints" to JsonArray(

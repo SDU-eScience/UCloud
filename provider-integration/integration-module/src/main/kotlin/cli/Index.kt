@@ -11,4 +11,5 @@ fun registerAlwaysOnCommandLines(controllerContext: ControllerContext) {
     GrantCli(controllerContext)
     SshKeyCli(controllerContext)
     EvilCli(controllerContext)
+    UDockerCli(controllerContext)
 }

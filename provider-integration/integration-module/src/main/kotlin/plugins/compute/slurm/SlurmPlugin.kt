@@ -15,10 +15,12 @@ import dk.sdu.cloud.calls.client.IngoingCallResponse
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orNull
 import dk.sdu.cloud.config.*
+import dk.sdu.cloud.controllers.ComputeSessionIpc
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.debug.*
 import dk.sdu.cloud.ipc.*
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.plugins.compute.udocker.UDocker
 import dk.sdu.cloud.plugins.storage.posix.PosixCollectionPlugin
 import dk.sdu.cloud.provider.api.ResourceOwner
 import dk.sdu.cloud.provider.api.ResourceUpdateAndId
@@ -47,6 +49,8 @@ class SlurmPlugin : ComputePlugin {
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
     private var fileCollectionPlugin: PosixCollectionPlugin? = null
+    var udocker: UDocker? = null
+        private set
 
     override fun configure(config: ConfigSchema.Plugins.Jobs) {
         this.pluginConfig = config as SlurmConfig
@@ -63,6 +67,9 @@ class SlurmPlugin : ComputePlugin {
         }
 
         fileCollectionPlugin = config.pluginsOrNull?.fileCollections?.get(pluginName) as? PosixCollectionPlugin
+        if (pluginConfig.udocker.enabled) {
+            udocker = UDocker(this).also { it.init() }
+        }
     }
 
     // IPC
@@ -170,7 +177,7 @@ class SlurmPlugin : ComputePlugin {
             )
         ).account
 
-        val sbatch = createSbatchFile(this, resource, pluginConfig, account, jobFolder)
+        val sbatch = createSbatchFile(this, resource, this@SlurmPlugin, account, jobFolder)
 
         val pathToScript = if (jobFolder != null) "${jobFolder}/job.sbatch" else "/tmp/${resource.id}.sbatch"
         NativeFile.open(path = pathToScript, readOnly = false, mode = "600".toInt(8)).writeText(sbatch)
@@ -301,11 +308,38 @@ class SlurmPlugin : ComputePlugin {
     override suspend fun RequestContext.openInteractiveSession(
         job: JobsProviderOpenInteractiveSessionRequestItem
     ): ComputeSession {
-        if (job.sessionType != InteractiveSessionType.SHELL) {
-            throw RPCException("Not supported", HttpStatusCode.BadRequest)
-        }
+        return when (job.sessionType) {
+            InteractiveSessionType.WEB -> {
+                val webConfig = pluginConfig.web
+                if (webConfig !is ConfigSchema.Plugins.Jobs.Slurm.Web.Simple) {
+                    throw RPCException("Unsupported operation", HttpStatusCode.BadRequest)
+                }
 
-        return ComputeSession()
+                val jobId = job.job.id
+                val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
+                val nodes = cli.getJobNodeList(slurmJob.slurmId)
+                val nodeToUse = nodes[job.rank]
+                    ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
+                val jobFolder = findJobFolder(jobId)
+                    ?: throw RPCException("Unable to connect to job", HttpStatusCode.BadGateway)
+                val port = runCatching { File(jobFolder, ALLOCATED_PORT_FILE).readText().trim().toInt() }.getOrNull()
+                    ?: throw RPCException("Unable to connect to job - Try again later", HttpStatusCode.BadGateway)
+
+                ComputeSession(
+                    target = ComputeSessionIpc.SessionTarget(
+                        webConfig.domainPrefix + jobId + webConfig.domainSuffix,
+                        nodeToUse,
+                        port,
+                        webSessionIsPublic = false,
+                        useDnsForAddressLookup = true
+                    )
+                )
+            }
+
+            InteractiveSessionType.SHELL -> ComputeSession()
+
+            else -> throw RPCException("Not supported", HttpStatusCode.BadRequest)
+        }
     }
 
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
@@ -690,6 +724,7 @@ class SlurmPlugin : ComputePlugin {
                     timeExtension = false,
                     terminal = true,
                     utilization = false,
+                    web = pluginConfig.web !is ConfigSchema.Plugins.Jobs.Slurm.Web.None,
                 ),
             )
         })
@@ -708,5 +743,7 @@ class SlurmPlugin : ComputePlugin {
             get() = accountMapperOrNull!!
 
         private val jobNameUnsafeRegex = Regex("""[^\w ():_-]""")
+
+        const val ALLOCATED_PORT_FILE = "allocated-port.txt"
     }
 }

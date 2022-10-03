@@ -885,9 +885,11 @@ const RunningContent: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
     const supportsExtension =
+        (backendType === "NATIVE" && support?.native.timeExtension) ||
         (backendType === "DOCKER" && support?.docker.timeExtension) ||
         (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.timeExtension);
     const supportsLogs =
+        (backendType === "NATIVE" && support?.native.logs) ||
         (backendType === "DOCKER" && support?.docker.logs) ||
         (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.logs);
 
@@ -1224,6 +1226,8 @@ const RunningButtonGroup: React.FunctionComponent<{
 
     const appType = appInvocation.applicationType;
     const supportsInterface =
+        (appType === "WEB" && backendType === "NATIVE" && support?.native.web) ||
+        (appType === "VNC" && backendType === "NATIVE" && support?.native.vnc) ||
         (appType === "WEB" && backendType === "DOCKER" && support?.docker.web) ||
         (appType === "VNC" && backendType === "DOCKER" && support?.docker.vnc) ||
         (appType === "VNC" && backendType === "VIRTUAL_MACHINE" && support?.virtualMachine.vnc);

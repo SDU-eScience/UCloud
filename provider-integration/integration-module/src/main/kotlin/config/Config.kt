@@ -273,6 +273,8 @@ data class ConfigSchema(
                 val useFakeMemoryAllocations: Boolean = false,
                 val accountMapper: AccountMapper = AccountMapper.None(),
                 val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
+                val web: Web = Web.None(),
+                val udocker: UDocker = UDocker()
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -285,6 +287,39 @@ data class ConfigSchema(
                     @Serializable
                     @SerialName("Extension")
                     data class Extension(val extension: String) : AccountMapper()
+                }
+
+                @Serializable
+                sealed class Web {
+                    @Serializable
+                    @SerialName("None")
+                    class None : Web()
+
+                    @Serializable
+                    @SerialName("Simple")
+                    class Simple(
+                        val domainPrefix: String,
+                        val domainSuffix: String,
+                    ) : Web()
+                }
+
+                @Serializable
+                data class UDocker(
+                    val enabled: Boolean = false,
+                    val execMode: ExecMode = ExecMode.P2
+                ) {
+                    enum class ExecMode {
+                        P1,
+                        P2,
+                        F1,
+                        F2,
+                        F3,
+                        F4,
+                        R1,
+                        R2,
+                        R3,
+                        S1
+                    }
                 }
             }
 
