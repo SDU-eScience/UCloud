@@ -1369,7 +1369,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     <Truncate>{rev.updatedBy}</Truncate>
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                    <pre style={{overflowX: "scroll"}}>
+                                                                    <pre style={{overflowX: "auto"}}>
                                                                         {rev.document.revisionComment}
                                                                     </pre>
                                                                 </TableCell>
