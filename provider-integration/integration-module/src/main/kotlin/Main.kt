@@ -385,7 +385,12 @@ fun main(args: Array<String>) {
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
                 IdleGarbageCollector().register(rpcServer)
 
-                val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
+                val engine = embeddedServer(
+                    CIO,
+                    host = "127.0.0.1",
+                    port = rpcServerPort ?: error("Missing rpcServerPort"),
+                    module = {}
+                )
                 ktorEngine = engine
                 engine.application.install(CORS) {
                     // We run with permissive CORS settings in dev mode. This allows us to test frontend directly

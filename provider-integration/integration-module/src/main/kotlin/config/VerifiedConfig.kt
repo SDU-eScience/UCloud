@@ -482,7 +482,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             }
         }
 
-        val database: VerifiedConfig.Server.Database = run {
+        val database: VerifiedConfig.Server.Database = if (mode == ServerMode.Server) {
             val dbconfig = config.server.database ?: ConfigSchema.Server.Database(
                 embedded = ConfigSchema.Server.Database.Embedded(
                     File(config.configurationDirectory, "pgsql").absolutePath
@@ -539,6 +539,8 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
             } else {
                 emitError("Internal config error")
             }
+        } else {
+            VerifiedConfig.Server.Database(null, "", null, null)
         }
 
         val envoy: VerifiedConfig.Server.Envoy = run {
