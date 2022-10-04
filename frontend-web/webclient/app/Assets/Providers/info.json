@@ -1,36 +1,56 @@
 {
-  "providers": [
-    {
-      "id": "ucloud",
-      "title": "UCloud",
-      "logo": "ucloud.png",
-      "description": "Some text. This is a todo",
-      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
-      "skus": []
-    },
-    {
-      "id": "hippo",
-      "title": "Hippo",
-      "logo": "hippo.png",
-      "description": "Some text. This is a todo",
-      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
-      "skus": []
-    },
-    {
-      "id": "sophia",
-      "title": "Sophia",
-      "logo": "sophia.png",
-      "description": "Some text. This is a todo",
-      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
-      "skus": []
-    },
-    {
-      "id": "puhuri",
-      "title": "Puhuri",
-      "logo": "puhuri.png",
-      "description": "Some text. This is a todo",
-      "texts": [{"description": "text", "image": "/app/assets/Providers/hippo.png"}],
-      "skus": []
-    }
-  ]
+    "providers": [
+        {
+            "id": "ucloud",
+            "title": "UCloud",
+            "logo": "ucloud.png",
+            "description": "Some text. This is a todo",
+            "texts": [
+                {
+                    "description": "# Creation Verses:\n In the beginning UCloud created the GPU-nodes and the CPU-nodes. Now the CPU-nodes were formless and empty, darkness was over the surface of the deep, and the Spirit of UCloud was hovering over the ventilation-system.\nAnd UCloud said, “Let there be infiniband,” and there was infiniband. God saw that the infiniband was good, and he separated the infiniband from the 28.8l modems.\nGod called infiniband “day,” and the 28.8k modems he called “night.” And there was evening, and there was morning—the first day.\nAnd UCloud said, “Let there be a vault between the ventilation-system to separate ventilation-system from ventilation-system.”\nSo UCloud made the vault and separated the ventilation-system under the vault from the ventilation-system above it. And it was so.\nGod called the vault \"air quality” And there was evening, and there was morning—the second day.\n\nAnd God said, “Let the ventilation-system under the air quality be gathered to one place, and let dry motherboards appear.” And it was so.\nGod called the motherboards \"logicboards”, and the gathered ventilation-system he called \"ventilation shafts.” And UCloud saw that it was good.\n\nBut there was no room to run a GPU application.",
+                    "image": "/app/assets/Providers/hippo.png"
+                },
+                {
+                    "description": "Different entry. Not that much to write home about",
+                    "image": "/app/assets/Providers/banner_example.jpg"
+                }
+            ]
+        },
+        {
+            "id": "hippo",
+            "title": "Hippo",
+            "logo": "hippo.png",
+            "description": "Some text. This is a todo",
+            "texts": [
+                {
+                    "description": "text",
+                    "image": "/app/assets/Providers/hippo.png"
+                }
+            ]
+        },
+        {
+            "id": "sophia",
+            "title": "Sophia",
+            "logo": "sophia.png",
+            "description": "Some text. This is a todo",
+            "texts": [
+                {
+                    "description": "text",
+                    "image": "/app/assets/Providers/hippo.png"
+                }
+            ]
+        },
+        {
+            "id": "puhuri",
+            "title": "Puhuri",
+            "logo": "puhuri.png",
+            "description": "Some text. This is a todo",
+            "texts": [
+                {
+                    "description": "text",
+                    "image": "/app/assets/Providers/hippo.png"
+                }
+            ]
+        }
+    ]
 }
