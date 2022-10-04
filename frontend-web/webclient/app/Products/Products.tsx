@@ -22,25 +22,28 @@ import {defaultModalStyle} from "@/Utilities/ModalUtilities";
 import {Spacer} from "@/ui-components/Spacer";
 import * as UCloud from "@/UCloud";
 import CONF from "../../site.config.json";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 
 function Products(): JSX.Element {
+    useTitle("SKUs");
+
     const main = (
         <ContainerForText>
             <Heading.h2>UCloud SKUs</Heading.h2>
             <Description />
 
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={"STORAGE"} area={"STORAGE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "STORAGE"} area={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"STORAGE"} area={"STORAGE"} />
+            <MachineView provider={"aau"} key={"aau" + "STORAGE"} area={"STORAGE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={"COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "COMPUTE"} area={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"COMPUTE"} area={"COMPUTE"} />
+            <MachineView provider={"aau"} key={"aau" + "COMPUTE"} area={"COMPUTE"} />
             <Box my="16px" />
-            <MachineView provider={UCLOUD_PROVIDER} key={"INGRESS"} area={"INGRESS"} />
+            <MachineView provider={UCLOUD_PROVIDER} key={UCLOUD_PROVIDER + "INGRESS"} area={"INGRESS"} />
             <Box my="16px" />
-            <MachineView provider={"aau"} key={"INGRESS"} area={"INGRESS"} />
+            <MachineView provider={"aau"} key={"aau" + "INGRESS"} area={"INGRESS"} />
         </ContainerForText>
     );
 
@@ -66,7 +69,7 @@ const DetailedView = styled(Table)`
     }
 `;
 
-const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}> = ({area, provider}) => {
+export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}> = ({area, provider}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
         UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}),
         emptyPage
@@ -76,10 +79,13 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
     const isCompute = "COMPUTE" === area;
 
     const machineCount = machines.data.items.length;
+    const [hasPrice, setHasPrice] = React.useState(false);
+    React.useEffect(() => {
+        setHasPrice(price => price || machines.data.items.some(it =>
+            ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(it.unitOfPrice)
+        ));
+    }, [machines.data]);
     if (machineCount === 0) return null;
-    const unitOfPrice = machines.data.items[0].unitOfPrice;
-    const hasPrice = unitOfPrice === "CREDITS_PER_DAY" || unitOfPrice === "CREDITS_PER_HOUR" ||
-        unitOfPrice === "CREDITS_PER_MINUTE";
 
     return (<>
         <Card
@@ -116,8 +122,11 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                                     </TableHeader>
                                     <tbody>
                                         {items.map(machine => {
-                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") 
-                                            if (machine === null) return null;
+                                            if (provider === UCLOUD_PROVIDER && area === "COMPUTE") {
+                                                // Note(Jonas): Why in the world would this ever happen?
+                                                if (machine === null) return null;
+                                            }
+                                            const showPrice = ["CREDITS_PER_DAY", "CREDITS_PER_HOUR", "CREDITS_PER_MINUTE"].includes(machine.unitOfPrice);
                                             const computeProduct = area === "COMPUTE" ? machine as ProductCompute : null;
                                             return <TableRow key={machine.name} onClick={() => setActiveMachine(machine)}>
                                                 <TableCell>{machine.name}</TableCell>
@@ -126,7 +135,7 @@ const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}
                                                 {!computeProduct ? null :
                                                     <TableCell>{computeProduct.memoryInGigs ?? "Unspecified"}</TableCell>}
                                                 {!computeProduct ? null : <TableCell>{computeProduct.gpu ?? 0}</TableCell>}
-                                                {!hasPrice ? null : <TableCell>{priceExplainer(machine)}</TableCell>}
+                                                {!hasPrice ? null : <TableCell>{showPrice ? priceExplainer(machine) : ""}</TableCell>}
                                                 <TruncatedTableCell>{machine.description}</TruncatedTableCell>
                                             </TableRow>;
                                         })}
