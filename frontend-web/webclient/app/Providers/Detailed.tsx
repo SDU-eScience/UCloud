@@ -3,29 +3,24 @@ import * as React from "react";
 import Providers from "@/assets/Providers/info.json";
 import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import {Box, Button, Card, Flex, Text} from "@/ui-components";
+import {Box, Button, Card, Flex, Markdown, Relative, Text, theme} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
 import {ProviderLogo} from "./ProviderLogo";
 import {ProviderTitle} from "./ProviderTitle";
+import HighlightedCard from "@/ui-components/HighlightedCard";
+import {MachineView} from "@/Products/Products";
 
 export default function DetailedProvider() {
     const params = useParams<{id: string}>();
-    useTitle(params.id ?? "None");
+    const entry = React.useMemo(() => Providers.providers.find(it => it.id === params.id), [params.id]);
 
-    const entry = React.useMemo(() => {
-        return Providers.providers.find(it => it.id === params.id) ?? {
-            description: "Not found",
-            id: "Not found",
-            logo: "",
-            skus: [],
-            texts: [],
-            title: "Not found"
-        }
-    }, [params.id]);
+    useTitle(entry?.title ?? params.id);
 
-    const main = <div>
+    if (!entry) return null;
+
+    const main = <Box px="12px">
         <Flex>
             <div>
                 <ProviderLogo providerId={entry.id} size={200} />
@@ -39,24 +34,28 @@ export default function DetailedProvider() {
                 <Button>Provider website</Button>
             </Flex>
         </Flex>
-        {entry.texts.map(text => 
-            <Card key={text.description} my="8px">
-                <Flex>
-                    {text.image !== "" ? <div>
-                        <img style={{width: "150px", objectFit: "scale-down"}} src={text.image} />
-                    </div> : <Box />}
-                    <div>
-                        {text.description}
-                    </div>
-                </Flex>
-            </Card>
+        <Box height="48px" />
+        {entry.texts.map((text, index) =>
+            <Box key={index} my="16px">
+                <HighlightedCard color="purple">
+                    <Flex>
+                        {text.image !== "" ? <Flex flexDirection="column">
+                            <Box flexGrow={1} />
+                            <img style={{maxHeight: "150px", objectFit: "scale-down"}} src={text.image} />
+                            <Box flexGrow={1} />
+                        </Flex> : <Box />}
+                        <Box ml="16px">
+                            <Markdown>
+                                {text.description}
+                            </Markdown>
+                        </Box>
+                    </Flex>
+                </HighlightedCard>
+            </Box>
         )}
-        {entry.skus.length === 0 ? null : (
-            entry.skus.map(it => <div key={""}>
-                {it}
-            </div>)
-        )}
-    </div>;
+        <MachineView provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />
+        <MachineView provider={entry.id} key={entry.id + "COMPUTE"} area="COMPUTE" />
+    </Box>;
 
     if (!Client.isLoggedIn) return (<>
         <NonAuthenticatedHeader />

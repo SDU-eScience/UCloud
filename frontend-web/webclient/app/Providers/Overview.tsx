@@ -49,7 +49,7 @@ const ProviderLogoBox = styled.div`
 export default function ProviderOverview() {
     useTitle("Provider Overview");
 
-    const main = <GridCardGroup minmax={250} gridGap={4}>
+    const main = <GridCardGroup minmax={250} gridGap={8}>
         {Providers.providers.map(provider =>
             <ProviderEntry key={provider.title} provider={provider} />
         )}

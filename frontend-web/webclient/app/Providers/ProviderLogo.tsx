@@ -1,5 +1,5 @@
 import * as React from "react";
-import {Box, Image} from "@/ui-components";
+import {Image} from "@/ui-components";
 import HippoLogo from "@/Assets/Providers/hippo.png";
 import PuhuriLogo from "@/Assets/Providers/puhuri.png";
 import SophiaLogo from "@/Assets/Providers/sophia.png";
