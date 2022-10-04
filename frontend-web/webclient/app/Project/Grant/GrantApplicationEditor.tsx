@@ -1145,9 +1145,17 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                     ) : null}
                     {target !== RequestTarget.VIEW_APPLICATION || grantFinalized ? null : (
                         isLocked ? (
-                            <Button fullWidth onClick={() => setIsLocked(false)} disabled={loading}>
-                                Edit this request
-                            </Button>
+                            (isRecipient || isApprover ?
+                                <Button fullWidth disabled={loading} onClick={() => setIsLocked(false)}>
+                                    Edit this request
+                                </Button> :
+                                <Tooltip trigger={<Button fullWidth disabled>
+                                    Edit this request
+                                </Button>}
+                                >
+                                    {infoTextFromContext(recipient)}
+                                </Tooltip>
+                            )
                         ) : (
                             <>
                                 <Button
@@ -1369,7 +1377,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                                                                     <Truncate>{rev.updatedBy}</Truncate>
                                                                 </TableCell>
                                                                 <TableCell>
-                                                                    <pre style={{overflowX: "scroll"}}>
+                                                                    <pre style={{overflowX: "auto"}}>
                                                                         {rev.document.revisionComment}
                                                                     </pre>
                                                                 </TableCell>
@@ -1439,6 +1447,21 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
             />
         );
     };
+
+function infoTextFromContext(recipient: Recipient): string {
+    switch (recipient.type) {
+        case "existingProject":
+            return "You don't have the correct project active to edit this application."
+        case "personalWorkspace":
+            if (Client.hasActiveProject) {
+                return "You have an active project.\n Change to personal workspace to edit."
+            }
+            return "";
+        default: {
+            return "";
+        }
+    }
+}
 
 function StateIcon({state}: {state: State;}) {
     let icon: IconName;
