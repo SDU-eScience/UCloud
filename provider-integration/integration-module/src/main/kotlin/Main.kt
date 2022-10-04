@@ -42,7 +42,6 @@ import dk.sdu.cloud.plugins.storage.ucloud.LinuxOutputStream
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
-import io.zonky.test.db.postgres.embedded.EmbeddedPostgres
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
@@ -50,64 +49,64 @@ import java.sql.DriverManager
 
 fun main(args: Array<String>) {
     if (false) {
-/*
-Both web applications and VNC applications appear to be viable
+        /*
+        Both web applications and VNC applications appear to be viable
 
-VNC:
-- Software availability on Hippo:
-  - X11 is available as a module on Hippo
-  - Xvfb is also available
-  - TurboVNC is in EasyBuild but fails installation (pam-devel and libpam0g-dev missing in OS)
-- General strategy:
-  - Load required modules for an X11 server
-  - Start a VNC server on some free port with some authentication token
-  - Potentially, run websockify to actually access the VNC server
-  - Tunnel traffic directly from Envoy to the VNC (websockify) server
+        VNC:
+        - Software availability on Hippo:
+          - X11 is available as a module on Hippo
+          - Xvfb is also available
+          - TurboVNC is in EasyBuild but fails installation (pam-devel and libpam0g-dev missing in OS)
+        - General strategy:
+          - Load required modules for an X11 server
+          - Start a VNC server on some free port with some authentication token
+          - Potentially, run websockify to actually access the VNC server
+          - Tunnel traffic directly from Envoy to the VNC (websockify) server
 
-Web:
-- Software availability on Hippo:
-  - Nothing too interesting in module spider
-  -
-General strategy:
-  - Load required modules for server
-  - Start the application using some free port
-  - Tunnel traffic directly from Envoy to server
+        Web:
+        - Software availability on Hippo:
+          - Nothing too interesting in module spider
+          -
+        General strategy:
+          - Load required modules for server
+          - Start the application using some free port
+          - Tunnel traffic directly from Envoy to server
 
-Batch applications:
-- Potential applications:
-  - Just select an sbatch script?
-    - Not obvious why anyone would ever do this, it is much faster to do via SSH and you obviously know how to
-  - sbatch applications with input files?
-    - This would probably require some kind of frontend and backend support to be useful
-  - Gromacs?
-    - Quite a lot of options which take _a long time_ to port into UCloud
-    - UCloud also doesn't do it very well, if we want to do something like this, we would be better off creating a
-      better system for batch apps. The UI just isn't useful enough.
-    - Often you need to run a full workflow, not just a single step
-  - For all of this to work, we should implement some way of putting a "pre-init" script into the invocation
-    - This should only work for native
-    - Would help us load the correct modules without knowing about the module system
+        Batch applications:
+        - Potential applications:
+          - Just select an sbatch script?
+            - Not obvious why anyone would ever do this, it is much faster to do via SSH and you obviously know how to
+          - sbatch applications with input files?
+            - This would probably require some kind of frontend and backend support to be useful
+          - Gromacs?
+            - Quite a lot of options which take _a long time_ to port into UCloud
+            - UCloud also doesn't do it very well, if we want to do something like this, we would be better off creating a
+              better system for batch apps. The UI just isn't useful enough.
+            - Often you need to run a full workflow, not just a single step
+          - For all of this to work, we should implement some way of putting a "pre-init" script into the invocation
+            - This should only work for native
+            - Would help us load the correct modules without knowing about the module system
 
-Terminal integration:
-- Integrated application for terminal
-- For Hippo and other similar providers:
-  - Exec into the frontend?
-  - Could sit as an integrated part of the UCloud UI?
+        Terminal integration:
+        - Integrated application for terminal
+        - For Hippo and other similar providers:
+          - Exec into the frontend?
+          - Could sit as an integrated part of the UCloud UI?
 
-UDocker:
-- It is fairly limiting in what it can _actually_ do
-- Shouldn't be too hard to implement
+        UDocker:
+        - It is fairly limiting in what it can _actually_ do
+        - Shouldn't be too hard to implement
 
-Singularity:
-- Probably better
+        Singularity:
+        - Probably better
 
-All interactive applications:
-- Need to find free port
-- Need to dynamically forward
-- Need some form of authentication
-  - This means Core support for VNC, we cannot use a hardcoded password
--
-         */
+        All interactive applications:
+        - Need to find free port
+        - Need to dynamically forward
+        - Need some form of authentication
+          - This means Core support for VNC, we cannot use a hardcoded password
+        -
+                 */
         val masterFd = clib.createAndForkPty()
         println("Master fd is $masterFd")
         val ins = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad") }))
@@ -769,18 +768,11 @@ All interactive applications:
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
                 if (serverMode == ServerMode.Server) {
-                    val embeddedConfig = config.server.database.embedded
-                    if (config.server.database.embedded != null) {
-                        stats.add("Database" to "Embedded: ${embeddedConfig?.file}")
-                    }
-                    val externalConfig = config.server.database.external
-                    if (externalConfig != null) {
-                        val jdbc = postgresJdbcUrl(
-                            externalConfig.host,
-                            externalConfig.database,
-                            externalConfig.port
-                        )
-                        stats.add("Database" to "External: $jdbc")
+                    val embeddedConfig = config.server.database.embeddedDataDirectory
+                    if (embeddedConfig != null) {
+                        stats.add("Database" to "Embedded: ${embeddedConfig}")
+                    } else {
+                        stats.add("Database" to config.server.database.jdbcUrl)
                     }
                 }
                 if (config.core.hosts.ucloud.host == "backend") {
@@ -869,16 +861,6 @@ val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
 
 private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
-data class DatabaseConfig(
-    val jdbcUrl: String?,
-    val username: String?,
-    val password: String?,
-    val defaultSchema: String,
-    val recreateSchema: Boolean,
-    val usePool: Boolean = true,
-    val poolSize: Int? = 50,
-    val validateMigrations: Boolean = true,
-)
 
 val dbConnection: DBContext by lazy {
     val config = dbConfig.get().takeIf { it != null }
@@ -886,76 +868,25 @@ val dbConnection: DBContext by lazy {
         error("Config not found for DB")
     } else {
         val connection = createDBConnection(config)
-        runBlocking {  testDB(connection) }
+        runBlocking { testDB(connection) }
         connection
     }
 }
 
-private fun postgresJdbcUrl(host: String, database: String, port: Int? = null): String {
-    return StringBuilder().apply {
-        append("jdbc:postgresql://")
-        append(host)
-        if (port != null) {
-            append(':')
-            append(port)
-        }
-        append('/')
-        append(database)
-    }.toString()
-}
-
 private suspend fun testDB(db: DBContext) {
     db.withSession { session ->
-        session.prepareStatement(
-            """
-                select 1
-            """.trimIndent()
-        ).invokeAndDiscard()
+        session.prepareStatement("select 1").invokeAndDiscard()
     }
 }
-private fun createDBConnection(database: VerifiedConfig.Server.Database):DBContext {
-    if (database.external != null && database.embedded != null) {
-        error("Cannot run with dual database configuration")
-    } else if (database.external != null) {
-        val dbConfig = DatabaseConfig(
-            postgresJdbcUrl(database.external.host, database.external.database, database.external.port),
-            database.external.username,
-            database.external.password,
-            "public",
-            false,
-        )
-        val jdbcUrl = dbConfig.jdbcUrl
 
-        return object : JdbcDriver() {
-            override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
-                JdbcConnection(
-                    DriverManager.getConnection(jdbcUrl, dbConfig.username, dbConfig.password),
-                    pool
-                )
-            }
+private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
+    return object : JdbcDriver() {
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+            JdbcConnection(
+                DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
+                pool
+            )
         }
-    } else if (database.embedded != null) {
-        val workDir = File(database.embedded.file)
-        if (!workDir.exists()) {
-            error("Missing file")
-        }
-
-        val embeddedPostgres = EmbeddedPostgres.builder().apply {
-            setCleanDataDirectory(false)
-            setDataDirectory(File(workDir, "data").also { it.mkdirs() })
-            setOverrideWorkingDirectory(workDir)
-        }.start()
-
-        return object : JdbcDriver() {
-            override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
-                JdbcConnection(
-                    DriverManager.getConnection(embeddedPostgres.getJdbcUrl("postgres", "postgres")),
-                    pool
-                )
-            }
-        }
-    } else {
-        error("No config given for database")
     }
 }
 

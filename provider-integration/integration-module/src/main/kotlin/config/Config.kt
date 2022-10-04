@@ -86,23 +86,25 @@ data class ConfigSchema(
 
         @Serializable
         data class Database(
-            val embedded: Embedded?,
-            val external: External?
-        )
+            val embedded: Embedded? = null,
+            val external: External? = null,
+        ) {
+            @Serializable
+            data class Embedded(
+                val directory: String,
+                // NOTE(Dan): Set to 0 for a random port
+                val port: Int = 5432
+            )
 
-        @Serializable
-        data class Embedded(
-            val file: String? = null
-        )
-
-        @Serializable
-        data class External(
-            val hostname: String,
-            val port: Int,
-            val username: String,
-            val password: String,
-            val database: String
-        )
+            @Serializable
+            data class External(
+                val hostname: String,
+                val port: Int? = null,
+                val username: String,
+                val password: String,
+                val database: String
+            )
+        }
 
         @Serializable
         data class Envoy(

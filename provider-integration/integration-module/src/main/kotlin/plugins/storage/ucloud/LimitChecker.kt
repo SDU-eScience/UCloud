@@ -27,9 +27,9 @@ class LimitChecker(
                         select true
                         from ucloud_storage_quota_locked
                         where
-                            username = :username::text and
-                            project_id = :project_id::text and
-                            category = :category
+                            username is not distinct from :username::text and
+                            project_id is not distinct from :project_id::text and
+                            category is not distinct from :category
                     """,
                 ).useAndInvoke(
                     prepare = {
