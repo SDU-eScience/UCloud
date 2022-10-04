@@ -24,7 +24,7 @@ import {
     GrantApplicationFilter,
     IngoingGrantApplicationsResponse,
 } from "@/Project/Grant";
-import {GrantApplicationList} from "@/Project/Grant/IngoingApplications";
+import {GrantApplicationList} from "@/Project/Grant/GrantApplications";
 import * as UCloud from "@/UCloud";
 import {PageV2} from "@/UCloud";
 import {api as FilesApi, UFile} from "@/UCloud/FilesApi";
@@ -484,7 +484,7 @@ const DashboardGrantApplications: React.FunctionComponent<{
         {both ? <Heading.h5 color="gray" my="4px">Outgoing</Heading.h5> : null}
         {outgoingApps.error ? null : (
             <>
-                {outgoingApps.data.items.length !== 0 ? null : (
+                {outgoingApps.data.items.length !== 0 || ingoingApps.data.items.length > 0 ? null : (
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
@@ -494,7 +494,10 @@ const DashboardGrantApplications: React.FunctionComponent<{
                         </NoResultsCardBody>
                     </>
                 )}
-                <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+
+                {outgoingApps.data.items.length === 0 ? null : (
+                    <GrantApplicationList applications={outgoingApps.data.items.slice(0, 5)} slim />
+                )}
             </>
         )}
     </HighlightedCard>;

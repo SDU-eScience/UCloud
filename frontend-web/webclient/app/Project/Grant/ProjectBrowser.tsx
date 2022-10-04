@@ -16,7 +16,7 @@ export const Logo: React.FunctionComponent<LogoProps> = props => {
     const [hasLoadedImage, setLoadedImage] = useState(true);
     const size = props.size !== undefined ? props.size : "40px";
 
-    const url = Client.computeURL("/api", buildQueryString(`/grant/logo`, props));
+    const url = Client.computeURL("/api", buildQueryString(`/grant/logo/retrieve`, props));
 
     return (
         <>

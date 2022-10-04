@@ -1,5 +1,5 @@
 import * as React from "react";
-import {APICallState, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     externalApplicationsEnabled,
     ExternalApplicationsEnabledResponse,
@@ -19,7 +19,7 @@ import WAYF from "./wayf-idps.json";
 import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import Table, {TableCell, TableHeaderCell, TableRow} from "@/ui-components/Table";
 import {ConfirmCancelButtons} from "@/UtilityComponents";
-import {ProductCategoryId, retrieveFromProvider, RetrieveFromProviderResponse, UCLOUD_PROVIDER} from "@/Accounting";
+import {ProductCategoryId} from "@/Accounting";
 import {HiddenInputField} from "@/ui-components/Input";
 import {dialogStore} from "@/Dialog/DialogStore";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -27,6 +27,7 @@ import {b64EncodeUnicode} from "@/Utilities/XHRUtils";
 import {inSuccessRange} from "@/UtilityFunctions";
 import {Logo} from "@/Project/Grant/ProjectBrowser";
 import Divider from "@/ui-components/Divider";
+import {bulkRequestOf} from "@/DefaultObjects";
 
 export interface UploadLogoProps {
     file: File;
@@ -38,7 +39,7 @@ export async function uploadProjectLogo(props: UploadLogoProps): Promise<boolean
 
     return new Promise((resolve) => {
         const request = new XMLHttpRequest();
-        request.open("POST", Client.computeURL("/api", `/grant/uploadLogo`));
+        request.open("POST", Client.computeURL("/api", `/grant/logo/upload`));
         request.setRequestHeader("Authorization", `Bearer ${token}`);
         request.responseType = "text";
         request.setRequestHeader("Upload-Name", b64EncodeUnicode(props.projectId));
@@ -93,10 +94,10 @@ export const LogoAndDescriptionSettings: React.FunctionComponent = () => {
     }, [descriptionField, description]);
 
     const onUploadDescription = useCallback(async () => {
-        await runWork(uploadDescription({
+        await runWork(uploadDescription(bulkRequestOf({
             description: descriptionField.current!.value,
             projectId
-        }));
+        })));
         fetchDescription(retrieveDescription({
             projectId
         }));
@@ -145,17 +146,12 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     );
     const [settings, fetchSettings] = useCloudAPI<ProjectGrantSettings>(
         {noop: true},
-        {allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
-    );
-
-    const [products, fetchProducts] = useCloudAPI<RetrieveFromProviderResponse>(
-        retrieveFromProvider({provider: UCLOUD_PROVIDER}),
-        []
+        {projectId: "", allowRequestsFrom: [], automaticApproval: {from: [], maxResources: []}, excludeRequestsFrom: []}
     );
 
     const [templates, fetchTemplates] = useCloudAPI<ReadTemplatesResponse>(
         {noop: true},
-        {existingProject: "", newProject: "", personalProject: ""}
+        {type: "plain_text", existingProject: "", newProject: "", personalProject: ""}
     );
 
     const templatePersonal = useRef<HTMLTextAreaElement>(null);
@@ -183,6 +179,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
 
     const onUploadTemplate = useCallback(async () => {
         await runWork(uploadTemplates({
+            type: "plain_text",
             personalProject: templatePersonal.current!.value,
             newProject: templateNew.current!.value,
             existingProject: templateExisting.current!.value
@@ -193,46 +190,33 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
     const addExcludeFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
         settingsCopy.excludeRequestsFrom.push(criteria);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
+        await runWork(uploadGrantRequestSettings(bulkRequestOf(settingsCopy)));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
     const removeExcludeFrom = useCallback(async (idx: number) => {
         const settingsCopy = {...settings.data};
         settingsCopy.excludeRequestsFrom.splice(idx, 1);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
+        await runWork(uploadGrantRequestSettings(bulkRequestOf(settingsCopy)));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
     const addAllowFrom = useCallback(async (criteria: UserCriteria) => {
         const settingsCopy = {...settings.data};
         settingsCopy.allowRequestsFrom.push(criteria);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
+        await runWork(uploadGrantRequestSettings(bulkRequestOf(settingsCopy)));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
     const removeAllowFrom = useCallback(async (idx: number) => {
         const settingsCopy = {...settings.data};
         settingsCopy.allowRequestsFrom.splice(idx, 1);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
-        fetchSettings(readGrantRequestSettings({projectId}));
-    }, [settings]);
-
-    const addAutomaticApproval = useCallback(async (criteria: UserCriteria) => {
-        const settingsCopy = {...settings.data};
-        settingsCopy.automaticApproval.from.push(criteria);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
-        fetchSettings(readGrantRequestSettings({projectId}));
-    }, [settings]);
-
-    const removeAutomaticApproval = useCallback(async (idx: number) => {
-        const settingsCopy = {...settings.data};
-        settingsCopy.automaticApproval.from.splice(idx, 1);
-        await runWork(uploadGrantRequestSettings(settingsCopy));
+        await runWork(uploadGrantRequestSettings(bulkRequestOf(settingsCopy)));
         fetchSettings(readGrantRequestSettings({projectId}));
     }, [settings]);
 
     if (!enabled.data.enabled) return null;
+
     return <Box>
         <Heading.h4>Allow Grant Applications From</Heading.h4>
         <UserCriteriaEditor
@@ -251,21 +235,7 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
         />
 
         <Divider/>
-        <Heading.h4>Automatic Approval of Grant Applications</Heading.h4>
-        <AutomaticApprovalLimits
-            products={products}
-            settings={settings}
-            reload={() => fetchSettings(readGrantRequestSettings({projectId}))}
-        />
 
-        <UserCriteriaEditor
-            criteria={settings.data.automaticApproval.from}
-            showSubprojects={false}
-            onSubmit={addAutomaticApproval}
-            onRemove={removeAutomaticApproval}
-        />
-
-        <Divider/>
         <Heading.h4>Default Template for Grant Applications</Heading.h4>
         <TemplateEditor
             templatePersonal={templatePersonal}
@@ -274,112 +244,6 @@ export const GrantProjectSettings: React.FunctionComponent = () => {
             onUploadTemplate={onUploadTemplate}
         />
     </Box>;
-};
-
-const AutomaticApprovalLimits: React.FunctionComponent<{
-    products: APICallState<RetrieveFromProviderResponse>,
-    settings: APICallState<ProjectGrantSettings>,
-    reload: () => void
-}> = ({products, settings, reload}) => {
-    const [editingLimit, setEditingLimit] = useState<string | null>(null);
-    const [, runWork] = useCloudCommand();
-    const categories: ProductCategoryId[] = [];
-
-    {
-        const categoriesStringified = new Set<string>();
-        for (const product of products.data) {
-            const stringified = `${product.category.name}/${product.category.provider}`;
-            if (!categoriesStringified.has(stringified)) {
-                categoriesStringified.add(stringified);
-                categories.push(product.category);
-            }
-        }
-    }
-
-    const updateApprovalLimit = useCallback(async (category: ProductCategoryId, e?: React.SyntheticEvent) => {
-        e?.preventDefault();
-        const settingsCopy = {...settings.data};
-        const idx = settingsCopy.automaticApproval.maxResources
-            .findIndex(it =>
-                it.productCategory === category.name &&
-                it.productProvider === category.provider
-            );
-
-        if (idx !== -1) {
-            settingsCopy.automaticApproval.maxResources.splice(idx, 1);
-        }
-
-        const inputElement = document.getElementById(productCategoryId(category)) as HTMLInputElement;
-        const parsedValue = parseInt(inputElement.value, 10);
-        if (isNaN(parsedValue)) {
-            snackbarStore.addFailure("Automatic approval limit must be a valid number", false);
-            return;
-        }
-        settingsCopy.automaticApproval.maxResources.push({
-            productProvider: category.provider,
-            productCategory: category.name,
-            balanceRequested: parsedValue * 1000000
-        });
-        await runWork(uploadGrantRequestSettings(settingsCopy));
-        setEditingLimit(null);
-        reload();
-    }, [settings]);
-
-    return <Grid gridGap={"32px"} gridTemplateColumns={"repeat(auto-fit, 500px)"} mb={32}>
-        {categories.map(it => {
-            const key = productCategoryId(it);
-
-            const credits = settings.data.automaticApproval
-                .maxResources
-                .find(
-                    mr => mr.productCategory === it.name &&
-                        mr.productProvider === it.provider
-                )
-                ?.balanceRequested ?? 0;
-            return <React.Fragment key={key}>
-                <form onSubmit={(e) => updateApprovalLimit(it, e)}>
-                    <Label htmlFor={key}>
-                        {it.name} / {it.provider}
-                    </Label>
-                    <Flex alignItems={"center"}>
-                        {editingLimit !== key ?
-                            <Text width={350} textAlign={"right"}>
-                                {credits} {/* TODO(???) */}
-                            </Text> : null}
-                        {editingLimit !== key ?
-                            <Button
-                                type={"button"}
-                                ml={8}
-                                disabled={editingLimit !== null}
-                                onClick={() => {
-                                    setEditingLimit(key);
-                                    const inputField = document.getElementById(key) as HTMLInputElement;
-                                    inputField.value = (credits / 1000000).toString();
-                                }}
-                            >
-                                Edit
-                            </Button> : null}
-
-                        <Input type={editingLimit !== key ? "hidden" : "text"} id={key} width={328} />
-
-                        {editingLimit === key ? (
-                            <>
-                                <Text ml={8} mr={8}>DKK</Text>
-                                <ConfirmCancelButtons
-                                    onConfirm={() => {
-                                        updateApprovalLimit(it);
-                                    }}
-                                    onCancel={() => {
-                                        setEditingLimit(null);
-                                    }}
-                                />
-                            </>
-                        ) : null}
-                    </Flex>
-                </form>
-            </React.Fragment>;
-        })}
-    </Grid>;
 };
 
 const ExcludeListEditor: React.FunctionComponent<{

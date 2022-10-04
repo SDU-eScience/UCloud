@@ -23,11 +23,11 @@ data class RetrieveLogoRequest(
 
 typealias RetrieveLogoResponse = Unit
 
-object ProjectLogo : CallDescriptionContainer("projects_logo") {
-    val baseContext = "/api/projects/logo"
+object ProjectLogo : CallDescriptionContainer("grant.logo") {
+    val baseContext = "/api/grant/logo"
 
     init {
-        title = "Project Logos"
+        title = "Project grant logos"
         description = """
             Project logos are intended as a help for the end users to navigate the list of potential grant givers by 
             giving them a visual cue.
@@ -37,7 +37,7 @@ object ProjectLogo : CallDescriptionContainer("projects_logo") {
     }
 
     val uploadLogo = call(
-        "uploadLogo",
+        "upload",
         UploadLogoRequest.serializer(),
         UploadLogoResponse.serializer(),
         CommonErrorMessage.serializer()
@@ -50,19 +50,13 @@ object ProjectLogo : CallDescriptionContainer("projects_logo") {
             method = HttpMethod.Post
 
             path {
-                using(Grants.baseContext)
+                using(baseContext)
                 +"upload"
             }
 
             headers {
                 +boundTo("Upload-Name", UploadLogoRequest::projectId)
             }
-
-            /*
-        body {
-            bindToSubProperty(UploadLogoRequest::data)
-        }
-         */
         }
 
         documentation {

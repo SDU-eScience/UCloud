@@ -13,6 +13,7 @@ const FileCollectionsRouter = React.lazy(() => import("@/Files/FileCollections")
 const MetadataNamespacesRouter = React.lazy(() => import("@/Files/Metadata/Templates/Namespaces"));
 const ShareRouter = React.lazy(() => import("@/Files/Shares"));
 const IngoingApplications = React.lazy(() => import("@/Project/Grant/IngoingApplications"));
+const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
 const JobShell = React.lazy(() => import("@/Applications/Jobs/Shell"));
 const JobWeb = React.lazy(() => import("@/Applications/Jobs/Web"));
 const JobVnc = React.lazy(() => import("@/Applications/Jobs/Vnc"));
@@ -20,7 +21,6 @@ const LicenseServers = React.lazy(() => import("@/Admin/LicenseServers"));
 const LoginPage = React.lazy(() => import("@/Login/Login"));
 const NewsList = React.lazy(() => import("@/NewsPost/NewsList"));
 const NewsManagement = React.lazy(() => import("@/Admin/NewsManagement"));
-const OutgoingApplications = React.lazy(() => import("@/Project/Grant/OutgoingApplications"));
 const Playground = React.lazy(() => import("@/Playground/Playground"));
 const Products = React.lazy(() => import("@/Products/Products"));
 const ProjectDashboard = React.lazy(() => import("@/Project/ProjectDashboard"));

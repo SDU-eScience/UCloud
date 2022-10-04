@@ -102,12 +102,12 @@ class GrantController(
         }
 
         //PROJECT ENABLED STATUS
-        implement(ProjectEnabled.setEnabledStatus) {
+        implement(GrantsEnabled.setEnabledStatus) {
             settings.setEnabledStatus(actorAndProject, request)
             ok(Unit)
         }
 
-        implement(ProjectEnabled.isEnabled) {
+        implement(GrantsEnabled.isEnabled) {
             ok(IsEnabledResponse(settings.isEnabled(request.projectId)))
         }
 
@@ -139,12 +139,12 @@ class GrantController(
         }
 
         //PROJECT DESCRIPTIONS
-        implement(ProjectTextDescription.uploadDescription) {
+        implement(GrantDescription.uploadDescription) {
             settings.uploadDescription(actorAndProject, request)
             ok(Unit)
         }
 
-        implement(ProjectTextDescription.retrieveDescription) {
+        implement(GrantDescription.retrieveDescription) {
             ok(RetrieveDescriptionResponse(settings.fetchDescription(request.projectId)))
         }
 

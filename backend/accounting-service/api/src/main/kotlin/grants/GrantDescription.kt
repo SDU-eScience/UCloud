@@ -28,11 +28,11 @@ data class RetrieveDescriptionRequest(
 data class RetrieveDescriptionResponse(
     val description: String
 )
-object ProjectTextDescription : CallDescriptionContainer("project_text_description") {
-    val baseContext = "/api/projects/description"
+object GrantDescription : CallDescriptionContainer("grant.description") {
+    val baseContext = "/api/grant/description"
 
     init {
-        title = "Project Text Description"
+        title = "Grant description"
         description = """
             A project can upload a description that is shown to the users when they are looking for a grant giver.
             ${ApiConventions.nonConformingApiWarning}

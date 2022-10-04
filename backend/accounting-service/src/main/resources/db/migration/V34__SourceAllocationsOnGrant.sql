@@ -20,7 +20,7 @@ create table "grant".grant_giver_approvals(
 );
 
 create table "grant".revisions(
-    application_id bigint references "grant".applications(id),
+    application_id bigint references "grant".applications(id) not null,
     created_at timestamp,
     updated_by text not null,
     revision_number int not null default 0,
@@ -28,11 +28,8 @@ create table "grant".revisions(
     PRIMARY KEY (application_id, revision_number)
 );
 
-alter table "grant".requested_resources add column revision_number int;
-alter table "grant".requested_resources add foreign key (application_id,revision_number) references "grant".revisions(application_id, revision_number);
-
 create table "grant".forms(
-    application_id bigint references "grant".applications(id),
+    application_id bigint references "grant".applications(id) not null,
     revision_number int,
     parent_project_id text,
     recipient text,
@@ -43,27 +40,13 @@ create table "grant".forms(
 );
 
 -- Migrate applications to new schemas
-with old_applications as (
-    select *
-    from "grant".applications
-),
-revisions as (
-    insert into "grant".revisions (application_id, created_at, updated_by, revision_number, revision_comment)
-    select oa.id, oa.created_at, oa.status_changed_by, 0, 'No Comment'
-    from old_applications oa
-    returning application_id, revision_number
-),
-applications_with_revisions as (
-    select revision_number, grant_recipient, grant_recipient_type, document, reference_id
-    from "grant".applications join "grant".revisions r on applications.id = r.application_id
-)
-insert into "grant".forms (revision_number, recipient, recipient_type, form, reference_id, parent_project_id)
-select awr.revision_number, awr.grant_recipient, awr.grant_recipient_type, awr.document, awr.reference_id, oa.resources_owned_by
-from applications_with_revisions awr join
-    revisions r on
-        r.revision_number = awr.revision_number join
-    old_applications oa on
-        oa.id = r.application_id;
+insert into "grant".revisions (application_id, created_at, updated_by, revision_number, revision_comment)
+select app.id, app.created_at, coalesce(app.status_changed_by, app.requested_by), 0, 'No Comment'
+from "grant".applications app;
+
+insert into "grant".forms (revision_number, recipient, recipient_type, form, reference_id, parent_project_id, application_id)
+select 0, app.grant_recipient, app.grant_recipient_type, app.document, app.reference_id, app.resources_owned_by, app.id
+from "grant".applications app;
 
 -- Migrate approval states
 with old_applications as (
@@ -72,6 +55,11 @@ with old_applications as (
 )
 insert into "grant".grant_giver_approvals(application_id, project_id, project_title, state, updated_by, last_update)
 select * from old_applications;
+
+-- Revision number in requested resources
+-- Default value of 0 also fixes existing data
+alter table "grant".requested_resources add column revision_number int not null default 0;
+alter table "grant".requested_resources add foreign key (application_id, revision_number) references "grant".revisions(application_id, revision_number);
 
 -- DELETE cleanup application table
 alter table "grant".applications drop column resources_owned_by;

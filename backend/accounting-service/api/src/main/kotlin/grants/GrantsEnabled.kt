@@ -18,13 +18,13 @@ data class IsEnabledRequest(val projectId: String)
 data class IsEnabledResponse(val enabled: Boolean)
 
 
-object ProjectEnabled : CallDescriptionContainer("projectEnabled") {
-    val baseContext = "/api/project/enabled"
+object GrantsEnabled : CallDescriptionContainer("grant.enabled") {
+    val baseContext = "/api/grant/enabled"
 
     init {
-        title = "Project Enabled"
+        title = "Grants Enabled"
         description = """
-            Projects Enabled status is used for enabling projects to be receivable to grant applications.
+            Grants "enabled" status is used for enabling projects to be receivable to grant applications.
             Once a project is enabled it will not automatically be shown to every user, but it will have to specify 
             from where or who it wishes to receive grant applications from using the [ProjectApplicationSettings].
             
@@ -41,7 +41,7 @@ object ProjectEnabled : CallDescriptionContainer("projectEnabled") {
         ) {
             httpUpdate(
                 Grants.baseContext,
-                "set-enabled",
+                "setEnabled",
                 Roles.PRIVILEGED
             )
 

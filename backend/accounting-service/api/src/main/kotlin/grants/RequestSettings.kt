@@ -1,6 +1,5 @@
 package dk.sdu.cloud.accounting.api.projects
 
-import dk.sdu.cloud.AccessRight
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.calls.*
 import dk.sdu.cloud.grant.api.GrantApplication
@@ -10,11 +9,13 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     Describes some criteria which match a user
     
     This is used in conjunction with actions that require authorization.
-""")
+"""
+)
 @UCloudApiOwnedBy(Grants::class)
 sealed class UserCriteria {
     @Serializable
@@ -35,11 +36,13 @@ sealed class UserCriteria {
     @SerialName(UserCriteria.EMAIL_TYPE)
     data class EmailDomain(val domain: String) : UserCriteria()
 
-    @UCloudApiDoc("""
+    @UCloudApiDoc(
+        """
        Matches any user with an organization matching [org] 
        
        The organization is currently derived from the information we receive from WAYF.
-    """)
+    """
+    )
     @Serializable
     @SerialName(UserCriteria.WAYF_TYPE)
     data class WayfOrganization(val org: String) : UserCriteria()
@@ -51,26 +54,30 @@ sealed class UserCriteria {
     }
 }
 
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     Settings which control if an Application should be automatically approved
      
     The `Application` will be automatically approved if the all of the following is true:
     - The requesting user matches any of the criteria in `from`
     - The user has only requested resources (`Application.requestedResources`) which are present in `maxResources`
     - None of the resource requests exceed the numbers specified in `maxResources`
-""")
+"""
+)
 @Serializable
 data class AutomaticApprovalSettings(
     val from: List<UserCriteria>,
     val maxResources: List<GrantApplication.AllocationRequest>
 )
 
-@UCloudApiDoc("""
+@UCloudApiDoc(
+    """
     Settings for grant Applications
      
     A user will be allowed to apply for grants to this project if they match any of the criteria listed in
     `allowRequestsFrom`.
-""")
+"""
+)
 @Serializable
 data class ProjectApplicationSettings(
     val projectId: String,
@@ -86,8 +93,8 @@ typealias UploadRequestSettingsResponse = Unit
 data class RetrieveRequestSettingsRequest(val projectId: String)
 typealias RetrieveRequestSettingsResponse = ProjectApplicationSettings
 
-object GrantSettings : CallDescriptionContainer("grantSettings") {
-    val baseContext = "/api/project/grantsettings"
+object GrantSettings : CallDescriptionContainer("grant.settings") {
+    val baseContext = "/api/grant/settings"
 
     init {
         title = "Project Grant Settings"
@@ -107,31 +114,26 @@ object GrantSettings : CallDescriptionContainer("grantSettings") {
             BulkRequest.serializer(UploadRequestSettingsRequest.serializer()),
             UploadRequestSettingsResponse.serializer(),
             CommonErrorMessage.serializer()
-            ) {
-            httpUpdate(
-                baseContext,
-                "upload"
-            )
+        ) {
+            httpUpdate(baseContext, "upload")
 
             documentation {
                 summary = "Uploads [ProjectApplicationSettings] to be associated with a project. The project must be " +
-                    "enabled."
+                        "enabled."
             }
         }
 
-    val retrieveRequestSettings =
-        call(
-            "retrieveRequestSettings",
-            RetrieveRequestSettingsRequest.serializer(),
-            RetrieveRequestSettingsResponse.serializer(),
-            CommonErrorMessage.serializer()
-            ) {
-            httpRetrieve(
-                baseContext
-            )
+    val retrieveRequestSettings = call(
+        "retrieveRequestSettings",
+        RetrieveRequestSettingsRequest.serializer(),
+        RetrieveRequestSettingsResponse.serializer(),
+        CommonErrorMessage.serializer(),
+        handler = {
+            httpRetrieve(baseContext)
 
             documentation {
                 summary = "Retrieves [ProjectApplicationSettings] associated with the project."
             }
         }
+    )
 }

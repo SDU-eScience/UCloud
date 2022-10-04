@@ -83,9 +83,13 @@ class GrantApplicationService(
         }.rows.map { defaultMapper.decodeFromString(it.getString(0)!!) }
     }
 
-    suspend fun retrieveGrantApplication(applicationId: Long, actorAndProject: ActorAndProject): GrantApplication {
-        val application = db.withSession { session ->
-            permissionCheck(session, actorAndProject, applicationId)
+    suspend fun retrieveGrantApplication(
+        applicationId: Long,
+        actorAndProject: ActorAndProject,
+        ctx: DBContext = db,
+    ): GrantApplication {
+        val application = ctx.withSession { session ->
+            checkReadPermission(session, actorAndProject, applicationId)
             session.sendPreparedStatement(
                 {
                     setParameter("app_in", applicationId)
@@ -126,20 +130,8 @@ class GrantApplicationService(
                     {
                         setParameter("username", actorAndProject.actor.safeUsername())
                         val recipient = createRequest.document.recipient
-                        setParameter(
-                            "grant_recipient", when (recipient) {
-                                is GrantApplication.Recipient.ExistingProject -> recipient.id
-                                is GrantApplication.Recipient.NewProject -> recipient.title
-                                is GrantApplication.Recipient.PersonalWorkspace -> recipient.username
-                            }
-                        )
-                        setParameter(
-                            "grant_recipient_type", when (recipient) {
-                                is GrantApplication.Recipient.ExistingProject -> GrantApplication.Recipient.EXISTING_PROJECT_TYPE
-                                is GrantApplication.Recipient.NewProject -> GrantApplication.Recipient.NEW_PROJECT_TYPE
-                                is GrantApplication.Recipient.PersonalWorkspace -> GrantApplication.Recipient.PERSONAL_TYPE
-                            }
-                        )
+                        setParameter("grant_recipient", recipientToSqlField(recipient))
+                        setParameter("grant_recipient_type", recipientToSqlType(recipient))
                         setParameter("sources", sourceProjects)
 
                     },
@@ -162,7 +154,7 @@ class GrantApplicationService(
                 ).rows.singleOrNull()?.getLong(0)
                     ?: throw RPCException(
                         "It looks like you are unable to submit a request to this affiliation. " +
-                            "Contact support if this problem persists.",
+                                "Contact support if this problem persists.",
                         HttpStatusCode.Forbidden
                     )
 
@@ -184,9 +176,10 @@ class GrantApplicationService(
                     """.trimIndent()
                 )
 
-                insertDocument(session, actorAndProject, applicationId, createRequest.document, 0, true)
+                insertDocument(session, actorAndProject, applicationId, createRequest.document, true)
                 autoApprove(session, actorAndProject, createRequest, applicationId)
 
+                // TODO(Dan): This code is seemingly duplicated later. We should only have one branch for this.
                 val (allApproved, grantGivers) = retrieveGrantGiversStates(session, applicationId)
 
                 if (allApproved) {
@@ -295,7 +288,6 @@ class GrantApplicationService(
         session: AsyncDBConnection,
         applicationId: Long
     ): Pair<Boolean, List<GrantApplication.GrantGiverApprovalState>> {
-        var allApproved = true
         val grantGiverApprovalStates = runBlocking {
             session.sendPreparedStatement(
                 {
@@ -316,11 +308,8 @@ class GrantApplicationService(
                 }
 
         }
-        grantGiverApprovalStates.forEach {
-            if (it.state != GrantApplication.State.APPROVED) {
-                allApproved = false
-            }
-        }
+        val allApproved = grantGiverApprovalStates.all { it.state == GrantApplication.State.APPROVED }
+
         return Pair(allApproved, grantGiverApprovalStates)
     }
 
@@ -330,64 +319,55 @@ class GrantApplicationService(
         request: CreateApplication,
         applicationId: Long,
     ) {
-        val projectToResources = mutableMapOf<String, List<GrantApplication.AllocationRequest>>()
-        request.document.allocationRequests.forEach {
-            val found = projectToResources[it.grantGiver]
-            if (found != null) {
-                projectToResources[it.grantGiver] = found + listOf(it)
-            } else {
-                projectToResources[it.grantGiver] = listOf(it)
-            }
-        }
+        val projectToResources = request.document.allocationRequests.groupBy { it.grantGiver }
         projectToResources.forEach { (projectId, requestedResources) ->
-            runBlocking {
-                if (autoApproveApplicationCheck(
-                        session,
-                        requestedResources,
-                        projectId,
-                        actorAndProject.actor.safeUsername()
-                    )
-                ) {
-                    //Get pi of approving project
-                    val piOfProject = session.sendPreparedStatement(
-                        {
-                            setParameter("projectId", projectId)
-                        },
-                        """
-                        select username
-                        from project.project_members 
-                        where role = 'PI' and project_id = :projectId
-                    """
-                    ).rows
-                        .firstOrNull()
-                        ?.getString(0)
-                        ?: throw RPCException.fromStatusCode(
-                            HttpStatusCode.InternalServerError,
-                            "More than one or no PI found"
-                        )
+            val shouldAutoApprove = shouldAutoApprove(
+                session,
+                requestedResources,
+                projectId,
+                actorAndProject.actor.safeUsername()
+            )
 
-                    //update status of the application to APPROVED
-                    session.sendPreparedStatement(
-                        {
-                            setParameter("state", GrantApplication.State.APPROVED.name)
-                            setParameter("username", piOfProject)
-                            setParameter("appId", applicationId)
-                            setParameter("projectID", projectId)
-                        },
-                        """
-                            update "grant".grant_giver_approvals gga
-                            set
-                                state = :state,
-                                updated_by = :username
-                            where gga.application_id = :appId and project_id = :projectID
-                        """
+            if (shouldAutoApprove) {
+                // NOTE(Henrik): Get pi of approving project
+                val piOfProject = session.sendPreparedStatement(
+                    {
+                        setParameter("projectId", projectId)
+                    },
+                    """
+                    select username
+                    from project.project_members 
+                    where role = 'PI' and project_id = :projectId
+                """
+                ).rows
+                    .firstOrNull()
+                    ?.getString(0)
+                    ?: throw RPCException.fromStatusCode(
+                        HttpStatusCode.InternalServerError,
+                        "More than one or no PI found"
                     )
-                }
+
+                // NOTE(Henrik): update status of the application to APPROVED
+                session.sendPreparedStatement(
+                    {
+                        setParameter("state", GrantApplication.State.APPROVED.name)
+                        setParameter("username", piOfProject)
+                        setParameter("appId", applicationId)
+                        setParameter("projectID", projectId)
+                    },
+                    """
+                        update "grant".grant_giver_approvals gga
+                        set
+                            state = :state,
+                            updated_by = :username
+                        where gga.application_id = :appId and project_id = :projectID
+                    """
+                )
             }
         }
     }
 
-    private suspend fun autoApproveApplicationCheck(
+    private suspend fun shouldAutoApprove(
         session: AsyncDBConnection,
         requestedResources: List<GrantApplication.AllocationRequest>,
         grantGiverId: String,
@@ -443,161 +423,176 @@ class GrantApplicationService(
         return numberOfAllowedToAutoApprove == requestedResources.size.toLong()
     }
 
-    private fun insertDocument(
+    private suspend fun insertDocument(
         session: AsyncDBConnection,
         actorAndProject: ActorAndProject,
         applicationId: Long,
         document: GrantApplication.Document,
-        revisionNumber: Int,
-        isSubmit: Boolean = false
+        isInitialSubmission: Boolean = false,
     ) {
-        runBlocking {
-            val recipient = document.recipient
-            val allocationRequests = if (!isSubmit) {
-                // Note(Jonas): Only if an application with resources already exists, retrieveGrantApplication can be called
-                // For a new submission, this is only added later in this function.
-                val application = retrieveGrantApplication(applicationId, actorAndProject)
-                val canChangeAll = when (recipient) {
-                    is GrantApplication.Recipient.NewProject ->
-                        application.createdBy == actorAndProject.actor.safeUsername()
+        var revisionNumber = 0
+        checkReferenceID(document.referenceId)
+        val recipient = document.recipient
+        val allocationRequests = if (!isInitialSubmission) {
+            val application = retrieveGrantApplication(applicationId, actorAndProject, session)
 
-                    is GrantApplication.Recipient.ExistingProject ->
-                        recipient.id == actorAndProject.project
+            revisionNumber = session.sendPreparedStatement(
+                {
+                    setParameter("app_id", applicationId)
+                    setParameter("comment", document.revisionComment)
+                    setParameter("username", actorAndProject.actor.safeUsername())
+                },
+                """
+                    insert into "grant".revisions (application_id, created_at, updated_by, revision_number, revision_comment)
+                    select :app_id, now(), :username, max(r.revision_number) + 1, :comment
+                    from "grant".revisions r
+                    where r.application_id = :app_id
+                    returning revision_number
+                """
+            ).rows.single().getInt(0)!!
 
-                    is GrantApplication.Recipient.PersonalWorkspace ->
-                        application.createdBy == actorAndProject.actor.safeUsername()
-                }
+            val canChangeAll = when (recipient) {
+                is GrantApplication.Recipient.NewProject ->
+                    application.createdBy == actorAndProject.actor.safeUsername()
 
-                if (canChangeAll) document.allocationRequests else {
-                    val newRequests = document.allocationRequests
-                    val oldRequests = application.currentRevision.document.allocationRequests
-                    oldRequests.mapNotNull { oldReq ->
-                        if (oldReq.grantGiver != actorAndProject.project) oldReq
-                        else {
-                            newRequests.find { newReq ->
-                                newReq.category == oldReq.category && newReq.provider == oldReq.provider
-                            }
-                        }
-                    }
-                }
-            } else {
+                is GrantApplication.Recipient.ExistingProject ->
+                    recipient.id == actorAndProject.project
+
+                is GrantApplication.Recipient.PersonalWorkspace ->
+                    application.createdBy == actorAndProject.actor.safeUsername()
+            }
+
+            if (canChangeAll) {
                 document.allocationRequests
-            }
-
-            checkReferenceID(document.referenceId)
-            val allocationsApproved = session.sendPreparedStatement(
-                {
-                    setParameter("id", applicationId)
-                    allocationRequests.split {
-                        into("source_allocations") { it.sourceAllocation }
-                        into("categories") { it.category }
-                        into("providers") { it.provider }
-                        into("grant_givers") { it.grantGiver }
-                    }
-                },
-                """
-                    with requests as (
-                        select
-                            :id application_id,
-                            unnest(:categories::text[]) category,
-                            unnest(:providers::text[]) provider_id,
-                            unnest(:source_allocations::bigint[]) source_allocation,
-                            unnest(:grant_givers::text[]) grant_giver
-                    ),
-                    requested_inserts as (
-                        SELECT req.source_allocation, pc.category, pc.provider
-                        FROM 
-                            requests req
-                            join accounting.product_categories pc on pc.provider = req.provider_id and pc.category = req.category
-                            join accounting.wallets w on pc.id = w.category
-                            join accounting.wallet_owner wo on w.owned_by = wo.id
-                            left join accounting.wallet_allocations wall on w.id = wall.associated_wallet 
-                            join "grant".applications app on req.application_id = app.id
-                        where req.grant_giver = wo.project_id
-                    )
-                    
-                    select (select count(*) from requests) - (select count(*) from requested_inserts) as totalCount
-                """
-            ).rows
-                .single()
-                .getLong(0) != 0L
-
-            if (allocationsApproved) {
-                throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
-            }
-
-            session.sendPreparedStatement(
-                {
-                    setParameter("id", applicationId)
-                    setParameter("grant_applier", actorAndProject.actor.username)
-                    setParameter("revision_number", revisionNumber)
-                    allocationRequests.split {
-                        into("credits_requested") { it.balanceRequested }
-                        into("categories") { it.category }
-                        into("providers") { it.provider }
-                        into("source_allocations") { it.sourceAllocation }
-                        into("start_dates") { it.period.start }
-                        into("end_dates") { it.period.end }
-                        into("grant_givers") { it.grantGiver }
-                    }
-                },
-                """
-                    insert into "grant".requested_resources
-                        (application_id, credits_requested, quota_requested_bytes, product_category, source_allocation, start_date, end_date, grant_giver, revision_number) 
-                    with requests as (
-                        select
-                            :id application_id,
-                            unnest(:credits_requested::bigint[]) credits_requested,
-                            unnest(:categories::text[]) category,
-                            unnest(:providers::text[]) provider_id,
-                            unnest(:source_allocations::bigint[]) source_allocation,
-                            unnest(:start_dates::bigint[]) start_date,
-                            unnest(:end_dates::bigint[]) end_date,
-                            unnest(:grant_givers::text[]) grant_giver
-                    )
-                    select
-                        req.application_id, req.credits_requested, null, pc.id, req.source_allocation, to_timestamp(req.start_date), to_timestamp(req.end_date), req.grant_giver, :revision_number
-                    from
-                        requests req join
-                        accounting.product_categories pc on
-                            pc.category = req.category and
-                            pc.provider = req.provider_id
-                """
-            )
-
-            session
-                .sendPreparedStatement(
-                    {
-                        setParameter("application_id", applicationId)
-                        setParameter("revision_number", revisionNumber)
-                        val recipient = document.recipient
-                        setParameter(
-                            "grant_recipient", when (recipient) {
-                                is GrantApplication.Recipient.ExistingProject -> recipient.id
-                                is GrantApplication.Recipient.NewProject -> recipient.title
-                                is GrantApplication.Recipient.PersonalWorkspace -> recipient.username
-                            }
-                        )
-                        setParameter(
-                            "grant_recipient_type", when (recipient) {
-                                is GrantApplication.Recipient.ExistingProject -> GrantApplication.Recipient.EXISTING_PROJECT_TYPE
-                                is GrantApplication.Recipient.NewProject -> GrantApplication.Recipient.NEW_PROJECT_TYPE
-                                is GrantApplication.Recipient.PersonalWorkspace -> GrantApplication.Recipient.PERSONAL_TYPE
-                            }
-                        )
-                        val formText = when (val form = document.form) {
-                            is GrantApplication.Form.PlainText -> form.text
+            } else {
+                val newRequests = document.allocationRequests
+                val oldRequests = application.currentRevision.document.allocationRequests
+                oldRequests.mapNotNull { oldReq ->
+                    if (oldReq.grantGiver != actorAndProject.project) {
+                        oldReq
+                    } else {
+                        newRequests.find { newReq ->
+                            newReq.category == oldReq.category && newReq.provider == oldReq.provider
                         }
-                        setParameter("form", formText)
-                        setParameter("reference_id", document.referenceId)
-                        setParameter("parent_project_id", document.parentProjectId)
-                    },
-                    """
-                        insert into "grant".forms (application_id, revision_number, recipient, recipient_type, form, reference_id, parent_project_id) VALUES 
-                        (:application_id, :revision_number, :grant_recipient, :grant_recipient_type, :form, :reference_id, :parent_project_id)
-                    """.trimIndent()
-                )
+                    }
+                }
+            }
+        } else {
+            // No additional checks needed on initial submission
+            document.allocationRequests
         }
+
+        val allocationsApproved = session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                allocationRequests.split {
+                    into("source_allocations") { it.sourceAllocation }
+                    into("categories") { it.category }
+                    into("providers") { it.provider }
+                    into("grant_givers") { it.grantGiver }
+                }
+            },
+            """
+                with requests as (
+                    select
+                        :id application_id,
+                        unnest(:categories::text[]) category,
+                        unnest(:providers::text[]) provider_id,
+                        unnest(:source_allocations::bigint[]) source_allocation,
+                        unnest(:grant_givers::text[]) grant_giver
+                ),
+                requested_inserts as (
+                    select req.source_allocation, pc.category, pc.provider
+                    from 
+                        requests req
+                        join accounting.product_categories pc on pc.provider = req.provider_id and pc.category = req.category
+                        join accounting.wallets w on pc.id = w.category
+                        join accounting.wallet_owner wo on w.owned_by = wo.id
+                        left join accounting.wallet_allocations wall on w.id = wall.associated_wallet 
+                        join "grant".applications app on req.application_id = app.id
+                    where req.grant_giver = wo.project_id
+                )
+                
+                select (select count(*) from requests) - (select count(*) from requested_inserts) as totalCount
+            """
+        ).rows
+            .single()
+            .getLong(0) != 0L
+
+        if (allocationsApproved) {
+            throw RPCException.fromStatusCode(HttpStatusCode.BadRequest, "Allocations does not match products")
+        }
+
+        session.sendPreparedStatement(
+            {
+                setParameter("id", applicationId)
+                setParameter("grant_applier", actorAndProject.actor.username)
+                setParameter("revision_number", revisionNumber)
+                allocationRequests.split {
+                    into("credits_requested") { it.balanceRequested }
+                    into("categories") { it.category }
+                    into("providers") { it.provider }
+                    into("source_allocations") { it.sourceAllocation }
+                    into("start_dates") { it.period.start }
+                    into("end_dates") { it.period.end }
+                    into("grant_givers") { it.grantGiver }
+                }
+            },
+            """
+                insert into "grant".requested_resources
+                    (application_id, credits_requested, quota_requested_bytes, product_category, source_allocation, start_date, end_date, grant_giver, revision_number) 
+                with requests as (
+                    select
+                        :id application_id,
+                        unnest(:credits_requested::bigint[]) credits_requested,
+                        unnest(:categories::text[]) category,
+                        unnest(:providers::text[]) provider_id,
+                        unnest(:source_allocations::bigint[]) source_allocation,
+                        unnest(:start_dates::bigint[]) start_date,
+                        unnest(:end_dates::bigint[]) end_date,
+                        unnest(:grant_givers::text[]) grant_giver
+                )
+                select
+                    req.application_id, req.credits_requested, null, pc.id, req.source_allocation, to_timestamp(req.start_date), to_timestamp(req.end_date), req.grant_giver, :revision_number
+                from
+                    requests req join
+                    accounting.product_categories pc on
+                        pc.category = req.category and
+                        pc.provider = req.provider_id
+            """
+        )
+
+        session
+            .sendPreparedStatement(
+                {
+                    setParameter("application_id", applicationId)
+                    setParameter("revision_number", revisionNumber)
+                    setParameter("grant_recipient", recipientToSqlField(document.recipient))
+                    setParameter("grant_recipient_type", recipientToSqlType(document.recipient))
+                    val formText = when (val form = document.form) {
+                        is GrantApplication.Form.PlainText -> form.text
+                    }
+                    setParameter("form", formText)
+                    setParameter("reference_id", document.referenceId)
+                    setParameter("parent_project_id", document.parentProjectId)
+                },
+                """
+                    insert into "grant".forms (application_id, revision_number, recipient, recipient_type, form, reference_id, parent_project_id) VALUES 
+                    (:application_id, :revision_number, :grant_recipient, :grant_recipient_type, :form, :reference_id, :parent_project_id)
+                """.trimIndent()
+            )
+    }
+
+    private fun recipientToSqlType(recipient: GrantApplication.Recipient) = when (recipient) {
+        is GrantApplication.Recipient.ExistingProject -> GrantApplication.Recipient.EXISTING_PROJECT_TYPE
+        is GrantApplication.Recipient.NewProject -> GrantApplication.Recipient.NEW_PROJECT_TYPE
+        is GrantApplication.Recipient.PersonalWorkspace -> GrantApplication.Recipient.PERSONAL_TYPE
+    }
+
+    private fun recipientToSqlField(recipient: GrantApplication.Recipient) = when (recipient) {
+        is GrantApplication.Recipient.ExistingProject -> recipient.id
+        is GrantApplication.Recipient.NewProject -> recipient.title
+        is GrantApplication.Recipient.PersonalWorkspace -> recipient.username
     }
 
     private fun checkReferenceID(newReferenceId: String?) {
@@ -652,7 +647,11 @@ class GrantApplicationService(
         }
     }
 
-    private suspend fun permissionCheck(session: AsyncDBConnection, actorAndProject: ActorAndProject, appId: Long) {
+    private suspend fun checkReadPermission(
+        session: AsyncDBConnection,
+        actorAndProject: ActorAndProject,
+        appId: Long
+    ) {
         val permission = session.sendPreparedStatement(
             {
                 setParameter("username", actorAndProject.actor.safeUsername())
@@ -672,23 +671,33 @@ class GrantApplicationService(
                     "grant".requested_resources rr on app.id = rr.application_id and mr.newest = rr.revision_number join
                     "grant".forms f on app.id = f.application_id and mr.newest = f.revision_number join
                     project.project_members pm on
-                        (rr.grant_giver = pm.project_id and
-                        (pm.role = 'ADMIN' or pm.role = 'PI') and
-                        pm.username = :username
-                    ) or (
-                        (f.recipient_type = 'existing_project') and
-                        pm.project_id = f.recipient and
-                        (pm.role = 'ADMIN' or pm.role = 'PI') and
-                        pm.username = :username
-                    ) or (f.recipient_type = 'personal' and f.recipient = :username)
-                    or (f.recipient_type = 'new_project' and app.requested_by = :username)
-                where f.application_id = :id;
-            """, debug = true
+                        (
+                            rr.grant_giver = pm.project_id and
+                            (pm.role = 'ADMIN' or pm.role = 'PI') and
+                            pm.username = :username
+                        ) or 
+                        (
+                            (f.recipient_type = 'existing_project') and
+                            pm.project_id = f.recipient and
+                            (pm.role = 'ADMIN' or pm.role = 'PI') and
+                            pm.username = :username
+                        ) or 
+                        (
+                            f.recipient_type = 'personal' and 
+                            f.recipient = :username
+                        ) or
+                        (
+                            f.recipient_type = 'new_project' and 
+                            app.requested_by = :username
+                        )
+                where
+                    f.application_id = :id;
+            """
         ).rows.size > 0L
 
         if (!permission) {
             throw RPCException(
-                "Unable to update application. Has it already been closed?",
+                "Unable to retrieve application. Has it already been closed?",
                 HttpStatusCode.BadRequest
             )
         }
@@ -700,22 +709,8 @@ class GrantApplicationService(
     ) {
         db.withSession(remapExceptions = true) { session ->
             requests.items.forEach { request ->
-                permissionCheck(session, actorAndProject, request.applicationId)
-
-                val currentRevision = getCurrentRevision(session, request.applicationId)
-                session.sendPreparedStatement(
-                    {
-                        setParameter("revision", currentRevision + 1)
-                        setParameter("app_id", request.applicationId)
-                        setParameter("comment", request.document.revisionComment)
-                        setParameter("username", actorAndProject.actor.safeUsername())
-                    },
-                    """
-                        insert into "grant".revisions (application_id, created_at, updated_by, revision_number, revision_comment) VALUES 
-                        (:app_id, now(), :username, :revision, :comment)
-                    """
-                )
-                insertDocument(session, actorAndProject, request.applicationId, request.document, currentRevision + 1)
+                // NOTE(Dan): Permission check is done by insertDocument
+                insertDocument(session, actorAndProject, request.applicationId, request.document)
 
                 notifications.notify(
                     actorAndProject.actor.safeUsername(),
@@ -780,7 +775,7 @@ class GrantApplicationService(
                     },
                     """
                         with update as (
-                            UPDATE "grant".applications 
+                            update "grant".applications 
                             set overall_state = 'CLOSED', updated_at = now()
                             where id = :application_id and requested_by = :user
                             returning id
@@ -817,7 +812,7 @@ class GrantApplicationService(
                 if (!hasAllAllocationsSet) {
                     throw RPCException(
                         "Not all requested resources have a source allocation assigned. " +
-                            "You must select one for each resource.",
+                                "You must select one for each resource.",
                         HttpStatusCode.BadRequest
                     )
                 }
@@ -844,7 +839,7 @@ class GrantApplicationService(
                 val newState = update.newState
                 val approvingProject = actorAndProject.project
 
-                permissionCheck(session, actorAndProject, id)
+                checkReadPermission(session, actorAndProject, id)
 
                 if (actorAndProject.project == null) {
                     throw RPCException(
@@ -908,10 +903,10 @@ class GrantApplicationService(
                                 setParameter("app_id", update.applicationId)
                             },
                             """
-                            update "grant".applications
-                            set overall_state = 'APPROVED', updated_at = now()
-                            where id = :app_id
-                        """, debug = true
+                                update "grant".applications
+                                set overall_state = 'APPROVED', updated_at = now()
+                                where id = :app_id
+                            """
                         )
                         val currentRevision = getCurrentRevision(session, update.applicationId)
                         val parentId = session.sendPreparedStatement(
@@ -956,10 +951,10 @@ class GrantApplicationService(
                                         setParameter("app_id", update.applicationId)
                                     },
                                     """
-                                    update "grant".applications
-                                    set overall_state = 'IN_PROGRESS', updated_at = now()
-                                    where id = :app_id
-                                """, debug = true
+                                        update "grant".applications
+                                        set overall_state = 'IN_PROGRESS', updated_at = now()
+                                        where id = :app_id
+                                    """
                                 )
                             }
                             GrantApplication.State.IN_PROGRESS
@@ -1085,7 +1080,7 @@ class GrantApplicationService(
                     },
                     """
                         select "grant".transfer_application(:username, :id, :source_id, :target, :newest_revision, :revision_comment)
-                    """, debug = true
+                    """
                 )
             }
         }
@@ -1118,110 +1113,73 @@ class GrantApplicationService(
                     },
                     """
                         declare c cursor for
-                        with max_revision as (
-                            select max(revision_number) newest, application_id
-                            from "grant".revisions 
-                            group by application_id
-                        ),
-                        outgoing as (
-                            select 
-                                apps.id,
-                                r.newest,
-                                apps,
-                                r, 
-                                array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
-                                owner_project,
-                                existing_project,
-                                existing_project_pi.username,
-                                apps.created_at
-                            from
-                                "grant".applications apps join
-                                max_revision r on apps.id = r.application_id join
-                                "grant".requested_resources request on
-                                    apps.id = request.application_id and
-                                    request.revision_number = r.newest join
-                                accounting.product_categories pc on request.product_category = pc.id join
-                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.newest join
-                                project.projects owner_project on
-                                    request.grant_giver = owner_project.id left join
-                                project.projects existing_project on
-                                    f.recipient_type = 'existing_project' and
-                                    existing_project.id = f.recipient left join
-                                project.project_members existing_project_pi on
-                                    existing_project_pi.role = 'PI' and
-                                    existing_project_pi.project_id = existing_project.id left join
-                                project.project_members user_role_in_existing on
-                                    (user_role_in_existing.role = 'ADMIN' or user_role_in_existing.role = 'PI') and
-                                    existing_project.id = user_role_in_existing.project_id and
-                                    user_role_in_existing.username = :username
-                            where
-                                requested_by = :username and
-                                (
-                                    (
-                                        recipient_type = 'existing_project' and
-                                        existing_project.id = :project and
-                                        user_role_in_existing.username = :username
-                                    ) or
+                        
+                        with all_applications as (
+                            select id, created_at
+                            from (
+                                select distinct
+                                    apps.id,
+                                    apps.created_at,
+                                    rank() over (partition by apps.id order by r.revision_number desc) as rank
+                                from
+                                    "grant".applications apps join
+                                    
+                                    "grant".forms f on apps.id = f.application_id join
+                                    
+                                    "grant".revisions r on apps.id = r.application_id left join
+                                    
+                                    "grant".requested_resources resource on 
+                                        apps.id = resource.application_id and 
+                                        resource.revision_number = r.revision_number and
+                                        resource.grant_giver = :project left join
+                                        
+                                    project.projects existing_project on
+                                        f.recipient_type = 'existing_project' and
+                                        existing_project.id = f.recipient left join
+                                        
+                                    project.project_members user_role_in_existing on
+                                        existing_project.id = user_role_in_existing.project_id and
+                                        user_role_in_existing.username = :username left join
+                                        
+                                    project.project_members user_role_in_grant_giver on
+                                        user_role_in_grant_giver.project_id = resource.grant_giver and
+                                        user_role_in_grant_giver.username = :username
+                                where
                                     (
                                         (
-                                            recipient_type = 'personal' or
-                                            recipient_type = 'new_project'
+                                            :outgoing and (
+                                                requested_by = :username and
+                                                (
+                                                    (
+                                                        recipient_type = 'existing_project' and
+                                                        existing_project.id = :project and
+                                                        (
+                                                            user_role_in_existing.role = 'PI' or
+                                                            user_role_in_existing.role = 'ADMIN'
+                                                        )
+                                                    ) or
+                                                    (
+                                                        :project::text is null and
+                                                        (
+                                                            recipient_type = 'personal' or
+                                                            recipient_type = 'new_project'
+                                                        )
+                                                    )
+                                                )
+                                            )
+                                        ) or
+                                        (
+                                            :ingoing and (
+                                                user_role_in_grant_giver.role = 'PI' or
+                                                user_role_in_grant_giver.role = 'ADMIN'
+                                            )
                                         )
-                                    )
-                                ) and
-                                (:show_active or apps.overall_state != 'IN_PROGRESS') and
-                                (:show_inactive or apps.overall_state = 'IN_PROGRESS') and
-                                :outgoing
-                            group by
-                                apps.*, r.*, existing_project.*, existing_project_pi.username, owner_project.*,
-                                apps.created_at, apps.id, r.newest
-                        ),
-                        ingoing as (
-                            select 
-                                apps.id,
-                                r.newest,
-                                apps,
-                                r,
-                                array_remove(array_agg("grant".resource_request_to_json(request, pc)), null),
-                                owner_project,
-                                existing_project,
-                                existing_project_pi.username,
-                                apps.created_at
-                            from
-                                "grant".applications apps join
-                                max_revision r on apps.id = r.application_id join 
-                                "grant".forms f on apps.id = f.application_id and f.revision_number = r.newest join
-                                "grant".requested_resources request on
-                                        apps.id = request.application_id and
-                                        request.revision_number = r.newest join
-                                project.project_members pm on
-                                    pm.project_id = request.grant_giver and
-                                    pm.username = :username and
-                                    (pm.role = 'ADMIN' or pm.role = 'PI') join
-                                accounting.product_categories pc on request.product_category = pc.id join
-                                project.projects owner_project on
-                                    owner_project.id = request.grant_giver left join
-                                project.projects existing_project on
-                                    f.recipient_type = 'existing_project' and
-                                    existing_project.id = f.recipient left join
-                                project.project_members existing_project_pi on
-                                    existing_project_pi.role = 'PI' and
-                                    existing_project_pi.project_id = existing_project.id
+                                    ) and
+                                    (:show_active or apps.overall_state != 'IN_PROGRESS') and
+                                    (:show_inactive or apps.overall_state = 'IN_PROGRESS')   
+                            ) t
                             where
-                                request.grant_giver = :project and
-                                (:show_active or apps.overall_state != 'IN_PROGRESS') and
-                                (:show_inactive or apps.overall_state = 'IN_PROGRESS') and
-                                :ingoing
-                            group by
-                                apps.*, r.*, existing_project.*, existing_project_pi.username, owner_project.*,
-                                apps.created_at, apps.id, r.newest 
-                        ),
-                        all_applications as (
-                            select distinct(id), created_at
-                            from ingoing
-                            union
-                            select distinct(id), created_at
-                            from outgoing
+                                t.rank = 1
                         )
                         select "grant".application_to_json(id) 
                         from all_applications 
@@ -1247,7 +1205,7 @@ class GrantApplicationService(
                 setParameter("id", applicationId)
                 setParameter("parent", parentId)
             },
-            """select "grant".approve_application(:id, :parent::text)""", debug = true
+            """select "grant".approve_application(:id, :parent::text)"""
         )
         val createdProject = session.sendPreparedStatement("select project_id from grant_created_projects").rows
             .map { it.getString(0)!! }.singleOrNull()

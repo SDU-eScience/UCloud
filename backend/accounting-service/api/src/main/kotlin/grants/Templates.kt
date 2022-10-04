@@ -10,7 +10,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
 @Serializable
-@SerialName("templates")
 sealed class Templates {
     @Serializable
     @SerialName("plain_text")
@@ -59,16 +58,7 @@ object GrantTemplates : CallDescriptionContainer("grant_template") {
             access = AccessRight.READ_WRITE
         }
 
-        http {
-            method = HttpMethod.Post
-
-            path {
-                using(baseContext)
-                +"upload-templates"
-            }
-
-            body { bindEntireRequestFromBody() }
-        }
+        httpUpdate(baseContext, "uploadTemplates")
 
         documentation {
             summary = "Uploads templates used for new grant Applications"

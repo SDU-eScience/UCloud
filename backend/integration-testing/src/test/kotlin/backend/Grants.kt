@@ -55,7 +55,7 @@ class GrantTest : IntegrationTest() {
 
                     val root = initializeRootProject(pi.username)
 
-                    ProjectEnabled.setEnabledStatus.call(
+                    GrantsEnabled.setEnabledStatus.call(
                         bulkRequestOf(
                             SetEnabledStatusRequest(
                                 root,
@@ -281,10 +281,10 @@ class GrantTest : IntegrationTest() {
                         actualRecipient = GrantApplication.Recipient.ExistingProject(created.id)
                     }
 
-                    ProjectEnabled.setEnabledStatus.call(
+                    GrantsEnabled.setEnabledStatus.call(
                         bulkRequestOf(SetEnabledStatusRequest(createdProject, true)), serviceClient).orThrow()
                     assertTrue(
-                        ProjectEnabled.isEnabled.call(IsEnabledRequest(createdProject), grantPi.client).orThrow().enabled
+                        GrantsEnabled.isEnabled.call(IsEnabledRequest(createdProject), grantPi.client).orThrow().enabled
                     )
 
                     val initialSettings = GrantSettings.retrieveRequestSettings
@@ -987,25 +987,25 @@ class GrantTest : IntegrationTest() {
                     // NOTE(Dan): The evil logo is red
                     val evilLogo = Base64.getDecoder().decode("R0lGODdhAQABAIABAM4aGgAAACwAAAAAAQABAAACAkQBADs=")
 
-                    ProjectEnabled.setEnabledStatus.call(
+                    GrantsEnabled.setEnabledStatus.call(
                         bulkRequestOf(
                             SetEnabledStatusRequest(createdProject, true)
                         ), serviceClient).orThrow()
-                    ProjectTextDescription.retrieveDescription.call(RetrieveDescriptionRequest(createdProject), grantPi.client).orThrow()
-                    ProjectTextDescription.uploadDescription.call(
+                    GrantDescription.retrieveDescription.call(RetrieveDescriptionRequest(createdProject), grantPi.client).orThrow()
+                    GrantDescription.uploadDescription.call(
                         bulkRequestOf(
                             UploadDescriptionRequest(createdProject, input.description)
                         ),
                         grantPi.client
                     ).orThrow()
-                    ProjectTextDescription.uploadDescription.call(
+                    GrantDescription.uploadDescription.call(
                         bulkRequestOf(
                             UploadDescriptionRequest(createdProject, "Evil!")
                         ),
                         evilUser.client
                     ).assertUserError()
                     val description =
-                        ProjectTextDescription.retrieveDescription.call(RetrieveDescriptionRequest(createdProject), grantPi.client).orThrow()
+                        GrantDescription.retrieveDescription.call(RetrieveDescriptionRequest(createdProject), grantPi.client).orThrow()
                     assertEquals(input.description, description.description)
 
                     ProjectLogo.retrieveLogo.call(RetrieveLogoRequest(createdProject), grantPi.client).assertUserError()

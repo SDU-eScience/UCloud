@@ -54,7 +54,7 @@ class GrantTemplateService(
                         personal_project = excluded.personal_project,
                         existing_project = excluded.existing_project,
                         new_project = excluded.new_project
-                """, debug = true
+                """
             ).rowsAffected > 0
 
             if (!success) {
