@@ -3,16 +3,10 @@ package dk.sdu.cloud.integration.backend
 import dk.sdu.cloud.accounting.api.Wallet
 import dk.sdu.cloud.accounting.api.WalletBrowseRequest
 import dk.sdu.cloud.accounting.api.Wallets
+import dk.sdu.cloud.accounting.api.projects.UserCriteria
 import dk.sdu.cloud.calls.client.call
 import dk.sdu.cloud.calls.client.orThrow
-import dk.sdu.cloud.grant.api.AvailableGiftsRequest
-import dk.sdu.cloud.grant.api.AvailableGiftsResponse
-import dk.sdu.cloud.grant.api.ClaimGiftRequest
-import dk.sdu.cloud.grant.api.DKK
-import dk.sdu.cloud.grant.api.GiftWithCriteria
-import dk.sdu.cloud.grant.api.Gifts
-import dk.sdu.cloud.grant.api.ResourceRequest
-import dk.sdu.cloud.grant.api.UserCriteria
+import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.integration.IntegrationTest
 import dk.sdu.cloud.integration.assertUserError
 import dk.sdu.cloud.service.test.assertThatInstance
@@ -21,7 +15,7 @@ import java.util.*
 class GiftTest : IntegrationTest() {
     override fun defineTests() {
         run {
-            data class SimplifiedGift(val criteria: List<UserCriteria>, val resources: List<ResourceRequest>)
+            data class SimplifiedGift(val criteria: List<UserCriteria>)
             class In(
                 val gifts: List<SimplifiedGift>,
                 val userEmail: String = "user@ucloud.dk",
@@ -49,7 +43,19 @@ class GiftTest : IntegrationTest() {
                             createdProject,
                             "My gift ${UUID.randomUUID()}",
                             "Description",
-                            simplifiedGift.resources,
+                            listOf(
+                                GrantApplication.AllocationRequest(
+                                    sampleCompute.category.name,
+                                    sampleCompute.category.provider,
+                                    createdProject,
+                                    1000.DKK,
+                                    null,
+                                    GrantApplication.Period(
+                                        System.currentTimeMillis()+1000,
+                                        System.currentTimeMillis()+1000000
+                                    )
+                                )
+                            ),
                             simplifiedGift.criteria
                         )
 
@@ -71,14 +77,7 @@ class GiftTest : IntegrationTest() {
                     input(In(
                         listOf(
                             SimplifiedGift(
-                                listOf(UserCriteria.Anyone()),
-                                listOf(
-                                    ResourceRequest(
-                                        sampleCompute.category.name,
-                                        sampleCompute.category.provider,
-                                        1000.DKK
-                                    )
-                                )
+                                listOf(UserCriteria.Anyone())
                             )
                         )
                     ))
@@ -97,13 +96,6 @@ class GiftTest : IntegrationTest() {
                         listOf(
                             SimplifiedGift(
                                 listOf(UserCriteria.WayfOrganization("ucloud.dk")),
-                                listOf(
-                                    ResourceRequest(
-                                        sampleCompute.category.name,
-                                        sampleCompute.category.provider,
-                                        1000.DKK
-                                    )
-                                )
                             )
                         ),
                         userOrganization = "sdu.dk"
@@ -123,13 +115,6 @@ class GiftTest : IntegrationTest() {
                         listOf(
                             SimplifiedGift(
                                 listOf(UserCriteria.EmailDomain("ucloud.dk")),
-                                listOf(
-                                    ResourceRequest(
-                                        sampleCompute.category.name,
-                                        sampleCompute.category.provider,
-                                        1000.DKK
-                                    )
-                                )
                             )
                         ),
                         userEmail = "user@sdu.dk"
@@ -149,13 +134,6 @@ class GiftTest : IntegrationTest() {
                         listOf(
                             SimplifiedGift(
                                 listOf(UserCriteria.EmailDomain("sdu.dk")),
-                                listOf(
-                                    ResourceRequest(
-                                        sampleCompute.category.name,
-                                        sampleCompute.category.provider,
-                                        1000.DKK
-                                    )
-                                )
                             )
                         ),
                         userEmail = "user@sdu.dk"
@@ -175,13 +153,6 @@ class GiftTest : IntegrationTest() {
                         listOf(
                             SimplifiedGift(
                                 listOf(UserCriteria.WayfOrganization("sdu.dk")),
-                                listOf(
-                                    ResourceRequest(
-                                        sampleCompute.category.name,
-                                        sampleCompute.category.provider,
-                                        1000.DKK
-                                    )
-                                )
                             )
                         ),
                         userOrganization = "sdu.dk"

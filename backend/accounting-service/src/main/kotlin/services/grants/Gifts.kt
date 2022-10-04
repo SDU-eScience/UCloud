@@ -176,8 +176,8 @@ class GiftService(
                     }
 
                     gift.resources.split {
-                        into("resource_cat_name") { it.productCategory }
-                        into("resource_provider") { it.productProvider }
+                        into("resource_cat_name") { it.category }
+                        into("resource_provider") { it.provider }
                         into("credits") { it.balanceRequested }
                         into("quota") { 0 }
                     }

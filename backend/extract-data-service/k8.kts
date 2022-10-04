@@ -3,8 +3,8 @@ package dk.sdu.cloud.k8
 
 bundle {
     name = "extract-data"
-    version = "0.1.4"
-    
+    version = "2022.1.60"
+
     withAmbassador() {}
     
     val deployment = withDeployment {
@@ -13,9 +13,10 @@ bundle {
     }
     
     withPostgresMigration(deployment)
-    withAdHocJob(deployment, "report-center", { listOf("--data-collection" , "--center", "--startDate", "2021-11-01", "--endDate", "2022-01-04")}) {}
-    withAdHocJob(deployment, "report-center-daily", { listOf("--data-collection", "--center-daily", "--startDate", "2021-11-01", "--endDate", "2022-01-04")}) {}
-    withAdHocJob(deployment, "report-center-daily-deic", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2021-11-01", "--endDate", "2022-01-04")}) {}
+    withAdHocJob(deployment, "report-center", { listOf("--data-collection" , "--center", "--startDate", "2022-05-01", "--endDate", "2022-08-01")}) {}
+    withAdHocJob(deployment, "report-center-aau", { listOf("--data-collection" , "--centerAAU", "--startDate", "2022-05-01", "--endDate", "2022-08-01")}) {}
+    withAdHocJob(deployment, "report-center-daily", { listOf("--data-collection", "--center-daily", "--startDate", "2022-05-01", "--endDate", "2022-08-01")}) {}
+    withAdHocJob(deployment, "report-center-daily-deic", { listOf("--data-collection", "--center-daily-deic", "--startDate", "2022-05-01", "--endDate", "2022-08-01")}) {}
 
     withAdHocJob(deployment, "report-person", { listOf("--data-collection", "--person")}) {}
 

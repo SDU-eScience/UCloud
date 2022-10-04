@@ -213,14 +213,14 @@ async function onAction(_: UIState, action: UIAction, cb: ActionCallbacks): Prom
 }
 
 interface ActionCallbacks {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     pureDispatch: (action: UIAction) => void;
     requestReload: () => void; // NOTE(Dan): use when it is difficult to rollback a change
     requestJobReloader: () => void;
 }
 
 interface OperationCallbacks {
-    history: History;
+    history: ReturnType<typeof useHistory>;
     dispatch: (action: UIAction) => void;
     requestReload: () => void;
     permissionProblems: string[];

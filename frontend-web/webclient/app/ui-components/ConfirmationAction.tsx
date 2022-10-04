@@ -221,10 +221,11 @@ const tickRate = 50;
 export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
     actionText: string,
     doneText?: string,
-    icon: IconName,
+    icon?: IconName,
     align?: "left" | "center",
     onAction?: () => void;
     hoverColor?: ThemeColor;
+    disabled?: boolean;
 }> = props => {
     const buttonRef = useRef<HTMLButtonElement>(null);
     const timeout = useRef(-1);
@@ -324,9 +325,9 @@ export const ConfirmationButton: React.FunctionComponent<ButtonProps & {
 
     return <Wrapper {...passedProps} onMouseDown={start} onTouchStart={start} onMouseLeave={() => {if (startedMap[tempStartedKey]) end();}} onMouseUp={end} onTouchEnd={end}
         onClick={doNothing} ref={buttonRef}>
-        <div className={"ucloud-native-icons"}>
+        {!props.icon ? null : <div className={"ucloud-native-icons"}>
             <Icon name={props.icon} size={"20"} mb="3px" />
-        </div>
+        </div>}
         <div className={"icons"}>
             <svg className="progress" viewBox="0 0 32 32">
                 <circle r="8" cx="16" cy="16" />

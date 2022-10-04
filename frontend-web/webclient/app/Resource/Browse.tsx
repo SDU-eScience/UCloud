@@ -69,7 +69,7 @@ export interface ResourceBrowseProps<Res extends Resource, CB> extends BaseResou
     onRename?: (text: string, resource: Res, cb: ResourceBrowseCallbacks<Res>) => Promise<void>;
 
     // Properties and navigation
-    navigateToChildren?: (history: H.History, resource: Res) => "properties" | void;
+    navigateToChildren?: (history: ReturnType<typeof useHistory>, resource: Res) => "properties" | void;
     propsForInlineResources?: Record<string, any>;
     viewPropertiesInline?: (res: Res) => boolean;
 

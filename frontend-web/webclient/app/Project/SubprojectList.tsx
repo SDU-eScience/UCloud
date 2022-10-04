@@ -24,7 +24,7 @@ interface MemberInProjectCallbacks {
     startCreation: () => void;
     onSetArchivedStatus: (id: string, archive: boolean) => void;
     startRename: (id: string) => void;
-    history: History;
+    history: ReturnType<typeof useHistory>;
     setActiveProject: (id: string, title: string) => void;
     isAdminOrPIForParent: boolean;
 }
@@ -131,8 +131,12 @@ export default function SubprojectList(): JSX.Element | null {
 
     const project = useProjectManagementStatus({isRootComponent: true});
     const {projectId, projectRole} = project;
-    
-    React.useEffect(() => {if (!overrideRedirect) history.push(`/subprojects?subproject=${projectId}`);}, [projectId, overrideRedirect]);
+
+    React.useEffect(() => {
+        if (!overrideRedirect) {
+            history.push(`/subprojects?subproject=${projectId}`);
+        }
+    }, [projectId, overrideRedirect]);
 
     const dispatch = useDispatch();
     const setProject = React.useCallback((id: string, title: string) => {
