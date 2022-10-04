@@ -69,7 +69,7 @@ const DetailedView = styled(Table)`
     }
 `;
 
-export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string}> = ({area, provider}) => {
+export const MachineView: React.FunctionComponent<{area: ProductArea, provider: string; color?: string}> = ({area, provider, color = "var(--blue, #f00)"}) => {
     const [machines, refetch] = useCloudAPI<UCloud.PageV2<Product>>(
         UCloud.accounting.products.browse({filterArea: area, filterProvider: provider, filterUsable: true, itemsPerPage: 10}),
         emptyPage
@@ -96,7 +96,7 @@ export const MachineView: React.FunctionComponent<{area: ProductArea, provider: 
             borderWidth={0}
             borderRadius={6}
         >
-            <Box style={{borderTop: `5px solid var(--blue, #f00)`}} />
+            <Box style={{borderTop: `5px solid ${color}`}} />
             <Box px={3} py={3} height={"100%"}>
                 <Heading.h3 mb={"16px"}>{capitalized(area === "INGRESS" ? "public links" : area)}</Heading.h3>
 

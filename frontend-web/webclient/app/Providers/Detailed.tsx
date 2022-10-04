@@ -3,7 +3,7 @@ import * as React from "react";
 import Providers from "@/assets/Providers/info.json";
 import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import {Box, Button, Card, Flex, Markdown, Relative, Text, theme} from "@/ui-components";
+import {Box, Button, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -36,25 +36,26 @@ export default function DetailedProvider() {
         </Flex>
         <Box height="48px" />
         {entry.texts.map((text, index) =>
-            <Box key={index} my="16px">
+            <Box key={index} my="32px">
                 <HighlightedCard color="purple">
                     <Flex>
-                        {text.image !== "" ? <Flex flexDirection="column">
+                        {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
                             <img style={{maxHeight: "150px", objectFit: "scale-down"}} src={text.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
-                        <Box ml="16px">
+                        <div>
                             <Markdown>
                                 {text.description}
                             </Markdown>
-                        </Box>
+                        </div>
                     </Flex>
                 </HighlightedCard>
             </Box>
         )}
-        <MachineView provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />
-        <MachineView provider={entry.id} key={entry.id + "COMPUTE"} area="COMPUTE" />
+        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "STORAGE"} area="STORAGE" />
+        <Box my="32px" />
+        <MachineView color="var(--purple)" provider={entry.id} key={entry.id + "COMPUTE"} area="COMPUTE" />
     </Box>;
 
     if (!Client.isLoggedIn) return (<>
