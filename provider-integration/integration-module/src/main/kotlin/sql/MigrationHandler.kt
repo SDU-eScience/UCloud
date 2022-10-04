@@ -23,7 +23,7 @@ class MigrationHandler(private val connection: DBContext) {
         val missingMigrations = ArrayList<String>()
         connection.withSession { connection ->
             try {
-                //language=SQLite
+                //language=postgresql
                 connection.prepareStatement(
                     """
                         create table if not exists migrations(
@@ -33,7 +33,7 @@ class MigrationHandler(private val connection: DBContext) {
                 ).use { it.invokeAndDiscard() }
 
                 connection.prepareStatement(
-                    //language=SQLite
+                    //language=postgresql
                     """
                         create table if not exists completed_migrations(
                             id text primary key references migrations,
@@ -48,9 +48,9 @@ class MigrationHandler(private val connection: DBContext) {
             try {
                 scripts.forEach { script ->
                     connection.prepareStatement(
-                        //language=SQLite
+                        //language=postgresql
                         """
-                            insert into migrations(id) values (:id) on conflict do nothing
+                            insert into migrations(id) values (:id) on conflict (id) do nothing
                         """
                     ).invokeAndDiscard {
                         bindString("id", script.id)
@@ -89,9 +89,9 @@ class MigrationHandler(private val connection: DBContext) {
 
                     // NOTE(Dan): This needs to be prepared everytime because of schema changes made by the migrations.
                     connection.prepareStatement(
-                        //language=SQLite
+                        //language=postgresql
                         """
-                            insert into completed_migrations (id, completed_at) values (:id, datetime())
+                            insert into completed_migrations (id, completed_at) values (:id, now())
                         """
                     ).use {
                         it.invokeAndDiscard {

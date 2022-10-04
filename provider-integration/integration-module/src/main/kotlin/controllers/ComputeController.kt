@@ -469,10 +469,11 @@ class ComputeController(
             val generatedSessionId = secureToken(32)
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into compute_sessions(session, session_type, job_id, job_rank, plugin_name, plugin_data,
                             target)
-                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target)
+                        values (:session, :session_type, :job_id, :job_rank, :plugin_name, :plugin_data, :target::text)
                     """
                 ).useAndInvokeAndDiscard(
                     prepare = {
@@ -537,6 +538,7 @@ class ComputeController(
             var response: ComputeSessionIpc.Session? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select session_type, job_id, job_rank, plugin_name, plugin_data, target
                         from compute_sessions

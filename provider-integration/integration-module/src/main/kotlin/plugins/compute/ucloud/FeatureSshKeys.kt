@@ -94,10 +94,11 @@ class FeatureSshKeys(
                 randomPort = ((randomSubnet.portMin)..(randomSubnet.portMax)).random()
 
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into ucloud_compute_bound_ssh_ports (name, subnet, port, job_id)
                         values (:plugin_name, :subnet, :port, :job_id)
-                        on conflict do nothing
+                        on conflict (name, subnet, port, job_id) do nothing
                         returning port
                     """
                 ).useAndInvoke(

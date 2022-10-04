@@ -4,10 +4,11 @@ import dk.sdu.cloud.ServerMode
 import dk.sdu.cloud.accounting.api.Product
 import dk.sdu.cloud.file.orchestrator.api.FileType
 import dk.sdu.cloud.plugins.*
+import dk.sdu.cloud.sql.postgres.EmbeddedPostgres
 import dk.sdu.cloud.utils.*
+import libc.clib
 import java.io.File
 import java.nio.file.Files
-import java.util.UUID
 import kotlin.system.exitProcess
 
 // NOTE(Dan): To understand how this class is loaded, see the note in `Config.kt` of this package.
@@ -76,7 +77,10 @@ data class VerifiedConfig(
         }
 
         data class Database(
-            val file: String,
+            val embeddedDataDirectory: File?,
+            val jdbcUrl: String,
+            val username: String?,
+            val password: String?,
         )
 
         data class Envoy(
@@ -479,9 +483,62 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
 
         val database: VerifiedConfig.Server.Database = run {
-            VerifiedConfig.Server.Database(
-                config.server.database?.file ?: (config.configurationDirectory + "/ucloud.sqlite3")
+            val dbconfig = config.server.database ?: ConfigSchema.Server.Database(
+                embedded = ConfigSchema.Server.Database.Embedded(
+                    File(config.configurationDirectory, "pgsql").absolutePath
+                ),
             )
+
+            val external = dbconfig.external
+            val embedded = dbconfig.embedded
+
+            if (embedded == null && external == null) {
+                emitError("Either embedded or external database must be specified")
+            }
+
+            if (embedded != null && external != null) {
+                emitError("Database cannot be both embedded and external at the same time")
+            }
+
+            if (embedded != null) {
+                val workDir = File(embedded.directory)
+                workDir.mkdirs()
+                verifyFile(workDir.absolutePath, FileType.DIRECTORY)
+                val dataDir = File(workDir, "data")
+
+                val embeddedPostgres = EmbeddedPostgres.builder().apply {
+                    setCleanDataDirectory(false)
+                    setDataDirectory(dataDir.also { it.mkdirs() })
+                    setOverrideWorkingDirectory(workDir)
+                    setUseUnshare(clib.getuid() == 0)
+                    setPort(embedded.port)
+                }.start()
+
+                VerifiedConfig.Server.Database(
+                    dataDir,
+                    embeddedPostgres.getJdbcUrl("postgres", "postgres"),
+                    EmbeddedPostgres.PG_SUPERUSER,
+                    embeddedPostgres.password,
+                )
+            } else if (external != null) {
+                VerifiedConfig.Server.Database(
+                    null,
+                    buildString {
+                        append("jdbc:postgresql://")
+                        append(external.hostname)
+                        if (external.port != null) {
+                            append(':')
+                            append(external.port)
+                        }
+                        append('/')
+                        append(external.database)
+                    },
+                    external.username,
+                    external.password,
+                )
+            } else {
+                emitError("Internal config error")
+            }
         }
 
         val envoy: VerifiedConfig.Server.Envoy = run {
@@ -650,7 +707,16 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         }
     }
 
-    return VerifiedConfig(config.configurationDirectory, mode, core, server, plugins, config.plugins, products, frontendProxy)
+    return VerifiedConfig(
+        config.configurationDirectory,
+        mode,
+        core,
+        server,
+        plugins,
+        config.plugins,
+        products,
+        frontendProxy
+    )
 }
 
 // Plugin loading

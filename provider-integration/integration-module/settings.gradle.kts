@@ -6,3 +6,4 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
+include("embedded-postgres")
