@@ -1,7 +1,7 @@
 import {AbsoluteNoPointerEvents} from "@/Applications/Card";
 import MainContainer from "@/MainContainer/MainContainer";
 import {useTitle} from "@/Navigation/Redux/StatusActions";
-import {Box, Link, theme} from "@/ui-components";
+import {Box, Link, Markdown, theme} from "@/ui-components";
 import {GridCardGroup} from "@/ui-components/Grid";
 import * as React from "react";
 import styled from "styled-components";
@@ -29,7 +29,7 @@ export function ProviderEntry(props: {provider: ProviderType}): React.ReactEleme
                 background={theme.colors.headerBg} />
             <ProviderLogoBox><ProviderLogo providerId={props.provider.id} size={150} /></ProviderLogoBox>
             <Heading.h3 style={{marginLeft: "auto", marginRight: "auto"}}><ProviderTitle providerId={props.provider.id} /></Heading.h3>
-            <Box height="300px" style={{textOverflow: "ellipsis"}} overflowY="hidden" width={1} mt={"4px"}>
+            <Box height="300px" width={1} mt={"4px"}>
                 {props.provider.description}
             </Box>
         </AppCard>
@@ -49,7 +49,7 @@ const ProviderLogoBox = styled.div`
 export default function ProviderOverview() {
     useTitle("Provider Overview");
 
-    const main = <GridCardGroup minmax={250} gridGap={8}>
+    const main = <GridCardGroup minmax={250}>
         {Providers.providers.map(provider =>
             <ProviderEntry key={provider.title} provider={provider} />
         )}

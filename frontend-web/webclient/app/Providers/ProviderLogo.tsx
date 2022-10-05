@@ -1,7 +1,7 @@
 import * as React from "react";
 import {Image} from "@/ui-components";
 import HippoLogo from "@/Assets/Providers/hippo.png";
-import PuhuriLogo from "@/Assets/Providers/puhuri.png";
+import LumiLogo from "@/Assets/Providers/lumi.png";
 import SophiaLogo from "@/Assets/Providers/sophia.png";
 import UCloudLogo from "@/Assets/Providers/ucloud.png";
 import styled from "styled-components";
@@ -15,8 +15,8 @@ export const ProviderLogo: React.FunctionComponent<{providerId: string; size: nu
         case "sophia":
             logo = SophiaLogo;
             break;
-        case "puhuri":
-            logo = PuhuriLogo;
+        case "lumi":
+            logo = LumiLogo;
             break;
         case "ucloud":
             logo = UCloudLogo;
