@@ -564,7 +564,7 @@ class SlurmPlugin : ComputePlugin {
             charges.add(
                 ResourceChargeCredits(
                     job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed,
+                    job.ucloudId + "_" + job.elapsed / 1000,
                     units,
                     max(1, periods),
                 )
