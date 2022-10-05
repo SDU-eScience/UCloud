@@ -26,11 +26,11 @@
             "texts": [
                 {
                     "description": "# Large Memory HPC\nThe large memory HPC system is a small and specialised four-node system where each node is equipped with 4 TB of memory and 128 cores.\nThe system is used for workloads that cannot easily be parallelised and distributed across multiple nodes.",
-                    "image": "todo"
+                    "image": "/app/assets/Providers/ucloud-1.png"
                 },
                 {
                     "description": "### Nodes\n- Lenovo ThinkSystem SR645\n- 4096 GB DDR4-2400 LRDIMM\n- 2x AMD EPYC 7742 64-Core @ 2.25 GHz",
-                    "image": "todo"
+                    "image": "/app/assets/Providers/ucloud-9.svg"
                 }
             ]
         },
@@ -58,7 +58,7 @@
         {
             "id": "lumi",
             "title": "Lumi",
-            "logo": "puhuri.png",
+            "logo": "lumi.png",
             "description": "LUMI is one of the three European pre-exascale supercomputers. It's an HPE Cray EX supercomputer consisting of several hardware partitions targeted different use cases.",
             "url": "",
             "texts": [
