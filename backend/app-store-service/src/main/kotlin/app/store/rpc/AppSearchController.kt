@@ -15,11 +15,12 @@ class AppSearchController (
 
         implement(AppStore.searchTags) {
             val normalizedExcludeList = request.excludeTools?.split(",") ?: emptyList()
+            val normalizedTags = request.tags.map { it.lowercase() }
             ok(
                 searchService.searchByTags(
                     ctx.securityPrincipal,
                     ctx.project,
-                    request.tags,
+                    normalizedTags,
                     request.normalize(),
                     normalizedExcludeList
                 )

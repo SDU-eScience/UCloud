@@ -10,18 +10,21 @@ class ApplicationTagsService (
     private val elasticDao: ElasticDao
 ) {
     suspend fun createTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
-        db.withTransaction { session ->
-            tagDao.createTags(session, user, applicationName, tags)
-        }
-        elasticDao.addTagToElastic(applicationName, tags)
+        val normalizedTags = tags.map { it.lowercase() }
 
+        db.withTransaction { session ->
+            tagDao.createTags(session, user, applicationName, normalizedTags)
+        }
+        elasticDao.addTagToElastic(applicationName, normalizedTags)
     }
 
     suspend fun deleteTags(tags: List<String>, applicationName: String, user: SecurityPrincipal) {
+        val normalizedTags = tags.map { it.lowercase() }
+
         db.withTransaction { session ->
-            tagDao.deleteTags(session, user, applicationName, tags)
+            tagDao.deleteTags(session, user, applicationName, normalizedTags)
         }
-        elasticDao.removeTagFromElastic(applicationName, tags)
+        elasticDao.removeTagFromElastic(applicationName, normalizedTags)
     }
 
 }
