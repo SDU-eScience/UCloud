@@ -1,9 +1,6 @@
 package dk.sdu.cloud
 
-import dk.sdu.cloud.accounting.api.*
-import dk.sdu.cloud.auth.api.*
 import dk.sdu.cloud.calls.client.*
-import dk.sdu.cloud.calls.bulkRequestOf
 import dk.sdu.cloud.calls.server.IngoingHttpInterceptor
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.*
@@ -90,7 +87,7 @@ fun runInstaller(
             configDir = "/var/run/ucloud/envoy",
             useUCloudUsernameHeader = false,
             logDirectory = "/tmp",
-            downstreamTls = {{im.envoy.tls.downstream}}
+            downstreamTls = false
         )
         val server = RpcServer()
         val engine = embeddedServer(CIO, port = UCLOUD_IM_PORT) {}
@@ -136,11 +133,6 @@ fun runInstaller(
             ).writeText(
                 """
                     refreshToken: ${request.createdProvider.refreshToken}
-                    envoy:
-                      executable: "/usr/local/bin/getenvoy"
-                      directory: "/var/run/ucloud/envoy"
-                      downstreamTls: {{im.envoy.tls.downstream}}
-                      
                 """.trimIndent()
             )
 
@@ -209,7 +201,7 @@ fun runInstaller(
 
             Thread({
                 Thread.sleep(2000)
-                runShutdownWorker(ownExecutable, request.createdProvider.refreshToken, providerId)
+                runShutdownWorker()
                 exitProcess(0)
             }).start()
 
@@ -229,53 +221,15 @@ fun runInstaller(
     }
 }
 
-private fun runShutdownWorker(
-    ownExecutable: String,
-    refreshToken: String,
-    providerId: String
-) {
+private fun runShutdownWorker() {
     Thread.sleep(1)
     val rpcClient = RpcClient()
     OutgoingHttpRequestInterceptor().also {
         it.install(rpcClient, FixedOutgoingHostResolver(HostInfo("backend", "http", 8080)))
     }
 
-    val authenticateClient = RefreshingJWTAuthenticator(
-        rpcClient,
-        JwtRefresher.Provider(refreshToken, OutgoingHttpCall),
-        becomesInvalidSoon = { true }
-    ).authenticateClient(OutgoingHttpCall)
-
-    @Suppress("UNCHECKED_CAST")
-    Products.create.callBlocking(
-        bulkRequestOf(
-            Product.Compute(
-                name = "im-cpu-1",
-                pricePerUnit = 1000L,
-                category = ProductCategoryId("im-cpu", providerId),
-                description = "Example product",
-                cpu = 1,
-                memoryInGigs = 1,
-                gpu = 0,
-            ),
-
-            Product.Storage(
-                name = "im-storage",
-                pricePerUnit = 1L,
-                category = ProductCategoryId("im-storage", providerId),
-                description = "Example product",
-                unitOfPrice = ProductPriceUnit.PER_UNIT,
-                chargeType = ChargeType.DIFFERENTIAL_QUOTA,
-            )
-        ),
-        authenticateClient
-    ).orThrow()
-
     sendTerminalMessage {
-        bold { green { line("UCloud/IM has been configured successfully. UCloud/IM will now restart...") } }
+        bold { green { line("UCloud/IM has been configured successfully. Please restart UCloud/IM...") } }
     }
-
-    // TODO
-    // replaceThisProcess(listOf(ownExecutable, "server"), ProcessStreams())
 }
 

@@ -13,6 +13,7 @@ version = "2022.3.0"
 repositories {
     mavenCentral()
     mavenLocal()
+    maven("https://mvn.cloud.sdu.dk")
 }
 
 dependencies {

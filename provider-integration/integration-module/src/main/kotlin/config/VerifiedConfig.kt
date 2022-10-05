@@ -547,7 +547,7 @@ fun verifyConfiguration(mode: ServerMode, config: ConfigSchema): VerifiedConfig 
         val envoy: VerifiedConfig.Server.Envoy = run {
             val executable = config.server.envoy?.executable
             val directory = config.server.envoy?.directory ?: "/var/run/ucloud/envoy"
-            val downstreamTls = config.server.envoy!!.downstreamTls
+            val downstreamTls = config.server.envoy?.downstreamTls ?: false
             VerifiedConfig.Server.Envoy(executable, directory, downstreamTls)
         }
 

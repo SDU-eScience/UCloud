@@ -183,10 +183,7 @@ class EnvoyConfigurationService(
     }
 
     private fun writeConfigurationFile(port: Int) {
-
-
-        val tlsDefaultDownstream = if(!downstreamTls) "" else """
-
+        val tlsDefaultDownstream = if (!downstreamTls) "" else """
           transport_socket:
             name: envoy.transport_sockets.tls
             typed_config:
@@ -206,59 +203,46 @@ class EnvoyConfigurationService(
 
 """
 
+        if (downstreamTls) {
+            File(configDir, "certs").mkdir()
 
-    if (downstreamTls) {
-        startProcess(
-                    args = listOf(
-                        "/bin/mkdir",
-                        "$configDir/certs"
-                    ),
-                    attachStdout = false,
-                    attachStderr = false,
-                    attachStdin = false
-                )
+            // NOTE(Roman): Generate private key and generate X509 cert
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "ecparam",
+                    "-name",
+                    "prime256v1",
+                    "-genkey",
+                    "-noout",
+                    "-out",
+                    "$configDir/certs/private.key"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
 
-         //generate private key
-        startProcess(
-                    args = listOf(
-                        "/bin/openssl",
-                        "ecparam",
-                        "-name",
-                        "prime256v1",
-                        "-genkey",
-                        "-noout",
-                        "-out",
-                        "$configDir/certs/private.key"
-                    ),
-                    attachStdout = false,
-                    attachStderr = false,
-                    attachStdin = false,
-        )
-
-        //generate public key
-        startProcess(
-                    args = listOf(
-                        "/bin/openssl",
-                        "req",
-                        "-new",
-                        "-x509",
-                        "-key",
-                        "$configDir/certs/private.key",
-                        "-out",
-                        "$configDir/certs/public.crt",
-                        "-days",
-                        "360",
-                        "-subj",
-                        "/CN=integration-module/O=DTU/OU=AIT/C=DK"
-                    ),
-                    attachStdout = false,
-                    attachStderr = false,
-                    attachStdin = false,
-        )
-
-    }
-
-
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "req",
+                    "-new",
+                    "-x509",
+                    "-key",
+                    "$configDir/certs/private.key",
+                    "-out",
+                    "$configDir/certs/public.crt",
+                    "-days",
+                    "360",
+                    "-subj",
+                    "/CN=integration-module/O=integration-module"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
+        }
 
         NativeFile.open("$configDir/$configFile", readOnly = false, truncateIfNeeded = true).writeText(
             //language=YAML

@@ -110,7 +110,7 @@ data class ConfigSchema(
         data class Envoy(
             val executable: String? = null,
             val directory: String,
-            val downstreamTls: Boolean,
+            val downstreamTls: Boolean = false,
         )
     }
 
