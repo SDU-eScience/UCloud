@@ -83,6 +83,7 @@ import {store} from "@/Utilities/ReduxUtilities";
 import {isLightThemeStored, removeExpiredFileUploads, setSiteTheme, toggleCssColors} from "@/UtilityFunctions";
 import {injectFonts} from "@/ui-components/GlobalStyle";
 import {SharesOutgoing} from "@/Files/SharesOutgoing";
+import ApplicationsOverview2 from "./Applications/Overview2";
 
 const NotFound = (): JSX.Element => (<MainContainer main={<div><h1>Not found.</h1></div>} />);
 
@@ -112,6 +113,7 @@ const Core = (): JSX.Element => (
 
                     <Route exact path="/applications" component={requireAuth(Applications)} />
                     <Route exact path="/applications/overview" component={requireAuth(ApplicationsOverview)} />
+                    <Route exact path="/applications/overview2" component={requireAuth(ApplicationsOverview2)} />
                     <Route exact path="/applications/search" component={requireAuth(Search)} />
 
                     {!inDevEnvironment() ? null :
