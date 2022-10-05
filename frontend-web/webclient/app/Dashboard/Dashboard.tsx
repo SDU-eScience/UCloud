@@ -197,7 +197,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         >
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    <Text width="100%">
+                    <Text textAlign="center" width="100%">
                         As you as add favorites, they will appear here.
                         <Link to={"/drives"} mt={8}>
                             <Button fullWidth mt={8}>Explore files</Button>
@@ -295,7 +295,7 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
         >
             {props.charts.data.charts.length !== 0 ? null : (
                 <NoResultsCardBody title={"No usage"}>
-                    <Text>
+                    <Text textAlign="center">
                         As you use the platform, usage will appear here.
 
                         <Link to={"/drives"} mt={8}>
