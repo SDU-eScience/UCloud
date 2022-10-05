@@ -376,33 +376,6 @@ class SlurmPlugin : ComputePlugin {
         val processInput = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
         val processOutput = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
 
-        /*
-        processInput.write(
-            buildString {
-                append("/usr/bin/ssh ")
-                append("-tt ")
-                append("-oStrictHostKeyChecking=accept-new ")
-                append(nodeToUse)
-                append(' ')
-                run {
-                    append("'")
-
-                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
-                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
-                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
-                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
-                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
-                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
-                    append("exec /bin/sh")
-
-                    append("'")
-                }
-                appendLine()
-                appendLine("clear")
-            }.encodeToByteArray()
-        )
-         */
-
         val userInputToSsh = ProcessingScope.launch {
             while (shellIsActive() && isActive && !receiveChannel.isClosedForReceive) {
                 select {
