@@ -28,12 +28,16 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import libc.clib
 import java.io.File
 import kotlin.math.max
 
@@ -342,87 +346,119 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        val shellIsActive = isActive
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
-        val nodeToUse = nodes[jobRank]
+        val nodeToUse = nodes[jobRank] ?: throw RPCException("Could not locate job node", HttpStatusCode.BadGateway)
 
-         val process = startProcess(
-             args = listOf(
-                 "/usr/bin/ssh",
-                 "-tt",
-                 "-oStrictHostKeyChecking=accept-new",
-                 "${nodeToUse}",
-                 "([ -x /bin/bash ] && exec /bin/bash) || " +
-                     "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
-                     "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-                     "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
-                     "([ -x /bin/fish ] && exec /bin/fish) || " +
-                     "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                     "exec /bin/sh"
-             ),
-             envs = listOf("TERM=xterm-256color"),
-             attachStdin = true,
-             attachStdout = true,
-             attachStderr = true,
-             nonBlockingStdout = true,
-             nonBlockingStderr = true
-         )
+        val masterFd = clib.createAndForkPty(
+            command = arrayOf(
+                ("/usr/bin/ssh"),
+                ("-tt"),
+                ("-oStrictHostKeyChecking=accept-new"),
+                nodeToUse,
+                buildString {
+                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
+                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
+                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
+                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
+                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
+                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
+                    append("exec /bin/sh")
+                }
+            ),
+            env = arrayOf(
+                "TERM", "xterm"
+            )
+        )
+        val processInput = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
+        val processOutput = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
 
-         readloop@ while (isActive() && process.jvm.isAlive() ) {
-             val userInput = receiveChannel.tryReceive().getOrNull()
-             when (userInput) {
-                 is ShellRequest.Input -> {
-                     // Forward input to SSH session
-                     println("USERINPUT: ${ userInput.data }")
-                     process.stdin!!.write(userInput.data.encodeToByteArray())
-                     process.stdin!!.flush()
-                 }
+        /*
+        processInput.write(
+            buildString {
+                append("/usr/bin/ssh ")
+                append("-tt ")
+                append("-oStrictHostKeyChecking=accept-new ")
+                append(nodeToUse)
+                append(' ')
+                run {
+                    append("'")
 
-                 is ShellRequest.Resize -> {
-                     /*
-                     // Send resize event to SSH session
-                     println("RESIisEofZE EVENT: ${userInput} ")
-                     //ps -q 5458 -o tty=
-                     val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
-                         addArg("-q", "${process.pid}")
-                         addArg("-o", "tty=")
-                     }
+                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
+                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
+                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
+                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
+                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
+                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
+                    append("exec /bin/sh")
 
-                     println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
+                    append("'")
+                }
+                appendLine()
+                appendLine("clear")
+            }.encodeToByteArray()
+        )
+         */
 
-                     //stty rows 50 cols 50 --file /dev/pts/0
-                     val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
-                         addArg("rows", "700")
-                         addArg("cols", "700")
-                         addArg("--file", "/dev/${device.trim()}")
-                     }
-                      */
-                 }
+        val userInputToSsh = ProcessingScope.launch {
+            while (shellIsActive() && isActive && !receiveChannel.isClosedForReceive) {
+                select {
+                    receiveChannel.onReceiveCatching {
+                        val userInput = it.getOrNull() ?: return@onReceiveCatching Unit
 
-                 else -> {
-                     // Nothing to do right now
-                 }
+                        when (userInput) {
+                            is ShellRequest.Input -> {
+                                processInput.write(userInput.data.encodeToByteArray())
+                                processInput.flush()
+                            }
+
+                            is ShellRequest.Resize -> {
+                                clib.resizePty(masterFd, userInput.cols, userInput.rows)
+                            }
+
+                            else -> {
+                                // Nothing to do right now
+                            }
+                        }
+
+                        Unit
+                    }
+
+                    onTimeout(500) {
+                        // Check if shellIsActive() and isActive
+                    }
+                }
+            }
+        }
+
+        val sshOutputToUser = ProcessingScope.launch {
+            val readBuffer = ByteArray(256)
+
+            while (shellIsActive() && isActive) {
+                val bytesRead = processOutput.read(readBuffer)
+                if (bytesRead <= 0) break
+                val decodedString = readBuffer.decodeToString(0, bytesRead)
+                emitData(decodedString)
+            }
+        }
+
+        while (currentCoroutineContext().isActive) {
+            val shouldBreak = select {
+                sshOutputToUser.onJoin { true }
+                userInputToSsh.onJoin { true }
+                onTimeout(500) { !shellIsActive() }
             }
 
-             val bytesAvailable: Int = process.stdout!!.available()
-             val buffer = ByteArray(bytesAvailable)
-             val bytesRead: Int = process.stdout!!.read(buffer)
+            if (shouldBreak) break
+        }
 
-            if (bytesRead != -1 && bytesRead != 0 ) {
-                val decodedString = buffer.decodeToString(0, bytesRead)
-                emitData(decodedString)
-             }
-
-             // println("TICK ${ isActive() } ${ process.jvm.isAlive() } ${ process.jvm.pid() } ")
-             delay(15)
-         }
-
-         if (!isActive()) process.jvm.destroy()
-        // //TODO: investigate
-        // // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
-        // // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
-        // // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
+        runCatching { sshOutputToUser.cancel() }
+        runCatching { userInputToSsh.cancel() }
+        runCatching { processInput.close() }
+        runCatching { processOutput.close() }
     }
 
     // Server Mode

@@ -68,7 +68,6 @@ public class DefaultPostgresBinaryResolver implements PgBinaryResolver {
         logger.trace("Searching for postgres binaries - location: '{}'", resourceLocation);
         ClassLoader classLoader = DefaultPostgresBinaryResolver.class.getClassLoader();
         List<URL> urls = Collections.list(classLoader.getResources(resourceLocation));
-        System.out.println("Looking for " + resourceLocation);
 
         if (urls.size() > 1) {
             logger.error("Detected multiple binaries of the same architecture: '{}'", urls);

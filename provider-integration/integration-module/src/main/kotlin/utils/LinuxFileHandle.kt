@@ -1,10 +1,9 @@
-package dk.sdu.cloud.plugins.storage.ucloud
+package dk.sdu.cloud.utils
 
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
-import libc.LibC
 import libc.clib
 import java.util.concurrent.atomic.AtomicBoolean
 
