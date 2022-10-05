@@ -1217,8 +1217,9 @@ const RunningButtonGroup: React.FunctionComponent<{
     const support = job.status.resolvedSupport ?
         (job.status.resolvedSupport! as ResolvedSupport<never, ComputeSupport>).support : null;
     const supportTerminal =
-        backendType === "VIRTUAL_MACHINE" ? support?.virtualMachine.terminal :
-            backendType === "DOCKER" ? support?.docker.terminal : false;
+        (backendType === "VIRTUAL_MACHINE" && support?.virtualMachine?.terminal) ||
+        (backendType === "DOCKER" && support?.docker?.terminal) ||
+        (backendType === "NATIVE" && support?.native?.terminal);
 
     const appType = appInvocation.applicationType;
     const supportsInterface =
