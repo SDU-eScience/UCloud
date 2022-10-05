@@ -3,7 +3,7 @@ import * as React from "react";
 import Providers from "@/assets/Providers/info.json";
 import {useParams} from "react-router";
 import {NonAuthenticatedHeader} from "@/Navigation/Header";
-import {Box, Button, Flex, Markdown, Text} from "@/ui-components";
+import {Box, Button, ExternalLink, Flex, Markdown, Text} from "@/ui-components";
 import * as Heading from "@/ui-components/Heading";
 import MainContainer from "@/MainContainer/MainContainer";
 import {Client} from "@/Authentication/HttpClientInstance";
@@ -31,7 +31,7 @@ export default function DetailedProvider() {
                     {entry.description}
                 </Text>
                 <Box flexGrow={1} />
-                <Button>Provider website</Button>
+                {entry.url ? <ExternalLink href={entry.url}><Button>Provider website</Button></ExternalLink> : null}
             </Flex>
         </Flex>
         <Box height="48px" />
@@ -41,7 +41,7 @@ export default function DetailedProvider() {
                     <Flex>
                         {text.image !== "" ? <Flex flexDirection="column" mr="24px" my="8px">
                             <Box flexGrow={1} />
-                            <img style={{maxHeight: "150px", objectFit: "scale-down"}} src={text.image} />
+                            <img style={{height: "150px", objectFit: "scale-down"}} src={text.image} />
                             <Box flexGrow={1} />
                         </Flex> : <Box />}
                         <div>
