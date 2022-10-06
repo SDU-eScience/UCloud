@@ -542,9 +542,9 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
 function titleFromTarget(target: RequestTarget): string {
     switch (target) {
         case RequestTarget.EXISTING_PROJECT:
-            return "Viewing project";
+            return "Existing project";
         case RequestTarget.NEW_PROJECT:
-            return "Create project";
+            return "New project";
         case RequestTarget.PERSONAL_PROJECT:
             return "My workspace";
         case RequestTarget.VIEW_APPLICATION:
@@ -1215,6 +1215,7 @@ export const GrantApplicationEditor: (target: RequestTarget) =>
                         <Box maxWidth={1400} width="100%">
                             {target === RequestTarget.VIEW_APPLICATION ? null : (
                                 <>
+                                    <Heading.h3>Requesting for {titleFromTarget(target).toLowerCase()}</Heading.h3>
                                     <Label mb={16} mt={16}>
                                         Principal Investigator (PI)
                                         <Input
