@@ -197,7 +197,7 @@ const DashboardFavoriteFiles = (props: DashboardFavoriteFilesProps): JSX.Element
         >
             {favorites.length !== 0 ? null : (
                 <NoResultsCardBody title={"No favorites"}>
-                    <Text width="100%">
+                    <Text textAlign="center" width="100%">
                         As you as add favorites, they will appear here.
                         <Link to={"/drives"} mt={8}>
                             <Button fullWidth mt={8}>Explore files</Button>
@@ -295,15 +295,8 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
         >
             {props.charts.data.charts.length !== 0 ? null : (
                 <NoResultsCardBody title={"No usage"}>
-                    <Text>
+                    <Text textAlign="center">
                         As you use the platform, usage will appear here.
-
-                        <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
-                        <Link to={"/applications/overview"} mt={8}>
-                            <Button fullWidth mt={8}>Explore applications</Button>
-                        </Link>
                     </Text>
                 </NoResultsCardBody>
             )}
@@ -434,7 +427,6 @@ function DashboardResources({products}: {
                             </Table>
                         </Box>
                         <Box flexGrow={1} />
-                        {applyLinkButton}
                     </Flex>
                 </>
             }
@@ -488,9 +480,6 @@ const DashboardGrantApplications: React.FunctionComponent<{
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={grantsLink(Client)} width={"100%"}>
-                                <Button fullWidth mt={8}>Apply for resources</Button>
-                            </Link>
                         </NoResultsCardBody>
                     </>
                 )}
@@ -500,6 +489,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 )}
             </>
         )}
+        <Link to={grantsLink(Client)} width={"100%"}>
+            <Button fullWidth my={8}>Apply for resources</Button>
+        </Link>
     </HighlightedCard>;
 };
 
