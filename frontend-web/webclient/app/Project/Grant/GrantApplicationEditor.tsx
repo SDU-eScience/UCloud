@@ -1811,7 +1811,10 @@ function AsProductType(props: {
                     )}
                     projectId={props.projectId}
                     isRecipient={props.isRecipient}
-                    wallets={filteredWallets}
+                    wallets={filteredWallets.filter(it =>
+                        it.paysFor.name === pc.metadata.category.name &&
+                        it.paysFor.provider === pc.metadata.category.provider
+                    )}
                 />
             )}
         </ResourceContainer>}
