@@ -193,16 +193,18 @@ class SlurmPlugin : ComputePlugin {
 
         if (jobFolder != null) {
             fileCollectionPlugin?.let { files ->
-                val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
-                JobsControl.update.call(
-                    bulkRequestOf(
-                        ResourceUpdateAndId(
-                            resource.id,
-                            JobUpdate(outputFolder = path)
-                        )
-                    ),
-                    rpcClient,
-                )
+                runCatching {
+                    val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
+                    JobsControl.update.call(
+                        bulkRequestOf(
+                            ResourceUpdateAndId(
+                                resource.id,
+                                JobUpdate(outputFolder = path)
+                            )
+                        ),
+                        rpcClient,
+                    )
+                }
             }
         }
 
