@@ -1,17 +1,16 @@
 package dk.sdu.cloud.extract.data 
 
 import dk.sdu.cloud.auth.api.authenticator
+import dk.sdu.cloud.calls.RPCException
 import dk.sdu.cloud.calls.client.OutgoingHttpCall
-import dk.sdu.cloud.extract.data.services.DeicReportService
-import dk.sdu.cloud.extract.data.services.ElasticDataService
-import dk.sdu.cloud.extract.data.services.PostgresDataService
-import dk.sdu.cloud.extract.data.services.UserActivityReport
+import dk.sdu.cloud.extract.data.services.*
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.service.CommonServer
 import dk.sdu.cloud.service.db.async.AsyncDBSessionFactory
 import dk.sdu.cloud.service.startServices
 import org.joda.time.LocalDate
 import org.joda.time.LocalDateTime
+import java.io.File
 import kotlin.system.exitProcess
 
 class Server(override val micro: Micro) : CommonServer {
@@ -19,6 +18,25 @@ class Server(override val micro: Micro) : CommonServer {
     lateinit var start: LocalDateTime
     lateinit var end: LocalDateTime
 
+    private fun getFile(args: List<String>): File {
+        try {
+            if (args.contains("--file")) {
+                val path = args[args.indexOf("--file") + 1]
+                return File(path)
+            } else {
+                throw IllegalArgumentException("Missing --file")
+            }
+        } catch (ex: Exception) {
+            when (ex) {
+                is IndexOutOfBoundsException -> {
+                    println("Missing files")
+                    exitProcess(1)
+                }
+                else -> { throw ex }
+            }
+        }
+
+    }
     fun getDates(args: List<String>) {
         if (args.contains("--startDate") && args.contains("--endDate")) {
             try {
@@ -58,12 +76,27 @@ class Server(override val micro: Micro) : CommonServer {
         val elasticDataService = ElasticDataService(elasticHighLevelClient, elasticLowLevelClient, db)
         val deicReportService = DeicReportService(postgresDataService)
         val userActivityReport = UserActivityReport(elasticDataService, postgresDataService)
+        val testService = TestService()
+        if (args.contains("--test")) {
+            when {
+                args.contains("centerDaily") -> {
+                    val file = getFile(args)
+                    testService.testCenterDaily(file)
+                    exitProcess(0)
+                }
+            }
+        }
         if (args.contains("--data-collection")) {
             try {
                 when {
                     args.contains("--center") -> {
                         getDates(args)
-                        deicReportService.reportCenter(start, end)
+                        deicReportService.reportCenter(start, end, false)
+                        exitProcess(0)
+                    }
+                    args.contains("--centerAAU") -> {
+                        getDates(args)
+                        deicReportService.reportCenter(start, end, true)
                         exitProcess(0)
                     }
                     args.contains("--center-daily") -> {
@@ -91,8 +124,8 @@ class Server(override val micro: Micro) : CommonServer {
                     }
                     args.contains("--usersActive") -> {
                         val currentMonth = LocalDate.now().withDayOfMonth(1)
-                        var startDate = LocalDate.parse("2021-03-01")
-                        var endDate = startDate.plusMonths(1)
+                        var startDate = LocalDate.parse("2021-12-01")
+                        var endDate = startDate.plusMonths(4)
                         while (startDate != currentMonth) {
 
                             val start = startDate.toDate().time
@@ -127,6 +160,9 @@ class Server(override val micro: Micro) : CommonServer {
                 print("UNKNOWN ERROR")
                 exitProcess(1)
             }
+        }
+        else {
+            exitProcess(1)
         }
     }
 }

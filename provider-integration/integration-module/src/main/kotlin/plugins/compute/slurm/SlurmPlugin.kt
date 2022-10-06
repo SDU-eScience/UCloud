@@ -28,13 +28,18 @@ import dk.sdu.cloud.service.Logger
 import dk.sdu.cloud.service.Time
 import dk.sdu.cloud.sql.withSession
 import dk.sdu.cloud.utils.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.selects.select
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
+import libc.clib
 import java.io.File
+import kotlin.collections.ArrayList
 import kotlin.math.max
 
 typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
@@ -48,6 +53,7 @@ class SlurmPlugin : ComputePlugin {
         private set
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
+    private var lastAccountingCharge = 0L
     private var fileCollectionPlugin: PosixCollectionPlugin? = null
     var udocker: UDocker? = null
         private set
@@ -187,16 +193,18 @@ class SlurmPlugin : ComputePlugin {
 
         if (jobFolder != null) {
             fileCollectionPlugin?.let { files ->
-                val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
-                JobsControl.update.call(
-                    bulkRequestOf(
-                        ResourceUpdateAndId(
-                            resource.id,
-                            JobUpdate(outputFolder = path)
-                        )
-                    ),
-                    rpcClient,
-                )
+                runCatching {
+                    val path = files.pathConverter.internalToUCloud(InternalFile(jobFolder)).path
+                    JobsControl.update.call(
+                        bulkRequestOf(
+                            ResourceUpdateAndId(
+                                resource.id,
+                                JobUpdate(outputFolder = path)
+                            )
+                        ),
+                        rpcClient,
+                    )
+                }
             }
         }
 
@@ -342,95 +350,92 @@ class SlurmPlugin : ComputePlugin {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun ComputePlugin.ShellContext.handleShellSession(request: ShellRequest.Initialize) {
+        val shellIsActive = isActive
         val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(jobId))
         val nodes: Map<Int, String> = cli.getJobNodeList(slurmJob.slurmId)
-        val nodeToUse = nodes[jobRank]
+        val nodeToUse = nodes[jobRank] ?: throw RPCException("Could not locate job node", HttpStatusCode.BadGateway)
 
-        /*
-        val session: InteractiveSession =
-            ipcClient.sendRequest(SlurmSessionIpc.retrieve, FindByStringId(request.sessionIdentifier))
-        val slurmJob = ipcClient.sendRequest(SlurmJobsIpc.retrieve, FindByStringId(session.ucloudId))
-
-        val process = startProcess(
-            args = listOf(
-                "/usr/bin/ssh",
-                "-tt",
-                "-oStrictHostKeyChecking=accept-new",
-                "${nodes.get(session.rank)}",
-                "([ -x /bin/bash ] && exec /bin/bash) || " +
-                    "([ -x /usr/bin/bash ] && exec /usr/bin/bash) || " +
-                    "([ -x /bin/zsh ] && exec /bin/zsh) || " +
-                    "([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || " +
-                    "([ -x /bin/fish ] && exec /bin/fish) || " +
-                    "([ -x /usr/bin/fish ] && exec /usr/bin/fish) || " +
-                    "exec /bin/sh"
+        val masterFd = clib.createAndForkPty(
+            command = arrayOf(
+                ("/usr/bin/ssh"),
+                ("-tt"),
+                ("-oStrictHostKeyChecking=accept-new"),
+                nodeToUse,
+                buildString {
+                    append("([ -x /bin/bash ] && exec /bin/bash) || ")
+                    append("([ -x /usr/bin/bash ] && exec /usr/bin/bash) || ")
+                    append("([ -x /bin/zsh ] && exec /bin/zsh) || ")
+                    append("([ -x /usr/bin/zsh ] && exec /usr/bin/zsh) || ")
+                    append("([ -x /bin/fish ] && exec /bin/fish) || ")
+                    append("([ -x /usr/bin/fish ] && exec /usr/bin/fish) || ")
+                    append("exec /bin/sh")
+                }
             ),
-            envs = listOf("TERM=xterm-256color"),
-            attachStdin = true,
-            attachStdout = true,
-            attachStderr = true,
-            nonBlockingStdout = true,
-            nonBlockingStderr = true
+            env = arrayOf(
+                "TERM", "xterm"
+            )
         )
+        val processInput = LinuxOutputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
+        val processOutput = LinuxInputStream(LinuxFileHandle.createOrThrow(masterFd, { error("Bad fd") }))
 
-        val pStatus = process.retrieveStatus(false)
+        val userInputToSsh = ProcessingScope.launch {
+            while (shellIsActive() && isActive && !receiveChannel.isClosedForReceive) {
+                select {
+                    receiveChannel.onReceiveCatching {
+                        val userInput = it.getOrNull() ?: return@onReceiveCatching Unit
 
-        val buffer = ByteArray(4096)
-        readloop@ while (isActive() && pStatus.isRunning) {
-            val userInput = receiveChannel.tryReceive().getOrNull()
-            when (userInput) {
-                is ShellRequest.Input -> {
-                    // Forward input to SSH session
-                    //println("USERINPUT: ${ userInput.data }")
-                    process.stdin!!.write(userInput.data.encodeToByteArray())
-                }
+                        when (userInput) {
+                            is ShellRequest.Input -> {
+                                processInput.write(userInput.data.encodeToByteArray())
+                                processInput.flush()
+                            }
 
-                is ShellRequest.Resize -> {
-                    /*
-                    // Send resize event to SSH session
-                    println("RESIZE EVENT: ${userInput} ")
-                    //ps -q 5458 -o tty=
-                    val (_, device, _) = executeCommandToText(SlurmCommandLine.PS_EXE) {
-                        addArg("-q", "${process.pid}")
-                        addArg("-o", "tty=")
+                            is ShellRequest.Resize -> {
+                                clib.resizePty(masterFd, userInput.cols, userInput.rows)
+                            }
+
+                            else -> {
+                                // Nothing to do right now
+                            }
+                        }
+
+                        Unit
                     }
 
-                    println("DEVICE IS ${device.trim()} and ${userInput.rows} and ${userInput.cols} ")
-
-                    //stty rows 50 cols 50 --file /dev/pts/0
-                    val (_, _, _) = executeCommandToText(SlurmCommandLine.STTY_EXE) {
-                        addArg("rows", "700")
-                        addArg("cols", "700")
-                        addArg("--file", "/dev/${device.trim()}")
+                    onTimeout(500) {
+                        // Check if shellIsActive() and isActive
                     }
-                     */
-                }
-
-                else -> {
-                    // Nothing to do right now
                 }
             }
-
-            val bytesRead: ReadResult = process.stdout!!.read(buffer)
-            if (bytesRead.isError) {
-                break@readloop
-            }
-
-            if (!bytesRead.isEof) {
-                val decodedString = buffer.decodeToString(0, bytesRead.getOrThrow())
-                emitData(decodedString)
-            }
-
-            delay(15)
         }
 
-        if (!isActive()) process.jvm.destroy()
-        //TODO: investigate
-        // testuser     244       1  0 12:54 ?        00:00:00 [sshd] <defunct>
-        // testuser     245       1  0 12:54 ?        00:00:00 [bash] <defunct>
-        // testuser     282       1  0 12:54 ?        00:00:00 [bash] <defunct>
-         */
+        val sshOutputToUser = ProcessingScope.launch {
+            val readBuffer = ByteArray(256)
+
+            while (shellIsActive() && isActive) {
+                val bytesRead = processOutput.read(readBuffer)
+                if (bytesRead <= 0) break
+                val decodedString = readBuffer.decodeToString(0, bytesRead)
+                emitData(decodedString)
+            }
+        }
+
+        while (currentCoroutineContext().isActive) {
+            val shouldBreak = select {
+                sshOutputToUser.onJoin { true }
+                userInputToSsh.onJoin { true }
+                onTimeout(500) { !shellIsActive() }
+            }
+
+            if (shouldBreak) break
+        }
+
+        runCatching { sshOutputToUser.cancel() }
+        runCatching { userInputToSsh.cancel() }
+        runCatching { processInput.close() }
+        runCatching { processOutput.close() }
     }
 
     // Server Mode
@@ -444,7 +449,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (Time.now() >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
         }
     }
 
@@ -615,7 +620,7 @@ class SlurmPlugin : ComputePlugin {
             charges.add(
                 ResourceChargeCredits(
                     job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed,
+                    job.ucloudId + "_" + job.elapsed / 1000,
                     units,
                     max(1, periods),
                 )
@@ -655,6 +660,8 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        lastAccountingCharge = Time.now()
 
         debugSystem.logD(
             "Charged $chargedJobs slurm jobs",

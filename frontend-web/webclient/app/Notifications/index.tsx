@@ -68,7 +68,7 @@ function resolveNotification(event: Notification): {
     }
 }
 
-function onNotificationAction(notification: Notification, history: H.History, dispatch: Dispatch) {
+function onNotificationAction(notification: Notification, history: ReturnType<typeof useHistory>, dispatch: Dispatch) {
     const currentProject = getStoredProject();
     switch (notification.type) {
         case "APP_COMPLETE":
@@ -277,7 +277,7 @@ export function markAsRead(notifications: NormalizedNotification[]) {
 
 // HACK(Dan): I would agree this isn't great.
 let normalizationDependencies: {
-    history: H.History;
+    history: ReturnType<typeof useHistory>;
     dispatch: Dispatch;
     refresh: { current?: () => void }
 } | null = null;

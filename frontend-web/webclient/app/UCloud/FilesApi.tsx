@@ -56,6 +56,8 @@ import { useCallback, useEffect, useState } from "react";
 import {getCookie} from "@/Login/Wayf";
 import { SyncthingConfig, SyncthingDevice, SyncthingFolder } from "@/Syncthing/api";
 import { useHistory } from "react-router";
+import { Feature, hasFeature } from "@/Features";
+import { createBrowserHistory } from "history";
 
 export type UFile = Resource<ResourceUpdate, UFileStatus, UFileSpecification>;
 
@@ -661,6 +663,17 @@ class FilesApi extends ResourceApi<UFile, ProductStorage, UFileSpecification,
                 onClick: (selected, cb) => {
                     if (!cb.directory) return;
                     synchronizationOpOnClick([cb.directory], cb);
+                }
+            },
+            {
+                text: "Open terminal",
+                primary: true,
+                icon: "terminalSolid",
+                canAppearInLocation: loc => loc === "SIDEBAR",
+                enabled: () => hasFeature(Feature.INLINE_TERMINAL),
+                onClick: (selected, cb) => {
+                    cb.dispatch({type: "TerminalOpen"});
+                    cb.dispatch({type: "TerminalOpenTab", tab: {title: "Hippo"}});
                 }
             },
             {

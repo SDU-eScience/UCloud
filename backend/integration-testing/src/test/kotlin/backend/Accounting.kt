@@ -323,7 +323,6 @@ class AccountingTest : IntegrationTest() {
                     )
                     check {
                         val charges = output.transactions.filter { it is Transaction.Charge }
-                        println(charges)
                         assertEquals(1, charges.size)
                         charges.forEach { charge ->
                             assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)
@@ -343,7 +342,6 @@ class AccountingTest : IntegrationTest() {
                     )
                     check {
                         val charges = output.transactions.filter { it is Transaction.Charge }
-                        println(charges)
                         assertEquals(2, charges.size)
                         charges.forEach { charge ->
                             assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)
@@ -362,7 +360,6 @@ class AccountingTest : IntegrationTest() {
                     )
                     check {
                         val charges = output.transactions.filter { it is Transaction.Charge }
-                        println(charges)
                         assertEquals(4, charges.size)
                         charges.forEach { charge ->
                             assertEquals(charge.initialTransactionId.substringAfterLast('-'), input.transactionId)

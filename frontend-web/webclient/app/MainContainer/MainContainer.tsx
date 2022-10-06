@@ -59,7 +59,7 @@ export const MainContainer = ({
                     <Hide sm xs md>
                         <SidebarContainer
                             data-component={"sidebar"}
-                            height="100%"
+                            height="calc(100% - var(--termsize, 0px))"
                             data-tag="sidebar"
                             pt={topMenuSize + mainYpad}
                             top="0"

@@ -13,11 +13,12 @@ version = "2022.3.0"
 repositories {
     mavenCentral()
     mavenLocal()
+    maven("https://mvn.cloud.sdu.dk")
 }
 
 dependencies {
     run {
-        val version = "2022.2.17"
+        val version = "2022.2.19"
         fun ucloud(module: String) = implementation("dk.sdu.cloud:$module:$version")
 
         ucloud("file-orchestrator-service-api")
@@ -52,6 +53,9 @@ dependencies {
     implementation("com.auth0:java-jwt:4.0.0")
     implementation("org.xerial:sqlite-jdbc:3.36.0.3")
     implementation("com.charleskorn.kaml:kaml:0.47.0")
+
+    implementation(project(":embedded-postgres"))
+    implementation("org.postgresql:postgresql:42.5.0")
 
     testImplementation(kotlin("test"))
 }

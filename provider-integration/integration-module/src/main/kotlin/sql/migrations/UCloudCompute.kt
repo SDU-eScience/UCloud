@@ -5,6 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_ingresses(
                 id text not null primary key,
@@ -14,6 +15,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_bound_ingress(
             	ingress_id text not null primary key references ucloud_compute_ingresses,
@@ -23,6 +25,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_network_ip_pool(
             	external_cidr text not null primary key,
@@ -32,6 +35,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
            create table ucloud_compute_network_ips(
                 id text not null primary key,
@@ -43,6 +47,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_bound_network_ips(
             	network_ip_id text not null primary key references ucloud_compute_network_ips,
@@ -52,10 +57,11 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_sessions(
             	job_id text not null,
-            	rank integer not null,
+            	rank int not null,
             	session_id text not null primary key,
             	type text not null,
             	expires_at timestamp not null
@@ -64,6 +70,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_cluster_state(
                 cluster_id text not null primary key,
@@ -73,23 +80,25 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_license_servers(
             	id text not null primary key,
             	address text not null,
-            	port integer not null,
+            	port int not null,
             	license text,
             	tags text,
             	price_per_unit bigint default 1000000 not null,
-            	description text default ''not null,
+            	description text default '' not null,
             	product_availability text default '',
-            	priority integer default 0 not null,
+            	priority int default 0 not null,
             	payment_model text default 'PER_ACTIVATION' not null
             );
         """
     ).useAndInvokeAndDiscard()
 
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_license_instances(
                 orchestrator_id text not null primary key,
@@ -101,6 +110,7 @@ fun V1__UCloudCompute() = MigrationScript("V1__UCloudCompute") { session ->
 
 fun V2__UCloudCompute() = MigrationScript("V2__UCloudCompute") { session ->
     session.prepareStatement(
+        //language=postgresql
         """
             create table ucloud_compute_bound_ssh_ports(
                 name text not null,

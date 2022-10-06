@@ -111,7 +111,7 @@ class MetadataService(
                 )
                 select coalesce(substring(original_file_path, '^\/\d+'), id), id, original_file_path
                 from file_orchestrator.shares s right join ids i on available_at = i.id;
-            """, debug = true
+            """
         ).rows
             .map { row ->
                 ShareInfo(

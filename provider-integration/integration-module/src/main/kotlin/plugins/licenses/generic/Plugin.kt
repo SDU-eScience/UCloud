@@ -241,9 +241,10 @@ class GenericLicensePlugin : LicensePlugin {
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into generic_license_servers (name, category, address, port, license)
-                        values (:name, :category, :address, :port, :license)
+                        values (:name, :category, :address::text, :port, :license::text)
                         on conflict (name, category) do update set
                             address = excluded.address,
                             port = excluded.port,
@@ -266,6 +267,7 @@ class GenericLicensePlugin : LicensePlugin {
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         delete from generic_license_servers
                         where

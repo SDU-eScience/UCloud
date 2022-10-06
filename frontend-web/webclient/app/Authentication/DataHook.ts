@@ -60,7 +60,7 @@ export function apiCreate<R>(request: R, baseContext: string, subResource?: stri
     };
 }
 
-export function apiBrowse<R extends Object>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+export function apiBrowse<R extends Record<string, any>>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
     return {
         context: "",
         method: "GET",
@@ -71,7 +71,7 @@ export function apiBrowse<R extends Object>(request: R, baseContext: string, sub
         parameters: request
     };
 }
-export function apiRetrieve<R extends Object>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
+export function apiRetrieve<R extends Record<string, any>>(request: R, baseContext: string, subResource?: string): APICallParameters<R> {
     return {
         context: "",
         method: "GET",

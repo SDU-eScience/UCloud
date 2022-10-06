@@ -1,13 +1,9 @@
-import {ResourceRequest} from "@/Project/Grant";
-
 export type AvailableGiftsRequest = any;
 
 interface Gift {
     id: number;
     title: string;
     description: string;
-    resources: ResourceRequest[];
-    resourcesOwnedBy: string;
 }
 
 export interface AvailableGiftsResponse {

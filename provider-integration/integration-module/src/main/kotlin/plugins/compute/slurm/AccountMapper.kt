@@ -37,6 +37,7 @@ class AccountMapper(
         if (result != null) {
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into slurm_account_mapper
                             (username, project_id, category, partition, slurm_account)
@@ -67,12 +68,13 @@ class AccountMapper(
         var account: String? = null
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select slurm_account
                     from
                         slurm_account_mapper
                     where
-                        (:project_id is null or project_id = :project_id) and
+                        (:project_id::text is null or project_id = :project_id::text) and
                         (:username is null or username = :username) and
                         category = :category and
                         partition = :partition
@@ -81,6 +83,7 @@ class AccountMapper(
                 prepare = {
                     bindStringNullable("project_id", owner.project)
                     bindString("username", owner.createdBy)
+                    bindString("category", productCategory)
                     bindString("partition", partition)
                 },
                 readRow = { row ->
@@ -144,6 +147,7 @@ class AccountMapper(
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select
                         username, project_id, category

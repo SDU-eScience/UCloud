@@ -1,37 +1,37 @@
 import MainContainer from "@/MainContainer/MainContainer";
-import { Project, default as Api, ProjectInvite } from "./Api";
+import {Project, default as Api, ProjectInvite} from "./Api";
 import * as React from "react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ItemRenderer, ItemRow, StandardBrowse } from "@/ui-components/Browse";
-import { PageRenderer } from "@/Pagination/PaginationV2";
-import { BrowseType } from "@/Resource/BrowseType";
-import { useHistory } from "react-router";
-import { Operation, Operations } from "@/ui-components/Operation";
-import { useToggleSet } from "@/Utilities/ToggleSet";
-import { callAPI, InvokeCommand, useCloudAPI, useCloudCommand } from "@/Authentication/DataHook";
-import { isAdminOrPI } from "@/Utilities/ProjectUtilities";
-import { bulkRequestOf, emptyPageV2 } from "@/DefaultObjects";
-import { Client } from "@/Authentication/HttpClientInstance";
-import { History } from "history";
-import { Box, Icon, Tooltip, Text, Flex, Link, Card, Button, List } from "@/ui-components";
-import { projectRoleToString, projectRoleToStringIcon, useProjectId } from ".";
-import { Toggle } from "@/ui-components/Toggle";
-import { CheckboxFilter, FilterWidgetProps, ResourceFilter } from "@/Resource/Filter";
-import { doNothing } from "@/UtilityFunctions";
-import { useDispatch } from "react-redux";
-import { dispatchSetProjectAction } from "@/Project/Redux";
-import { snackbarStore } from "@/Snackbar/SnackbarStore";
+import {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {ItemRenderer, ItemRow, StandardBrowse} from "@/ui-components/Browse";
+import {PageRenderer} from "@/Pagination/PaginationV2";
+import {BrowseType} from "@/Resource/BrowseType";
+import {useHistory} from "react-router";
+import {Operation, Operations} from "@/ui-components/Operation";
+import {useToggleSet} from "@/Utilities/ToggleSet";
+import {callAPI, InvokeCommand, useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
+import {isAdminOrPI} from "@/Utilities/ProjectUtilities";
+import {bulkRequestOf, emptyPageV2} from "@/DefaultObjects";
+import {Client} from "@/Authentication/HttpClientInstance";
+import {History} from "history";
+import {Box, Icon, Tooltip, Text, Flex, Link, Card, Button, List} from "@/ui-components";
+import {projectRoleToString, projectRoleToStringIcon, useProjectId} from ".";
+import {Toggle} from "@/ui-components/Toggle";
+import {CheckboxFilter, FilterWidgetProps, ResourceFilter} from "@/Resource/Filter";
+import {doNothing} from "@/UtilityFunctions";
+import {useDispatch} from "react-redux";
+import {dispatchSetProjectAction} from "@/Project/Redux";
+import {snackbarStore} from "@/Snackbar/SnackbarStore";
 import * as Heading from "@/ui-components/Heading";
-import { PageV2 } from "@/UCloud";
-import { SidebarPages, useSidebarPage } from "@/ui-components/Sidebar";
-import { useRefreshFunction } from "@/Navigation/Redux/HeaderActions";
-import { useTitle } from "@/Navigation/Redux/StatusActions";
+import {PageV2} from "@/UCloud";
+import {SidebarPages, useSidebarPage} from "@/ui-components/Sidebar";
+import {useRefreshFunction} from "@/Navigation/Redux/HeaderActions";
+import {useTitle} from "@/Navigation/Redux/StatusActions";
 import styled from "styled-components";
-import { useAvatars } from "@/AvataaarLib/hook";
-import { UserAvatar } from "@/AvataaarLib/UserAvatar";
-import { defaultAvatar } from "@/UserSettings/Avataaar";
-import { useForcedRender } from "@/Utilities/ReactUtilities";
-import { ListRowStat, ListStatContainer } from "@/ui-components/List";
+import {useAvatars} from "@/AvataaarLib/hook";
+import {UserAvatar} from "@/AvataaarLib/UserAvatar";
+import {defaultAvatar} from "@/UserSettings/Avataaar";
+import {useForcedRender} from "@/Utilities/ReactUtilities";
+import {ListRowStat, ListStatContainer} from "@/ui-components/List";
 
 const title = "Project";
 
@@ -61,15 +61,17 @@ export const ProjectList2: React.FunctionComponent = props => {
         reloadInvites();
     }, []);
 
-    useEffect(() => { reloadInvites(); }, []);
+    useEffect(() => {reloadInvites();}, []);
 
     useEffect(() => {
         avatars.updateCache(invites.data.items.map(it => it.invitedBy));
     }, [invites.data]);
 
     const fetchProjects = useCallback((next?: string) => {
-        return Api.browse({includeFavorite: true, includePath: true, sortBy: "favorite", sortDirection: "descending",
-            itemsPerPage: 100, next, ...filters});
+        return Api.browse({
+            includeFavorite: true, includePath: true, sortBy: "favorite", sortDirection: "descending",
+            itemsPerPage: 100, next, ...filters
+        });
     }, [filters]);
 
     const callbacks: Callbacks = useMemo(() => {
@@ -84,17 +86,17 @@ export const ProjectList2: React.FunctionComponent = props => {
     const pageRenderer = useCallback<PageRenderer<Project>>((items) => {
         const itemToComponent = (it: Project) =>
             it["frontendHide"] == true ? null :
-            <ItemRow
-                key={it.id}
-                browseType={BrowseType.MainContent}
-                highlight={it.id === projectId}
-                renderer={ProjectRenderer}
-                callbacks={callbacks}
-                operations={operations}
-                item={it}
-                itemTitle={title}
-                toggleSet={toggleSet}
-            />;
+                <ItemRow
+                    key={it.id}
+                    browseType={BrowseType.MainContent}
+                    highlight={it.id === projectId}
+                    renderer={ProjectRenderer}
+                    callbacks={callbacks}
+                    operations={operations}
+                    item={it}
+                    itemTitle={title}
+                    toggleSet={toggleSet}
+                />;
 
         const favorites = items.filter(it => it.status.isFavorite);
         const notFavorite = items.filter(it => !it.status.isFavorite);
@@ -103,7 +105,7 @@ export const ProjectList2: React.FunctionComponent = props => {
             {favorites.length === 0 ? null : <>
                 <Heading.h3 mb={16}>Favorites</Heading.h3>
                 <List bordered>{favorites.map(itemToComponent)}</List>
-                <div style={{marginBottom: "10px"}}/>
+                <div style={{marginBottom: "10px"}} />
             </>}
             {notFavorite.length === 0 ? null : <>
                 <Heading.h3 mb={16}>My Projects</Heading.h3>
@@ -122,7 +124,7 @@ export const ProjectList2: React.FunctionComponent = props => {
                 <Heading.h3 mb={16}>Invitations</Heading.h3>
                 {invites.data.items.map(it => (
                     <ProjectInvite invite={it} key={it.invitedTo} onInviteHandled={onInviteHandled}
-                                   requestReload={reload} />
+                        requestReload={reload} />
                 ))}
 
                 <div style={{marginBottom: 32}} />
@@ -137,8 +139,8 @@ export const ProjectList2: React.FunctionComponent = props => {
         </>}
         sidebar={<>
             <Operations selected={toggleSet.checked.items} location={"SIDEBAR"}
-                        entityNameSingular={title}
-                        extra={callbacks} operations={operations}/>
+                entityNameSingular={title}
+                extra={callbacks} operations={operations} />
 
             <ResourceFilter
                 browseType={BrowseType.MainContent}
@@ -163,7 +165,7 @@ const filterWidgets: React.FunctionComponent<FilterWidgetProps>[] = [widget];
 // Operations
 interface Callbacks {
     invokeCommand: InvokeCommand;
-    history: History;
+    history: ReturnType<typeof useHistory>;
     reload: () => void;
     rerender: () => void;
 }
@@ -175,7 +177,7 @@ const operations: Operation<Project, Callbacks>[] = [
         primary: true,
         enabled: () => true,
         onClick: (projects, cb) => {
-            cb.history.push("/projects/browser/new");
+            cb.history.push("/project/grants/new");
         }
     },
     {
@@ -306,12 +308,12 @@ const ProjectRenderer: ItemRenderer<Project> = {
             <Flex alignItems="center" height="36.25px">
                 {!resource.status.archived ? null : <>
                     <ProjectTooltip text="Archived">
-                        <Icon mr={8} name="tags" color="gray"/>
+                        <Icon mr={8} name="tags" color="gray" />
                     </ProjectTooltip>
                 </>}
                 <ProjectTooltip text={projectRoleToString(resource.status.myRole!)}>
                     <Icon size="30" squared={false} name={projectRoleToStringIcon(resource.status.myRole!)}
-                          color="gray" color2="midGray" mr=".5em"/>
+                        color="gray" color2="midGray" mr=".5em" />
                 </ProjectTooltip>
 
                 <Toggle
@@ -333,7 +335,7 @@ const ProjectRenderer: ItemRenderer<Project> = {
 };
 
 // Utility components
-const ProjectTooltip: React.FunctionComponent<{ text: string }> = props => {
+const ProjectTooltip: React.FunctionComponent<{text: string}> = props => {
     return <Tooltip
         tooltipContentWidth="80px"
         wrapperOffsetLeft="0"
@@ -388,7 +390,7 @@ const ProjectInvite: React.FunctionComponent<{
                 {invite.projectTitle}
             </BorderedFlex>
             <ProjectInviteBody>
-                <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr={"10px"}/>
+                <UserAvatar avatar={avatars.cache[invite.invitedBy] ?? defaultAvatar} mr={"10px"} />
                 <div>Invited by {invite.invitedBy}</div>
                 <div style={{flexGrow: 1}} />
                 <Button color={"green"} height={"42px"} onClick={acceptInvite}>Accept</Button>

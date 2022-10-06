@@ -1,7 +1,13 @@
 {
-  "resources":{
-  "includes":[{
-      "pattern":"\\QMETA-INF/services/kotlin.reflect.jvm.internal.impl.resolve.ExternalOverridabilityCondition\\E"
-    }]},
-  "bundles":[]
+  "resources": {
+    "includes": [
+      {
+        "pattern": "\\QMETA-INF/services/kotlin.reflect.jvm.internal.impl.resolve.ExternalOverridabilityCondition\\E"
+      },
+      {
+        "pattern": ".*postgres.*linux.*\\.txz"
+      }
+    ]
+  },
+  "bundles": []
 }

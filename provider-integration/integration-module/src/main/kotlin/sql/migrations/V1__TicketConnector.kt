@@ -6,7 +6,7 @@ import dk.sdu.cloud.sql.use
 
 fun V1__TicketConnector() = MigrationScript("V1__TicketConnector") { conn ->
     conn.prepareStatement(
-        //language=SQLite
+        //language=postgresql
         """
             create table ticket_connections(
                 ticket text primary key,

@@ -202,7 +202,7 @@ export const ChangeProjectTitle: React.FC<ChangeProjectTitleProps> = props => {
                 const titleValue = titleField.value;
 
                 if (titleValue === "") {
-                    snackbarStore.addFailure("Projectname cannot be empty", false);
+                    snackbarStore.addFailure("Project name cannot be empty", false);
                     return;
                 }
                 if (titleValue.trim().length != titleValue.length) {

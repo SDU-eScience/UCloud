@@ -20,6 +20,7 @@ class EnvoyConfigurationService(
     private val useUCloudUsernameHeader: Boolean,
     private val logDirectory: String,
     private val providerId: String? = null,
+    private val downstreamTls: Boolean
 ) {
     constructor(config: VerifiedConfig) : this(
         config.server.envoy.executable,
@@ -27,6 +28,7 @@ class EnvoyConfigurationService(
         config.core.launchRealUserInstances,
         config.core.logs.directory,
         config.core.providerId,
+        config.server.envoy.downstreamTls,
     )
 
     private sealed class ConfigurationMessage {
@@ -181,7 +183,68 @@ class EnvoyConfigurationService(
     }
 
     private fun writeConfigurationFile(port: Int) {
-        NativeFile.open("$configDir/$configFile", readOnly = false).writeText(
+        val tlsDefaultDownstream = if (!downstreamTls) "" else """
+          transport_socket:
+            name: envoy.transport_sockets.tls
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.DownstreamTlsContext
+              common_tls_context:
+                tls_params:
+                  tls_minimum_protocol_version: "TLSv1_2"
+                  tls_maximum_protocol_version: "TLSv1_3"
+                  cipher_suites: "ECDHE-ECDSA-AES256-GCM-SHA384"
+                  # curve X25519 available in openssl builds
+                  ecdh_curves: "P-256"
+                tls_certificates:
+                - certificate_chain:
+                    filename: $configDir/certs/public.crt
+                  private_key:
+                    filename: $configDir/certs/private.key
+
+"""
+
+        if (downstreamTls) {
+            File(configDir, "certs").mkdir()
+
+            // NOTE(Roman): Generate private key and generate X509 cert
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "ecparam",
+                    "-name",
+                    "prime256v1",
+                    "-genkey",
+                    "-noout",
+                    "-out",
+                    "$configDir/certs/private.key"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
+
+            startProcess(
+                args = listOf(
+                    "/bin/openssl",
+                    "req",
+                    "-new",
+                    "-x509",
+                    "-key",
+                    "$configDir/certs/private.key",
+                    "-out",
+                    "$configDir/certs/public.crt",
+                    "-days",
+                    "360",
+                    "-subj",
+                    "/CN=integration-module/O=integration-module"
+                ),
+                attachStdout = false,
+                attachStderr = false,
+                attachStdin = false,
+            )
+        }
+
+        NativeFile.open("$configDir/$configFile", readOnly = false, truncateIfNeeded = true).writeText(
             //language=YAML
             """
 dynamic_resources:
@@ -248,6 +311,10 @@ static_resources:
                   route_config_name: local_route
                   config_source:
                     path: $configDir/$rdsFile
+
+$tlsDefaultDownstream
+
+
   clusters:
   - name: ext-authz
     connect_timeout: 0.25s

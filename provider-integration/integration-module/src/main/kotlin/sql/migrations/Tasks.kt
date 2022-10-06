@@ -5,7 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__Tasks(): MigrationScript = MigrationScript("V1__Tasks") { conn ->
     conn.prepareStatement(
-        //language=SQLite
+        //language=postgresql
         """
             create table tasks(
                 title text not null,
