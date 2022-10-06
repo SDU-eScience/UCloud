@@ -10,6 +10,7 @@ For details look in the `k8.kts` folders of each microservice.
 ## 06-10-22
 
 ```
+✅  Deployment(accounting, 2022.2.20-accounting1) (UP-TO-DATE)
 ✅  Deployment(app-kubernetes, 2022.2.20) (UP-TO-DATE)
 ```
 
