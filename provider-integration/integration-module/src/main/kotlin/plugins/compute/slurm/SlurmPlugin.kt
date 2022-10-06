@@ -39,6 +39,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
+import kotlin.collections.ArrayList
 import kotlin.math.max
 
 typealias SlurmConfig = ConfigSchema.Plugins.Jobs.Slurm
@@ -52,6 +53,7 @@ class SlurmPlugin : ComputePlugin {
         private set
     private lateinit var jobCache: JobCache
     private lateinit var cli: SlurmCommandLine
+    private var lastAccountingCharge = 0L
     private var fileCollectionPlugin: PosixCollectionPlugin? = null
     var udocker: UDocker? = null
         private set
@@ -445,7 +447,7 @@ class SlurmPlugin : ComputePlugin {
 
         while (currentCoroutineContext().isActive) {
             loop(Time.now() >= nextAccountingScan)
-            if (Time.now() >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
+            if (lastAccountingCharge >= nextAccountingScan) nextAccountingScan = Time.now() + 60_000 * 15
         }
     }
 
@@ -616,7 +618,7 @@ class SlurmPlugin : ComputePlugin {
             charges.add(
                 ResourceChargeCredits(
                     job.ucloudId,
-                    job.ucloudId + "_" + job.elapsed,
+                    job.ucloudId + "_" + job.elapsed / 1000,
                     units,
                     max(1, periods),
                 )
@@ -656,6 +658,8 @@ class SlurmPlugin : ComputePlugin {
                 }
             }
         }
+
+        lastAccountingCharge = Time.now()
 
         debugSystem.logD(
             "Charged $chargedJobs slurm jobs",
