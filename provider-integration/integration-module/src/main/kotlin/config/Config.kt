@@ -5,15 +5,10 @@ import com.charleskorn.kaml.Yaml
 import com.charleskorn.kaml.YamlConfiguration
 import dk.sdu.cloud.utils.*
 import dk.sdu.cloud.accounting.api.ProductType
-import dk.sdu.cloud.debug.DebugSensitive
-import dk.sdu.cloud.defaultMapper
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.SerializationException
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonPrimitive
 import java.io.File
 import kotlin.system.exitProcess
 
@@ -91,13 +86,31 @@ data class ConfigSchema(
 
         @Serializable
         data class Database(
-            val file: String,
-        )
+            val embedded: Embedded? = null,
+            val external: External? = null,
+        ) {
+            @Serializable
+            data class Embedded(
+                val directory: String,
+                // NOTE(Dan): Set to 0 for a random port
+                val port: Int = 5432
+            )
+
+            @Serializable
+            data class External(
+                val hostname: String,
+                val port: Int? = null,
+                val username: String,
+                val password: String,
+                val database: String
+            )
+        }
 
         @Serializable
         data class Envoy(
             val executable: String? = null,
             val directory: String,
+            val downstreamTls: Boolean = false,
         )
     }
 
@@ -157,13 +170,15 @@ data class ConfigSchema(
             @Serializable
             @SerialName("OpenIdConnect")
             data class OpenIdConnect(
-                val certificate: String,
+                @Deprecated("Replaced with signing block")
+                val certificate: String? = null,
                 val mappingTimeToLive: Ttl,
                 val endpoints: Endpoints,
                 val client: Client,
                 val extensions: Extensions,
                 val redirectUrl: String? = null,
                 val requireSigning: Boolean = false,
+                val signing: Signing? = null,
                 override val installSshKeys: Boolean = true,
             ) : Connection(), WithAutoInstallSshKey {
                 @Serializable
@@ -190,6 +205,18 @@ data class ConfigSchema(
                 data class Extensions(
                     val onConnectionComplete: String,
                 )
+
+                @Serializable
+                data class Signing(
+                    val algorithm: SignatureType,
+                    val key: String,
+                )
+
+                enum class SignatureType {
+                    // NOTE(Dan): This is incomplete
+                    RS256,
+                    ES256
+                }
             }
         }
 
@@ -264,6 +291,8 @@ data class ConfigSchema(
                 val useFakeMemoryAllocations: Boolean = false,
                 val accountMapper: AccountMapper = AccountMapper.None(),
                 val modifySlurmConf: String? = "/etc/slurm/slurm.conf",
+                val web: Web = Web.None(),
+                val udocker: UDocker = UDocker()
             ) : Jobs() {
                 @Serializable
                 sealed class AccountMapper {
@@ -276,6 +305,39 @@ data class ConfigSchema(
                     @Serializable
                     @SerialName("Extension")
                     data class Extension(val extension: String) : AccountMapper()
+                }
+
+                @Serializable
+                sealed class Web {
+                    @Serializable
+                    @SerialName("None")
+                    class None : Web()
+
+                    @Serializable
+                    @SerialName("Simple")
+                    class Simple(
+                        val domainPrefix: String,
+                        val domainSuffix: String,
+                    ) : Web()
+                }
+
+                @Serializable
+                data class UDocker(
+                    val enabled: Boolean = false,
+                    val execMode: ExecMode = ExecMode.P2
+                ) {
+                    enum class ExecMode {
+                        P1,
+                        P2,
+                        F1,
+                        F2,
+                        F3,
+                        F4,
+                        R1,
+                        R2,
+                        R3,
+                        S1
+                    }
                 }
             }
 
@@ -352,7 +414,6 @@ data class ConfigSchema(
             @SerialName("Posix")
             data class Posix(
                 override val matches: String,
-                val simpleHomeMapper: List<HomeMapper> = emptyList(),
                 val extensions: Extensions = Extensions(),
                 val accounting: String? = null,
             ) : ConfigSchema.Plugins.FileCollections() {
@@ -364,6 +425,8 @@ data class ConfigSchema(
 
                 @Serializable
                 data class Extensions(
+                    val driveLocator: String? = null,
+                    @Deprecated("replace with driveLocator")
                     val additionalCollections: String? = null,
                 )
             }

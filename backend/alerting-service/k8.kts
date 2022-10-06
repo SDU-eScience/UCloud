@@ -3,7 +3,7 @@ package dk.sdu.cloud.k8
 
 bundle { ctx ->
     name = "alerting"
-    version = "2022.1.61"
+    version = "2022.2.11"
 
     // Fetch configuration from audit-ingestion
     val elasticCredentials = Configuration.retrieve<String>(

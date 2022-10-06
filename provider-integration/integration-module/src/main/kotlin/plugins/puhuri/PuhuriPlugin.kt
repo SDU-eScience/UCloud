@@ -1,4 +1,4 @@
-package dk.sdu.cloud.plugins
+package dk.sdu.cloud.plugins.puhuri
 
 import dk.sdu.cloud.accounting.api.ProductType
 import dk.sdu.cloud.calls.HttpStatusCode
@@ -17,6 +17,7 @@ import dk.sdu.cloud.ipc.IpcContainer
 import dk.sdu.cloud.ipc.handler
 import dk.sdu.cloud.ipc.sendRequest
 import dk.sdu.cloud.logThrowable
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.plugins.connection.OpenIdConnectPlugin
 import dk.sdu.cloud.plugins.connection.OpenIdConnectSubject
 import dk.sdu.cloud.project.api.ProjectRole
@@ -109,6 +110,7 @@ class PuhuriPlugin : ProjectPlugin {
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select ucloud_identity, puhuri_identity, ucloud_project_role, synchronized_to_puhuri
                         from puhuri_project_users
@@ -151,6 +153,7 @@ class PuhuriPlugin : ProjectPlugin {
                 var puhuriId: String? = null
                 dbConnection.withSession { session ->
                     session.prepareStatement(
+                        //language=postgresql
                         """
                             select puhuri_identity
                             from puhuri_connections
@@ -187,11 +190,12 @@ class PuhuriPlugin : ProjectPlugin {
             // we can re-attempt these changes later.
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into puhuri_project_users
                             (ucloud_identity, ucloud_project, puhuri_identity, ucloud_project_role, synchronized_to_puhuri)
                         values
-                            (:ucloud_user, :ucloud_project, :puhuri_identity, :role, false)
+                            (:ucloud_user, :ucloud_project, :puhuri_identity::text, :role::text, false)
                         on conflict (ucloud_identity, ucloud_project) do update set
                             synchronized_to_puhuri = excluded.synchronized_to_puhuri,
                             ucloud_project_role = excluded.ucloud_project_role,
@@ -214,6 +218,7 @@ class PuhuriPlugin : ProjectPlugin {
 
                 dbConnection.withSession { session ->
                     session.prepareStatement(
+                        //language=postgresql
                         """
                             update puhuri_project_users
                             set
@@ -234,6 +239,7 @@ class PuhuriPlugin : ProjectPlugin {
 
                 dbConnection.withSession { session ->
                     session.prepareStatement(
+                        //language=postgresql
                         """
                             delete from puhuri_project_users
                             where
@@ -258,11 +264,11 @@ class PuhuriPlugin : ProjectPlugin {
 
     private suspend fun onConnectionComplete(subject: OpenIdConnectSubject) {
         val ucloudUser = subject.ucloudIdentity
-        val puhuriUserId =
-            subject.email ?: error("Expected user ID to be present") // TODO(Dan): Change with the correct attribute
+        val puhuriUserId = subject.subject
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     insert into puhuri_connections(ucloud_identity, puhuri_identity) 
                     values (:ucloud_identity, :puhuri_identity)
@@ -278,13 +284,17 @@ class PuhuriPlugin : ProjectPlugin {
             //  Maybe this is something we should do also?
 
             session.prepareStatement(
-                """
+                //language=postgresql
+                """ 
                     update puhuri_project_users
                     set
                         puhuri_identity = :puhuri_identity,
-                        synchronized_to_puhuri = puhuri_identity is :puhuri_identity and synchronized_to_puhuri 
+                        synchronized_to_puhuri = case when (puhuri_identity = :puhuri_identity and synchronized_to_puhuri)
+                            then TRUE
+                            else FALSE
+                        end
                     where
-                        ucloud_identity = :ucloud_identity
+                        ucloud_identity = :ucloud_identity 
                 """
             ).useAndInvokeAndDiscard(
                 prepare = {
@@ -371,16 +381,17 @@ class PuhuriPlugin : ProjectPlugin {
 
         dbConnection.withSession { session ->
             session.prepareStatement(
+                //language=postgresql
                 """
                     select ucloud_identity, ucloud_project, puhuri_identity, ucloud_project_role
                     from puhuri_project_users
                     where
                         synchronized_to_puhuri = false and
-                        (:username_filter = '' or ucloud_identity = :username_filter) and
+                        (:username_filter::text is null or ucloud_identity = :username_filter::text) and
                         puhuri_identity is not null
                 """
             ).useAndInvoke(
-                prepare = { bindString("username_filter", usernameFilter ?: "") },
+                prepare = { bindStringNullable("username_filter", usernameFilter) },
                 readRow = {
                     missingSynchronizations.add(
                         PuhuriProjectUser(
@@ -414,6 +425,7 @@ class PuhuriPlugin : ProjectPlugin {
         dbConnection.withSession { session ->
             for (alloc in allocations) {
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into puhuri_allocations(allocation_id, balance, product_type, synchronized_to_puhuri)
                         values (:id, :balance, :product_type, false)
@@ -463,13 +475,14 @@ class PuhuriPlugin : ProjectPlugin {
 
                 dbConnection.withSession { session ->
                     session.prepareStatement(
+                        //language=postgresql
                         """
                             update puhuri_allocations
                             set synchronized_to_puhuri = true
                             where
-                                   allocation_id = :cpu_allocation
-                                or allocation_id = :gpu_allocation
-                                or allocation_id = :storage_allocation
+                                   allocation_id = :cpu_allocation::text
+                                or allocation_id = :gpu_allocation::text
+                                or allocation_id = :storage_allocation::text
                         """
                     ).useAndInvokeAndDiscard(
                         prepare = {
@@ -555,8 +568,7 @@ class PuhuriClient(
                 apiRequest()
             ).orThrow()
 
-            val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.body())
-
+            val results = defaultMapper.decodeFromString(ListSerializer(PuhuriProject.serializer()), resp.bodyAsText())
 
             if (results.isNotEmpty()) {
                 logExit(
@@ -577,7 +589,7 @@ class PuhuriClient(
             apiPath("remote-eduteams"),
             apiRequestWithBody(PuhuriGetUserIdRequest.serializer(), PuhuriGetUserIdRequest(cuid))
         ).orThrow()
-        return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.body()).uuid
+        return defaultMapper.decodeFromString(PuhuriGetUserIdResponse.serializer(), resp.bodyAsText()).uuid
     }
 
     suspend fun createOrder(projectId: String, allocation: PuhuriAllocation) {
@@ -625,7 +637,7 @@ class PuhuriClient(
         if (projectId.isEmpty()) return emptyList()
 
         val resp = httpClient.get(apiPath("project-permissions") + "?project=$projectId", apiRequest()).orThrow()
-        return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.body())
+        return defaultMapper.decodeFromString(ListSerializer(PuhuriProjectPermissionEntry.serializer()), resp.bodyAsText())
     }
 
     suspend fun removeUserFromProject(userId: String, projectId: String) {
@@ -652,7 +664,7 @@ class PuhuriClient(
             )
         ).orThrow()
 
-        return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.body())
+        return defaultMapper.decodeFromString(PuhuriProject.serializer(), resp.bodyAsText())
     }
 
     private fun apiPath(path: String): String {

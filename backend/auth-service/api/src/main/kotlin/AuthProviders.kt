@@ -1,9 +1,11 @@
 package dk.sdu.cloud.auth.api
 
+import dk.sdu.cloud.Actor
 import dk.sdu.cloud.CommonErrorMessage
 import dk.sdu.cloud.FindByStringId
 import dk.sdu.cloud.Roles
 import dk.sdu.cloud.calls.*
+import dk.sdu.cloud.safeUsername
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.builtins.serializer
 
@@ -44,6 +46,16 @@ data class AuthProvidersGenerateKeyPairResponse(
     val publicKey: String,
     val privateKey: String,
 )
+
+val Actor.providerIdOrNull: String?
+    get() {
+        val uname = safeUsername()
+        return if (uname.startsWith(AuthProviders.PROVIDER_PREFIX)) {
+            uname.substring(AuthProviders.PROVIDER_PREFIX.length)
+        } else {
+            null
+        }
+    }
 
 @UCloudApiExperimental(ExperimentalLevel.ALPHA)
 object AuthProviders : CallDescriptionContainer("auth.providers") {
@@ -178,43 +190,6 @@ As a provider, you must take the following steps to verify the authenticity of a
 It is absolutely critical that JWT verification is configured correctly. For example, some JWT verifiers are known for
 having too relaxed defaults, which in the worst case will skip all verification. It is important that the verifier is
 configured to _only_ accept the parameters mentioned above.
-
-## Extending the Protocol to Support Verification of Client
-
----
-
-__📝 NOTE:__ Very informal draft.
-
----
-
-Some quick thoughts about how we can extend the protocol to support verification of the client sending the message. This
-is extremely useful as it would make UCloud incapable of impersonating a user at a different provider.
-
-1. Extend client-side RPC to include a signature of their message
-   - This message should use public-private keypairs
-   - Keypairs are generated in the browser
-   - The public key is transferred to the provider _by_ the user
-   - This will happen when the user connects to the provider
-   - Possible library: https://github.com/kjur/jsrsasign
-   - This will support keygen and signature we need
-   - The signature should be passed in a header
-2. UCloud receives this message, and extends it with additional information
-3. UCloud includes, verbatim, the original request along with the signature
-   - How do we make this developer friendly?
-4. Provider verifies that the JWT is valid (by UCloud)   
-5. Provider verifies that the original request has been signed
-5. Provider verifies that the original request _also_ matches the additional context that UCloud provided
-
-A possible alternative to signing the entire message is to sign a JWT (or any other document, we don't really need the
-header). This JWT would provide similar security, the document should contain:
-
-- `iat`: Issued at
-- `exp`: Expires at
-- `sub`: Username (UCloud)
-- `project`: Project (UCloud)
-- `callName`: Potentially, this could contain the name of the call we are performing. This would allow the provider to
-   verify that the correct call is also being made.
-
 
         """.trimIndent()
     }

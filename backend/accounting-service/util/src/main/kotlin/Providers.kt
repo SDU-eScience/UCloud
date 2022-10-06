@@ -26,6 +26,11 @@ data class SimpleProviderCommunication(
     override val provider: ProviderSpecification
 ) : ProviderComms
 
+@Suppress("FunctionName")
+fun Providers(serviceClient: AuthenticatedClient): dk.sdu.cloud.accounting.util.Providers<SimpleProviderCommunication> {
+    return Providers(serviceClient) { SimpleProviderCommunication(it.client, it.wsClient, it.provider) }
+}
+
 class Providers<Communication : ProviderComms>(
     private val serviceClient: AuthenticatedClient,
     private val communicationFactory: (comms: ProviderComms) -> Communication

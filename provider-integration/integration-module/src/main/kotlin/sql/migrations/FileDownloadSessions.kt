@@ -5,7 +5,7 @@ import dk.sdu.cloud.sql.useAndInvokeAndDiscard
 
 fun V1__FileDownloadSessions(): MigrationScript = MigrationScript("V1__FileDownloadSessions") { conn ->
     conn.prepareStatement(
-        //language=SQLite
+        //language=postgresql
         """
             create table file_download_sessions(
                 session text primary key,

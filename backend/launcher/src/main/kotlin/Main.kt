@@ -2,6 +2,7 @@ package dk.sdu.cloud
 
 import dk.sdu.cloud.accounting.AccountingService
 import dk.sdu.cloud.accounting.api.*
+import dk.sdu.cloud.accounting.api.projects.*
 import dk.sdu.cloud.accounting.api.providers.ResourceRetrieveRequest
 import dk.sdu.cloud.alerting.AlertingService
 import dk.sdu.cloud.app.kubernetes.AppKubernetesService
@@ -21,7 +22,6 @@ import dk.sdu.cloud.elastic.management.ElasticManagementService
 import dk.sdu.cloud.file.orchestrator.FileOrchestratorService
 import dk.sdu.cloud.slack.SlackService
 import dk.sdu.cloud.file.ucloud.FileUcloudService
-import dk.sdu.cloud.grant.api.*
 import dk.sdu.cloud.mail.MailService
 import dk.sdu.cloud.micro.*
 import dk.sdu.cloud.news.NewsService
@@ -220,20 +220,21 @@ suspend fun main(args: Array<String>) {
                 client
             ).orThrow().id
 
-            Grants.setEnabledStatus.call(
-                SetEnabledStatusRequest(project, true),
+            GrantsEnabled.setEnabledStatus.call(
+                bulkRequestOf(SetEnabledStatusRequest(project, true)),
                 userClient
             ).orThrow()
 
-            Grants.uploadRequestSettings.call(
-                UploadRequestSettingsRequest(
+            GrantSettings.uploadRequestSettings.call(
+                bulkRequestOf(UploadRequestSettingsRequest(
                     automaticApproval = AutomaticApprovalSettings(
                         from = emptyList(),
                         maxResources = emptyList()
                     ),
                     allowRequestsFrom = listOf<UserCriteria>(UserCriteria.Anyone()),
-                    excludeRequestsFrom = emptyList()
-                ),
+                    excludeRequestsFrom = emptyList(),
+                    projectId = project
+                )),
                 userClient.withProject(project)
             )
 

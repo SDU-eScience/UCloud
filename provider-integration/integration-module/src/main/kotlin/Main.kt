@@ -12,10 +12,7 @@ import dk.sdu.cloud.calls.client.*
 import dk.sdu.cloud.calls.server.*
 import dk.sdu.cloud.cli.CommandLineInterface
 import dk.sdu.cloud.cli.registerAlwaysOnCommandLines
-import dk.sdu.cloud.config.ConfigSchema
-import dk.sdu.cloud.config.ProductReferenceWithoutProvider
-import dk.sdu.cloud.config.loadConfiguration
-import dk.sdu.cloud.config.verifyConfiguration
+import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.ControllerContext
 import dk.sdu.cloud.controllers.EnvoyConfigurationService
 import dk.sdu.cloud.controllers.IpcController
@@ -39,12 +36,16 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.io.path.readSymbolicLink
 import kotlin.system.exitProcess
 import dk.sdu.cloud.controllers.*
+import dk.sdu.cloud.utils.LinuxFileHandle
+import dk.sdu.cloud.utils.LinuxInputStream
+import dk.sdu.cloud.utils.LinuxOutputStream
 import dk.sdu.cloud.sql.*
 import dk.sdu.cloud.utils.*
 import io.ktor.util.*
 import kotlinx.coroutines.*
 import kotlinx.serialization.builtins.ListSerializer
 import org.slf4j.LoggerFactory
+import java.sql.DriverManager
 
 fun main(args: Array<String>) {
     try {
@@ -216,8 +217,7 @@ fun main(args: Array<String>) {
             // Database services
             // -------------------------------------------------------------------------------------------------------
             if (config.serverOrNull != null && serverMode == ServerMode.Server) {
-                databaseFile.getAndSet(config.server.database.file)
-
+                dbConfig.set(config.server.database)
                 // NOTE(Dan): It is important that migrations run _before_ plugins are loaded
                 val handler = MigrationHandler(dbConnection)
                 loadMigrations(handler)
@@ -304,8 +304,14 @@ fun main(args: Array<String>) {
             if (rpcServer != null) {
                 ClientInfoInterceptor().register(rpcServer)
                 AuthInterceptor(validation ?: error("No validation")).register(rpcServer)
+                IdleGarbageCollector().register(rpcServer)
 
-                val engine = embeddedServer(CIO, port = rpcServerPort ?: error("Missing rpcServerPort")) {}
+                val engine = embeddedServer(
+                    CIO,
+                    host = "127.0.0.1",
+                    port = rpcServerPort ?: error("Missing rpcServerPort"),
+                    module = {}
+                )
                 ktorEngine = engine
                 engine.application.install(CORS) {
                     // We run with permissive CORS settings in dev mode. This allows us to test frontend directly
@@ -356,11 +362,6 @@ fun main(args: Array<String>) {
                     val authenticator = RefreshingJWTAuthenticator(
                         client,
                         JwtRefresher.Provider(config.server.refreshToken, OutgoingHttpCall),
-                        becomesInvalidSoon = { accessToken ->
-                            val expiresAt = validation!!.validateOrNull(accessToken)?.expiresAt?.time
-                            (expiresAt ?: return@RefreshingJWTAuthenticator true) +
-                                    (1000 * 120) >= Time.now()
-                        }
                     )
 
                     authenticator.authenticateClient(OutgoingHttpCall)
@@ -606,7 +607,7 @@ fun main(args: Array<String>) {
             // linear when not counting the null checks.
 
             if (ipcServer != null && rpcClient != null) {
-                IpcToUCloudProxyServer().init(ipcServer, rpcClient)
+                IpcToUCloudProxyServer(rpcClient).init(ipcServer, rpcClient)
                 ProcessingScope.launch { ipcServer.runServer() }
             }
             envoyConfig?.start(config.serverOrNull?.network?.listenPort)
@@ -615,17 +616,36 @@ fun main(args: Array<String>) {
 
             if (config.pluginsOrNull != null) {
                 for (plugin in allResourcePlugins) {
-                    ProcessingScope.launch {
-                        with(pluginContext) {
-                            with(plugin) {
-                                // Delay execution of monitoring loop until rpcServer is reporting ready
-                                while (isActive) {
-                                    val isReady = rpcServer?.isRunning ?: true
-                                    if (isReady) break
-                                    delay(50)
-                                }
+                    if (config.shouldRunServerCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
 
-                                runMonitoringLoop()
+                                    runMonitoringLoopInServerMode()
+                                }
+                            }
+                        }
+                    }
+
+                    if (config.shouldRunUserCode()) {
+                        ProcessingScope.launch {
+                            with(pluginContext) {
+                                with(plugin) {
+                                    // Delay execution of monitoring loop until rpcServer is reporting ready
+                                    while (isActive) {
+                                        val isReady = rpcServer?.isRunning ?: true
+                                        if (isReady) break
+                                        delay(50)
+                                    }
+
+                                    runMonitoringLoopInUserMode()
+                                }
                             }
                         }
                     }
@@ -673,6 +693,14 @@ fun main(args: Array<String>) {
                 stats.add(empty)
                 stats.add("All logs" to config.core.logs.directory)
                 stats.add("My logs" to "${config.core.logs.directory}/$logModule-ucloud.log")
+                if (serverMode == ServerMode.Server) {
+                    val embeddedConfig = config.server.database.embeddedDataDirectory
+                    if (embeddedConfig != null) {
+                        stats.add("Database" to "Embedded: ${embeddedConfig}")
+                    } else {
+                        stats.add("Database" to config.server.database.jdbcUrl)
+                    }
+                }
                 if (config.core.hosts.ucloud.host == "backend") {
                     stats.add("Debugger" to "http://localhost:42999")
                 }
@@ -757,14 +785,34 @@ fun <R : Any, S : Any, E : Any> CallDescription<R, S, E>.callBlocking(
 private val debugSystemAtomic = AtomicReference<DebugSystem?>(null)
 val debugSystem: DebugSystem?
     get() = debugSystemAtomic.get()
-private val databaseFile = AtomicReference("")
+
+private val dbConfig = AtomicReference<VerifiedConfig.Server.Database>()
 
 val dbConnection: DBContext by lazy {
-    val file = databaseFile.get().takeIf { it.isNotBlank() }
-    if (file == null) {
-        error("This plugin does not have access to a database")
+    val config = dbConfig.get().takeIf { it != null }
+    if (config == null) {
+        error("Config not found for DB")
     } else {
-        JdbcDriver(file)
+        val connection = createDBConnection(config)
+        runBlocking { testDB(connection) }
+        connection
+    }
+}
+
+private suspend fun testDB(db: DBContext) {
+    db.withSession { session ->
+        session.prepareStatement("select 1").invokeAndDiscard()
+    }
+}
+
+private fun createDBConnection(database: VerifiedConfig.Server.Database): DBContext {
+    return object : JdbcDriver() {
+        override val pool: SimpleConnectionPool = SimpleConnectionPool(8) { pool ->
+            JdbcConnection(
+                DriverManager.getConnection(database.jdbcUrl, database.username, database.password),
+                pool
+            )
+        }
     }
 }
 

@@ -12,10 +12,12 @@ import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.*
 import dk.sdu.cloud.controllers.RequestContext
 import dk.sdu.cloud.controllers.UserMapping
+import dk.sdu.cloud.debug.detailD
 import dk.sdu.cloud.provider.api.IntegrationControl
 import dk.sdu.cloud.provider.api.IntegrationControlApproveConnectionRequest
 import dk.sdu.cloud.service.InternalTokenValidationJWT
 import dk.sdu.cloud.service.Logger
+import dk.sdu.cloud.service.TokenValidationJWT
 import dk.sdu.cloud.utils.secureToken
 import io.ktor.http.*
 import io.ktor.server.application.*
@@ -74,7 +76,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     // The state table is used to map a connection attempt to an active OIDC authentication flow.
     private class ConnectionState(val username: String, val connectionId: String)
-    @JvmInline private value class OidcState(val state: String)
+    @JvmInline
+    private value class OidcState(val state: String)
+
     private val stateTableMutex = Mutex()
     private val stateTable = HashMap<OidcState, ConnectionState>()
 
@@ -87,12 +91,41 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override fun PluginContext.initializeRpcServer(server: RpcServer) {
         // Token validator used to verify tokens returned by the OpenID provider (explained below).
-        val accessTokenValidator = InternalTokenValidationJWT.withPublicCertificate(configuration.certificate,
-            issuer = null)
+        val accessTokenValidator: TokenValidationJWT = run {
+            @Suppress("DEPRECATION") val cert = configuration.certificate
+            val signing = configuration.signing
+            when {
+                cert != null -> InternalTokenValidationJWT.withPublicCertificate(cert, issuer = null)
+
+                signing != null -> {
+                    when (signing.algorithm) {
+                        ConfigSchema.Plugins.Connection.OpenIdConnect.SignatureType.RS256 -> {
+                            InternalTokenValidationJWT.withPublicCertificate(signing.key, issuer = null)
+                        }
+
+                        ConfigSchema.Plugins.Connection.OpenIdConnect.SignatureType.ES256 -> {
+                            InternalTokenValidationJWT.withEs256(
+                                signing.key,
+                                issuer = null,
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    error("OpenIdConnect must have a signing block but none was passed")
+                }
+            }
+        }
 
         // Implemented by the integration module (see explanation below)
         val openIdClientApi = object : CallDescriptionContainer("openidclient") {
-            val callback = call("callback", OpenIdConnectCallback.serializer(), Unit.serializer(), CommonErrorMessage.serializer()) {
+            val callback = call(
+                "callback",
+                OpenIdConnectCallback.serializer(),
+                Unit.serializer(),
+                CommonErrorMessage.serializer()
+            ) {
                 auth {
                     access = AccessRight.READ
                     roles = Roles.PUBLIC
@@ -112,18 +145,19 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
         // Invoked by the integration module (see explanation below)
         val openIdProviderApi = object : CallDescriptionContainer("openidprovider") {
-            val token = call("callback", Unit.serializer(), OpenIdConnectToken.serializer(), CommonErrorMessage.serializer()) {
-                auth {
-                    access = AccessRight.READ
-                    roles = Roles.PUBLIC
-                }
+            val token =
+                call("callback", Unit.serializer(), OpenIdConnectToken.serializer(), CommonErrorMessage.serializer()) {
+                    auth {
+                        access = AccessRight.READ
+                        roles = Roles.PUBLIC
+                    }
 
-                http {
-                    method = HttpMethod.Post
-                    path { using(tokenEndpoint.removePrefix(configuration.hostInfo().toString())) }
-                    body { bindEntireRequestFromBody() }
+                    http {
+                        method = HttpMethod.Post
+                        path { using(tokenEndpoint.removePrefix(configuration.hostInfo().toString())) }
+                        body { bindEntireRequestFromBody() }
+                    }
                 }
-            }
         }
 
         // Client used for the `openIdProviderApi`.
@@ -139,7 +173,10 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
                 val ucloudIdentity = stateTableMutex.withLock {
                     stateTable[OidcState(request.state)]
-                } ?: throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                } ?: run {
+                    debugSystem.detailD("Rejecting OIDC callback: Unknown state", Unit.serializer(), Unit)
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                }
 
                 // We start by calling back the OpenID provider and ask them to issue us a token based on the code we
                 // have just received from the client.
@@ -159,22 +196,31 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                             append("&grant_type=authorization_code")
 
                             append("&redirect_uri=")
-                            append(ownHost.scheme)
-                            append("://")
-                            append(ownHost.host)
-                            append(":")
-                            append(ownHost.port)
+                            append(ownHost.toStringOmitDefaultPort())
                             append("/connection/oidc-cb")
                         },
                         ContentType.Application.FormUrlEncoded
                     )
-                ).orThrow()
+                ).orRethrowAs {
+                    runBlocking {
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Bad response from token callback",
+                            Unit.serializer(), Unit
+                        )
+                    }
+                    throw RPCException.fromStatusCode(HttpStatusCode.BadGateway)
+                }
 
                 // Assuming that this goes well, we will verify that the tokens also make sense. We do the verification
                 // based on certificates which we receive from the configuration.
-                val jwt = accessTokenValidator.validateOrNull(tokenResponse.access_token)?.claims
+                // TODO(Dan): Confirm that Keycloak still works with id_token
+                val jwt = accessTokenValidator.validateOrNull(tokenResponse.id_token)?.claims
                     ?: run {
                         log.debug("OIDC failed due to a bad token: ${tokenResponse.access_token}")
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Bad token",
+                            OpenIdConnectToken.serializer(), tokenResponse
+                        )
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
@@ -185,30 +231,45 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                     // terms of what we should verify.
                     // TODO(Dan): Verify that the audience does indeed contain the client-id.
                     val returnedSessionState = jwt["session_state"]?.takeIf { !it.isNull }?.asString()
-                        ?: throw RPCException("Missing session_state", HttpStatusCode.BadRequest)
-                    val type = jwt["typ"]?.takeIf { !it.isNull }?.asString()
-                        ?: throw RPCException("Missing typ", HttpStatusCode.BadRequest)
                     val azp = jwt["azp"]?.takeIf { !it.isNull }?.asString()
+                    val aud = jwt["aud"]?.takeIf { !it.isNull }?.asList(String::class.java)
+
+                    if (aud?.contains(configuration.client.id) != true) {
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Bad session state",
+                            OpenIdConnectToken.serializer(), tokenResponse
+                        )
+                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
+                    }
 
                     if (returnedSessionState != request.session_state) {
                         log.debug("OIDC failed due to bad session state ($returnedSessionState != ${request.session_state}")
+
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Bad session state",
+                            OpenIdConnectToken.serializer(), tokenResponse
+                        )
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
                     if (azp != null && azp != configuration.client.id) {
                         log.debug("OIDC failed due to azp not matching configured client ($azp != ${configuration.client.id}")
-                        throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
-                    }
-
-                    if (!type.equals("Bearer", ignoreCase = true)) {
-                        log.debug("OIDC failed due to the type not being equal to Bearer (it was $type)")
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Bad azp",
+                            OpenIdConnectToken.serializer(), tokenResponse
+                        )
                         throw RPCException.fromStatusCode(HttpStatusCode.BadRequest)
                     }
 
                     // We also fetch some additional information which can be of use to the extensions which performs
                     // mapping and/or user creation.
-                    val subject = jwt["sub"]?.takeIf { !it.isNull }?.asString()
-                        ?: throw RPCException("Missing sub", HttpStatusCode.BadRequest)
+                    val subject = jwt["sub"]?.takeIf { !it.isNull }?.asString() ?: run {
+                        debugSystem.detailD(
+                            "Rejecting OIDC callback: Missing subject!",
+                            OpenIdConnectToken.serializer(), tokenResponse
+                        )
+                        throw RPCException("Missing sub", HttpStatusCode.BadRequest)
+                    }
 
                     // These values all originate from 'OpenID Connect Basic Client Implementer's Guide 1.0 - draft 40'
                     // in section '2.5 Standard Claims'.
@@ -302,11 +363,7 @@ class OpenIdConnectPlugin : ConnectionPlugin {
                 append("&state=")
                 append(token.state)
                 append("&redirect_uri=")
-                append(ownHost.scheme)
-                append("://")
-                append(ownHost.host)
-                append(":")
-                append(ownHost.port)
+                append(ownHost.toStringOmitDefaultPort())
                 append("/connection/oidc-cb")
             },
             token.state
@@ -315,9 +372,9 @@ class OpenIdConnectPlugin : ConnectionPlugin {
 
     override suspend fun PluginContext.mappingExpiration(): Long {
         var acc = 0L
-        with (configuration.mappingTimeToLive) {
-            acc += days    * (1000L * 60 * 60 * 24)
-            acc += hours   * (1000L * 60 * 60)
+        with(configuration.mappingTimeToLive) {
+            acc += days * (1000L * 60 * 60 * 24)
+            acc += hours * (1000L * 60 * 60)
             acc += minutes * (1000L * 60)
             acc += seconds * (1000L)
         }
@@ -347,15 +404,16 @@ fun AuthenticatedClient.emptyAuth(): AuthenticatedClient {
 @Serializable
 data class OpenIdConnectCallback(
     val state: String,
-    val session_state: String,
+    val session_state: String? = null,
     val code: String
 )
 
 @Serializable
 data class OpenIdConnectToken(
     val access_token: String,
-    val refresh_token: String,
-    val session_state: String,
+    val id_token: String,
+    val refresh_token: String? = null,
+    val session_state: String? = null,
 )
 
 @Serializable

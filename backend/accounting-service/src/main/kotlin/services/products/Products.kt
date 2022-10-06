@@ -55,6 +55,7 @@ class ProductService(
 
             session.sendPreparedStatement(
                 {
+                    // NOTE(Dan): The version property is no longer used and instead we simply update the products
                     val names by parameterList<String>()
                     val pricesPerUnit by parameterList<Long>()
                     val cpus by parameterList<Int?>()
@@ -98,7 +99,7 @@ class ProductService(
                          free_to_use, version, description) 
                     select
                         req.uname, req.price_per_unit, req.cpu, req.gpu, req.memory_in_gigs, req.license_tags,
-                        pc.id, req.free_to_use, coalesce(existing.version + 1, 1), req.description
+                        pc.id, req.free_to_use, 1, req.description
                     from
                         requests req join
                         accounting.product_categories pc on
@@ -107,15 +108,16 @@ class ProductService(
                         accounting.products existing on
                             req.uname = existing.name and
                             existing.category = pc.id
-                    where
-                        existing.version is null or
-                        existing.version = (
-                            select max(version) highest_version
-                            from accounting.products p
-                            where
-                                p.name = existing.name and
-                                p.category = existing.category
-                        )
+                    on conflict (name, category, version)
+                    do update set
+                        price_per_unit = excluded.price_per_unit,
+                        cpu = excluded.cpu,
+                        gpu = excluded.gpu,
+                        memory_in_gigs = excluded.memory_in_gigs,
+                        license_tags = excluded.license_tags,
+                        free_to_use = excluded.free_to_use,
+                        description = excluded.description
+                    
                 """
             )
         }

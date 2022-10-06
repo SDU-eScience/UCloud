@@ -44,6 +44,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override var productAllocationResolved: List<Product> = emptyList()
     private lateinit var pluginConfig: ConfigSchema.Plugins.FileCollections.Posix
     private var initializedProjects = HashMap<ResourceOwnerWithId, List<PathConverter.Collection>>()
+    private lateinit var partnerPlugin: PosixFilesPlugin
+    lateinit var pathConverter: PathConverter
+        private set
     private val mutex = Mutex()
     private val dateFormatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss")
 
@@ -57,47 +60,36 @@ class PosixCollectionPlugin : FileCollectionPlugin {
         this.pluginConfig = config as ConfigSchema.Plugins.FileCollections.Posix
     }
 
-    override suspend fun PluginContext.onAllocationComplete(notification: AllocationNotification) {
+    override suspend fun PluginContext.initialize() {
+        partnerPlugin = (config.plugins.files[pluginName] as? PosixFilesPlugin) ?:
+            error("Posix file-collection plugins requires a matching partner plugin of type Posix with name '$pluginName'")
+        pathConverter = PathConverter(this)
+    }
+
+    override suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {
         locateAndRegisterCollections(notification.owner)
     }
 
     private suspend fun PluginContext.locateAndRegisterCollections(
         owner: ResourceOwnerWithId
     ): List<PathConverter.Collection> {
-        val pathConverter = PathConverter(this)
         mutex.withLock {
             val cached = initializedProjects[owner]
             if (cached != null) return cached
         }
 
-        data class CollWithProduct(
-            val title: String,
-            val pathPrefix: String,
-            val product: ProductReferenceWithoutProvider
-        )
-
-        val homes = HashMap<String, CollWithProduct>()
         val collections = ArrayList<PathConverter.Collection>()
 
         run {
             val product = productAllocation.firstOrNull() ?: return@run
 
-            run {
-                // Simple mappers
-                pluginConfig.simpleHomeMapper.forEach { home ->
-                    homes[home.prefix] = CollWithProduct(home.title, home.prefix, product)
-                }
-            }
-
-            run {
-                // Extensions
-                val extension = pluginConfig.extensions.additionalCollections
-                if (extension != null) {
-                    retrieveCollections.invoke(extension, owner).forEach {
-                        collections.add(
-                            PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
-                        )
-                    }
+            @Suppress("DEPRECATION")
+            val extension = pluginConfig.extensions.driveLocator ?: pluginConfig.extensions.additionalCollections
+            if (extension != null) {
+                retrieveCollections.invoke(extension, owner).forEach {
+                    collections.add(
+                        PathConverter.Collection(owner.toResourceOwner(), it.title, it.path, product)
+                    )
                 }
             }
         }
@@ -118,14 +110,9 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
-        return BulkResponse(productAllocation.map { ref ->
-            FSSupport(
-                ProductReference(ref.id, ref.category, config.core.providerId),
-                FSProductStatsSupport(),
-                FSCollectionSupport(),
-                FSFileSupport()
-            )
-        })
+        return with(partnerPlugin) {
+            retrieveProducts(knownProducts)
+        }
     }
 
     private suspend fun ArrayList<CollectionChargeCredits>.sendBatch(client: AuthenticatedClient) {
@@ -188,14 +175,10 @@ class PosixCollectionPlugin : FileCollectionPlugin {
     }
 
     private var nextScan = 0L
-    override suspend fun PluginContext.runMonitoringLoop() {
-        if (!config.shouldRunServerCode()) return
+    override suspend fun PluginContext.runMonitoringLoopInServerMode() {
         if (pluginConfig.accounting == null) return
 
-        val pathConverter = PathConverter(this)
         val productCategories = productAllocation.map { it.category }.toSet()
-
-
         while (currentCoroutineContext().isActive) {
             loop(pathConverter, productCategories)
         }

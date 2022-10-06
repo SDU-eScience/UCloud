@@ -77,6 +77,7 @@ class FileController(
                 val id = secureToken(32).replace("/", "-")
 
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into tasks(title, ucloud_task_id, local_identity)
                         values (:title, :task_id, :local)
@@ -100,6 +101,7 @@ class FileController(
             var doesExist = false
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select ucloud_task_id
                         from tasks
@@ -133,6 +135,7 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into file_download_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -160,12 +163,13 @@ class FileController(
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
-                    select plugin_name, plugin_data
-                    from file_download_sessions
-                    where
-                        session = :token
-                """
+                        select plugin_name, plugin_data
+                        from file_download_sessions
+                        where
+                            session = :token
+                    """
                 ).useAndInvoke(
                     prepare = {
                         bindString("token", request.id)
@@ -190,6 +194,7 @@ class FileController(
 
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         insert into file_upload_sessions(session, plugin_name, plugin_data)
                         values (:session, :plugin_name, :plugin_data)
@@ -217,6 +222,7 @@ class FileController(
             var result: FileSessionWithPlugin? = null
             dbConnection.withSession { session ->
                 session.prepareStatement(
+                    //language=postgresql
                     """
                         select plugin_name, plugin_data
                         from file_upload_sessions
@@ -302,74 +308,72 @@ class FileController(
         }
 
         implement(api.createFolder) {
-            val result = request.items.map { createFolderRequest ->
-                val collection = collectionCache.get(
-                    createFolderRequest.id.components().firstOrNull() ?: return@map null
-                ) ?: return@map null
-
-                val plugin = lookupPlugin(collection.specification.product)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { collectionCache.get(it.id.components().firstOrNull()!!)!! },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        createFolder(bulkRequestOf(createFolderRequest)).single()
+                        BulkResponse(createFolder(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.move) {
-            val result = request.items.map { moveRequest ->
-                val collection = moveRequest.resolvedNewCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedNewCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        move(bulkRequestOf(moveRequest)).single()
+                        BulkResponse(move(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.copy) {
-            val result = request.items.map { copyRequest ->
-                val collection = copyRequest.resolvedNewCollection.specification.product
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedNewCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        copy(bulkRequestOf(copyRequest)).single()
+                        BulkResponse(copy(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.trash) {
-            val result = request.items.map { request ->
-                val collection = request.resolvedCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
-                    with(plugin) {
-                        moveToTrash(bulkRequestOf(request)).single()
-                    }
+            val response = dispatchToPlugin(plugins, request.items, { it.resolvedCollection }) { plugin, request ->
+                with(plugin) {
+                    BulkResponse(moveToTrash(request))
                 }
             }
-            ok(BulkResponse(result))
+            ok(response)
         }
 
         implement(api.emptyTrash) {
-            val result = request.items.map { request ->
-                val collection = request.resolvedCollection.specification.product
-
-                val plugin = lookupPlugin(collection)
-                with(requestContext(controllerContext)) {
+            val result = dispatchToPlugin(
+                plugins = plugins,
+                items = request.items,
+                selector = { it.resolvedCollection },
+                dispatcher = { plugin, request ->
                     with(plugin) {
-                        emptyTrash(bulkRequestOf(request)).single()
+                        BulkResponse(emptyTrash(request))
                     }
                 }
-            }
-            ok(BulkResponse(result))
+            )
+
+            ok(result)
         }
 
         implement(api.createDownload) {

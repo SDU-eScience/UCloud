@@ -17,7 +17,10 @@ import dk.sdu.cloud.plugins.FileUploadSession
 import dk.sdu.cloud.plugins.InternalFile
 import dk.sdu.cloud.plugins.PluginContext
 import dk.sdu.cloud.controllers.RequestContext
+import dk.sdu.cloud.debug.detailD
+import dk.sdu.cloud.logThrowable
 import dk.sdu.cloud.plugins.UCloudFile
+import dk.sdu.cloud.plugins.fileName
 import dk.sdu.cloud.plugins.storage.PathConverter
 import dk.sdu.cloud.service.Loggable
 import dk.sdu.cloud.service.Logger
@@ -28,10 +31,15 @@ import io.ktor.http.*
 import io.ktor.server.application.*
 import io.ktor.server.response.*
 import io.ktor.utils.io.*
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.produce
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.builtins.serializer
 import libc.clib
 import java.io.File
 import java.io.IOException
@@ -43,6 +51,8 @@ import java.nio.file.attribute.PosixFileAttributes
 import java.nio.file.attribute.PosixFilePermission
 import kotlin.io.path.absolutePathString
 import kotlin.math.min
+import kotlin.time.ExperimentalTime
+import kotlin.time.measureTime
 import java.nio.file.Files as NioFiles
 
 class PosixFilesPlugin : FilePlugin {
@@ -93,6 +103,7 @@ class PosixFilesPlugin : FilePlugin {
 
         // Dispatch task related tasks and run the processor
         if (shouldBackgroundProcess && doCreate) {
+            val now = Time.now()
             taskSystem.registerTask(task)
         }
 
@@ -104,11 +115,14 @@ class PosixFilesPlugin : FilePlugin {
                     // NOTE(Dan): If the task takes less than a second to complete, then it is still possible that
                     // UCloud hasn't even processed our task creation request. Wait for a bit to make sure that it is
                     // ready to mark it as complete.
-                    if (Time.now() - task.timestamp < 1000) {
-                        delay(250)
-                    }
-                    runCatching {
-                        taskSystem.markTaskAsComplete(task.collectionId, task.id)
+                    for (attempt in 0 until 10) {
+                        val success = runCatching {
+                            taskSystem.markTaskAsComplete(task.collectionId, task.id)
+                        }.isSuccess
+
+                        if (success) break
+
+                        delay(1500)
                     }
                 }
             }
@@ -278,15 +292,27 @@ class PosixFilesPlugin : FilePlugin {
 
         val shouldSort = items.size <= 10_000
         if (shouldSort) {
-            val files = items.map { nativeStat(InternalFile(it)) }
+            val files = items.mapNotNull { runCatching { nativeStat(InternalFile(it)) }.getOrNull() }
             val pathComparator = compareBy(String.CASE_INSENSITIVE_ORDER, PartialUFile::id)
             var comparator = when (FilesSortBy.values().find { it.name == request.browse.sortBy } ?: FilesSortBy.PATH) {
                 FilesSortBy.PATH -> pathComparator
                 FilesSortBy.SIZE -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.sizeInBytes ?: 0L) - (b.status.sizeInBytes ?: 0L)).toInt()
+                    val aSize = a.status.sizeInBytes ?: 0L
+                    val bSize = b.status.sizeInBytes ?: 0L
+                    when {
+                        aSize < bSize -> -1
+                        aSize > bSize ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
                 FilesSortBy.MODIFIED_AT -> Comparator<PartialUFile> { a, b ->
-                    ((a.status.modifiedAt ?: 0L) - (b.status.modifiedAt ?: 0L)).toInt()
+                    val aModifiedAt = a.status.modifiedAt ?: 0L
+                    val bModifiedAt = b.status.modifiedAt ?: 0L
+                    when {
+                        aModifiedAt < bModifiedAt -> -1
+                        aModifiedAt > bModifiedAt ->  1
+                        else -> 0
+                    }
                 }.thenComparator { a, b -> pathComparator.compare(a, b) }
             }
             if (request.browse.sortDirection != SortDirection.ascending) comparator = comparator.reversed()
@@ -294,7 +320,9 @@ class PosixFilesPlugin : FilePlugin {
             browseCache.insert(token, sortedFiles)
             return paginateFiles(sortedFiles, offset, token)
         } else {
-            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).map { nativeStat(InternalFile(it)) }
+            val files = items.subList(offset, min(items.size, offset + itemsPerPage)).mapNotNull {
+                runCatching { nativeStat(InternalFile(it)) }.getOrNull()
+            }
             return PageV2(
                 itemsPerPage,
                 files,
@@ -303,64 +331,102 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
-
     private fun nativeStat(file: InternalFile): PartialUFile {
-        val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
-
         val internalToUCloud = pathConverter.internalToUCloud(file)
-        val numberOfComponents = internalToUCloud.path.count { it == '/' }
-        val isTrash = numberOfComponents == 2 && internalToUCloud.path.endsWith("/Trash")
 
-        return PartialUFile(
-            internalToUCloud.path,
-            UFileStatus(
-                if (posixAttributes.isDirectory) FileType.DIRECTORY else FileType.FILE,
-                sizeInBytes = posixAttributes.size(),
-                modifiedAt = posixAttributes.lastModifiedTime().toMillis(),
-                accessedAt = posixAttributes.lastAccessTime().toMillis(),
-                unixMode = posixAttributes.permissions().toInt(),
-                unixOwner = clib.retrieveUserIdFromName(posixAttributes.owner().name),
-                unixGroup = clib.retrieveGroupIdFromName(posixAttributes.group().name),
-                icon = if (isTrash) FileIconHint.DIRECTORY_TRASH else null,
-            ),
-            posixAttributes.lastModifiedTime().toMillis(),
-        )
+        try {
+            val posixAttributes = NioFiles.readAttributes(file.toNioPath(), PosixFileAttributes::class.java)
+
+            val numberOfComponents = internalToUCloud.path.count { it == '/' }
+            val isTopLevel = numberOfComponents == 2
+            val fileName = internalToUCloud.path.fileName()
+
+            return PartialUFile(
+                internalToUCloud.path,
+                UFileStatus(
+                    if (posixAttributes.isDirectory) FileType.DIRECTORY else FileType.FILE,
+                    sizeInBytes = posixAttributes.size(),
+                    modifiedAt = posixAttributes.lastModifiedTime().toMillis(),
+                    accessedAt = posixAttributes.lastAccessTime().toMillis(),
+                    unixMode = posixAttributes.permissions().toInt(),
+                    unixOwner = clib.retrieveUserIdFromName(posixAttributes.owner().name),
+                    unixGroup = clib.retrieveGroupIdFromName(posixAttributes.group().name),
+                    icon = when {
+                        isTopLevel && fileName == "Trash" -> FileIconHint.DIRECTORY_TRASH
+                        isTopLevel && fileName == "UCloud Jobs" -> FileIconHint.DIRECTORY_JOBS
+                        else -> null
+                    }
+                ),
+                posixAttributes.lastModifiedTime().toMillis(),
+            )
+        } catch (ex: AccessDeniedException) {
+            return PartialUFile(
+                internalToUCloud.path,
+                UFileStatus(
+                    FileType.FILE,
+                    sizeInBytes = 0L,
+                    modifiedAt = 0L,
+                    accessedAt = 0L,
+                    unixMode = 0,
+                    unixOwner = 0,
+                    unixGroup = 0
+                ),
+                0L
+            )
+        }
     }
 
     override suspend fun RequestContext.moveToTrash(
         request: BulkRequest<FilesProviderTrashRequestItem>
     ): List<LongRunningTask?> {
-        return request.items.map { reqItem ->
-            processTask(
-                PosixTask.MoveToTrash(
-                    "Moving files to trash...",
-                    reqItem.resolvedCollection.id,
-                    reqItem
+        val allItems = request.items
+            .groupBy { it.resolvedCollection.id }
+            .map { (collId, tasks) ->
+                collId to processTask(
+                    PosixTask.MoveToTrash(
+                        "Moving files to trash...",
+                        collId,
+                        tasks[0].resolvedCollection,
+                        tasks
+                    )
                 )
-            )
+            }
+            .toMap()
+        val didSeeCollection = hashSetOf<String>()
+
+        return request.items.map {
+            if (it.resolvedCollection.id !in didSeeCollection) {
+                didSeeCollection.add(it.resolvedCollection.id)
+                allItems[it.resolvedCollection.id]
+            } else {
+                LongRunningTask.Complete()
+            }
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private suspend fun PosixTask.MoveToTrash.process() {
         val expectedTrashLocation = pathConverter.ucloudToInternal(
-            UCloudFile.create("/${request.resolvedCollection.id}/Trash")
+            UCloudFile.create("/${collectionId}/Trash")
         )
 
         if (!fileExists(expectedTrashLocation.path)) {
             NioFiles.createDirectories(expectedTrashLocation.toNioPath())
         }
 
-        PosixTask.Move(
-            title,
-            collectionId,
-            FilesProviderMoveRequestItem(
-                request.resolvedCollection,
-                request.resolvedCollection,
-                request.id,
-                "/${request.resolvedCollection.id}/Trash/${request.id.fileName()}",
-                WriteConflictPolicy.RENAME
-            )
-        ).process()
+        for (reqItem in request) {
+            PosixTask.Move(
+                title,
+                collectionId,
+                FilesProviderMoveRequestItem(
+                    resolvedCollection,
+                    resolvedCollection,
+                    reqItem.id,
+                    "/${resolvedCollection.id}/Trash/${reqItem.id.fileName()}",
+                    WriteConflictPolicy.RENAME
+                )
+            ).process()
+        }
     }
 
     override suspend fun RequestContext.emptyTrash(
@@ -406,7 +472,19 @@ class PosixFilesPlugin : FilePlugin {
     ): List<LongRunningTask?> {
         val result = req.items.map { reqItem ->
             val internalFile = pathConverter.ucloudToInternal(UCloudFile.create(reqItem.id))
-            NioFiles.createDirectories(internalFile.toNioPath())
+            try {
+                NioFiles.createDirectories(internalFile.toNioPath())
+            } catch (ex: FileAlreadyExistsException) {
+                throw RPCException(
+                    "Unable to create folder. A file with this name already exists!",
+                    HttpStatusCode.Conflict
+                )
+            } catch (ex: AccessDeniedException) {
+                throw RPCException(
+                    "Unable to create folder. It looks like you do not have sufficient permissions!",
+                    HttpStatusCode.Forbidden
+                )
+            }
             LongRunningTask.Complete()
         }
         return result
@@ -419,7 +497,7 @@ class PosixFilesPlugin : FilePlugin {
             val file = pathConverter.ucloudToInternal(UCloudFile.create(it.id))
 
             // Confirm that we can open the file
-            NativeFile.open(file.path, readOnly = false, mode = DEFAULT_FILE_MODE.toInt()).close()
+            NativeFile.open(file.path, readOnly = false, mode = null).close()
 
             FileUploadSession(secureToken(64), file.path)
         }
@@ -456,6 +534,12 @@ class PosixFilesPlugin : FilePlugin {
                 throw RPCException("Requested data is not a file", HttpStatusCode.NotFound)
             }
 
+            try {
+                NioFiles.newByteChannel(file.toNioPath()).close()
+            } catch (ex: AccessDeniedException) {
+                throw RPCException("You do not have permissions to download this file", HttpStatusCode.NotFound)
+            }
+
             FileDownloadSession(secureToken(64), file.path)
         }
     }
@@ -486,6 +570,62 @@ class PosixFilesPlugin : FilePlugin {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    override suspend fun RequestContext.streamingSearch(
+        req: FilesProviderStreamingSearchRequest
+    ): ReceiveChannel<FilesProviderStreamingSearchResult.Result> = ProcessingScope.produce {
+        val currentFolder = req.currentFolder ?: return@produce
+        val normalizedQuery = req.query.trim().split(" ").map { it.lowercase() }
+        fun fileNameMatchesQuery(name: String): Boolean {
+            val lowercased = name.lowercase()
+            return normalizedQuery.any { lowercased.contains(it) }
+        }
+
+        val deadline = Time.now() + 60_000
+
+        val stack = ArrayDeque<InternalFile>()
+        stack.add(pathConverter.ucloudToInternal(UCloudFile.create(currentFolder)))
+        while (isActive && Time.now() < deadline) {
+            val file = stack.removeFirstOrNull() ?: break
+            val childNames = runCatching { listFiles(file.path) }.getOrNull() ?: continue
+            val children = childNames.map { InternalFile(it) }
+
+            // NOTE(Dan): The folderBatch cannot be re-used between folders as the results are consumed asynchronously
+            // and clearing it at the end would result in an empty result in the consumer.
+            val folderBatch = ArrayList<PartialUFile>()
+            for (child in children) {
+                val fileName = child.fileName()
+                val isProbablyFile = run {
+                    // NOTE(Dan): This small snippet tries to determine if the file we are looking at is probably a
+                    // file. We do this to avoid stat-ing files which do not match the query and are probably not
+                    // directories. The end result is that we can search a lot more files in the time we have, since
+                    // most file-systems probably contains mostly files which obviously do not match the query.
+                    //
+                    // We assume an entry is a file if its name has a dot within the last 5 characters of its name.
+                    // Extensions are typically not longer than 4 characters.
+                    val indexOfLastDot = fileName.lastIndexOf('.')
+                    if (indexOfLastDot == -1) return@run false
+                    fileName.length - indexOfLastDot <= 5
+                }
+
+                val matches = fileNameMatchesQuery(child.fileName())
+                if (isProbablyFile && !matches) continue
+
+                val fileInfo = runCatching { nativeStat(child) }.getOrNull() ?: continue
+                if (fileInfo.status.type == FileType.DIRECTORY) {
+                    if (!NioFiles.isSymbolicLink(child.toNioPath())) stack.add(child)
+                }
+                if (!matches) continue
+
+                folderBatch.add(fileInfo)
+            }
+
+            if (folderBatch.isNotEmpty()) {
+                send(FilesProviderStreamingSearchResult.Result(folderBatch))
+            }
+        }
+    }
+
     override suspend fun RequestContext.retrieveProducts(
         knownProducts: List<ProductReference>
     ): BulkResponse<FSSupport> {
@@ -512,6 +652,7 @@ class PosixFilesPlugin : FilePlugin {
                     aclModifiable = false,
                     trashSupported = true,
                     isReadOnly = false,
+                    streamingSearchSupported = true
                 )
             )
         })

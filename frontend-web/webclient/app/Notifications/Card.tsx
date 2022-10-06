@@ -18,7 +18,7 @@ export interface NotificationProps {
     onAction?: () => void;
 }
 
-export const NotificationCard: React.FunctionComponent<NotificationProps & { 
+export const NotificationCard: React.FunctionComponent<NotificationProps & {
     top: string;
     exit?: boolean;
     callbackItem?: any;
@@ -32,27 +32,29 @@ export const NotificationCard: React.FunctionComponent<NotificationProps & {
     const onMouseLeaveMemo = useCallback(() => {
         props.onMouseLeave?.(props.callbackItem);
     }, [props.callbackItem, props.onMouseLeave]);
-    const onSnooze = useCallback(() => {
+    const onSnooze = useCallback((e: React.SyntheticEvent) => {
+        e.stopPropagation();
+        e.preventDefault();
         if (props.isPinned) {
             props.onSnooze?.(props.callbackItem);
         }
     }, [props.callbackItem, props.onSnooze, props.isPinned]);
 
-    return <Style 
-        style={{position: "fixed", top: props.top, right: "16px"}} 
+    return <Style
+        style={{position: "fixed", top: props.top, right: "16px"}}
         className={props.exit ? "exit" : undefined}
         onMouseEnter={onMouseEnterMemo}
         onMouseLeave={onMouseLeaveMemo}
         onClick={props.onAction}
     >
-        <HighlightedCard 
-            color={props.isPinned ? "orange" : "blue"} 
-            highlightSize="2px" 
+        <HighlightedCard
+            color={props.isPinned ? "orange" : "blue"}
+            highlightSize="2px"
             innerPaddingX="10px"
             innerPaddingY="6px"
         >
             <div className="notification-inner">
-                <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"} 
+                <Icon name={props.icon} size="32px" color={props.iconColor ?? "iconColor"}
                       color2={props.iconColor2 ?? "iconColor2"} />
                 <div className="notification-content">
                     <Flex>

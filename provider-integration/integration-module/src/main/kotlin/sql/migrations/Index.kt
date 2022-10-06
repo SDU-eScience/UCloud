@@ -25,5 +25,6 @@ fun loadMigrations(migrationHandler: MigrationHandler) {
     migrationHandler.addScript(V2__ComputeSessions())
     migrationHandler.addScript(V1__GenericLicenses())
     migrationHandler.addScript(V2__UCloudCompute())
+    migrationHandler.addScript(V2__Puhuri())
     migrationHandler.addScript(V1__PosixStorage())
 }

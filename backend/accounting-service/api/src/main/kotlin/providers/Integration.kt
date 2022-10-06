@@ -34,7 +34,10 @@ data class IntegrationBrowseResponseItem(
 )
 
 @Serializable
-data class IntegrationClearConnectionRequest(val username: String, val provider: String)
+data class IntegrationClearConnectionRequest(
+    val username: String? = null,
+    val provider: String? = null,
+)
 typealias IntegrationClearConnectionResponse = Unit
 
 object Integration : CallDescriptionContainer("providers.im") {
@@ -49,6 +52,6 @@ object Integration : CallDescriptionContainer("providers.im") {
     }
 
     val clearConnection = call("clearConnection", IntegrationClearConnectionRequest.serializer(), IntegrationClearConnectionResponse.serializer(), CommonErrorMessage.serializer()) {
-        httpUpdate(baseContext, "clearConnection", roles = Roles.PRIVILEGED)
+        httpUpdate(baseContext, "clearConnection", roles = Roles.AUTHENTICATED)
     }
 }

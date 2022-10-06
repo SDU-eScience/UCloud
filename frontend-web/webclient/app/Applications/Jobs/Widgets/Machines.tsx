@@ -11,6 +11,8 @@ import styled from "styled-components";
 import {NoResultsCardBody} from "@/Dashboard/Dashboard";
 import {priceExplainer, productCategoryEquals, ProductCompute} from "@/Accounting";
 import * as UCloud from "@/UCloud";
+import {grantsLink} from "@/UtilityFunctions";
+import {Client} from "@/Authentication/HttpClientInstance";
 
 export const reservationMachine = "reservation-machine";
 
@@ -133,7 +135,7 @@ export const Machines: React.FunctionComponent<{
                         are trying to run a virtual machine, please make sure you have applied for the correct credits
                         in your grant application.
 
-                        <Link to={"/project/grants-landing"}>
+                        <Link to={grantsLink(Client)}>
                             <Button fullWidth mb={"4px"}>Apply for resources</Button>
                         </Link>
                     </NoResultsCardBody>

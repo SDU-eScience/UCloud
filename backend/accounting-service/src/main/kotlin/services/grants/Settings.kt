@@ -1,15 +1,14 @@
 package dk.sdu.cloud.accounting.services.grants
 
-import dk.sdu.cloud.Actor
-import dk.sdu.cloud.ActorAndProject
-import dk.sdu.cloud.Roles
+import dk.sdu.cloud.*
 import dk.sdu.cloud.WithPaginationRequestV2
+import dk.sdu.cloud.accounting.api.projects.*
+import dk.sdu.cloud.calls.BulkRequest
 import dk.sdu.cloud.calls.HttpStatusCode
 import dk.sdu.cloud.calls.RPCException
-import dk.sdu.cloud.defaultMapper
 import dk.sdu.cloud.grant.api.*
-import dk.sdu.cloud.safeUsername
 import dk.sdu.cloud.service.*
+import dk.sdu.cloud.service.PageV2
 import dk.sdu.cloud.service.db.async.*
 import io.ktor.utils.io.*
 import io.ktor.utils.io.jvm.javaio.*
@@ -35,43 +34,48 @@ class GrantSettingsService(
 ) {
     suspend fun uploadRequestSettings(
         actorAndProject: ActorAndProject,
-        request: UploadRequestSettingsRequest
+        request: BulkRequest<UploadRequestSettingsRequest>
     ) {
-        if (actorAndProject.project == null) throw RPCException("Must supply a project", HttpStatusCode.BadRequest)
+        if (actorAndProject.project == null) throw RPCException("Settings only available in project context", HttpStatusCode.BadRequest)
 
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project", actorAndProject.project)
+            request.items.forEach { req ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project", actorAndProject.project)
 
-                    request.excludeRequestsFrom.split {
-                        into("new_exclude_list") { excludeEntry ->
-                            if (excludeEntry !is UserCriteria.EmailDomain) {
-                                throw RPCException("Exclude list can only contain emails", HttpStatusCode.BadRequest)
+                        req.excludeRequestsFrom.split {
+                            into("new_exclude_list") { excludeEntry ->
+                                if (excludeEntry !is UserCriteria.EmailDomain) {
+                                    throw RPCException(
+                                        "Exclude list can only contain emails",
+                                        HttpStatusCode.BadRequest
+                                    )
+                                }
+                                excludeEntry.domain
                             }
-                            excludeEntry.domain
                         }
-                    }
 
-                    request.allowRequestsFrom.split {
-                        into("new_include_list_type") { it.type }
-                        into("new_include_list_entity") { it.id }
-                    }
+                        req.allowRequestsFrom.split {
+                            into("new_include_list_type") { it.type }
+                            into("new_include_list_entity") { it.id }
+                        }
 
-                    request.automaticApproval.from.split {
-                        into("auto_approve_list_type") { it.type }
-                        into("auto_approve_list_entity") { it.id }
-                    }
+                        req.automaticApproval.from.split {
+                            into("auto_approve_list_type") { it.type }
+                            into("auto_approve_list_entity") { it.id }
+                        }
 
-                    request.automaticApproval.maxResources.split {
-                        into("auto_approve_category") { it.productCategory }
-                        into("auto_approve_provider") { it.productProvider }
-                        into("auto_approve_quota") { null }
-                        into("auto_approve_credits") { it.balanceRequested }
-                    }
-                },
-                """
+                        req.automaticApproval.maxResources.split {
+                            into("auto_approve_category") { it.category }
+                            into("auto_approve_provider") { it.provider }
+                            into("auto_approve_quota") { null }
+                            into("auto_approve_grant_giver") {actorAndProject.project}
+                            into("auto_approve_credits") { it.balanceRequested }
+                        }
+                    },
+                    """
                     select "grant".upload_request_settings(
                         :username, :project,
                         
@@ -80,10 +84,11 @@ class GrantSettingsService(
                         :new_include_list_type, :new_include_list_entity,
                         
                         :auto_approve_list_type, :auto_approve_list_entity, :auto_approve_category,
-                        :auto_approve_provider, :auto_approve_credits, :auto_approve_quota
+                        :auto_approve_provider, :auto_approve_credits, :auto_approve_quota, :auto_approve_grant_giver
                     )
                 """
-            )
+                )
+            }
         }
     }
 
@@ -96,9 +101,11 @@ class GrantSettingsService(
                 {
                     setParameter("username", actorAndProject.actor.safeUsername())
                     setParameter("project", projectId)
+                    setParameter("period_start", Time.now() / 1000)
                 },
                 """
                     select jsonb_build_object(
+                        'projectId', :project::text,
                         'automaticApproval', jsonb_build_object(
                             'from', auto_approve_from,
                             'maxResources', auto_limit
@@ -132,10 +139,10 @@ class GrantSettingsService(
                             array_remove(array_agg(
                                 case when auto_users.type is null then null else 
                                 jsonb_build_object('type', auto_users.type) || case
-                                    when allow_entry.type = 'anyone' then '{}'::jsonb
-                                    when allow_entry.type = 'email' then
+                                    when auto_users.type = 'anyone' then '{}'::jsonb
+                                    when auto_users.type = 'email' then
                                         jsonb_build_object('domain', auto_users.applicant_id)
-                                    when allow_entry.type = 'wayf' then
+                                    when auto_users.type = 'wayf' then
                                         jsonb_build_object('org', auto_users.applicant_id)
                                 end
                                 end
@@ -144,10 +151,15 @@ class GrantSettingsService(
                             array_remove(array_agg(
                                 case when pc.category is null then null else 
                                 jsonb_build_object(
-                                    'productCategory', pc.category,
-                                    'productProvider', pc.provider,
+                                    'category', pc.category,
+                                    'provider', pc.provider,
                                     'creditsRequested', auto_limits.maximum_credits,
-                                    'quotaRequested', auto_limits.maximum_quota_bytes
+                                    'quotaRequested', auto_limits.maximum_quota_bytes,
+                                    'grantGiver', auto_limits.grant_giver,
+                                    'period', jsonb_build_object(
+                                        'start', :period_start::bigint,
+                                        'end', null
+                                    )
                                 )
                                 end
                             ), null) auto_limit
@@ -166,9 +178,9 @@ class GrantSettingsService(
                                 auto_limits.product_category = pc.id
                                 
                         where
-                            pm.project_id = :project and
+                            pm.project_id = :project::text and
                             (pm.role = 'ADMIN' or pm.role = 'PI') and
-                            pm.username = :username
+                            pm.username = :username::text
                     ) t 
                     where 
                         allow_from is not null or 
@@ -186,8 +198,7 @@ class GrantSettingsService(
 
     suspend fun setEnabledStatus(
         actorAndProject: ActorAndProject,
-        projectId: String,
-        enabledStatus: Boolean
+        requests: BulkRequest<SetEnabledStatusRequest>
     ) {
         when (val actor = actorAndProject.actor) {
             Actor.System -> {
@@ -202,23 +213,24 @@ class GrantSettingsService(
                 }
             }
         }
-
         db.withSession(remapExceptions = true) { session ->
-            session.sendPreparedStatement(
-                {
-                    setParameter("project_id", projectId)
-                    setParameter("status", enabledStatus)
-                },
-                """
-                    with deletion as (
-                        delete from "grant".is_enabled
-                        where project_id = :project_id
-                    )
-                    insert into "grant".is_enabled (project_id)
-                    select :project_id
-                    where :status
-                """
-            )
+            requests.items.forEach { req ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("project_id", req.projectId)
+                        setParameter("status", req.enabledStatus)
+                    },
+                    """
+                        with deletion as (
+                            delete from "grant".is_enabled
+                            where project_id = :project_id
+                        )
+                        insert into "grant".is_enabled (project_id)
+                        select :project_id
+                        where :status
+                    """
+                )
+            }
         }
     }
 
@@ -227,10 +239,134 @@ class GrantSettingsService(
     ): Boolean {
         return db.withSession(remapExceptions = true) { session ->
             session.sendPreparedStatement(
-                { setParameter("projectId", projectId) },
-                "select * from \"grant\".is_enabled where project_id = :projectId"
+                {
+                    setParameter("projectId", projectId)
+                },
+                """
+                    select * 
+                    from "grant".is_enabled 
+                    where project_id = :projectId
+                """
             ).rows.size > 0
         }
+    }
+
+    suspend fun browseAffiliationByResource(
+        actorAndProject: ActorAndProject,
+        request: GrantsBrowseAffiliationsByResourceRequest
+    ): PageV2<ProjectWithTitle> {
+        if (actorAndProject.project == null) {
+            throw RPCException("Not in a project", HttpStatusCode.Forbidden)
+        }
+        val application = db.withSession {session ->
+            session.sendPreparedStatement(
+                {
+                    setParameter("appId", request.applicationId)
+                },
+                """
+                    select "grant".application_to_json(:appId) 
+                """.trimIndent()
+            ).rows.map {
+                defaultMapper.decodeFromString<GrantApplication>(it.getString(0)!!)
+            }.singleOrNull() ?: throw RPCException("Did not find application", HttpStatusCode.NotFound)
+        }
+        val requestedResources = application.currentRevision.document.allocationRequests
+        val currentProjectResourceRequests = requestedResources.filter { it.grantGiver == actorAndProject.project }
+        val projectFilter =
+        if (application.currentRevision.document.recipient is GrantApplication.Recipient.ExistingProject) {
+            val initial = requestedResources.map { it.grantGiver }.toMutableSet()
+            initial.add((application.currentRevision.document.recipient as GrantApplication.Recipient.ExistingProject).id)
+            initial.toList()
+        } else {
+            requestedResources.map { it.grantGiver }.toSet().toList()
+        }
+        return db.paginateV2(
+            actorAndProject.actor,
+            request.normalize(),
+            create = { session ->
+                session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+
+                        currentProjectResourceRequests.split {
+                            into("providers") {it.provider}
+                            into("category_ids") {it.category}
+                        }
+                        setParameter("resources_size", currentProjectResourceRequests.size)
+                        setParameter("grant_givers", projectFilter)
+                    },
+                    """
+                        declare c cursor for
+                        with
+                            resources_requested as (
+                                select 
+                                    unnest(:providers::text[]) provider,
+                                    unnest(:category_ids::text[]) category
+                            ),
+                            projects_with_resources as (
+                                select 
+                                    p.id, count(*) resources_match
+                                from 
+                                    project.projects p join
+                                    accounting.wallet_owner wown on p.id = wown.project_id join
+                                    accounting.wallets wall on wown.id = wall.owned_by join 
+                                    accounting.product_categories pc on wall.category = pc.id join
+                                    resources_requested rr on pc.category = rr.category and pc.provider = rr.provider
+                                group by p.id
+                            ),
+                            preliminary_list as (
+                                select
+                                    allow_entry.project_id,
+                                    requesting_user.id,
+                                    requesting_user.email,
+                                    requesting_user.org_id
+                                from
+                                    auth.principals requesting_user join
+                                    "grant".allow_applications_from allow_entry on
+                                        allow_entry.type = 'anyone' or
+
+                                        (
+                                            allow_entry.type = 'wayf' and
+                                            allow_entry.applicant_id = requesting_user.org_id
+                                        ) or
+
+                                        (
+                                            allow_entry.type = 'email' and
+                                            requesting_user.email like '%@' || allow_entry.applicant_id
+                                        )
+                                where
+                                    requesting_user.id = :username
+                            ),
+                            after_exclusion as (
+                                select
+                                    requesting_user.project_id
+                                from
+                                    preliminary_list requesting_user left join
+                                    "grant".exclude_applications_from exclude_entry on 
+                                        requesting_user.email like '%@' || exclude_entry.email_suffix and
+                                        exclude_entry.project_id = requesting_user.project_id join 
+                                    projects_with_resources pwr on 
+                                        pwr.id = requesting_user.project_id and 
+                                        pwr.resources_match = :resources_size
+                                group by
+                                    requesting_user.project_id
+                                having
+                                    count(email_suffix) = 0
+                            )
+                        select p.id, p.title
+                        from after_exclusion res join project.projects p on 
+                            res.project_id = p.id and 
+                            p.id not in (select unnest(:grant_givers::text[]))
+                        order by p.title
+                    """
+                )
+            },
+            mapper = { _, rows ->
+                rows.mapNotNull {
+                    ProjectWithTitle(it.getString(0)!!, it.getString(1)!!)
+                }
+            }
+        )
     }
 
     suspend fun browse(
@@ -304,17 +440,17 @@ class GrantSettingsService(
 
     suspend fun uploadDescription(
         actorAndProject: ActorAndProject,
-        projectId: String,
-        description: String
+        requests: BulkRequest<UploadDescriptionRequest>
     ) {
         db.withSession(remapExceptions = true) { session ->
-            val success = session.sendPreparedStatement(
-                {
-                    setParameter("username", actorAndProject.actor.safeUsername())
-                    setParameter("project_id", projectId)
-                    setParameter("description", description)
-                },
-                """
+            requests.items.forEach { req ->
+                val success = session.sendPreparedStatement(
+                    {
+                        setParameter("username", actorAndProject.actor.safeUsername())
+                        setParameter("project_id", req.projectId)
+                        setParameter("description", req.description)
+                    },
+                    """
                     insert into "grant".descriptions (project_id, description)
                     select :project_id, :description
                     from project.project_members pm
@@ -325,10 +461,11 @@ class GrantSettingsService(
                     on conflict (project_id) do update set
                         description = excluded.description
                 """
-            ).rowsAffected > 0
+                ).rowsAffected > 0
 
-            if (!success) {
-                throw RPCException("Unable to update description.", HttpStatusCode.NotFound)
+                if (!success) {
+                    throw RPCException("Unable to update description.", HttpStatusCode.NotFound)
+                }
             }
         }
     }
