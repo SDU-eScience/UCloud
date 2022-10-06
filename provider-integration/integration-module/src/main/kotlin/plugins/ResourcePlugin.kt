@@ -26,9 +26,17 @@ interface ResourcePlugin<P : Product, Sup : ProductSupport, Res : Resource<P, Su
      * Invoked by the notification controller _after_ the allocation plugin has run. This method is run in the server
      * context. If multiple plugins cover the same category then _all_ plugins will be invoked.
      *
+     * Each allocation notification contains the summed balance for the product across allocations.
+     *
      * This method is only invoked for the initial allocation not for re-synchronization.
      */
     suspend fun PluginContext.onAllocationCompleteInServerMode(notification: AllocationNotification) {}
+
+    /**
+     * Same as `onAllocationCompleteInServerMode` but where each allocation notification refers to an individual
+     * allocation. That is, allocation notifications does not contain the summed balance across allocations.
+     */
+    suspend fun PluginContext.onAllocationCompleteInServerModeDetailed(notification: DetailedAllocationNotification) {}
 
     /**
      * @see dk.sdu.cloud.accounting.api.providers.ResourceProviderApi.retrieveProducts

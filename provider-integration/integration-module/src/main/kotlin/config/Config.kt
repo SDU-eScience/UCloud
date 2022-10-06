@@ -272,7 +272,9 @@ data class ConfigSchema(
                 @Serializable
                 data class Extensions(
                     val onAllocation: String,
+                    val onAllocationDetailed: String,
                     val onSynchronization: String,
+                    val onSynchronizationDetailed: String,
                 )
             }
 

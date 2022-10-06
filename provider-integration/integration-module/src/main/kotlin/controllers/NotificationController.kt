@@ -9,10 +9,7 @@ import dk.sdu.cloud.calls.client.orThrow
 import dk.sdu.cloud.calls.server.RpcServer
 import dk.sdu.cloud.config.ConfigSchema
 import dk.sdu.cloud.debug.*
-import dk.sdu.cloud.plugins.AllocationNotification
-import dk.sdu.cloud.plugins.AllocationPlugin
-import dk.sdu.cloud.plugins.OnResourceAllocationResult
-import dk.sdu.cloud.plugins.rpcClient
+import dk.sdu.cloud.plugins.*
 import dk.sdu.cloud.project.api.v2.ProjectNotifications
 import dk.sdu.cloud.project.api.v2.ProjectNotificationsProvider
 import dk.sdu.cloud.service.Controller
@@ -89,6 +86,7 @@ class NotificationController(
 
                 debug.enterContext("Allocation notifications") {
                     processAllocations()
+                    processAllocationsDetailed()
                 }
             } catch (ex: Throwable) {
                 log.info(
@@ -174,6 +172,102 @@ class NotificationController(
 
     // Allocations
     // ================================================================================================================
+    private suspend fun processAllocationsDetailed() {
+        // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
+        //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
+        //  where the batch is always full of items that we cannot handle/starvation problem.
+        val batch = DepositNotifications.retrieve.call(
+            Unit,
+            controllerContext.pluginContext.rpcClient
+        ).orThrow()
+
+        if (batch.responses.isEmpty()) return
+
+        val output = arrayOfNulls<OnResourceAllocationResult>(batch.responses.size)
+        val notificationsByType = HashMap<ProductType, ArrayList<Pair<Int, DetailedAllocationNotification>>>()
+
+        outer@ for ((idx, notification) in batch.responses.withIndex()) {
+            val combinedProviderSummary = Wallets.retrieveProviderSummary.call(
+                WalletsRetrieveProviderSummaryRequest(
+                    filterOwnerId = when (val owner = notification.owner) {
+                        is WalletOwner.User -> owner.username
+                        is WalletOwner.Project -> owner.projectId
+                    },
+                    filterOwnerIsProject = notification.owner is WalletOwner.Project,
+                    filterCategory = notification.category.name
+                ),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow().items
+            for (providerSummary in combinedProviderSummary) {
+                val productType = providerSummary.productType
+
+                val list = notificationsByType[productType] ?: ArrayList()
+                notificationsByType[productType] = list
+
+                list.add(Pair(idx, prepareDetailedAllocationNotification(providerSummary) ?: continue))
+            }
+        }
+
+        for ((type, list) in notificationsByType) {
+            val plugins = controllerContext.configuration.plugins
+            val allocationPlugin = plugins.allocations.entries.find { (t) -> t.type == type }?.value
+
+            with(controllerContext.pluginContext) {
+                if (allocationPlugin != null) {
+                    val response = with(allocationPlugin) {
+                        onResourceAllocationDetailed(list.map { it.second })
+                    }
+
+                    for ((request, pluginResponse) in list.zip(response)) {
+                        val (origIdx, _) = request
+                        output[origIdx] = pluginResponse
+                    }
+                }
+            }
+
+            for ((_, notification) in list) {
+                notifyPlugins(notification)
+            }
+        }
+
+        val allPlugin = controllerContext.configuration.plugins.allocations.entries.find { (t) ->
+            t == ConfigSchema.Plugins.AllocationsProductType.ALL
+        }?.value
+
+        allPlugin?.run {
+            with(controllerContext.pluginContext) {
+                onResourceAllocationDetailed(notificationsByType.entries.flatMap { (_, allocs) -> allocs.map { it.second } })
+            }
+        }
+
+        val items = ArrayList<DepositNotificationsMarkAsReadRequestItem>()
+        for ((index, res) in output.withIndex()) {
+            if (res == null) continue
+
+            items.add(
+                DepositNotificationsMarkAsReadRequestItem(
+                    batch.responses[index].id,
+                    (res as? OnResourceAllocationResult.ManageThroughProvider)?.uniqueId
+                )
+            )
+        }
+
+        if (items.isNotEmpty()) {
+            DepositNotifications.markAsRead.call(
+                BulkRequest(items),
+                controllerContext.pluginContext.rpcClient
+            ).orThrow()
+        }
+
+        debug.logD(
+            "Processed ${items.size} allocations",
+            Unit.serializer(),
+            Unit,
+            if (items.size == 0) MessageImportance.IMPLEMENTATION_DETAIL
+            else MessageImportance.THIS_IS_NORMAL
+        )
+    }
+
     private suspend fun processAllocations() {
         // TODO(Dan): Very fragile piece of code that will break if too many people don't connect to the system. We
         //  are only marking notifications as read if we can resolve the owner. This can easily lead to a situation
@@ -201,16 +295,22 @@ class NotificationController(
                 controllerContext.pluginContext.rpcClient
             ).orThrow().items
             for (providerSummary in combinedProviderSummary) {
-
                 val productType = providerSummary.productType
 
                 val list = notificationsByType[productType] ?: ArrayList()
                 notificationsByType[productType] = list
-                // TODO Should IM combine these?
+                val newPair = Pair(idx, prepareAllocationNotification(providerSummary) ?: continue)
+                val existing = list.find { it.first == newPair.first && it.second.owner == newPair.second.owner && it.second.productCategory == newPair.second.productCategory }
 
-                list.add(Pair(idx, prepareAllocationNotification(providerSummary) ?: continue))
+                if (existing != null) {
+                    existing.second.balance += newPair.second.balance
+                } else {
+                    list.add(newPair)
+                }
             }
         }
+
+        println(notificationsByType)
 
         for ((type, list) in notificationsByType) {
             val plugins = controllerContext.configuration.plugins
@@ -287,6 +387,21 @@ class NotificationController(
             }
     }
 
+    private suspend fun notifyPlugins(notification: DetailedAllocationNotification) {
+        val plugins = controllerContext.configuration.plugins
+        plugins.resourcePlugins().asSequence()
+            .filter { plugin ->
+                plugin.productAllocation.any { it.category == notification.productCategory }
+            }
+            .forEach { plugin ->
+                with(controllerContext.pluginContext) {
+                    with(plugin) {
+                        onAllocationCompleteInServerModeDetailed(notification)
+                    }
+                }
+            }
+    }
+
     private fun onConnectionComplete(ucloudId: String, localId: Int) {
         runBlocking {
             val notifications = ArrayList<AllocationNotification>()
@@ -307,7 +422,6 @@ class NotificationController(
                         AllocationNotification(
                             min(summary.maxUsableBalance, summary.maxPromisedBalance),
                             ResourceOwnerWithId.User(ucloudId, localId),
-                            summary.id,
                             summary.categoryId.name,
                             summary.productType,
                         )
@@ -348,6 +462,19 @@ class NotificationController(
         }
     }
 
+    private suspend fun prepareDetailedAllocationNotification(summary: ProviderWalletSummary): DetailedAllocationNotification? {
+        return DetailedAllocationNotification(
+            min(summary.maxUsableBalance, summary.maxPromisedBalance),
+            ResourceOwnerWithId.load(summary.owner, controllerContext.pluginContext) ?: run {
+                log.info("Could not find UID/GID for ${summary.owner}")
+                return null
+            },
+            summary.id,
+            summary.categoryId.name,
+            summary.productType
+        )
+    }
+
     private suspend fun prepareAllocationNotification(summary: ProviderWalletSummary): AllocationNotification? {
         return AllocationNotification(
             min(summary.maxUsableBalance, summary.maxPromisedBalance),
@@ -355,7 +482,6 @@ class NotificationController(
                 log.info("Could not find UID/GID for ${summary.owner}")
                 return null
             },
-            summary.id,
             summary.categoryId.name,
             summary.productType
         )
