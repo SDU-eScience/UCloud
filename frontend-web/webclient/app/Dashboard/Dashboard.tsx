@@ -297,13 +297,6 @@ function DashboardProjectUsage(props: {charts: APICallState<{charts: UsageChart[
                 <NoResultsCardBody title={"No usage"}>
                     <Text textAlign="center">
                         As you use the platform, usage will appear here.
-
-                        <Link to={"/drives"} mt={8}>
-                            <Button fullWidth mt={8}>Explore files</Button>
-                        </Link>
-                        <Link to={"/applications/overview"} mt={8}>
-                            <Button fullWidth mt={8}>Explore applications</Button>
-                        </Link>
                     </Text>
                 </NoResultsCardBody>
             )}
@@ -488,9 +481,6 @@ const DashboardGrantApplications: React.FunctionComponent<{
                     <>
                         <NoResultsCardBody title={"No recent outgoing applications"}>
                             Apply for resources to use storage and compute on UCloud.
-                            <Link to={grantsLink(Client)} width={"100%"}>
-                                <Button fullWidth mt={8}>Apply for resources</Button>
-                            </Link>
                         </NoResultsCardBody>
                     </>
                 )}
@@ -500,6 +490,9 @@ const DashboardGrantApplications: React.FunctionComponent<{
                 )}
             </>
         )}
+        <Link to={grantsLink(Client)} width={"100%"}>
+            <Button fullWidth my={8}>Apply for resources</Button>
+        </Link>
     </HighlightedCard>;
 };
 
