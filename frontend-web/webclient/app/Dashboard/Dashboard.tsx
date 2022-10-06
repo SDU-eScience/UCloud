@@ -427,7 +427,6 @@ function DashboardResources({products}: {
                             </Table>
                         </Box>
                         <Box flexGrow={1} />
-                        {applyLinkButton}
                     </Flex>
                 </>
             }
