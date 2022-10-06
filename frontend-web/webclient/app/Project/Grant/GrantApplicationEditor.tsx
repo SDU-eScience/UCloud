@@ -21,6 +21,7 @@ import {useCloudAPI, useCloudCommand} from "@/Authentication/DataHook";
 import {
     browseWallets,
     explainAllocation,
+    explainUsage,
     normalizeBalanceForBackend,
     normalizeBalanceForFrontend,
     Product,
@@ -532,7 +533,11 @@ function AllocationRows({wallet, onClick}: {onClick(wallet: Wallet, allocation: 
             <TableRow key={a.id} onClick={() => onClick(wallet, a)} cursor="pointer">
                 <TableCell width="200px">{wallet.paysFor.provider}</TableCell>
                 <TableCell width="200px">{wallet.paysFor.name}</TableCell>
-                <TableCell width="200px">{a.localBalance}</TableCell>
+                <TableCell width="200px">
+                    {normalizeBalanceForFrontend(a.balance, wallet.productType, wallet.chargeType, wallet.unit)}
+                    {" "}
+                    {explainUsage(wallet.productType, wallet.chargeType, wallet.unit)}
+                </TableCell>
                 <TableCell width="45px">{a.id}</TableCell>
             </TableRow>
         )}
